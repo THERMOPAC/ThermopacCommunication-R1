@@ -5,7 +5,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db } from "./db";
 import { users, tasks as tasksTable } from "@shared/schema";
-import { eq, or, and, inArray, notInArray, isNull } from "drizzle-orm";
+import { eq, or, and } from "drizzle-orm";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -95,65 +95,14 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) return [];
 
-    let tasks: Task[] = [];
-
-    switch (user.role) {
-      case "Superuser":
-        // Get all tasks
-        tasks = await db.select().from(tasksTable);
-        break;
-
-      case "General Manager":
-        // Get all tasks except those assigned to Superusers
-        const superusers = await db
-          .select()
-          .from(users)
-          .where(eq(users.role, "Superuser"));
-        const superuserIds = superusers.map(u => u.id);
-
-        // Get all subordinates (direct and indirect) of the General Manager
-        const gmSubordinates = await this.getSubordinates(userId);
-        const gmSubordinateIds = gmSubordinates.map(s => s.id);
-
-        tasks = await db
-          .select()
-          .from(tasksTable)
-          .where(
-            and(
-              notInArray(tasksTable.assignedTo, superuserIds),
-              or(
-                eq(tasksTable.assignedTo, userId),
-                inArray(tasksTable.assignedTo, gmSubordinateIds),
-                isNull(tasksTable.assignedTo)
-              )
-            )
-          );
-        break;
-
-      case "Senior Manager":
-      case "Manager":
-        // Get tasks for themselves and all their subordinates (direct and indirect)
-        const allSubordinates = await this.getSubordinates(userId);
-        const allSubordinateIds = allSubordinates.map(s => s.id);
-        tasks = await db
-          .select()
-          .from(tasksTable)
-          .where(
-            or(
-              eq(tasksTable.assignedTo, userId),
-              inArray(tasksTable.assignedTo, allSubordinateIds)
-            )
-          );
-        break;
-
-      case "Employee":
-        // Get only their own tasks
-        tasks = await db
-          .select()
-          .from(tasksTable)
-          .where(eq(tasksTable.assignedTo, userId));
-        break;
-    }
+    const tasks = await db.select()
+      .from(tasksTable)
+      .where(
+        or(
+          eq(tasksTable.assignedTo, userId),
+          eq(tasksTable.createdBy, userId)
+        )
+      );
 
     console.log(`Found tasks:`, tasks);
     return tasks as Task[];
@@ -164,22 +113,20 @@ export class DatabaseStorage implements IStorage {
     const manager = await this.getUser(managerId);
     if (!manager) return [];
 
-    // Get all users who report to this manager directly
-    const directSubordinates = await db.select()
+    const subordinates = await db.select()
       .from(users)
-      .where(eq(users.reportingManagerId, managerId));
+      .where(
+        or(
+          eq(users.reportingManagerId, managerId),
+          and(
+            eq(users.reportingManagerId, managerId),
+            eq(users.role, manager.role)
+          )
+        )
+      );
 
-    // Initialize the result array with direct subordinates
-    let allSubordinates = [...directSubordinates];
-
-    // Recursively get subordinates of each direct subordinate
-    for (const subordinate of directSubordinates) {
-      const subSubordinates = await this.getSubordinates(subordinate.id);
-      allSubordinates = [...allSubordinates, ...subSubordinates];
-    }
-
-    console.log(`Found all subordinates for ${manager.username}:`, allSubordinates);
-    return allSubordinates as User[];
+    console.log(`Found subordinates:`, subordinates);
+    return subordinates as User[];
   }
 
   async getAllUsers(): Promise<User[]> {
