@@ -7,12 +7,34 @@ import { ProtectedRoute } from "./lib/protected-route";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
+import { useAuth } from "@/hooks/use-auth";
+
+// SuperuserRoute component to protect routes that only superusers should access
+function SuperuserRoute({
+  path,
+  component: Component,
+}: {
+  path: string;
+  component: () => React.JSX.Element;
+}) {
+  const { user } = useAuth();
+
+  if (user?.role !== "Superuser") {
+    return <NotFound />;
+  }
+
+  return <ProtectedRoute path={path} component={Component} />;
+}
 
 function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
       <ProtectedRoute path="/" component={Dashboard} />
+      <ProtectedRoute path="/tasks" component={Dashboard} />
+      <ProtectedRoute path="/team" component={Dashboard} />
+      <ProtectedRoute path="/messages" component={Dashboard} />
+      <SuperuserRoute path="/users" component={Dashboard} />
       <Route component={NotFound} />
     </Switch>
   );
