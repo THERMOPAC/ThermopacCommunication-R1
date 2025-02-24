@@ -5,13 +5,17 @@ import TaskList from "@/components/task-list";
 import UserProfile from "@/components/user-profile";
 import UserManagement from "@/components/user-management";
 import { Separator } from "@/components/ui/separator";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { 
   LayoutDashboard, 
   Users, 
   CheckSquare, 
   MessageSquare,
   UserCog,
-  User as UserIcon
+  User as UserIcon,
+  Mail,
+  Phone
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
@@ -27,6 +31,11 @@ export default function Dashboard() {
     queryKey: ["/api/subordinates"],
   });
 
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+    enabled: user?.role === "Superuser", // Only fetch all users for superuser
+  });
+
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
@@ -40,6 +49,15 @@ export default function Dashboard() {
 
   // Show user management when on /users route and user is superuser
   const showUserManagement = location === "/users" && user?.role === "Superuser";
+
+  // Show team view when on /team route
+  const showTeam = location === "/team";
+
+  // Helper function to get reporting manager name
+  const getManagerName = (managerId: number | null) => {
+    const manager = allUsers.find(u => u.id === managerId);
+    return manager ? manager.username : 'N/A';
+  };
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -86,29 +104,80 @@ export default function Dashboard() {
           <div className="grid gap-6">
             {showUserManagement ? (
               <UserManagement />
+            ) : showTeam ? (
+              // Team View
+              <section>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Your Team</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-4">
+                      {/* Display reporting manager if not superuser */}
+                      {user?.role !== "Superuser" && user?.reportingManagerId && (
+                        <div>
+                          <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Manager</h3>
+                          <Card className="bg-muted">
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium">{getManagerName(user.reportingManagerId)}</p>
+                                  <p className="text-sm text-muted-foreground">Reporting Manager</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      )}
+
+                      {/* Team Members/Subordinates */}
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                          {user?.role === "Superuser" ? "All Team Members" : "Your Team Members"}
+                        </h3>
+                        <div className="grid gap-3">
+                          {(user?.role === "Superuser" ? allUsers : subordinates).map((member) => (
+                            <Card key={member.id}>
+                              <CardContent className="p-4">
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <p className="font-medium">{member.username}</p>
+                                      <Badge variant="secondary" className="mt-1">
+                                        {member.role}
+                                      </Badge>
+                                    </div>
+                                    {member.reportingManagerId && member.reportingManagerId !== member.id && (
+                                      <p className="text-sm text-muted-foreground">
+                                        Reports to: {getManagerName(member.reportingManagerId)}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                                    <div className="flex items-center gap-1">
+                                      <Mail className="h-4 w-4" />
+                                      {member.email}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Phone className="h-4 w-4" />
+                                      {member.countryCode} {member.mobileNumber}
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </section>
             ) : (
               <>
                 {/* Tasks Section */}
                 <section>
                   <TaskList tasks={tasks} subordinates={subordinates} />
-                </section>
-
-                {/* Team Section */}
-                <section className="bg-card rounded-lg p-6">
-                  <h2 className="text-xl font-semibold mb-4">Your Team</h2>
-                  <div className="grid gap-4">
-                    {subordinates.map((subordinate) => (
-                      <div 
-                        key={subordinate.id}
-                        className="flex items-center gap-4 p-4 bg-background rounded-lg"
-                      >
-                        <div>
-                          <p className="font-medium">{subordinate.username}</p>
-                          <p className="text-sm text-muted-foreground">{subordinate.role}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </section>
               </>
             )}
