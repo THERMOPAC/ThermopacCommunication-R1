@@ -35,6 +35,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { insertUserSchema } from "@shared/schema";
 import { roles } from "@shared/roles";
 
+// Assume canManage function exists elsewhere, defining a placeholder here.  Replace with actual implementation.
+const canManage = (managerRole: string, userRole: string): boolean => {
+  // Implement your role hierarchy logic here.  This is a placeholder.
+  // For example, a "Manager" can manage "Employee", but not "Admin".
+  if (managerRole === "Admin") return true; // Admins can manage everyone
+  if (managerRole === "Manager" && userRole === "Employee") return true;
+  return false;
+};
+
+
 export default function UserManagement() {
   const { toast } = useToast();
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -118,6 +128,7 @@ export default function UserManagement() {
       role: "Employee" as const,
       mobileNumber: "",
       countryCode: "",
+      reportingManagerId: undefined, // Added default value
     },
   });
 
@@ -133,6 +144,18 @@ export default function UserManagement() {
     },
   });
 
+  // Get potential managers for the selected role
+  const selectedRole = editForm.watch("role");
+  const { data: potentialManagers = [] } = useQuery<User[]>({
+    queryKey: ["/api/users", selectedRole], // Add selectedRole to the queryKey
+  });
+
+  // Filter managers based on role hierarchy
+  const eligibleManagers = potentialManagers.filter(manager => 
+    canManage(manager.role, selectedRole)
+  );
+
+
   function handleEdit(user: User) {
     setEditingUser(user);
     editForm.reset({
@@ -141,6 +164,7 @@ export default function UserManagement() {
       role: user.role,
       mobileNumber: user.mobileNumber,
       countryCode: user.countryCode,
+      reportingManagerId: user.reportingManagerId,
     });
     setIsEditDialogOpen(true);
   }
@@ -320,6 +344,33 @@ export default function UserManagement() {
                     </FormItem>
                   )}
                 />
+
+                {selectedRole !== "Superuser" && (
+                  <FormField
+                    control={editForm.control}
+                    name="reportingManagerId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Reporting Manager</FormLabel>
+                        <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={field.value?.toString()}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select reporting manager" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {eligibleManagers.map((manager) => (
+                              <SelectItem key={manager.id} value={manager.id.toString()}>
+                                {manager.username} ({manager.role})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <Button 
                   type="submit" 
