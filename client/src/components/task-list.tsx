@@ -57,6 +57,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       title: "",
       description: "",
       status: "pending",
+      priority: "Medium",
+      startDate: new Date().toISOString().split('T')[0], // Today's date
+      finishDate: "",
       assignedTo: undefined,
       createdBy: user!.id,
     },
@@ -106,6 +109,59 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priority</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Low">Low</SelectItem>
+                          <SelectItem value="Medium">Medium</SelectItem>
+                          <SelectItem value="High">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="startDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Start Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="finishDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Due Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
@@ -160,6 +216,14 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Status:</span>
                   <span className="capitalize">{task.status}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Priority:</span>
+                  <span className="capitalize">{task.priority}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Due:</span>
+                  <span>{new Date(task.finishDate).toLocaleDateString()}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Assigned To:</span>

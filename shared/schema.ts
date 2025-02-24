@@ -19,6 +19,9 @@ export const tasks = pgTable('tasks', {
   title: text('title').notNull(),
   description: text('description').notNull(),
   status: text('status').notNull().default('pending'),
+  priority: text('priority').notNull().default('Medium'),
+  startDate: text('start_date').notNull(),
+  finishDate: text('finish_date').notNull(),
   assignedTo: integer('assigned_to').references(() => users.id),
   createdBy: integer('created_by').references(() => users.id),
   createdAt: text('created_at').notNull(),
@@ -33,7 +36,11 @@ export const insertUserSchema = createInsertSchema(users).extend({
   countryCode: z.string(),
 });
 
-export const insertTaskSchema = createInsertSchema(tasks);
+export const insertTaskSchema = createInsertSchema(tasks).extend({
+  priority: z.enum(['Low', 'Medium', 'High']),
+  startDate: z.string(),
+  finishDate: z.string()
+});
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
