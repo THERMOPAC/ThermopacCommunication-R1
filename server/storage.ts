@@ -5,7 +5,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db } from "./db";
 import { users, tasks as tasksTable } from "@shared/schema";
-import { eq, or, and } from "drizzle-orm";
+import { eq, or, and, inArray, notInArray, isNull } from "drizzle-orm";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -95,14 +95,57 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) return [];
 
-    const tasks = await db.select()
-      .from(tasksTable)
-      .where(
-        or(
-          eq(tasksTable.assignedTo, userId),
-          eq(tasksTable.createdBy, userId)
-        )
-      );
+    let tasks: Task[] = [];
+
+    switch (user.role) {
+      case "Superuser":
+        // Get all tasks
+        tasks = await db.select().from(tasksTable);
+        break;
+
+      case "General Manager":
+        // Get all tasks except those assigned to Superusers
+        const superusers = await db
+          .select()
+          .from(users)
+          .where(eq(users.role, "Superuser"));
+        const superuserIds = superusers.map(u => u.id);
+
+        tasks = await db
+          .select()
+          .from(tasksTable)
+          .where(
+            or(
+              notInArray(tasksTable.assignedTo, superuserIds),
+              isNull(tasksTable.assignedTo)
+            )
+          );
+        break;
+
+      case "Senior Manager":
+      case "Manager":
+        // Get tasks for themselves and their direct subordinates
+        const subordinates = await this.getSubordinates(userId);
+        const subordinateIds = subordinates.map(s => s.id);
+        tasks = await db
+          .select()
+          .from(tasksTable)
+          .where(
+            or(
+              eq(tasksTable.assignedTo, userId),
+              inArray(tasksTable.assignedTo, subordinateIds)
+            )
+          );
+        break;
+
+      case "Employee":
+        // Get only their own tasks
+        tasks = await db
+          .select()
+          .from(tasksTable)
+          .where(eq(tasksTable.assignedTo, userId));
+        break;
+    }
 
     console.log(`Found tasks:`, tasks);
     return tasks as Task[];
