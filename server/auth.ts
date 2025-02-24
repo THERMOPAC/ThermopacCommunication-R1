@@ -53,14 +53,14 @@ export function setupAuth(app: Express) {
 
         if (!user) {
           console.log(`User not found: ${username}`);
-          return done(null, false);
+          return done(null, false, { message: "Invalid username or password" });
         }
 
         const isValid = await comparePasswords(password, user.password);
         console.log(`Password validation result for ${username}: ${isValid}`);
 
         if (!isValid) {
-          return done(null, false);
+          return done(null, false, { message: "Invalid username or password" });
         }
 
         return done(null, user);
@@ -85,13 +85,16 @@ export function setupAuth(app: Express) {
     try {
       console.log('Registration attempt:', { 
         username: req.body.username,
-        role: req.body.role
+        role: req.body.role,
+        email: req.body.email,
+        countryCode: req.body.countryCode,
+        mobileNumber: req.body.mobileNumber
       });
 
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
         console.log(`Registration failed: Username ${req.body.username} already exists`);
-        return res.status(400).send("Username already exists");
+        return res.status(400).json({ message: "Username already exists" });
       }
 
       const hashedPassword = await hashPassword(req.body.password);
@@ -113,6 +116,7 @@ export function setupAuth(app: Express) {
       });
     } catch (error) {
       console.error('Registration error:', error);
+      res.status(500).json({message: "Registration failed"});
       next(error);
     }
   });
@@ -121,7 +125,7 @@ export function setupAuth(app: Express) {
     passport.authenticate("local", (err, user, info) => {
       if (err) return next(err);
       if (!user) {
-        return res.status(401).json({ message: "Invalid username or password" });
+        return res.status(401).json({ message: info ? info.message : "Invalid username or password" });
       }
       req.login(user, (err) => {
         if (err) return next(err);
