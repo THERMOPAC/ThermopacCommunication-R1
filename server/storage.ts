@@ -70,6 +70,19 @@ export class MemStorage implements IStorage {
                 (canManage(manager.role, user.role))
     );
   }
+
+  async updateUserReportingManager(userId: number, managerId: number): Promise<User> {
+    const user = await this.getUser(userId);
+    if (!user) throw new Error("User not found");
+
+    user.reportingManagerId = managerId;
+    this.users.set(userId, user);
+    return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
 }
 
 export const storage = new MemStorage();

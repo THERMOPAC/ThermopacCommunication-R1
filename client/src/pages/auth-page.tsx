@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { roles } from "@shared/roles";
 import { useLocation } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery } from "@tanstack/react-query";
+import type { User } from "@shared/schema";
+import { canManage } from "@shared/roles";
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
@@ -33,11 +36,11 @@ export default function AuthPage() {
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="register">Register</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="login">
                 <LoginForm />
               </TabsContent>
-              
+
               <TabsContent value="register">
                 <RegisterForm />
               </TabsContent>
@@ -119,9 +122,27 @@ function RegisterForm() {
     },
   });
 
+  // Fetch potential reporting managers based on selected role
+  const selectedRole = form.watch("role");
+  const { data: potentialManagers = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+    enabled: selectedRole !== "Superuser", // Only fetch if not superuser
+  });
+
+  // Filter managers based on role hierarchy
+  const eligibleManagers = potentialManagers.filter(manager => 
+    canManage(manager.role, selectedRole)
+  );
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit((data) => registerMutation.mutate(data))} className="space-y-4">
+      <form onSubmit={form.handleSubmit((data) => {
+        // If superuser, set reportingManagerId to null (will be set to self after creation)
+        if (data.role === "Superuser") {
+          data.reportingManagerId = undefined;
+        }
+        registerMutation.mutate(data);
+      })} className="space-y-4">
         <FormField
           control={form.control}
           name="username"
@@ -135,7 +156,7 @@ function RegisterForm() {
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="email"
@@ -164,7 +185,7 @@ function RegisterForm() {
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="mobileNumber"
@@ -204,6 +225,33 @@ function RegisterForm() {
             </FormItem>
           )}
         />
+
+        {selectedRole !== "Superuser" && (
+          <FormField
+            control={form.control}
+            name="reportingManagerId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Reporting Manager</FormLabel>
+                <Select onValueChange={(value) => field.onChange(Number(value))}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select reporting manager" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {eligibleManagers.map((manager) => (
+                      <SelectItem key={manager.id} value={manager.id.toString()}>
+                        {manager.username} ({manager.role})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         <FormField
           control={form.control}

@@ -69,6 +69,10 @@ export function setupAuth(app: Express) {
       password: await hashPassword(req.body.password),
     });
 
+    if (user.role === "Superuser") {
+      await storage.updateUserReportingManager(user.id, user.id);
+    }
+
     req.login(user, (err) => {
       if (err) return next(err);
       res.status(201).json(user);
@@ -89,5 +93,10 @@ export function setupAuth(app: Express) {
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     res.json(req.user);
+  });
+
+  app.get("/api/users", async (req, res) => {
+    const users = await storage.getAllUsers();
+    res.json(users);
   });
 }
