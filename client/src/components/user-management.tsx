@@ -24,24 +24,48 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Plus } from "lucide-react";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { insertUserSchema } from "@shared/schema";
+import { insertUserSchema, type InsertUser } from "@shared/schema";
 import { roles } from "@shared/roles";
 
 export default function UserManagement() {
   const { toast } = useToast();
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
+  });
+
+  const addUserMutation = useMutation({
+    mutationFn: async (data: InsertUser) => {
+      const res = await apiRequest("POST", "/api/register", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setIsAddDialogOpen(false);
+      addForm.reset();
+      toast({
+        title: "Success",
+        description: "User added successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const deleteUserMutation = useMutation({
@@ -86,7 +110,7 @@ export default function UserManagement() {
     },
   });
 
-  const form = useForm({
+  const editForm = useForm({
     resolver: zodResolver(insertUserSchema.partial()),
     defaultValues: {
       username: "",
@@ -97,9 +121,21 @@ export default function UserManagement() {
     },
   });
 
+  const addForm = useForm<InsertUser>({
+    resolver: zodResolver(insertUserSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+      email: "",
+      role: "Employee",
+      mobileNumber: "",
+      countryCode: "+1",
+    },
+  });
+
   function handleEdit(user: User) {
     setEditingUser(user);
-    form.reset({
+    editForm.reset({
       username: user.username,
       email: user.email,
       role: user.role,
@@ -111,8 +147,12 @@ export default function UserManagement() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>User Management</CardTitle>
+        <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add User
+        </Button>
       </CardHeader>
       <CardContent>
         <Table>
@@ -180,14 +220,15 @@ export default function UserManagement() {
           </TableBody>
         </Table>
 
+        {/* Edit User Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Edit User</DialogTitle>
             </DialogHeader>
-            <Form {...form}>
+            <Form {...editForm}>
               <form 
-                onSubmit={form.handleSubmit((data) => {
+                onSubmit={editForm.handleSubmit((data) => {
                   if (editingUser) {
                     updateUserMutation.mutate({
                       id: editingUser.id,
@@ -198,7 +239,7 @@ export default function UserManagement() {
                 className="space-y-4"
               >
                 <FormField
-                  control={form.control}
+                  control={editForm.control}
                   name="username"
                   render={({ field }) => (
                     <FormItem>
@@ -212,7 +253,7 @@ export default function UserManagement() {
                 />
 
                 <FormField
-                  control={form.control}
+                  control={editForm.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
@@ -227,7 +268,7 @@ export default function UserManagement() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
-                    control={form.control}
+                    control={editForm.control}
                     name="countryCode"
                     render={({ field }) => (
                       <FormItem>
@@ -241,7 +282,7 @@ export default function UserManagement() {
                   />
 
                   <FormField
-                    control={form.control}
+                    control={editForm.control}
                     name="mobileNumber"
                     render={({ field }) => (
                       <FormItem>
@@ -256,7 +297,7 @@ export default function UserManagement() {
                 </div>
 
                 <FormField
-                  control={form.control}
+                  control={editForm.control}
                   name="role"
                   render={({ field }) => (
                     <FormItem>
@@ -286,6 +327,128 @@ export default function UserManagement() {
                   disabled={updateUserMutation.isPending}
                 >
                   Save Changes
+                </Button>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add User Dialog */}
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New User</DialogTitle>
+            </DialogHeader>
+            <Form {...addForm}>
+              <form 
+                onSubmit={addForm.handleSubmit((data) => {
+                  addUserMutation.mutate(data);
+                })} 
+                className="space-y-4"
+              >
+                <FormField
+                  control={addForm.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={addForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={addForm.control}
+                    name="countryCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country Code</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={addForm.control}
+                    name="mobileNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Mobile Number</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={addForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {roles.map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {role}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={addForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={addUserMutation.isPending}
+                >
+                  Add User
                 </Button>
               </form>
             </Form>
