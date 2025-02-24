@@ -3,16 +3,17 @@ import { useAuth } from "@/hooks/use-auth";
 import { Task, User, insertTaskSchema } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
+import { roles, roleHierarchy } from "@shared/roles";
 
 type TaskListProps = {
   tasks: Task[];
@@ -22,6 +23,22 @@ type TaskListProps = {
 export default function TaskList({ tasks, subordinates }: TaskListProps) {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
+
+  // Fetch all users for task assignment
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+
+  // Group users by role
+  const groupedUsers = roles
+    .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
+    .reduce((acc, role) => {
+      const usersInRole = allUsers.filter(u => u.role === role);
+      if (usersInRole.length > 0) {
+        acc[role] = usersInRole;
+      }
+      return acc;
+    }, {} as Record<string, User[]>);
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: Omit<Task, "id">) => {
@@ -75,7 +92,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="description"
@@ -103,10 +120,17 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {subordinates.map((subordinate) => (
-                            <SelectItem key={subordinate.id} value={subordinate.id.toString()}>
-                              {subordinate.username}
-                            </SelectItem>
+                          {Object.entries(groupedUsers).map(([role, users]) => (
+                            <SelectGroup key={role}>
+                              <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                {role}s
+                              </SelectLabel>
+                              {users.map((user) => (
+                                <SelectItem key={user.id} value={user.id.toString()}>
+                                  {user.username}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
                           ))}
                         </SelectContent>
                       </Select>
@@ -140,7 +164,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Assigned To:</span>
                   <span>
-                    {subordinates.find(s => s.id === task.assignedTo)?.username || 'Unassigned'}
+                    {allUsers.find(u => u.id === task.assignedTo)?.username || 'Unassigned'}
                   </span>
                 </div>
               </div>
