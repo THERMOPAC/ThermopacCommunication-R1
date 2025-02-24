@@ -4,7 +4,7 @@ import { roleHierarchy, canManage } from "@shared/roles";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db } from "./db";
-import { users, tasks } from "@shared/schema";
+import { users, tasks as tasksTable } from "@shared/schema";
 import { eq, or, and } from "drizzle-orm";
 
 const PostgresSessionStore = connectPg(session);
@@ -47,7 +47,7 @@ export class DatabaseStorage implements IStorage {
 
   async createTask(insertTask: InsertTask): Promise<Task> {
     console.log(`Creating new task:`, insertTask);
-    const [task] = await db.insert(tasks).values(insertTask).returning();
+    const [task] = await db.insert(tasksTable).values(insertTask).returning();
     console.log(`Created task:`, task);
     return task;
   }
@@ -57,17 +57,17 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) return [];
 
-    const tasks = await db.select()
-      .from(tasks)
+    const userTasks = await db.select()
+      .from(tasksTable)
       .where(
         or(
-          eq(tasks.assignedTo, userId),
-          eq(tasks.createdBy, userId)
+          eq(tasksTable.assignedTo, userId),
+          eq(tasksTable.createdBy, userId)
         )
       );
 
-    console.log(`Found tasks:`, tasks);
-    return tasks;
+    console.log(`Found tasks:`, userTasks);
+    return userTasks;
   }
 
   async getSubordinates(managerId: number): Promise<User[]> {
