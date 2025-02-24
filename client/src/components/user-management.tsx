@@ -371,7 +371,9 @@ export default function UserManagement() {
                           <SelectContent>
                             {getEligibleManagers(editSelectedRole).map(([role, managers]) => (
                               <SelectGroup key={role}>
-                                <SelectLabel className="text-primary font-medium">{role}s</SelectLabel>
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                  {role}s
+                                </SelectLabel>
                                 {managers.map((manager) => (
                                   <SelectItem key={manager.id} value={manager.id.toString()}>
                                     {manager.username}
@@ -511,7 +513,9 @@ export default function UserManagement() {
                           <SelectContent>
                             {getEligibleManagers(addSelectedRole).map(([role, managers]) => (
                               <SelectGroup key={role}>
-                                <SelectLabel className="text-primary font-medium">{role}s</SelectLabel>
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                  {role}s
+                                </SelectLabel>
                                 {managers.map((manager) => (
                                   <SelectItem key={manager.id} value={manager.id.toString()}>
                                     {manager.username}
