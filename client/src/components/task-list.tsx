@@ -5,7 +5,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus } from "lucide-react";
 import { roles, roleHierarchy } from "@shared/roles";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 type TaskListProps = {
   tasks: Task[];
@@ -224,38 +233,56 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
         </Dialog>
       </div>
 
-      <div className="grid gap-4">
-        {tasks.map((task) => (
-          <Card key={task.id}>
-            <CardHeader>
-              <CardTitle className="text-lg">{task.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">{task.description}</p>
-              <div className="flex justify-between items-center text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Status:</span>
-                  <span className="capitalize">{task.status}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Priority:</span>
-                  <span className="capitalize">{task.priority}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Due:</span>
-                  <span>{new Date(task.finishDate).toLocaleDateString()}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Assigned To:</span>
-                  <span>
-                    {allUsers.find(u => u.id === task.assignedTo)?.username || 'Unassigned'}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Priority</TableHead>
+              <TableHead>Start Date</TableHead>
+              <TableHead>Due Date</TableHead>
+              <TableHead>Assigned To</TableHead>
+              <TableHead>Assigned By</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tasks.map((task) => (
+              <TableRow key={task.id}>
+                <TableCell className="font-medium">{task.title}</TableCell>
+                <TableCell className="max-w-md truncate">{task.description}</TableCell>
+                <TableCell>
+                  <Badge 
+                    variant={
+                      task.priority === 'High' 
+                        ? 'destructive' 
+                        : task.priority === 'Low' 
+                          ? 'secondary' 
+                          : 'default'
+                    }
+                  >
+                    {task.priority}
+                  </Badge>
+                </TableCell>
+                <TableCell>{new Date(task.startDate).toLocaleDateString()}</TableCell>
+                <TableCell>{new Date(task.finishDate).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  {allUsers.find(u => u.id === task.assignedTo)?.username || 'Unassigned'}
+                </TableCell>
+                <TableCell>
+                  {allUsers.find(u => u.id === task.createdBy)?.username}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="capitalize">
+                    {task.status}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }
