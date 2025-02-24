@@ -101,12 +101,15 @@ export class DatabaseStorage implements IStorage {
       const tasks = await db.select()
         .from(tasksTable)
         .where(eq(tasksTable.assignedTo, userId));
+      console.log(`Found ${tasks.length} tasks for employee`);
       return tasks as Task[];
     }
 
     // For other roles, get their subordinates first
+    console.log(`Getting subordinates for manager ${userId}`);
     const subordinates = await this.getSubordinates(userId);
     const subordinateIds = subordinates.map(s => s.id);
+    console.log(`Found ${subordinates.length} subordinates:`, subordinateIds);
 
     // Get tasks:
     // 1. Created by or assigned to the user
@@ -123,7 +126,7 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
-    console.log(`Found tasks:`, tasks);
+    console.log(`Found ${tasks.length} total tasks`);
     return tasks as Task[];
   }
 
@@ -137,7 +140,8 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(eq(users.reportingManagerId, managerId));
 
-    console.log(`Found subordinates:`, subordinates);
+    console.log(`Found ${subordinates.length} subordinates for manager ${managerId}:`, 
+      subordinates.map(s => `${s.username} (${s.role})`));
     return subordinates as User[];
   }
 
