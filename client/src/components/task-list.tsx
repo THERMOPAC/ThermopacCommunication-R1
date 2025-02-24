@@ -237,7 +237,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Title</TableHead>
+              <TableHead className="w-[200px]">Title</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Priority</TableHead>
               <TableHead>Start Date</TableHead>
@@ -250,15 +250,15 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
           <TableBody>
             {tasks.map((task) => (
               <TableRow key={task.id}>
-                <TableCell className="font-medium">{task.title}</TableCell>
+                <TableCell className="font-medium w-[200px]">{task.title}</TableCell>
                 <TableCell className="max-w-md truncate">{task.description}</TableCell>
                 <TableCell>
-                  <Badge 
+                  <Badge
                     variant={
-                      task.priority === 'High' 
-                        ? 'destructive' 
-                        : task.priority === 'Low' 
-                          ? 'secondary' 
+                      task.priority === 'High'
+                        ? 'destructive'
+                        : task.priority === 'Low'
+                          ? 'secondary'
                           : 'default'
                     }
                   >
