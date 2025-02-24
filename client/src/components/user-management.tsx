@@ -31,9 +31,9 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { insertUserSchema } from "@shared/schema";
-import { roles, canManage } from "@shared/roles";
+import { roles, roleHierarchy, canManage } from "@shared/roles";
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -139,11 +139,22 @@ export default function UserManagement() {
   const editSelectedRole = editForm.watch("role");
   const addSelectedRole = addForm.watch("role");
 
-  // Filter managers based on role hierarchy
+  // Get potential managers for the selected role
   const getEligibleManagers = (selectedRole: string) => {
-    return users.filter(manager => 
-      manager.id !== editingUser?.id && // Can't report to self
-      canManage(manager.role, selectedRole)
+    // Group managers by their roles
+    const managersByRole = users.reduce((acc, manager) => {
+      if (manager.id !== editingUser?.id && canManage(manager.role, selectedRole)) {
+        if (!acc[manager.role]) {
+          acc[manager.role] = [];
+        }
+        acc[manager.role].push(manager);
+      }
+      return acc;
+    }, {} as Record<string, User[]>);
+
+    // Sort roles by hierarchy
+    return Object.entries(managersByRole).sort(
+      ([roleA], [roleB]) => roleHierarchy[roleA] - roleHierarchy[roleB]
     );
   };
 
@@ -196,8 +207,8 @@ export default function UserManagement() {
                 </TableCell>
                 <TableCell>{user.countryCode} {user.mobileNumber}</TableCell>
                 <TableCell>
-                  {user.reportingManagerId === user.id ? 
-                    'Self' : 
+                  {user.reportingManagerId === user.id ?
+                    'Self' :
                     users.find(u => u.id === user.reportingManagerId)?.username || 'N/A'
                   }
                 </TableCell>
@@ -247,7 +258,7 @@ export default function UserManagement() {
               <DialogTitle>Edit User</DialogTitle>
             </DialogHeader>
             <Form {...editForm}>
-              <form 
+              <form
                 onSubmit={editForm.handleSubmit((data) => {
                   if (editingUser) {
                     updateUserMutation.mutate({
@@ -255,7 +266,7 @@ export default function UserManagement() {
                       data
                     });
                   }
-                })} 
+                })}
                 className="space-y-4"
               >
                 <FormField
@@ -341,14 +352,14 @@ export default function UserManagement() {
                   )}
                 />
 
-                {editSelectedRole !== "Superuser" && editEligibleManagers.length > 0 && (
+                {editSelectedRole !== "Superuser" && (
                   <FormField
                     control={editForm.control}
                     name="reportingManagerId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Reporting Manager</FormLabel>
-                        <Select 
+                        <Select
                           onValueChange={(value) => field.onChange(Number(value))}
                           defaultValue={field.value?.toString()}
                         >
@@ -358,10 +369,15 @@ export default function UserManagement() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {editEligibleManagers.map((manager) => (
-                              <SelectItem key={manager.id} value={manager.id.toString()}>
-                                {manager.username} ({manager.role})
-                              </SelectItem>
+                            {getEligibleManagers(editSelectedRole).map(([role, managers]) => (
+                              <SelectGroup key={role}>
+                                <SelectLabel>{role}s</SelectLabel>
+                                {managers.map((manager) => (
+                                  <SelectItem key={manager.id} value={manager.id.toString()}>
+                                    {manager.username}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
                             ))}
                           </SelectContent>
                         </Select>
@@ -371,8 +387,8 @@ export default function UserManagement() {
                   />
                 )}
 
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full"
                   disabled={updateUserMutation.isPending}
                 >
@@ -390,10 +406,10 @@ export default function UserManagement() {
               <DialogTitle>Add New User</DialogTitle>
             </DialogHeader>
             <Form {...addForm}>
-              <form 
+              <form
                 onSubmit={addForm.handleSubmit((data) => {
                   addUserMutation.mutate(data);
-                })} 
+                })}
                 className="space-y-4"
               >
                 <FormField
@@ -479,7 +495,7 @@ export default function UserManagement() {
                   )}
                 />
 
-                {addSelectedRole !== "Superuser" && addEligibleManagers.length > 0 && (
+                {addSelectedRole !== "Superuser" && (
                   <FormField
                     control={addForm.control}
                     name="reportingManagerId"
@@ -493,10 +509,15 @@ export default function UserManagement() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {addEligibleManagers.map((manager) => (
-                              <SelectItem key={manager.id} value={manager.id.toString()}>
-                                {manager.username} ({manager.role})
-                              </SelectItem>
+                            {getEligibleManagers(addSelectedRole).map(([role, managers]) => (
+                              <SelectGroup key={role}>
+                                <SelectLabel>{role}s</SelectLabel>
+                                {managers.map((manager) => (
+                                  <SelectItem key={manager.id} value={manager.id.toString()}>
+                                    {manager.username}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
                             ))}
                           </SelectContent>
                         </Select>
@@ -520,8 +541,8 @@ export default function UserManagement() {
                   )}
                 />
 
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full"
                   disabled={addUserMutation.isPending}
                 >
