@@ -2,15 +2,37 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTaskSchema } from "@shared/schema";
+import { insertTaskSchema, insertUserSchema } from "@shared/schema";
+import { canManage } from "@shared/roles";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
-  // Debug route to check users
-  app.get("/api/debug/users", async (req, res) => {
+  // User Management Routes
+  app.delete("/api/users/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (req.user!.role !== "Superuser") return res.sendStatus(403);
+
+    const userId = parseInt(req.params.id);
+    await storage.deleteUser(userId);
+    res.sendStatus(200);
+  });
+
+  app.patch("/api/users/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (req.user!.role !== "Superuser") return res.sendStatus(403);
+
+    const userId = parseInt(req.params.id);
+    const userData = insertUserSchema.partial().parse(req.body);
+    const updatedUser = await storage.updateUser(userId, userData);
+    res.json(updatedUser);
+  });
+
+  app.get("/api/users", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (req.user!.role !== "Superuser") return res.sendStatus(403);
+
     const users = await storage.getAllUsers();
-    console.log("All registered users:", users);
     res.json(users);
   });
 
