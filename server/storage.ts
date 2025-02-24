@@ -2,60 +2,54 @@ import { IStorage } from "./types";
 import type { User, Task, InsertUser, InsertTask } from "@shared/schema";
 import { roleHierarchy, canManage } from "@shared/roles";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import connectPg from "connect-pg-simple";
+import { db } from "./db";
+import { users, tasks } from "@shared/schema";
+import { eq, or, and } from "drizzle-orm";
 
-const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private tasks: Map<number, Task>;
-  private currentUserId: number;
-  private currentTaskId: number;
+export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
 
   constructor() {
-    this.users = new Map();
-    this.tasks = new Map();
-    this.currentUserId = 1;
-    this.currentTaskId = 1;
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000,
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL is required");
+    }
+    this.sessionStore = new PostgresSessionStore({
+      conObject: {
+        connectionString: process.env.DATABASE_URL,
+      },
+      createTableIfMissing: true,
     });
   }
 
   async getUser(id: number): Promise<User | undefined> {
     console.log(`Getting user with ID: ${id}`);
-    const user = this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
     console.log(`Found user:`, user);
     return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     console.log(`Looking for user with username: ${username}`);
-    const user = Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
     console.log(`Found user:`, user);
     return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     console.log(`Creating new user:`, insertUser);
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    console.log(`Created user with ID ${id}:`, user);
-    console.log(`Current users in storage:`, Array.from(this.users.values()));
+    const [user] = await db.insert(users).values(insertUser).returning();
+    console.log(`Created user:`, user);
     return user;
   }
 
-  async createTask(task: InsertTask): Promise<Task> {
-    console.log(`Creating new task:`, task);
-    const id = this.currentTaskId++;
-    const newTask: Task = { ...task, id };
-    this.tasks.set(id, newTask);
-    console.log(`Created task with ID ${id}:`, newTask);
-    return newTask;
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    console.log(`Creating new task:`, insertTask);
+    const [task] = await db.insert(tasks).values(insertTask).returning();
+    console.log(`Created task:`, task);
+    return task;
   }
 
   async getTasksForUser(userId: number): Promise<Task[]> {
@@ -63,14 +57,17 @@ export class MemStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) return [];
 
-    return Array.from(this.tasks.values()).filter((task) => {
-      if (task.assignedTo === userId) return true;
-      if (task.createdBy === userId) return true;
+    const tasks = await db.select()
+      .from(tasks)
+      .where(
+        or(
+          eq(tasks.assignedTo, userId),
+          eq(tasks.createdBy, userId)
+        )
+      );
 
-      // Check if user can see this task based on role hierarchy
-      const taskOwner = this.users.get(task.createdBy);
-      return taskOwner && canManage(user.role, taskOwner.role);
-    });
+    console.log(`Found tasks:`, tasks);
+    return tasks;
   }
 
   async getSubordinates(managerId: number): Promise<User[]> {
@@ -78,30 +75,40 @@ export class MemStorage implements IStorage {
     const manager = await this.getUser(managerId);
     if (!manager) return [];
 
-    const subordinates = Array.from(this.users.values()).filter(
-      (user) => user.reportingManagerId === managerId || 
-                (canManage(manager.role, user.role))
-    );
+    const subordinates = await db.select()
+      .from(users)
+      .where(
+        or(
+          eq(users.reportingManagerId, managerId),
+          and(
+            eq(users.reportingManagerId, managerId),
+            eq(users.role, manager.role)
+          )
+        )
+      );
+
     console.log(`Found subordinates:`, subordinates);
     return subordinates;
   }
 
   async updateUserReportingManager(userId: number, managerId: number): Promise<User> {
     console.log(`Updating reporting manager for user ${userId} to ${managerId}`);
-    const user = await this.getUser(userId);
-    if (!user) throw new Error("User not found");
+    const [user] = await db
+      .update(users)
+      .set({ reportingManagerId: managerId })
+      .where(eq(users.id, userId))
+      .returning();
 
-    user.reportingManagerId = managerId;
-    this.users.set(userId, user);
+    if (!user) throw new Error("User not found");
     console.log(`Updated user:`, user);
     return user;
   }
 
   async getAllUsers(): Promise<User[]> {
-    const users = Array.from(this.users.values());
-    console.log(`Getting all users:`, users);
-    return users;
+    const allUsers = await db.select().from(users);
+    console.log(`Getting all users:`, allUsers);
+    return allUsers;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
