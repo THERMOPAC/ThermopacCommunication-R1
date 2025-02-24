@@ -10,6 +10,8 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import UserProfile from "@/components/user-profile";
+import { Link } from "wouter";
+import { ArrowLeft } from "lucide-react";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
@@ -58,8 +60,17 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto p-8">
+      <div className="mb-6">
+        <Link href="/">
+          <Button variant="outline" className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Button>
+        </Link>
+      </div>
+
       <h1 className="text-3xl font-bold mb-8">Profile Settings</h1>
-      
+
       <div className="grid gap-8 md:grid-cols-2">
         {/* User Profile Card */}
         <Card>
