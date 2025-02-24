@@ -127,7 +127,11 @@ export function setupAuth(app: Express) {
       }
 
       req.login(user, (err) => {
-        if (err) return next(err);
+        if (err) {
+          console.error('Login after registration failed:', err);
+          return next(err);
+        }
+        console.log(`Auto-login successful for new user: ${user.username}`);
         res.status(201).json(user);
       });
     } catch (error) {
