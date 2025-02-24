@@ -46,7 +46,7 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy(async (username: string, password: string, done: Function) => {
       try {
         console.log(`Login attempt - username: ${username}`);
         const user = await storage.getUserByUsername(username);
@@ -57,8 +57,6 @@ export function setupAuth(app: Express) {
         }
 
         console.log(`User found: ${user.username}, role: ${user.role}`);
-        console.log(`Stored password hash: ${user.password}`);
-
         const isValid = await comparePasswords(password, user.password);
         console.log(`Password validation result: ${isValid}`);
 
@@ -76,12 +74,12 @@ export function setupAuth(app: Express) {
     }),
   );
 
-  passport.serializeUser((user, done) => {
+  passport.serializeUser((user: SelectUser, done: Function) => {
     console.log(`Serializing user: ${user.username}`);
     done(null, user.id);
   });
 
-  passport.deserializeUser(async (id: number, done) => {
+  passport.deserializeUser(async (id: number, done: Function) => {
     try {
       console.log(`Deserializing user ID: ${id}`);
       const user = await storage.getUser(id);
@@ -144,7 +142,7 @@ export function setupAuth(app: Express) {
   app.post("/api/login", (req, res, next) => {
     console.log('Login request body:', req.body);
 
-    passport.authenticate("local", (err, user, info) => {
+    passport.authenticate("local", (err: Error | null, user: SelectUser | false, info: { message: string } | undefined) => {
       if (err) {
         console.error('Authentication error:', err);
         return next(err);

@@ -26,32 +26,50 @@ export class DatabaseStorage implements IStorage {
 
   async getUser(id: number): Promise<User | undefined> {
     console.log(`Getting user with ID: ${id}`);
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+    const result = await db.select().from(users).where(eq(users.id, id));
+    const user = result[0] as User | undefined;
     console.log(`Found user:`, user);
     return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     console.log(`Looking for user with username: ${username}`);
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const result = await db.select().from(users).where(eq(users.username, username));
+    const user = result[0] as User | undefined;
     console.log(`Found user:`, user);
     return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     console.log(`Creating new user:`, insertUser);
-    const [user] = await db.insert(users).values(insertUser).returning();
+    const result = await db.insert(users).values(insertUser).returning();
+    const user = result[0] as User;
     console.log(`Created user:`, user);
     return user;
   }
 
   async updateUser(id: number, updateData: Partial<InsertUser>): Promise<User> {
     console.log(`Updating user ${id} with data:`, updateData);
-    const [user] = await db
+    const result = await db
       .update(users)
       .set(updateData)
       .where(eq(users.id, id))
       .returning();
+    const user = result[0] as User;
+
+    if (!user) throw new Error("User not found");
+    console.log(`Updated user:`, user);
+    return user;
+  }
+
+  async updateUserReportingManager(userId: number, managerId: number): Promise<User> {
+    console.log(`Updating reporting manager for user ${userId} to ${managerId}`);
+    const result = await db
+      .update(users)
+      .set({ reportingManagerId: managerId })
+      .where(eq(users.id, userId))
+      .returning();
+    const user = result[0] as User;
 
     if (!user) throw new Error("User not found");
     console.log(`Updated user:`, user);
@@ -66,7 +84,8 @@ export class DatabaseStorage implements IStorage {
 
   async createTask(insertTask: InsertTask): Promise<Task> {
     console.log(`Creating new task:`, insertTask);
-    const [task] = await db.insert(tasksTable).values(insertTask).returning();
+    const result = await db.insert(tasksTable).values(insertTask).returning();
+    const task = result[0] as Task;
     console.log(`Created task:`, task);
     return task;
   }
@@ -76,7 +95,7 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) return [];
 
-    const userTasks = await db.select()
+    const tasks = await db.select()
       .from(tasksTable)
       .where(
         or(
@@ -85,8 +104,8 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
-    console.log(`Found tasks:`, userTasks);
-    return userTasks;
+    console.log(`Found tasks:`, tasks);
+    return tasks as Task[];
   }
 
   async getSubordinates(managerId: number): Promise<User[]> {
@@ -107,26 +126,13 @@ export class DatabaseStorage implements IStorage {
       );
 
     console.log(`Found subordinates:`, subordinates);
-    return subordinates;
-  }
-
-  async updateUserReportingManager(userId: number, managerId: number): Promise<User> {
-    console.log(`Updating reporting manager for user ${userId} to ${managerId}`);
-    const [user] = await db
-      .update(users)
-      .set({ reportingManagerId: managerId })
-      .where(eq(users.id, userId))
-      .returning();
-
-    if (!user) throw new Error("User not found");
-    console.log(`Updated user:`, user);
-    return user;
+    return subordinates as User[];
   }
 
   async getAllUsers(): Promise<User[]> {
     const allUsers = await db.select().from(users);
     console.log(`Getting all users:`, allUsers);
-    return allUsers;
+    return allUsers as User[];
   }
 }
 

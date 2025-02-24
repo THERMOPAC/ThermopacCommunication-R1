@@ -3,25 +3,25 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
 
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  email: text("email").notNull().unique(),
-  mobileNumber: text("mobile_number").notNull(),
-  countryCode: text("country_code").notNull(),
-  role: text("role").notNull(),
-  reportingManagerId: integer("reporting_manager_id").references(() => users.id),
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  username: text('username').notNull().unique(),
+  password: text('password').notNull(),
+  email: text('email').notNull().unique(),
+  mobileNumber: text('mobile_number').notNull(),
+  countryCode: text('country_code').notNull(),
+  role: text('role', { enum: roles }).notNull(),
+  reportingManagerId: integer('reporting_manager_id').references(() => users.id),
 });
 
-export const tasks = pgTable("tasks", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  status: text("status").notNull().default("pending"),
-  assignedTo: integer("assigned_to").references(() => users.id),
-  createdBy: integer("created_by").references(() => users.id),
-  createdAt: text("created_at").notNull(),
+export const tasks = pgTable('tasks', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  status: text('status').notNull().default('pending'),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: text('created_at').notNull(),
 });
 
 export const insertUserSchema = createInsertSchema(users).extend({

@@ -1,4 +1,4 @@
-import { User } from "@shared/schema";
+import { User, InsertUser } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Table,
@@ -32,7 +32,7 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { insertUserSchema, type InsertUser } from "@shared/schema";
+import { insertUserSchema } from "@shared/schema";
 import { roles } from "@shared/roles";
 
 export default function UserManagement() {
@@ -89,7 +89,7 @@ export default function UserManagement() {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<User> }) => {
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertUser> }) => {
       const res = await apiRequest("PATCH", `/api/users/${id}`, data);
       return res.json();
     },
@@ -115,7 +115,7 @@ export default function UserManagement() {
     defaultValues: {
       username: "",
       email: "",
-      role: "Employee",
+      role: "Employee" as const,
       mobileNumber: "",
       countryCode: "",
     },
@@ -127,7 +127,7 @@ export default function UserManagement() {
       username: "",
       password: "",
       email: "",
-      role: "Employee",
+      role: "Employee" as const,
       mobileNumber: "",
       countryCode: "+1",
     },
@@ -302,7 +302,7 @@ export default function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Role</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a role" />
@@ -410,7 +410,7 @@ export default function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Role</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a role" />
