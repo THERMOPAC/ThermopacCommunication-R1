@@ -187,7 +187,12 @@ export default function UserManagement() {
           <TableBody>
             {users.map((user) => (
               <TableRow key={user.id}>
-                <TableCell className="font-medium">{user.username}</TableCell>
+                <TableCell className="font-medium">
+                  {user.username}
+                  <span className="text-sm text-muted-foreground ml-2">
+                    (ID: {user.id})
+                  </span>
+                </TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
                   <Badge variant="secondary">{user.role}</Badge>
