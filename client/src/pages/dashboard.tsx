@@ -84,9 +84,9 @@ export default function Dashboard() {
 
   // State for collapsible sections
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
-    // Initialize with all sections open
+    // Initialize with all sections closed
     return sortedRoles.reduce((acc, role) => {
-      acc[role] = true;
+      acc[role] = false; // Changed from true to false for initial collapsed state
       return acc;
     }, {} as Record<string, boolean>);
   });
