@@ -5,7 +5,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db } from "./db";
 import { users, tasks as tasksTable } from "@shared/schema";
-import { eq, or, and } from "drizzle-orm";
+import { eq, or, and, inArray } from "drizzle-orm";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -95,12 +95,31 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) return [];
 
+    // If user is an Employee, only return tasks assigned to them
+    if (user.role === 'Employee') {
+      console.log(`User is Employee, returning only assigned tasks`);
+      const tasks = await db.select()
+        .from(tasksTable)
+        .where(eq(tasksTable.assignedTo, userId));
+      return tasks as Task[];
+    }
+
+    // For other roles, get their subordinates first
+    const subordinates = await this.getSubordinates(userId);
+    const subordinateIds = subordinates.map(s => s.id);
+
+    // Get tasks:
+    // 1. Created by or assigned to the user
+    // 2. Created by or assigned to their direct subordinates
+    console.log(`Getting tasks for user ${userId} and subordinates:`, subordinateIds);
     const tasks = await db.select()
       .from(tasksTable)
       .where(
         or(
           eq(tasksTable.assignedTo, userId),
-          eq(tasksTable.createdBy, userId)
+          eq(tasksTable.createdBy, userId),
+          inArray(tasksTable.assignedTo, subordinateIds),
+          inArray(tasksTable.createdBy, subordinateIds)
         )
       );
 
@@ -113,17 +132,10 @@ export class DatabaseStorage implements IStorage {
     const manager = await this.getUser(managerId);
     if (!manager) return [];
 
+    // Get direct subordinates (users who have this manager as their reporting manager)
     const subordinates = await db.select()
       .from(users)
-      .where(
-        or(
-          eq(users.reportingManagerId, managerId),
-          and(
-            eq(users.reportingManagerId, managerId),
-            eq(users.role, manager.role)
-          )
-        )
-      );
+      .where(eq(users.reportingManagerId, managerId));
 
     console.log(`Found subordinates:`, subordinates);
     return subordinates as User[];
