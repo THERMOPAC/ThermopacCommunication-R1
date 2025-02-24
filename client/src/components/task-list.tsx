@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 import { roles, roleHierarchy } from "@shared/roles";
+import { useToast } from "@/hooks/use-toast";
 
 type TaskListProps = {
   tasks: Task[];
@@ -23,6 +24,7 @@ type TaskListProps = {
 export default function TaskList({ tasks, subordinates }: TaskListProps) {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   // Fetch all users for task assignment
   const { data: allUsers = [] } = useQuery<User[]>({
@@ -42,12 +44,29 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: Omit<Task, "id">) => {
-      const res = await apiRequest("POST", "/api/tasks", data);
+      // Add createdAt field
+      const taskData = {
+        ...data,
+        createdAt: new Date().toISOString()
+      };
+      const res = await apiRequest("POST", "/api/tasks", taskData);
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setOpen(false);
+      form.reset();
+      toast({
+        title: "Success",
+        description: "Task created successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -62,6 +81,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       finishDate: "",
       assignedTo: undefined,
       createdBy: user!.id,
+      createdAt: new Date().toISOString()
     },
   });
 
