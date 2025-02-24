@@ -3,12 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { Task, User } from "@shared/schema";
 import TaskList from "@/components/task-list";
 import UserProfile from "@/components/user-profile";
+import UserManagement from "@/components/user-management";
 import { Separator } from "@/components/ui/separator";
 import { 
   LayoutDashboard, 
   Users, 
   CheckSquare, 
-  MessageSquare 
+  MessageSquare,
+  UserCog
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
@@ -29,7 +31,13 @@ export default function Dashboard() {
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Users, label: "Team", href: "/team" },
     { icon: MessageSquare, label: "Messages", href: "/messages" },
+    ...(user?.role === "Superuser" ? [
+      { icon: UserCog, label: "User Management", href: "/users" }
+    ] : [])
   ];
+
+  // Show user management when on /users route and user is superuser
+  const showUserManagement = location === "/users" && user?.role === "Superuser";
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -73,28 +81,34 @@ export default function Dashboard() {
           </div>
 
           <div className="grid gap-6">
-            {/* Tasks Section */}
-            <section>
-              <TaskList tasks={tasks} subordinates={subordinates} />
-            </section>
+            {showUserManagement ? (
+              <UserManagement />
+            ) : (
+              <>
+                {/* Tasks Section */}
+                <section>
+                  <TaskList tasks={tasks} subordinates={subordinates} />
+                </section>
 
-            {/* Team Section */}
-            <section className="bg-card rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4">Your Team</h2>
-              <div className="grid gap-4">
-                {subordinates.map((subordinate) => (
-                  <div 
-                    key={subordinate.id}
-                    className="flex items-center gap-4 p-4 bg-background rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium">{subordinate.username}</p>
-                      <p className="text-sm text-muted-foreground">{subordinate.role}</p>
-                    </div>
+                {/* Team Section */}
+                <section className="bg-card rounded-lg p-6">
+                  <h2 className="text-xl font-semibold mb-4">Your Team</h2>
+                  <div className="grid gap-4">
+                    {subordinates.map((subordinate) => (
+                      <div 
+                        key={subordinate.id}
+                        className="flex items-center gap-4 p-4 bg-background rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium">{subordinate.username}</p>
+                          <p className="text-sm text-muted-foreground">{subordinate.role}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </section>
+                </section>
+              </>
+            )}
           </div>
         </div>
       </main>
