@@ -7,18 +7,26 @@ import UserManagement from "@/components/user-management";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  LayoutDashboard, 
-  Users, 
-  CheckSquare, 
+import {
+  LayoutDashboard,
+  Users,
+  CheckSquare,
   MessageSquare,
   UserCog,
   User as UserIcon,
   Mail,
-  Phone
+  Phone,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { roles, roleHierarchy } from "@shared/roles";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { useState } from "react";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -60,8 +68,11 @@ export default function Dashboard() {
     return manager ? manager.username : 'N/A';
   };
 
+  // Sort roles by hierarchy
+  const sortedRoles = [...roles].sort((a, b) => roleHierarchy[a] - roleHierarchy[b]);
+
   // Group users by role
-  const groupedUsers = roles.reduce((acc, role) => {
+  const groupedUsers = sortedRoles.reduce((acc, role) => {
     const usersInRole = (user?.role === "Superuser" ? allUsers : subordinates)
       .filter(u => u.role === role)
       .sort((a, b) => a.username.localeCompare(b.username));
@@ -70,6 +81,15 @@ export default function Dashboard() {
     }
     return acc;
   }, {} as Record<string, User[]>);
+
+  // State for collapsible sections
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    // Initialize with all sections open
+    return sortedRoles.reduce((acc, role) => {
+      acc[role] = true;
+      return acc;
+    }, {} as Record<string, boolean>);
+  });
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -88,10 +108,10 @@ export default function Dashboard() {
               return (
                 <li key={item.href}>
                   <Link href={item.href}>
-                    <button 
+                    <button
                       className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors w-full text-left
-                        ${isActive 
-                          ? 'bg-primary text-primary-foreground' 
+                        ${isActive
+                          ? 'bg-primary text-primary-foreground'
                           : 'hover:bg-accent hover:text-accent-foreground'
                         }`}
                     >
@@ -143,53 +163,71 @@ export default function Dashboard() {
                       )}
 
                       {/* Team Members by Role */}
-                      {roles.map(role => {
+                      {sortedRoles.map(role => {
                         const usersInRole = groupedUsers[role];
                         if (!usersInRole) return null;
 
                         return (
-                          <div key={role}>
-                            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                              <Users className="h-5 w-5" />
-                              {role}s
-                              <Badge variant="secondary" className="ml-2">
-                                {usersInRole.length}
-                              </Badge>
-                            </h3>
-                            <div className="grid gap-4">
-                              {usersInRole.map((member) => (
-                                <Card key={member.id}>
-                                  <CardContent className="p-4">
-                                    <div className="flex flex-col gap-2">
-                                      <div className="flex justify-between items-start">
-                                        <div>
-                                          <p className="font-medium">{member.username}</p>
-                                          <Badge variant="outline" className="mt-1">
-                                            {member.role}
-                                          </Badge>
+                          <Collapsible
+                            key={role}
+                            open={openSections[role]}
+                            onOpenChange={(isOpen) => {
+                              setOpenSections(prev => ({
+                                ...prev,
+                                [role]: isOpen
+                              }));
+                            }}
+                          >
+                            <CollapsibleTrigger className="flex items-center gap-2 w-full">
+                              <div className="flex items-center gap-2 text-lg font-semibold">
+                                {openSections[role] ? (
+                                  <ChevronDown className="h-5 w-5" />
+                                ) : (
+                                  <ChevronRight className="h-5 w-5" />
+                                )}
+                                <Users className="h-5 w-5" />
+                                {role}s
+                                <Badge variant="secondary" className="ml-2">
+                                  {usersInRole.length}
+                                </Badge>
+                              </div>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="mt-4">
+                              <div className="grid gap-4 pl-9">
+                                {usersInRole.map((member) => (
+                                  <Card key={member.id}>
+                                    <CardContent className="p-4">
+                                      <div className="flex flex-col gap-2">
+                                        <div className="flex justify-between items-start">
+                                          <div>
+                                            <p className="font-medium">{member.username}</p>
+                                            <Badge variant="outline" className="mt-1">
+                                              {member.role}
+                                            </Badge>
+                                          </div>
+                                          {member.reportingManagerId && member.reportingManagerId !== member.id && (
+                                            <p className="text-sm text-muted-foreground">
+                                              Reports to: {getManagerName(member.reportingManagerId)}
+                                            </p>
+                                          )}
                                         </div>
-                                        {member.reportingManagerId && member.reportingManagerId !== member.id && (
-                                          <p className="text-sm text-muted-foreground">
-                                            Reports to: {getManagerName(member.reportingManagerId)}
-                                          </p>
-                                        )}
+                                        <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                                          <div className="flex items-center gap-1">
+                                            <Mail className="h-4 w-4" />
+                                            {member.email}
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            <Phone className="h-4 w-4" />
+                                            {member.countryCode} {member.mobileNumber}
+                                          </div>
+                                        </div>
                                       </div>
-                                      <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                                        <div className="flex items-center gap-1">
-                                          <Mail className="h-4 w-4" />
-                                          {member.email}
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          <Phone className="h-4 w-4" />
-                                          {member.countryCode} {member.mobileNumber}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              ))}
-                            </div>
-                          </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
                         );
                       })}
                     </div>
