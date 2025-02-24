@@ -95,12 +95,18 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) return [];
 
+    // Get all tasks where the user is either:
+    // 1. The assignee
+    // 2. The creator
+    // 3. The reporting manager of the assignee
     const tasks = await db.select()
       .from(tasksTable)
+      .leftJoin(users, eq(tasksTable.assignedTo, users.id))
       .where(
         or(
           eq(tasksTable.assignedTo, userId),
-          eq(tasksTable.createdBy, userId)
+          eq(tasksTable.createdBy, userId),
+          eq(users.reportingManagerId, userId)
         )
       );
 
@@ -115,15 +121,7 @@ export class DatabaseStorage implements IStorage {
 
     const subordinates = await db.select()
       .from(users)
-      .where(
-        or(
-          eq(users.reportingManagerId, managerId),
-          and(
-            eq(users.reportingManagerId, managerId),
-            eq(users.role, manager.role)
-          )
-        )
-      );
+      .where(eq(users.reportingManagerId, managerId));
 
     console.log(`Found subordinates:`, subordinates);
     return subordinates as User[];

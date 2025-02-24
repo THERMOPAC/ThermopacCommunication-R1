@@ -38,6 +38,37 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
   // Debug log to verify tasks data
   console.log('Current tasks:', tasks);
 
+  // Get unique list of users involved in tasks
+  const taskUserIds = new Set([
+    ...tasks.map(t => t.assignedTo),
+    ...tasks.map(t => t.createdBy)
+  ].filter(Boolean));
+
+  // Fetch reporting hierarchy data.  Note: The original code doesn't fetch this, so we're assuming an API endpoint exists.
+  const { data: reportingSubordinates = [] } = useQuery<User[]>({
+    queryKey: ["/api/subordinates"],
+  });
+
+  // Check if the current user is viewing tasks as a manager
+  const isManager = reportingSubordinates.length > 0;
+
+  // Add filters state
+  const [filters, setFilters] = useState({
+    showAll: true,
+    showAssigned: false,
+    showCreated: false,
+    showSubordinates: false
+  });
+
+  // Filter tasks based on user role and filters
+  const filteredTasks = tasks.filter(task => {
+    if (filters.showAll) return true;
+    if (filters.showAssigned && task.assignedTo === user!.id) return true;
+    if (filters.showCreated && task.createdBy === user!.id) return true;
+    if (filters.showSubordinates && reportingSubordinates.some(s => s.id === task.assignedTo)) return true;
+    return false;
+  });
+
   // Fetch all users for task assignment
   const { data: allUsers = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -251,8 +282,8 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tasks && tasks.length > 0 ? (
-              tasks.map((task) => (
+            {filteredTasks && filteredTasks.length > 0 ? (
+              filteredTasks.map((task) => (
                 <TableRow key={task.id}>
                   <TableCell className="font-medium w-[500px]">{task.title}</TableCell>
                   <TableCell className="w-[500px] truncate">{task.description}</TableCell>
