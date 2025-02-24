@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -34,6 +34,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Debug log to verify tasks data
+  console.log('Current tasks:', tasks);
 
   // Fetch all users for task assignment
   const { data: allUsers = [] } = useQuery<User[]>({
@@ -233,7 +236,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
         </Dialog>
       </div>
 
-      <Card>
+      <Card className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -248,38 +251,46 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tasks.map((task) => (
-              <TableRow key={task.id}>
-                <TableCell className="font-medium w-[500px]">{task.title}</TableCell>
-                <TableCell className="w-[500px] truncate">{task.description}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant={
-                      task.priority === 'High'
-                        ? 'destructive'
-                        : task.priority === 'Low'
-                          ? 'secondary'
-                          : 'default'
-                    }
-                  >
-                    {task.priority}
-                  </Badge>
-                </TableCell>
-                <TableCell>{new Date(task.startDate).toLocaleDateString()}</TableCell>
-                <TableCell>{new Date(task.finishDate).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  {allUsers.find(u => u.id === task.assignedTo)?.username || 'Unassigned'}
-                </TableCell>
-                <TableCell>
-                  {allUsers.find(u => u.id === task.createdBy)?.username}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="capitalize">
-                    {task.status}
-                  </Badge>
+            {tasks && tasks.length > 0 ? (
+              tasks.map((task) => (
+                <TableRow key={task.id}>
+                  <TableCell className="font-medium w-[500px]">{task.title}</TableCell>
+                  <TableCell className="w-[500px] truncate">{task.description}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        task.priority === 'High'
+                          ? 'destructive'
+                          : task.priority === 'Low'
+                            ? 'secondary'
+                            : 'default'
+                      }
+                    >
+                      {task.priority}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{new Date(task.startDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(task.finishDate).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {allUsers.find(u => u.id === task.assignedTo)?.username || 'Unassigned'}
+                  </TableCell>
+                  <TableCell>
+                    {allUsers.find(u => u.id === task.createdBy)?.username}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="capitalize">
+                      {task.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-4">
+                  No tasks found
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </Card>
