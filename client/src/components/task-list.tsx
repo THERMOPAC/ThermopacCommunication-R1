@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -34,40 +34,6 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
-
-  // Debug log to verify tasks data
-  console.log('Current tasks:', tasks);
-
-  // Get unique list of users involved in tasks
-  const taskUserIds = new Set([
-    ...tasks.map(t => t.assignedTo),
-    ...tasks.map(t => t.createdBy)
-  ].filter(Boolean));
-
-  // Fetch reporting hierarchy data.  Note: The original code doesn't fetch this, so we're assuming an API endpoint exists.
-  const { data: reportingSubordinates = [] } = useQuery<User[]>({
-    queryKey: ["/api/subordinates"],
-  });
-
-  // Check if the current user is viewing tasks as a manager
-  const isManager = reportingSubordinates.length > 0;
-
-  // Add filters state
-  const [filters, setFilters] = useState({
-    showAll: true,
-    showAssigned: false,
-    showCreated: false,
-    showSubordinates: false
-  });
-
-  // Filter tasks based on user role and filters
-  const filteredTasks = tasks.filter(task => {
-    if (filters.showAll) return true;
-    if (filters.showAssigned && task.assignedTo === user!.id) return true;
-    if (filters.showCreated && task.createdBy === user!.id) return true;
-    if (filters.showSubordinates && reportingSubordinates.some(s => s.id === task.assignedTo)) return true;
-    return false;
-  });
 
   // Fetch all users for task assignment
   const { data: allUsers = [] } = useQuery<User[]>({
@@ -267,7 +233,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
         </Dialog>
       </div>
 
-      <Card className="overflow-x-auto">
+      <Card>
         <Table>
           <TableHeader>
             <TableRow>
@@ -282,46 +248,38 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredTasks && filteredTasks.length > 0 ? (
-              filteredTasks.map((task) => (
-                <TableRow key={task.id}>
-                  <TableCell className="font-medium w-[500px]">{task.title}</TableCell>
-                  <TableCell className="w-[500px] truncate">{task.description}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        task.priority === 'High'
-                          ? 'destructive'
-                          : task.priority === 'Low'
-                            ? 'secondary'
-                            : 'default'
-                      }
-                    >
-                      {task.priority}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{new Date(task.startDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{new Date(task.finishDate).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    {allUsers.find(u => u.id === task.assignedTo)?.username || 'Unassigned'}
-                  </TableCell>
-                  <TableCell>
-                    {allUsers.find(u => u.id === task.createdBy)?.username}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {task.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-4">
-                  No tasks found
+            {tasks.map((task) => (
+              <TableRow key={task.id}>
+                <TableCell className="font-medium w-[500px]">{task.title}</TableCell>
+                <TableCell className="w-[500px] truncate">{task.description}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      task.priority === 'High'
+                        ? 'destructive'
+                        : task.priority === 'Low'
+                          ? 'secondary'
+                          : 'default'
+                    }
+                  >
+                    {task.priority}
+                  </Badge>
+                </TableCell>
+                <TableCell>{new Date(task.startDate).toLocaleDateString()}</TableCell>
+                <TableCell>{new Date(task.finishDate).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  {allUsers.find(u => u.id === task.assignedTo)?.username || 'Unassigned'}
+                </TableCell>
+                <TableCell>
+                  {allUsers.find(u => u.id === task.createdBy)?.username}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="capitalize">
+                    {task.status}
+                  </Badge>
                 </TableCell>
               </TableRow>
-            )}
+            ))}
           </TableBody>
         </Table>
       </Card>
