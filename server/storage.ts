@@ -81,6 +81,14 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) return [];
 
+    // For Superuser, return all tasks
+    if (user.role === 'Superuser') {
+      console.log(`User is Superuser, returning all tasks`);
+      const tasks = await db.select().from(tasksTable);
+      console.log(`Found ${tasks.length} total tasks for superuser`);
+      return tasks as Task[];
+    }
+
     // If user is an Employee, only return tasks assigned to them
     if (user.role === 'Employee') {
       console.log(`User is Employee, returning only assigned tasks`);
@@ -126,7 +134,7 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(eq(users.reportingManagerId, managerId));
 
-    console.log(`Found ${subordinates.length} subordinates for manager ${managerId}:`, 
+    console.log(`Found ${subordinates.length} subordinates for manager ${managerId}:`,
       subordinates.map(s => `${s.username} (${s.role})`));
     return subordinates as User[];
   }

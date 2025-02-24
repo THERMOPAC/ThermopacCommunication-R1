@@ -53,13 +53,16 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: Omit<Task, "id">) => {
+      console.log("Creating task with data:", data);
       // Add createdAt field
       const taskData = {
         ...data,
         createdAt: new Date().toISOString()
       };
       const res = await apiRequest("POST", "/api/tasks", taskData);
-      return res.json();
+      const result = await res.json();
+      console.log("Task creation response:", result);
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -71,6 +74,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       });
     },
     onError: (error: Error) => {
+      console.error("Task creation error:", error);
       toast({
         title: "Error",
         description: error.message,
