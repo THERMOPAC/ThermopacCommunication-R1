@@ -4,9 +4,49 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertTaskSchema, insertUserSchema } from "@shared/schema";
 import { canManage } from "@shared/roles";
+import { scrypt, timingSafeEqual, randomBytes } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
+
+async function comparePasswords(supplied: string, stored: string) {
+  const [hashed, salt] = stored.split(".");
+  const hashedBuf = Buffer.from(hashed, "hex");
+  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  return timingSafeEqual(hashedBuf, suppliedBuf);
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
+
+  // Add password change endpoint
+  app.post("/api/change-password", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const { currentPassword, newPassword } = req.body;
+
+    // Get current user
+    const user = await storage.getUser(req.user!.id);
+    if (!user) return res.sendStatus(404);
+
+    // Verify current password
+    const isValid = await comparePasswords(currentPassword, user.password);
+    if (!isValid) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    // Hash and update new password
+    const hashedPassword = await hashPassword(newPassword);
+    await storage.updateUser(user.id, { password: hashedPassword });
+
+    res.sendStatus(200);
+  });
 
   // User Management Routes
   app.delete("/api/users/:id", async (req, res) => {

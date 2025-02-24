@@ -10,7 +10,8 @@ import {
   Users, 
   CheckSquare, 
   MessageSquare,
-  UserCog
+  UserCog,
+  User as UserIcon
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
@@ -31,6 +32,7 @@ export default function Dashboard() {
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Users, label: "Team", href: "/team" },
     { icon: MessageSquare, label: "Messages", href: "/messages" },
+    { icon: UserIcon, label: "Profile", href: "/profile" },
     ...(user?.role === "Superuser" ? [
       { icon: UserCog, label: "User Management", href: "/users" }
     ] : [])
