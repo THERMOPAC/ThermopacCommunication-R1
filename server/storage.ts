@@ -5,7 +5,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db } from "./db";
 import { users, tasks as tasksTable } from "@shared/schema";
-import { eq, or, and, inArray } from "drizzle-orm";
+import { eq, or, inArray } from "drizzle-orm";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -54,20 +54,6 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set(updateData)
       .where(eq(users.id, id))
-      .returning();
-    const user = result[0] as User;
-
-    if (!user) throw new Error("User not found");
-    console.log(`Updated user:`, user);
-    return user;
-  }
-
-  async updateUserReportingManager(userId: number, managerId: number): Promise<User> {
-    console.log(`Updating reporting manager for user ${userId} to ${managerId}`);
-    const result = await db
-      .update(users)
-      .set({ reportingManagerId: managerId })
-      .where(eq(users.id, userId))
       .returning();
     const user = result[0] as User;
 
