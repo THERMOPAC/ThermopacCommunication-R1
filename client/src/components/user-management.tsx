@@ -33,17 +33,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { insertUserSchema } from "@shared/schema";
-import { roles } from "@shared/roles";
-
-// Assume canManage function exists elsewhere, defining a placeholder here.  Replace with actual implementation.
-const canManage = (managerRole: string, userRole: string): boolean => {
-  // Implement your role hierarchy logic here.  This is a placeholder.
-  // For example, a "Manager" can manage "Employee", but not "Admin".
-  if (managerRole === "Admin") return true; // Admins can manage everyone
-  if (managerRole === "Manager" && userRole === "Employee") return true;
-  return false;
-};
-
+import { roles, canManage } from "@shared/roles";
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -128,7 +118,7 @@ export default function UserManagement() {
       role: "Employee" as const,
       mobileNumber: "",
       countryCode: "",
-      reportingManagerId: undefined, // Added default value
+      reportingManagerId: undefined,
     },
   });
 
@@ -141,20 +131,24 @@ export default function UserManagement() {
       role: "Employee" as const,
       mobileNumber: "",
       countryCode: "+1",
+      reportingManagerId: undefined,
     },
   });
 
-  // Get potential managers for the selected role
-  const selectedRole = editForm.watch("role");
-  const { data: potentialManagers = [] } = useQuery<User[]>({
-    queryKey: ["/api/users", selectedRole], // Add selectedRole to the queryKey
-  });
+  // Watch selected roles for both forms
+  const editSelectedRole = editForm.watch("role");
+  const addSelectedRole = addForm.watch("role");
 
   // Filter managers based on role hierarchy
-  const eligibleManagers = potentialManagers.filter(manager => 
-    canManage(manager.role, selectedRole)
-  );
+  const getEligibleManagers = (selectedRole: string) => {
+    return users.filter(manager => 
+      manager.id !== editingUser?.id && // Can't report to self
+      canManage(manager.role, selectedRole)
+    );
+  };
 
+  const editEligibleManagers = getEligibleManagers(editSelectedRole);
+  const addEligibleManagers = getEligibleManagers(addSelectedRole);
 
   function handleEdit(user: User) {
     setEditingUser(user);
@@ -345,21 +339,24 @@ export default function UserManagement() {
                   )}
                 />
 
-                {selectedRole !== "Superuser" && (
+                {editSelectedRole !== "Superuser" && editEligibleManagers.length > 0 && (
                   <FormField
                     control={editForm.control}
                     name="reportingManagerId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Reporting Manager</FormLabel>
-                        <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={field.value?.toString()}>
+                        <Select 
+                          onValueChange={(value) => field.onChange(Number(value))}
+                          defaultValue={field.value?.toString()}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select reporting manager" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {eligibleManagers.map((manager) => (
+                            {editEligibleManagers.map((manager) => (
                               <SelectItem key={manager.id} value={manager.id.toString()}>
                                 {manager.username} ({manager.role})
                               </SelectItem>
@@ -479,6 +476,33 @@ export default function UserManagement() {
                     </FormItem>
                   )}
                 />
+
+                {addSelectedRole !== "Superuser" && addEligibleManagers.length > 0 && (
+                  <FormField
+                    control={addForm.control}
+                    name="reportingManagerId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Reporting Manager</FormLabel>
+                        <Select onValueChange={(value) => field.onChange(Number(value))}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select reporting manager" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {addEligibleManagers.map((manager) => (
+                              <SelectItem key={manager.id} value={manager.id.toString()}>
+                                {manager.username} ({manager.role})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={addForm.control}
