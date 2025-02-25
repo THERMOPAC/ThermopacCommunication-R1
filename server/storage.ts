@@ -81,48 +81,14 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) return [];
 
-    // For Superuser, return all tasks
-    if (user.role === 'Superuser') {
-      console.log(`User is Superuser, returning all tasks`);
-      const tasks = await db.select().from(tasksTable);
-      console.log(`Found ${tasks.length} total tasks for superuser`);
-      return tasks as Task[];
-    }
+    console.log(`User role: ${user.role}`);
 
-    // For Employee, only return tasks assigned to them
-    if (user.role === 'Employee') {
-      console.log(`User is Employee, returning only assigned tasks`);
-      const tasks = await db.select()
-        .from(tasksTable)
-        .where(eq(tasksTable.assignedTo, userId));
-      console.log(`Found ${tasks.length} tasks for employee`);
-      return tasks as Task[];
-    }
-
-    // For managers (General Manager, Senior Manager, Manager)
-    // Get their subordinates (direct reports) first
-    console.log(`Getting subordinates for manager ${userId}`);
-    const subordinates = await this.getSubordinates(userId);
-    const subordinateIds = subordinates.map(s => s.id);
-    console.log(`Found ${subordinates.length} subordinates for manager ${userId}:`, 
-      subordinates.map(s => `${s.username} (${s.role})`));
-
-    // Get tasks:
-    // 1. Tasks where the manager is assigned to or created them
-    // 2. Tasks assigned to or created by their direct subordinates
-    console.log(`Getting tasks for user ${userId} and subordinates:`, subordinateIds);
+    // Start with basic rule: every user sees tasks assigned to them
     const tasks = await db.select()
       .from(tasksTable)
-      .where(
-        or(
-          eq(tasksTable.assignedTo, userId),
-          eq(tasksTable.createdBy, userId),
-          inArray(tasksTable.assignedTo, subordinateIds),
-          inArray(tasksTable.createdBy, subordinateIds)
-        )
-      );
+      .where(eq(tasksTable.assignedTo, userId));
 
-    console.log(`Found ${tasks.length} total tasks for manager ${user.username}`);
+    console.log(`Found ${tasks.length} tasks assigned to user ${user.username}`);
     return tasks as Task[];
   }
 
