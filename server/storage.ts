@@ -81,9 +81,9 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) return [];
 
-    console.log(`User ${user.username} has role: ${user.role}`);
+    console.log(`Getting tasks for ${user.username} (${user.role})`);
 
-    // For Superuser, return all tasks
+    // Case 1: Superuser sees all tasks
     if (user.role === 'Superuser') {
       console.log(`User is Superuser, returning all tasks`);
       const tasks = await db.select().from(tasksTable);
@@ -91,44 +91,38 @@ export class DatabaseStorage implements IStorage {
       return tasks as Task[];
     }
 
-    // For Employee, only return tasks assigned to them
+    // Case 2: Employee sees only their tasks
     if (user.role === 'Employee') {
-      console.log(`User is Employee, returning only assigned tasks`);
+      console.log(`User is Employee, returning only their tasks`);
       const tasks = await db.select()
         .from(tasksTable)
-        .where(
-          or(
-            eq(tasksTable.assignedTo, userId),
-            eq(tasksTable.createdBy, userId)
-          )
-        );
+        .where(eq(tasksTable.assignedTo, userId));
       console.log(`Found ${tasks.length} tasks for employee`);
       return tasks as Task[];
     }
 
-    // For managers (General Manager, Senior Manager, Manager)
-    // First get all their direct reports (users where they are the reporting manager)
-    console.log(`Getting direct reports for manager ${userId}`);
+    // Case 3: Managers (General Manager, Senior Manager, Manager)
+    // Get their own tasks + tasks of users where they are the reporting manager
+    console.log(`Getting tasks for manager ${userId} and their direct reports`);
+
+    // First get all users where this manager is their reporting manager
     const directReports = await db.select()
       .from(users)
       .where(eq(users.reportingManagerId, userId));
 
     const directReportIds = directReports.map(u => u.id);
-    console.log(`Found ${directReports.length} direct reports:`, 
+    console.log(`Users reporting to ${user.username}:`, 
       directReports.map(u => `${u.username} (${u.role})`));
 
-    // Get tasks:
-    // 1. Tasks assigned to or created by the manager
-    // 2. Tasks assigned to or created by their direct reports
-    console.log(`Getting tasks for manager ${userId} and direct reports:`, directReportIds);
+    // Get tasks for the manager and their direct reports
     const tasks = await db.select()
       .from(tasksTable)
       .where(
         or(
+          // Manager's own tasks
           eq(tasksTable.assignedTo, userId),
-          eq(tasksTable.createdBy, userId),
-          inArray(tasksTable.assignedTo, directReportIds),
-          inArray(tasksTable.createdBy, directReportIds)
+          // Tasks of direct reports
+          inArray(tasksTable.assignedTo, directReportIds)
         )
       );
 
