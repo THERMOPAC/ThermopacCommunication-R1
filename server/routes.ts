@@ -92,8 +92,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/tasks", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
+    console.log(`Getting tasks for authenticated user: ${req.user!.username} (${req.user!.role})`);
 
     const tasks = await storage.getTasksForUser(req.user!.id);
+    console.log(`Returning ${tasks.length} tasks for user ${req.user!.username}`);
     res.json(tasks);
   });
 
