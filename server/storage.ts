@@ -108,8 +108,8 @@ export class DatabaseStorage implements IStorage {
       subordinates.map(s => `${s.username} (${s.role})`));
 
     // Get tasks:
-    // 1. Assigned to or created by the manager
-    // 2. Assigned to or created by their direct subordinates
+    // 1. Tasks where the manager is assigned to or created them
+    // 2. Tasks assigned to or created by their direct subordinates
     console.log(`Getting tasks for user ${userId} and subordinates:`, subordinateIds);
     const tasks = await db.select()
       .from(tasksTable)
@@ -122,7 +122,7 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
-    console.log(`Found ${tasks.length} total tasks`);
+    console.log(`Found ${tasks.length} total tasks for manager ${user.username}`);
     return tasks as Task[];
   }
 
