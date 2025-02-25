@@ -90,38 +90,30 @@ export class DatabaseStorage implements IStorage {
       return tasks as Task[];
     }
 
-    // Case 2: For all other users
-    // Get tasks where:
-    // 1. The task is assigned to them OR
-    // 2. The task is assigned to someone who reports to them
-    console.log(`Getting tasks for user ${userId} and their direct reports`);
+    // Case 2: Employee sees only their assigned tasks
+    if (user.role === 'Employee') {
+      console.log(`User is Employee, returning only their assigned tasks`);
+      const tasks = await db.select()
+        .from(tasksTable)
+        .where(eq(tasksTable.assignedTo, userId));
+      console.log(`Found ${tasks.length} tasks for employee`);
+      return tasks as Task[];
+    }
 
-    // First get all tasks assigned to this user
-    const userTasks = await db.select()
+    // Case 3: Managers (General Manager, Senior Manager, Manager)
+    // They see tasks they are assigned to OR tasks they have created
+    console.log(`Getting tasks for manager ${user.username}`);
+    const tasks = await db.select()
       .from(tasksTable)
-      .where(eq(tasksTable.assignedTo, userId));
+      .where(
+        or(
+          eq(tasksTable.assignedTo, userId), // Tasks assigned to them
+          eq(tasksTable.createdBy, userId)   // Tasks they created
+        )
+      );
 
-    // Then get all tasks assigned to users who report to this user
-    const subordinateTasks = await db.select({
-        id: tasksTable.id,
-        title: tasksTable.title,
-        description: tasksTable.description,
-        status: tasksTable.status,
-        priority: tasksTable.priority,
-        startDate: tasksTable.startDate,
-        finishDate: tasksTable.finishDate,
-        assignedTo: tasksTable.assignedTo,
-        createdBy: tasksTable.createdBy,
-        createdAt: tasksTable.createdAt
-      })
-      .from(tasksTable)
-      .innerJoin(users, eq(tasksTable.assignedTo, users.id))
-      .where(eq(users.reportingManagerId, userId));
-
-    // Combine both sets of tasks
-    const allTasks = [...userTasks, ...subordinateTasks];
-    console.log(`Found ${allTasks.length} total tasks for ${user.role} ${user.username}`);
-    return allTasks as Task[];
+    console.log(`Found ${tasks.length} total tasks for manager ${user.username}`);
+    return tasks as Task[];
   }
 
   async getSubordinates(managerId: number): Promise<User[]> {
@@ -134,7 +126,7 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(eq(users.reportingManagerId, managerId));
 
-    console.log(`Found ${subordinates.length} subordinates for manager ${managerId}:`, 
+    console.log(`Found ${subordinates.length} subordinates for manager ${managerId}:`,
       subordinates.map(s => `${s.username} (${s.role})`));
     return subordinates as User[];
   }
