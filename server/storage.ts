@@ -86,7 +86,7 @@ export class DatabaseStorage implements IStorage {
     if (user.role === 'Superuser') {
       console.log(`User is Superuser, returning all tasks`);
       const tasks = await db.select().from(tasksTable);
-      console.log(`Found ${tasks.length} total tasks for superuser, tasks:`, tasks);
+      console.log(`Found ${tasks.length} total tasks for superuser`);
       return tasks as Task[];
     }
 
@@ -96,18 +96,32 @@ export class DatabaseStorage implements IStorage {
     // 2. The task is assigned to someone who reports to them
     console.log(`Getting tasks for user ${userId} and their direct reports`);
 
-    const tasks = await db.select()
+    // First get all tasks assigned to this user
+    const userTasks = await db.select()
+      .from(tasksTable)
+      .where(eq(tasksTable.assignedTo, userId));
+
+    // Then get all tasks assigned to users who report to this user
+    const subordinateTasks = await db.select({
+        id: tasksTable.id,
+        title: tasksTable.title,
+        description: tasksTable.description,
+        status: tasksTable.status,
+        priority: tasksTable.priority,
+        startDate: tasksTable.startDate,
+        finishDate: tasksTable.finishDate,
+        assignedTo: tasksTable.assignedTo,
+        createdBy: tasksTable.createdBy,
+        createdAt: tasksTable.createdAt
+      })
       .from(tasksTable)
       .innerJoin(users, eq(tasksTable.assignedTo, users.id))
-      .where(
-        or(
-          eq(users.id, userId),          // User's own tasks
-          eq(users.reportingManagerId, userId)  // Tasks of users they manage
-        )
-      );
+      .where(eq(users.reportingManagerId, userId));
 
-    console.log(`Found ${tasks.length} total tasks for ${user.role} ${user.username}`);
-    return tasks as Task[];
+    // Combine both sets of tasks
+    const allTasks = [...userTasks, ...subordinateTasks];
+    console.log(`Found ${allTasks.length} total tasks for ${user.role} ${user.username}`);
+    return allTasks as Task[];
   }
 
   async getSubordinates(managerId: number): Promise<User[]> {
