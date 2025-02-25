@@ -101,18 +101,29 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Case 3: Managers (General Manager, Senior Manager, Manager)
-    // They see tasks they are assigned to OR tasks they have created
+    // They see:
+    // 1. Tasks assigned to them
+    // 2. Tasks they created (where they are the createdBy)
     console.log(`Getting tasks for manager ${user.username}`);
     const tasks = await db.select()
       .from(tasksTable)
       .where(
         or(
-          eq(tasksTable.assignedTo, userId), // Tasks assigned to them
-          eq(tasksTable.createdBy, userId)   // Tasks they created
+          eq(tasksTable.assignedTo, userId),  // Tasks assigned to them
+          eq(tasksTable.createdBy, userId)    // Tasks they created
         )
       );
 
-    console.log(`Found ${tasks.length} total tasks for manager ${user.username}`);
+    // Log task details for debugging
+    console.log(`Found ${tasks.length} tasks for ${user.role} ${user.username}:`, 
+      tasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        assignedTo: t.assignedTo,
+        createdBy: t.createdBy
+      }))
+    );
+
     return tasks as Task[];
   }
 
