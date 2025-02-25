@@ -81,14 +81,27 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) return [];
 
-    console.log(`User role: ${user.role}`);
+    console.log(`User ${user.username} has role: ${user.role}`);
 
-    // Start with basic rule: every user sees tasks assigned to them
+    // Basic rule: users see tasks they are assigned to OR created
     const tasks = await db.select()
       .from(tasksTable)
-      .where(eq(tasksTable.assignedTo, userId));
+      .where(
+        or(
+          eq(tasksTable.assignedTo, userId),
+          eq(tasksTable.createdBy, userId)
+        )
+      );
 
-    console.log(`Found ${tasks.length} tasks assigned to user ${user.username}`);
+    console.log(`Found ${tasks.length} tasks for user ${user.username}:`, 
+      tasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        assignedTo: t.assignedTo,
+        createdBy: t.createdBy
+      }))
+    );
+
     return tasks as Task[];
   }
 
