@@ -77,7 +77,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTasksForUser(userId: number): Promise<Task[]> {
-    console.log(`Getting tasks for user ${userId}`);
     const user = await this.getUser(userId);
     if (!user) return [];
 
@@ -91,38 +90,19 @@ export class DatabaseStorage implements IStorage {
       return tasks as Task[];
     }
 
-    // Case 2: Employee sees only their tasks
-    if (user.role === 'Employee') {
-      console.log(`User is Employee, returning only their tasks`);
-      const tasks = await db.select()
-        .from(tasksTable)
-        .where(eq(tasksTable.assignedTo, userId));
-      console.log(`Found ${tasks.length} tasks for employee`);
-      return tasks as Task[];
-    }
+    // Case 2: For all other users
+    // Get tasks where:
+    // 1. The task is assigned to them OR
+    // 2. The task is assigned to someone who reports to them
+    console.log(`Getting tasks for user ${userId} and their direct reports`);
 
-    // Case 3: Managers (General Manager, Senior Manager, Manager)
-    // Get their own tasks + tasks of users where they are the reporting manager
-    console.log(`Getting tasks for manager ${userId} and their direct reports`);
-
-    // First get all users where this manager is their reporting manager
-    const directReports = await db.select()
-      .from(users)
-      .where(eq(users.reportingManagerId, userId));
-
-    const directReportIds = directReports.map(u => u.id);
-    console.log(`Users reporting to ${user.username}:`, 
-      directReports.map(u => `${u.username} (${u.role})`));
-
-    // Get tasks for the manager and their direct reports
     const tasks = await db.select()
       .from(tasksTable)
+      .innerJoin(users, eq(tasksTable.assignedTo, users.id))
       .where(
         or(
-          // Manager's own tasks
-          eq(tasksTable.assignedTo, userId),
-          // Tasks of direct reports
-          inArray(tasksTable.assignedTo, directReportIds)
+          eq(users.id, userId),          // User's own tasks
+          eq(users.reportingManagerId, userId)  // Tasks of users they manage
         )
       );
 
