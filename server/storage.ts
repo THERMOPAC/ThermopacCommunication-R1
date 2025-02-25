@@ -89,7 +89,7 @@ export class DatabaseStorage implements IStorage {
       return tasks as Task[];
     }
 
-    // If user is an Employee, only return tasks assigned to them
+    // For Employee, only return tasks assigned to them
     if (user.role === 'Employee') {
       console.log(`User is Employee, returning only assigned tasks`);
       const tasks = await db.select()
@@ -99,11 +99,13 @@ export class DatabaseStorage implements IStorage {
       return tasks as Task[];
     }
 
-    // For other roles, get their subordinates first
+    // For managers (General Manager, Senior Manager, Manager)
+    // Get their subordinates (direct reports) first
     console.log(`Getting subordinates for manager ${userId}`);
     const subordinates = await this.getSubordinates(userId);
     const subordinateIds = subordinates.map(s => s.id);
-    console.log(`Found ${subordinates.length} subordinates:`, subordinateIds);
+    console.log(`Found ${subordinates.length} subordinates for manager ${userId}:`, 
+      subordinates.map(s => `${s.username} (${s.role})`));
 
     // Get tasks:
     // 1. Created by or assigned to the user
