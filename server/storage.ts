@@ -83,25 +83,56 @@ export class DatabaseStorage implements IStorage {
 
     console.log(`User ${user.username} has role: ${user.role}`);
 
-    // Basic rule: users see tasks they are assigned to OR created
+    // For Superuser, return all tasks
+    if (user.role === 'Superuser') {
+      console.log(`User is Superuser, returning all tasks`);
+      const tasks = await db.select().from(tasksTable);
+      console.log(`Found ${tasks.length} total tasks for superuser`);
+      return tasks as Task[];
+    }
+
+    // For Employee, only return tasks assigned to them
+    if (user.role === 'Employee') {
+      console.log(`User is Employee, returning only assigned tasks`);
+      const tasks = await db.select()
+        .from(tasksTable)
+        .where(
+          or(
+            eq(tasksTable.assignedTo, userId),
+            eq(tasksTable.createdBy, userId)
+          )
+        );
+      console.log(`Found ${tasks.length} tasks for employee`);
+      return tasks as Task[];
+    }
+
+    // For managers (General Manager, Senior Manager, Manager)
+    // First get all their direct reports (users where they are the reporting manager)
+    console.log(`Getting direct reports for manager ${userId}`);
+    const directReports = await db.select()
+      .from(users)
+      .where(eq(users.reportingManagerId, userId));
+
+    const directReportIds = directReports.map(u => u.id);
+    console.log(`Found ${directReports.length} direct reports:`, 
+      directReports.map(u => `${u.username} (${u.role})`));
+
+    // Get tasks:
+    // 1. Tasks assigned to or created by the manager
+    // 2. Tasks assigned to or created by their direct reports
+    console.log(`Getting tasks for manager ${userId} and direct reports:`, directReportIds);
     const tasks = await db.select()
       .from(tasksTable)
       .where(
         or(
           eq(tasksTable.assignedTo, userId),
-          eq(tasksTable.createdBy, userId)
+          eq(tasksTable.createdBy, userId),
+          inArray(tasksTable.assignedTo, directReportIds),
+          inArray(tasksTable.createdBy, directReportIds)
         )
       );
 
-    console.log(`Found ${tasks.length} tasks for user ${user.username}:`, 
-      tasks.map(t => ({
-        id: t.id,
-        title: t.title,
-        assignedTo: t.assignedTo,
-        createdBy: t.createdBy
-      }))
-    );
-
+    console.log(`Found ${tasks.length} total tasks for ${user.role} ${user.username}`);
     return tasks as Task[];
   }
 
