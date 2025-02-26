@@ -48,7 +48,18 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
     queryKey: ["/api/users"],
   });
 
-  // Group tasks by creator
+  // Group users by role for the task assignment dropdown
+  const groupedUsers = roles
+    .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
+    .reduce((acc, role) => {
+      const usersInRole = allUsers.filter(u => u.role === role);
+      if (usersInRole.length > 0) {
+        acc[role] = usersInRole;
+      }
+      return acc;
+    }, {} as Record<string, User[]>);
+
+  // Group tasks by creator for display
   const tasksByCreator = tasks.reduce((acc, task) => {
     const creatorId = task.createdBy;
     if (!acc[creatorId]) {
