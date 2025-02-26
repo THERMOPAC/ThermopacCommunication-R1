@@ -90,42 +90,33 @@ export class DatabaseStorage implements IStorage {
       return tasks as Task[];
     }
 
-    // For all other users:
-    // Only show tasks where the user is either:
-    // 1. The assignee (assigned_to = userId) OR
-    // 2. The creator (created_by = userId)
-    console.log(`Getting tasks for ${user.username} with id ${userId}`);
+    // Case 2: For regular users (including managers and employees)
+    // A user should ONLY see tasks where they are either:
+    // 1. The assignee (assignedTo = userId) OR
+    // 2. The creator (createdBy = userId)
+    console.log(`Getting tasks for ${user.username} (${user.role}) with ID ${userId}`);
 
+    // Query tasks with strict visibility rules
     const tasks = await db
-      .select({
-        id: tasksTable.id,
-        title: tasksTable.title,
-        description: tasksTable.description,
-        status: tasksTable.status,
-        priority: tasksTable.priority,
-        startDate: tasksTable.startDate,
-        finishDate: tasksTable.finishDate,
-        assignedTo: tasksTable.assignedTo,
-        createdBy: tasksTable.createdBy,
-        createdAt: tasksTable.createdAt
-      })
+      .select()
       .from(tasksTable)
       .where(
         or(
-          eq(tasksTable.assignedTo, userId),    // Tasks assigned to this user
-          eq(tasksTable.createdBy, userId)      // Tasks created by this user
+          eq(tasksTable.assignedTo, userId),    // Tasks where user is the assignee
+          eq(tasksTable.createdBy, userId)      // Tasks where user is the creator
         )
       )
-      .orderBy(tasksTable.finishDate);
+      .orderBy(tasksTable.finishDate);         // Order by due date
 
     // Log task details for debugging
-    console.log(`Tasks found for ${user.username}:`, 
+    console.log(`Tasks found for ${user.username} (${user.role}):`, 
       tasks.map(t => ({
         id: t.id,
         title: t.title,
         assignedTo: t.assignedTo,
         createdBy: t.createdBy,
-        reason: t.assignedTo === userId ? 'Assigned to user' : 'Created by user'
+        reason: t.assignedTo === userId ? 'Assigned to user' : 'Created by user',
+        visibility: `User ${userId} can see this task because they are the ${t.assignedTo === userId ? 'assignee' : 'creator'}`
       }))
     );
 
