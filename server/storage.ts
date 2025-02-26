@@ -90,34 +90,16 @@ export class DatabaseStorage implements IStorage {
       return tasks as Task[];
     }
 
-    // Case 2: Employee sees ONLY tasks assigned to them
-    if (user.role === 'Employee') {
-      console.log(`User is Employee, returning only their assigned tasks`);
-      const tasks = await db.select()
-        .from(tasksTable)
-        .where(eq(tasksTable.assignedTo, userId));
-
-      console.log(`Found ${tasks.length} tasks for employee ${user.username}:`,
-        tasks.map(t => ({
-          id: t.id,
-          title: t.title,
-          assignedTo: t.assignedTo
-        }))
-      );
-      return tasks as Task[];
-    }
-
-    // Case 3: Managers (General Manager, Senior Manager, Manager)
-    // They see:
-    // 1. Tasks assigned to them
-    // 2. Tasks they created
-    console.log(`Getting tasks for manager ${user.username}`);
+    // For all other users:
+    // Show tasks where they are either:
+    // 1. Assigned to the task (assigned_to)
+    // 2. Created the task (created_by)
     const tasks = await db.select()
       .from(tasksTable)
       .where(
         or(
-          eq(tasksTable.assignedTo, userId),  // Tasks assigned to them
-          eq(tasksTable.createdBy, userId)    // Tasks they created
+          eq(tasksTable.assignedTo, userId),
+          eq(tasksTable.createdBy, userId)
         )
       );
 
