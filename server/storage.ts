@@ -87,15 +87,29 @@ export class DatabaseStorage implements IStorage {
 
     // Rule 1: Superuser sees all tasks
     if (user.role === 'Superuser') {
-      const tasks = await db.select().from(tasksTable).orderBy(tasksTable.finishDate);
+      const tasks = await db.select().from(tasksTable);
       console.log(`Found ${tasks.length} tasks total for Superuser ${user.username}`);
       return tasks as Task[];
     }
 
-    // Rule 2: Everyone else sees only:
-    // - Tasks assigned to them OR
-    // - Tasks they created
-    const tasks = await db.select().from(tasksTable)
+    // Rule 2: Regular users see ONLY tasks where they are:
+    // a) The assignee OR b) The creator 
+    console.log(`Getting tasks for ${user.username} where userId=${userId} is either assignee or creator`);
+
+    const tasks = await db
+      .select({
+        id: tasksTable.id,
+        title: tasksTable.title,
+        description: tasksTable.description,
+        status: tasksTable.status,
+        priority: tasksTable.priority,
+        startDate: tasksTable.startDate,
+        finishDate: tasksTable.finishDate,
+        assignedTo: tasksTable.assignedTo,
+        createdBy: tasksTable.createdBy,
+        createdAt: tasksTable.createdAt
+      })
+      .from(tasksTable)
       .where(
         or(
           eq(tasksTable.assignedTo, userId),
@@ -104,13 +118,16 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(tasksTable.finishDate);
 
-    console.log(`Found ${tasks.length} tasks for ${user.username}:`, 
+    // Log each task and why it's visible
+    console.log(`Tasks found for ${user.username}:`, 
       tasks.map(t => ({
-        taskId: t.id,
+        id: t.id,
         title: t.title,
-        visibleBecause: t.assignedTo === userId ? 
-          `Task is assigned to ${user.username}` : 
-          `Task was created by ${user.username}`
+        assignedTo: t.assignedTo,
+        createdBy: t.createdBy,
+        visibility_reason: `Visible because user ${userId} is the ${
+          t.assignedTo === userId ? 'assignee' : 'creator'
+        }`
       }))
     );
 
