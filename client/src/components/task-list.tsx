@@ -72,15 +72,17 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       return acc;
     }, {} as Record<string, User[]>);
 
-  // Group tasks by creator for display
-  const tasksByCreator = tasks.reduce((acc, task) => {
-    const creatorId = task.createdBy;
-    if (!acc[creatorId]) {
-      acc[creatorId] = [];
-    }
-    acc[creatorId].push(task);
-    return acc;
-  }, {} as Record<number, Task[]>);
+  // Group tasks by creator for display - excluding completed tasks
+  const tasksByCreator = tasks
+    .filter(task => task.status !== 'completed') // Filter out completed tasks
+    .reduce((acc, task) => {
+      const creatorId = task.createdBy;
+      if (!acc[creatorId]) {
+        acc[creatorId] = [];
+      }
+      acc[creatorId].push(task);
+      return acc;
+    }, {} as Record<number, Task[]>);
 
   // Get creator's name helper function
   const getCreatorName = (creatorId: number) => {
