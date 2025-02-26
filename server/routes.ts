@@ -25,6 +25,27 @@ async function comparePasswords(supplied: string, stored: string) {
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
+  // Logout endpoint with proper error handling
+  app.post("/api/logout", (req, res) => {
+    try {
+      if (req.session) {
+        req.session.destroy((err) => {
+          if (err) {
+            console.error("Error destroying session:", err);
+            return res.status(500).json({ message: "Logout failed" });
+          }
+          res.clearCookie("connect.sid");
+          res.status(200).json({ message: "Logged out successfully" });
+        });
+      } else {
+        res.status(200).json({ message: "Already logged out" });
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({ message: "Logout failed" });
+    }
+  });
+
   // Add password change endpoint
   app.post("/api/change-password", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
