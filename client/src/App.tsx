@@ -9,6 +9,7 @@ import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
 import ProfilePage from "@/pages/profile-page";
 import { useAuth } from "@/hooks/use-auth";
+import { PasswordManagement } from "@/components/password-management";
 
 // SuperuserRoute component to protect routes that only superusers should access
 function SuperuserRoute({
@@ -27,6 +28,14 @@ function SuperuserRoute({
   return <ProtectedRoute path={path} component={Component} />;
 }
 
+function PasswordManagementPage() {
+  return (
+    <div className="container mx-auto py-8">
+      <PasswordManagement />
+    </div>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -37,6 +46,7 @@ function Router() {
       <ProtectedRoute path="/messages" component={Dashboard} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <SuperuserRoute path="/users" component={Dashboard} />
+      <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <Route component={NotFound} />
     </Switch>
   );
