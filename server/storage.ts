@@ -78,24 +78,27 @@ export class DatabaseStorage implements IStorage {
 
   async getTasksForUser(userId: number): Promise<Task[]> {
     const user = await this.getUser(userId);
-    if (!user) return [];
+    if (!user) {
+      console.log(`No user found for ID ${userId}`);
+      return [];
+    }
 
-    console.log(`Getting tasks for ${user.username} (${user.role}) with ID ${userId}`);
+    console.log(`Getting tasks for user ${user.username} (${user.role}) with ID ${userId}`);
 
     // Rule 1: Superuser sees all tasks
     if (user.role === 'Superuser') {
       console.log(`User is Superuser, returning all tasks`);
-      const tasks = await db.select().from(tasksTable);
+      const tasks = await db.select().from(tasksTable).orderBy(tasksTable.finishDate);
+      console.log(`Found ${tasks.length} tasks for Superuser`);
       return tasks as Task[];
     }
 
-    // Rule 2: Regular users see tasks where they are either:
-    // a) The assignee (assigned_to = userId) OR
-    // b) The creator (created_by = userId)
-    console.log(`Getting tasks for regular user where they are assignee or creator`);
+    // Rule 2: All other users (including managers) only see:
+    // - Tasks assigned to them
+    // - Tasks created by them
+    console.log(`Getting tasks for regular user ${user.username} where they are either assignee or creator`);
 
-    const tasks = await db.select()
-      .from(tasksTable)
+    const tasks = await db.select().from(tasksTable)
       .where(
         or(
           eq(tasksTable.assignedTo, userId),
@@ -104,14 +107,13 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(tasksTable.finishDate);
 
-    // Log found tasks and why they are visible
     console.log(`Tasks found for ${user.username}:`, 
       tasks.map(t => ({
         id: t.id,
         title: t.title,
-        visible_reason: t.assignedTo === userId ? 
-          'User is assignee' : 
-          'User is creator'
+        assignedTo: t.assignedTo,
+        createdBy: t.createdBy,
+        visible_reason: t.assignedTo === userId ? 'User is assignee' : 'User is creator'
       }))
     );
 
