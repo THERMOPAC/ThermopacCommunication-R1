@@ -104,8 +104,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // 1. The task creator
     // 2. The task assignee
     // 3. A superuser
-    if (task.createdBy !== req.user!.id && 
-        task.assignedTo !== req.user!.id && 
+    if (task.createdBy !== req.user!.id &&
+        task.assignedTo !== req.user!.id &&
         req.user!.role !== "Superuser") {
       return res.status(403).json({ message: "Not authorized to update this task" });
     }
@@ -134,6 +134,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const subordinates = await storage.getSubordinates(req.user!.id);
     res.json(subordinates);
   });
+
+  app.post("/api/register", async (req, res, next) => {
+    try {
+      console.log('Registration attempt:', {
+        username: req.body.username,
+        role: req.body.role,
+        email: req.body.email,
+        countryCode: req.body.countryCode,
+        mobileNumber: req.body.mobileNumber
+      });
+
+      // If not authenticated, can only register as Employee
+      if (!req.isAuthenticated()) {
+        if (req.body.role !== 'Employee') {
+          return res.status(403).json({ message: "New registrations must be Employee role" });
+        }
+      } else {
+        // Check if authenticated user has permission to create the requested role
+        const currentUserRole = req.user!.role;
+        const requestedRole = req.body.role;
+
+        // Define role hierarchy levels
+        const roleLevels = {
+          'Superuser': 0,
+          'General Manager': 1,
+          'Senior Manager': 2,
+          'Manager': 3,
+          'Employee': 4
+        };
+
+        // Employee cannot create any users
+        if (currentUserRole === 'Employee') {
+          return res.status(403).json({ message: "Employees cannot create new users" });
+        }
+
+        // Others can only create roles of lower rank
+        if (roleLevels[requestedRole] <= roleLevels[currentUserRole]) {
+          return res.status(403).json({
+            message: "You can only create users with roles below your rank"
+          });
+        }
+      }
+
+      const existingUser = await storage.getUserByUsername(req.body.username);
+      if (existingUser) {
+        console.log(`Registration failed: Username ${req.body.username} already exists`);
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      const hashedPassword = await hashPassword(req.body.password);
+      const user = await storage.createUser({
+        ...req.body,
+        password: hashedPassword,
+      });
+
+      console.log(`User created successfully: ${user.username} (${user.role})`);
+
+      if (user.role === "Superuser") {
+        await storage.updateUserReportingManager(user.id, user.id);
+        console.log(`Set superuser ${user.username} as their own reporting manager`);
+      }
+
+      req.login(user, (err) => {
+        if (err) {
+          console.error('Login after registration failed:', err);
+          return next(err);
+        }
+        console.log(`Auto-login successful for new user: ${user.username}`);
+        res.status(201).json(user);
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({message: "Registration failed"});
+      next(error);
+    }
+  });
+
 
   const httpServer = createServer(app);
   return httpServer;
