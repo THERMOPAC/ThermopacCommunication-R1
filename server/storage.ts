@@ -82,45 +82,28 @@ export class DatabaseStorage implements IStorage {
 
     console.log(`Getting tasks for ${user.username} (${user.role}) with ID ${userId}`);
 
-    // Task Visibility Rules:
-    // 1. Superuser: Can see all tasks
-    // 2. Any other user (including managers): Can only see tasks where they are either:
-    //    - The assignee (assigned_to = userId)
-    //    - The creator (created_by = userId)
-
+    // Rule 1: Superuser sees all tasks
     if (user.role === 'Superuser') {
       console.log(`User is Superuser, returning all tasks`);
       const tasks = await db.select().from(tasksTable);
-      console.log(`Found ${tasks.length} total tasks for superuser`);
       return tasks as Task[];
     }
 
-    // For all other users (including managers and employees)
-    // Only show tasks where the user is either:
-    // - The assignee (assigned_to = userId) OR
-    // - The creator (created_by = userId)
-    console.log(`Getting tasks for regular user ${user.username}`);
-
+    // Rule 2: Any other user (Employee or Manager) should ONLY see:
+    // - Tasks where they are the assignee (assignedTo = userId)
+    console.log(`Getting tasks assigned to user ${user.username}`);
     const tasks = await db.select()
       .from(tasksTable)
-      .where(
-        or(
-          eq(tasksTable.assignedTo, userId),    // Tasks assigned to this user
-          eq(tasksTable.createdBy, userId)      // Tasks created by this user
-        )
-      )
-      .orderBy(tasksTable.finishDate);         // Order by due date
+      .where(eq(tasksTable.assignedTo, userId))
+      .orderBy(tasksTable.finishDate);
 
-    // Log task details for debugging
     console.log(`Tasks found for ${user.username} (${user.role}):`, 
       tasks.map(t => ({
         id: t.id,
         title: t.title,
         assignedTo: t.assignedTo,
         createdBy: t.createdBy,
-        visible_because: t.assignedTo === userId ? 
-          'User is the assignee' : 
-          'User is the creator'
+        status: t.status
       }))
     );
 
