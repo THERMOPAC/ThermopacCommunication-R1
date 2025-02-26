@@ -349,7 +349,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                   {creatorTasks.map((task) => (
                     <TableRow key={task.id}>
                       <TableCell className="font-medium">{task.title}</TableCell>
-                      <TableCell className="truncate max-w-[300px]">{task.description}</TableCell>
+                      <TableCell className="max-w-[300px] whitespace-pre-wrap break-words">
+                        {task.description}
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant={
