@@ -9,5 +9,10 @@ async function hashPassword(password: string) {
   return `${buf.toString("hex")}.${salt}`;
 }
 
-// Export the function to use in routes
-export { hashPassword };
+async function updateUserPassword(userId: number, newPassword: string) {
+  const hashedPassword = await hashPassword(newPassword);
+  return hashedPassword;
+}
+
+// Export the functions to use in routes
+export { hashPassword, updateUserPassword };
