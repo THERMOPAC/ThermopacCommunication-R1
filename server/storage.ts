@@ -94,9 +94,21 @@ export class DatabaseStorage implements IStorage {
     // Only show tasks where the user is either:
     // 1. The assignee (assigned_to = userId) OR
     // 2. The creator (created_by = userId)
-    console.log(`Getting tasks for user ${user.username} where they are either assigned or creator`);
+    console.log(`Getting tasks for ${user.username} with id ${userId}`);
 
-    const tasks = await db.select()
+    const tasks = await db
+      .select({
+        id: tasksTable.id,
+        title: tasksTable.title,
+        description: tasksTable.description,
+        status: tasksTable.status,
+        priority: tasksTable.priority,
+        startDate: tasksTable.startDate,
+        finishDate: tasksTable.finishDate,
+        assignedTo: tasksTable.assignedTo,
+        createdBy: tasksTable.createdBy,
+        createdAt: tasksTable.createdAt
+      })
       .from(tasksTable)
       .where(
         or(
@@ -104,16 +116,16 @@ export class DatabaseStorage implements IStorage {
           eq(tasksTable.createdBy, userId)      // Tasks created by this user
         )
       )
-      .orderBy(tasksTable.finishDate, 'asc');   // Order by due date as requested
+      .orderBy(tasksTable.finishDate);
 
-    // Log found tasks for debugging
-    console.log(`Found ${tasks.length} tasks for ${user.username}:`, 
+    // Log task details for debugging
+    console.log(`Tasks found for ${user.username}:`, 
       tasks.map(t => ({
         id: t.id,
         title: t.title,
         assignedTo: t.assignedTo,
         createdBy: t.createdBy,
-        finishDate: t.finishDate
+        reason: t.assignedTo === userId ? 'Assigned to user' : 'Created by user'
       }))
     );
 
