@@ -89,21 +89,29 @@ export class DatabaseStorage implements IStorage {
       return tasks as Task[];
     }
 
-    // Rule 2: Any other user (Employee or Manager) should ONLY see:
-    // - Tasks where they are the assignee (assignedTo = userId)
-    console.log(`Getting tasks assigned to user ${user.username}`);
+    // Rule 2: Regular users see tasks where they are either:
+    // a) The assignee (assigned_to = userId) OR
+    // b) The creator (created_by = userId)
+    console.log(`Getting tasks for regular user where they are assignee or creator`);
+
     const tasks = await db.select()
       .from(tasksTable)
-      .where(eq(tasksTable.assignedTo, userId))
+      .where(
+        or(
+          eq(tasksTable.assignedTo, userId),
+          eq(tasksTable.createdBy, userId)
+        )
+      )
       .orderBy(tasksTable.finishDate);
 
-    console.log(`Tasks found for ${user.username} (${user.role}):`, 
+    // Log found tasks and why they are visible
+    console.log(`Tasks found for ${user.username}:`, 
       tasks.map(t => ({
         id: t.id,
         title: t.title,
-        assignedTo: t.assignedTo,
-        createdBy: t.createdBy,
-        status: t.status
+        visible_reason: t.assignedTo === userId ? 
+          'User is assignee' : 
+          'User is creator'
       }))
     );
 
