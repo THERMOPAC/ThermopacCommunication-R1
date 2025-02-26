@@ -20,6 +20,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus, ChevronDown, ChevronRight, CheckCircle, Circle } from "lucide-react";
 import { roles, roleHierarchy } from "@shared/roles";
 import { useToast } from "@/hooks/use-toast";
@@ -42,6 +52,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
 
   // State for collapsible sections
   const [openSections, setOpenSections] = useState<Record<number, boolean>>({});
+
+  // State for task completion confirmation
+  const [taskToComplete, setTaskToComplete] = useState<{id: number, completing: boolean} | null>(null);
 
   // Fetch all users for task assignment
   const { data: allUsers = [] } = useQuery<User[]>({
@@ -95,6 +108,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
         title: "Success",
         description: "Task status updated",
       });
+      setTaskToComplete(null);  // Reset the task completion state
     },
     onError: (error: Error) => {
       toast({
@@ -102,6 +116,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
         description: error.message,
         variant: "destructive",
       });
+      setTaskToComplete(null);  // Reset on error too
     },
   });
 
@@ -361,9 +376,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => completeTaskMutation.mutate({
-                            taskId: task.id,
-                            completed: task.status !== 'completed'
+                          onClick={() => setTaskToComplete({
+                            id: task.id,
+                            completing: task.status !== 'completed'
                           })}
                           disabled={completeTaskMutation.isPending}
                         >
@@ -382,6 +397,38 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
           </Collapsible>
         ))}
       </Card>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog 
+        open={taskToComplete !== null}
+        onOpenChange={(open) => !open && setTaskToComplete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {taskToComplete?.completing ? 'Complete Task' : 'Reopen Task'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this task as {taskToComplete?.completing ? 'completed' : 'pending'}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (taskToComplete) {
+                  completeTaskMutation.mutate({
+                    taskId: taskToComplete.id,
+                    completed: taskToComplete.completing
+                  });
+                }
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
