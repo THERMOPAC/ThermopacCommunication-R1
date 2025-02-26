@@ -99,22 +99,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.patch("/api/users/:id", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    if (req.user!.role !== "Superuser") return res.sendStatus(403);
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      if (req.user!.role !== "Superuser") return res.status(403).json({ message: "Not authorized" });
 
-    const userId = parseInt(req.params.id);
-    let userData = insertUserSchema.partial().parse(req.body);
+      const userId = parseInt(req.params.id);
+      let userData = insertUserSchema.partial().parse(req.body);
 
-    // If password is being updated, hash it
-    if (userData.password) {
-      userData = {
+      console.log(`Attempting to update user ${userId}`, {
         ...userData,
-        password: await hashPassword(userData.password)
-      };
-    }
+        password: userData.password ? '[REDACTED]' : undefined
+      });
 
-    const updatedUser = await storage.updateUser(userId, userData);
-    res.json(updatedUser);
+      // If password is being updated, hash it
+      if (userData.password) {
+        userData = {
+          ...userData,
+          password: await hashPassword(userData.password)
+        };
+      }
+
+      const updatedUser = await storage.updateUser(userId, userData);
+      console.log(`Successfully updated user ${userId}`);
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to update user" 
+      });
+    }
   });
 
   app.get("/api/users", async (req, res) => {

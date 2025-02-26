@@ -95,21 +95,34 @@ export default function UserManagement() {
         delete data.password;
       }
 
-      const res = await apiRequest("PATCH", `/api/users/${id}`, data);
-      return res.json();
+      console.log('Updating user with data:', { id, ...data, password: '[REDACTED]' });
+
+      try {
+        const res = await apiRequest("PATCH", `/api/users/${id}`, data);
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.message || 'Failed to update user');
+        }
+        return await res.json();
+      } catch (error) {
+        console.error('Error updating user:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setIsEditDialogOpen(false);
+      editForm.reset();
       toast({
         title: "Success",
         description: "User updated successfully",
       });
     },
     onError: (error: Error) => {
+      console.error('Update user error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to update user",
         variant: "destructive",
       });
     },
