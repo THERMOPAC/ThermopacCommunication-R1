@@ -83,41 +83,47 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
 
-    console.log(`Getting tasks for user ${user.username} (${user.role}) with ID ${userId}`);
+    console.log(`Getting tasks for user: ${user.username} (${user.role}, ID: ${userId})`);
+
+    let tasks: Task[];
 
     // Rule 1: Superuser sees all tasks
     if (user.role === 'Superuser') {
-      console.log(`User is Superuser, returning all tasks`);
-      const tasks = await db.select().from(tasksTable).orderBy(tasksTable.finishDate);
-      console.log(`Found ${tasks.length} tasks for Superuser`);
-      return tasks as Task[];
+      console.log('User is Superuser - fetching all tasks');
+      tasks = await db.select()
+        .from(tasksTable)
+        .orderBy(tasksTable.finishDate) as Task[];
+      console.log(`Returning ${tasks.length} tasks for Superuser`);
+      return tasks;
     }
 
-    // Rule 2: All other users (including managers) only see:
-    // - Tasks assigned to them
-    // - Tasks created by them
-    console.log(`Getting tasks for regular user ${user.username} where they are either assignee or creator`);
+    // Rule 2: Regular users see ONLY tasks where they are either:
+    // a) The assignee OR
+    // b) The creator
+    console.log(`Fetching tasks for regular user where userId=${userId} is either assignee or creator`);
 
-    const tasks = await db.select().from(tasksTable)
+    tasks = await db.select()
+      .from(tasksTable)
       .where(
         or(
           eq(tasksTable.assignedTo, userId),
           eq(tasksTable.createdBy, userId)
         )
       )
-      .orderBy(tasksTable.finishDate);
+      .orderBy(tasksTable.finishDate) as Task[];
 
-    console.log(`Tasks found for ${user.username}:`, 
+    // Log details about each task and why it's visible
+    console.log(`Found ${tasks.length} tasks for user ${user.username}:`, 
       tasks.map(t => ({
-        id: t.id,
+        taskId: t.id,
         title: t.title,
-        assignedTo: t.assignedTo,
-        createdBy: t.createdBy,
-        visible_reason: t.assignedTo === userId ? 'User is assignee' : 'User is creator'
+        isAssignee: t.assignedTo === userId,
+        isCreator: t.createdBy === userId,
+        visibleBecause: t.assignedTo === userId ? 'User is assignee' : 'User is creator'
       }))
     );
 
-    return tasks as Task[];
+    return tasks;
   }
 
   async getSubordinates(managerId: number): Promise<User[]> {
