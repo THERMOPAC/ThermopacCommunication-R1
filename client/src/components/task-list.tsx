@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, CheckCircle, Circle } from "lucide-react";
 import { roles, roleHierarchy } from "@shared/roles";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -81,6 +81,29 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
     const assignee = allUsers.find(u => u.id === assigneeId);
     return assignee ? assignee.username : 'Unknown';
   };
+
+  // Mutation for completing tasks
+  const completeTaskMutation = useMutation({
+    mutationFn: async ({ taskId, completed }: { taskId: number; completed: boolean }) => {
+      const status = completed ? "completed" : "pending";
+      const res = await apiRequest("PATCH", `/api/tasks/${taskId}`, { status });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Success",
+        description: "Task status updated",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: Omit<Task, "id">) => {
@@ -302,6 +325,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                     <TableHead>Due Date</TableHead>
                     <TableHead>Assigned To</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Complete</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -326,9 +350,29 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                       <TableCell>{new Date(task.finishDate).toLocaleDateString()}</TableCell>
                       <TableCell>{getAssigneeName(task.assignedTo)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="capitalize">
+                        <Badge 
+                          variant={task.status === 'completed' ? 'default' : 'outline'} 
+                          className="capitalize"
+                        >
                           {task.status}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => completeTaskMutation.mutate({
+                            taskId: task.id,
+                            completed: task.status !== 'completed'
+                          })}
+                          disabled={completeTaskMutation.isPending}
+                        >
+                          {task.status === 'completed' ? (
+                            <CheckCircle className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <Circle className="h-5 w-5" />
+                          )}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

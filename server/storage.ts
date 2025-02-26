@@ -119,7 +119,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(tasksTable.finishDate);
 
     // Log each task and why it's visible
-    console.log(`Tasks found for ${user.username}:`, 
+    console.log(`Tasks found for ${user.username}:`,
       tasks.map(t => ({
         id: t.id,
         title: t.title,
@@ -153,6 +153,25 @@ export class DatabaseStorage implements IStorage {
     const allUsers = await db.select().from(users);
     console.log(`Getting all users:`, allUsers);
     return allUsers as User[];
+  }
+
+  async getTask(id: number): Promise<Task | undefined> {
+    const result = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
+    return result[0] as Task | undefined;
+  }
+
+  async updateTask(id: number, updateData: Partial<Task>): Promise<Task> {
+    console.log(`Updating task ${id} with data:`, updateData);
+    const result = await db
+      .update(tasksTable)
+      .set(updateData)
+      .where(eq(tasksTable.id, id))
+      .returning();
+    const task = result[0] as Task;
+
+    if (!task) throw new Error("Task not found");
+    console.log(`Updated task:`, task);
+    return task;
   }
 }
 

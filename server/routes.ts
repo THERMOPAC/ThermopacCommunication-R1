@@ -90,6 +90,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(201).json(task);
   });
 
+  app.patch("/api/tasks/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const taskId = parseInt(req.params.id);
+    const task = await storage.getTask(taskId);
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    // Only allow updating task if user is either:
+    // 1. The task creator
+    // 2. The task assignee
+    // 3. A superuser
+    if (task.createdBy !== req.user!.id && 
+        task.assignedTo !== req.user!.id && 
+        req.user!.role !== "Superuser") {
+      return res.status(403).json({ message: "Not authorized to update this task" });
+    }
+
+    const updateData = {
+      ...req.body,
+      updatedAt: new Date().toISOString()
+    };
+
+    const updatedTask = await storage.updateTask(taskId, updateData);
+    res.json(updatedTask);
+  });
+
   app.get("/api/tasks", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     console.log(`Getting tasks for authenticated user: ${req.user!.username} (${req.user!.role})`);
