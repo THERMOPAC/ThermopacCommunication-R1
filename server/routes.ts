@@ -48,6 +48,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.sendStatus(200);
   });
 
+  // Add password change endpoint
+  app.post("/api/admin/change-password", async (req, res) => {
+    if (!req.isAuthenticated() || req.user!.role !== "Superuser") {
+      return res.sendStatus(403);
+    }
+
+    const { userId, newPassword } = req.body;
+
+    // Get user
+    const user = await storage.getUser(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Hash and update new password
+    const hashedPassword = await hashPassword(newPassword);
+    await storage.updateUser(user.id, { password: hashedPassword });
+
+    res.sendStatus(200);
+  });
+
   // User Management Routes
   app.delete("/api/users/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
