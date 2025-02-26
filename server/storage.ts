@@ -88,21 +88,16 @@ export class DatabaseStorage implements IStorage {
     // Rule 1: Superuser sees all tasks
     if (user.role === 'Superuser') {
       console.log('User is Superuser - fetching all tasks');
-      const tasks = await db.select()
-        .from(tasksTable)
-        .orderBy(tasksTable.finishDate);
-
+      const tasks = await db.select().from(tasksTable).orderBy(tasksTable.finishDate);
       console.log(`Found ${tasks.length} tasks for Superuser`);
       return tasks as Task[];
     }
 
-    // Rule 2: For all other users (managers and employees)
-    // Only show tasks where they are either:
-    // a) The assignee (assigned_to = userId) OR
-    // b) The creator (created_by = userId)
-    console.log(`Getting tasks for regular user ${user.username} (${user.role})`);
+    // Rule 2: Regular users (including managers) only see tasks where they are:
+    // a) The assignee OR b) The creator
+    console.log(`Getting tasks for regular user ${user.username} (${user.role}, ID: ${userId})`);
 
-    // First get all tasks for this user
+    // Get tasks with a JOIN to get assignee and creator details
     const tasks = await db
       .select({
         id: tasksTable.id,
@@ -119,20 +114,20 @@ export class DatabaseStorage implements IStorage {
       .from(tasksTable)
       .where(
         or(
-          eq(tasksTable.assignedTo, userId),  // Tasks assigned to this user
-          eq(tasksTable.createdBy, userId)    // Tasks created by this user
+          eq(tasksTable.assignedTo, userId),  // Tasks where user is assignee
+          eq(tasksTable.createdBy, userId)    // Tasks where user is creator
         )
       )
       .orderBy(tasksTable.finishDate);
 
-    // Log detailed information about why each task is visible
+    // Log detailed visibility information
     console.log(`Found ${tasks.length} tasks for ${user.username}:`, 
       tasks.map(t => ({
         taskId: t.id,
         title: t.title,
-        visibleBecause: t.assignedTo === userId ? 
-          `User ${userId} is the assignee` : 
-          `User ${userId} created this task`
+        visible_because: t.assignedTo === userId 
+          ? `Task is assigned to ${user.username}` 
+          : `Task was created by ${user.username}`
       }))
     );
 
