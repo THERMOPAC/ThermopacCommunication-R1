@@ -90,6 +90,11 @@ export default function UserManagement() {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<InsertUser> }) => {
+      // Remove empty password if not being updated
+      if (data.password === "") {
+        delete data.password;
+      }
+
       const res = await apiRequest("PATCH", `/api/users/${id}`, data);
       return res.json();
     },
@@ -115,6 +120,7 @@ export default function UserManagement() {
     defaultValues: {
       username: "",
       email: "",
+      password: "",
       role: "Employee" as const,
       mobileNumber: "",
       countryCode: "",
@@ -347,6 +353,21 @@ export default function UserManagement() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Add password field */}
+                <FormField
+                  control={editForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>New Password (leave blank to keep current)</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
