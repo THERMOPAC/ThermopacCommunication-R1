@@ -82,7 +82,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (req.user!.role !== "Superuser") return res.sendStatus(403);
 
     const userId = parseInt(req.params.id);
-    const userData = insertUserSchema.partial().parse(req.body);
+    let userData = insertUserSchema.partial().parse(req.body);
+
+    // If password is being updated, hash it
+    if (userData.password) {
+      userData = {
+        ...userData,
+        password: await hashPassword(userData.password)
+      };
+    }
+
     const updatedUser = await storage.updateUser(userId, userData);
     res.json(updatedUser);
   });

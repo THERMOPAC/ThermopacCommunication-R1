@@ -7,6 +7,10 @@ import { db } from "./db";
 import { users, tasks as tasksTable } from "@shared/schema";
 import { eq, or, inArray } from "drizzle-orm";
 
+type UserUpdate = Partial<Omit<InsertUser, 'password'>> & {
+  password?: string;
+};
+
 const PostgresSessionStore = connectPg(session);
 
 export class DatabaseStorage implements IStorage {
@@ -48,7 +52,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUser(id: number, updateData: Partial<InsertUser>): Promise<User> {
+  async updateUser(id: number, updateData: UserUpdate): Promise<User> {
     console.log(`Updating user ${id} with data:`, updateData);
     const result = await db
       .update(users)
