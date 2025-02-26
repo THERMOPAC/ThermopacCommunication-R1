@@ -85,45 +85,58 @@ export class DatabaseStorage implements IStorage {
 
     console.log(`Getting tasks for user: ${user.username} (${user.role}, ID: ${userId})`);
 
-    let tasks: Task[];
-
     // Rule 1: Superuser sees all tasks
     if (user.role === 'Superuser') {
       console.log('User is Superuser - fetching all tasks');
-      tasks = await db.select()
+      const tasks = await db.select()
         .from(tasksTable)
-        .orderBy(tasksTable.finishDate) as Task[];
-      console.log(`Returning ${tasks.length} tasks for Superuser`);
-      return tasks;
+        .orderBy(tasksTable.finishDate);
+
+      console.log(`Found ${tasks.length} tasks for Superuser`);
+      return tasks as Task[];
     }
 
-    // Rule 2: Regular users see ONLY tasks where they are either:
-    // a) The assignee OR
-    // b) The creator
-    console.log(`Fetching tasks for regular user where userId=${userId} is either assignee or creator`);
+    // Rule 2: For all other users (managers and employees)
+    // Only show tasks where they are either:
+    // a) The assignee (assigned_to = userId) OR
+    // b) The creator (created_by = userId)
+    console.log(`Getting tasks for regular user ${user.username} (${user.role})`);
 
-    tasks = await db.select()
+    // First get all tasks for this user
+    const tasks = await db
+      .select({
+        id: tasksTable.id,
+        title: tasksTable.title,
+        description: tasksTable.description,
+        status: tasksTable.status,
+        priority: tasksTable.priority,
+        startDate: tasksTable.startDate,
+        finishDate: tasksTable.finishDate,
+        assignedTo: tasksTable.assignedTo,
+        createdBy: tasksTable.createdBy,
+        createdAt: tasksTable.createdAt
+      })
       .from(tasksTable)
       .where(
         or(
-          eq(tasksTable.assignedTo, userId),
-          eq(tasksTable.createdBy, userId)
+          eq(tasksTable.assignedTo, userId),  // Tasks assigned to this user
+          eq(tasksTable.createdBy, userId)    // Tasks created by this user
         )
       )
-      .orderBy(tasksTable.finishDate) as Task[];
+      .orderBy(tasksTable.finishDate);
 
-    // Log details about each task and why it's visible
-    console.log(`Found ${tasks.length} tasks for user ${user.username}:`, 
+    // Log detailed information about why each task is visible
+    console.log(`Found ${tasks.length} tasks for ${user.username}:`, 
       tasks.map(t => ({
         taskId: t.id,
         title: t.title,
-        isAssignee: t.assignedTo === userId,
-        isCreator: t.createdBy === userId,
-        visibleBecause: t.assignedTo === userId ? 'User is assignee' : 'User is creator'
+        visibleBecause: t.assignedTo === userId ? 
+          `User ${userId} is the assignee` : 
+          `User ${userId} created this task`
       }))
     );
 
-    return tasks;
+    return tasks as Task[];
   }
 
   async getSubordinates(managerId: number): Promise<User[]> {
