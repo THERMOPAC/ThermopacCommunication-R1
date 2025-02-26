@@ -48,25 +48,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add password change endpoint
   app.post("/api/change-password", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
 
-    const { currentPassword, newPassword } = req.body;
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current password and new password are required" });
+      }
 
-    // Get current user
-    const user = await storage.getUser(req.user!.id);
-    if (!user) return res.sendStatus(404);
+      // Get current user
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
 
-    // Verify current password
-    const isValid = await comparePasswords(currentPassword, user.password);
-    if (!isValid) {
-      return res.status(400).json({ message: "Current password is incorrect" });
+      // Verify current password
+      const isValid = await comparePasswords(currentPassword, user.password);
+      if (!isValid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      // Hash and update new password
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateUser(user.id, { password: hashedPassword });
+
+      console.log(`Password updated successfully for user ${user.username}`);
+      res.status(200).json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error('Error changing password:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to change password" 
+      });
     }
-
-    // Hash and update new password
-    const hashedPassword = await hashPassword(newPassword);
-    await storage.updateUser(user.id, { password: hashedPassword });
-
-    res.sendStatus(200);
   });
 
   // Add password change endpoint
