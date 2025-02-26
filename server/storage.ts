@@ -80,9 +80,14 @@ export class DatabaseStorage implements IStorage {
     const user = await this.getUser(userId);
     if (!user) return [];
 
-    console.log(`Getting tasks for ${user.username} (${user.role})`);
+    console.log(`Getting tasks for ${user.username} (${user.role}) with ID ${userId}`);
 
-    // Case 1: Superuser sees all tasks
+    // Task Visibility Rules:
+    // 1. Superuser: Can see all tasks
+    // 2. Any other user (including managers): Can only see tasks where they are either:
+    //    - The assignee (assigned_to = userId)
+    //    - The creator (created_by = userId)
+
     if (user.role === 'Superuser') {
       console.log(`User is Superuser, returning all tasks`);
       const tasks = await db.select().from(tasksTable);
@@ -90,20 +95,18 @@ export class DatabaseStorage implements IStorage {
       return tasks as Task[];
     }
 
-    // Case 2: For regular users (including managers and employees)
-    // A user should ONLY see tasks where they are either:
-    // 1. The assignee (assignedTo = userId) OR
-    // 2. The creator (createdBy = userId)
-    console.log(`Getting tasks for ${user.username} (${user.role}) with ID ${userId}`);
+    // For all other users (including managers and employees)
+    // Only show tasks where the user is either:
+    // - The assignee (assigned_to = userId) OR
+    // - The creator (created_by = userId)
+    console.log(`Getting tasks for regular user ${user.username}`);
 
-    // Query tasks with strict visibility rules
-    const tasks = await db
-      .select()
+    const tasks = await db.select()
       .from(tasksTable)
       .where(
         or(
-          eq(tasksTable.assignedTo, userId),    // Tasks where user is the assignee
-          eq(tasksTable.createdBy, userId)      // Tasks where user is the creator
+          eq(tasksTable.assignedTo, userId),    // Tasks assigned to this user
+          eq(tasksTable.createdBy, userId)      // Tasks created by this user
         )
       )
       .orderBy(tasksTable.finishDate);         // Order by due date
@@ -115,8 +118,9 @@ export class DatabaseStorage implements IStorage {
         title: t.title,
         assignedTo: t.assignedTo,
         createdBy: t.createdBy,
-        reason: t.assignedTo === userId ? 'Assigned to user' : 'Created by user',
-        visibility: `User ${userId} can see this task because they are the ${t.assignedTo === userId ? 'assignee' : 'creator'}`
+        visible_because: t.assignedTo === userId ? 
+          'User is the assignee' : 
+          'User is the creator'
       }))
     );
 
