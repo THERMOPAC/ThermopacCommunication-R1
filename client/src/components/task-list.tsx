@@ -20,10 +20,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { roles, roleHierarchy } from "@shared/roles";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 type TaskListProps = {
   tasks: Task[];
@@ -35,34 +40,45 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // State for collapsible sections
+  const [openSections, setOpenSections] = useState<Record<number, boolean>>({});
+
   // Fetch all users for task assignment
   const { data: allUsers = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
 
-  // Group users by role
-  const groupedUsers = roles
-    .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
-    .reduce((acc, role) => {
-      const usersInRole = allUsers.filter(u => u.role === role);
-      if (usersInRole.length > 0) {
-        acc[role] = usersInRole;
-      }
-      return acc;
-    }, {} as Record<string, User[]>);
+  // Group tasks by creator
+  const tasksByCreator = tasks.reduce((acc, task) => {
+    const creatorId = task.createdBy;
+    if (!acc[creatorId]) {
+      acc[creatorId] = [];
+    }
+    acc[creatorId].push(task);
+    return acc;
+  }, {} as Record<number, Task[]>);
+
+  // Get creator's name helper function
+  const getCreatorName = (creatorId: number) => {
+    const creator = allUsers.find(u => u.id === creatorId);
+    return creator ? creator.username : 'Unknown';
+  };
+
+  // Get assignee's name helper function
+  const getAssigneeName = (assigneeId: number | null) => {
+    if (!assigneeId) return 'Unassigned';
+    const assignee = allUsers.find(u => u.id === assigneeId);
+    return assignee ? assignee.username : 'Unknown';
+  };
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: Omit<Task, "id">) => {
-      console.log("Creating task with data:", data);
-      // Add createdAt field
       const taskData = {
         ...data,
         createdAt: new Date().toISOString()
       };
       const res = await apiRequest("POST", "/api/tasks", taskData);
-      const result = await res.json();
-      console.log("Task creation response:", result);
-      return result;
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -74,7 +90,6 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       });
     },
     onError: (error: Error) => {
-      console.error("Task creation error:", error);
       toast({
         title: "Error",
         description: error.message,
@@ -90,7 +105,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       description: "",
       status: "pending",
       priority: "Medium",
-      startDate: new Date().toISOString().split('T')[0], // Today's date
+      startDate: new Date().toISOString().split('T')[0],
       finishDate: "",
       assignedTo: undefined,
       createdBy: user!.id,
@@ -238,54 +253,79 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       </div>
 
       <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[500px]">Title</TableHead>
-              <TableHead className="w-[500px]">Description</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Start Date</TableHead>
-              <TableHead>Due Date</TableHead>
-              <TableHead>Assigned To</TableHead>
-              <TableHead>Assigned By</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tasks.map((task) => (
-              <TableRow key={task.id}>
-                <TableCell className="font-medium w-[500px]">{task.title}</TableCell>
-                <TableCell className="w-[500px] truncate">{task.description}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant={
-                      task.priority === 'High'
-                        ? 'destructive'
-                        : task.priority === 'Low'
-                          ? 'secondary'
-                          : 'default'
-                    }
-                  >
-                    {task.priority}
-                  </Badge>
-                </TableCell>
-                <TableCell>{new Date(task.startDate).toLocaleDateString()}</TableCell>
-                <TableCell>{new Date(task.finishDate).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  {allUsers.find(u => u.id === task.assignedTo)?.username || 'Unassigned'}
-                </TableCell>
-                <TableCell>
-                  {allUsers.find(u => u.id === task.createdBy)?.username}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="capitalize">
-                    {task.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        {Object.entries(tasksByCreator).map(([creatorId, creatorTasks]) => (
+          <Collapsible
+            key={creatorId}
+            open={openSections[Number(creatorId)]}
+            onOpenChange={(isOpen) => {
+              setOpenSections(prev => ({
+                ...prev,
+                [creatorId]: isOpen
+              }));
+            }}
+          >
+            <CollapsibleTrigger className="flex items-center gap-2 w-full p-4 hover:bg-accent">
+              <div className="flex items-center gap-2">
+                {openSections[Number(creatorId)] ? (
+                  <ChevronDown className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+                <span className="font-medium">
+                  Tasks Assigned by: {getCreatorName(Number(creatorId))}
+                </span>
+                <Badge variant="secondary" className="ml-2">
+                  {creatorTasks.length}
+                </Badge>
+              </div>
+            </CollapsibleTrigger>
+
+            <CollapsibleContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[300px]">Title</TableHead>
+                    <TableHead className="w-[300px]">Description</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Start Date</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Assigned To</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {creatorTasks.map((task) => (
+                    <TableRow key={task.id}>
+                      <TableCell className="font-medium">{task.title}</TableCell>
+                      <TableCell className="truncate max-w-[300px]">{task.description}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            task.priority === 'High'
+                              ? 'destructive'
+                              : task.priority === 'Low'
+                                ? 'secondary'
+                                : 'default'
+                          }
+                        >
+                          {task.priority}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{new Date(task.startDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{new Date(task.finishDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{getAssigneeName(task.assignedTo)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {task.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CollapsibleContent>
+          </Collapsible>
+        ))}
       </Card>
     </div>
   );
