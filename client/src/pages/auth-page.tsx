@@ -86,29 +86,3 @@ function LoginForm() {
     </Form>
   );
 }
-import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoginForm } from "@/components/login-form";
-
-export function AuthPage() {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mb-4">
-            <span className="text-red-600 font-bold text-2xl">THERMOPAC</span>
-            <br />
-            <span className="text-blue-600 text-xl">Communication System</span>
-          </div>
-          <CardTitle>Sign In</CardTitle>
-          <CardDescription>
-            Enter your credentials to access your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LoginForm />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
