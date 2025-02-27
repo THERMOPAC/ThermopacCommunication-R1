@@ -5,41 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { useLocation } from "wouter";
+import type { LoginData } from "@/hooks/use-auth";
 
-function AuthPage() {
-  const { user, loginMutation } = useAuth();
-  const [, setLocation] = useLocation();
-
-  if (user) {
-    setLocation("/");
-    return null;
-  }
-
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mb-4">
-            <span className="text-red-600 font-bold text-2xl">THERMOPAC</span>
-            <br />
-            <span className="text-blue-600 text-xl">Communication System</span>
-          </div>
-          <CardTitle>Sign In</CardTitle>
-          <CardDescription>
-            Enter your credentials to access your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LoginForm />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
+// Login form component
 function LoginForm() {
   const { loginMutation } = useAuth();
-  const form = useForm({
+  const form = useForm<LoginData>({
     defaultValues: {
       username: "",
       password: "",
@@ -48,7 +19,10 @@ function LoginForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit((data) => loginMutation.mutate(data))} className="space-y-4">
+      <form 
+        onSubmit={form.handleSubmit((data) => loginMutation.mutate(data))} 
+        className="space-y-4"
+      >
         <FormField
           control={form.control}
           name="username"
@@ -75,11 +49,47 @@ function LoginForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+        <Button 
+          type="submit" 
+          className="w-full" 
+          disabled={loginMutation.isPending}
+        >
           Login
         </Button>
       </form>
     </Form>
+  );
+}
+
+// Main AuthPage component
+export function AuthPage() {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (user) {
+    setLocation("/");
+    return null;
+  }
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mb-4">
+            <span className="text-red-600 font-bold text-2xl">THERMOPAC</span>
+            <br />
+            <span className="text-blue-600 text-xl">Communication System</span>
+          </div>
+          <CardTitle>Sign In</CardTitle>
+          <CardDescription>
+            Enter your credentials to access your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LoginForm />
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
