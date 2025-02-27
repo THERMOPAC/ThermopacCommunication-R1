@@ -1,12 +1,12 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useForm } from "react-hook-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { useLocation } from "wouter";
 
-export default function AuthPage() {
+function AuthPage() {
   const { user, loginMutation } = useAuth();
   const [, setLocation] = useLocation();
 
@@ -16,27 +16,23 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <div className="flex-1 flex items-center justify-center p-8">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>THERMOPAC Communication System</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LoginForm />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="hidden lg:flex flex-1 bg-muted items-center justify-center p-12">
-        <div className="max-w-lg">
-          <h1 className="text-4xl font-bold mb-6">Welcome to THERMOPAC</h1>
-          <p className="text-lg text-muted-foreground">
-            A comprehensive platform for intercompany communication and task management.
-            Connect with your team, manage tasks, and stay productive.
-          </p>
-        </div>
-      </div>
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mb-4">
+            <span className="text-red-600 font-bold text-2xl">THERMOPAC</span>
+            <br />
+            <span className="text-blue-600 text-xl">Communication System</span>
+          </div>
+          <CardTitle>Sign In</CardTitle>
+          <CardDescription>
+            Enter your credentials to access your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LoginForm />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -86,29 +82,5 @@ function LoginForm() {
     </Form>
   );
 }
-import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoginForm } from "@/components/login-form";
 
-export function AuthPage() {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mb-4">
-            <span className="text-red-600 font-bold text-2xl">THERMOPAC</span>
-            <br />
-            <span className="text-blue-600 text-xl">Communication System</span>
-          </div>
-          <CardTitle>Sign In</CardTitle>
-          <CardDescription>
-            Enter your credentials to access your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LoginForm />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+export default AuthPage;
