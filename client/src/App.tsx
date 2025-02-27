@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
 import NotFound from "@/pages/not-found";
-import { AuthPage } from "@/pages/auth-page";  // Changed to named import
+import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
 import ProfilePage from "@/pages/profile-page";
 import { useAuth } from "@/hooks/use-auth";
