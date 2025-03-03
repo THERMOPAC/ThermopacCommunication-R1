@@ -204,6 +204,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(tasks);
   });
 
+  app.post("/api/tasks/:id/forward", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+
+      const taskId = parseInt(req.params.id);
+      const { newAssignee } = req.body;
+
+      if (!newAssignee) {
+        return res.status(400).json({ message: "New assignee ID is required" });
+      }
+
+      // Get current task
+      const task = await storage.getTask(taskId);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+
+      // Check permissions - only Superuser, General Manager, Senior Manager, and Manager can forward tasks
+      const allowedRoles = ["Superuser", "General Manager", "Senior Manager", "Manager"];
+      if (!allowedRoles.includes(req.user!.role)) {
+        return res.status(403).json({ message: "Not authorized to forward tasks" });
+      }
+
+      // Update task assignee
+      const updatedTask = await storage.updateTask(taskId, {
+        assignedTo: newAssignee,
+        updatedAt: new Date().toISOString()
+      });
+
+      console.log(`Task ${taskId} forwarded to user ${newAssignee} by ${req.user!.username}`);
+      res.json(updatedTask);
+    } catch (error) {
+      console.error('Error forwarding task:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to forward task" 
+      });
+    }
+  });
+
   app.get("/api/subordinates", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 

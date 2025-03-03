@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, ChevronDown, ChevronRight, CheckCircle, Circle } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, CheckCircle, Circle, Forward } from "lucide-react";
 import { roles, roleHierarchy } from "@shared/roles";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+
+const FORWARD_ALLOWED_ROLES = ["Superuser", "General Manager", "Senior Manager", "Manager"];
 
 type TaskListProps = {
   tasks: Task[];
@@ -149,6 +151,27 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
     },
   });
 
+  const forwardTaskMutation = useMutation({
+    mutationFn: async ({ taskId, newAssignee }: { taskId: number; newAssignee: number }) => {
+      const res = await apiRequest("POST", `/api/tasks/${taskId}/forward`, { newAssignee });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Success",
+        description: "Task forwarded successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to forward task",
+        variant: "destructive",
+      });
+    },
+  });
+
   const form = useForm({
     resolver: zodResolver(insertTaskSchema),
     defaultValues: {
@@ -163,6 +186,79 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       createdAt: new Date().toISOString()
     },
   });
+
+  const ForwardTaskDialog = ({ task }: { task: Task }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [selectedAssignee, setSelectedAssignee] = useState<string>("");
+
+    return (
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-2"
+            disabled={!FORWARD_ALLOWED_ROLES.includes(user!.role)}
+          >
+            <Forward className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Forward Task</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <FormField
+              name="assignee"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Forward to</FormLabel>
+                  <Select
+                    onValueChange={(value) => setSelectedAssignee(value)}
+                    value={selectedAssignee}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select team member" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.entries(groupedUsers).map(([role, users]) => (
+                        <SelectGroup key={role}>
+                          <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                            {role}s
+                          </SelectLabel>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.username}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button
+              className="w-full"
+              disabled={!selectedAssignee || forwardTaskMutation.isPending}
+              onClick={() => {
+                forwardTaskMutation.mutate({
+                  taskId: task.id,
+                  newAssignee: parseInt(selectedAssignee)
+                });
+                setIsOpen(false);
+              }}
+            >
+              Forward Task
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -343,6 +439,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                     <TableHead>Assigned To</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Complete</TableHead>
+                    <TableHead>Forward</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -392,6 +489,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                             <Circle className="h-5 w-5" />
                           )}
                         </Button>
+                      </TableCell>
+                      <TableCell>
+                        <ForwardTaskDialog task={task} />
                       </TableCell>
                     </TableRow>
                   ))}
