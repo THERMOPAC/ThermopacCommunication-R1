@@ -164,6 +164,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       return await res.json();
     },
     onSuccess: () => {
+      // Invalidate all task-related queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Success",
