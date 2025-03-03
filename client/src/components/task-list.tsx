@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Task, User, insertTaskSchema } from "@shared/schema";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -46,6 +47,12 @@ type TaskListProps = {
   tasks: Task[];
   subordinates: User[];
 };
+
+const forwardTaskSchema = z.object({
+  assigneeId: z.string().min(1, "Please select a team member")
+});
+
+type ForwardTaskForm = z.infer<typeof forwardTaskSchema>;
 
 export default function TaskList({ tasks, subordinates }: TaskListProps) {
   const [open, setOpen] = useState(false);
@@ -189,7 +196,12 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
 
   const ForwardTaskDialog = ({ task }: { task: Task }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [selectedAssignee, setSelectedAssignee] = useState<string>("");
+    const form = useForm<ForwardTaskForm>({
+      resolver: zodResolver(forwardTaskSchema),
+      defaultValues: {
+        assigneeId: ""
+      }
+    });
 
     return (
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -207,54 +219,57 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
           <DialogHeader>
             <DialogTitle>Forward Task</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <FormField
-              name="assignee"
-              render={() => (
-                <FormItem>
-                  <FormLabel>Forward to</FormLabel>
-                  <Select
-                    onValueChange={(value) => setSelectedAssignee(value)}
-                    value={selectedAssignee}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select team member" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {Object.entries(groupedUsers).map(([role, users]) => (
-                        <SelectGroup key={role}>
-                          <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
-                            {role}s
-                          </SelectLabel>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id.toString()}>
-                              {user.username}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button
-              className="w-full"
-              disabled={!selectedAssignee || forwardTaskMutation.isPending}
-              onClick={() => {
+          <Form {...form}>
+            <form 
+              onSubmit={form.handleSubmit((data) => {
                 forwardTaskMutation.mutate({
                   taskId: task.id,
-                  newAssignee: parseInt(selectedAssignee)
+                  newAssignee: parseInt(data.assigneeId)
                 });
                 setIsOpen(false);
-              }}
+              })} 
+              className="space-y-4"
             >
-              Forward Task
-            </Button>
-          </div>
+              <FormField
+                control={form.control}
+                name="assigneeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Forward to</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select team member" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {Object.entries(groupedUsers).map(([role, users]) => (
+                          <SelectGroup key={role}>
+                            <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                              {role}s
+                            </SelectLabel>
+                            {users.map((user) => (
+                              <SelectItem key={user.id} value={user.id.toString()}>
+                                {user.username}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={forwardTaskMutation.isPending}
+              >
+                Forward Task
+              </Button>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     );
