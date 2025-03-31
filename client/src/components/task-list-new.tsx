@@ -57,8 +57,17 @@ type ForwardTaskForm = z.infer<typeof forwardTaskSchema>;
 
 export default function TaskList({ tasks, subordinates }: TaskListProps) {
   const [open, setOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const { toast } = useToast();
+  
+  // Show a loading state if the user data is still loading
+  if (isLoading || !user) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
