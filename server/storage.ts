@@ -460,6 +460,11 @@ export class DatabaseStorage implements IStorage {
       
       // Create a follow-up recommendation for each assignee with overdue tasks
       for (const [assigneeId, { tasks, name }] of Object.entries(tasksByAssignee)) {
+        // Get most overdue task for details
+        const mostOverdueTask = tasks.reduce((prev, current) => {
+          return new Date(prev.finishDate) < new Date(current.finishDate) ? prev : current;
+        }, tasks[0]);
+
         const newRecommendation: InsertWorkflowRecommendation = {
           userId,
           title: 'Follow-up Required',
@@ -469,7 +474,11 @@ export class DatabaseStorage implements IStorage {
             assigneeId: parseInt(assigneeId),
             assigneeName: name,
             taskCount: tasks.length,
-            taskIds: tasks.map(t => t.id)
+            taskIds: tasks.map(t => t.id),
+            // Add task details for the most overdue task
+            taskTitle: mostOverdueTask.title,
+            dueDate: mostOverdueTask.finishDate,
+            daysOverdue: Math.ceil((new Date().getTime() - new Date(mostOverdueTask.finishDate).getTime()) / (1000 * 60 * 60 * 24))
           },
           status: 'pending',
           createdAt: new Date().toISOString(),

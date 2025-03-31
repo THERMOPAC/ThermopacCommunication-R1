@@ -229,8 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update task assignee
       const updatedTask = await storage.updateTask(taskId, {
-        assignedTo: newAssignee,
-        updatedAt: new Date().toISOString()
+        assignedTo: newAssignee
       });
 
       console.log(`Task ${taskId} forwarded to user ${newAssignee} by ${req.user!.username}`);
