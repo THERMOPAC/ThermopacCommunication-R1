@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertTaskSchema, insertUserSchema } from "@shared/schema";
-import { canManage } from "@shared/roles";
+import { canManage, roleHierarchy } from "@shared/roles";
 import { scrypt, timingSafeEqual, randomBytes } from "crypto";
 import { promisify } from "util";
 
@@ -269,14 +269,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const currentUserRole = req.user!.role;
         const requestedRole = req.body.role;
 
-        // Define role hierarchy levels
-        const roleLevels = {
-          'Superuser': 0,
-          'General Manager': 1,
-          'Senior Manager': 2,
-          'Manager': 3,
-          'Employee': 4
-        };
+        // Use roleHierarchy imported from shared/roles
+        // This is already imported at the top of the file
 
         // Employee cannot create any users
         if (currentUserRole === 'Employee') {
@@ -284,8 +278,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Others can only create roles of lower rank
-        if (requestedRole in roleLevels && currentUserRole in roleLevels) {
-          if (roleLevels[requestedRole] <= roleLevels[currentUserRole]) {
+        if (requestedRole in roleHierarchy && currentUserRole in roleHierarchy) {
+          if (roleHierarchy[requestedRole] <= roleHierarchy[currentUserRole]) {
             return res.status(403).json({
               message: "You can only create users with roles below your rank"
             });

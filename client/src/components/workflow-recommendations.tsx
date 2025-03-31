@@ -206,41 +206,41 @@ export default function WorkflowRecommendations() {
                 <div className="bg-muted p-4 rounded-md text-sm">
                   {recommendation.recommendationType === 'task_assignment' && recommendation.recommendationData && (
                     <div className="space-y-2">
-                      <p><strong>Your current tasks:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'taskCount' in recommendation.recommendationData ? String(recommendation.recommendationData.taskCount) : 'N/A'}</p>
-                      <p><strong>Recommended assignee:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'recommendedAssigneeName' in recommendation.recommendationData ? String(recommendation.recommendationData.recommendedAssigneeName) : 'N/A'}</p>
-                      <p><strong>Their current tasks:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'recommendedAssigneeTaskCount' in recommendation.recommendationData ? String(recommendation.recommendationData.recommendedAssigneeTaskCount) : 'N/A'}</p>
+                      <p><strong>Your current tasks:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'taskCount' in recommendation.recommendationData ? String((recommendation.recommendationData as any).taskCount) : 'N/A'}</p>
+                      <p><strong>Recommended assignee:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'recommendedAssigneeName' in recommendation.recommendationData ? String((recommendation.recommendationData as any).recommendedAssigneeName) : 'N/A'}</p>
+                      <p><strong>Their current tasks:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'recommendedAssigneeTaskCount' in recommendation.recommendationData ? String((recommendation.recommendationData as any).recommendedAssigneeTaskCount) : 'N/A'}</p>
                     </div>
                   )}
                   
                   {recommendation.recommendationType === 'priority_adjustment' && recommendation.recommendationData && (
                     <div className="space-y-2">
-                      <p><strong>Task:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'taskTitle' in recommendation.recommendationData ? String(recommendation.recommendationData.taskTitle) : 'N/A'}</p>
-                      <p><strong>Current priority:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'currentPriority' in recommendation.recommendationData ? String(recommendation.recommendationData.currentPriority) : 'N/A'}</p>
-                      <p><strong>Due date:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'dueDate' in recommendation.recommendationData ? String(recommendation.recommendationData.dueDate) : 'N/A'}</p>
-                      <p><strong>Days until due:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'daysUntilDue' in recommendation.recommendationData ? String(recommendation.recommendationData.daysUntilDue) : 'N/A'}</p>
+                      <p><strong>Task:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'taskTitle' in recommendation.recommendationData ? String((recommendation.recommendationData as any).taskTitle) : 'N/A'}</p>
+                      <p><strong>Current priority:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'currentPriority' in recommendation.recommendationData ? String((recommendation.recommendationData as any).currentPriority) : 'N/A'}</p>
+                      <p><strong>Due date:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'dueDate' in recommendation.recommendationData ? String((recommendation.recommendationData as any).dueDate) : 'N/A'}</p>
+                      <p><strong>Days until due:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'daysUntilDue' in recommendation.recommendationData ? String((recommendation.recommendationData as any).daysUntilDue) : 'N/A'}</p>
                     </div>
                   )}
                   
                   {recommendation.recommendationType === 'follow_up' && recommendation.recommendationData && (
                     <div className="space-y-2">
-                      <p><strong>Task:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'taskTitle' in recommendation.recommendationData ? String(recommendation.recommendationData.taskTitle) : 'N/A'}</p>
-                      <p><strong>Assigned to:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'assigneeName' in recommendation.recommendationData ? String(recommendation.recommendationData.assigneeName) : 'N/A'}</p>
-                      <p><strong>Due date:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'dueDate' in recommendation.recommendationData ? String(recommendation.recommendationData.dueDate) : 'N/A'}</p>
-                      <p><strong>Days overdue:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'daysOverdue' in recommendation.recommendationData ? String(recommendation.recommendationData.daysOverdue) : 'N/A'}</p>
+                      <p><strong>Task:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'taskTitle' in recommendation.recommendationData ? String((recommendation.recommendationData as any).taskTitle) : 'N/A'}</p>
+                      <p><strong>Assigned to:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'assigneeName' in recommendation.recommendationData ? String((recommendation.recommendationData as any).assigneeName) : 'N/A'}</p>
+                      <p><strong>Due date:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'dueDate' in recommendation.recommendationData ? String((recommendation.recommendationData as any).dueDate) : 'N/A'}</p>
+                      <p><strong>Days overdue:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'daysOverdue' in recommendation.recommendationData ? String((recommendation.recommendationData as any).daysOverdue) : 'N/A'}</p>
                     </div>
                   )}
 
                   {recommendation.recommendationType === 'team_collaboration' && recommendation.recommendationData && (
                     <div className="space-y-2">
-                      <p><strong>Team members:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'teamMembers' in recommendation.recommendationData ? String(recommendation.recommendationData.teamMembers) : 'N/A'}</p>
-                      <p><strong>Tasks with similar categories:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'similarTaskCount' in recommendation.recommendationData ? String(recommendation.recommendationData.similarTaskCount) : 'N/A'}</p>
+                      <p><strong>Team members:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'teamMembers' in recommendation.recommendationData ? String((recommendation.recommendationData as any).teamMembers) : 'N/A'}</p>
+                      <p><strong>Tasks with similar categories:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'similarTaskCount' in recommendation.recommendationData ? String((recommendation.recommendationData as any).similarTaskCount) : 'N/A'}</p>
                     </div>
                   )}
                   
                   {recommendation.recommendationType === 'deadline_reminder' && recommendation.recommendationData && (
                     <div className="space-y-2">
-                      <p><strong>Upcoming deadlines:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'upcomingDeadlinesCount' in recommendation.recommendationData ? String(recommendation.recommendationData.upcomingDeadlinesCount) : 'N/A'}</p>
-                      <p><strong>Next deadline:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'nextDeadline' in recommendation.recommendationData ? String(recommendation.recommendationData.nextDeadline) : 'N/A'}</p>
+                      <p><strong>Upcoming deadlines:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'upcomingDeadlinesCount' in recommendation.recommendationData ? String((recommendation.recommendationData as any).upcomingDeadlinesCount) : 'N/A'}</p>
+                      <p><strong>Next deadline:</strong> {typeof recommendation.recommendationData === 'object' && recommendation.recommendationData && 'nextDeadline' in recommendation.recommendationData ? String((recommendation.recommendationData as any).nextDeadline) : 'N/A'}</p>
                     </div>
                   )}
                 </div>
