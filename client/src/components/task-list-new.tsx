@@ -99,6 +99,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       return acc;
     }, {} as Record<string, User[]>);
 
+  // Wait for allUsers to be loaded before performing filtering that depends on it
+  const isDataReady = allUsers.length > 0;
+  
   // Filter and search tasks
   const filteredTasks = tasks
     .filter(task => {
@@ -122,13 +125,20 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
         return false;
       }
       
-      // Apply search query
-      if (searchQuery.trim() !== '') {
+      // Apply search query - only when allUsers is loaded
+      if (searchQuery.trim() !== '' && isDataReady) {
         const search = searchQuery.toLowerCase();
         return (
           task.title.toLowerCase().includes(search) ||
           task.description.toLowerCase().includes(search) ||
           getAssigneeName(task.assignedTo).toLowerCase().includes(search)
+        );
+      } else if (searchQuery.trim() !== '' && !isDataReady) {
+        // If searching but data not ready, only search title and description
+        const search = searchQuery.toLowerCase();
+        return (
+          task.title.toLowerCase().includes(search) ||
+          task.description.toLowerCase().includes(search)
         );
       }
       
@@ -147,6 +157,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
 
   // Get creator's name helper function
   const getCreatorName = (creatorId: number) => {
+    if (!isDataReady) return 'Loading...';
     const creator = allUsers.find(u => u.id === creatorId);
     return creator ? creator.username : 'Unknown';
   };
@@ -154,6 +165,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
   // Get assignee's name helper function
   const getAssigneeName = (assigneeId: number | null) => {
     if (!assigneeId) return 'Unassigned';
+    if (!isDataReady) return 'Loading...';
     const assignee = allUsers.find(u => u.id === assigneeId);
     return assignee ? assignee.username : 'Unknown';
   };
@@ -427,11 +439,15 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">All Assignees</SelectItem>
-                      {allUsers.map((userItem) => (
-                        <SelectItem key={userItem.id} value={userItem.id.toString()}>
-                          {userItem.username}
-                        </SelectItem>
-                      ))}
+                      {isDataReady ? (
+                        allUsers.map((userItem) => (
+                          <SelectItem key={userItem.id} value={userItem.id.toString()}>
+                            {userItem.username}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>Loading users...</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -578,18 +594,22 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {Object.entries(groupedUsers).map(([role, users]) => (
-                              <SelectGroup key={role}>
-                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
-                                  {role}s
-                                </SelectLabel>
-                                {users.map((userItem) => (
-                                  <SelectItem key={userItem.id} value={userItem.id.toString()}>
-                                    {userItem.username}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            ))}
+                            {isDataReady ? (
+                              Object.entries(groupedUsers).map(([role, users]) => (
+                                <SelectGroup key={role}>
+                                  <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                    {role}s
+                                  </SelectLabel>
+                                  {users.map((userItem) => (
+                                    <SelectItem key={userItem.id} value={userItem.id.toString()}>
+                                      {userItem.username}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              ))
+                            ) : (
+                              <SelectItem value="" disabled>Loading users...</SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
