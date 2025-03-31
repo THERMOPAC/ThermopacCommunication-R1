@@ -272,6 +272,20 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       }
     });
 
+    // Don't attempt to render if user data isn't ready
+    if (!isDataReady) {
+      return (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="ml-2"
+          disabled={true}
+        >
+          <Forward className="h-4 w-4" />
+        </Button>
+      );
+    }
+
     return (
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
@@ -312,18 +326,22 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {Object.entries(groupedUsers).map(([role, users]) => (
-                          <SelectGroup key={role}>
-                            <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
-                              {role}s
-                            </SelectLabel>
-                            {users.map((userItem) => (
-                              <SelectItem key={userItem.id} value={userItem.id.toString()}>
-                                {userItem.username}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        ))}
+                        {Object.entries(groupedUsers).length > 0 ? (
+                          Object.entries(groupedUsers).map(([role, users]) => (
+                            <SelectGroup key={role}>
+                              <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                {role}s
+                              </SelectLabel>
+                              {users.map((userItem) => (
+                                <SelectItem key={userItem.id} value={userItem.id.toString()}>
+                                  {userItem.username}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>Loading users...</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
