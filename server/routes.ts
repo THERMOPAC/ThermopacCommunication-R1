@@ -284,9 +284,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Others can only create roles of lower rank
-        if (roleLevels[requestedRole] <= roleLevels[currentUserRole]) {
-          return res.status(403).json({
-            message: "You can only create users with roles below your rank"
+        if (requestedRole in roleLevels && currentUserRole in roleLevels) {
+          if (roleLevels[requestedRole] <= roleLevels[currentUserRole]) {
+            return res.status(403).json({
+              message: "You can only create users with roles below your rank"
+            });
+          }
+        } else {
+          return res.status(400).json({
+            message: "Invalid role specified"
           });
         }
       }
@@ -478,6 +484,190 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching task history:', error);
       res.status(500).json({ 
         message: error instanceof Error ? error.message : "Failed to fetch task history" 
+      });
+    }
+  });
+
+  // Achievement and Gamification API Routes
+  
+  // Get all achievements
+  app.get("/api/achievements", async (req, res) => {
+    try {
+      const achievements = await storage.getAllAchievements();
+      res.json(achievements);
+    } catch (error) {
+      console.error('Error fetching achievements:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch achievements" 
+      });
+    }
+  });
+
+  // Get achievements for the current user
+  app.get("/api/my-achievements", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const userId = req.user!.id;
+      const achievements = await storage.getUserAchievements(userId);
+      res.json(achievements);
+    } catch (error) {
+      console.error('Error fetching user achievements:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch user achievements" 
+      });
+    }
+  });
+
+  // Get achievements for a specific user (managers can view their team's achievements)
+  app.get("/api/users/:userId/achievements", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const targetUserId = parseInt(req.params.userId);
+      const requestingUserId = req.user!.id;
+      
+      // Check if requesting user has permission to view target user's achievements
+      if (targetUserId !== requestingUserId) {
+        // Only superusers can see anyone's achievements
+        // Otherwise, user must be the reporting manager of the target user
+        if (req.user!.role !== "Superuser") {
+          const subordinates = await storage.getSubordinates(requestingUserId);
+          const isManager = subordinates.some(s => s.id === targetUserId);
+          
+          if (!isManager) {
+            return res.status(403).json({ 
+              message: "Not authorized to view this user's achievements" 
+            });
+          }
+        }
+      }
+      
+      const achievements = await storage.getUserAchievements(targetUserId);
+      res.json(achievements);
+    } catch (error) {
+      console.error('Error fetching user achievements:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch user achievements" 
+      });
+    }
+  });
+
+  // Leaderboard APIs
+  
+  // Get team leaderboard
+  app.get("/api/leaderboard/team", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const user = req.user!;
+      // If reportingManagerId is null, use user's own ID (for Superusers)
+      const teamId = user.reportingManagerId !== null ? user.reportingManagerId : user.id;
+      
+      const leaderboard = await storage.getTeamLeaderboard(teamId);
+      res.json(leaderboard);
+    } catch (error) {
+      console.error('Error fetching team leaderboard:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch team leaderboard" 
+      });
+    }
+  });
+
+  // Get company-wide leaderboard (top performers)
+  app.get("/api/leaderboard/company", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      // Optional limit parameter
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      
+      const topPerformers = await storage.getTopPerformers(limit);
+      res.json(topPerformers);
+    } catch (error) {
+      console.error('Error fetching company leaderboard:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch company leaderboard" 
+      });
+    }
+  });
+
+  // Get current user's rank
+  app.get("/api/leaderboard/my-rank", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const userId = req.user!.id;
+      const rankInfo = await storage.getUserRank(userId);
+      res.json(rankInfo);
+    } catch (error) {
+      console.error('Error fetching user rank:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch user rank" 
+      });
+    }
+  });
+
+  // Get productivity metrics for current user
+  app.get("/api/productivity", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const userId = req.user!.id;
+      let metrics = await storage.getProductivityMetric(userId);
+      
+      // If metrics don't exist yet, update them
+      if (!metrics) {
+        metrics = await storage.updateUserProductivityStats(userId);
+      }
+      
+      res.json(metrics);
+    } catch (error) {
+      console.error('Error fetching productivity metrics:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch productivity metrics" 
+      });
+    }
+  });
+
+  // Force refresh productivity metrics for current user
+  app.post("/api/productivity/refresh", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const userId = req.user!.id;
+      const updatedMetrics = await storage.updateUserProductivityStats(userId);
+      
+      res.json(updatedMetrics);
+    } catch (error) {
+      console.error('Error refreshing productivity metrics:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to refresh productivity metrics" 
+      });
+    }
+  });
+
+  // Create achievement (admin only)
+  app.post("/api/achievements", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      // Only superusers can create achievements
+      if (req.user!.role !== "Superuser") {
+        return res.status(403).json({ message: "Only superusers can create achievements" });
+      }
+      
+      const achievementData = {
+        ...req.body,
+        createdAt: new Date().toISOString()
+      };
+      
+      const achievement = await storage.createAchievement(achievementData);
+      res.status(201).json(achievement);
+    } catch (error) {
+      console.error('Error creating achievement:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to create achievement" 
       });
     }
   });

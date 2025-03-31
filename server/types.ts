@@ -1,4 +1,9 @@
-import { User, Task, InsertUser, InsertTask, TaskHistory, InsertTaskHistory, WorkflowRecommendation, InsertWorkflowRecommendation } from "@shared/schema";
+import { 
+  User, Task, InsertUser, InsertTask, TaskHistory, InsertTaskHistory, 
+  WorkflowRecommendation, InsertWorkflowRecommendation, 
+  Achievement, InsertAchievement, UserAchievement, InsertUserAchievement,
+  ProductivityMetric, InsertProductivityMetric
+} from "@shared/schema";
 import { Store } from "express-session";
 
 export interface UserUpdate {
@@ -7,7 +12,7 @@ export interface UserUpdate {
   email?: string;
   mobileNumber?: string;
   countryCode?: string;
-  role?: string;
+  role?: "Superuser" | "General Manager" | "Senior Manager" | "Manager" | "Employee";
   reportingManagerId?: number | null;
 }
 
@@ -45,4 +50,26 @@ export interface IStorage {
   generateFollowUpRecommendations(userId: number): Promise<WorkflowRecommendation[]>;
   generateTeamCollaborationRecommendations?(userId: number): Promise<WorkflowRecommendation[]>;
   generateDeadlineReminderRecommendations?(userId: number): Promise<WorkflowRecommendation[]>;
+  
+  // Achievement management
+  getAllAchievements(): Promise<Achievement[]>;
+  getAchievement(id: number): Promise<Achievement | undefined>;
+  createAchievement(achievement: InsertAchievement): Promise<Achievement>;
+  getUserAchievements(userId: number): Promise<UserAchievement[]>;
+  awardAchievement(userAchievement: InsertUserAchievement): Promise<UserAchievement>;
+  
+  // Productivity metrics
+  getProductivityMetric(userId: number): Promise<ProductivityMetric | undefined>;
+  createProductivityMetric(metric: InsertProductivityMetric): Promise<ProductivityMetric>;
+  updateProductivityMetric(userId: number, updates: Partial<ProductivityMetric>): Promise<ProductivityMetric>;
+  
+  // Leaderboard
+  getTeamLeaderboard(teamId?: number): Promise<ProductivityMetric[]>;
+  getTopPerformers(limit?: number): Promise<ProductivityMetric[]>;
+  getUserRank(userId: number): Promise<{rank: number, totalUsers: number}>;
+  
+  // Achievement tracking
+  checkAndAwardAchievements(userId: number): Promise<UserAchievement[]>;
+  calculateProductivityScore(userId: number): Promise<number>;
+  updateUserProductivityStats(userId: number): Promise<ProductivityMetric>;
 }

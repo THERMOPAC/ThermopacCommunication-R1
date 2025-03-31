@@ -19,7 +19,9 @@ import {
   Phone,
   ChevronDown,
   ChevronRight,
-  Lightbulb
+  Lightbulb,
+  Award,
+  TrendingUp
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { roles, roleHierarchy } from "@shared/roles";
@@ -52,6 +54,7 @@ export default function Dashboard() {
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Users, label: "Team", href: "/team" },
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
+    { icon: Award, label: "Leaderboard", href: "/leaderboard" },
     { icon: MessageSquare, label: "Messages", href: "/messages" },
     { icon: UserIcon, label: "Profile", href: "/profile" },
     ...(user?.role === "Superuser" ? [
@@ -268,6 +271,41 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent>
                       <WorkflowRecommendations />
+                    </CardContent>
+                  </Card>
+                </section>
+                
+                {/* Leaderboard Section */}
+                <section className="mt-8">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center">
+                          <Award className="mr-2 h-5 w-5 text-purple-500" />
+                          Team Leaderboard
+                        </CardTitle>
+                        <Link href="/leaderboard">
+                          <button className="text-sm text-blue-600 hover:underline">
+                            View Full Leaderboard
+                          </button>
+                        </Link>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex justify-between items-center p-4">
+                        <div className="flex flex-col">
+                          <h3 className="text-lg font-semibold">Performance Tracking</h3>
+                          <p className="text-sm text-muted-foreground">Monitor your productivity and achievements</p>
+                        </div>
+                        <Link href="/leaderboard">
+                          <button className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md">
+                            <span className="flex items-center">
+                              <TrendingUp className="mr-2 h-4 w-4" />
+                              Check Your Rank
+                            </span>
+                          </button>
+                        </Link>
+                      </div>
                     </CardContent>
                   </Card>
                 </section>

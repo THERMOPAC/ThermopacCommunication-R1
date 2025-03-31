@@ -2,7 +2,10 @@ import { IStorage, UserUpdate } from "./types";
 import type { 
   User, Task, InsertUser, InsertTask,
   TaskHistory, InsertTaskHistory,
-  WorkflowRecommendation, InsertWorkflowRecommendation 
+  WorkflowRecommendation, InsertWorkflowRecommendation,
+  Achievement, InsertAchievement,
+  UserAchievement, InsertUserAchievement,
+  ProductivityMetric, InsertProductivityMetric
 } from "@shared/schema";
 import { roleHierarchy, canManage } from "@shared/roles";
 import session from "express-session";
@@ -12,7 +15,10 @@ import {
   users, 
   tasks as tasksTable, 
   taskHistory as taskHistoryTable,
-  workflowRecommendations as workflowRecommendationsTable
+  workflowRecommendations as workflowRecommendationsTable,
+  achievements as achievementsTable,
+  userAchievements as userAchievementsTable,
+  productivityMetrics as productivityMetricsTable
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 
@@ -492,6 +498,418 @@ export class DatabaseStorage implements IStorage {
     }
     
     return recommendations;
+  }
+
+  // Achievement Management
+  async getAllAchievements(): Promise<Achievement[]> {
+    console.log('Getting all achievements');
+    const achievements = await db.select().from(achievementsTable);
+    console.log(`Found ${achievements.length} achievements`);
+    return achievements as Achievement[];
+  }
+
+  async getAchievement(id: number): Promise<Achievement | undefined> {
+    console.log(`Getting achievement with ID: ${id}`);
+    const result = await db.select().from(achievementsTable).where(eq(achievementsTable.id, id));
+    const achievement = result[0] as Achievement | undefined;
+    console.log('Found achievement:', achievement);
+    return achievement;
+  }
+
+  async createAchievement(achievement: InsertAchievement): Promise<Achievement> {
+    console.log('Creating achievement:', achievement);
+    const result = await db.insert(achievementsTable).values(achievement).returning();
+    const newAchievement = result[0] as Achievement;
+    console.log('Created achievement:', newAchievement);
+    return newAchievement;
+  }
+
+  async getUserAchievements(userId: number): Promise<UserAchievement[]> {
+    console.log(`Getting achievements for user ${userId}`);
+    const userAchievements = await db
+      .select({
+        userAchievement: userAchievementsTable,
+        achievement: achievementsTable
+      })
+      .from(userAchievementsTable)
+      .innerJoin(
+        achievementsTable,
+        eq(userAchievementsTable.achievementId, achievementsTable.id)
+      )
+      .where(eq(userAchievementsTable.userId, userId))
+      .orderBy(desc(userAchievementsTable.earnedAt));
+    
+    console.log(`Found ${userAchievements.length} achievements for user ${userId}`);
+    return userAchievements.map(ua => ({
+      ...ua.userAchievement,
+      achievementDetails: ua.achievement
+    })) as unknown as UserAchievement[];
+  }
+
+  async awardAchievement(userAchievement: InsertUserAchievement): Promise<UserAchievement> {
+    console.log('Awarding achievement:', userAchievement);
+    const result = await db.insert(userAchievementsTable).values(userAchievement).returning();
+    const newUserAchievement = result[0] as UserAchievement;
+    console.log('Awarded achievement:', newUserAchievement);
+    
+    // Update productivity metrics with points from this achievement
+    const achievement = await this.getAchievement(userAchievement.achievementId);
+    if (achievement) {
+      // Get current metrics
+      const metrics = await this.getProductivityMetric(userAchievement.userId);
+      const currentPoints = metrics?.totalPoints || 0;
+      
+      await this.updateProductivityMetric(userAchievement.userId, {
+        totalPoints: currentPoints + achievement.points
+      });
+    }
+    
+    return newUserAchievement;
+  }
+
+  // Productivity Metrics
+  async getProductivityMetric(userId: number): Promise<ProductivityMetric | undefined> {
+    console.log(`Getting productivity metrics for user ${userId}`);
+    const result = await db.select().from(productivityMetricsTable).where(eq(productivityMetricsTable.userId, userId));
+    const metric = result[0] as ProductivityMetric | undefined;
+    console.log('Found productivity metric:', metric);
+    return metric;
+  }
+
+  async createProductivityMetric(metric: InsertProductivityMetric): Promise<ProductivityMetric> {
+    console.log('Creating productivity metric:', metric);
+    const result = await db.insert(productivityMetricsTable).values(metric).returning();
+    const newMetric = result[0] as ProductivityMetric;
+    console.log('Created productivity metric:', newMetric);
+    return newMetric;
+  }
+
+  async updateProductivityMetric(userId: number, updates: Partial<ProductivityMetric>): Promise<ProductivityMetric> {
+    console.log(`Updating productivity metrics for user ${userId}:`, updates);
+    
+    // Check if metric exists
+    const existingMetric = await this.getProductivityMetric(userId);
+    
+    if (!existingMetric) {
+      // Create a new metric if it doesn't exist
+      return this.createProductivityMetric({
+        userId,
+        tasksCompleted: updates.tasksCompleted || 0,
+        tasksCreated: updates.tasksCreated || 0,
+        recommendationsAccepted: updates.recommendationsAccepted || 0,
+        averageCompletionTime: updates.averageCompletionTime || 0,
+        onTimeCompletion: updates.onTimeCompletion || 0,
+        weeklyScore: updates.weeklyScore || 0,
+        monthlyScore: updates.monthlyScore || 0,
+        totalPoints: updates.totalPoints || 0,
+        lastUpdated: new Date().toISOString()
+      });
+    }
+    
+    // Update existing metric
+    const result = await db
+      .update(productivityMetricsTable)
+      .set({
+        ...updates,
+        lastUpdated: new Date().toISOString()
+      })
+      .where(eq(productivityMetricsTable.userId, userId))
+      .returning();
+    
+    const updatedMetric = result[0] as ProductivityMetric;
+    console.log('Updated productivity metric:', updatedMetric);
+    return updatedMetric;
+  }
+
+  // Leaderboard
+  async getTeamLeaderboard(teamId?: number): Promise<ProductivityMetric[]> {
+    console.log(`Getting team leaderboard${teamId ? ` for team ${teamId}` : ''}`);
+    
+    // Create the base query
+    let results;
+    
+    if (teamId) {
+      // Filter by team (users with the same reporting manager)
+      results = await db
+        .select({
+          metric: productivityMetricsTable,
+          user: {
+            id: users.id,
+            username: users.username,
+            role: users.role,
+            reportingManagerId: users.reportingManagerId
+          }
+        })
+        .from(productivityMetricsTable)
+        .innerJoin(users, eq(productivityMetricsTable.userId, users.id))
+        .where(eq(users.reportingManagerId, teamId))
+        .orderBy(desc(productivityMetricsTable.weeklyScore));
+    } else {
+      // Get all users if no teamId specified
+      results = await db
+        .select({
+          metric: productivityMetricsTable,
+          user: {
+            id: users.id,
+            username: users.username,
+            role: users.role,
+            reportingManagerId: users.reportingManagerId
+          }
+        })
+        .from(productivityMetricsTable)
+        .innerJoin(users, eq(productivityMetricsTable.userId, users.id))
+        .orderBy(desc(productivityMetricsTable.weeklyScore));
+    }
+    
+    console.log(`Found ${results.length} entries for leaderboard`);
+    return results.map(r => ({
+      ...r.metric,
+      userDetails: r.user
+    })) as unknown as ProductivityMetric[];
+  }
+
+  async getTopPerformers(limit: number = 10): Promise<ProductivityMetric[]> {
+    console.log(`Getting top ${limit} performers`);
+    
+    const result = await db
+      .select({
+        metric: productivityMetricsTable,
+        user: {
+          id: users.id,
+          username: users.username,
+          role: users.role
+        }
+      })
+      .from(productivityMetricsTable)
+      .innerJoin(users, eq(productivityMetricsTable.userId, users.id))
+      .orderBy(desc(productivityMetricsTable.weeklyScore))
+      .limit(limit);
+    
+    console.log(`Found ${result.length} top performers`);
+    return result.map(r => ({
+      ...r.metric,
+      userDetails: r.user
+    })) as unknown as ProductivityMetric[];
+  }
+
+  async getUserRank(userId: number): Promise<{ rank: number; totalUsers: number }> {
+    console.log(`Getting rank for user ${userId}`);
+    
+    // Get all metrics ordered by score
+    const allMetrics = await db
+      .select()
+      .from(productivityMetricsTable)
+      .orderBy(desc(productivityMetricsTable.weeklyScore));
+    
+    const totalUsers = allMetrics.length;
+    const userIndex = allMetrics.findIndex(m => m.userId === userId);
+    const rank = userIndex === -1 ? totalUsers : userIndex + 1;
+    
+    console.log(`User ${userId} has rank ${rank} out of ${totalUsers}`);
+    return { rank, totalUsers };
+  }
+
+  // Achievement Tracking
+  async checkAndAwardAchievements(userId: number): Promise<UserAchievement[]> {
+    console.log(`Checking achievement criteria for user ${userId}`);
+    
+    const user = await this.getUser(userId);
+    if (!user) return [];
+    
+    const existingAchievements = await db
+      .select()
+      .from(userAchievementsTable)
+      .where(eq(userAchievementsTable.userId, userId));
+    
+    const existingAchievementIds = existingAchievements.map(a => a.achievementId);
+    
+    // Get all potential achievements
+    const eligibleAchievements = await db
+      .select()
+      .from(achievementsTable)
+      .where(
+        not(inArray(achievementsTable.id, existingAchievementIds))
+      );
+    
+    console.log(`Found ${eligibleAchievements.length} eligible achievements to check`);
+    
+    // Check each achievement criteria
+    const newlyAwardedAchievements: UserAchievement[] = [];
+    
+    for (const achievement of eligibleAchievements) {
+      let isAchieved = false;
+      
+      // Get user's productivity metrics
+      const metrics = await this.getProductivityMetric(userId);
+      if (!metrics) continue;
+      
+      // Check achievement criteria based on category
+      switch (achievement.category) {
+        case 'task':
+          if (achievement.name === 'Task Master' && metrics.tasksCompleted >= achievement.threshold) {
+            isAchieved = true;
+          } else if (achievement.name === 'Delegator' && metrics.tasksCreated >= achievement.threshold) {
+            isAchieved = true;
+          } else if (achievement.name === 'On-Time Hero' && metrics.onTimeCompletion >= achievement.threshold) {
+            isAchieved = true;
+          }
+          break;
+        
+        case 'productivity':
+          if (achievement.name === 'Efficiency Expert' && metrics.averageCompletionTime <= achievement.threshold) {
+            isAchieved = true;
+          } else if (achievement.name === 'Point Collector' && metrics.totalPoints >= achievement.threshold) {
+            isAchieved = true;
+          }
+          break;
+        
+        case 'collaboration':
+          // Check collaboration-based achievements
+          if (achievement.name === 'Team Player') {
+            // Count tasks forwarded to others
+            const taskHistory = await db
+              .select()
+              .from(taskHistoryTable)
+              .where(
+                and(
+                  eq(taskHistoryTable.userId, userId),
+                  eq(taskHistoryTable.action, 'forwarded')
+                )
+              );
+            
+            if (taskHistory.length >= achievement.threshold) {
+              isAchieved = true;
+            }
+          }
+          break;
+        
+        case 'leadership':
+          // Check leadership-based achievements (for managers and above)
+          if (roleHierarchy[user.role] < roleHierarchy['Employee']) {
+            if (achievement.name === 'Mentor') {
+              // Check if manager has at least X subordinates
+              const subordinates = await this.getSubordinates(userId);
+              if (subordinates.length >= achievement.threshold) {
+                isAchieved = true;
+              }
+            }
+          }
+          break;
+      }
+      
+      // Award achievement if criteria met
+      if (isAchieved) {
+        console.log(`User ${userId} has earned achievement: ${achievement.name}`);
+        
+        const userAchievement = await this.awardAchievement({
+          userId,
+          achievementId: achievement.id,
+          earnedAt: new Date().toISOString(),
+          level: 1
+        });
+        
+        newlyAwardedAchievements.push(userAchievement);
+      }
+    }
+    
+    console.log(`Awarded ${newlyAwardedAchievements.length} new achievements to user ${userId}`);
+    return newlyAwardedAchievements;
+  }
+
+  async calculateProductivityScore(userId: number): Promise<number> {
+    console.log(`Calculating productivity score for user ${userId}`);
+    
+    // Get metrics
+    const metrics = await this.getProductivityMetric(userId);
+    if (!metrics) return 0;
+    
+    // Score calculation formula:
+    // (10 × tasksCompleted) + (5 × tasksCreated) + (15 × onTimeCompletion) + (5 × recommendationsAccepted)
+    const score = (10 * metrics.tasksCompleted) + 
+                  (5 * metrics.tasksCreated) + 
+                  (15 * metrics.onTimeCompletion) + 
+                  (5 * metrics.recommendationsAccepted);
+    
+    console.log(`Calculated productivity score for user ${userId}: ${score}`);
+    return score;
+  }
+
+  async updateUserProductivityStats(userId: number): Promise<ProductivityMetric> {
+    console.log(`Updating productivity statistics for user ${userId}`);
+    
+    // Count completed tasks
+    const completedTasks = await db
+      .select()
+      .from(tasksTable)
+      .where(
+        and(
+          eq(tasksTable.assignedTo, userId),
+          eq(tasksTable.status, 'completed')
+        )
+      );
+    
+    // Count created tasks
+    const createdTasks = await db
+      .select()
+      .from(tasksTable)
+      .where(eq(tasksTable.createdBy, userId));
+    
+    // Count accepted recommendations
+    const acceptedRecommendations = await db
+      .select()
+      .from(workflowRecommendationsTable)
+      .where(
+        and(
+          eq(workflowRecommendationsTable.userId, userId),
+          eq(workflowRecommendationsTable.status, 'accepted')
+        )
+      );
+    
+    // Calculate average completion time
+    let averageCompletionTime = 0;
+    let onTimeCount = 0;
+    
+    if (completedTasks.length > 0) {
+      let totalCompletionTimeHours = 0;
+      
+      for (const task of completedTasks) {
+        if (task.completedAt && task.createdAt) {
+          const startTime = new Date(task.createdAt).getTime();
+          const endTime = new Date(task.completedAt).getTime();
+          const durationHours = (endTime - startTime) / (1000 * 60 * 60);
+          totalCompletionTimeHours += durationHours;
+          
+          // Check if completed on time
+          const dueDate = new Date(task.finishDate).getTime();
+          if (endTime <= dueDate) {
+            onTimeCount++;
+          }
+        }
+      }
+      
+      if (completedTasks.length > 0) {
+        averageCompletionTime = Math.round(totalCompletionTimeHours / completedTasks.length);
+      }
+    }
+    
+    // Calculate weekly score
+    const weeklyScore = await this.calculateProductivityScore(userId);
+    
+    // Update metric
+    const updatedMetric = await this.updateProductivityMetric(userId, {
+      tasksCompleted: completedTasks.length,
+      tasksCreated: createdTasks.length,
+      recommendationsAccepted: acceptedRecommendations.length,
+      averageCompletionTime,
+      onTimeCompletion: onTimeCount,
+      weeklyScore,
+      lastUpdated: new Date().toISOString()
+    });
+    
+    // Check if user earned any achievements
+    await this.checkAndAwardAchievements(userId);
+    
+    return updatedMetric;
   }
 }
 

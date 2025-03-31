@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -61,6 +61,42 @@ export const workflowRecommendations = pgTable('workflow_recommendations', {
   isRead: boolean('is_read').notNull().default(false),
 });
 
+// Define achievement types
+export const achievements = pgTable('achievements', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  description: text('description').notNull(),
+  category: text('category').notNull(), // 'task', 'productivity', 'collaboration', 'leadership'
+  icon: text('icon').notNull(), // Icon identifier for frontend display
+  threshold: integer('threshold').notNull(), // Value needed to earn this achievement
+  points: integer('points').notNull(), // Points awarded for earning this achievement
+  createdAt: text('created_at').notNull(),
+});
+
+// Track user earned achievements
+export const userAchievements = pgTable('user_achievements', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  achievementId: integer('achievement_id').notNull().references(() => achievements.id),
+  earnedAt: text('earned_at').notNull(),
+  level: integer('level').notNull().default(1), // For leveled achievements
+});
+
+// Store productivity metrics
+export const productivityMetrics = pgTable('productivity_metrics', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  tasksCompleted: integer('tasks_completed').notNull().default(0),
+  tasksCreated: integer('tasks_created').notNull().default(0),
+  recommendationsAccepted: integer('recommendations_accepted').notNull().default(0),
+  averageCompletionTime: integer('average_completion_time').notNull().default(0), // in hours
+  onTimeCompletion: integer('on_time_completion').notNull().default(0), // number of tasks completed on time
+  lastUpdated: text('last_updated').notNull(),
+  weeklyScore: integer('weekly_score').notNull().default(0),
+  monthlyScore: integer('monthly_score').notNull().default(0),
+  totalPoints: integer('total_points').notNull().default(0),
+});
+
 export const insertUserSchema = createInsertSchema(users).extend({
   role: z.enum(roles),
   reportingManagerId: z.number().optional(),
@@ -83,6 +119,16 @@ export const insertWorkflowRecommendationSchema = createInsertSchema(workflowRec
   status: z.enum(['pending', 'accepted', 'rejected']).default('pending'),
 });
 
+// Define insert schemas for new achievement-related tables
+export const insertAchievementSchema = createInsertSchema(achievements).extend({
+  category: z.enum(['task', 'productivity', 'collaboration', 'leadership']),
+});
+
+export const insertUserAchievementSchema = createInsertSchema(userAchievements);
+
+export const insertProductivityMetricSchema = createInsertSchema(productivityMetrics);
+
+// Define types for all tables
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
@@ -91,3 +137,9 @@ export type TaskHistory = typeof taskHistory.$inferSelect;
 export type InsertTaskHistory = z.infer<typeof insertTaskHistorySchema>;
 export type WorkflowRecommendation = typeof workflowRecommendations.$inferSelect;
 export type InsertWorkflowRecommendation = z.infer<typeof insertWorkflowRecommendationSchema>;
+export type Achievement = typeof achievements.$inferSelect;
+export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
+export type UserAchievement = typeof userAchievements.$inferSelect;
+export type InsertUserAchievement = z.infer<typeof insertUserAchievementSchema>;
+export type ProductivityMetric = typeof productivityMetrics.$inferSelect;
+export type InsertProductivityMetric = z.infer<typeof insertProductivityMetricSchema>;
