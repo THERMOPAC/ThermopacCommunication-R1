@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Task, User, insertTaskSchema } from "@shared/schema";
 import { useForm } from "react-hook-form";
@@ -88,23 +88,43 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
     queryKey: ["/api/users"],
   });
 
-  // Group users by role for the task assignment dropdown
-  const groupedUsers = Array.from(roles)
-    .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
-    .reduce((acc: Record<string, User[]>, role) => {
-      const usersInRole = allUsers.filter(u => u.role === role);
-      if (usersInRole.length > 0) {
-        acc[role] = usersInRole;
-      }
-      return acc;
-    }, {} as Record<string, User[]>);
+  // Safely memoize the grouped users to prevent recalculation during renders
+  const groupedUsers = useMemo(() => {
+    // Return empty object if no users are loaded yet
+    if (allUsers.length === 0) return {} as Record<string, User[]>;
+    
+    return Array.from(roles)
+      .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
+      .reduce((acc: Record<string, User[]>, role) => {
+        const usersInRole = allUsers.filter(u => u.role === role);
+        if (usersInRole.length > 0) {
+          acc[role] = usersInRole;
+        }
+        return acc;
+      }, {} as Record<string, User[]>);
+  }, [allUsers]); // Only recalculate when allUsers changes
 
   // Wait for allUsers to be loaded before performing filtering that depends on it
   const isDataReady = allUsers.length > 0;
   
-  // Filter and search tasks
-  const filteredTasks = tasks
-    .filter(task => {
+  // Get creator's name helper function - memoized to prevent recreation
+  const getCreatorName = useCallback((creatorId: number) => {
+    if (!isDataReady) return 'Loading...';
+    const creator = allUsers.find(u => u.id === creatorId);
+    return creator ? creator.username : 'Unknown';
+  }, [allUsers, isDataReady]);
+
+  // Get assignee's name helper function - memoized to prevent recreation
+  const getAssigneeName = useCallback((assigneeId: number | null) => {
+    if (!assigneeId) return 'Unassigned';
+    if (!isDataReady) return 'Loading...';
+    const assignee = allUsers.find(u => u.id === assigneeId);
+    return assignee ? assignee.username : 'Unknown';
+  }, [allUsers, isDataReady]);
+  
+  // Filter and search tasks - memoized to avoid unnecessary recalculations
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
       // Handle completed tasks filter
       if (!showCompletedTasks && task.status === 'completed') {
         return false;
@@ -144,31 +164,19 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       
       return true;
     });
+  }, [tasks, showCompletedTasks, filterPriority, filterStatus, filterAssignee, searchQuery, isDataReady, getAssigneeName]);
 
-  // Group tasks by creator for display
-  const tasksByCreator = filteredTasks.reduce((acc, task) => {
-    const creatorId = task.createdBy || 0; // Use 0 as fallback if creatorId is null
-    if (!acc[creatorId]) {
-      acc[creatorId] = [];
-    }
-    acc[creatorId].push(task);
-    return acc;
-  }, {} as Record<number, Task[]>);
-
-  // Get creator's name helper function
-  const getCreatorName = (creatorId: number) => {
-    if (!isDataReady) return 'Loading...';
-    const creator = allUsers.find(u => u.id === creatorId);
-    return creator ? creator.username : 'Unknown';
-  };
-
-  // Get assignee's name helper function
-  const getAssigneeName = (assigneeId: number | null) => {
-    if (!assigneeId) return 'Unassigned';
-    if (!isDataReady) return 'Loading...';
-    const assignee = allUsers.find(u => u.id === assigneeId);
-    return assignee ? assignee.username : 'Unknown';
-  };
+  // Group tasks by creator for display - memoized to prevent recalculation
+  const tasksByCreator = useMemo(() => {
+    return filteredTasks.reduce((acc, task) => {
+      const creatorId = task.createdBy || 0; // Use 0 as fallback if creatorId is null
+      if (!acc[creatorId]) {
+        acc[creatorId] = [];
+      }
+      acc[creatorId].push(task);
+      return acc;
+    }, {} as Record<number, Task[]>);
+  }, [filteredTasks]);
 
   // Mutation for completing tasks
   const completeTaskMutation = useMutation({
@@ -263,7 +271,8 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
     },
   });
 
-  const ForwardTaskDialog = ({ task }: { task: Task }) => {
+  // Component for forwarding tasks
+  function ForwardTaskDialog({ task }: { task: Task }) {
     const [isOpen, setIsOpen] = useState(false);
     const form = useForm<ForwardTaskForm>({
       resolver: zodResolver(forwardTaskSchema),
@@ -360,7 +369,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
         </DialogContent>
       </Dialog>
     );
-  };
+  }
 
   return (
     <div className="space-y-6">
