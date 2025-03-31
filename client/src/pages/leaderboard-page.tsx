@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Award, Medal, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { useState } from "react";
 import { type ProductivityMetric, type Achievement, type UserAchievement } from "@shared/schema";
+import Layout from "@/components/layout";
 
 // Badge display component
 const AchievementBadge = ({ 
@@ -215,145 +216,147 @@ export default function LeaderboardPage() {
   ) || [];
 
   return (
-    <div className="container py-10">
-      <h1 className="text-3xl font-bold mb-6">Productivity Dashboard</h1>
+    <Layout>
+      <div className="py-10">
+        <h1 className="text-3xl font-bold mb-6">Productivity Dashboard</h1>
+        
+        {/* Performance Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <StatCard 
+            title="Productivity Score" 
+            value={metrics?.weeklyScore || 0} 
+            icon={<TrendingUp className="h-5 w-5 text-primary" />} 
+          />
+          <StatCard 
+            title="Tasks Completed" 
+            value={metrics?.tasksCompleted || 0} 
+            icon={<Trophy className="h-5 w-5 text-primary" />} 
+          />
+          <StatCard 
+            title="Achievements" 
+            value={earnedAchievements?.length || 0} 
+            icon={<Award className="h-5 w-5 text-primary" />} 
+          />
+          <StatCard 
+            title="Rank" 
+            value={rankData ? `${rankData.rank}/${rankData.totalUsers}` : 'N/A'} 
+            icon={<Medal className="h-5 w-5 text-primary" />} 
+          />
+        </div>
       
-      {/* Performance Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <StatCard 
-          title="Productivity Score" 
-          value={metrics?.weeklyScore || 0} 
-          icon={<TrendingUp className="h-5 w-5 text-primary" />} 
-        />
-        <StatCard 
-          title="Tasks Completed" 
-          value={metrics?.tasksCompleted || 0} 
-          icon={<Trophy className="h-5 w-5 text-primary" />} 
-        />
-        <StatCard 
-          title="Achievements" 
-          value={earnedAchievements?.length || 0} 
-          icon={<Award className="h-5 w-5 text-primary" />} 
-        />
-        <StatCard 
-          title="Rank" 
-          value={rankData ? `${rankData.rank}/${rankData.totalUsers}` : 'N/A'} 
-          icon={<Medal className="h-5 w-5 text-primary" />} 
-        />
+        {/* Tabs for Leaderboard and Achievements */}
+        <Tabs defaultValue="leaderboard" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+            <TabsTrigger value="achievements">Achievements</TabsTrigger>
+          </TabsList>
+          
+          {/* Leaderboard Tab */}
+          <TabsContent value="leaderboard" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Productivity Leaderboard</CardTitle>
+                <CardDescription>
+                  See how you compare to your team and the company
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="team">Team</TabsTrigger>
+                    <TabsTrigger value="company">Company</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="team" className="space-y-4">
+                    <div className="rounded-md border">
+                      {teamLeaderboard?.length > 0 ? (
+                        teamLeaderboard?.map((metric: ProductivityMetric, index: number) => (
+                          <UserScoreCard 
+                            key={metric.userId} 
+                            rank={index + 1} 
+                            metric={metric} 
+                            isCurrentUser={metric.userId === userId} 
+                          />
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">
+                          No team data available
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="company" className="space-y-4">
+                    <div className="rounded-md border">
+                      {companyLeaderboard?.length > 0 ? (
+                        companyLeaderboard?.map((metric: ProductivityMetric, index: number) => (
+                          <UserScoreCard 
+                            key={metric.userId} 
+                            rank={index + 1} 
+                            metric={metric} 
+                            isCurrentUser={metric.userId === userId} 
+                          />
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">
+                          No company data available
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Achievements Tab */}
+          <TabsContent value="achievements" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Achievements</CardTitle>
+                <CardDescription>
+                  Track your progress and unlock new achievements
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-3">Earned Achievements</h3>
+                  {earnedAchievements?.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {earnedAchievements.map((achievement: any) => (
+                        <AchievementBadge key={achievement.id} {...achievement} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">
+                      You haven't earned any achievements yet. Complete tasks and stay productive to unlock them!
+                    </p>
+                  )}
+                </div>
+                
+                <Separator className="my-6" />
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Achievements to Unlock</h3>
+                  {unearnedAchievements?.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {unearnedAchievements.map((achievement: Achievement) => (
+                        <div key={achievement.id} className="opacity-50 grayscale transition-all hover:opacity-80 hover:grayscale-75">
+                          <AchievementBadge {...achievement} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">
+                      Congratulations! You've unlocked all available achievements.
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-      
-      {/* Tabs for Leaderboard and Achievements */}
-      <Tabs defaultValue="leaderboard" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-          <TabsTrigger value="achievements">Achievements</TabsTrigger>
-        </TabsList>
-        
-        {/* Leaderboard Tab */}
-        <TabsContent value="leaderboard" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Productivity Leaderboard</CardTitle>
-              <CardDescription>
-                See how you compare to your team and the company
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="team">Team</TabsTrigger>
-                  <TabsTrigger value="company">Company</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="team" className="space-y-4">
-                  <div className="rounded-md border">
-                    {teamLeaderboard?.length > 0 ? (
-                      teamLeaderboard?.map((metric: ProductivityMetric, index: number) => (
-                        <UserScoreCard 
-                          key={metric.userId} 
-                          rank={index + 1} 
-                          metric={metric} 
-                          isCurrentUser={metric.userId === userId} 
-                        />
-                      ))
-                    ) : (
-                      <div className="p-4 text-center text-gray-500">
-                        No team data available
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="company" className="space-y-4">
-                  <div className="rounded-md border">
-                    {companyLeaderboard?.length > 0 ? (
-                      companyLeaderboard?.map((metric: ProductivityMetric, index: number) => (
-                        <UserScoreCard 
-                          key={metric.userId} 
-                          rank={index + 1} 
-                          metric={metric} 
-                          isCurrentUser={metric.userId === userId} 
-                        />
-                      ))
-                    ) : (
-                      <div className="p-4 text-center text-gray-500">
-                        No company data available
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Achievements Tab */}
-        <TabsContent value="achievements" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Achievements</CardTitle>
-              <CardDescription>
-                Track your progress and unlock new achievements
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3">Earned Achievements</h3>
-                {earnedAchievements?.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {earnedAchievements.map((achievement: any) => (
-                      <AchievementBadge key={achievement.id} {...achievement} />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">
-                    You haven't earned any achievements yet. Complete tasks and stay productive to unlock them!
-                  </p>
-                )}
-              </div>
-              
-              <Separator className="my-6" />
-              
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Achievements to Unlock</h3>
-                {unearnedAchievements?.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {unearnedAchievements.map((achievement: Achievement) => (
-                      <div key={achievement.id} className="opacity-50 grayscale transition-all hover:opacity-80 hover:grayscale-75">
-                        <AchievementBadge {...achievement} />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">
-                    Congratulations! You've unlocked all available achievements.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+    </Layout>
   );
 }
