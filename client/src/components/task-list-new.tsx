@@ -80,9 +80,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
   });
 
   // Group users by role for the task assignment dropdown
-  const groupedUsers = [...roles]
+  const groupedUsers = Array.from(roles)
     .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
-    .reduce((acc, role) => {
+    .reduce((acc: Record<string, User[]>, role) => {
       const usersInRole = allUsers.filter(u => u.role === role);
       if (usersInRole.length > 0) {
         acc[role] = usersInRole;
@@ -234,7 +234,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       priority: "Medium",
       startDate: new Date().toISOString().split('T')[0],
       finishDate: "",
-      assignedTo: undefined,
+      assignedTo: null,
       createdBy: user!.id,
       createdAt: new Date().toISOString(),
       completedAt: null,
@@ -296,9 +296,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                             <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
                               {role}s
                             </SelectLabel>
-                            {users.map((user) => (
-                              <SelectItem key={user.id} value={user.id.toString()}>
-                                {user.username}
+                            {users.map((userItem) => (
+                              <SelectItem key={userItem.id} value={userItem.id.toString()}>
+                                {userItem.username}
                               </SelectItem>
                             ))}
                           </SelectGroup>
@@ -418,9 +418,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">All Assignees</SelectItem>
-                      {allUsers.map((user) => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.username}
+                      {allUsers.map((userItem) => (
+                        <SelectItem key={userItem.id} value={userItem.id.toString()}>
+                          {userItem.username}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -574,9 +574,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                                 <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
                                   {role}s
                                 </SelectLabel>
-                                {users.map((user) => (
-                                  <SelectItem key={user.id} value={user.id.toString()}>
-                                    {user.username}
+                                {users.map((userItem) => (
+                                  <SelectItem key={userItem.id} value={userItem.id.toString()}>
+                                    {userItem.username}
                                   </SelectItem>
                                 ))}
                               </SelectGroup>
