@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Task, User } from "@shared/schema";
-import TaskList from "@/components/task-list";
+import TaskList from "@/components/task-list-new";
 import UserProfile from "@/components/user-profile";
 import UserManagement from "@/components/user-management";
 import WorkflowRecommendations from "@/components/workflow-recommendations";

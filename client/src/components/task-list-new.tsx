@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Task, User, insertTaskSchema } from "@shared/schema";
 import { useForm } from "react-hook-form";
@@ -80,7 +80,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
   });
 
   // Group users by role for the task assignment dropdown
-  const groupedUsers = roles
+  const groupedUsers = [...roles]
     .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
     .reduce((acc, role) => {
       const usersInRole = allUsers.filter(u => u.role === role);
@@ -178,7 +178,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
     mutationFn: async (data: Omit<Task, "id">) => {
       const taskData = {
         ...data,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        completedAt: null,
+        category: null
       };
       const res = await apiRequest("POST", "/api/tasks", taskData);
       return await res.json();
@@ -234,7 +236,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       finishDate: "",
       assignedTo: undefined,
       createdBy: user!.id,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+      category: null
     },
   });
 
@@ -466,71 +470,19 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
               </Button>
             </DialogTrigger>
             <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Task</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit((data) => createTaskMutation.mutate(data))} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Title</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="priority"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Priority</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select priority" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Low">Low</SelectItem>
-                          <SelectItem value="Medium">Medium</SelectItem>
-                          <SelectItem value="High">High</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
+              <DialogHeader>
+                <DialogTitle>Create New Task</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit((data) => createTaskMutation.mutate(data as any))} className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="startDate"
+                    name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Start Date</FormLabel>
+                        <FormLabel>Title</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -539,161 +491,220 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
 
                   <FormField
                     control={form.control}
-                    name="finishDate"
+                    name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Due Date</FormLabel>
+                        <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Textarea {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
 
-                <FormField
-                  control={form.control}
-                  name="assignedTo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Assign To</FormLabel>
-                      <Select onValueChange={(value) => field.onChange(Number(value))}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select team member" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {Object.entries(groupedUsers).map(([role, users]) => (
-                            <SelectGroup key={role}>
-                              <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
-                                {role}s
-                              </SelectLabel>
-                              {users.map((user) => (
-                                <SelectItem key={user.id} value={user.id.toString()}>
-                                  {user.username}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Priority</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Low">Low</SelectItem>
+                            <SelectItem value="Medium">Medium</SelectItem>
+                            <SelectItem value="High">High</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <Button type="submit" className="w-full" disabled={createTaskMutation.isPending}>
-                  Create Task
-                </Button>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="startDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Start Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="finishDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Due Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="assignedTo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Assign To</FormLabel>
+                        <Select onValueChange={(value) => field.onChange(Number(value))}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select team member" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Object.entries(groupedUsers).map(([role, users]) => (
+                              <SelectGroup key={role}>
+                                <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                  {role}s
+                                </SelectLabel>
+                                {users.map((user) => (
+                                  <SelectItem key={user.id} value={user.id.toString()}>
+                                    {user.username}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button type="submit" className="w-full" disabled={createTaskMutation.isPending}>
+                    Create Task
+                  </Button>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card>
-        {Object.entries(tasksByCreator).map(([creatorId, creatorTasks]) => (
-          <Collapsible
-            key={creatorId}
-            open={openSections[Number(creatorId)]}
-            onOpenChange={(isOpen) => {
-              setOpenSections(prev => ({
-                ...prev,
-                [creatorId]: isOpen
-              }));
-            }}
-          >
-            <CollapsibleTrigger className="flex items-center gap-2 w-full p-4 hover:bg-accent">
-              <div className="flex items-center gap-2">
-                {openSections[Number(creatorId)] ? (
-                  <ChevronDown className="h-5 w-5" />
-                ) : (
-                  <ChevronRight className="h-5 w-5" />
-                )}
-                <span className="font-medium">
-                  Tasks Assigned by: {getCreatorName(Number(creatorId))}
-                </span>
-                <Badge variant="secondary" className="ml-2">
-                  {creatorTasks.length}
-                </Badge>
-              </div>
-            </CollapsibleTrigger>
+        {Object.entries(tasksByCreator).length > 0 ? (
+          Object.entries(tasksByCreator).map(([creatorId, creatorTasks]) => (
+            <Collapsible
+              key={creatorId}
+              open={openSections[Number(creatorId)]}
+              onOpenChange={(isOpen) => {
+                setOpenSections(prev => ({
+                  ...prev,
+                  [creatorId]: isOpen
+                }));
+              }}
+            >
+              <CollapsibleTrigger className="flex items-center gap-2 w-full p-4 hover:bg-accent">
+                <div className="flex items-center gap-2">
+                  {openSections[Number(creatorId)] ? (
+                    <ChevronDown className="h-5 w-5" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5" />
+                  )}
+                  <span className="font-medium">
+                    Tasks Assigned by: {getCreatorName(Number(creatorId))}
+                  </span>
+                  <Badge variant="secondary" className="ml-2">
+                    {creatorTasks.length}
+                  </Badge>
+                </div>
+              </CollapsibleTrigger>
 
-            <CollapsibleContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[300px]">Title</TableHead>
-                    <TableHead className="w-[300px]">Description</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Complete</TableHead>
-                    <TableHead>Forward</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {creatorTasks.map((task) => (
-                    <TableRow key={task.id}>
-                      <TableCell className="font-medium">{task.title}</TableCell>
-                      <TableCell className="max-w-[300px] whitespace-pre-wrap break-words">
-                        {task.description}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            task.priority === 'High'
-                              ? 'destructive'
-                              : task.priority === 'Low'
-                                ? 'secondary'
-                                : 'default'
-                          }
-                        >
-                          {task.priority}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{new Date(task.startDate).toLocaleDateString()}</TableCell>
-                      <TableCell>{new Date(task.finishDate).toLocaleDateString()}</TableCell>
-                      <TableCell>{getAssigneeName(task.assignedTo)}</TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={task.status === 'completed' ? 'default' : 'outline'} 
-                          className="capitalize"
-                        >
-                          {task.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setTaskToComplete({
-                            id: task.id,
-                            completing: task.status !== 'completed'
-                          })}
-                          disabled={completeTaskMutation.isPending}
-                        >
-                          {task.status === 'completed' ? (
-                            <CheckCircle className="h-5 w-5 text-green-500" />
-                          ) : (
-                            <Circle className="h-5 w-5" />
-                          )}
-                        </Button>
-                      </TableCell>
-                      <TableCell>
-                        <ForwardTaskDialog task={task} />
-                      </TableCell>
+              <CollapsibleContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[300px]">Title</TableHead>
+                      <TableHead className="w-[300px]">Description</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Start Date</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Assigned To</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Complete</TableHead>
+                      <TableHead>Forward</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CollapsibleContent>
-          </Collapsible>
-        ))}
+                  </TableHeader>
+                  <TableBody>
+                    {creatorTasks.map((task) => (
+                      <TableRow key={task.id}>
+                        <TableCell className="font-medium">{task.title}</TableCell>
+                        <TableCell className="max-w-[300px] whitespace-pre-wrap break-words">
+                          {task.description}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              task.priority === 'High'
+                                ? 'destructive'
+                                : task.priority === 'Low'
+                                  ? 'secondary'
+                                  : 'default'
+                            }
+                          >
+                            {task.priority}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{new Date(task.startDate).toLocaleDateString()}</TableCell>
+                        <TableCell>{new Date(task.finishDate).toLocaleDateString()}</TableCell>
+                        <TableCell>{getAssigneeName(task.assignedTo)}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={task.status === 'completed' ? 'default' : 'outline'} 
+                            className="capitalize"
+                          >
+                            {task.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setTaskToComplete({
+                              id: task.id,
+                              completing: task.status !== 'completed'
+                            })}
+                            disabled={completeTaskMutation.isPending}
+                          >
+                            {task.status === 'completed' ? (
+                              <CheckCircle className="h-5 w-5 text-green-500" />
+                            ) : (
+                              <Circle className="h-5 w-5" />
+                            )}
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          <ForwardTaskDialog task={task} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CollapsibleContent>
+            </Collapsible>
+          ))
+        ) : (
+          <div className="flex items-center justify-center p-8 text-gray-500">
+            <p>No tasks found matching your filters</p>
+          </div>
+        )}
       </Card>
 
       {/* Confirmation Dialog */}
