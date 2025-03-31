@@ -4,6 +4,7 @@ import { Task, User } from "@shared/schema";
 import TaskList from "@/components/task-list";
 import UserProfile from "@/components/user-profile";
 import UserManagement from "@/components/user-management";
+import WorkflowRecommendations from "@/components/workflow-recommendations";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,8 @@ import {
   Mail,
   Phone,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Lightbulb
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { roles, roleHierarchy } from "@shared/roles";
@@ -49,6 +51,7 @@ export default function Dashboard() {
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Users, label: "Team", href: "/team" },
+    { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: MessageSquare, label: "Messages", href: "/messages" },
     { icon: UserIcon, label: "Profile", href: "/profile" },
     ...(user?.role === "Superuser" ? [
@@ -61,6 +64,9 @@ export default function Dashboard() {
 
   // Show team view when on /team route
   const showTeam = location === "/team";
+  
+  // Show recommendations when on /recommendations route
+  const showRecommendations = location === "/recommendations";
 
   // Helper function to get reporting manager name
   const getManagerName = (managerId: number | null) => {
@@ -136,6 +142,9 @@ export default function Dashboard() {
           <div className="grid gap-6">
             {showUserManagement ? (
               <UserManagement />
+            ) : showRecommendations ? (
+              // Recommendations View
+              <WorkflowRecommendations />
             ) : showTeam ? (
               // Team View
               <section>
@@ -239,6 +248,28 @@ export default function Dashboard() {
                 {/* Tasks Section */}
                 <section>
                   <TaskList tasks={tasks} subordinates={subordinates} />
+                </section>
+                
+                {/* Show a summary of active recommendations on dashboard */}
+                <section className="mt-8">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="flex items-center">
+                          <Lightbulb className="mr-2 h-5 w-5 text-yellow-500" />
+                          Workflow Recommendations
+                        </CardTitle>
+                        <Link href="/recommendations">
+                          <button className="text-sm text-blue-600 hover:underline">
+                            View All
+                          </button>
+                        </Link>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <WorkflowRecommendations />
+                    </CardContent>
+                  </Card>
                 </section>
               </>
             )}

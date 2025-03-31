@@ -307,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`User created successfully: ${user.username} (${user.role})`);
 
       if (user.role === "Superuser") {
-        await storage.updateUserReportingManager(user.id, user.id);
+        await storage.updateUser(user.id, { reportingManagerId: user.id });
         console.log(`Set superuser ${user.username} as their own reporting manager`);
       }
 
@@ -326,6 +326,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Workflow Recommendations API Routes
+  app.get("/api/recommendations", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      console.log(`Getting workflow recommendations for user ${req.user!.username} (${req.user!.id})`);
+      const recommendations = await storage.getRecommendationsForUser(req.user!.id);
+      
+      console.log(`Found ${recommendations.length} recommendations for user ${req.user!.id}`);
+      res.json(recommendations);
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch recommendations" 
+      });
+    }
+  });
+
+  app.get("/api/recommendations/active", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      console.log(`Getting active workflow recommendations for user ${req.user!.username} (${req.user!.id})`);
+      const recommendations = await storage.getActiveRecommendations(req.user!.id);
+      
+      console.log(`Found ${recommendations.length} active recommendations for user ${req.user!.id}`);
+      res.json(recommendations);
+    } catch (error) {
+      console.error('Error fetching active recommendations:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch active recommendations" 
+      });
+    }
+  });
+
+  app.patch("/api/recommendations/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const recommendationId = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      if (!status || !['accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: "Valid status (accepted/rejected) is required" });
+      }
+      
+      console.log(`Updating recommendation ${recommendationId} to status: ${status}`);
+      
+      // Update recommendation with new status
+      const updatedRecommendation = await storage.updateRecommendation(recommendationId, {
+        status,
+        isRead: true
+      });
+      
+      console.log(`Recommendation ${recommendationId} updated successfully`);
+      res.json(updatedRecommendation);
+    } catch (error) {
+      console.error('Error updating recommendation:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to update recommendation" 
+      });
+    }
+  });
+
+  app.post("/api/recommendations/generate", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      console.log(`Generating new workflow recommendations for user ${req.user!.username} (${req.user!.id})`);
+      
+      // Generate recommendations from different categories
+      const taskAssignmentRecommendations = await storage.generateTaskAssignmentRecommendations(req.user!.id);
+      const priorityAdjustmentRecommendations = await storage.generatePriorityAdjustmentRecommendations(req.user!.id);
+      const followUpRecommendations = await storage.generateFollowUpRecommendations(req.user!.id);
+      
+      const allRecommendations = [
+        ...taskAssignmentRecommendations,
+        ...priorityAdjustmentRecommendations,
+        ...followUpRecommendations
+      ];
+      
+      console.log(`Generated ${allRecommendations.length} new recommendations for user ${req.user!.id}`);
+      
+      res.json({
+        count: allRecommendations.length,
+        recommendations: allRecommendations
+      });
+    } catch (error) {
+      console.error('Error generating recommendations:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to generate recommendations" 
+      });
+    }
+  });
+
+  // Add task history recording
+  app.post("/api/tasks/:id/history", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const taskId = parseInt(req.params.id);
+      const { action, oldValue, newValue } = req.body;
+      
+      if (!action) {
+        return res.status(400).json({ message: "Action is required" });
+      }
+      
+      // Create history record
+      const historyRecord = await storage.createTaskHistory({
+        taskId,
+        userId: req.user!.id,
+        action,
+        timestamp: new Date().toISOString(),
+        oldValue,
+        newValue
+      });
+      
+      console.log(`Task history record created for task ${taskId}, action: ${action}`);
+      res.status(201).json(historyRecord);
+    } catch (error) {
+      console.error('Error creating task history:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to create task history" 
+      });
+    }
+  });
+
+  // Get task history
+  app.get("/api/tasks/:id/history", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const taskId = parseInt(req.params.id);
+      const task = await storage.getTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      // Check if user has permission to view this task
+      const userRole = req.user!.role;
+      if (userRole !== "Superuser" && task.createdBy !== req.user!.id && task.assignedTo !== req.user!.id) {
+        return res.status(403).json({ message: "Not authorized to view this task's history" });
+      }
+      
+      const history = await storage.getTaskHistory(taskId);
+      console.log(`Fetched ${history.length} history records for task ${taskId}`);
+      
+      res.json(history);
+    } catch (error) {
+      console.error('Error fetching task history:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch task history" 
+      });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

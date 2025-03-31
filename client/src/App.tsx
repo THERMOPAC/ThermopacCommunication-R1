@@ -43,6 +43,7 @@ function Router() {
       <ProtectedRoute path="/" component={Dashboard} />
       <ProtectedRoute path="/tasks" component={Dashboard} />
       <ProtectedRoute path="/team" component={Dashboard} />
+      <ProtectedRoute path="/recommendations" component={Dashboard} />
       <ProtectedRoute path="/messages" component={Dashboard} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <SuperuserRoute path="/users" component={Dashboard} />
