@@ -192,6 +192,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     };
 
     const updatedTask = await storage.updateTask(taskId, updateData);
+    
+    // Check if task was completed (status changed to 'completed')
+    if (req.body.status === 'completed' && task.status !== 'completed') {
+      console.log(`Task ${taskId} completed by user ${req.user!.id}`);
+      
+      // Update productivity metrics
+      let productivityMetric = await storage.getProductivityMetric(req.user!.id);
+      
+      if (!productivityMetric) {
+        // Create new metric if it doesn't exist
+        productivityMetric = await storage.createProductivityMetric({
+          userId: req.user!.id,
+          tasksCompleted: 1,
+          tasksCreated: 0,
+          recommendationsAccepted: 0,
+          averageCompletionTime: 0,
+          onTimeCompletion: 0,
+          weeklyScore: 10, // Initial score for completing a task
+          monthlyScore: 10, // Initial score for completing a task
+          totalPoints: 10, // Initial points for completing a task
+          lastUpdated: new Date().toISOString()
+        });
+      } else {
+        // Update existing metric
+        productivityMetric = await storage.updateProductivityMetric(req.user!.id, {
+          tasksCompleted: productivityMetric.tasksCompleted + 1,
+          weeklyScore: productivityMetric.weeklyScore + 10,
+          monthlyScore: productivityMetric.monthlyScore + 10,
+          totalPoints: productivityMetric.totalPoints + 10,
+          lastUpdated: new Date().toISOString()
+        });
+      }
+      
+      // Check and award achievements
+      await storage.checkAndAwardAchievements(req.user!.id);
+      
+      // Add task history entry
+      await storage.createTaskHistory({
+        taskId: taskId,
+        userId: req.user!.id,
+        action: 'status_changed',
+        timestamp: new Date().toISOString(),
+        oldValue: task.status || 'pending',
+        newValue: 'completed'
+      });
+    }
+    
     res.json(updatedTask);
   });
 
