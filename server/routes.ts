@@ -752,48 +752,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Recurring Pattern Endpoints
   app.post("/api/recurring-patterns", async (req, res) => {
     try {
-      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
-      
-      console.log("Received recurring pattern creation request:", req.body);
-      
-      // If userId is not provided, set it to the authenticated user's ID
-      if (!req.body.userId) {
-        req.body.userId = req.user!.id;
+      if (!req.isAuthenticated()) {
+        console.error("❌ Authentication failed for recurring pattern creation");
+        return res.status(401).json({ message: "Not authenticated" });
       }
+      
+      console.log("✅ RECEIVED RECURRING PATTERN CREATION REQUEST:");
+      console.log(JSON.stringify(req.body, null, 2));
+      
+      // Always ensure the userId is set to the authenticated user's ID
+      console.log(`📝 Setting userId to authenticated user's ID: ${req.user!.id}`);
+      req.body.userId = req.user!.id;
       
       // Parse and validate the pattern data
       try {
-        const patternData = insertRecurringPatternSchema.parse({
+        console.log("📝 Preparing data for schema validation");
+        const dataForValidation = {
           ...req.body,
+          userId: req.user!.id, // Make absolutely sure userId is set
           createdBy: req.user!.id,
           createdAt: new Date().toISOString(),
           isActive: req.body.isActive ?? true,
           generatedCount: 0
-        });
+        };
         
-        console.log(`Creating recurring pattern for user ${req.user!.username}:`, patternData);
+        console.log("📝 Data for validation:", JSON.stringify(dataForValidation, null, 2));
+        console.log("📝 Schema requirements:", Object.keys(insertRecurringPatternSchema.shape));
+        
+        const patternData = insertRecurringPatternSchema.parse(dataForValidation);
+        
+        console.log(`✅ VALIDATION PASSED. Creating recurring pattern for user ${req.user!.username}:`);
+        console.log(JSON.stringify(patternData, null, 2));
         
         // Create the pattern
         const pattern = await storage.createRecurringPattern(patternData);
         
         // If no nextGenerationDate is provided, set it to startDate
         if (!pattern.nextGenerationDate) {
+          console.log(`📝 Setting nextGenerationDate to startDate: ${pattern.startDate}`);
           await storage.updateRecurringPattern(pattern.id, {
             nextGenerationDate: pattern.startDate
           });
         }
         
-        console.log("Successfully created recurring pattern:", pattern);
+        console.log("✅ SUCCESSFULLY CREATED RECURRING PATTERN:", JSON.stringify(pattern, null, 2));
         res.status(201).json(pattern);
       } catch (parseError) {
-        console.error('Validation error for recurring pattern:', parseError);
+        console.error('❌ VALIDATION ERROR FOR RECURRING PATTERN:');
+        if (parseError instanceof Error) {
+          console.error(parseError.message);
+        } else {
+          console.error(parseError);
+        }
+        
         return res.status(400).json({ 
           message: parseError instanceof Error ? parseError.message : "Invalid recurring pattern data",
           details: parseError
         });
       }
     } catch (error) {
-      console.error('Error creating recurring pattern:', error);
+      console.error('❌ ERROR CREATING RECURRING PATTERN:');
+      if (error instanceof Error) {
+        console.error(error.message);
+        console.error(error.stack);
+      } else {
+        console.error(error);
+      }
+      
       res.status(500).json({ 
         message: error instanceof Error ? error.message : "Failed to create recurring pattern" 
       });

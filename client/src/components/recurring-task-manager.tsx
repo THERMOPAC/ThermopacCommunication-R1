@@ -94,23 +94,39 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
   const createPatternMutation = useMutation({
     mutationFn: async (data: any) => {
       try {
-        console.log("Creating pattern with data:", data);
+        console.log("⭐ Creating pattern with data:", JSON.stringify(data, null, 2));
         // Clone the data to avoid any reference issues
         const dataToSubmit = { ...data };
         // Make sure userId is set
         if (user) {
           dataToSubmit.userId = user.id;
+          console.log("⭐ Setting userId to:", user.id);
+        } else {
+          console.error("⚠️ No user found when creating task!");
         }
         
+        console.log("⭐ Submitting data to API:", JSON.stringify(dataToSubmit, null, 2));
+        
         const res = await apiRequest("POST", "/api/recurring-patterns", dataToSubmit);
+        console.log("⭐ API Response status:", res.status, res.statusText);
+        
         if (!res.ok) {
-          const errorData = await res.json().catch(() => null);
-          console.error("API error response:", errorData);
-          throw new Error(errorData?.message || `Request failed with status ${res.status}`);
+          let errorMessage = `Request failed with status ${res.status}`;
+          try {
+            const errorData = await res.json();
+            console.error("⚠️ API error response:", errorData);
+            errorMessage = errorData?.message || errorMessage;
+          } catch (parseError) {
+            console.error("⚠️ Could not parse error response:", parseError);
+          }
+          throw new Error(errorMessage);
         }
-        return await res.json();
+        
+        const responseData = await res.json();
+        console.log("⭐ Task created successfully:", responseData);
+        return responseData;
       } catch (err) {
-        console.error("Error in createPatternMutation:", err);
+        console.error("⚠️ Error in createPatternMutation:", err);
         throw err;
       }
     },
@@ -217,21 +233,26 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       
       console.log("Form data being submitted:", data);
       
+      if (!user) {
+        throw new Error("You must be logged in to create or update recurring tasks");
+      }
+      
       if (editingPattern) {
         console.log("Updating pattern:", editingPattern.id, data);
         const transformedData = transformFormDataToPattern(data);
+        // Double-check userId is set for updates too
+        transformedData.userId = user.id;
         console.log("Transformed data for update API:", transformedData);
         updatePatternMutation.mutate({ id: editingPattern.id, data: transformedData });
       } else {
         console.log("Creating new pattern with data:", data);
         const transformedData = transformFormDataToPattern(data);
         
-        // Ensure userId is included
-        if (user) {
-          transformedData.userId = user.id;
-        }
+        // CRITICAL: Always ensure userId is included and not undefined
+        transformedData.userId = user.id;
+        console.log("userId being set to:", user.id);
         
-        console.log("Transformed data for API:", transformedData);
+        console.log("Final transformed data for API:", JSON.stringify(transformedData, null, 2));
         createPatternMutation.mutate(transformedData);
       }
     } catch (error) {
@@ -281,6 +302,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       templateCategory: data.templateCategory,
       templateDurationDays: data.templateDurationDays,
       isActive: data.isActive,
+      userId: user?.id, // Always ensure userId is set
     };
 
     // Add days of week for weekly pattern

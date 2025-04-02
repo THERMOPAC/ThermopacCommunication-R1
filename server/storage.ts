@@ -952,10 +952,11 @@ export class DatabaseStorage implements IStorage {
 
   async getUserRecurringPatterns(userId: number): Promise<RecurringPattern[]> {
     console.log(`Getting recurring patterns for user ${userId}`);
+    // Use the userId field instead of createdBy to get patterns
     const patterns = await db
       .select()
       .from(recurringPatternsTable)
-      .where(eq(recurringPatternsTable.createdBy, userId))
+      .where(eq(recurringPatternsTable.userId, userId))
       .orderBy(desc(recurringPatternsTable.createdAt));
     
     console.log(`Found ${patterns.length} recurring patterns for user ${userId}`);

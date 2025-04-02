@@ -28,6 +28,9 @@ export const recurringPatterns = pgTable('recurring_patterns', {
   createdBy: integer('created_by').notNull().references(() => users.id),
   createdAt: text('created_at').notNull(),
   
+  // User who owns this recurring pattern (for queries)
+  userId: integer('user_id').notNull().references(() => users.id),
+  
   // Recurrence fields
   pattern: text('pattern').notNull(), // 'daily', 'weekly', 'monthly', 'yearly'
   interval: integer('interval').default(1).notNull(), // Every X days/weeks/months/years
@@ -187,7 +190,7 @@ export const insertRecurringPatternSchema = createInsertSchema(recurringPatterns
   templateCategory: z.string().optional(),
   templateAssignedTo: z.number().optional(),
   templateDurationDays: z.number().min(1),
-  userId: z.number().optional(),
+  userId: z.number(),
   isActive: z.boolean().optional().default(true),
   maxOccurrences: z.number().optional(),
 }).omit({ id: true });
