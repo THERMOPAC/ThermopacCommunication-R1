@@ -92,13 +92,30 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
 
   // Create a new recurring pattern
   const createPatternMutation = useMutation({
-    mutationFn: async (data: RecurringTaskForm) => {
-      // Transform the form data to the pattern expected by the API
-      const transformedData = transformFormDataToPattern(data);
-      const res = await apiRequest("POST", "/api/recurring-patterns", transformedData);
-      return await res.json();
+    mutationFn: async (data: any) => {
+      try {
+        console.log("Creating pattern with data:", data);
+        // Clone the data to avoid any reference issues
+        const dataToSubmit = { ...data };
+        // Make sure userId is set
+        if (user) {
+          dataToSubmit.userId = user.id;
+        }
+        
+        const res = await apiRequest("POST", "/api/recurring-patterns", dataToSubmit);
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => null);
+          console.error("API error response:", errorData);
+          throw new Error(errorData?.message || `Request failed with status ${res.status}`);
+        }
+        return await res.json();
+      } catch (err) {
+        console.error("Error in createPatternMutation:", err);
+        throw err;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Pattern created successfully:", data);
       toast({
         title: "Pattern created",
         description: "Recurring task pattern has been created successfully",
@@ -108,9 +125,10 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       queryClient.invalidateQueries({ queryKey: ["/api/recurring-patterns"] });
     },
     onError: (error: Error) => {
+      console.error("Create pattern error:", error);
       toast({
         title: "Failed to create pattern",
-        description: error.message,
+        description: error.message || "Unknown error occurred",
         variant: "destructive",
       });
     },
@@ -190,24 +208,39 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
 
   // Handle form submission
   const onSubmit = (data: RecurringTaskForm) => {
-    // Show a loading toast
-    toast({
-      title: editingPattern ? "Updating recurring task..." : "Creating recurring task...",
-      description: "Please wait while we process your request.",
-    });
-    
-    console.log("Form data being submitted:", data);
-    
-    if (editingPattern) {
-      console.log("Updating pattern:", editingPattern.id, data);
-      const transformedData = transformFormDataToPattern(data);
-      console.log("Transformed data for update API:", transformedData);
-      updatePatternMutation.mutate({ id: editingPattern.id, data: transformedData });
-    } else {
-      console.log("Creating new pattern with data:", data);
-      const transformedData = transformFormDataToPattern(data);
-      console.log("Transformed data for API:", transformedData);
-      createPatternMutation.mutate(transformedData);
+    try {
+      // Show a loading toast
+      toast({
+        title: editingPattern ? "Updating recurring task..." : "Creating recurring task...",
+        description: "Please wait while we process your request.",
+      });
+      
+      console.log("Form data being submitted:", data);
+      
+      if (editingPattern) {
+        console.log("Updating pattern:", editingPattern.id, data);
+        const transformedData = transformFormDataToPattern(data);
+        console.log("Transformed data for update API:", transformedData);
+        updatePatternMutation.mutate({ id: editingPattern.id, data: transformedData });
+      } else {
+        console.log("Creating new pattern with data:", data);
+        const transformedData = transformFormDataToPattern(data);
+        
+        // Ensure userId is included
+        if (user) {
+          transformedData.userId = user.id;
+        }
+        
+        console.log("Transformed data for API:", transformedData);
+        createPatternMutation.mutate(transformedData);
+      }
+    } catch (error) {
+      console.error("Error in form submission:", error);
+      toast({
+        title: "Form submission error",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
+      });
     }
   };
 
@@ -385,6 +418,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
           <DialogTrigger asChild>
             <Button onClick={() => {
+              console.log("Add Recurring Task button clicked");
               setEditingPattern(null);
               form.reset({
                 patternType: "daily",
@@ -400,7 +434,9 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                 templateDurationDays: 1,
                 isActive: true,
               });
+              console.log("Setting dialog to open");
               setOpenDialog(true);
+              console.log("Dialog state after setting:", openDialog);
             }}>
               <Plus className="mr-2 h-4 w-4" /> Add Recurring Task
             </Button>

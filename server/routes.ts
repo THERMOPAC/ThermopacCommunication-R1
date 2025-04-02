@@ -754,28 +754,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
       
-      // Parse and validate the pattern data
-      const patternData = insertRecurringPatternSchema.parse({
-        ...req.body,
-        createdBy: req.user!.id,
-        createdAt: new Date().toISOString(),
-        isActive: true,
-        generatedCount: 0
-      });
+      console.log("Received recurring pattern creation request:", req.body);
       
-      console.log(`Creating recurring pattern for user ${req.user!.username}`, patternData);
-      
-      // Create the pattern
-      const pattern = await storage.createRecurringPattern(patternData);
-      
-      // If no nextGenerationDate is provided, set it to startDate
-      if (!pattern.nextGenerationDate) {
-        await storage.updateRecurringPattern(pattern.id, {
-          nextGenerationDate: pattern.startDate
-        });
+      // If userId is not provided, set it to the authenticated user's ID
+      if (!req.body.userId) {
+        req.body.userId = req.user!.id;
       }
       
-      res.status(201).json(pattern);
+      // Parse and validate the pattern data
+      try {
+        const patternData = insertRecurringPatternSchema.parse({
+          ...req.body,
+          createdBy: req.user!.id,
+          createdAt: new Date().toISOString(),
+          isActive: req.body.isActive ?? true,
+          generatedCount: 0
+        });
+        
+        console.log(`Creating recurring pattern for user ${req.user!.username}:`, patternData);
+        
+        // Create the pattern
+        const pattern = await storage.createRecurringPattern(patternData);
+        
+        // If no nextGenerationDate is provided, set it to startDate
+        if (!pattern.nextGenerationDate) {
+          await storage.updateRecurringPattern(pattern.id, {
+            nextGenerationDate: pattern.startDate
+          });
+        }
+        
+        console.log("Successfully created recurring pattern:", pattern);
+        res.status(201).json(pattern);
+      } catch (parseError) {
+        console.error('Validation error for recurring pattern:', parseError);
+        return res.status(400).json({ 
+          message: parseError instanceof Error ? parseError.message : "Invalid recurring pattern data",
+          details: parseError
+        });
+      }
     } catch (error) {
       console.error('Error creating recurring pattern:', error);
       res.status(500).json({ 

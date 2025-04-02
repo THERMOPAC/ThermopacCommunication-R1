@@ -177,10 +177,19 @@ export const insertRecurringPatternSchema = createInsertSchema(recurringPatterns
   pattern: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
   interval: z.number().min(1),
   daysOfWeek: z.string().optional(),
+  dayOfMonth: z.number().optional(),
+  monthOfYear: z.number().optional(),
+  startDate: z.string(),
+  endDate: z.string().optional(),
   templateTitle: z.string().min(3, { message: "Title must be at least 3 characters" }),
   templateDescription: z.string().min(5, { message: "Description must be at least 5 characters" }),
   templatePriority: z.enum(['Low', 'Medium', 'High']),
+  templateCategory: z.string().optional(),
+  templateAssignedTo: z.number().optional(),
   templateDurationDays: z.number().min(1),
+  userId: z.number().optional(),
+  isActive: z.boolean().optional().default(true),
+  maxOccurrences: z.number().optional(),
 }).omit({ id: true });
 
 // Define types for all tables
