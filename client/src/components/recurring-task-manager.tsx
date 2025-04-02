@@ -190,6 +190,12 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
 
   // Handle form submission
   const onSubmit = (data: RecurringTaskForm) => {
+    // Show a loading toast
+    toast({
+      title: editingPattern ? "Updating recurring task..." : "Creating recurring task...",
+      description: "Please wait while we process your request.",
+    });
+    
     if (editingPattern) {
       updatePatternMutation.mutate({ id: editingPattern.id, data });
     } else {
@@ -212,6 +218,12 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
   // Handle delete button click
   const handleDelete = (id: number) => {
     if (confirm("Are you sure you want to delete this recurring pattern?")) {
+      // Show a loading toast
+      toast({
+        title: "Deleting recurring task...",
+        description: "Please wait while we process your request.",
+      });
+      
       deletePatternMutation.mutate(id);
     }
   };
