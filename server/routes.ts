@@ -779,24 +779,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("📝 Data for validation:", JSON.stringify(dataForValidation, null, 2));
         console.log("📝 Schema requirements:", Object.keys(insertRecurringPatternSchema.shape));
         
-        const patternData = insertRecurringPatternSchema.parse(dataForValidation);
+        console.log("📝 CHECKING REQUIRED FIELDS:");
+        // Check if all required fields are present
+        const requiredFields = ['pattern', 'interval', 'startDate', 'templateTitle', 'templateDescription', 'templatePriority', 'userId', 'createdBy', 'createdAt'];
+        const missingFields = requiredFields.filter(field => !(field in dataForValidation));
         
-        console.log(`✅ VALIDATION PASSED. Creating recurring pattern for user ${req.user!.username}:`);
-        console.log(JSON.stringify(patternData, null, 2));
-        
-        // Create the pattern
-        const pattern = await storage.createRecurringPattern(patternData);
-        
-        // If no nextGenerationDate is provided, set it to startDate
-        if (!pattern.nextGenerationDate) {
-          console.log(`📝 Setting nextGenerationDate to startDate: ${pattern.startDate}`);
-          await storage.updateRecurringPattern(pattern.id, {
-            nextGenerationDate: pattern.startDate
+        if (missingFields.length > 0) {
+          console.error(`❌ MISSING REQUIRED FIELDS: ${missingFields.join(', ')}`);
+          return res.status(400).json({ 
+            message: `Missing required fields: ${missingFields.join(', ')}`,
+            details: { missingFields }
           });
         }
         
-        console.log("✅ SUCCESSFULLY CREATED RECURRING PATTERN:", JSON.stringify(pattern, null, 2));
-        res.status(201).json(pattern);
+        // Extra debug for specific fields
+        console.log(`📝 pattern field: ${dataForValidation.pattern}, type: ${typeof dataForValidation.pattern}`);
+        console.log(`📝 interval field: ${dataForValidation.interval}, type: ${typeof dataForValidation.interval}`);
+        console.log(`📝 userId field: ${dataForValidation.userId}, type: ${typeof dataForValidation.userId}`);
+        console.log(`📝 createdBy field: ${dataForValidation.createdBy}, type: ${typeof dataForValidation.createdBy}`);
+        
+        // Try to parse the data
+        try {
+          const patternData = insertRecurringPatternSchema.parse(dataForValidation);
+          console.log(`✅ VALIDATION PASSED. Creating recurring pattern for user ${req.user!.username}:`);
+          console.log(JSON.stringify(patternData, null, 2));
+          
+          // Create the pattern
+          const pattern = await storage.createRecurringPattern(patternData);
+          
+          // If no nextGenerationDate is provided, set it to startDate
+          if (!pattern.nextGenerationDate) {
+            console.log(`📝 Setting nextGenerationDate to startDate: ${pattern.startDate}`);
+            await storage.updateRecurringPattern(pattern.id, {
+              nextGenerationDate: pattern.startDate
+            });
+          }
+          
+          console.log("✅ SUCCESSFULLY CREATED RECURRING PATTERN:", JSON.stringify(pattern, null, 2));
+          res.status(201).json(pattern);
+        } catch (schemaError) {
+          console.error('❌ SCHEMA VALIDATION ERROR:');
+          console.error(schemaError);
+          return res.status(400).json({ 
+            message: schemaError instanceof Error ? schemaError.message : "Schema validation failed",
+            details: schemaError
+          });
+        }
       } catch (parseError) {
         console.error('❌ VALIDATION ERROR FOR RECURRING PATTERN:');
         if (parseError instanceof Error) {

@@ -97,13 +97,39 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         console.log("⭐ Creating pattern with data:", JSON.stringify(data, null, 2));
         // Clone the data to avoid any reference issues
         const dataToSubmit = { ...data };
-        // Make sure userId is set
+        
+        // CRITICAL: Make absolutely sure userId is set and is a number
         if (user) {
-          dataToSubmit.userId = user.id;
-          console.log("⭐ Setting userId to:", user.id);
+          dataToSubmit.userId = Number(user.id);
+          dataToSubmit.createdBy = Number(user.id);
+          console.log("⭐ Setting userId to:", dataToSubmit.userId, "and createdBy to:", dataToSubmit.createdBy);
         } else {
           console.error("⚠️ No user found when creating task!");
+          throw new Error("You must be logged in to create recurring tasks");
         }
+        
+        // Ensure all required fields are present and of the correct type
+        const requiredFields = ['pattern', 'interval', 'startDate', 'templateTitle', 
+          'templateDescription', 'templatePriority', 'userId', 'createdBy'];
+          
+        const missingFields = requiredFields.filter(field => !(field in dataToSubmit));
+        if (missingFields.length > 0) {
+          console.error(`⚠️ Missing required fields: ${missingFields.join(', ')}`);
+          throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+        }
+        
+        // Set creation date if not present
+        if (!dataToSubmit.createdAt) {
+          dataToSubmit.createdAt = new Date().toISOString();
+        }
+        
+        // Validate numeric fields
+        dataToSubmit.interval = Number(dataToSubmit.interval);
+        dataToSubmit.templateDurationDays = Number(dataToSubmit.templateDurationDays);
+        if (dataToSubmit.dayOfMonth) dataToSubmit.dayOfMonth = Number(dataToSubmit.dayOfMonth);
+        if (dataToSubmit.monthOfYear) dataToSubmit.monthOfYear = Number(dataToSubmit.monthOfYear);
+        if (dataToSubmit.templateAssignedTo) dataToSubmit.templateAssignedTo = Number(dataToSubmit.templateAssignedTo);
+        if (dataToSubmit.maxOccurrences) dataToSubmit.maxOccurrences = Number(dataToSubmit.maxOccurrences);
         
         console.log("⭐ Submitting data to API:", JSON.stringify(dataToSubmit, null, 2));
         
@@ -116,6 +142,14 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
             const errorData = await res.json();
             console.error("⚠️ API error response:", errorData);
             errorMessage = errorData?.message || errorMessage;
+            
+            // Add more details if available
+            if (errorData?.details) {
+              console.error("⚠️ API error details:", errorData.details);
+              if (typeof errorData.details === 'object') {
+                errorMessage += ` (${JSON.stringify(errorData.details)})`;
+              }
+            }
           } catch (parseError) {
             console.error("⚠️ Could not parse error response:", parseError);
           }
@@ -294,35 +328,46 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
   function transformFormDataToPattern(data: RecurringTaskForm) {
     const patternData: any = {
       pattern: data.patternType,
-      interval: data.interval,
+      interval: Number(data.interval),  // Ensure it's a number
       startDate: data.startDate,
       templateTitle: data.templateTitle,
       templateDescription: data.templateDescription,
       templatePriority: data.templatePriority,
       templateCategory: data.templateCategory,
-      templateDurationDays: data.templateDurationDays,
-      isActive: data.isActive,
+      templateDurationDays: Number(data.templateDurationDays), // Ensure it's a number
+      isActive: Boolean(data.isActive), // Ensure it's a boolean
       userId: user?.id, // Always ensure userId is set
+      createdBy: user?.id, // Set createdBy as well
+      createdAt: new Date().toISOString() // Set creation date
     };
 
+    // Debug log
+    console.log("✅ Transformed form data:", JSON.stringify(patternData, null, 2));
+
+    // Explicitly log critical fields
+    console.log(`✅ pattern: ${patternData.pattern}, type: ${typeof patternData.pattern}`);
+    console.log(`✅ interval: ${patternData.interval}, type: ${typeof patternData.interval}`);
+    console.log(`✅ userId: ${patternData.userId}, type: ${typeof patternData.userId}`);
+    console.log(`✅ createdBy: ${patternData.createdBy}, type: ${typeof patternData.createdBy}`);
+
     // Add days of week for weekly pattern
-    if (data.patternType === "weekly" && data.daysOfWeek) {
+    if (data.patternType === "weekly" && data.daysOfWeek && data.daysOfWeek.length > 0) {
       patternData.daysOfWeek = data.daysOfWeek.join(",");
     }
 
     // Add day of month for monthly pattern
     if (data.patternType === "monthly" && data.dayOfMonth) {
-      patternData.dayOfMonth = data.dayOfMonth;
+      patternData.dayOfMonth = Number(data.dayOfMonth); // Ensure it's a number
     }
 
     // Add month of year for yearly pattern
     if (data.patternType === "yearly" && data.monthOfYear) {
-      patternData.monthOfYear = data.monthOfYear;
+      patternData.monthOfYear = Number(data.monthOfYear); // Ensure it's a number
     }
 
     // Add assigned to if provided
     if (data.templateAssignedTo) {
-      patternData.templateAssignedTo = data.templateAssignedTo;
+      patternData.templateAssignedTo = Number(data.templateAssignedTo); // Ensure it's a number
     }
 
     // Add end date if provided
@@ -332,7 +377,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
 
     // Add max occurrences if provided
     if (data.maxOccurrences) {
-      patternData.maxOccurrences = data.maxOccurrences;
+      patternData.maxOccurrences = Number(data.maxOccurrences); // Ensure it's a number
     }
 
     return patternData;
