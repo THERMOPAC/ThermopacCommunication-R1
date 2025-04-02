@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTaskSchema, insertUserSchema, insertRecurringPatternSchema } from "@shared/schema";
+import { insertTaskSchema, insertUserSchema, insertRecurringPatternSchema, insertRecurringTaskSchema } from "@shared/schema";
 import { canManage, roleHierarchy } from "@shared/roles";
 import { scrypt, timingSafeEqual, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -978,6 +978,187 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error processing recurring patterns:', error);
       res.status(500).json({ 
         message: error instanceof Error ? error.message : "Failed to process recurring patterns" 
+      });
+    }
+  });
+
+  // Recurring Tasks API Routes
+  app.get("/api/recurring-tasks", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      console.log(`Getting recurring tasks for user ${req.user!.username}`);
+      const tasks = await storage.getRecurringTasksForUser(req.user!.id);
+      
+      res.json(tasks);
+    } catch (error) {
+      console.error('Error fetching recurring tasks:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch recurring tasks" 
+      });
+    }
+  });
+
+  app.get("/api/recurring-tasks/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const taskId = parseInt(req.params.id);
+      console.log(`Getting recurring task ${taskId} for user ${req.user!.username}`);
+      
+      const task = await storage.getRecurringTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ message: "Recurring task not found" });
+      }
+      
+      // Check if user has access to this task (creator, assignee, or superuser)
+      if (task.assignedTo !== req.user!.id && req.user!.role !== "Superuser") {
+        return res.status(403).json({ message: "Not authorized to view this recurring task" });
+      }
+      
+      res.json(task);
+    } catch (error) {
+      console.error('Error fetching recurring task:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch recurring task" 
+      });
+    }
+  });
+
+  app.patch("/api/recurring-tasks/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const taskId = parseInt(req.params.id);
+      console.log(`Updating recurring task ${taskId} for user ${req.user!.username}`);
+      
+      const task = await storage.getRecurringTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ message: "Recurring task not found" });
+      }
+      
+      // Task completion and task editing are separate operations with different permissions
+      const isTaskCompletion = req.body.status === 'completed';
+      const isTaskEditing = !isTaskCompletion;
+      
+      if (isTaskCompletion) {
+        // Only allow completing a task if user is the assignee or a superuser
+        if (task.assignedTo !== req.user!.id && req.user!.role !== "Superuser") {
+          return res.status(403).json({ message: "Only the assigned user or a Superuser can complete this recurring task" });
+        }
+        
+        const updateData = {
+          status: 'completed',
+          completedAt: new Date().toISOString()
+        };
+        
+        const updatedTask = await storage.updateRecurringTask(taskId, updateData);
+        
+        console.log(`Recurring task ${taskId} completed by user ${req.user!.id}`);
+        
+        // Update productivity metrics
+        let productivityMetric = await storage.getProductivityMetric(req.user!.id);
+        
+        if (!productivityMetric) {
+          // Create new metric if it doesn't exist
+          productivityMetric = await storage.createProductivityMetric({
+            userId: req.user!.id,
+            tasksCompleted: 1,
+            tasksCreated: 0,
+            recommendationsAccepted: 0,
+            averageCompletionTime: 0,
+            onTimeCompletion: 0,
+            weeklyScore: 10, // Initial score for completing a task
+            monthlyScore: 10, // Initial score for completing a task
+            totalPoints: 10, // Initial points for completing a task
+            lastUpdated: new Date().toISOString()
+          });
+        } else {
+          // Update existing metric
+          productivityMetric = await storage.updateProductivityMetric(req.user!.id, {
+            tasksCompleted: productivityMetric.tasksCompleted + 1,
+            weeklyScore: productivityMetric.weeklyScore + 10,
+            monthlyScore: productivityMetric.monthlyScore + 10,
+            totalPoints: productivityMetric.totalPoints + 10,
+            lastUpdated: new Date().toISOString()
+          });
+        }
+        
+        // Check and award achievements
+        await storage.checkAndAwardAchievements(req.user!.id);
+        
+        return res.json(updatedTask);
+      }
+      
+      if (isTaskEditing) {
+        // Only allow editing a task if user has admin privileges
+        if (req.user!.role !== "Superuser") {
+          return res.status(403).json({ 
+            message: "Only a Superuser can edit recurring tasks"
+          });
+        }
+        
+        // Prepare task update data (only allowed fields)
+        const allowedFields = ['title', 'description', 'priority', 'finishDate', 'dueDate', 'assignedTo'];
+        const updateData: Record<string, any> = {};
+        
+        for (const field of allowedFields) {
+          if (field in req.body) {
+            updateData[field] = req.body[field];
+          }
+        }
+        
+        const updatedTask = await storage.updateRecurringTask(taskId, updateData);
+        console.log(`Recurring task ${taskId} edited by user ${req.user!.id}`);
+        
+        return res.json(updatedTask);
+      }
+      
+      res.status(400).json({ message: "Invalid recurring task update request" });
+    } catch (error) {
+      console.error('Error updating recurring task:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to update recurring task" 
+      });
+    }
+  });
+
+  app.post("/api/recurring-tasks/:id/forward", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+
+      const taskId = parseInt(req.params.id);
+      const { newAssignee } = req.body;
+
+      if (!newAssignee) {
+        return res.status(400).json({ message: "New assignee ID is required" });
+      }
+
+      // Get current task
+      const task = await storage.getRecurringTask(taskId);
+      if (!task) {
+        return res.status(404).json({ message: "Recurring task not found" });
+      }
+
+      // Check permissions - only Superuser, General Manager, Senior Manager, and Manager can forward tasks
+      const allowedRoles = ["Superuser", "General Manager", "Senior Manager", "Manager"];
+      if (!allowedRoles.includes(req.user!.role)) {
+        return res.status(403).json({ message: "Not authorized to forward recurring tasks" });
+      }
+
+      // Update task assignee
+      const updatedTask = await storage.updateRecurringTask(taskId, {
+        assignedTo: newAssignee
+      });
+
+      console.log(`Recurring task ${taskId} forwarded to user ${newAssignee} by ${req.user!.username}`);
+      res.json(updatedTask);
+    } catch (error) {
+      console.error('Error forwarding recurring task:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to forward recurring task" 
       });
     }
   });

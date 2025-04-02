@@ -77,9 +77,31 @@ export const tasks = pgTable('tasks', {
   createdAt: text('created_at').notNull(),
   completedAt: text('completed_at'),
   category: text('category'), // Optional category for task classification
+  // No recurring tasks reference - they go in their own table
+});
+
+// Separate table for instances of recurring tasks
+export const recurringTasks = pgTable('recurring_tasks', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  status: text('status').notNull().default('pending'),
+  priority: text('priority').notNull().default('Medium'),
+  startDate: text('start_date').notNull(),
+  finishDate: text('finish_date').notNull(),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  completedAt: text('completed_at'),
+  category: text('category'),
   
-  // Link to recurring pattern if this task was generated from one
-  recurringPatternId: integer('recurring_pattern_id').references(() => recurringPatterns.id),
+  // References
+  recurringPatternId: integer('recurring_pattern_id').notNull().references(() => recurringPatterns.id),
+  createdAt: text('created_at').notNull(),
+  
+  // Occurrence number for this instance
+  occurrenceNumber: integer('occurrence_number').notNull(),
+  
+  // Due date - when this task must be completed
+  dueDate: text('due_date').notNull(),
 });
 
 // Track task history for workflow analysis
@@ -175,6 +197,15 @@ export const insertUserAchievementSchema = createInsertSchema(userAchievements);
 
 export const insertProductivityMetricSchema = createInsertSchema(productivityMetrics);
 
+// Insert schema for recurring tasks
+export const insertRecurringTaskSchema = createInsertSchema(recurringTasks).extend({
+  priority: z.enum(['Low', 'Medium', 'High']),
+  startDate: z.string(),
+  finishDate: z.string(),
+  dueDate: z.string(),
+  status: z.enum(['pending', 'in_progress', 'completed', 'canceled']).default('pending'),
+});
+
 // Recurring pattern insert schema
 export const insertRecurringPatternSchema = createInsertSchema(recurringPatterns, {
   pattern: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
@@ -212,3 +243,5 @@ export type ProductivityMetric = typeof productivityMetrics.$inferSelect;
 export type InsertProductivityMetric = z.infer<typeof insertProductivityMetricSchema>;
 export type RecurringPattern = typeof recurringPatterns.$inferSelect;
 export type InsertRecurringPattern = z.infer<typeof insertRecurringPatternSchema>;
+export type RecurringTask = typeof recurringTasks.$inferSelect;
+export type InsertRecurringTask = z.infer<typeof insertRecurringTaskSchema>;

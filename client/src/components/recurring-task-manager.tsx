@@ -439,10 +439,13 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
     // If it's undefined, null, or empty string, don't include it
     // Otherwise convert it to a number
     if (data.templateAssignedTo !== undefined && 
-        data.templateAssignedTo !== null && 
-        data.templateAssignedTo !== '') {
-      console.log("Setting templateAssignedTo to:", data.templateAssignedTo);
-      patternData.templateAssignedTo = Number(data.templateAssignedTo);
+        data.templateAssignedTo !== null) {
+      // Convert to number or undefined
+      const assignedToValue = data.templateAssignedTo ? Number(data.templateAssignedTo) : undefined;
+      console.log("Setting templateAssignedTo to:", assignedToValue);
+      if (assignedToValue) {
+        patternData.templateAssignedTo = assignedToValue;
+      }
     } else {
       console.log("No templateAssignedTo provided, leaving field undefined");
     }

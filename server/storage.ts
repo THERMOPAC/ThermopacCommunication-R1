@@ -6,7 +6,8 @@ import type {
   Achievement, InsertAchievement,
   UserAchievement, InsertUserAchievement,
   ProductivityMetric, InsertProductivityMetric,
-  RecurringPattern, InsertRecurringPattern
+  RecurringPattern, InsertRecurringPattern,
+  RecurringTask, InsertRecurringTask
 } from "@shared/schema";
 import { roleHierarchy, canManage } from "@shared/roles";
 import session from "express-session";
@@ -20,7 +21,8 @@ import {
   achievements as achievementsTable,
   userAchievements as userAchievementsTable,
   productivityMetrics as productivityMetricsTable,
-  recurringPatterns as recurringPatternsTable
+  recurringPatterns as recurringPatternsTable,
+  recurringTasks as recurringTasksTable
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 
@@ -1012,6 +1014,76 @@ export class DatabaseStorage implements IStorage {
     console.log(`Found ${patterns.length} recurring patterns for user ${userId}`);
     return patterns as RecurringPattern[];
   }
+  
+  // Recurring Task methods
+  async createRecurringTask(insertRecurringTask: InsertRecurringTask): Promise<RecurringTask> {
+    console.log(`Creating new recurring task:`, insertRecurringTask);
+    const result = await db.insert(recurringTasksTable).values(insertRecurringTask).returning();
+    const task = result[0] as RecurringTask;
+    console.log(`Created recurring task:`, task);
+    return task;
+  }
+  
+  async getRecurringTasksForUser(userId: number): Promise<RecurringTask[]> {
+    console.log(`Getting recurring tasks for user ${userId}`);
+    
+    const user = await this.getUser(userId);
+    if (!user) {
+      console.log(`No user found for ID ${userId}`);
+      return [];
+    }
+    
+    // Superuser can see all recurring tasks
+    if (user.role === 'Superuser') {
+      const tasks = await db.select().from(recurringTasksTable);
+      console.log(`Found ${tasks.length} recurring tasks for Superuser ${user.username}`);
+      return tasks as RecurringTask[];
+    }
+    
+    // Regular users see only recurring tasks assigned to them
+    const tasks = await db
+      .select()
+      .from(recurringTasksTable)
+      .where(eq(recurringTasksTable.assignedTo, userId));
+    
+    console.log(`Found ${tasks.length} recurring tasks assigned to user ${userId}`);
+    return tasks as RecurringTask[];
+  }
+  
+  async getRecurringTask(id: number): Promise<RecurringTask | undefined> {
+    console.log(`Getting recurring task ${id}`);
+    const result = await db
+      .select()
+      .from(recurringTasksTable)
+      .where(eq(recurringTasksTable.id, id));
+    return result[0] as RecurringTask | undefined;
+  }
+  
+  async updateRecurringTask(id: number, updateData: Partial<RecurringTask>): Promise<RecurringTask> {
+    console.log(`Updating recurring task ${id} with data:`, updateData);
+    const result = await db
+      .update(recurringTasksTable)
+      .set(updateData)
+      .where(eq(recurringTasksTable.id, id))
+      .returning();
+    const task = result[0] as RecurringTask;
+    
+    if (!task) throw new Error("Recurring task not found");
+    console.log(`Updated recurring task:`, task);
+    return task;
+  }
+  
+  async getRecurringTasksByPattern(patternId: number): Promise<RecurringTask[]> {
+    console.log(`Getting recurring tasks for pattern ${patternId}`);
+    const tasks = await db
+      .select()
+      .from(recurringTasksTable)
+      .where(eq(recurringTasksTable.recurringPatternId, patternId))
+      .orderBy(recurringTasksTable.dueDate);
+    
+    console.log(`Found ${tasks.length} recurring tasks for pattern ${patternId}`);
+    return tasks as RecurringTask[];
+  }
 
   async getActiveRecurringPatterns(): Promise<RecurringPattern[]> {
     console.log('Getting all active recurring patterns');
@@ -1065,29 +1137,34 @@ export class DatabaseStorage implements IStorage {
           }
         }
         
-        // Generate the new task
+        // Generate the new recurring task
         const startDate = new Date().toISOString().split('T')[0]; // Today
         
         // Calculate finish date based on duration
         const finishDate = new Date();
         finishDate.setDate(finishDate.getDate() + pattern.templateDurationDays);
         
-        const newTask: InsertTask = {
+        // Also set a due date (same as finish date for now)
+        const dueDate = finishDate.toISOString().split('T')[0];
+        
+        const newRecurringTask: InsertRecurringTask = {
           title: pattern.templateTitle,
           description: pattern.templateDescription,
           priority: pattern.templatePriority as 'Low' | 'Medium' | 'High',
           startDate,
           finishDate: finishDate.toISOString().split('T')[0],
           assignedTo: pattern.templateAssignedTo,
-          createdBy: pattern.createdBy,
           createdAt: new Date().toISOString(),
           category: pattern.templateCategory,
-          recurringPatternId: pattern.id
+          recurringPatternId: pattern.id,
+          dueDate: dueDate,
+          occurrenceNumber: (pattern.generatedCount || 0) + 1,
+          status: 'pending'
         };
         
-        // Create the task
-        const task = await this.createTask(newTask);
-        console.log(`Created recurring task ${task.id} from pattern ${pattern.id}`);
+        // Create the recurring task in the dedicated table
+        const task = await this.createRecurringTask(newRecurringTask);
+        console.log(`Created recurring task ${task.id} from pattern ${pattern.id} (occurrence #${task.occurrenceNumber})`);
         
         // Calculate next generation date based on pattern
         let nextGenerationDate = new Date();
