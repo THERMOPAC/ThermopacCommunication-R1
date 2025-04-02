@@ -435,9 +435,16 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       patternData.monthOfYear = Number(data.monthOfYear); // Ensure it's a number
     }
 
-    // Add assigned to if provided
-    if (data.templateAssignedTo) {
-      patternData.templateAssignedTo = Number(data.templateAssignedTo); // Ensure it's a number
+    // Handle the templateAssignedTo field properly
+    // If it's undefined, null, or empty string, don't include it
+    // Otherwise convert it to a number
+    if (data.templateAssignedTo !== undefined && 
+        data.templateAssignedTo !== null && 
+        data.templateAssignedTo !== '') {
+      console.log("Setting templateAssignedTo to:", data.templateAssignedTo);
+      patternData.templateAssignedTo = Number(data.templateAssignedTo);
+    } else {
+      console.log("No templateAssignedTo provided, leaving field undefined");
     }
 
     // Add end date if provided
@@ -1022,8 +1029,11 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                         <FormItem>
                           <FormLabel>Assign to</FormLabel>
                           <Select 
-                            onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
-                            defaultValue={field.value?.toString()}
+                            onValueChange={(value) => {
+                              console.log("Selected user ID:", value);
+                              field.onChange(value ? parseInt(value) : undefined);
+                            }}
+                            value={field.value !== undefined && field.value !== null ? field.value.toString() : undefined}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -1045,6 +1055,9 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                                 ))}
                             </SelectContent>
                           </Select>
+                          <FormDescription>
+                            Optional - leave blank to create without assignment
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
