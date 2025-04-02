@@ -400,6 +400,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                 templateDurationDays: 1,
                 isActive: true,
               });
+              setOpenDialog(true);
             }}>
               <Plus className="mr-2 h-4 w-4" /> Add Recurring Task
             </Button>
@@ -815,8 +816,8 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                           <FormItem>
                             <FormLabel>Category</FormLabel>
                             <Select 
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              onValueChange={(value: string) => field.onChange(value)}
+                              defaultValue={field.value || 'work'}
                             >
                               <FormControl>
                                 <SelectTrigger>
