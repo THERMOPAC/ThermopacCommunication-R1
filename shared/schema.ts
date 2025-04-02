@@ -20,6 +20,47 @@ export const users = pgTable('users', {
   reportingManagerId: integer('reporting_manager_id'),
 });
 
+// Recurring patterns table for task templates
+export const recurringPatterns = pgTable('recurring_patterns', {
+  id: serial('id').primaryKey(),
+  
+  // Who created this recurring pattern
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: text('created_at').notNull(),
+  
+  // Recurrence fields
+  pattern: text('pattern').notNull(), // 'daily', 'weekly', 'monthly', 'yearly'
+  interval: integer('interval').default(1).notNull(), // Every X days/weeks/months/years
+  daysOfWeek: text('days_of_week'), // JSON string array for weekly pattern: ["MON","WED","FRI"]
+  dayOfMonth: integer('day_of_month'), // For monthly pattern
+  monthOfYear: integer('month_of_year'), // For yearly pattern
+  
+  // Controls
+  startDate: text('start_date').notNull(),
+  endDate: text('end_date'), // Optional end date
+  maxOccurrences: integer('max_occurrences'), // Optional limit
+  
+  // Template fields for new tasks
+  templateTitle: text('template_title').notNull(),
+  templateDescription: text('template_description').notNull(),
+  templatePriority: text('template_priority').notNull(),
+  templateAssignedTo: integer('template_assigned_to').references(() => users.id),
+  templateCategory: text('template_category'),
+  
+  // Duration in days (used to calculate finishDate when generating new tasks)
+  templateDurationDays: integer('template_duration_days').default(1).notNull(),
+  
+  // When was the last instance generated
+  lastGeneratedDate: text('last_generated_date'),
+  nextGenerationDate: text('next_generation_date'),
+  
+  // Counter for generated instances
+  generatedCount: integer('generated_count').default(0).notNull(),
+  
+  // Status of the recurring pattern
+  isActive: boolean('is_active').default(true).notNull(),
+});
+
 export const tasks = pgTable('tasks', {
   id: serial('id').primaryKey(),
   title: text('title').notNull(),
@@ -33,6 +74,9 @@ export const tasks = pgTable('tasks', {
   createdAt: text('created_at').notNull(),
   completedAt: text('completed_at'),
   category: text('category'), // Optional category for task classification
+  
+  // Link to recurring pattern if this task was generated from one
+  recurringPatternId: integer('recurring_pattern_id').references(() => recurringPatterns.id),
 });
 
 // Track task history for workflow analysis
@@ -128,6 +172,17 @@ export const insertUserAchievementSchema = createInsertSchema(userAchievements);
 
 export const insertProductivityMetricSchema = createInsertSchema(productivityMetrics);
 
+// Recurring pattern insert schema
+export const insertRecurringPatternSchema = createInsertSchema(recurringPatterns, {
+  pattern: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
+  interval: z.number().min(1),
+  daysOfWeek: z.string().optional(),
+  templateTitle: z.string().min(3, { message: "Title must be at least 3 characters" }),
+  templateDescription: z.string().min(5, { message: "Description must be at least 5 characters" }),
+  templatePriority: z.enum(['Low', 'Medium', 'High']),
+  templateDurationDays: z.number().min(1),
+}).omit({ id: true });
+
 // Define types for all tables
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -143,3 +198,5 @@ export type UserAchievement = typeof userAchievements.$inferSelect;
 export type InsertUserAchievement = z.infer<typeof insertUserAchievementSchema>;
 export type ProductivityMetric = typeof productivityMetrics.$inferSelect;
 export type InsertProductivityMetric = z.infer<typeof insertProductivityMetricSchema>;
+export type RecurringPattern = typeof recurringPatterns.$inferSelect;
+export type InsertRecurringPattern = z.infer<typeof insertRecurringPatternSchema>;

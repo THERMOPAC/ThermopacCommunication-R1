@@ -9,6 +9,7 @@ import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
 import ProfilePage from "@/pages/profile-page";
 import LeaderboardPage from "@/pages/leaderboard-page";
+import RecurringTasksPage from "@/pages/recurring-tasks-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 
@@ -48,6 +49,7 @@ function Router() {
       <ProtectedRoute path="/messages" component={Dashboard} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/leaderboard" component={LeaderboardPage} />
+      <ProtectedRoute path="/recurring-tasks" component={RecurringTasksPage} />
       <SuperuserRoute path="/users" component={Dashboard} />
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <Route component={NotFound} />

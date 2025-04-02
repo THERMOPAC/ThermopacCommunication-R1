@@ -2,7 +2,8 @@ import {
   User, Task, InsertUser, InsertTask, TaskHistory, InsertTaskHistory, 
   WorkflowRecommendation, InsertWorkflowRecommendation, 
   Achievement, InsertAchievement, UserAchievement, InsertUserAchievement,
-  ProductivityMetric, InsertProductivityMetric
+  ProductivityMetric, InsertProductivityMetric,
+  RecurringPattern, InsertRecurringPattern
 } from "@shared/schema";
 import { Store } from "express-session";
 
@@ -72,4 +73,13 @@ export interface IStorage {
   checkAndAwardAchievements(userId: number): Promise<UserAchievement[]>;
   calculateProductivityScore(userId: number): Promise<number>;
   updateUserProductivityStats(userId: number): Promise<ProductivityMetric>;
+  
+  // Recurring Task Pattern Management
+  createRecurringPattern(pattern: InsertRecurringPattern): Promise<RecurringPattern>;
+  getRecurringPattern(id: number): Promise<RecurringPattern | undefined>;
+  updateRecurringPattern(id: number, updateData: Partial<RecurringPattern>): Promise<RecurringPattern>;
+  deleteRecurringPattern(id: number): Promise<void>;
+  getUserRecurringPatterns(userId: number): Promise<RecurringPattern[]>;
+  getActiveRecurringPatterns(): Promise<RecurringPattern[]>;
+  processRecurringPatterns(): Promise<void>; // Generates new tasks from due patterns
 }

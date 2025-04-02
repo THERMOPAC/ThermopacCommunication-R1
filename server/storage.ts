@@ -5,7 +5,8 @@ import type {
   WorkflowRecommendation, InsertWorkflowRecommendation,
   Achievement, InsertAchievement,
   UserAchievement, InsertUserAchievement,
-  ProductivityMetric, InsertProductivityMetric
+  ProductivityMetric, InsertProductivityMetric,
+  RecurringPattern, InsertRecurringPattern
 } from "@shared/schema";
 import { roleHierarchy, canManage } from "@shared/roles";
 import session from "express-session";
@@ -18,7 +19,8 @@ import {
   workflowRecommendations as workflowRecommendationsTable,
   achievements as achievementsTable,
   userAchievements as userAchievementsTable,
-  productivityMetrics as productivityMetricsTable
+  productivityMetrics as productivityMetricsTable,
+  recurringPatterns as recurringPatternsTable
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 
@@ -910,6 +912,181 @@ export class DatabaseStorage implements IStorage {
     await this.checkAndAwardAchievements(userId);
     
     return updatedMetric;
+  }
+
+  // Recurring Pattern Implementation
+  async createRecurringPattern(pattern: InsertRecurringPattern): Promise<RecurringPattern> {
+    console.log(`Creating recurring pattern:`, pattern);
+    const result = await db.insert(recurringPatternsTable).values(pattern).returning();
+    const newPattern = result[0] as RecurringPattern;
+    console.log(`Created recurring pattern:`, newPattern);
+    return newPattern;
+  }
+
+  async getRecurringPattern(id: number): Promise<RecurringPattern | undefined> {
+    console.log(`Getting recurring pattern with ID ${id}`);
+    const result = await db.select().from(recurringPatternsTable).where(eq(recurringPatternsTable.id, id));
+    return result[0] as RecurringPattern | undefined;
+  }
+
+  async updateRecurringPattern(id: number, updateData: Partial<RecurringPattern>): Promise<RecurringPattern> {
+    console.log(`Updating recurring pattern ${id} with data:`, updateData);
+    const result = await db
+      .update(recurringPatternsTable)
+      .set(updateData)
+      .where(eq(recurringPatternsTable.id, id))
+      .returning();
+    
+    const pattern = result[0] as RecurringPattern;
+    if (!pattern) throw new Error("Recurring pattern not found");
+    
+    console.log(`Updated recurring pattern:`, pattern);
+    return pattern;
+  }
+
+  async deleteRecurringPattern(id: number): Promise<void> {
+    console.log(`Deleting recurring pattern ${id}`);
+    await db.delete(recurringPatternsTable).where(eq(recurringPatternsTable.id, id));
+    console.log(`Deleted recurring pattern ${id}`);
+  }
+
+  async getUserRecurringPatterns(userId: number): Promise<RecurringPattern[]> {
+    console.log(`Getting recurring patterns for user ${userId}`);
+    const patterns = await db
+      .select()
+      .from(recurringPatternsTable)
+      .where(eq(recurringPatternsTable.createdBy, userId))
+      .orderBy(desc(recurringPatternsTable.createdAt));
+    
+    console.log(`Found ${patterns.length} recurring patterns for user ${userId}`);
+    return patterns as RecurringPattern[];
+  }
+
+  async getActiveRecurringPatterns(): Promise<RecurringPattern[]> {
+    console.log('Getting all active recurring patterns');
+    const today = new Date().toISOString().split('T')[0];
+    
+    const patterns = await db
+      .select()
+      .from(recurringPatternsTable)
+      .where(
+        and(
+          eq(recurringPatternsTable.isActive, true),
+          or(
+            sql`${recurringPatternsTable.nextGenerationDate} <= ${today}`,
+            sql`${recurringPatternsTable.nextGenerationDate} IS NULL`
+          )
+        )
+      );
+    
+    console.log(`Found ${patterns.length} active recurring patterns due for generation`);
+    return patterns as RecurringPattern[];
+  }
+
+  async processRecurringPatterns(): Promise<void> {
+    console.log('Processing recurring patterns to generate tasks');
+    const patterns = await this.getActiveRecurringPatterns();
+    
+    for (const pattern of patterns) {
+      try {
+        console.log(`Processing pattern ${pattern.id}: ${pattern.templateTitle}`);
+        
+        // Check if pattern has reached its maximum occurrences
+        if (pattern.maxOccurrences && pattern.generatedCount >= pattern.maxOccurrences) {
+          console.log(`Pattern ${pattern.id} has reached maximum occurrences (${pattern.maxOccurrences})`);
+          
+          // Deactivate the pattern
+          await this.updateRecurringPattern(pattern.id, { isActive: false });
+          continue;
+        }
+        
+        // Check if pattern has reached its end date
+        if (pattern.endDate) {
+          const endDate = new Date(pattern.endDate);
+          const today = new Date();
+          
+          if (today > endDate) {
+            console.log(`Pattern ${pattern.id} has passed its end date (${pattern.endDate})`);
+            
+            // Deactivate the pattern
+            await this.updateRecurringPattern(pattern.id, { isActive: false });
+            continue;
+          }
+        }
+        
+        // Generate the new task
+        const startDate = new Date().toISOString().split('T')[0]; // Today
+        
+        // Calculate finish date based on duration
+        const finishDate = new Date();
+        finishDate.setDate(finishDate.getDate() + pattern.templateDurationDays);
+        
+        const newTask: InsertTask = {
+          title: pattern.templateTitle,
+          description: pattern.templateDescription,
+          priority: pattern.templatePriority as 'Low' | 'Medium' | 'High',
+          startDate,
+          finishDate: finishDate.toISOString().split('T')[0],
+          assignedTo: pattern.templateAssignedTo,
+          createdBy: pattern.createdBy,
+          createdAt: new Date().toISOString(),
+          category: pattern.templateCategory,
+          recurringPatternId: pattern.id
+        };
+        
+        // Create the task
+        const task = await this.createTask(newTask);
+        console.log(`Created recurring task ${task.id} from pattern ${pattern.id}`);
+        
+        // Calculate next generation date based on pattern
+        let nextGenerationDate = new Date();
+        
+        switch (pattern.pattern) {
+          case 'daily':
+            nextGenerationDate.setDate(nextGenerationDate.getDate() + pattern.interval);
+            break;
+            
+          case 'weekly':
+            nextGenerationDate.setDate(nextGenerationDate.getDate() + (7 * pattern.interval));
+            break;
+            
+          case 'monthly':
+            nextGenerationDate.setMonth(nextGenerationDate.getMonth() + pattern.interval);
+            
+            // Adjust for day of month if specified
+            if (pattern.dayOfMonth) {
+              nextGenerationDate.setDate(pattern.dayOfMonth);
+            }
+            break;
+            
+          case 'yearly':
+            nextGenerationDate.setFullYear(nextGenerationDate.getFullYear() + pattern.interval);
+            
+            // Adjust for month and day if specified
+            if (pattern.monthOfYear) {
+              nextGenerationDate.setMonth(pattern.monthOfYear - 1); // 0-indexed months
+            }
+            
+            if (pattern.dayOfMonth) {
+              nextGenerationDate.setDate(pattern.dayOfMonth);
+            }
+            break;
+        }
+        
+        // Update the pattern with new information
+        await this.updateRecurringPattern(pattern.id, {
+          lastGeneratedDate: new Date().toISOString(),
+          nextGenerationDate: nextGenerationDate.toISOString().split('T')[0],
+          generatedCount: pattern.generatedCount + 1
+        });
+        
+        console.log(`Updated pattern ${pattern.id} with next generation date: ${nextGenerationDate.toISOString().split('T')[0]}`);
+      } catch (error) {
+        console.error(`Error processing recurring pattern ${pattern.id}:`, error);
+      }
+    }
+    
+    console.log('Finished processing recurring patterns');
   }
 }
 

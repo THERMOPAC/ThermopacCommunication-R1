@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertTaskSchema, insertUserSchema } from "@shared/schema";
+import { insertTaskSchema, insertUserSchema, insertRecurringPatternSchema } from "@shared/schema";
 import { canManage, roleHierarchy } from "@shared/roles";
 import { scrypt, timingSafeEqual, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -748,6 +748,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Recurring Pattern Endpoints
+  app.post("/api/recurring-patterns", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      // Parse and validate the pattern data
+      const patternData = insertRecurringPatternSchema.parse({
+        ...req.body,
+        createdBy: req.user!.id,
+        createdAt: new Date().toISOString(),
+        isActive: true,
+        generatedCount: 0
+      });
+      
+      console.log(`Creating recurring pattern for user ${req.user!.username}`, patternData);
+      
+      // Create the pattern
+      const pattern = await storage.createRecurringPattern(patternData);
+      
+      // If no nextGenerationDate is provided, set it to startDate
+      if (!pattern.nextGenerationDate) {
+        await storage.updateRecurringPattern(pattern.id, {
+          nextGenerationDate: pattern.startDate
+        });
+      }
+      
+      res.status(201).json(pattern);
+    } catch (error) {
+      console.error('Error creating recurring pattern:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to create recurring pattern" 
+      });
+    }
+  });
+  
+  app.get("/api/recurring-patterns", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      console.log(`Getting recurring patterns for user ${req.user!.username}`);
+      const patterns = await storage.getUserRecurringPatterns(req.user!.id);
+      
+      res.json(patterns);
+    } catch (error) {
+      console.error('Error fetching recurring patterns:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch recurring patterns" 
+      });
+    }
+  });
+  
+  app.get("/api/recurring-patterns/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const patternId = parseInt(req.params.id);
+      console.log(`Getting recurring pattern ${patternId} for user ${req.user!.username}`);
+      
+      const pattern = await storage.getRecurringPattern(patternId);
+      
+      if (!pattern) {
+        return res.status(404).json({ message: "Recurring pattern not found" });
+      }
+      
+      // Only allow access to user's own patterns or superuser
+      if (pattern.createdBy !== req.user!.id && req.user!.role !== "Superuser") {
+        return res.status(403).json({ message: "Not authorized to view this pattern" });
+      }
+      
+      res.json(pattern);
+    } catch (error) {
+      console.error('Error fetching recurring pattern:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch recurring pattern" 
+      });
+    }
+  });
+  
+  app.patch("/api/recurring-patterns/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const patternId = parseInt(req.params.id);
+      console.log(`Updating recurring pattern ${patternId} for user ${req.user!.username}`);
+      
+      const pattern = await storage.getRecurringPattern(patternId);
+      
+      if (!pattern) {
+        return res.status(404).json({ message: "Recurring pattern not found" });
+      }
+      
+      // Only allow updates to user's own patterns or superuser
+      if (pattern.createdBy !== req.user!.id && req.user!.role !== "Superuser") {
+        return res.status(403).json({ message: "Not authorized to update this pattern" });
+      }
+      
+      // Parse and validate the update data
+      const updateData = insertRecurringPatternSchema.partial().parse(req.body);
+      
+      // Update the pattern
+      const updatedPattern = await storage.updateRecurringPattern(patternId, updateData);
+      
+      res.json(updatedPattern);
+    } catch (error) {
+      console.error('Error updating recurring pattern:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to update recurring pattern" 
+      });
+    }
+  });
+  
+  app.delete("/api/recurring-patterns/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      const patternId = parseInt(req.params.id);
+      console.log(`Deleting recurring pattern ${patternId} for user ${req.user!.username}`);
+      
+      const pattern = await storage.getRecurringPattern(patternId);
+      
+      if (!pattern) {
+        return res.status(404).json({ message: "Recurring pattern not found" });
+      }
+      
+      // Only allow deletion of user's own patterns or superuser
+      if (pattern.createdBy !== req.user!.id && req.user!.role !== "Superuser") {
+        return res.status(403).json({ message: "Not authorized to delete this pattern" });
+      }
+      
+      // Delete the pattern
+      await storage.deleteRecurringPattern(patternId);
+      
+      res.sendStatus(204);
+    } catch (error) {
+      console.error('Error deleting recurring pattern:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to delete recurring pattern" 
+      });
+    }
+  });
+  
+  app.post("/api/recurring-patterns/process", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      // Only allow Superuser to manually trigger processing
+      if (req.user!.role !== "Superuser") {
+        return res.status(403).json({ message: "Not authorized to process recurring patterns" });
+      }
+      
+      console.log(`Processing recurring patterns triggered by user ${req.user!.username}`);
+      
+      // Process the patterns
+      await storage.processRecurringPatterns();
+      
+      res.status(200).json({ message: "Recurring patterns processed successfully" });
+    } catch (error) {
+      console.error('Error processing recurring patterns:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to process recurring patterns" 
+      });
+    }
+  });
+
+  // Setup automatic processing of recurring patterns (every day at midnight)
+  setInterval(async () => {
+    try {
+      console.log('Automatic processing of recurring patterns (daily check)');
+      await storage.processRecurringPatterns();
+    } catch (error) {
+      console.error('Error in automatic processing of recurring patterns:', error);
+    }
+  }, 24 * 60 * 60 * 1000); // Run once per day
 
   const httpServer = createServer(app);
   return httpServer;
