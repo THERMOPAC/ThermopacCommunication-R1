@@ -77,7 +77,6 @@ export const tasks = pgTable('tasks', {
   createdAt: text('created_at').notNull(),
   completedAt: text('completed_at'),
   category: text('category'), // Optional category for task classification
-  // No recurring tasks reference - they go in their own table
 });
 
 // Separate table for instances of recurring tasks
