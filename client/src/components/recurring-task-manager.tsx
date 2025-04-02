@@ -383,31 +383,34 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
 
   // Function to transform form data to pattern data
   function transformFormDataToPattern(data: RecurringTaskForm) {
+    // Create an object with the correct field names for the API
     const patternData: any = {
-      pattern: data.patternType,
+      // CRITICAL: Field name mapping - patternType from form → pattern for API/database
+      pattern: data.patternType, // This maps to the 'pattern' field expected by the schema
       interval: Number(data.interval),  // Ensure it's a number
       startDate: data.startDate,
       templateTitle: data.templateTitle,
       templateDescription: data.templateDescription,
       templatePriority: data.templatePriority,
-      templateCategory: data.templateCategory,
+      templateCategory: data.templateCategory || undefined, // Set to undefined if empty string
       templateDurationDays: Number(data.templateDurationDays), // Ensure it's a number
-      isActive: Boolean(data.isActive), // Ensure it's a boolean
-      userId: user?.id, // Always ensure userId is set
-      createdBy: user?.id, // Set createdBy as well
+      isActive: data.isActive === undefined ? true : Boolean(data.isActive), // Ensure it's a boolean
+      // CRITICAL: Always ensure userId and createdBy are set and are numbers
+      userId: user?.id ? Number(user.id) : undefined,
+      createdBy: user?.id ? Number(user.id) : undefined,
       createdAt: new Date().toISOString() // Set creation date
     };
 
     // Debug log
     console.log("✅ Transformed form data:", JSON.stringify(patternData, null, 2));
 
-    // Explicitly log critical fields
+    // Explicitly log critical fields to help with debugging
     console.log(`✅ pattern: ${patternData.pattern}, type: ${typeof patternData.pattern}`);
     console.log(`✅ interval: ${patternData.interval}, type: ${typeof patternData.interval}`);
     console.log(`✅ userId: ${patternData.userId}, type: ${typeof patternData.userId}`);
     console.log(`✅ createdBy: ${patternData.createdBy}, type: ${typeof patternData.createdBy}`);
 
-    // Add days of week for weekly pattern
+    // Add days of week for weekly pattern - format as a comma-separated string
     if (data.patternType === "weekly" && data.daysOfWeek && data.daysOfWeek.length > 0) {
       patternData.daysOfWeek = data.daysOfWeek.join(",");
     }
@@ -443,8 +446,9 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
   // Function to transform pattern data to form data
   function transformPatternToFormData(pattern: RecurringPattern): RecurringTaskForm {
     const formData: any = {
-      patternType: pattern.pattern,
-      pattern: pattern.pattern,
+      // CRITICAL: Field name mapping - pattern from database → patternType for form
+      patternType: pattern.pattern, // Map the database 'pattern' field to the form's 'patternType'
+      pattern: pattern.pattern,     // Include both for sync
       interval: pattern.interval,
       startDate: pattern.startDate,
       hasEndDate: !!pattern.endDate,
