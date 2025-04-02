@@ -916,11 +916,61 @@ export class DatabaseStorage implements IStorage {
 
   // Recurring Pattern Implementation
   async createRecurringPattern(pattern: InsertRecurringPattern): Promise<RecurringPattern> {
-    console.log(`Creating recurring pattern:`, pattern);
-    const result = await db.insert(recurringPatternsTable).values(pattern).returning();
-    const newPattern = result[0] as RecurringPattern;
-    console.log(`Created recurring pattern:`, newPattern);
-    return newPattern;
+    try {
+      console.log(`🟢 STORAGE: Creating recurring pattern with data:`);
+      console.log(JSON.stringify(pattern, null, 2));
+      
+      // Verify critical fields explicitly
+      if (!pattern.userId) {
+        console.error(`🔴 CRITICAL ERROR: Missing userId in pattern data`);
+        throw new Error('Missing required field: userId');
+      }
+      
+      if (!pattern.pattern) {
+        console.error(`🔴 CRITICAL ERROR: Missing pattern type in pattern data`);
+        throw new Error('Missing required field: pattern');
+      }
+      
+      if (!pattern.templateTitle) {
+        console.error(`🔴 CRITICAL ERROR: Missing templateTitle in pattern data`);
+        throw new Error('Missing required field: templateTitle');
+      }
+      
+      // Make sure required fields have the correct type
+      const numericFields = ['userId', 'createdBy', 'interval', 'templateDurationDays'];
+      for (const field of numericFields) {
+        if (field in pattern) {
+          if (typeof pattern[field as keyof typeof pattern] !== 'number') {
+            console.error(`🔴 CRITICAL ERROR: Field ${field} must be a number, got ${typeof pattern[field as keyof typeof pattern]}`);
+            // Convert to number if possible
+            const value = pattern[field as keyof typeof pattern];
+            if (value !== undefined && value !== null) {
+              const numValue = Number(value);
+              if (!isNaN(numValue)) {
+                (pattern as any)[field] = numValue;
+                console.log(`🟡 Converted ${field} from ${typeof value} to number: ${numValue}`);
+              } else {
+                throw new Error(`Field ${field} must be a number`);
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`🟢 STORAGE: Final pattern data to insert:`);
+      console.log(JSON.stringify(pattern, null, 2));
+      
+      const result = await db.insert(recurringPatternsTable).values(pattern).returning();
+      const newPattern = result[0] as RecurringPattern;
+      
+      console.log(`🟢 STORAGE: Successfully created recurring pattern:`);
+      console.log(JSON.stringify(newPattern, null, 2));
+      
+      return newPattern;
+    } catch (error) {
+      console.error(`🔴 STORAGE ERROR creating recurring pattern:`, error);
+      throw error;
+    }
   }
 
   async getRecurringPattern(id: number): Promise<RecurringPattern | undefined> {

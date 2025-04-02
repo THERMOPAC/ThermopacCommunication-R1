@@ -265,32 +265,89 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         description: "Please wait while we process your request.",
       });
       
-      console.log("Form data being submitted:", data);
+      console.log("🔵 FORM SUBMISSION STARTED");
+      console.log("🔵 Form data being submitted:", JSON.stringify(data, null, 2));
       
       if (!user) {
+        console.error("🔴 No authenticated user found!");
         throw new Error("You must be logged in to create or update recurring tasks");
       }
       
+      console.log("🔵 Current user:", JSON.stringify(user, null, 2));
+      
       if (editingPattern) {
-        console.log("Updating pattern:", editingPattern.id, data);
+        console.log("🔵 UPDATING PATTERN:", editingPattern.id);
+        console.log("🔵 Data before transformation:", JSON.stringify(data, null, 2));
+        
         const transformedData = transformFormDataToPattern(data);
         // Double-check userId is set for updates too
-        transformedData.userId = user.id;
-        console.log("Transformed data for update API:", transformedData);
+        transformedData.userId = Number(user.id);
+        transformedData.createdBy = Number(user.id);
+        
+        console.log("🔵 Data after transformation:", JSON.stringify(transformedData, null, 2));
+        
+        // Add validation for critical fields
+        if (!transformedData.userId) {
+          console.error("🔴 userId is missing or invalid!");
+          throw new Error("User ID is required");
+        }
+        
+        if (!transformedData.pattern) {
+          console.error("🔴 pattern is missing!");
+          throw new Error("Pattern type is required");
+        }
+        
+        console.log("🔵 Calling updatePatternMutation with:", editingPattern.id, transformedData);
         updatePatternMutation.mutate({ id: editingPattern.id, data: transformedData });
       } else {
-        console.log("Creating new pattern with data:", data);
+        console.log("🔵 CREATING NEW PATTERN");
+        console.log("🔵 Data before transformation:", JSON.stringify(data, null, 2));
+        
         const transformedData = transformFormDataToPattern(data);
         
         // CRITICAL: Always ensure userId is included and not undefined
-        transformedData.userId = user.id;
-        console.log("userId being set to:", user.id);
+        transformedData.userId = Number(user.id);
+        transformedData.createdBy = Number(user.id);
+        transformedData.createdAt = new Date().toISOString();
         
-        console.log("Final transformed data for API:", JSON.stringify(transformedData, null, 2));
+        console.log("🔵 userId being set to:", transformedData.userId);
+        console.log("🔵 createdBy being set to:", transformedData.createdBy);
+        console.log("🔵 createdAt being set to:", transformedData.createdAt);
+        
+        // Add validation for critical fields before submission
+        if (!transformedData.userId) {
+          console.error("🔴 userId is missing or invalid!");
+          throw new Error("User ID is required");
+        }
+        
+        if (!transformedData.pattern) {
+          console.error("🔴 pattern is missing!");
+          throw new Error("Pattern type is required");
+        }
+        
+        if (!transformedData.templateTitle) {
+          console.error("🔴 templateTitle is missing!");
+          throw new Error("Task title is required");
+        }
+        
+        if (!transformedData.templateDescription) {
+          console.error("🔴 templateDescription is missing!");
+          throw new Error("Task description is required");
+        }
+        
+        console.log("🔵 Final transformed data for API:", JSON.stringify(transformedData, null, 2));
+        console.log("🔵 Calling createPatternMutation");
+        
+        // Show additional toast to confirm submission
+        toast({
+          title: "Submitting task...",
+          description: "Sending data to server",
+        });
+        
         createPatternMutation.mutate(transformedData);
       }
     } catch (error) {
-      console.error("Error in form submission:", error);
+      console.error("🔴 ERROR IN FORM SUBMISSION:", error);
       toast({
         title: "Form submission error",
         description: error instanceof Error ? error.message : "Unknown error occurred",
