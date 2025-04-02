@@ -30,6 +30,18 @@ const PostgresSessionStore = connectPg(session);
 
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
+  
+  // Expose db and tables for direct access when needed
+  db = db;
+  usersTable = users;
+  tasksTable = tasksTable;
+  taskHistoryTable = taskHistoryTable;
+  workflowRecommendationsTable = workflowRecommendationsTable;
+  achievementsTable = achievementsTable;
+  userAchievementsTable = userAchievementsTable;
+  productivityMetricsTable = productivityMetricsTable;
+  recurringPatternsTable = recurringPatternsTable;
+  recurringTasksTable = recurringTasksTable;
 
   constructor() {
     if (!process.env.DATABASE_URL) {
@@ -1089,7 +1101,8 @@ export class DatabaseStorage implements IStorage {
     console.log('Getting all active recurring patterns');
     const today = new Date().toISOString().split('T')[0];
     
-    const patterns = await db
+    // First attempt - with the original criteria
+    let patterns = await db
       .select()
       .from(recurringPatternsTable)
       .where(
@@ -1102,7 +1115,19 @@ export class DatabaseStorage implements IStorage {
         )
       );
     
-    console.log(`Found ${patterns.length} active recurring patterns due for generation`);
+    console.log(`Found ${patterns.length} active recurring patterns due for generation using strict criteria`);
+    
+    // If no patterns found, we'll check for any active patterns for manual processing
+    if (patterns.length === 0) {
+      console.log("No patterns due for generation found, checking for any active patterns for manual processing");
+      patterns = await db
+        .select()
+        .from(recurringPatternsTable)
+        .where(eq(recurringPatternsTable.isActive, true));
+      
+      console.log(`Found ${patterns.length} active recurring patterns for manual processing`);
+    }
+    
     return patterns as RecurringPattern[];
   }
 

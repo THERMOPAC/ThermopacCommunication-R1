@@ -6,6 +6,7 @@ import { insertTaskSchema, insertUserSchema, insertRecurringPatternSchema, inser
 import { canManage, roleHierarchy } from "@shared/roles";
 import { scrypt, timingSafeEqual, randomBytes } from "crypto";
 import { promisify } from "util";
+import { eq } from "drizzle-orm";
 
 const scryptAsync = promisify(scrypt);
 
@@ -973,7 +974,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Process the patterns
       await storage.processRecurringPatterns();
       
-      res.status(200).json({ message: "Recurring patterns processed successfully" });
+      res.status(200).json({ 
+        message: "Recurring patterns processed successfully" 
+      });
     } catch (error) {
       console.error('Error processing recurring patterns:', error);
       res.status(500).json({ 
