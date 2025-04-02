@@ -196,10 +196,18 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       description: "Please wait while we process your request.",
     });
     
+    console.log("Form data being submitted:", data);
+    
     if (editingPattern) {
-      updatePatternMutation.mutate({ id: editingPattern.id, data });
+      console.log("Updating pattern:", editingPattern.id, data);
+      const transformedData = transformFormDataToPattern(data);
+      console.log("Transformed data for update API:", transformedData);
+      updatePatternMutation.mutate({ id: editingPattern.id, data: transformedData });
     } else {
-      createPatternMutation.mutate(data);
+      console.log("Creating new pattern with data:", data);
+      const transformedData = transformFormDataToPattern(data);
+      console.log("Transformed data for API:", transformedData);
+      createPatternMutation.mutate(transformedData);
     }
   };
 
@@ -421,9 +429,9 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                           <FormItem>
                             <FormLabel>Recurrence Pattern</FormLabel>
                             <Select 
-                              onValueChange={(value) => {
+                              onValueChange={(value: "daily" | "weekly" | "monthly" | "yearly") => {
                                 field.onChange(value);
-                                form.setValue("pattern", value); // Sync with pattern field
+                                form.setValue("pattern", value as "daily" | "weekly" | "monthly" | "yearly"); // Sync with pattern field
                               }}
                               defaultValue={field.value}
                             >
