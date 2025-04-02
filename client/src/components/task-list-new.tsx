@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, ChevronDown, ChevronRight, CheckCircle, Circle, Forward, Search, Filter, X } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, CheckCircle, Circle, Forward, Search, Filter, X, Edit as EditIcon } from "lucide-react";
 import { roles, roleHierarchy } from "@shared/roles";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,15 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const FORWARD_ALLOWED_ROLES = ["Superuser", "General Manager", "Senior Manager", "Manager"];
+
+// Schema for task editing with just the allowed fields
+const editTaskSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters").max(100),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  priority: z.enum(["Low", "Medium", "High"]),
+  finishDate: z.string(),
+  assignedTo: z.number()
+});
 
 type TaskListProps = {
   tasks: Task[];
@@ -270,6 +279,204 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       category: null
     },
   });
+
+  // Mutation for editing tasks
+  const editTaskMutation = useMutation({
+    mutationFn: async ({ taskId, taskData }: { taskId: number; taskData: z.infer<typeof editTaskSchema> }) => {
+      const res = await apiRequest("PATCH", `/api/tasks/${taskId}`, taskData);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Success",
+        description: "Task updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update task",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Component for editing tasks
+  function EditTaskDialog({ task }: { task: Task }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const form = useForm<z.infer<typeof editTaskSchema>>({
+      resolver: zodResolver(editTaskSchema),
+      defaultValues: {
+        title: task.title,
+        description: task.description,
+        priority: task.priority as "Low" | "Medium" | "High",
+        finishDate: task.finishDate,
+        assignedTo: task.assignedTo || undefined
+      }
+    });
+    
+    // Check if current user can edit this task
+    const canEdit = user!.role === "Superuser" || task.createdBy === user!.id;
+    
+    // Don't attempt to render if user data isn't ready
+    if (!isDataReady) {
+      return (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="ml-2"
+          disabled={true}
+        >
+          <EditIcon className="h-4 w-4" />
+        </Button>
+      );
+    }
+
+    return (
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-2"
+            disabled={!canEdit}
+          >
+            <EditIcon className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form 
+              onSubmit={form.handleSubmit((data) => {
+                editTaskMutation.mutate({
+                  taskId: task.id,
+                  taskData: data
+                });
+                setIsOpen(false);
+              })} 
+              className="space-y-4"
+            >
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="priority"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Priority</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select priority" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Low">Low</SelectItem>
+                        <SelectItem value="Medium">Medium</SelectItem>
+                        <SelectItem value="High">High</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="finishDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Due Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="assignedTo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assigned To</FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(Number(value))}
+                      value={field.value?.toString() || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select team member" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {Object.entries(groupedUsers).length > 0 ? (
+                          Object.entries(groupedUsers).map(([role, users]) => (
+                            <SelectGroup key={role}>
+                              <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                {role}s
+                              </SelectLabel>
+                              {users.map((userItem) => (
+                                <SelectItem key={userItem.id} value={userItem.id.toString()}>
+                                  {userItem.username}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>Loading users...</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={editTaskMutation.isPending}
+              >
+                Save Changes
+              </Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   // Component for forwarding tasks
   function ForwardTaskDialog({ task }: { task: Task }) {
@@ -695,6 +902,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                       <TableHead>Assigned To</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Complete</TableHead>
+                      <TableHead>Edit</TableHead>
                       <TableHead>Forward</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -745,6 +953,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                               <Circle className="h-5 w-5" />
                             )}
                           </Button>
+                        </TableCell>
+                        <TableCell>
+                          <EditTaskDialog task={task} />
                         </TableCell>
                         <TableCell>
                           <ForwardTaskDialog task={task} />

@@ -176,25 +176,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    // Only allow updating task if user is either:
-    // 1. The task creator
-    // 2. The task assignee
-    // 3. A superuser
-    if (task.createdBy !== req.user!.id &&
-        task.assignedTo !== req.user!.id &&
-        req.user!.role !== "Superuser") {
-      return res.status(403).json({ message: "Not authorized to update this task" });
-    }
+    // Task completion and task editing are separate operations with different permissions
+    const isTaskCompletion = req.body.status === 'completed';
+    const isTaskEditing = !isTaskCompletion;
 
-    const updateData = {
-      ...req.body,
-      updatedAt: new Date().toISOString()
-    };
+    if (isTaskCompletion) {
+      // Only allow completing a task if user is the assignee or a superuser
+      if (task.assignedTo !== req.user!.id && req.user!.role !== "Superuser") {
+        return res.status(403).json({ message: "Only the assigned user or a Superuser can complete this task" });
+      }
 
-    const updatedTask = await storage.updateTask(taskId, updateData);
-    
-    // Check if task was completed (status changed to 'completed')
-    if (req.body.status === 'completed' && task.status !== 'completed') {
+      const updateData = {
+        status: 'completed',
+        completedAt: new Date().toISOString()
+      };
+
+      const updatedTask = await storage.updateTask(taskId, updateData);
+      
       console.log(`Task ${taskId} completed by user ${req.user!.id}`);
       
       // Update productivity metrics
@@ -237,9 +235,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         oldValue: task.status || 'pending',
         newValue: 'completed'
       });
+      
+      return res.json(updatedTask);
     }
     
-    res.json(updatedTask);
+    if (isTaskEditing) {
+      // Only allow editing a task if user is the creator or a superuser
+      if (task.createdBy !== req.user!.id && req.user!.role !== "Superuser") {
+        return res.status(403).json({ 
+          message: "Only the task creator or a Superuser can edit this task"
+        });
+      }
+      
+      // Prepare task update data (only allowed fields)
+      const allowedFields = ['title', 'description', 'priority', 'finishDate', 'assignedTo'];
+      const updateData: Record<string, any> = {};
+      
+      for (const field of allowedFields) {
+        if (field in req.body) {
+          updateData[field] = req.body[field];
+        }
+      }
+      
+      // If assignee is being changed, log it in task history
+      if ('assignedTo' in updateData && updateData.assignedTo !== task.assignedTo) {
+        await storage.createTaskHistory({
+          taskId: taskId,
+          userId: req.user!.id,
+          action: 'assignee_changed',
+          timestamp: new Date().toISOString(),
+          oldValue: JSON.stringify({ assignedTo: task.assignedTo }),
+          newValue: JSON.stringify({ assignedTo: updateData.assignedTo })
+        });
+      }
+      
+      const updatedTask = await storage.updateTask(taskId, updateData);
+      console.log(`Task ${taskId} edited by user ${req.user!.id}`);
+      
+      return res.json(updatedTask);
+    }
+    
+    res.status(400).json({ message: "Invalid task update request" });
   });
 
   app.get("/api/tasks", async (req, res) => {
