@@ -60,11 +60,17 @@ import { Calendar as CalendarIcon, ChevronRight, Edit, Plus, Trash2 } from "luci
 
 // Create a schema for the recurring task form
 const recurringTaskSchema = insertRecurringPatternSchema.extend({
-  patternType: z.enum(["daily", "weekly", "monthly", "yearly"]),
+  patternType: z.enum(["daily", "weekly", "monthly", "yearly"]), // UI field, maps to 'pattern' in the database
   daysOfWeek: z.array(z.string()).optional(),
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().optional(),
   hasEndDate: z.boolean().default(false),
+  // Make sure userId and createdBy aren't required in the form as they'll be set from the authenticated user
+  userId: z.number().optional(),
+  createdBy: z.number().optional(),
+  // Mark additional fields as optional for form
+  createdAt: z.string().optional(),
+  generatedCount: z.number().optional(),
 });
 
 type RecurringTaskForm = z.infer<typeof recurringTaskSchema>;
@@ -236,8 +242,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
   const form = useForm<RecurringTaskForm>({
     resolver: zodResolver(recurringTaskSchema),
     defaultValues: {
-      patternType: "daily",
-      pattern: "daily",
+      patternType: "daily", // This will be transformed to 'pattern' before sending to API
       interval: 1,
       daysOfWeek: [],
       dayOfMonth: undefined,
@@ -253,6 +258,11 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       templateCategory: "work",
       templateDurationDays: 1,
       isActive: true,
+      // These will be set automatically from the user
+      userId: undefined,
+      createdBy: undefined,
+      createdAt: undefined,
+      generatedCount: undefined,
     },
   });
 
@@ -448,7 +458,6 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
     const formData: any = {
       // CRITICAL: Field name mapping - pattern from database → patternType for form
       patternType: pattern.pattern, // Map the database 'pattern' field to the form's 'patternType'
-      pattern: pattern.pattern,     // Include both for sync
       interval: pattern.interval,
       startDate: pattern.startDate,
       hasEndDate: !!pattern.endDate,
@@ -549,8 +558,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
               console.log("Add Recurring Task button clicked");
               setEditingPattern(null);
               form.reset({
-                patternType: "daily",
-                pattern: "daily",
+                patternType: "daily", // This maps to 'pattern' in the DB
                 interval: 1,
                 daysOfWeek: [],
                 startDate: new Date().toISOString(),
@@ -561,6 +569,11 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                 templateCategory: "work",
                 templateDurationDays: 1,
                 isActive: true,
+                // These will be set from the user when submitted
+                userId: undefined,
+                createdBy: undefined,
+                createdAt: undefined,
+                generatedCount: undefined,
               });
               console.log("Setting dialog to open");
               setOpenDialog(true);
@@ -596,7 +609,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                             <Select 
                               onValueChange={(value: "daily" | "weekly" | "monthly" | "yearly") => {
                                 field.onChange(value);
-                                form.setValue("pattern", value as "daily" | "weekly" | "monthly" | "yearly"); // Sync with pattern field
+                                // No need to sync with pattern field anymore, as it's handled in the transformation
                               }}
                               defaultValue={field.value}
                             >
