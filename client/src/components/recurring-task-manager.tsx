@@ -61,17 +61,57 @@ import { Calendar as CalendarIcon, ChevronRight, Edit, Plus, Trash2 } from "luci
 // Create a schema for the recurring task form
 const recurringTaskSchema = insertRecurringPatternSchema.extend({
   patternType: z.enum(["daily", "weekly", "monthly", "yearly"]), // UI field, maps to 'pattern' in the database
-  daysOfWeek: z.array(z.string()).optional(),
+  
+  // Weekly pattern fields
+  daysOfWeek: z.array(z.string()).optional().default([]),
+  
+  // Monthly pattern fields
+  dayOfMonth: z.number().int().min(1).max(31).optional(),
+  
+  // Yearly pattern fields
+  monthOfYear: z.number().int().min(1).max(12).optional(),
+  
+  // Common fields
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().optional(),
   hasEndDate: z.boolean().default(false),
+  maxOccurrences: z.number().optional(),
+  
   // Make sure userId and createdBy aren't required in the form as they'll be set from the authenticated user
   userId: z.number().optional(),
   createdBy: z.number().optional(),
   // Mark additional fields as optional for form
   createdAt: z.string().optional(),
   generatedCount: z.number().optional(),
-});
+})
+.refine(
+  (data) => {
+    // For weekly pattern, validate days of week
+    if (data.patternType === "weekly") {
+      return Array.isArray(data.daysOfWeek) && data.daysOfWeek.length > 0;
+    }
+    
+    // For monthly pattern, validate day of month
+    if (data.patternType === "monthly") {
+      return data.dayOfMonth !== undefined && data.dayOfMonth >= 1 && data.dayOfMonth <= 31;
+    }
+    
+    // For yearly pattern, validate month of year and day of month
+    if (data.patternType === "yearly") {
+      return (
+        data.monthOfYear !== undefined && data.monthOfYear >= 1 && data.monthOfYear <= 12 &&
+        data.dayOfMonth !== undefined && data.dayOfMonth >= 1 && data.dayOfMonth <= 31
+      );
+    }
+    
+    // Daily pattern doesn't need additional validation
+    return true;
+  },
+  {
+    message: "Please fill in all required fields for the selected recurrence pattern",
+    path: ["patternType"]
+  }
+);
 
 type RecurringTaskForm = z.infer<typeof recurringTaskSchema>;
 
@@ -278,6 +318,24 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       console.log("🔵 FORM SUBMISSION STARTED");
       console.log("🔵 Form data being submitted:", JSON.stringify(data, null, 2));
       
+      // Debug for specific pattern types
+      if (data.patternType === "weekly") {
+        console.log("🔍 WEEKLY PATTERN DEBUG:");
+        console.log("  - daysOfWeek:", data.daysOfWeek);
+        console.log("  - daysOfWeek type:", typeof data.daysOfWeek);
+        console.log("  - daysOfWeek is array:", Array.isArray(data.daysOfWeek));
+        console.log("  - daysOfWeek length:", data.daysOfWeek?.length);
+      } else if (data.patternType === "monthly") {
+        console.log("🔍 MONTHLY PATTERN DEBUG:");
+        console.log("  - dayOfMonth:", data.dayOfMonth);
+        console.log("  - dayOfMonth type:", typeof data.dayOfMonth);
+      } else if (data.patternType === "yearly") {
+        console.log("🔍 YEARLY PATTERN DEBUG:");
+        console.log("  - monthOfYear:", data.monthOfYear);
+        console.log("  - monthOfYear type:", typeof data.monthOfYear);
+        console.log("  - dayOfMonth:", data.dayOfMonth);
+      }
+      
       if (!user) {
         console.error("🔴 No authenticated user found!");
         throw new Error("You must be logged in to create or update recurring tasks");
@@ -315,16 +373,35 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         };
         
         // Add pattern-specific fields
-        if (data.patternType === "weekly" && data.daysOfWeek && data.daysOfWeek.length > 0) {
+        if (data.patternType === "weekly") {
+          // Weekly patterns require days of week
+          if (!data.daysOfWeek || data.daysOfWeek.length === 0) {
+            throw new Error("Weekly pattern requires at least one day of the week to be selected");
+          }
           dataToSubmit.daysOfWeek = data.daysOfWeek.join(",");
+          console.log("🔵 Added daysOfWeek for edit:", dataToSubmit.daysOfWeek);
         }
         
-        if (data.patternType === "monthly" && data.dayOfMonth) {
+        if (data.patternType === "monthly") {
+          // Monthly patterns require day of month
+          if (!data.dayOfMonth) {
+            throw new Error("Monthly pattern requires a day of the month");
+          }
           dataToSubmit.dayOfMonth = Number(data.dayOfMonth);
+          console.log("🔵 Added dayOfMonth for edit:", dataToSubmit.dayOfMonth);
         }
         
-        if (data.patternType === "yearly" && data.monthOfYear) {
+        if (data.patternType === "yearly") {
+          // Yearly patterns require month of year and day of month
+          if (!data.monthOfYear) {
+            throw new Error("Yearly pattern requires a month of the year");
+          }
+          if (!data.dayOfMonth) {
+            throw new Error("Yearly pattern requires a day of the month");
+          }
           dataToSubmit.monthOfYear = Number(data.monthOfYear);
+          dataToSubmit.dayOfMonth = Number(data.dayOfMonth);
+          console.log("🔵 Added monthOfYear for edit:", dataToSubmit.monthOfYear, "and dayOfMonth:", dataToSubmit.dayOfMonth);
         }
         
         // Add end date or max occurrences if applicable
@@ -377,16 +454,35 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         };
         
         // Add pattern-specific fields
-        if (data.patternType === "weekly" && data.daysOfWeek && data.daysOfWeek.length > 0) {
+        if (data.patternType === "weekly") {
+          // Weekly patterns require days of week
+          if (!data.daysOfWeek || data.daysOfWeek.length === 0) {
+            throw new Error("Weekly pattern requires at least one day of the week to be selected");
+          }
           dataToSubmit.daysOfWeek = data.daysOfWeek.join(",");
+          console.log("🔵 Added daysOfWeek for new:", dataToSubmit.daysOfWeek);
         }
         
-        if (data.patternType === "monthly" && data.dayOfMonth) {
+        if (data.patternType === "monthly") {
+          // Monthly patterns require day of month
+          if (!data.dayOfMonth) {
+            throw new Error("Monthly pattern requires a day of the month");
+          }
           dataToSubmit.dayOfMonth = Number(data.dayOfMonth);
+          console.log("🔵 Added dayOfMonth for new:", dataToSubmit.dayOfMonth);
         }
         
-        if (data.patternType === "yearly" && data.monthOfYear) {
+        if (data.patternType === "yearly") {
+          // Yearly patterns require month of year and day of month
+          if (!data.monthOfYear) {
+            throw new Error("Yearly pattern requires a month of the year");
+          }
+          if (!data.dayOfMonth) {
+            throw new Error("Yearly pattern requires a day of the month");
+          }
           dataToSubmit.monthOfYear = Number(data.monthOfYear);
+          dataToSubmit.dayOfMonth = Number(data.dayOfMonth);
+          console.log("🔵 Added monthOfYear for new:", dataToSubmit.monthOfYear, "and dayOfMonth:", dataToSubmit.dayOfMonth);
         }
         
         // Add end date or max occurrences if applicable
@@ -828,8 +924,8 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                                 </FormControl>
                                 <SelectContent>
                                   {[
-                                    "January", "February", "March", "April",
-                                    "May", "June", "July", "August",
+                                    "January", "February", "March", "April", 
+                                    "May", "June", "July", "August", 
                                     "September", "October", "November", "December"
                                   ].map((month, index) => (
                                     <SelectItem key={month} value={(index + 1).toString()}>
@@ -848,7 +944,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                           name="dayOfMonth"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Day</FormLabel>
+                              <FormLabel>Day of the month</FormLabel>
                               <Select 
                                 onValueChange={(value) => field.onChange(parseInt(value))}
                                 defaultValue={field.value?.toString()}
@@ -873,7 +969,6 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                       </div>
                     )}
                     
-                    {/* Date range */}
                     <div className="space-y-4">
                       <FormField
                         control={form.control}
@@ -885,7 +980,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                               <PopoverTrigger asChild>
                                 <FormControl>
                                   <Button
-                                    variant="outline"
+                                    variant={"outline"}
                                     className={cn(
                                       "w-full pl-3 text-left font-normal",
                                       !field.value && "text-muted-foreground"
@@ -904,7 +999,9 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                                 <Calendar
                                   mode="single"
                                   selected={field.value ? new Date(field.value) : undefined}
-                                  onSelect={(date) => date && field.onChange(date.toISOString())}
+                                  onSelect={(date) => {
+                                    field.onChange(date ? date.toISOString() : "");
+                                  }}
                                   initialFocus
                                 />
                               </PopoverContent>
@@ -918,7 +1015,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                         control={form.control}
                         name="hasEndDate"
                         render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                             <FormControl>
                               <Checkbox
                                 checked={field.value}
@@ -927,10 +1024,10 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                             </FormControl>
                             <div className="space-y-1 leading-none">
                               <FormLabel>
-                                End date
+                                Set end date
                               </FormLabel>
                               <FormDescription>
-                                Specify when to stop generating tasks
+                                Specify when to stop generating tasks from this pattern
                               </FormDescription>
                             </div>
                           </FormItem>
@@ -938,70 +1035,72 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                       />
                       
                       {form.watch("hasEndDate") && (
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="endDate"
-                            render={({ field }) => (
-                              <FormItem className="flex flex-col">
-                                <FormLabel>End by</FormLabel>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <FormControl>
-                                      <Button
-                                        variant="outline"
-                                        className={cn(
-                                          "w-full pl-3 text-left font-normal",
-                                          !field.value && "text-muted-foreground"
-                                        )}
-                                      >
-                                        {field.value ? (
-                                          format(new Date(field.value), "PPP")
-                                        ) : (
-                                          <span>Pick a date</span>
-                                        )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                      </Button>
-                                    </FormControl>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                      mode="single"
-                                      selected={field.value ? new Date(field.value) : undefined}
-                                      onSelect={(date) => date && field.onChange(date.toISOString())}
-                                      initialFocus
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={form.control}
-                            name="maxOccurrences"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Max occurrences</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    min={1}
-                                    placeholder="Unlimited"
-                                    {...field}
-                                    value={field.value ?? ""}
-                                    onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                        <FormField
+                          control={form.control}
+                          name="endDate"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                              <FormLabel>End date</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                        "w-full pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                      )}
+                                    >
+                                      {field.value ? (
+                                        format(new Date(field.value), "PPP")
+                                      ) : (
+                                        <span>Pick a date</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    onSelect={(date) => {
+                                      field.onChange(date ? date.toISOString() : "");
+                                    }}
+                                    initialFocus
                                   />
-                                </FormControl>
-                                <FormDescription>
-                                  Leave empty for no limit
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                      
+                      {!form.watch("hasEndDate") && (
+                        <FormField
+                          control={form.control}
+                          name="maxOccurrences"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Maximum occurrences</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  {...field}
+                                  value={field.value || ""}
+                                  onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                                  placeholder="Optional"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Limit the number of tasks to generate (leave empty for no limit)
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       )}
                     </div>
                   </TabsContent>
@@ -1013,9 +1112,13 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                       name="templateTitle"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Task title</FormLabel>
+                          <FormLabel>Task Title</FormLabel>
                           <FormControl>
-                            <Input {...field} />
+                            <Input
+                              placeholder="Enter task title"
+                              {...field}
+                              className="w-full"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1031,8 +1134,8 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                           <FormControl>
                             <Textarea
                               placeholder="Describe the task"
-                              className="min-h-[100px]"
                               {...field}
+                              className="min-h-[120px]"
                             />
                           </FormControl>
                           <FormMessage />
@@ -1074,8 +1177,8 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                           <FormItem>
                             <FormLabel>Category</FormLabel>
                             <Select 
-                              onValueChange={(value: string) => field.onChange(value)}
-                              defaultValue={field.value || 'work'}
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -1085,8 +1188,8 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                               <SelectContent>
                                 <SelectItem value="work">Work</SelectItem>
                                 <SelectItem value="personal">Personal</SelectItem>
-                                <SelectItem value="meeting">Meeting</SelectItem>
-                                <SelectItem value="report">Report</SelectItem>
+                                <SelectItem value="finance">Finance</SelectItem>
+                                <SelectItem value="health">Health</SelectItem>
                                 <SelectItem value="other">Other</SelectItem>
                               </SelectContent>
                             </Select>
@@ -1096,74 +1199,67 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                       />
                     </div>
                     
-                    <FormField
-                      control={form.control}
-                      name="templateAssignedTo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Assign to</FormLabel>
-                          <Select 
-                            onValueChange={(value) => {
-                              console.log("Selected user ID:", value);
-                              field.onChange(value ? parseInt(value) : undefined);
-                            }}
-                            value={field.value !== undefined && field.value !== null ? field.value.toString() : undefined}
-                          >
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="templateDurationDays"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Duration (days)</FormLabel>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select user" />
-                              </SelectTrigger>
+                              <Input
+                                type="number"
+                                min={1}
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                              />
                             </FormControl>
-                            <SelectContent>
-                              {user && (
-                                <SelectItem value={user.id.toString()}>
-                                  {user.username} (Self)
-                                </SelectItem>
-                              )}
-                              {users
-                                .filter(u => u.id !== user?.id)
-                                .map((u) => (
-                                  <SelectItem key={u.id} value={u.id.toString()}>
-                                    {u.username}
+                            <FormDescription>
+                              Expected days to complete this task
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="templateAssignedTo"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Assign to</FormLabel>
+                            <Select 
+                              onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
+                              defaultValue={field.value?.toString()}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Assign to user" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">Unassigned</SelectItem>
+                                {users.map((user) => (
+                                  <SelectItem key={user.id} value={user.id.toString()}>
+                                    {user.username}
                                   </SelectItem>
                                 ))}
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>
-                            Optional - leave blank to create without assignment
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="templateDurationDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Duration (days)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={1}
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Number of days to complete the task
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Leave empty to assign later
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                     
                     <FormField
                       control={form.control}
                       name="isActive"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                           <FormControl>
                             <Checkbox
                               checked={field.value}
@@ -1175,7 +1271,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                               Active
                             </FormLabel>
                             <FormDescription>
-                              Enable or disable automatic task generation
+                              Only active patterns will generate new tasks
                             </FormDescription>
                           </div>
                         </FormItem>
@@ -1185,25 +1281,11 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                 </Tabs>
                 
                 <DialogFooter>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => {
-                      setOpenDialog(false);
-                      setEditingPattern(null);
-                      form.reset();
-                    }}
-                  >
+                  <Button variant="outline" type="button" onClick={() => setOpenDialog(false)}>
                     Cancel
                   </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={createPatternMutation.isPending || updatePatternMutation.isPending}
-                  >
-                    {(createPatternMutation.isPending || updatePatternMutation.isPending) && (
-                      <span className="mr-2 h-4 w-4 animate-spin">⟳</span>
-                    )}
-                    {editingPattern ? "Update" : "Create"}
+                  <Button type="submit">
+                    {editingPattern ? "Update Pattern" : "Create Pattern"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -1212,140 +1294,87 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         </Dialog>
       </div>
       
-      <div className="grid grid-cols-1 gap-4">
-        {patternsLoading ? (
-          <div className="text-center p-4">Loading patterns...</div>
-        ) : patterns.length > 0 ? (
-          <Accordion type="single" collapsible className="w-full">
+      {patternsLoading ? (
+        <div className="flex justify-center my-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      ) : patterns.length > 0 ? (
+        <div className="space-y-4">
+          <Accordion type="multiple" className="w-full">
             {patterns.map((pattern: RecurringPattern) => (
-              <AccordionItem key={pattern.id} value={`pattern-${pattern.id}`}>
-                <AccordionTrigger className="px-4 py-2 hover:bg-secondary/20">
-                  <div className="flex items-center justify-between w-full">
+              <AccordionItem value={`pattern-${pattern.id}`} key={pattern.id}>
+                <AccordionTrigger className="hover:no-underline px-4 py-2 hover:bg-muted/50 rounded-lg">
+                  <div className="flex-1 flex items-center justify-between mr-2">
                     <div>
-                      <span className="font-medium">{pattern.templateTitle}</span>
-                      <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
-                        pattern.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                      }`}>
-                        {pattern.isActive ? "Active" : "Inactive"}
-                      </span>
+                      <h3 className="text-sm font-semibold">{pattern.templateTitle}</h3>
+                      <p className="text-xs text-muted-foreground">{renderPatternDescription(pattern)}</p>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      {renderPatternDescription(pattern)}
+                    <div className="flex items-center">
+                      <span className={`px-2 py-1 rounded-full text-xs ${pattern.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {pattern.isActive ? 'Active' : 'Inactive'}
+                      </span>
                     </div>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent>
-                  <Card className="border-0 shadow-none">
-                    <CardContent className="p-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="text-sm font-medium mb-1">Task Details</h4>
-                          <div className="space-y-1 text-sm">
-                            <p><span className="font-medium">Title:</span> {pattern.templateTitle}</p>
-                            <p><span className="font-medium">Description:</span> {pattern.templateDescription}</p>
-                            <p>
-                              <span className="font-medium">Priority:</span>{" "}
-                              <span className={`capitalize ${
-                                pattern.templatePriority === "High" 
-                                  ? "text-red-600" 
-                                  : pattern.templatePriority === "Medium" 
-                                    ? "text-amber-600" 
-                                    : "text-blue-600"
-                              }`}>
-                                {pattern.templatePriority}
-                              </span>
-                            </p>
-                            <p><span className="font-medium">Category:</span> {pattern.templateCategory}</p>
-                            <p>
-                              <span className="font-medium">Assigned To:</span>{" "}
-                              {pattern.templateAssignedTo 
-                                ? users.find(u => u.id === pattern.templateAssignedTo)?.username || "Unknown User" 
-                                : "Unassigned"}
-                            </p>
-                            <p><span className="font-medium">Duration:</span> {pattern.templateDurationDays} day(s)</p>
-                          </div>
+                <AccordionContent className="px-4 pb-4">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-semibold text-sm">Description</h4>
+                        <p className="text-sm text-muted-foreground">{pattern.templateDescription}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Priority:</span>
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            pattern.templatePriority === 'High' ? 'bg-red-100 text-red-800' :
+                            pattern.templatePriority === 'Medium' ? 'bg-amber-100 text-amber-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>{pattern.templatePriority}</span>
                         </div>
-                        <div>
-                          <h4 className="text-sm font-medium mb-1">Schedule Information</h4>
-                          <div className="space-y-1 text-sm">
-                            <p><span className="font-medium">Pattern:</span> {renderPatternDescription(pattern)}</p>
-                            <p><span className="font-medium">Starts:</span> {formatDate(pattern.startDate)}</p>
-                            {pattern.endDate && (
-                              <p><span className="font-medium">Ends:</span> {formatDate(pattern.endDate)}</p>
-                            )}
-                            {pattern.maxOccurrences && (
-                              <p><span className="font-medium">Max occurrences:</span> {pattern.maxOccurrences}</p>
-                            )}
-                            <p>
-                              <span className="font-medium">Tasks generated:</span> {pattern.generatedCount || 0}
-                            </p>
-                            {pattern.nextGenerationDate && (
-                              <p>
-                                <span className="font-medium">Next generation:</span> {formatDate(pattern.nextGenerationDate)}
-                              </p>
-                            )}
-                          </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium">Category:</span>
+                          <span className="text-sm">{pattern.templateCategory}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium">Duration:</span>
+                          <span className="text-sm">{pattern.templateDurationDays} day(s)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium">Tasks Generated:</span>
+                          <span className="text-sm">{pattern.generatedCount}</span>
                         </div>
                       </div>
-                    </CardContent>
-                    <CardFooter className="flex justify-end gap-2 p-4 pt-0">
-                      <Button 
-                        variant="outline" 
+                    </div>
+                    
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handleEdit(pattern)}
                       >
-                        <Edit className="mr-2 h-4 w-4" /> Edit
+                        <Edit className="h-4 w-4 mr-1" /> Edit
                       </Button>
-                      <Button 
-                        variant="destructive" 
+                      <Button
+                        variant="destructive"
                         size="sm"
                         onClick={() => handleDelete(pattern.id)}
-                        disabled={deletePatternMutation.isPending}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        <Trash2 className="h-4 w-4 mr-1" /> Delete
                       </Button>
-                    </CardFooter>
-                  </Card>
+                    </div>
+                  </div>
                 </AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
-        ) : (
-          <Card className="border border-dashed">
-            <CardContent className="flex flex-col items-center justify-center p-6">
-              <div className="text-center space-y-2">
-                <h3 className="text-lg font-medium">No recurring tasks</h3>
-                <p className="text-sm text-muted-foreground">
-                  Create your first recurring task to automate your workflow.
-                </p>
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    setEditingPattern(null);
-                    form.reset({
-                      patternType: "daily",
-                      pattern: "daily",
-                      interval: 1,
-                      daysOfWeek: [],
-                      startDate: new Date().toISOString(),
-                      hasEndDate: false,
-                      templateTitle: "",
-                      templateDescription: "",
-                      templatePriority: "Medium",
-                      templateCategory: "work",
-                      templateDurationDays: 1,
-                      isActive: true,
-                    });
-                    setOpenDialog(true);
-                  }}
-                >
-                  <Plus className="mr-2 h-4 w-4" /> Add Recurring Task
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="text-center my-8 p-6 border rounded-lg bg-muted/20">
+          <h3 className="font-medium text-lg mb-2">No recurring task patterns yet</h3>
+          <p className="text-muted-foreground mb-4">Create your first recurring task pattern to automate task generation.</p>
+        </div>
+      )}
     </div>
   );
 }
