@@ -158,11 +158,11 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
     return acc;
   }, {} as Record<number, RecurringTask[]>);
   
-  // Initialize all patterns as open by default
+  // Initialize all patterns as collapsed by default
   useEffect(() => {
     const sections: Record<number, boolean> = {};
     Object.keys(tasksByPattern).forEach(patternId => {
-      sections[parseInt(patternId)] = true; // Set each section to open by default
+      sections[parseInt(patternId)] = false; // Set each section to collapsed by default
     });
     setOpenSections(sections);
   }, [JSON.stringify(Object.keys(tasksByPattern))]);
@@ -452,7 +452,7 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
             return (
               <Collapsible
                 key={patternId}
-                open={openSections[patternId] ?? true}
+                open={openSections[patternId] ?? false}
                 onOpenChange={(isOpen) => {
                   setOpenSections((prev) => ({
                     ...prev,
