@@ -75,6 +75,30 @@ const recurringTaskSchema = insertRecurringPatternSchema.extend({
 
 type RecurringTaskForm = z.infer<typeof recurringTaskSchema>;
 
+// Define a type for the API submission data
+interface RecurringPatternSubmitData {
+  pattern: "daily" | "weekly" | "monthly" | "yearly";
+  interval: number;
+  startDate: string;
+  templateTitle: string;
+  templateDescription: string;
+  templatePriority: "Low" | "Medium" | "High";
+  templateCategory?: string;
+  templateDurationDays: number;
+  templateAssignedTo?: number;
+  userId: number; // Required
+  createdBy: number; // Required
+  createdAt: string;
+  isActive: boolean;
+  generatedCount: number;
+  daysOfWeek?: string;
+  dayOfMonth?: number;
+  monthOfYear?: number;
+  endDate?: string;
+  maxOccurrences?: number;
+  [key: string]: any; // For dynamic access when validating fields
+}
+
 interface RecurringTaskManagerProps {
   users: User[];
 }
@@ -98,48 +122,26 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
 
   // Create a new recurring pattern
   const createPatternMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: RecurringPatternSubmitData) => {
       try {
         console.log("⭐ Creating pattern with data:", JSON.stringify(data, null, 2));
-        // Clone the data to avoid any reference issues
-        const dataToSubmit = { ...data };
         
-        // CRITICAL: Make absolutely sure userId is set and is a number
-        if (user) {
-          dataToSubmit.userId = Number(user.id);
-          dataToSubmit.createdBy = Number(user.id);
-          console.log("⭐ Setting userId to:", dataToSubmit.userId, "and createdBy to:", dataToSubmit.createdBy);
-        } else {
-          console.error("⚠️ No user found when creating task!");
-          throw new Error("You must be logged in to create recurring tasks");
-        }
+        // Data is already formatted correctly from the onSubmit function
+        // No need for additional transformations here
         
-        // Ensure all required fields are present and of the correct type
+        // Just validate the required fields as a safety measure
         const requiredFields = ['pattern', 'interval', 'startDate', 'templateTitle', 
           'templateDescription', 'templatePriority', 'userId', 'createdBy'];
           
-        const missingFields = requiredFields.filter(field => !(field in dataToSubmit));
+        const missingFields = requiredFields.filter(field => !(field in data));
         if (missingFields.length > 0) {
           console.error(`⚠️ Missing required fields: ${missingFields.join(', ')}`);
           throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
         }
         
-        // Set creation date if not present
-        if (!dataToSubmit.createdAt) {
-          dataToSubmit.createdAt = new Date().toISOString();
-        }
+        console.log("⭐ Submitting data to API:", JSON.stringify(data, null, 2));
         
-        // Validate numeric fields
-        dataToSubmit.interval = Number(dataToSubmit.interval);
-        dataToSubmit.templateDurationDays = Number(dataToSubmit.templateDurationDays);
-        if (dataToSubmit.dayOfMonth) dataToSubmit.dayOfMonth = Number(dataToSubmit.dayOfMonth);
-        if (dataToSubmit.monthOfYear) dataToSubmit.monthOfYear = Number(dataToSubmit.monthOfYear);
-        if (dataToSubmit.templateAssignedTo) dataToSubmit.templateAssignedTo = Number(dataToSubmit.templateAssignedTo);
-        if (dataToSubmit.maxOccurrences) dataToSubmit.maxOccurrences = Number(dataToSubmit.maxOccurrences);
-        
-        console.log("⭐ Submitting data to API:", JSON.stringify(dataToSubmit, null, 2));
-        
-        const res = await apiRequest("POST", "/api/recurring-patterns", dataToSubmit);
+        const res = await apiRequest("POST", "/api/recurring-patterns", data);
         console.log("⭐ API Response status:", res.status, res.statusText);
         
         if (!res.ok) {
@@ -163,7 +165,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         }
         
         const responseData = await res.json();
-        console.log("⭐ Task created successfully:", responseData);
+        console.log("⭐ Pattern created successfully:", responseData);
         return responseData;
       } catch (err) {
         console.error("⚠️ Error in createPatternMutation:", err);
@@ -192,10 +194,8 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
 
   // Update a recurring pattern
   const updatePatternMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: RecurringTaskForm }) => {
-      // Transform the form data to the pattern expected by the API
-      const transformedData = transformFormDataToPattern(data);
-      const res = await apiRequest("PATCH", `/api/recurring-patterns/${id}`, transformedData);
+    mutationFn: async ({ id, data }: { id: number; data: RecurringPatternSubmitData }) => {
+      const res = await apiRequest("PATCH", `/api/recurring-patterns/${id}`, data);
       return await res.json();
     },
     onSuccess: () => {
@@ -289,72 +289,138 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         console.log("🔵 UPDATING PATTERN:", editingPattern.id);
         console.log("🔵 Data before transformation:", JSON.stringify(data, null, 2));
         
-        const transformedData = transformFormDataToPattern(data);
-        // Double-check userId is set for updates too
-        transformedData.userId = Number(user.id);
-        transformedData.createdBy = Number(user.id);
+        // The key change here is to map patternType to pattern for update
+        const dataToSubmit: RecurringPatternSubmitData = {
+          // Core pattern fields
+          pattern: data.patternType, // IMPORTANT: Map patternType to pattern for API
+          interval: Number(data.interval),
+          startDate: data.startDate,
+          
+          // Template fields
+          templateTitle: data.templateTitle,
+          templateDescription: data.templateDescription,
+          templatePriority: data.templatePriority,
+          templateCategory: data.templateCategory || undefined,
+          templateDurationDays: Number(data.templateDurationDays),
+          templateAssignedTo: data.templateAssignedTo ? Number(data.templateAssignedTo) : undefined,
+          
+          // Required user fields - preserve the original user
+          userId: editingPattern.userId, 
+          createdBy: editingPattern.createdBy,
+          createdAt: editingPattern.createdAt,
+          
+          // Status fields - preserve existing status
+          isActive: data.isActive || true,
+          generatedCount: editingPattern.generatedCount || 0
+        };
         
-        console.log("🔵 Data after transformation:", JSON.stringify(transformedData, null, 2));
-        
-        // Add validation for critical fields
-        if (!transformedData.userId) {
-          console.error("🔴 userId is missing or invalid!");
-          throw new Error("User ID is required");
+        // Add pattern-specific fields
+        if (data.patternType === "weekly" && data.daysOfWeek && data.daysOfWeek.length > 0) {
+          dataToSubmit.daysOfWeek = data.daysOfWeek.join(",");
         }
         
-        if (!transformedData.pattern) {
+        if (data.patternType === "monthly" && data.dayOfMonth) {
+          dataToSubmit.dayOfMonth = Number(data.dayOfMonth);
+        }
+        
+        if (data.patternType === "yearly" && data.monthOfYear) {
+          dataToSubmit.monthOfYear = Number(data.monthOfYear);
+        }
+        
+        // Add end date or max occurrences if applicable
+        if (data.hasEndDate && data.endDate) {
+          dataToSubmit.endDate = data.endDate;
+        }
+        
+        if (data.maxOccurrences) {
+          dataToSubmit.maxOccurrences = Number(data.maxOccurrences);
+        }
+        
+        console.log("🔵 Data for update:", JSON.stringify(dataToSubmit, null, 2));
+        
+        // Add validation for critical fields
+        if (!dataToSubmit.pattern) {
           console.error("🔴 pattern is missing!");
           throw new Error("Pattern type is required");
         }
         
-        console.log("🔵 Calling updatePatternMutation with:", editingPattern.id, transformedData);
-        updatePatternMutation.mutate({ id: editingPattern.id, data: transformedData });
+        console.log("🔵 Calling updatePatternMutation with:", editingPattern.id, dataToSubmit);
+        updatePatternMutation.mutate({ id: editingPattern.id, data: dataToSubmit });
       } else {
         console.log("🔵 CREATING NEW PATTERN");
         console.log("🔵 Data before transformation:", JSON.stringify(data, null, 2));
         
-        const transformedData = transformFormDataToPattern(data);
+        // Transform the form data to match API expectations
+        // The key change here is to map patternType to pattern
+        const dataToSubmit: RecurringPatternSubmitData = {
+          // Core pattern fields
+          pattern: data.patternType, // IMPORTANT: Map patternType to pattern for API
+          interval: Number(data.interval),
+          startDate: data.startDate,
+          
+          // Template fields
+          templateTitle: data.templateTitle,
+          templateDescription: data.templateDescription,
+          templatePriority: data.templatePriority,
+          templateCategory: data.templateCategory || undefined,
+          templateDurationDays: Number(data.templateDurationDays),
+          templateAssignedTo: data.templateAssignedTo ? Number(data.templateAssignedTo) : undefined,
+          
+          // Required user fields
+          userId: Number(user.id),
+          createdBy: Number(user.id),
+          createdAt: new Date().toISOString(),
+          
+          // Status fields
+          isActive: true,
+          generatedCount: 0
+        };
         
-        // CRITICAL: Always ensure userId is included and not undefined
-        transformedData.userId = Number(user.id);
-        transformedData.createdBy = Number(user.id);
-        transformedData.createdAt = new Date().toISOString();
-        
-        console.log("🔵 userId being set to:", transformedData.userId);
-        console.log("🔵 createdBy being set to:", transformedData.createdBy);
-        console.log("🔵 createdAt being set to:", transformedData.createdAt);
-        
-        // Add validation for critical fields before submission
-        if (!transformedData.userId) {
-          console.error("🔴 userId is missing or invalid!");
-          throw new Error("User ID is required");
+        // Add pattern-specific fields
+        if (data.patternType === "weekly" && data.daysOfWeek && data.daysOfWeek.length > 0) {
+          dataToSubmit.daysOfWeek = data.daysOfWeek.join(",");
         }
         
-        if (!transformedData.pattern) {
-          console.error("🔴 pattern is missing!");
-          throw new Error("Pattern type is required");
+        if (data.patternType === "monthly" && data.dayOfMonth) {
+          dataToSubmit.dayOfMonth = Number(data.dayOfMonth);
         }
         
-        if (!transformedData.templateTitle) {
-          console.error("🔴 templateTitle is missing!");
-          throw new Error("Task title is required");
+        if (data.patternType === "yearly" && data.monthOfYear) {
+          dataToSubmit.monthOfYear = Number(data.monthOfYear);
         }
         
-        if (!transformedData.templateDescription) {
-          console.error("🔴 templateDescription is missing!");
-          throw new Error("Task description is required");
+        // Add end date or max occurrences if applicable
+        if (data.hasEndDate && data.endDate) {
+          dataToSubmit.endDate = data.endDate;
         }
         
-        console.log("🔵 Final transformed data for API:", JSON.stringify(transformedData, null, 2));
-        console.log("🔵 Calling createPatternMutation");
+        if (data.maxOccurrences) {
+          dataToSubmit.maxOccurrences = Number(data.maxOccurrences);
+        }
+        
+        console.log("🔵 Final data for API:", JSON.stringify(dataToSubmit, null, 2));
+        
+        // Validate required fields
+        const requiredFields = [
+          'pattern', 'interval', 'startDate', 'templateTitle', 
+          'templateDescription', 'templatePriority', 'userId', 'createdBy'
+        ];
+        
+        for (const field of requiredFields) {
+          if (!(field in dataToSubmit) || dataToSubmit[field] === undefined || dataToSubmit[field] === null) {
+            console.error(`🔴 Required field missing: ${field}`);
+            throw new Error(`Required field missing: ${field}`);
+          }
+        }
         
         // Show additional toast to confirm submission
         toast({
-          title: "Submitting task...",
+          title: "Submitting recurring pattern...",
           description: "Sending data to server",
         });
         
-        createPatternMutation.mutate(transformedData);
+        // Submit the data
+        createPatternMutation.mutate(dataToSubmit);
       }
     } catch (error) {
       console.error("🔴 ERROR IN FORM SUBMISSION:", error);
@@ -392,9 +458,13 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
   };
 
   // Function to transform form data to pattern data
-  function transformFormDataToPattern(data: RecurringTaskForm) {
+  function transformFormDataToPattern(data: RecurringTaskForm): RecurringPatternSubmitData {
     // Create an object with the correct field names for the API
-    const patternData: any = {
+    if (!user || !user.id) {
+      throw new Error("User is not logged in or missing ID");
+    }
+    
+    const patternData: RecurringPatternSubmitData = {
       // CRITICAL: Field name mapping - patternType from form → pattern for API/database
       pattern: data.patternType, // This maps to the 'pattern' field expected by the schema
       interval: Number(data.interval),  // Ensure it's a number
@@ -406,9 +476,10 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       templateDurationDays: Number(data.templateDurationDays), // Ensure it's a number
       isActive: data.isActive === undefined ? true : Boolean(data.isActive), // Ensure it's a boolean
       // CRITICAL: Always ensure userId and createdBy are set and are numbers
-      userId: user?.id ? Number(user.id) : undefined,
-      createdBy: user?.id ? Number(user.id) : undefined,
-      createdAt: new Date().toISOString() // Set creation date
+      userId: Number(user.id), // We've validated user.id exists above
+      createdBy: Number(user.id), // We've validated user.id exists above
+      createdAt: new Date().toISOString(), // Set creation date
+      generatedCount: 0 // Initialize to 0 for new patterns
     };
 
     // Debug log
