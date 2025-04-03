@@ -81,5 +81,5 @@ export interface IStorage {
   deleteRecurringPattern(id: number): Promise<void>;
   getUserRecurringPatterns(userId: number): Promise<RecurringPattern[]>;
   getActiveRecurringPatterns(): Promise<RecurringPattern[]>;
-  processRecurringPatterns(): Promise<void>; // Generates new tasks from due patterns
+  processRecurringPatterns(): Promise<number>; // Generates new tasks from due patterns and returns count of tasks created
 }

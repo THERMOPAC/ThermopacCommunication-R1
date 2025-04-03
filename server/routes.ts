@@ -997,15 +997,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Processing recurring patterns triggered by user ${req.user!.username}`);
       
-      // Process the patterns
-      await storage.processRecurringPatterns();
-      
-      // Count how many tasks were generated in this run
-      const patterns = await storage.getActiveRecurringPatterns();
-      let tasksGenerated = 0;
-      for (const pattern of patterns) {
-        tasksGenerated += 1; // Count one task per pattern
-      }
+      // Process the patterns and get the count of newly generated tasks
+      const tasksGenerated = await storage.processRecurringPatterns();
       
       res.status(200).json({ 
         message: "Recurring patterns processed successfully",
@@ -1204,7 +1197,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setInterval(async () => {
     try {
       console.log('Automatic processing of recurring patterns (daily check)');
-      await storage.processRecurringPatterns();
+      const tasksGenerated = await storage.processRecurringPatterns();
+      console.log(`Automatic processing complete. Generated ${tasksGenerated} new tasks.`);
     } catch (error) {
       console.error('Error in automatic processing of recurring patterns:', error);
     }

@@ -1134,7 +1134,8 @@ export class DatabaseStorage implements IStorage {
     return patterns as RecurringPattern[];
   }
 
-  async processRecurringPatterns(): Promise<void> {
+  async processRecurringPatterns(): Promise<number> {
+    let tasksGeneratedCount = 0;
     console.log('Processing recurring patterns to generate tasks');
     const patterns = await this.getActiveRecurringPatterns();
     
@@ -1211,8 +1212,25 @@ export class DatabaseStorage implements IStorage {
           status: 'pending'
         };
         
+        // Check if a task with this due date and pattern already exists
+        const existingTasks = await db
+          .select()
+          .from(recurringTasksTable)
+          .where(
+            and(
+              eq(recurringTasksTable.recurringPatternId, pattern.id),
+              eq(recurringTasksTable.dueDate, dueDate)
+            )
+          );
+        
+        if (existingTasks.length > 0) {
+          console.log(`Skipping task creation - already exists for pattern ${pattern.id} on date ${dueDate}`);
+          continue; // Skip to the next pattern
+        }
+        
         // Create the recurring task in the dedicated table
         const task = await this.createRecurringTask(newRecurringTask);
+        tasksGeneratedCount++; // Increment the counter for each new task created
         console.log(`Created recurring task ${task.id} from pattern ${pattern.id} (occurrence #${task.occurrenceNumber})`);
         
         // Calculate next generation date based on pattern
@@ -1294,7 +1312,8 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    console.log('Finished processing recurring patterns');
+    console.log(`Finished processing recurring patterns. Generated ${tasksGeneratedCount} new tasks.`);
+    return tasksGeneratedCount;
   }
 }
 
