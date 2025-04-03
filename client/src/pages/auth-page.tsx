@@ -30,7 +30,7 @@ export default function AuthPage() {
 
       <div className="hidden lg:flex flex-1 bg-muted items-center justify-center p-12">
         <div className="max-w-lg">
-          <h1 className="text-4xl font-bold mb-6">Welcome to THERMOPAC</h1>
+          <h1 className="text-4xl font-bold mb-6 text-blue-600">Welcome to THERMOPAC</h1>
           <p className="text-lg text-muted-foreground">
             A comprehensive platform for intercompany communication and task management.
             Connect with your team, manage tasks, and stay productive.
