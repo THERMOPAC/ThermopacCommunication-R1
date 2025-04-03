@@ -130,6 +130,12 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
       }
       
       return true;
+    })
+    // Sort by due date, with earliest dates first
+    .sort((a, b) => {
+      const dateA = new Date(a.dueDate);
+      const dateB = new Date(b.dueDate);
+      return dateA.getTime() - dateB.getTime();
     });
 
   // Group recurring tasks by pattern for display
@@ -480,7 +486,8 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {tasks.map((task) => (
+                            {/* Sort tasks by due date within each group */}
+                            {[...tasks].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).map((task) => (
                               <TableRow key={task.id}>
                                 <TableCell className="p-2">
                                   <Button
@@ -522,7 +529,12 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
                                     {task.priority}
                                   </Badge>
                                 </TableCell>
-                                <TableCell>{new Date(task.dueDate).toLocaleDateString()}</TableCell>
+                                <TableCell>
+                                  {/* Show past due dates in red */}
+                                  <span className={new Date(task.dueDate) < new Date() && task.status !== 'completed' ? 'text-red-600 font-medium' : ''}>
+                                    {new Date(task.dueDate).toLocaleDateString()}
+                                  </span>
+                                </TableCell>
                                 <TableCell>{getAssigneeName(task.assignedTo)}</TableCell>
                                 <TableCell>
                                   <Badge variant={task.status === 'completed' ? 'outline' : 'default'}>
