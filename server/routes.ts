@@ -984,6 +984,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // Additional endpoint with consistent naming for the Button in the UI
+  app.post("/api/process-recurring-patterns", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.status(401).json({ message: "Not authenticated" });
+      
+      // Only allow Superuser to manually trigger processing
+      if (req.user!.role !== "Superuser") {
+        return res.status(403).json({ message: "Not authorized to process recurring patterns" });
+      }
+      
+      console.log(`Processing recurring patterns triggered by user ${req.user!.username}`);
+      
+      // Process the patterns
+      await storage.processRecurringPatterns();
+      
+      // Count how many tasks were generated in this run
+      const patterns = await storage.getActiveRecurringPatterns();
+      let tasksGenerated = 0;
+      for (const pattern of patterns) {
+        tasksGenerated += 1; // Count one task per pattern
+      }
+      
+      res.status(200).json({ 
+        message: "Recurring patterns processed successfully",
+        tasksGenerated
+      });
+    } catch (error) {
+      console.error('Error processing recurring patterns:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to process recurring patterns" 
+      });
+    }
+  });
 
   // Recurring Tasks API Routes
   app.get("/api/recurring-tasks", async (req, res) => {

@@ -1099,35 +1099,38 @@ export class DatabaseStorage implements IStorage {
 
   async getActiveRecurringPatterns(): Promise<RecurringPattern[]> {
     console.log('Getting all active recurring patterns');
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
     
-    // First attempt - with the original criteria
+    // For manual processing, just get all active patterns
+    // This ensures we can force processing of patterns through the UI
     let patterns = await db
       .select()
       .from(recurringPatternsTable)
-      .where(
-        and(
-          eq(recurringPatternsTable.isActive, true),
-          or(
-            sql`${recurringPatternsTable.nextGenerationDate} <= ${today}`,
-            sql`${recurringPatternsTable.nextGenerationDate} IS NULL`
-          )
-        )
-      );
+      .where(eq(recurringPatternsTable.isActive, true));
     
-    console.log(`Found ${patterns.length} active recurring patterns due for generation using strict criteria`);
+    console.log(`Found ${patterns.length} active recurring patterns for potential processing`);
     
-    // If no patterns found, we'll check for any active patterns for manual processing
-    if (patterns.length === 0) {
-      console.log("No patterns due for generation found, checking for any active patterns for manual processing");
-      patterns = await db
-        .select()
-        .from(recurringPatternsTable)
-        .where(eq(recurringPatternsTable.isActive, true));
-      
-      console.log(`Found ${patterns.length} active recurring patterns for manual processing`);
+    // Check each pattern to see if it's ready to be processed based on its settings
+    // This allows more accurate logging and helps with debugging
+    const readyPatterns: RecurringPattern[] = [];
+    const pendingPatterns: RecurringPattern[] = [];
+    
+    for (const pattern of patterns) {
+      // If nextGenerationDate is null or today or earlier, it's ready
+      if (!pattern.nextGenerationDate || pattern.nextGenerationDate <= todayStr) {
+        readyPatterns.push(pattern);
+      } else {
+        pendingPatterns.push(pattern);
+      }
     }
     
+    console.log(`Found ${readyPatterns.length} patterns ready for processing based on date criteria`);
+    if (pendingPatterns.length > 0) {
+      console.log(`Found ${pendingPatterns.length} active patterns that are not yet due`);
+    }
+    
+    // Return all active patterns for manual processing via superuser
     return patterns as RecurringPattern[];
   }
 
@@ -1165,12 +1168,33 @@ export class DatabaseStorage implements IStorage {
         // Generate the new recurring task
         const startDate = new Date().toISOString().split('T')[0]; // Today
         
-        // Calculate finish date based on duration
-        const finishDate = new Date();
-        finishDate.setDate(finishDate.getDate() + pattern.templateDurationDays);
+        // Create task due date based on pattern type
+        let taskDueDate = new Date();
         
-        // Also set a due date (same as finish date for now)
-        const dueDate = finishDate.toISOString().split('T')[0];
+        // For monthly patterns with specified day (like AMEX card payment on 10th)
+        if (pattern.pattern === 'monthly' && pattern.dayOfMonth) {
+          // Get current month and year
+          const currentMonth = taskDueDate.getMonth();
+          const currentYear = taskDueDate.getFullYear();
+          const currentDay = taskDueDate.getDate();
+          
+          // Set the due date to the specified day of the current month
+          taskDueDate = new Date(currentYear, currentMonth, pattern.dayOfMonth);
+          
+          // If the specified day has already passed this month, move to next month
+          if (currentDay > pattern.dayOfMonth) {
+            taskDueDate.setMonth(currentMonth + 1);
+          }
+          
+          console.log(`Monthly pattern with day ${pattern.dayOfMonth}: Setting due date to ${taskDueDate.toISOString()}`);
+        } else {
+          // For other patterns, use the default approach (due date = start + duration)
+          taskDueDate.setDate(taskDueDate.getDate() + pattern.templateDurationDays);
+        }
+        
+        // Calculate finish date (same as due date)
+        const finishDate = new Date(taskDueDate);
+        const dueDate = taskDueDate.toISOString().split('T')[0];
         
         const newRecurringTask: InsertRecurringTask = {
           title: pattern.templateTitle,
@@ -1204,12 +1228,43 @@ export class DatabaseStorage implements IStorage {
             break;
             
           case 'monthly':
-            nextGenerationDate.setMonth(nextGenerationDate.getMonth() + pattern.interval);
+            // Get current month and year
+            const currentMonth = nextGenerationDate.getMonth();
+            const currentYear = nextGenerationDate.getFullYear();
+            const currentDay = nextGenerationDate.getDate();
+            
+            // Initialize next generation date as 1 day from now
+            // This ensures if we're processing on or after the scheduled day this month,
+            // we'll generate for next month
+            let nextMonth;
+            
+            if (pattern.dayOfMonth) {
+              // If we're processing on or after the scheduled day this month,
+              // we want the next occurrence to be next month
+              if (currentDay >= pattern.dayOfMonth) {
+                nextMonth = currentMonth + pattern.interval;
+              } else {
+                // If we're processing before the scheduled day,
+                // we want the next occurrence to be this month
+                nextMonth = currentMonth;
+              }
+            } else {
+              // No specific day set, just add the interval
+              nextMonth = currentMonth + pattern.interval;
+            }
+            
+            // Set to the next month based on our calculation
+            nextGenerationDate.setMonth(nextMonth);
             
             // Adjust for day of month if specified
             if (pattern.dayOfMonth) {
+              // First set to the 1st of the month to avoid issues with months of different lengths
+              nextGenerationDate.setDate(1);
+              // Then set to the day of month
               nextGenerationDate.setDate(pattern.dayOfMonth);
             }
+            
+            console.log(`Monthly pattern next generation date: ${nextGenerationDate.toISOString()}`);
             break;
             
           case 'yearly':

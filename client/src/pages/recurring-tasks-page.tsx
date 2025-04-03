@@ -20,13 +20,13 @@ export default function RecurringTasksPage() {
   // Process recurring patterns mutation
   const processPatternsMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/recurring-patterns/process");
+      const res = await apiRequest("POST", "/api/process-recurring-patterns");
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Success",
-        description: "Recurring patterns processed successfully",
+        description: `Recurring patterns processed successfully. ${data.tasksGenerated} tasks were generated.`,
         variant: "default",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/recurring-tasks"] });
