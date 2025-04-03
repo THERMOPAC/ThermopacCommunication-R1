@@ -1229,8 +1229,11 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                           <FormItem>
                             <FormLabel>Assign to</FormLabel>
                             <Select 
-                              onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
-                              defaultValue={field.value?.toString()}
+                              onValueChange={(value) => {
+                                // If value is "0" (unassigned), set to undefined
+                                field.onChange(value === "0" ? undefined : parseInt(value));
+                              }}
+                              defaultValue={field.value?.toString() || "0"}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -1238,7 +1241,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">Unassigned</SelectItem>
+                                <SelectItem value="0">Unassigned</SelectItem>
                                 {users.map((user) => (
                                   <SelectItem key={user.id} value={user.id.toString()}>
                                     {user.username}
