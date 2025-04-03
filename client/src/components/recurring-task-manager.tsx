@@ -86,9 +86,9 @@ const recurringTaskSchema = z.object({
   
   // Common fields
   startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().optional(),
+  endDate: z.string().nullable().optional(),
   hasEndDate: z.boolean().default(false),
-  maxOccurrences: z.coerce.number().int().min(1).optional(),
+  maxOccurrences: z.coerce.number().int().min(1).nullable().optional(),
   isActive: z.boolean().default(true),
   
   // System fields - will be set automatically
@@ -170,8 +170,8 @@ interface RecurringPatternSubmitData {
   daysOfWeek?: string;
   dayOfMonth?: number;
   monthOfYear?: number;
-  endDate?: string;
-  maxOccurrences?: number;
+  endDate?: string | null;
+  maxOccurrences?: number | null;
   [key: string]: any; // For dynamic access when validating fields
 }
 
@@ -459,10 +459,14 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         // Add end date or max occurrences if applicable
         if (data.hasEndDate && data.endDate) {
           dataToSubmit.endDate = data.endDate;
+        } else {
+          dataToSubmit.endDate = undefined; // Don't include if not provided
         }
         
         if (data.maxOccurrences) {
           dataToSubmit.maxOccurrences = Number(data.maxOccurrences);
+        } else {
+          dataToSubmit.maxOccurrences = undefined; // Don't include if not provided
         }
         
         console.log("🔵 Data for update:", JSON.stringify(dataToSubmit, null, 2));
@@ -540,10 +544,14 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         // Add end date or max occurrences if applicable
         if (data.hasEndDate && data.endDate) {
           dataToSubmit.endDate = data.endDate;
+        } else {
+          dataToSubmit.endDate = undefined; // Don't include if not provided
         }
         
         if (data.maxOccurrences) {
           dataToSubmit.maxOccurrences = Number(data.maxOccurrences);
+        } else {
+          dataToSubmit.maxOccurrences = undefined; // Don't include if not provided
         }
         
         console.log("🔵 Final data for API:", JSON.stringify(dataToSubmit, null, 2));
@@ -672,11 +680,15 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
     // Add end date if provided
     if (data.hasEndDate && data.endDate) {
       patternData.endDate = data.endDate;
+    } else {
+      patternData.endDate = undefined;
     }
 
     // Add max occurrences if provided
     if (data.maxOccurrences) {
       patternData.maxOccurrences = Number(data.maxOccurrences); // Ensure it's a number
+    } else {
+      patternData.maxOccurrences = undefined;
     }
 
     return patternData;
