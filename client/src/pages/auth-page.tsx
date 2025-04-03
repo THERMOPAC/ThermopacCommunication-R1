@@ -34,16 +34,14 @@ export default function AuthPage() {
       </div>
 
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-600 to-red-600 items-center justify-center p-12 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 flex items-center justify-center">
+        <div className="max-w-lg relative z-10 flex flex-col items-center">
           <img 
             src="/images/thermopac-logo.jpg" 
-            alt="Thermopac Background" 
-            className="w-full h-full object-contain"
+            alt="Thermopac Logo" 
+            className="h-20 mb-6"
           />
-        </div>
-        <div className="max-w-lg relative z-10">
-          <h1 className="text-4xl font-bold mb-6 text-white">Welcome to THERMOPAC</h1>
-          <p className="text-lg text-white text-opacity-90">
+          <h1 className="text-4xl font-bold mb-6 text-white text-center">Welcome to THERMOPAC</h1>
+          <p className="text-lg text-white text-opacity-90 text-center">
             A comprehensive platform for intercompany communication and task management.
             Connect with your team, manage tasks, and stay productive.
           </p>
