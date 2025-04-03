@@ -514,7 +514,13 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
                                 </TableCell>
                                 <TableCell className="font-medium">
                                   <div>
-                                    <span className={task.status === 'completed' ? 'line-through text-muted-foreground' : ''}>
+                                    <span className={
+                                      task.status === 'completed' 
+                                        ? 'line-through text-muted-foreground' 
+                                        : new Date(task.dueDate) < new Date() 
+                                          ? 'text-red-600 font-medium'
+                                          : ''
+                                    }>
                                       {task.title}
                                     </span>
                                     <div className="text-xs text-muted-foreground mt-1 max-w-md">
