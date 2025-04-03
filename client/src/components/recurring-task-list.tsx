@@ -447,9 +447,17 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
 
       {Object.keys(tasksByPattern).length > 0 ? (
         <div className="space-y-4">
-          {Object.entries(tasksByPattern).map(([patternIdStr, tasks]) => {
-            const patternId = parseInt(patternIdStr);
-            return (
+          {/* Sort pattern sections by earliest due date of any task in the pattern */}
+          {Object.entries(tasksByPattern)
+            .sort(([, tasksA], [, tasksB]) => {
+              // Find earliest due date in each pattern group
+              const earliestDueA = Math.min(...tasksA.map(task => new Date(task.dueDate).getTime()));
+              const earliestDueB = Math.min(...tasksB.map(task => new Date(task.dueDate).getTime()));
+              return earliestDueA - earliestDueB;
+            })
+            .map(([patternIdStr, tasks]) => {
+              const patternId = parseInt(patternIdStr);
+              return (
               <Collapsible
                 key={patternId}
                 open={openSections[patternId] ?? false}
