@@ -19,8 +19,13 @@ export default function AuthPage() {
     <div className="min-h-screen bg-background flex">
       <div className="flex-1 flex items-center justify-center p-8">
         <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>THERMOPAC Communication System</CardTitle>
+          <CardHeader className="flex flex-col items-center">
+            <img 
+              src="/images/thermopac-logo.jpg" 
+              alt="Thermopac Logo" 
+              className="h-24 mb-4"
+            />
+            <CardTitle>Communication System</CardTitle>
           </CardHeader>
           <CardContent>
             <LoginForm />
@@ -28,10 +33,17 @@ export default function AuthPage() {
         </Card>
       </div>
 
-      <div className="hidden lg:flex flex-1 bg-muted items-center justify-center p-12">
-        <div className="max-w-lg">
-          <h1 className="text-4xl font-bold mb-6 text-blue-600">Welcome to THERMOPAC</h1>
-          <p className="text-lg text-muted-foreground">
+      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-600 to-red-600 items-center justify-center p-12 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10 flex items-center justify-center">
+          <img 
+            src="/images/thermopac-logo.jpg" 
+            alt="Thermopac Background" 
+            className="w-full h-full object-contain"
+          />
+        </div>
+        <div className="max-w-lg relative z-10">
+          <h1 className="text-4xl font-bold mb-6 text-white">Welcome to THERMOPAC</h1>
+          <p className="text-lg text-white text-opacity-90">
             A comprehensive platform for intercompany communication and task management.
             Connect with your team, manage tasks, and stay productive.
           </p>
@@ -79,7 +91,11 @@ function LoginForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+        <Button 
+          type="submit" 
+          className="w-full bg-gradient-to-r from-blue-600 to-red-600 hover:from-blue-700 hover:to-red-700" 
+          disabled={loginMutation.isPending}
+        >
           Login
         </Button>
       </form>

@@ -42,7 +42,13 @@ export default function Layout({ children }: LayoutProps) {
       {/* Sidebar */}
       <aside className="w-64 border-r bg-card flex flex-col">
         <div className="p-6">
-          <h2 className="text-lg font-semibold mb-4">THERMOPAC</h2>
+          <div className="flex flex-col items-center mb-4">
+            <img 
+              src="/images/thermopac-logo.jpg" 
+              alt="Thermopac Logo" 
+              className="h-16 mb-2"
+            />
+          </div>
           <UserProfile user={user!} />
         </div>
         <Separator />
