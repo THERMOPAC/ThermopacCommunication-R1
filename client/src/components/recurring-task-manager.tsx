@@ -59,59 +59,92 @@ import { format } from "date-fns";
 import { Calendar as CalendarIcon, ChevronRight, Edit, Plus, Trash2 } from "lucide-react";
 
 // Create a schema for the recurring task form
-const recurringTaskSchema = insertRecurringPatternSchema.extend({
+const recurringTaskSchema = z.object({
+  // Core fields
   patternType: z.enum(["daily", "weekly", "monthly", "yearly"]), // UI field, maps to 'pattern' in the database
+  interval: z.coerce.number().int().min(1, "Interval must be at least 1"),
+  
+  // Template fields - all required
+  templateTitle: z.string().min(1, "Title is required"),
+  templateDescription: z.string().min(1, "Description is required"),
+  templatePriority: z.enum(["Low", "Medium", "High"]),
+  templateCategory: z.string().min(1, "Category is required"),
+  templateDurationDays: z.coerce.number().int().min(1, "Duration must be at least 1 day"),
+  templateAssignedTo: z.coerce.number().optional(),
   
   // Weekly pattern fields
-  daysOfWeek: z.array(z.string()).optional().default([]),
+  daysOfWeek: z.array(z.string()).default([]),
   
   // Monthly pattern fields
-  dayOfMonth: z.number().int().min(1).max(31).optional(),
+  dayOfMonth: z.coerce.number().int().min(1).max(31).optional(),
   
   // Yearly pattern fields
-  monthOfYear: z.number().int().min(1).max(12).optional(),
+  monthOfYear: z.coerce.number().int().min(1).max(12).optional(),
   
   // Common fields
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().optional(),
   hasEndDate: z.boolean().default(false),
-  maxOccurrences: z.number().optional(),
+  maxOccurrences: z.coerce.number().int().min(1).optional(),
+  isActive: z.boolean().default(true),
   
-  // Make sure userId and createdBy aren't required in the form as they'll be set from the authenticated user
+  // System fields - will be set automatically
   userId: z.number().optional(),
   createdBy: z.number().optional(),
-  // Mark additional fields as optional for form
   createdAt: z.string().optional(),
   generatedCount: z.number().optional(),
 })
-.refine(
-  (data) => {
-    // For weekly pattern, validate days of week
-    if (data.patternType === "weekly") {
-      return Array.isArray(data.daysOfWeek) && data.daysOfWeek.length > 0;
+.superRefine((data, ctx) => {
+  // For weekly pattern, validate days of week
+  if (data.patternType === "weekly") {
+    if (!Array.isArray(data.daysOfWeek) || data.daysOfWeek.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Weekly pattern requires at least one day of the week to be selected",
+        path: ["daysOfWeek"]
+      });
     }
-    
-    // For monthly pattern, validate day of month
-    if (data.patternType === "monthly") {
-      return data.dayOfMonth !== undefined && data.dayOfMonth >= 1 && data.dayOfMonth <= 31;
-    }
-    
-    // For yearly pattern, validate month of year and day of month
-    if (data.patternType === "yearly") {
-      return (
-        data.monthOfYear !== undefined && data.monthOfYear >= 1 && data.monthOfYear <= 12 &&
-        data.dayOfMonth !== undefined && data.dayOfMonth >= 1 && data.dayOfMonth <= 31
-      );
-    }
-    
-    // Daily pattern doesn't need additional validation
-    return true;
-  },
-  {
-    message: "Please fill in all required fields for the selected recurrence pattern",
-    path: ["patternType"]
   }
-);
+  
+  // For monthly pattern, validate day of month
+  if (data.patternType === "monthly") {
+    if (data.dayOfMonth === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Monthly pattern requires a day of the month",
+        path: ["dayOfMonth"]
+      });
+    }
+  }
+  
+  // For yearly pattern, validate month of year and day of month
+  if (data.patternType === "yearly") {
+    if (data.monthOfYear === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Yearly pattern requires a month of the year",
+        path: ["monthOfYear"]
+      });
+    }
+    
+    if (data.dayOfMonth === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Yearly pattern requires a day of the month",
+        path: ["dayOfMonth"]
+      });
+    }
+  }
+  
+  // Validate end date if hasEndDate is true
+  if (data.hasEndDate && (!data.endDate || data.endDate.trim() === "")) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "End date is required when 'Set end date' is enabled",
+      path: ["endDate"]
+    });
+  }
+});
 
 type RecurringTaskForm = z.infer<typeof recurringTaskSchema>;
 
@@ -305,6 +338,9 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       generatedCount: undefined,
     },
   });
+  
+  // Log any form errors
+  console.log("Form errors:", form.formState.errors);
 
   // Handle form submission
   const onSubmit = (data: RecurringTaskForm) => {
@@ -1283,13 +1319,34 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                   </TabsContent>
                 </Tabs>
                 
-                <DialogFooter>
-                  <Button variant="outline" type="button" onClick={() => setOpenDialog(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">
-                    {editingPattern ? "Update Pattern" : "Create Pattern"}
-                  </Button>
+                <DialogFooter className="flex flex-col space-y-2">
+                  {Object.keys(form.formState.errors).length > 0 && (
+                    <div className="w-full p-2 mb-2 text-sm text-red-800 bg-red-100 rounded-md">
+                      <p className="font-medium">Please fix the following errors:</p>
+                      <ul className="ml-4 list-disc">
+                        {Object.entries(form.formState.errors).map(([field, error]) => (
+                          <li key={field}>
+                            {field}: {error?.message as string}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="flex justify-end space-x-2 w-full">
+                    <Button variant="outline" type="button" onClick={() => setOpenDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      onClick={() => {
+                        console.log("Submit button clicked");
+                        console.log("Form values:", form.getValues());
+                        console.log("Form errors:", form.formState.errors);
+                      }}
+                    >
+                      {editingPattern ? "Update Pattern" : "Create Pattern"}
+                    </Button>
+                  </div>
                 </DialogFooter>
               </form>
             </Form>
