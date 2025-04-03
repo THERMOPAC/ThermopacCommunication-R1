@@ -39,6 +39,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 
 const FORWARD_ALLOWED_ROLES = ["Superuser", "General Manager", "Senior Manager", "Manager"];
 
@@ -87,6 +88,13 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
       }
       return acc;
     }, {} as Record<string, User[]>);
+    
+  // Get assignee's name helper function
+  const getAssigneeName = (assigneeId: number | null) => {
+    if (!assigneeId) return 'Unassigned';
+    const assignee = allUsers.find(u => u.id === assigneeId);
+    return assignee ? assignee.username : 'Unknown';
+  };
 
   // Filter and search tasks
   const filteredTasks = recurringTasks
@@ -143,13 +151,6 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
     }
     return acc;
   }, {} as Record<number, RecurringTask[]>);
-
-  // Get assignee's name helper function
-  const getAssigneeName = (assigneeId: number | null) => {
-    if (!assigneeId) return 'Unassigned';
-    const assignee = allUsers.find(u => u.id === assigneeId);
-    return assignee ? assignee.username : 'Unknown';
-  };
 
   // Get pattern name helper function (using the first task in each group)
   const getPatternName = (patternId: number, tasks: RecurringTask[]) => {
@@ -594,5 +595,3 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
   );
 }
 
-// Import for Input component
-import { Input } from "@/components/ui/input";
