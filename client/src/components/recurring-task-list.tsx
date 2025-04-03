@@ -126,11 +126,21 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
 
   // Group recurring tasks by pattern for display
   const tasksByPattern = filteredTasks.reduce((acc, task) => {
-    const patternId = task.recurringPatternId || 0; // Use 0 as fallback
-    if (!acc[patternId]) {
-      acc[patternId] = [];
+    // Ensure the task has a valid recurringPatternId
+    if (task.recurringPatternId === undefined || task.recurringPatternId === null) {
+      console.warn('Task missing recurringPatternId:', task);
+      // Skip this task or add to a "no pattern" group
+      if (!acc[0]) {
+        acc[0] = [];
+      }
+      acc[0].push(task);
+    } else {
+      const patternId = task.recurringPatternId;
+      if (!acc[patternId]) {
+        acc[patternId] = [];
+      }
+      acc[patternId].push(task);
     }
-    acc[patternId].push(task);
     return acc;
   }, {} as Record<number, RecurringTask[]>);
 
