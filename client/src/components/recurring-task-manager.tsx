@@ -32,7 +32,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from "@/components/ui/select";
+import { roles, roleHierarchy } from "@shared/roles";
 import {
   Dialog,
   DialogContent,
@@ -192,6 +195,19 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       return res.json();
     },
   });
+  
+  // Group users by role for the dropdown
+  const groupedUsers = users.length > 0 
+    ? [...roles]
+      .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
+      .reduce((acc: Record<string, User[]>, role: string) => {
+        const usersInRole = users.filter(u => u.role === role);
+        if (usersInRole.length > 0) {
+          acc[role] = usersInRole;
+        }
+        return acc;
+      }, {} as Record<string, User[]>)
+    : {};
 
   // Create a new recurring pattern
   const createPatternMutation = useMutation({
@@ -1319,10 +1335,17 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                                 </FormControl>
                                 <SelectContent>
                                   <SelectItem value="0">Unassigned</SelectItem>
-                                  {users.map((user) => (
-                                    <SelectItem key={user.id} value={user.id.toString()}>
-                                      {user.username}
-                                    </SelectItem>
+                                  {Object.entries(groupedUsers).map(([role, users]) => (
+                                    <SelectGroup key={role}>
+                                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                                        {role}s
+                                      </SelectLabel>
+                                      {users.map((user) => (
+                                        <SelectItem key={user.id} value={user.id.toString()}>
+                                          {user.username}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectGroup>
                                   ))}
                                 </SelectContent>
                               </Select>
