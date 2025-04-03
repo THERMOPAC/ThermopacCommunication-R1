@@ -64,6 +64,7 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
   const [filterPriority, setFilterPriority] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [filterAssignee, setFilterAssignee] = useState<number | null>(null);
+  const [dueDateRange, setDueDateRange] = useState<number | null>(30); // Default to 30 days
   const [showCompletedTasks, setShowCompletedTasks] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -117,6 +118,18 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
       // Apply assignee filter if selected
       if (filterAssignee !== null && task.assignedTo !== filterAssignee) {
         return false;
+      }
+      
+      // Apply due date range filter (if set)
+      if (dueDateRange !== null) {
+        const today = new Date();
+        const dueDate = new Date(task.dueDate);
+        const daysDifference = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Show tasks that are due within the specified number of days or are overdue
+        if (daysDifference > dueDateRange && daysDifference > 0) {
+          return false;
+        }
       }
       
       // Apply search query
@@ -405,6 +418,36 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
                   </Select>
                 </div>
                 
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Due Date Range (Days)</p>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      value={dueDateRange !== null ? dueDateRange : ""}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? null : Number(e.target.value);
+                        setDueDateRange(value);
+                      }}
+                      min="1"
+                      className="w-24"
+                    />
+                    <span className="text-sm text-gray-500">days</span>
+                    {dueDateRange !== null && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setDueDateRange(null)}
+                        className="h-8 px-2"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Shows tasks due within the specified number of days
+                  </p>
+                </div>
+                
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
@@ -426,6 +469,7 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
                       setFilterPriority(null);
                       setFilterStatus(null);
                       setFilterAssignee(null);
+                      setDueDateRange(30); // Reset to default 30 days
                       setShowCompletedTasks(false);
                       setIsFilterOpen(false);
                     }}
@@ -586,7 +630,7 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
           <CardContent className="flex flex-col items-center justify-center h-32 p-6">
             <Calendar className="h-10 w-10 text-muted-foreground mb-2" />
             <p className="text-center text-muted-foreground">
-              {searchQuery || filterPriority || filterStatus || filterAssignee ? 
+              {searchQuery || filterPriority || filterStatus || filterAssignee || dueDateRange ? 
                 "No recurring tasks match your filters" : 
                 "No recurring tasks available"
               }
