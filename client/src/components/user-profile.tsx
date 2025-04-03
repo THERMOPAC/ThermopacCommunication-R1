@@ -34,7 +34,7 @@ export default function UserProfile({ user }: UserProfileProps) {
 
       <Button 
         variant="outline" 
-        className="w-full" 
+        className="w-full text-red-600 hover:text-red-700" 
         onClick={() => logoutMutation.mutate()}
         disabled={logoutMutation.isPending}
       >
