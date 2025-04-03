@@ -157,6 +157,15 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
     }
     return acc;
   }, {} as Record<number, RecurringTask[]>);
+  
+  // Initialize all patterns as open by default
+  useEffect(() => {
+    const sections: Record<number, boolean> = {};
+    Object.keys(tasksByPattern).forEach(patternId => {
+      sections[parseInt(patternId)] = true; // Set each section to open by default
+    });
+    setOpenSections(sections);
+  }, [JSON.stringify(Object.keys(tasksByPattern))]);
 
   // Get pattern name helper function (using the first task in each group)
   const getPatternName = (patternId: number, tasks: RecurringTask[]) => {
