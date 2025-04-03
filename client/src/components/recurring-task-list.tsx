@@ -64,7 +64,7 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
   const [filterPriority, setFilterPriority] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [filterAssignee, setFilterAssignee] = useState<number | null>(null);
-  const [dueDateRange, setDueDateRange] = useState<number | null>(30); // Default to 30 days
+  const [dueDateRange, setDueDateRange] = useState<number>(30); // Default to 30 days
   const [showCompletedTasks, setShowCompletedTasks] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -120,16 +120,14 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
         return false;
       }
       
-      // Apply due date range filter (if set)
-      if (dueDateRange !== null) {
-        const today = new Date();
-        const dueDate = new Date(task.dueDate);
-        const daysDifference = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
-        // Show tasks that are due within the specified number of days or are overdue
-        if (daysDifference > dueDateRange && daysDifference > 0) {
-          return false;
-        }
+      // Apply due date range filter (always set with default value of 30)
+      const today = new Date();
+      const dueDate = new Date(task.dueDate);
+      const daysDifference = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Show tasks that are due within the specified number of days or are overdue
+      if (daysDifference > dueDateRange && daysDifference > 0) {
+        return false;
       }
       
       // Apply search query
@@ -423,28 +421,26 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
                   <div className="flex items-center gap-3">
                     <Input
                       type="number"
-                      value={dueDateRange !== null ? dueDateRange : ""}
+                      value={dueDateRange}
                       onChange={(e) => {
-                        const value = e.target.value === "" ? null : Number(e.target.value);
+                        const value = e.target.value === "" ? 30 : Number(e.target.value);
                         setDueDateRange(value);
                       }}
                       min="1"
                       className="w-24"
                     />
                     <span className="text-sm text-gray-500">days</span>
-                    {dueDateRange !== null && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => setDueDateRange(null)}
-                        className="h-8 px-2"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setDueDateRange(30)}
+                      className="h-8 px-2"
+                    >
+                      <span className="text-xs">Reset to 30</span>
+                    </Button>
                   </div>
                   <p className="text-xs text-gray-500">
-                    Shows tasks due within the specified number of days
+                    Shows tasks due within the next {dueDateRange} days
                   </p>
                 </div>
                 
@@ -630,8 +626,10 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
           <CardContent className="flex flex-col items-center justify-center h-32 p-6">
             <Calendar className="h-10 w-10 text-muted-foreground mb-2" />
             <p className="text-center text-muted-foreground">
-              {searchQuery || filterPriority || filterStatus || filterAssignee || dueDateRange ? 
+              {searchQuery || filterPriority || filterStatus || filterAssignee ? 
                 "No recurring tasks match your filters" : 
+                dueDateRange ? 
+                `No recurring tasks due within next ${dueDateRange} days` : 
                 "No recurring tasks available"
               }
             </p>
