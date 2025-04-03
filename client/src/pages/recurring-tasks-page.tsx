@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import RecurringTaskManager from "@/components/recurring-task-manager";
 import RecurringTaskList from "@/components/recurring-task-list";
 import Layout from "@/components/layout";
+import { DueDateFilter } from "@/components/due-date-filter";
 import { User, RecurringTask } from "@shared/schema";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function RecurringTasksPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("patterns");
+  const [dueDateFilter, setDueDateFilter] = useState<number>(30); // Default to 30 days
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -125,7 +127,34 @@ export default function RecurringTasksPage() {
               <RecurringTaskManager users={getUsers()} />
             </TabsContent>
             <TabsContent value="tasks">
-              <RecurringTaskList recurringTasks={recurringTasks} subordinates={subordinates} />
+              <div className="mb-4">
+                <div className="flex flex-wrap gap-4 items-start">
+                  <div className="flex-grow">
+                    <h3 className="text-lg font-semibold mb-2">Recurring Tasks</h3>
+                    <p className="text-sm text-muted-foreground">
+                      View and manage tasks that recur on a regular schedule
+                    </p>
+                  </div>
+                  <div className="w-64">
+                    <DueDateFilter 
+                      defaultValue={dueDateFilter} 
+                      onChange={(days) => setDueDateFilter(days || 30)} 
+                    />
+                  </div>
+                </div>
+              </div>
+              <RecurringTaskList 
+                recurringTasks={recurringTasks.filter(task => {
+                  // Filter tasks by due date range
+                  const today = new Date();
+                  const dueDate = new Date(task.dueDate);
+                  const daysDifference = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                  
+                  // Show tasks that are due within the specified days or are overdue
+                  return daysDifference <= dueDateFilter || daysDifference <= 0;
+                })} 
+                subordinates={subordinates} 
+              />
             </TabsContent>
           </Tabs>
         )}
