@@ -724,8 +724,14 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
     }
 
     // Add month of year for yearly pattern
-    if (pattern.pattern === "yearly" && pattern.monthOfYear) {
-      formData.monthOfYear = pattern.monthOfYear;
+    if (pattern.pattern === "yearly") {
+      if (pattern.monthOfYear) {
+        formData.monthOfYear = pattern.monthOfYear;
+      }
+      // Also add day of month for yearly pattern
+      if (pattern.dayOfMonth) {
+        formData.dayOfMonth = pattern.dayOfMonth;
+      }
     }
 
     return formData;
