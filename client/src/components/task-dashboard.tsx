@@ -5,7 +5,7 @@ import { Task, User } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TaskList from "@/components/task-list-new";
-import { DueDateFilter } from "@/components/due-date-filter";
+// Due date filter import removed
 import { 
   Select, 
   SelectContent, 
@@ -38,7 +38,7 @@ import {
 export default function TaskDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("all");
-  const [dueDateFilter, setDueDateFilter] = useState<number | null>(30); // Default 30 days
+  // Removed due date filter as per requirement
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [sortBy, setSortBy] = useState<"dueDate" | "priority" | "title">("dueDate");
@@ -70,18 +70,7 @@ export default function TaskDashboard() {
       });
     }
     
-    // Filter by due date
-    if (dueDateFilter !== null) {
-      const today = new Date();
-      const futureDate = new Date();
-      futureDate.setDate(today.getDate() + dueDateFilter);
-      
-      filteredTasks = filteredTasks.filter(task => {
-        if (!task.dueDate) return false;
-        const dueDate = new Date(task.dueDate);
-        return dueDate <= futureDate && (task.status === "pending" || activeTab === "completed");
-      });
-    }
+    // Due date filter has been removed as per requirement
     
     // Filter by priority
     if (priorityFilter) {
@@ -195,13 +184,7 @@ export default function TaskDashboard() {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          {/* Due date filter */}
-          <div className="flex-shrink-0">
-            <DueDateFilter 
-              defaultValue={dueDateFilter || undefined} 
-              onChange={setDueDateFilter} 
-            />
-          </div>
+          {/* Due date filter removed as per requirement */}
           
           {/* Priority filter */}
           <Select
