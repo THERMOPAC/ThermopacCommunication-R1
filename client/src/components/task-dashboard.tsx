@@ -205,14 +205,14 @@ export default function TaskDashboard() {
           
           {/* Priority filter */}
           <Select
-            value={priorityFilter || ""}
-            onValueChange={(value) => setPriorityFilter(value === "" ? null : value)}
+            value={priorityFilter || "all"}
+            onValueChange={(value) => setPriorityFilter(value === "all" ? null : value)}
           >
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Priority" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Priorities</SelectItem>
+              <SelectItem value="all">All Priorities</SelectItem>
               <SelectItem value="High">
                 <div className="flex items-center">
                   <AlertCircle className="h-4 w-4 text-red-500 mr-2" />

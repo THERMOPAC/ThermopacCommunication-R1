@@ -455,7 +455,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                             </SelectGroup>
                           ))
                         ) : (
-                          <SelectItem value="" disabled>Loading users...</SelectItem>
+                          <SelectItem value="loading" disabled>Loading users...</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
@@ -556,7 +556,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                             </SelectGroup>
                           ))
                         ) : (
-                          <SelectItem value="" disabled>Loading users...</SelectItem>
+                          <SelectItem value="loading" disabled>Loading users...</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
@@ -665,14 +665,14 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Assigned To</p>
                   <Select
-                    value={filterAssignee !== null ? filterAssignee.toString() : ""}
-                    onValueChange={(value) => setFilterAssignee(value ? Number(value) : null)}
+                    value={filterAssignee !== null ? filterAssignee.toString() : "all"}
+                    onValueChange={(value) => setFilterAssignee(value === "all" ? null : Number(value))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Filter by assignee" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Assignees</SelectItem>
+                      <SelectItem value="all">All Assignees</SelectItem>
                       {isDataReady ? (
                         allUsers.map((userItem) => (
                           <SelectItem key={userItem.id} value={userItem.id.toString()}>
@@ -680,7 +680,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>Loading users...</SelectItem>
+                        <SelectItem value="loading" disabled>Loading users...</SelectItem>
                       )}
                     </SelectContent>
                   </Select>
@@ -842,7 +842,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                                 </SelectGroup>
                               ))
                             ) : (
-                              <SelectItem value="" disabled>Loading users...</SelectItem>
+                              <SelectItem value="loading" disabled>Loading users...</SelectItem>
                             )}
                           </SelectContent>
                         </Select>
