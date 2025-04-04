@@ -7,6 +7,7 @@ import { canManage, roleHierarchy } from "@shared/roles";
 import { scrypt, timingSafeEqual, randomBytes } from "crypto";
 import { promisify } from "util";
 import { eq } from "drizzle-orm";
+import { setupGmailRoutes } from "./gmail-routes";
 
 const scryptAsync = promisify(scrypt);
 
@@ -25,6 +26,9 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
+  
+  // Set up Gmail integration routes
+  setupGmailRoutes(app);
 
   // Logout endpoint with proper error handling
   app.post("/api/logout", (req, res) => {

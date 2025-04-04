@@ -246,3 +246,69 @@ export type RecurringPattern = typeof recurringPatterns.$inferSelect;
 export type InsertRecurringPattern = z.infer<typeof insertRecurringPatternSchema>;
 export type RecurringTask = typeof recurringTasks.$inferSelect;
 export type InsertRecurringTask = z.infer<typeof insertRecurringTaskSchema>;
+
+// Gmail integration tables
+export const gmailTokens = pgTable('gmail_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  accessToken: text('access_token').notNull(),
+  refreshToken: text('refresh_token'),
+  tokenExpiry: timestamp('token_expiry'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const gmailMessages = pgTable('gmail_messages', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  messageId: text('message_id').notNull(),
+  threadId: text('thread_id'),
+  from: text('from_address').notNull(),
+  to: text('to_address').notNull(),
+  subject: text('subject'),
+  snippet: text('snippet'),
+  body: text('body'),
+  receivedAt: timestamp('received_at'),
+  isRead: boolean('is_read').default(false),
+  isImportant: boolean('is_important').default(false),
+  labels: text('labels').array(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const gmailSettings = pgTable('gmail_settings', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  autoSyncEnabled: boolean('auto_sync_enabled').default(true),
+  syncFrequencyMinutes: integer('sync_frequency_minutes').default(30),
+  autoForwardRules: jsonb('auto_forward_rules').$type<{
+    senderPattern?: string;
+    subjectPattern?: string;
+    bodyPattern?: string;
+    forwardToUserId: number;
+  }[]>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Gmail schema types & insert schemas
+export const insertGmailTokenSchema = createInsertSchema(gmailTokens, {
+  refreshToken: z.string().optional()
+});
+
+export const insertGmailMessageSchema = createInsertSchema(gmailMessages, {
+  threadId: z.string().optional(),
+  subject: z.string().optional(),
+  snippet: z.string().optional(),
+  body: z.string().optional(),
+  receivedAt: z.date().optional(),
+  labels: z.array(z.string()).optional()
+});
+
+export const insertGmailSettingsSchema = createInsertSchema(gmailSettings);
+
+export type GmailToken = typeof gmailTokens.$inferSelect;
+export type InsertGmailToken = z.infer<typeof insertGmailTokenSchema>;
+export type GmailMessage = typeof gmailMessages.$inferSelect;
+export type InsertGmailMessage = z.infer<typeof insertGmailMessageSchema>;
+export type GmailSettings = typeof gmailSettings.$inferSelect;
+export type InsertGmailSettings = z.infer<typeof insertGmailSettingsSchema>;

@@ -7,7 +7,10 @@ import type {
   UserAchievement, InsertUserAchievement,
   ProductivityMetric, InsertProductivityMetric,
   RecurringPattern, InsertRecurringPattern,
-  RecurringTask, InsertRecurringTask
+  RecurringTask, InsertRecurringTask,
+  GmailToken, InsertGmailToken,
+  GmailMessage, InsertGmailMessage,
+  GmailSettings, InsertGmailSettings
 } from "@shared/schema";
 import { roleHierarchy, canManage } from "@shared/roles";
 import session from "express-session";
@@ -22,7 +25,10 @@ import {
   userAchievements as userAchievementsTable,
   productivityMetrics as productivityMetricsTable,
   recurringPatterns as recurringPatternsTable,
-  recurringTasks as recurringTasksTable
+  recurringTasks as recurringTasksTable,
+  gmailTokens as gmailTokensTable,
+  gmailMessages as gmailMessagesTable,
+  gmailSettings as gmailSettingsTable
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 
@@ -42,6 +48,9 @@ export class DatabaseStorage implements IStorage {
   productivityMetricsTable = productivityMetricsTable;
   recurringPatternsTable = recurringPatternsTable;
   recurringTasksTable = recurringTasksTable;
+  gmailTokensTable = gmailTokensTable;
+  gmailMessagesTable = gmailMessagesTable;
+  gmailSettingsTable = gmailSettingsTable;
 
   constructor() {
     if (!process.env.DATABASE_URL) {
@@ -1314,6 +1323,182 @@ export class DatabaseStorage implements IStorage {
     
     console.log(`Finished processing recurring patterns. Generated ${tasksGeneratedCount} new tasks.`);
     return tasksGeneratedCount;
+  }
+  
+  // Gmail Integration Methods
+  async saveGmailToken(token: InsertGmailToken): Promise<GmailToken> {
+    console.log(`Saving Gmail token for user ${token.userId}`);
+    const result = await db.insert(gmailTokensTable).values(token).returning();
+    const gmailToken = result[0] as GmailToken;
+    console.log(`Saved Gmail token for user ${token.userId}`);
+    return gmailToken;
+  }
+
+  async getGmailToken(userId: number): Promise<GmailToken | undefined> {
+    console.log(`Getting Gmail token for user ${userId}`);
+    const result = await db
+      .select()
+      .from(gmailTokensTable)
+      .where(eq(gmailTokensTable.userId, userId));
+    return result[0] as GmailToken | undefined;
+  }
+
+  async updateGmailToken(userId: number, updateData: Partial<GmailToken>): Promise<GmailToken> {
+    console.log(`Updating Gmail token for user ${userId}`);
+    const result = await db
+      .update(gmailTokensTable)
+      .set({
+        ...updateData,
+        updatedAt: new Date()
+      })
+      .where(eq(gmailTokensTable.userId, userId))
+      .returning();
+    
+    const token = result[0] as GmailToken;
+    if (!token) throw new Error(`No Gmail token found for user ${userId}`);
+    
+    console.log(`Updated Gmail token for user ${userId}`);
+    return token;
+  }
+
+  async deleteGmailToken(userId: number): Promise<void> {
+    console.log(`Deleting Gmail token for user ${userId}`);
+    await db
+      .delete(gmailTokensTable)
+      .where(eq(gmailTokensTable.userId, userId));
+    console.log(`Deleted Gmail token for user ${userId}`);
+  }
+
+  // Gmail Messages
+  async saveGmailMessage(message: InsertGmailMessage): Promise<GmailMessage> {
+    console.log(`Saving Gmail message for user ${message.userId}`);
+    const result = await db.insert(gmailMessagesTable).values(message).returning();
+    const gmailMessage = result[0] as GmailMessage;
+    console.log(`Saved Gmail message: ${gmailMessage.id}`);
+    return gmailMessage;
+  }
+
+  async getGmailMessagesForUser(userId: number, filters?: {
+    isRead?: boolean;
+    isImportant?: boolean;
+    from?: string;
+    to?: string;
+    subject?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<GmailMessage[]> {
+    console.log(`Getting Gmail messages for user ${userId} with filters:`, filters);
+    
+    let query = db
+      .select()
+      .from(gmailMessagesTable)
+      .where(eq(gmailMessagesTable.userId, userId));
+    
+    // Apply filters if provided
+    if (filters) {
+      if (filters.isRead !== undefined) {
+        query = query.where(eq(gmailMessagesTable.isRead, filters.isRead));
+      }
+      
+      if (filters.isImportant !== undefined) {
+        query = query.where(eq(gmailMessagesTable.isImportant, filters.isImportant));
+      }
+      
+      if (filters.from) {
+        query = query.where(like(gmailMessagesTable.from, `%${filters.from}%`));
+      }
+      
+      if (filters.to) {
+        query = query.where(like(gmailMessagesTable.to, `%${filters.to}%`));
+      }
+      
+      if (filters.subject) {
+        query = query.where(like(gmailMessagesTable.subject, `%${filters.subject}%`));
+      }
+      
+      if (filters.startDate) {
+        query = query.where(sql`${gmailMessagesTable.receivedAt} >= ${filters.startDate.toISOString()}`);
+      }
+      
+      if (filters.endDate) {
+        query = query.where(sql`${gmailMessagesTable.receivedAt} <= ${filters.endDate.toISOString()}`);
+      }
+    }
+    
+    // Order by most recent messages first
+    query = query.orderBy(desc(gmailMessagesTable.receivedAt));
+    
+    const messages = await query;
+    console.log(`Found ${messages.length} Gmail messages for user ${userId}`);
+    return messages as GmailMessage[];
+  }
+
+  async getGmailMessage(id: number): Promise<GmailMessage | undefined> {
+    console.log(`Getting Gmail message with ID ${id}`);
+    const result = await db
+      .select()
+      .from(gmailMessagesTable)
+      .where(eq(gmailMessagesTable.id, id));
+    return result[0] as GmailMessage | undefined;
+  }
+
+  async updateGmailMessage(id: number, updateData: Partial<GmailMessage>): Promise<GmailMessage> {
+    console.log(`Updating Gmail message ${id}`);
+    const result = await db
+      .update(gmailMessagesTable)
+      .set(updateData)
+      .where(eq(gmailMessagesTable.id, id))
+      .returning();
+    
+    const message = result[0] as GmailMessage;
+    if (!message) throw new Error(`No Gmail message found with ID ${id}`);
+    
+    console.log(`Updated Gmail message ${id}`);
+    return message;
+  }
+
+  async deleteGmailMessage(id: number): Promise<void> {
+    console.log(`Deleting Gmail message ${id}`);
+    await db
+      .delete(gmailMessagesTable)
+      .where(eq(gmailMessagesTable.id, id));
+    console.log(`Deleted Gmail message ${id}`);
+  }
+
+  // Gmail Settings
+  async saveGmailSettings(settings: InsertGmailSettings): Promise<GmailSettings> {
+    console.log(`Saving Gmail settings for user ${settings.userId}`);
+    const result = await db.insert(gmailSettingsTable).values(settings).returning();
+    const gmailSettings = result[0] as GmailSettings;
+    console.log(`Saved Gmail settings for user ${settings.userId}`);
+    return gmailSettings;
+  }
+
+  async getGmailSettings(userId: number): Promise<GmailSettings | undefined> {
+    console.log(`Getting Gmail settings for user ${userId}`);
+    const result = await db
+      .select()
+      .from(gmailSettingsTable)
+      .where(eq(gmailSettingsTable.userId, userId));
+    return result[0] as GmailSettings | undefined;
+  }
+
+  async updateGmailSettings(userId: number, updateData: Partial<GmailSettings>): Promise<GmailSettings> {
+    console.log(`Updating Gmail settings for user ${userId}`);
+    const result = await db
+      .update(gmailSettingsTable)
+      .set({
+        ...updateData,
+        updatedAt: new Date()
+      })
+      .where(eq(gmailSettingsTable.userId, userId))
+      .returning();
+    
+    const settings = result[0] as GmailSettings;
+    if (!settings) throw new Error(`No Gmail settings found for user ${userId}`);
+    
+    console.log(`Updated Gmail settings for user ${userId}`);
+    return settings;
   }
 }
 

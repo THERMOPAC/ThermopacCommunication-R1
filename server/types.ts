@@ -3,7 +3,9 @@ import {
   WorkflowRecommendation, InsertWorkflowRecommendation, 
   Achievement, InsertAchievement, UserAchievement, InsertUserAchievement,
   ProductivityMetric, InsertProductivityMetric,
-  RecurringPattern, InsertRecurringPattern
+  RecurringPattern, InsertRecurringPattern, RecurringTask, InsertRecurringTask,
+  GmailToken, InsertGmailToken, GmailMessage, InsertGmailMessage, 
+  GmailSettings, InsertGmailSettings
 } from "@shared/schema";
 import { Store } from "express-session";
 
@@ -82,4 +84,30 @@ export interface IStorage {
   getUserRecurringPatterns(userId: number): Promise<RecurringPattern[]>;
   getActiveRecurringPatterns(): Promise<RecurringPattern[]>;
   processRecurringPatterns(): Promise<number>; // Generates new tasks from due patterns and returns count of tasks created
+  
+  // Gmail Integration
+  saveGmailToken(token: InsertGmailToken): Promise<GmailToken>;
+  getGmailToken(userId: number): Promise<GmailToken | undefined>;
+  updateGmailToken(userId: number, updateData: Partial<GmailToken>): Promise<GmailToken>;
+  deleteGmailToken(userId: number): Promise<void>;
+  
+  // Gmail Messages
+  saveGmailMessage(message: InsertGmailMessage): Promise<GmailMessage>;
+  getGmailMessagesForUser(userId: number, filters?: {
+    isRead?: boolean;
+    isImportant?: boolean;
+    from?: string;
+    to?: string;
+    subject?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<GmailMessage[]>;
+  getGmailMessage(id: number): Promise<GmailMessage | undefined>;
+  updateGmailMessage(id: number, updateData: Partial<GmailMessage>): Promise<GmailMessage>;
+  deleteGmailMessage(id: number): Promise<void>;
+  
+  // Gmail Settings
+  saveGmailSettings(settings: InsertGmailSettings): Promise<GmailSettings>;
+  getGmailSettings(userId: number): Promise<GmailSettings | undefined>;
+  updateGmailSettings(userId: number, updateData: Partial<GmailSettings>): Promise<GmailSettings>;
 }
