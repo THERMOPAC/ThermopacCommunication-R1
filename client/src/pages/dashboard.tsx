@@ -1,24 +1,18 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Task, User } from "@shared/schema";
-import TaskList from "@/components/task-list-new";
-import UserProfile from "@/components/user-profile";
+import { User } from "@shared/schema";
 import UserManagement from "@/components/user-management";
-import WorkflowRecommendations from "@/components/workflow-recommendations";
-import { Separator } from "@/components/ui/separator";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import HomeDashboard from "@/components/home-dashboard";
+import TaskDashboard from "@/components/task-dashboard";
+import MessagesComponent from "@/components/messages";
 import {
   Mail,
   Phone,
   ChevronDown,
   ChevronRight,
-  Lightbulb,
-  Award,
-  TrendingUp,
   Users
 } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { roles, roleHierarchy } from "@shared/roles";
 import {
   Collapsible,
@@ -27,14 +21,12 @@ import {
 } from "@/components/ui/collapsible";
 import { useState } from "react";
 import Layout from "@/components/layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [location] = useLocation();
-
-  const { data: tasks = [] } = useQuery<Task[]>({
-    queryKey: ["/api/tasks"],
-  });
 
   const { data: subordinates = [] } = useQuery<User[]>({
     queryKey: ["/api/subordinates"],
@@ -45,14 +37,11 @@ export default function Dashboard() {
     enabled: user?.role === "Superuser", // Only fetch all users for superuser
   });
 
-  // Show user management when on /users route and user is superuser
+  // Determine which view to show based on the route
   const showUserManagement = location === "/users" && user?.role === "Superuser";
-
-  // Show team view when on /team route
   const showTeam = location === "/team";
-  
-  // Show recommendations when on /recommendations route
-  const showRecommendations = location === "/recommendations";
+  const showMessages = location === "/messages";
+  const showTasks = location === "/tasks";
 
   // Helper function to get reporting manager name
   const getManagerName = (managerId: number | null) => {
@@ -78,185 +67,119 @@ export default function Dashboard() {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
     // Initialize with all sections closed
     return sortedRoles.reduce((acc, role) => {
-      acc[role] = false; // Changed from true to false for initial collapsed state
+      acc[role] = false; // Initial collapsed state
       return acc;
     }, {} as Record<string, boolean>);
   });
 
   return (
     <Layout>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Welcome, {user!.username}</h1>
-      </div>
-
-      <div className="grid gap-6">
-        {showUserManagement ? (
-          <UserManagement />
-        ) : showRecommendations ? (
-          <WorkflowRecommendations />
-        ) : showTeam ? (
-          <section>
-            <Card>
-              <CardHeader>
-                <CardTitle>Organization Structure</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-8">
-                  {/* Display reporting manager if not superuser */}
-                  {user?.role !== "Superuser" && user?.reportingManagerId && (
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Manager</h3>
-                      <Card className="bg-muted">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium">{getManagerName(user.reportingManagerId)}</p>
-                              <p className="text-sm text-muted-foreground">Reporting Manager</p>
-                            </div>
+      {showUserManagement ? (
+        <UserManagement />
+      ) : showTeam ? (
+        <section>
+          <Card>
+            <CardHeader>
+              <CardTitle>Organization Structure</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-8">
+                {/* Display reporting manager if not superuser */}
+                {user?.role !== "Superuser" && user?.reportingManagerId && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Manager</h3>
+                    <Card className="bg-muted">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{getManagerName(user.reportingManagerId)}</p>
+                            <p className="text-sm text-muted-foreground">Reporting Manager</p>
                           </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
 
-                  {/* Team Members by Role */}
-                  {sortedRoles.map(role => {
-                    const usersInRole = groupedUsers[role];
-                    if (!usersInRole) return null;
+                {/* Team Members by Role */}
+                {sortedRoles.map(role => {
+                  const usersInRole = groupedUsers[role];
+                  if (!usersInRole) return null;
 
-                    return (
-                      <Collapsible
-                        key={role}
-                        open={openSections[role]}
-                        onOpenChange={(isOpen) => {
-                          setOpenSections(prev => ({
-                            ...prev,
-                            [role]: isOpen
-                          }));
-                        }}
-                      >
-                        <CollapsibleTrigger className="flex items-center gap-2 w-full">
-                          <div className="flex items-center gap-2 text-lg font-semibold">
-                            {openSections[role] ? (
-                              <ChevronDown className="h-5 w-5" />
-                            ) : (
-                              <ChevronRight className="h-5 w-5" />
-                            )}
-                            <Users className="h-5 w-5" />
-                            {role}s
-                            <Badge variant="secondary" className="ml-2">
-                              {usersInRole.length}
-                            </Badge>
-                          </div>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="mt-4">
-                          <div className="grid gap-4 pl-9">
-                            {usersInRole.map((member) => (
-                              <Card key={member.id}>
-                                <CardContent className="p-4">
-                                  <div className="flex flex-col gap-2">
-                                    <div className="flex justify-between items-start">
-                                      <div>
-                                        <p className="font-medium">{member.username}</p>
-                                        <Badge variant="outline" className="mt-1">
-                                          {member.role}
-                                        </Badge>
-                                      </div>
-                                      {member.reportingManagerId && member.reportingManagerId !== member.id && (
-                                        <p className="text-sm text-muted-foreground">
-                                          Reports to: {getManagerName(member.reportingManagerId)}
-                                        </p>
-                                      )}
+                  return (
+                    <Collapsible
+                      key={role}
+                      open={openSections[role]}
+                      onOpenChange={(isOpen) => {
+                        setOpenSections(prev => ({
+                          ...prev,
+                          [role]: isOpen
+                        }));
+                      }}
+                    >
+                      <CollapsibleTrigger className="flex items-center gap-2 w-full">
+                        <div className="flex items-center gap-2 text-lg font-semibold">
+                          {openSections[role] ? (
+                            <ChevronDown className="h-5 w-5" />
+                          ) : (
+                            <ChevronRight className="h-5 w-5" />
+                          )}
+                          <Users className="h-5 w-5" />
+                          {role}s
+                          <Badge variant="secondary" className="ml-2">
+                            {usersInRole.length}
+                          </Badge>
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-4">
+                        <div className="grid gap-4 pl-9">
+                          {usersInRole.map((member) => (
+                            <Card key={member.id}>
+                              <CardContent className="p-4">
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <p className="font-medium">{member.username}</p>
+                                      <Badge variant="outline" className="mt-1">
+                                        {member.role}
+                                      </Badge>
                                     </div>
-                                    <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                                      <div className="flex items-center gap-1">
-                                        <Mail className="h-4 w-4" />
-                                        {member.email}
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        <Phone className="h-4 w-4" />
-                                        {member.countryCode} {member.mobileNumber}
-                                      </div>
+                                    {member.reportingManagerId && member.reportingManagerId !== member.id && (
+                                      <p className="text-sm text-muted-foreground">
+                                        Reports to: {getManagerName(member.reportingManagerId)}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                                    <div className="flex items-center gap-1">
+                                      <Mail className="h-4 w-4" />
+                                      {member.email}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Phone className="h-4 w-4" />
+                                      {member.countryCode} {member.mobileNumber}
                                     </div>
                                   </div>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-        ) : (
-          <>
-            {/* Tasks Section */}
-            <section>
-              <TaskList tasks={tasks} subordinates={subordinates} />
-            </section>
-            
-            {/* Show a summary of active recommendations on dashboard */}
-            <section className="mt-8">
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="flex items-center">
-                      <Lightbulb className="mr-2 h-5 w-5 text-yellow-500" />
-                      Workflow Recommendations
-                    </CardTitle>
-                    <Link href="/recommendations">
-                      <button className="text-sm text-blue-600 hover:underline">
-                        View All
-                      </button>
-                    </Link>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <WorkflowRecommendations />
-                </CardContent>
-              </Card>
-            </section>
-            
-            {/* Leaderboard Section */}
-            <section className="mt-8">
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="flex items-center">
-                      <Award className="mr-2 h-5 w-5 text-purple-500" />
-                      Team Leaderboard
-                    </CardTitle>
-                    <Link href="/leaderboard">
-                      <button className="text-sm text-blue-600 hover:underline">
-                        View Full Leaderboard
-                      </button>
-                    </Link>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex justify-between items-center p-4">
-                    <div className="flex flex-col">
-                      <h3 className="text-lg font-semibold">Performance Tracking</h3>
-                      <p className="text-sm text-muted-foreground">Monitor your productivity and achievements</p>
-                    </div>
-                    <Link href="/leaderboard">
-                      <button className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md">
-                        <span className="flex items-center">
-                          <TrendingUp className="mr-2 h-4 w-4" />
-                          Check Your Rank
-                        </span>
-                      </button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-          </>
-        )}
-      </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      ) : showMessages ? (
+        <MessagesComponent />
+      ) : showTasks ? (
+        <TaskDashboard />
+      ) : (
+        <HomeDashboard />
+      )}
     </Layout>
   );
 }

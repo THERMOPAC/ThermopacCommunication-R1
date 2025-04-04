@@ -72,6 +72,7 @@ export const tasks = pgTable('tasks', {
   priority: text('priority').notNull().default('Medium'),
   startDate: text('start_date').notNull(),
   finishDate: text('finish_date').notNull(),
+  dueDate: text('due_date'), // Due date for the task (optional to avoid data loss with existing records)
   assignedTo: integer('assigned_to').references(() => users.id),
   createdBy: integer('created_by').references(() => users.id),
   createdAt: text('created_at').notNull(),
@@ -177,7 +178,8 @@ export const insertUserSchema = createInsertSchema(users).extend({
 export const insertTaskSchema = createInsertSchema(tasks).extend({
   priority: z.enum(['Low', 'Medium', 'High']),
   startDate: z.string(),
-  finishDate: z.string()
+  finishDate: z.string(),
+  dueDate: z.string().optional()
 });
 
 // Create insert schemas for new tables
