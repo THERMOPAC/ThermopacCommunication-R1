@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import ProfilePage from "@/pages/profile-page";
 import LeaderboardPage from "@/pages/leaderboard-page";
 import RecurringTasksPage from "@/pages/recurring-tasks-page";
+import EmailsPage from "@/pages/emails-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 
@@ -47,6 +48,7 @@ function Router() {
       <ProtectedRoute path="/team" component={Dashboard} />
       <ProtectedRoute path="/recommendations" component={Dashboard} />
       <ProtectedRoute path="/messages" component={Dashboard} />
+      <ProtectedRoute path="/emails" component={EmailsPage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/leaderboard" component={LeaderboardPage} />
       <ProtectedRoute path="/recurring-tasks" component={RecurringTasksPage} />

@@ -91,6 +91,11 @@ export interface IStorage {
   updateGmailToken(userId: number, updateData: Partial<GmailToken>): Promise<GmailToken>;
   deleteGmailToken(userId: number): Promise<void>;
   
+  // Google OAuth Integration
+  saveGoogleTokens(userId: number, tokens: any): Promise<GmailToken>;
+  getGoogleTokens(userId: number): Promise<GmailToken | undefined>;
+  deleteGoogleTokens(userId: number): Promise<void>;
+  
   // Gmail Messages
   saveGmailMessage(message: InsertGmailMessage): Promise<GmailMessage>;
   getGmailMessagesForUser(userId: number, filters?: {

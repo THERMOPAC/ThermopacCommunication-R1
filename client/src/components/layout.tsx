@@ -12,7 +12,8 @@ import {
   Lightbulb,
   Award,
   TrendingUp,
-  Repeat
+  Repeat,
+  Mail
 } from "lucide-react";
 
 type LayoutProps = {
@@ -31,6 +32,7 @@ export default function Layout({ children }: LayoutProps) {
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
     { icon: MessageSquare, label: "Messages", href: "/messages" },
+    { icon: Mail, label: "Emails", href: "/emails" },
     { icon: UserIcon, label: "Profile", href: "/profile" },
     ...(user?.role === "Superuser" ? [
       { icon: UserCog, label: "User Management", href: "/users" }

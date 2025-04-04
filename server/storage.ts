@@ -1334,6 +1334,31 @@ export class DatabaseStorage implements IStorage {
     return gmailToken;
   }
 
+  // Method to save Google OAuth tokens from the response
+  async saveGoogleTokens(userId: number, tokens: any): Promise<GmailToken> {
+    console.log(`Saving Google OAuth tokens for user ${userId}`);
+    // Check if token already exists for this user
+    const existingToken = await this.getGmailToken(userId);
+    
+    if (existingToken) {
+      // Update existing token
+      return this.updateGmailToken(userId, {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token || existingToken.refreshToken, // Keep old refresh token if not provided
+        tokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+      });
+    } else {
+      // Create new token
+      const tokenData: InsertGmailToken = {
+        userId,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        tokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+      };
+      return this.saveGmailToken(tokenData);
+    }
+  }
+
   async getGmailToken(userId: number): Promise<GmailToken | undefined> {
     console.log(`Getting Gmail token for user ${userId}`);
     const result = await db
@@ -1341,6 +1366,11 @@ export class DatabaseStorage implements IStorage {
       .from(gmailTokensTable)
       .where(eq(gmailTokensTable.userId, userId));
     return result[0] as GmailToken | undefined;
+  }
+  
+  // Alias for getGmailToken to match naming convention in google-auth.ts
+  async getGoogleTokens(userId: number): Promise<GmailToken | undefined> {
+    return this.getGmailToken(userId);
   }
 
   async updateGmailToken(userId: number, updateData: Partial<GmailToken>): Promise<GmailToken> {
@@ -1367,6 +1397,11 @@ export class DatabaseStorage implements IStorage {
       .delete(gmailTokensTable)
       .where(eq(gmailTokensTable.userId, userId));
     console.log(`Deleted Gmail token for user ${userId}`);
+  }
+  
+  // Alias for deleteGmailToken to match naming convention in google-auth.ts
+  async deleteGoogleTokens(userId: number): Promise<void> {
+    return this.deleteGmailToken(userId);
   }
 
   // Gmail Messages

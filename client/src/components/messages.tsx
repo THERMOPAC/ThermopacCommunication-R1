@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-const Messages: React.FC = () => {
+function Messages() {
   const { toast } = useToast();
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");

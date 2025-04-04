@@ -8,6 +8,7 @@ import { scrypt, timingSafeEqual, randomBytes } from "crypto";
 import { promisify } from "util";
 import { eq } from "drizzle-orm";
 import { setupGmailRoutes } from "./gmail-routes";
+import { setupGoogleAuth } from "./google-auth";
 
 const scryptAsync = promisify(scrypt);
 
@@ -29,6 +30,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up Gmail integration routes
   setupGmailRoutes(app);
+  
+  // Set up Google OAuth authentication
+  setupGoogleAuth(app);
 
   // Logout endpoint with proper error handling
   app.post("/api/logout", (req, res) => {
