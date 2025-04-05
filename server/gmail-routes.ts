@@ -272,88 +272,109 @@ export function setupGmailRoutes(app: express.Express) {
     }
     
     try {
+      console.log('Starting Gmail sync for user:', req.user!.id);
+      
       const token = await storage.getGmailToken(req.user!.id);
       if (!token) {
         return res.status(400).json({ error: 'Gmail not connected. Please connect your Gmail account first.' });
       }
       
       const gmail = await getGmailClient(req.user!.id);
+      
+      // Get most recent messages
       const response = await gmail.users.messages.list({
         userId: 'me',
         maxResults: 20, // Limit to 20 messages for manual sync
       });
       
       const messages = response.data.messages || [];
-      const syncedMessages = [];
       
-      // Process each message
-      for (const message of messages) {
-        const messageId = message.id;
-        if (!messageId) continue;
-        
-        // Check if message already exists in database
-        const existingMessages = await storage.getGmailMessagesForUser(req.user!.id, {});
-        const messageExists = existingMessages.some(m => m.messageId === messageId);
-        
-        if (!messageExists) {
-          // Fetch full message details
-          const messageDetails = await gmail.users.messages.get({
-            userId: 'me',
-            id: messageId,
-            format: 'full',
-          });
-          
-          const payload = messageDetails.data.payload;
-          if (!payload) continue;
-          
-          // Extract headers
-          const headers = payload.headers || [];
-          const fromHeader = headers.find(h => h.name?.toLowerCase() === 'from');
-          const toHeader = headers.find(h => h.name?.toLowerCase() === 'to');
-          const subjectHeader = headers.find(h => h.name?.toLowerCase() === 'subject');
-          const dateHeader = headers.find(h => h.name?.toLowerCase() === 'date');
-          
-          // Extract message body
-          let body = '';
-          if (payload.body?.data) {
-            // Base64 encoded body
-            body = Buffer.from(payload.body.data, 'base64').toString('utf-8');
-          } else if (payload.parts) {
-            // Multipart message
-            for (const part of payload.parts) {
-              if (part.mimeType === 'text/plain' && part.body?.data) {
-                body = Buffer.from(part.body.data, 'base64').toString('utf-8');
-                break;
-              }
-            }
-          }
-          
-          // Determine labels
-          const labels = messageDetails.data.labelIds || [];
-          const isRead = !labels.includes('UNREAD');
-          const isImportant = labels.includes('IMPORTANT');
-          
-          // Create message in database
-          const newMessage = await storage.saveGmailMessage({
-            userId: req.user!.id,
-            messageId: messageId,
-            threadId: messageDetails.data.threadId || '',
-            from: fromHeader?.value || 'Unknown',
-            to: toHeader?.value || 'Unknown',
-            subject: subjectHeader?.value || '',
-            snippet: messageDetails.data.snippet || '',
-            body,
-            receivedAt: dateHeader?.value ? new Date(dateHeader.value) : new Date(),
-            isRead,
-            isImportant,
-            labels
-          });
-          
-          syncedMessages.push(newMessage);
-        }
+      if (messages.length === 0) {
+        console.log('No messages found in Gmail for user:', req.user!.id);
+        return res.json({ messageCount: 0, message: 'No new messages found.' });
       }
       
-      res.json({ synced: syncedMessages.length, messages: syncedMessages });
+      console.log(`Found ${messages.length} messages in Gmail for user:`, req.user!.id);
+      
+      // Get all message IDs from the response
+      const messageIds = messages.map(m => m.id).filter(Boolean) as string[];
+      
+      // Get existing messages in one query to avoid querying multiple times
+      const existingMessages = await storage.getGmailMessagesForUser(req.user!.id, {});
+      const existingMessageIds = new Set(existingMessages.map(m => m.messageId));
+      
+      // Filter to only process new messages
+      const newMessageIds = messageIds.filter(id => !existingMessageIds.has(id));
+      
+      console.log(`Found ${newMessageIds.length} new messages to sync for user:`, req.user!.id);
+      
+      const syncedMessages = [];
+      
+      // Process each new message
+      for (const messageId of newMessageIds) {
+        console.log(`Processing message ${messageId} for user:`, req.user!.id);
+        
+        // Fetch full message details
+        const messageDetails = await gmail.users.messages.get({
+          userId: 'me',
+          id: messageId,
+          format: 'full',
+        });
+        
+        const payload = messageDetails.data.payload;
+        if (!payload) {
+          console.log(`No payload found for message ${messageId}`);
+          continue;
+        }
+        
+        // Extract headers
+        const headers = payload.headers || [];
+        const fromHeader = headers.find(h => h.name?.toLowerCase() === 'from');
+        const toHeader = headers.find(h => h.name?.toLowerCase() === 'to');
+        const subjectHeader = headers.find(h => h.name?.toLowerCase() === 'subject');
+        const dateHeader = headers.find(h => h.name?.toLowerCase() === 'date');
+        
+        // Extract message body
+        let body = '';
+        if (payload.body?.data) {
+          // Base64 encoded body
+          body = Buffer.from(payload.body.data, 'base64').toString('utf-8');
+        } else if (payload.parts) {
+          // Multipart message
+          for (const part of payload.parts) {
+            if (part.mimeType === 'text/plain' && part.body?.data) {
+              body = Buffer.from(part.body.data, 'base64').toString('utf-8');
+              break;
+            }
+          }
+        }
+        
+        // Determine labels
+        const labels = messageDetails.data.labelIds || [];
+        const isRead = !labels.includes('UNREAD');
+        const isImportant = labels.includes('IMPORTANT');
+        
+        // Create message in database
+        const newMessage = await storage.saveGmailMessage({
+          userId: req.user!.id,
+          messageId: messageId,
+          threadId: messageDetails.data.threadId || '',
+          from: fromHeader?.value || 'Unknown',
+          to: toHeader?.value || 'Unknown',
+          subject: subjectHeader?.value || '',
+          snippet: messageDetails.data.snippet || '',
+          body,
+          receivedAt: dateHeader?.value ? new Date(dateHeader.value) : new Date(),
+          isRead,
+          isImportant,
+          labels
+        });
+        
+        syncedMessages.push(newMessage);
+      }
+      
+      console.log(`Successfully synced ${syncedMessages.length} messages for user:`, req.user!.id);
+      res.json({ messageCount: syncedMessages.length, message: `Successfully synced ${syncedMessages.length} messages` });
     } catch (error) {
       console.error('Error syncing Gmail messages:', error);
       res.status(500).json({ error: 'Failed to sync Gmail messages' });

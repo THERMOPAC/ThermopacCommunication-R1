@@ -54,28 +54,36 @@ function Messages() {
   });
 
   // Gmail messages
-  const { data: messages, isLoading: isLoadingMessages } = useQuery({
+  const { data: messages, isLoading: isLoadingMessages, error: messagesError } = useQuery({
     queryKey: ["/api/gmail/messages", filterStatus, filterImportance, searchTerm],
     queryFn: async () => {
-      const queryParams = new URLSearchParams();
-      
-      if (filterStatus === "read") queryParams.set("isRead", "true");
-      if (filterStatus === "unread") queryParams.set("isRead", "false");
-      
-      if (filterImportance === "important") queryParams.set("isImportant", "true");
-      if (filterImportance === "notImportant") queryParams.set("isImportant", "false");
-      
-      if (searchTerm) {
-        // Search across multiple fields
-        if (searchTerm.includes("@")) {
-          queryParams.set("from", searchTerm);
-        } else {
-          queryParams.set("subject", searchTerm);
+      try {
+        console.log('Fetching messages with filters:', { filterStatus, filterImportance, searchTerm });
+        const queryParams = new URLSearchParams();
+        
+        if (filterStatus === "read") queryParams.set("isRead", "true");
+        if (filterStatus === "unread") queryParams.set("isRead", "false");
+        
+        if (filterImportance === "important") queryParams.set("isImportant", "true");
+        if (filterImportance === "notImportant") queryParams.set("isImportant", "false");
+        
+        if (searchTerm) {
+          // Search across multiple fields
+          if (searchTerm.includes("@")) {
+            queryParams.set("from", searchTerm);
+          } else {
+            queryParams.set("subject", searchTerm);
+          }
         }
+        
+        const res = await apiRequest("GET", `/api/gmail/messages?${queryParams.toString()}`);
+        const data = await res.json();
+        console.log('Messages fetched successfully:', data.length);
+        return data;
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+        throw error;
       }
-      
-      const res = await apiRequest("GET", `/api/gmail/messages?${queryParams.toString()}`);
-      return await res.json();
     },
     enabled: connectionStatus?.connected === true
   });
@@ -126,20 +134,39 @@ function Messages() {
   // Sync Gmail messages
   const syncMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/gmail/sync");
-      return await res.json();
+      console.log('Starting sync mutation');
+      try {
+        const res = await apiRequest("POST", "/api/gmail/sync");
+        
+        if (!res.ok) {
+          // Get the error message from the response
+          const errorData = await res.json();
+          console.error('Sync error:', errorData);
+          throw new Error(errorData.error || 'Failed to sync Gmail messages');
+        }
+        
+        console.log('Sync request successful, parsing response');
+        const data = await res.json();
+        console.log('Sync response data:', data);
+        return data;
+      } catch (error) {
+        console.error('Sync mutation error:', error);
+        throw error;
+      }
     },
     onSuccess: (data) => {
+      console.log('Sync successful:', data);
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
       toast({
         title: "Success",
-        description: `Synced ${data.messageCount} messages from Gmail`,
+        description: data.message || `Synced ${data.messageCount} messages from Gmail`,
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Sync mutation error in callback:', error);
       toast({
-        title: "Error",
-        description: "Failed to sync messages from Gmail",
+        title: "Gmail Sync Failed",
+        description: error.message || "Failed to sync messages from Gmail. Please try again.",
         variant: "destructive"
       });
     }
@@ -464,6 +491,31 @@ function Messages() {
                 <div className="flex items-center justify-center h-64">
                   <RotateCw className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
+              ) : messagesError ? (
+                <Card className="p-6 text-center">
+                  <div className="bg-red-50 p-4 rounded-lg mb-4">
+                    <p className="text-red-700 font-medium">Error loading messages</p>
+                    <p className="text-sm text-red-600 mt-1">
+                      {messagesError instanceof Error ? messagesError.message : "Unknown error"}
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] })}
+                    variant="outline"
+                  >
+                    Try Again
+                  </Button>
+                  <div className="mt-4">
+                    <Button 
+                      onClick={() => syncMutation.mutate()}
+                      disabled={syncMutation.isPending}
+                      className="w-full"
+                    >
+                      <RotateCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+                      Sync Messages
+                    </Button>
+                  </div>
+                </Card>
               ) : messages?.length > 0 ? (
                 <div className="space-y-2">
                   {messages.map((message: GmailMessage) => (
