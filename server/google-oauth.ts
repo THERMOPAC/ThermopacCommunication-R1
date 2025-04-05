@@ -2,7 +2,8 @@ import { OAuth2Client } from 'google-auth-library';
 
 // Set the redirect URI to match exactly what's configured in Google Cloud Console
 // IMPORTANT: This MUST match exactly what's configured in Google Cloud Console
-const redirectUri = "https://thermopac-communication-thermopacllp.replit.app/auth/google/callback";
+// First try to use the environment variable, then fall back to hardcoded value if not set
+const redirectUri = process.env.GOOGLE_REDIRECT_URI || "https://thermopac-communication-thermopacllp.replit.app/auth/google/callback";
 
 // Check existing environment variable and issue warning if it appears to be a placeholder
 if (process.env.GOOGLE_REDIRECT_URI && process.env.GOOGLE_REDIRECT_URI.includes('your-domain')) {

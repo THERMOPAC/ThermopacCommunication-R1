@@ -4,7 +4,8 @@ import { storage } from './storage';
 
 // Set the redirect URI to match exactly what's configured in Google Cloud Console
 // IMPORTANT: This MUST match exactly what's configured in Google Cloud Console
-const redirectUri = "https://thermopac-communication-thermopacllp.replit.app/auth/google/callback";
+// First try to use the environment variable, then fall back to hardcoded value if not set
+const redirectUri = process.env.GOOGLE_REDIRECT_URI || "https://thermopac-communication-thermopacllp.replit.app/auth/google/callback";
 
 // Note: If you continue to see redirect_uri_mismatch errors, you need to:
 // 1. Copy the exact URI from the google error message
@@ -13,6 +14,7 @@ const redirectUri = "https://thermopac-communication-thermopacllp.replit.app/aut
 
 // Log the effective redirect URI for debugging
 console.log(`Google Auth using OAuth redirect URI: ${redirectUri}`);
+console.log(`Using OAuth redirect URI: ${redirectUri}`);
 
 // Configure OAuth 2.0 client with the determined redirect URI
 const oauth2Client = new google.auth.OAuth2(
