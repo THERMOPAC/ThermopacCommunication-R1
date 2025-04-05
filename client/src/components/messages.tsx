@@ -245,6 +245,28 @@ function Messages() {
     }
   };
   
+  // Extract clean code from a URL or raw code string
+  const extractAuthCode = (input: string): string => {
+    input = input.trim();
+    
+    // Check if this looks like a URL with a code parameter
+    if (input.includes('code=')) {
+      try {
+        // Try to extract just the code from a URL like https://...?code=abc123&scope=email
+        const match = input.match(/[?&]code=([^&]+)/);
+        if (match && match[1]) {
+          console.log('Extracted code from URL parameter');
+          return match[1];
+        }
+      } catch (err) {
+        console.error('Error extracting code from URL:', err);
+      }
+    }
+    
+    // If not a URL or extraction failed, return as is
+    return input;
+  };
+  
   // Handle manual auth submission
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -257,8 +279,12 @@ function Messages() {
       return;
     }
     
+    // Process the code to ensure it's in the right format
+    const cleanCode = extractAuthCode(authCode);
+    console.log('Submitting cleaned auth code (first 10 chars):', cleanCode.substring(0, 10) + '...');
+    
     setIsSubmittingCode(true);
-    manualAuthMutation.mutate(authCode);
+    manualAuthMutation.mutate(cleanCode);
   };
 
   // Disconnect from Gmail
@@ -430,8 +456,10 @@ function Messages() {
                   <ol className="list-decimal list-inside space-y-2 text-sm">
                     <li>Click the button below to open the Google authorization page.</li>
                     <li>Complete the Google sign-in and authorization process.</li>
-                    <li>Google will display an authorization code.</li>
-                    <li>Copy the code and paste it in the field below.</li>
+                    <li>When Google redirects you, copy the URL from your browser's address bar.</li>
+                    <li>Look for the part in the URL that starts with <code className="bg-muted p-1 rounded">code=</code> followed by a long string of characters.</li>
+                    <li>Copy <strong>only</strong> the code value (the part after <code className="bg-muted p-1 rounded">code=</code> and before any <code className="bg-muted p-1 rounded">&</code> character).</li>
+                    <li>Paste that code in the field below and submit quickly (codes expire within minutes).</li>
                   </ol>
                 </div>
                 

@@ -244,6 +244,37 @@ export function setupGoogleAuth(app: Express) {
     }
   });
   
+  // Function to clean and validate an authorization code
+  function sanitizeAuthCode(code: string): string {
+    // Trim whitespace and remove any quotes that might have been accidentally included
+    code = code.trim().replace(/["']/g, '');
+    
+    // Check if it's a URL and extract the code parameter
+    if (code.includes('code=')) {
+      try {
+        const match = code.match(/[?&]code=([^&]+)/);
+        if (match && match[1]) {
+          console.log('Extracted code from URL parameter');
+          code = match[1];
+        }
+      } catch (err) {
+        console.error('Error extracting code from URL:', err);
+      }
+    }
+    
+    // Decode if it's URL-encoded
+    try {
+      if (code.includes('%')) {
+        code = decodeURIComponent(code);
+        console.log('Decoded URL-encoded auth code');
+      }
+    } catch (err) {
+      console.error('Error decoding auth code:', err);
+    }
+    
+    return code;
+  }
+
   // Manual authentication endpoint for when redirect doesn't work
   app.post('/api/gmail/manual-auth', async (req, res) => {
     console.log('Manual Gmail authentication attempt');
@@ -262,6 +293,10 @@ export function setupGoogleAuth(app: Express) {
     
     console.log('Processing manual authentication with code');
     
+    // Clean and validate the authorization code
+    const cleanCode = sanitizeAuthCode(code);
+    console.log(`Original code length: ${code.length}, cleaned code length: ${cleanCode.length}`);
+    
     try {
       // Exchange code for tokens
       console.log('Attempting to exchange code for tokens with:');
@@ -269,7 +304,7 @@ export function setupGoogleAuth(app: Express) {
       console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
       
       const tokenResponse = await oauth2Client.getToken({
-        code,
+        code: cleanCode,
         redirect_uri: redirectUri
       });
       
