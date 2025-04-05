@@ -70,6 +70,15 @@ export function setupGoogleAuth(app: Express) {
       res.redirect('/auth?error=token_exchange_failed');
     }
   });
+  
+  // Add a duplicate route to handle the variant of the redirect URI
+  app.get('*/auth/google/callback', (req, res) => {
+    // Strip any prefix and forward to the actual callback handler
+    const callbackPath = '/auth/google/callback';
+    const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+    console.log(`Redirecting OAuth callback to ${callbackPath}${queryString}`);
+    res.redirect(`${callbackPath}${queryString}`);
+  });
 
   // Endpoint to check if user has connected Gmail
   app.get('/api/google/status', async (req, res) => {
