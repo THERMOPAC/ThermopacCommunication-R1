@@ -286,49 +286,97 @@ export function setupGoogleAuth(app: Express) {
   // Function to clean and validate an authorization code
   function sanitizeAuthCode(code: string): string {
     console.log('Sanitizing auth code, original length:', code.length);
+    console.log('Raw input (first 30 chars):', code.substring(0, 30) + '...');
     
-    // Trim whitespace and remove any quotes that might have been accidentally included
-    code = code.trim().replace(/["']/g, '');
-    
-    // Check if it's a full URL containing a code parameter
-    if (code.includes('https://') && code.includes('code=')) {
-      try {
-        console.log('Detected full URL with code parameter');
-        const match = code.match(/[?&]code=([^&]+)/);
-        if (match && match[1]) {
-          console.log('Extracted code from URL parameter');
-          code = match[1];
-        }
-      } catch (err) {
-        console.error('Error extracting code from URL:', err);
-      }
-    } 
-    // If it's just a code parameter fragment (code=xxxx)
-    else if (code.startsWith('code=')) {
-      try {
-        console.log('Detected code parameter fragment');
-        const parts = code.split('=');
-        if (parts.length > 1) {
-          code = parts[1];
-          console.log('Extracted code value from fragment');
-        }
-      } catch (err) {
-        console.error('Error extracting code from fragment:', err);
-      }
+    // Early return for empty input
+    if (!code) {
+      console.log('Empty code provided');
+      return '';
     }
     
-    // Handle possible URL encoding
+    // Step 1: Trim whitespace and remove any quotes that might have been accidentally included
+    code = code.trim().replace(/["']/g, '');
+    
+    // Step 2: Handle URL encoding FIRST (before extracting) as the URL itself might be encoded
     try {
       if (code.includes('%')) {
         const decodedCode = decodeURIComponent(code);
-        console.log('Decoded URL-encoded auth code');
+        console.log('Decoded URL-encoded auth code, length before:', code.length, 'after:', decodedCode.length);
         code = decodedCode;
       }
     } catch (err) {
       console.error('Error decoding auth code:', err);
     }
     
-    console.log('Sanitized code length:', code.length);
+    let originalCode = code;
+    let extractedCode = '';
+    
+    // Step 3: Try different methods to extract the code until one works
+    
+    // Method 1: Full URL with code parameter
+    if (!extractedCode && (code.includes('https://') || code.includes('http://')) && code.includes('code=')) {
+      try {
+        console.log('Trying to extract from full URL with code parameter');
+        const match = code.match(/[?&]code=([^&]+)/);
+        if (match && match[1]) {
+          extractedCode = match[1];
+          console.log('Successfully extracted code from URL parameter, length:', extractedCode.length);
+        }
+      } catch (err) {
+        console.error('Error extracting code from URL:', err);
+      }
+    }
+    
+    // Method 2: Code parameter fragment (code=xxxx)
+    if (!extractedCode && code.startsWith('code=')) {
+      try {
+        console.log('Trying to extract from code parameter fragment');
+        const parts = code.split('=');
+        if (parts.length > 1) {
+          extractedCode = parts[1].split('&')[0]; // Handle potential additional params
+          console.log('Successfully extracted code from fragment, length:', extractedCode.length);
+        }
+      } catch (err) {
+        console.error('Error extracting code from fragment:', err);
+      }
+    }
+    
+    // Method 3: JSON-like structure with code property
+    if (!extractedCode && code.includes('"code"')) {
+      try {
+        console.log('Trying to extract from JSON-like structure');
+        const match = code.match(/"code"\s*:\s*"([^"]+)"/);
+        if (match && match[1]) {
+          extractedCode = match[1];
+          console.log('Successfully extracted code from JSON structure, length:', extractedCode.length);
+        }
+      } catch (err) {
+        console.error('Error extracting code from JSON structure:', err);
+      }
+    }
+    
+    // If any extraction method worked, use that result
+    if (extractedCode) {
+      code = extractedCode;
+    } else {
+      // If no method worked and the input looks like it might already be just the code,
+      // keep it as is but log a warning
+      if (code.length > 20 && !code.includes(' ') && !code.includes('=')) {
+        console.log('No extraction method worked, but input appears to be a raw code already');
+      } else {
+        console.warn('WARNING: Failed to extract authorization code from input');
+      }
+    }
+    
+    // Final trim and validation
+    code = code.trim();
+    
+    // Simple validation to ensure it looks like a typical OAuth2 code
+    if (code.length < 10) {
+      console.warn('WARNING: Extracted code seems too short:', code.length);
+    }
+    
+    console.log('Original input length:', originalCode.length, 'Final code length:', code.length);
     return code;
   }
 
@@ -349,18 +397,36 @@ export function setupGoogleAuth(app: Express) {
     }
     
     console.log('Processing manual authentication with code');
+    console.log('Raw input:', code.substring(0, 30) + '...');
     
     // Clean and validate the authorization code
     const cleanCode = sanitizeAuthCode(code);
     console.log(`Original code length: ${code.length}, cleaned code length: ${cleanCode.length}`);
+    
+    // Additional validation
+    if (!cleanCode || cleanCode.length < 10) {
+      console.error('Code extraction failed or resulted in invalid code');
+      return res.status(400).json({ 
+        error: 'invalid_code_format', 
+        message: 'Could not extract a valid authorization code. Please make sure you are copying the entire URL after Google authorization. The URL should contain "code=" followed by a long string of characters.' 
+      });
+    }
     
     try {
       // Exchange code for tokens
       console.log('Attempting to exchange code for tokens with:');
       console.log(`- Redirect URI: ${redirectUri}`);
       console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
+      console.log(`- Using code (first 10 chars): ${cleanCode.substring(0, 10)}...`);
       
-      const tokenResponse = await oauth2Client.getToken({
+      // Create a fresh OAuth client for each request
+      const freshOAuthClient = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        redirectUri
+      );
+      
+      const tokenResponse = await freshOAuthClient.getToken({
         code: cleanCode,
         redirect_uri: redirectUri
       });
@@ -384,18 +450,28 @@ export function setupGoogleAuth(app: Express) {
       // Determine specific error type
       let errorType = 'token_exchange_failed';
       let errorMessage = error instanceof Error ? error.message : String(error);
+      let userFriendlyMessage = '';
       
       if (error instanceof Error) {
-        if (errorMessage.includes('redirect_uri_mismatch')) {
+        const errorMsg = error.message || '';
+        
+        if (errorMsg.includes('redirect_uri_mismatch')) {
           errorType = 'redirect_uri_mismatch';
-        } else if (errorMessage.includes('invalid_grant')) {
+          userFriendlyMessage = 'There is a mismatch between the redirect URI configured in Google Cloud Console and this application.';
+        } else if (errorMsg.includes('invalid_grant')) {
           errorType = 'invalid_grant';
+          userFriendlyMessage = 'The authorization code is invalid or has expired. Authorization codes typically expire after a few minutes. Please try the process again and copy the URL immediately after authorizing with Google.';
+        } else if (errorMsg.includes('invalid_client')) {
+          errorType = 'invalid_client';
+          userFriendlyMessage = 'The Google OAuth client configuration is invalid. Please check your client ID and client secret.';
+        } else {
+          userFriendlyMessage = 'An error occurred during the OAuth process. Please try again.';
         }
       }
       
       res.status(400).json({ 
         error: errorType, 
-        message: errorMessage 
+        message: userFriendlyMessage || errorMessage
       });
     }
   });

@@ -18,6 +18,7 @@ import {
   MailOpen,
   Star,
   Trash,
+  AlertCircle,
   Filter,
   Settings,
   ArrowLeft,
@@ -297,13 +298,31 @@ function Messages() {
     return input;
   };
   
+  // Track error state for manual auth
+  const [manualAuthError, setManualAuthError] = React.useState<string | null>(null);
+
   // Handle manual auth submission
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Clear any previous errors
+    setManualAuthError(null);
+    
     if (!authCode.trim()) {
+      setManualAuthError("Please enter the complete authorization URL");
       toast({
         title: "Error",
-        description: "Please enter the authorization code",
+        description: "Please enter the authorization URL",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!authCode.includes('code=')) {
+      setManualAuthError("The URL must contain 'code=' parameter. Please copy the entire URL from your browser after Google authorization.");
+      toast({
+        title: "Invalid URL Format",
+        description: "The URL doesn't contain an authorization code",
         variant: "destructive",
       });
       return;
@@ -312,6 +331,16 @@ function Messages() {
     // Process the code to ensure it's in the right format
     const cleanCode = extractAuthCode(authCode);
     console.log('Submitting cleaned auth code (first 10 chars):', cleanCode.substring(0, 10) + '...');
+    
+    if (cleanCode.length < 20) {
+      setManualAuthError("The extracted authorization code appears to be too short. Please ensure you're copying the complete URL after Google authorization.");
+      toast({
+        title: "Invalid Code",
+        description: "Extracted authorization code appears invalid",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsSubmittingCode(true);
     manualAuthMutation.mutate(cleanCode);
@@ -481,7 +510,7 @@ function Messages() {
                 <div className="text-left mb-6">
                   <h3 className="text-lg font-medium mb-2">Manual Gmail Authentication</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    If automatic redirect isn't working, follow these steps:
+                    If automatic redirect isn't working, follow these steps carefully:
                   </p>
                   <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-4">
                     <div className="flex">
@@ -490,27 +519,47 @@ function Messages() {
                       </div>
                       <div className="ml-3">
                         <p className="text-sm text-yellow-700 font-medium">
-                          Important: You must complete the Google authorization process first!
+                          IMPORTANT: You must complete these steps in order and act quickly!
+                        </p>
+                        <p className="text-xs text-yellow-600 mt-1">
+                          Authorization codes expire after just a few minutes.
                         </p>
                       </div>
                     </div>
                   </div>
                   <ol className="list-decimal list-inside space-y-2 text-sm">
-                    <li><strong>Step 1:</strong> Click the "Open Google Authorization Page" button below and a new tab will open.</li>
-                    <li><strong>Step 2:</strong> In the new tab, complete the Google sign-in and grant permission when asked.</li>
-                    <li><strong>Step 3:</strong> After approval, Google will redirect you to a page with a URL containing <code className="bg-muted p-1 rounded">code=</code>.</li>
-                    <li><strong>Step 4:</strong> Copy the ENTIRE URL from your browser's address bar. It should look like:</li>
-                    <li className="ml-5 list-none text-xs text-muted-foreground">
-                      <code className="bg-muted p-1 rounded break-all">
-                        https://thermopac-communication-thermopacllp.replit.app/auth/google/callback?code=4/0AfJohXm...
-                      </code>
+                    <li><strong>Step 1:</strong> Click the "Open Google Authorization Page" button below - this will open a new tab.</li>
+                    <li><strong>Step 2:</strong> In the new tab, sign in to your Google account and grant the requested permissions.</li>
+                    <li><strong>Step 3:</strong> After approval, you'll be redirected to a page that might show an error - this is expected.</li>
+                    <li><strong>Step 4:</strong> <span className="font-bold text-primary">Immediately copy the COMPLETE URL</span> from your browser's address bar. It should look like:</li>
+                    <li className="ml-5 list-none text-xs mt-2 mb-2">
+                      <div className="bg-muted p-2 rounded-md font-mono text-[11px] break-all">
+                        https://thermopac-communication-thermopacllp.replit.app/auth/google/callback?code=4/0AbCD...EfGhI&scope=email+https://www.googleapis.com/auth/gmail.modify
+                      </div>
                     </li>
-                    <li><strong>Step 5:</strong> Return to this tab and paste the complete URL in the field below.</li>
-                    <li><strong>Step 6:</strong> Click "Connect Account" quickly (authorization codes expire within minutes).</li>
+                    <li><strong>Step 5:</strong> Return to this tab immediately and paste the entire URL in the field below.</li>
+                    <li><strong>Step 6:</strong> Click "Connect Account" right away - don't wait!</li>
                   </ol>
+                  
+                  <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <AlertCircle className="h-5 w-5 text-red-500" />
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-red-700 font-medium">Common reasons for failure:</p>
+                        <ul className="text-xs text-red-600 mt-1 list-disc list-inside">
+                          <li>Waiting too long between authorization and pasting the code (they expire quickly)</li>
+                          <li>Not copying the complete URL (must include everything with "code=" parameter)</li>
+                          <li>Using an old URL from a previous authorization attempt</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div className="mt-4 bg-blue-50 border-l-4 border-blue-500 p-4">
                     <p className="text-sm text-blue-700">
-                      <strong>Note:</strong> If you see "This site can't be reached" or an error page after authorization, that's normal. What matters is copying the full URL from your browser's address bar.
+                      <strong>Note:</strong> You might see "This site can't be reached" or another error page after Google authorization - that's completely normal! Just copy the full URL from your browser's address bar.
                     </p>
                   </div>
                 </div>
@@ -548,6 +597,24 @@ function Messages() {
                       <p className="text-xs text-muted-foreground mt-1">
                         Paste the entire URL from your browser's address bar after authorization
                       </p>
+                      
+                      {manualAuthError && (
+                        <div className="mt-2 bg-red-50 border-l-4 border-red-400 p-3 text-red-800 text-xs">
+                          <div className="flex">
+                            <AlertCircle className="h-4 w-4 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                            <p>{manualAuthError}</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {manualAuthMutation.error && (
+                        <div className="mt-2 bg-red-50 border-l-4 border-red-400 p-3 text-red-800 text-xs">
+                          <div className="flex">
+                            <AlertCircle className="h-4 w-4 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                            <p>Authentication failed: {(manualAuthMutation.error as any)?.message || "The authorization code was invalid or expired. Please try again with a fresh code."}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex justify-between">
