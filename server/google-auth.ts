@@ -23,13 +23,13 @@ const SCOPES = [
 // Generate authentication URL
 export function getAuthUrl() {
   // Log OAuth configuration for debugging
-  console.log(`OAuth Config - Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
+  console.log(`OAuth Config - Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5) || 'NOT_SET'}...`);
   console.log(`OAuth Config - Using redirect URI: ${redirectUri}`);
   
   // Validate required parameters
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     console.error('Missing OAuth credentials - please check environment variables');
-    throw new Error('OAuth configuration is incomplete');
+    throw new Error('Google OAuth is not configured. Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.');
   }
   
   try {

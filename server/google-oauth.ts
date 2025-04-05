@@ -6,18 +6,17 @@ const redirectUri = 'https://thermopac-communication-thermopacllp.replit.app/aut
 // Override environment variable with the correct redirect URI
 process.env.GOOGLE_REDIRECT_URI = redirectUri;
 
-// Validate OAuth credentials and add detailed logging
+// Check OAuth credentials and add detailed logging
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-  console.error('ERROR: Missing required Google OAuth credentials in environment variables');
-  console.error('Please ensure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set');
-  throw new Error('Google OAuth credentials are missing');
+  console.warn('WARNING: Missing Google OAuth credentials in environment variables');
+  console.warn('Google Mail integration will not work until GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set');
+} else {
+  // Log OAuth configuration (with truncated sensitive data for security)
+  console.log('Google OAuth Configuration:');
+  console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.substring(0, 5) + '...' : 'MISSING'}`);
+  console.log(`- Client Secret: ${process.env.GOOGLE_CLIENT_SECRET ? '******' : 'MISSING'}`);
+  console.log(`- Redirect URI: ${redirectUri}`);
 }
-
-// Log OAuth configuration (with truncated sensitive data for security)
-console.log('Google OAuth Configuration:');
-console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.substring(0, 5) + '...' : 'MISSING'}`);
-console.log(`- Client Secret: ${process.env.GOOGLE_CLIENT_SECRET ? '******' : 'MISSING'}`);
-console.log(`- Redirect URI: ${redirectUri}`);
 
 // Create an OAuth2 client with explicit credentials (no environment variables)
 export const oauth2Client = new OAuth2Client(
@@ -36,6 +35,12 @@ export const SCOPES = [
  * Generate a URL for user authorization
  */
 export function getAuthUrl(): string {
+  // Check if OAuth credentials are available
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    console.error('Missing Google OAuth credentials - cannot generate auth URL');
+    throw new Error('Google OAuth is not configured. Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.');
+  }
+  
   console.log('Generating auth URL with the following parameters:');
   console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
   console.log(`- Redirect URI: ${redirectUri}`);

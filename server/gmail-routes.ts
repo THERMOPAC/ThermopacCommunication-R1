@@ -12,6 +12,15 @@ export function setupGmailRoutes(app: express.Express) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
+    // Check if OAuth credentials are available
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      console.error('Missing Google OAuth credentials - cannot generate auth URL');
+      return res.status(503).json({ 
+        error: 'Google OAuth is not configured on the server',
+        message: 'Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.'
+      });
+    }
+    
     try {
       const authUrl = getAuthUrl();
       res.json({ url: authUrl });
