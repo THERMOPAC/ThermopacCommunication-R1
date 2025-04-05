@@ -2,8 +2,16 @@ import { google } from 'googleapis';
 import { Express, Request, Response } from 'express';
 import { storage } from './storage';
 
-// Configure OAuth 2.0 client with hardcoded redirect URI for consistency
-const redirectUri = 'https://thermopac-communication-thermopacllp.replit.app/auth/google/callback';
+// Default hardcoded URI known to work
+const defaultUri = 'https://thermopac-communication-thermopacllp.replit.app/auth/google/callback';
+
+// Set proper redirect URI based on environment
+const redirectUri = process.env.GOOGLE_REDIRECT_URI || defaultUri;
+
+// Log the effective redirect URI for debugging
+console.log(`Google Auth using OAuth redirect URI: ${redirectUri}`);
+
+// Configure OAuth 2.0 client with the determined redirect URI
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -98,7 +106,29 @@ export function setupGoogleAuth(app: Express) {
       }
     } catch (error) {
       console.error('Error during token exchange:', error);
-      res.redirect('/auth?error=token_exchange_failed');
+      
+      // Determine the specific error for better user feedback
+      let errorType = 'token_exchange_failed';
+      let errorMessage = '';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        console.error('Detailed error message:', errorMessage);
+        
+        // Check for specific error conditions
+        if (errorMessage.includes('redirect_uri_mismatch')) {
+          errorType = 'redirect_uri_mismatch';
+          console.error(`CRITICAL ERROR: Redirect URI mismatch! Google expected ${redirectUri}`);
+          console.error('Please ensure this URI is registered in Google Cloud Console!');
+        } else if (errorMessage.includes('invalid_grant')) {
+          errorType = 'invalid_grant';
+        } else if (errorMessage.includes('invalid_client')) {
+          errorType = 'invalid_client';
+        }
+      }
+      
+      // Redirect with specific error information
+      res.redirect(`/emails?error=${errorType}&message=${encodeURIComponent(errorMessage)}`);
     }
   });
   

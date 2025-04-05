@@ -1,10 +1,13 @@
 import { OAuth2Client } from 'google-auth-library';
 
-// Set proper redirect URI based on environment
-const redirectUri = 'https://thermopac-communication-thermopacllp.replit.app/auth/google/callback';
+// Default hardcoded URI known to work
+const defaultUri = 'https://thermopac-communication-thermopacllp.replit.app/auth/google/callback';
 
-// Override environment variable with the correct redirect URI
-process.env.GOOGLE_REDIRECT_URI = redirectUri;
+// Set proper redirect URI based on environment
+const redirectUri = process.env.GOOGLE_REDIRECT_URI || defaultUri;
+
+// Log the effective redirect URI for debugging
+console.log(`Using OAuth redirect URI: ${redirectUri}`);
 
 // Check OAuth credentials and add detailed logging
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
