@@ -25,6 +25,7 @@ export function getAuthUrl() {
     access_type: 'offline',
     prompt: 'consent',
     scope: SCOPES,
+    redirect_uri: process.env.GOOGLE_REDIRECT_URI // Explicitly include the redirect URI
   });
 }
 
@@ -53,7 +54,10 @@ export function setupGoogleAuth(app: Express) {
       console.log('Received Google auth callback with code');
       
       // Exchange code for tokens
-      const { tokens } = await oauth2Client.getToken(code);
+      const { tokens } = await oauth2Client.getToken({
+        code,
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI
+      });
       console.log('Successfully exchanged code for tokens');
       
       // Save tokens to the user's record in database
