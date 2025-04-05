@@ -1,5 +1,23 @@
 import { OAuth2Client } from 'google-auth-library';
 
+// Set proper redirect URI based on environment
+const redirectUri = 'https://thermopac-communication-thermopacllp.replit.app/auth/google/callback';
+
+// Override environment variable with the correct redirect URI
+process.env.GOOGLE_REDIRECT_URI = redirectUri;
+
+// Validate OAuth credentials
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  console.error('WARNING: Missing required Google OAuth credentials in environment variables');
+  console.error('Please ensure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set');
+}
+
+// Log OAuth configuration (with truncated sensitive data for security)
+console.log('Google OAuth Configuration:');
+console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.substring(0, 5) + '...' : 'MISSING'}`);
+console.log(`- Client Secret: ${process.env.GOOGLE_CLIENT_SECRET ? '******' : 'MISSING'}`);
+console.log(`- Redirect URI: ${process.env.GOOGLE_REDIRECT_URI || 'MISSING'}`);
+
 // Create an OAuth2 client using environment variables
 export const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,

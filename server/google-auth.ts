@@ -21,11 +21,22 @@ const SCOPES = [
 
 // Generate authentication URL
 export function getAuthUrl() {
+  // Log OAuth configuration for debugging
+  console.log(`OAuth Config - Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
+  console.log(`OAuth Config - Redirect URI: ${process.env.GOOGLE_REDIRECT_URI}`);
+  
+  // Validate required parameters
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REDIRECT_URI) {
+    console.error('Missing OAuth credentials - please check environment variables');
+    throw new Error('OAuth configuration is incomplete');
+  }
+  
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
     scope: SCOPES,
-    redirect_uri: process.env.GOOGLE_REDIRECT_URI // Explicitly include the redirect URI
+    redirect_uri: process.env.GOOGLE_REDIRECT_URI, // Explicitly include the redirect URI
+    client_id: process.env.GOOGLE_CLIENT_ID // Explicitly include the client ID
   });
 }
 
@@ -54,10 +65,13 @@ export function setupGoogleAuth(app: Express) {
       console.log('Received Google auth callback with code');
       
       // Exchange code for tokens
-      const { tokens } = await oauth2Client.getToken({
-        code,
-        redirect_uri: process.env.GOOGLE_REDIRECT_URI
-      });
+      console.log('Attempting to exchange code for tokens with:');
+      console.log(`- Redirect URI: ${process.env.GOOGLE_REDIRECT_URI}`);
+      console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
+      
+      // Use the existing OAuth client
+      const tokenResponse = await oauth2Client.getToken(code);
+      const tokens = tokenResponse.tokens;
       console.log('Successfully exchanged code for tokens');
       
       // Save tokens to the user's record in database
