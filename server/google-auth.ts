@@ -74,6 +74,11 @@ export function setupGoogleAuth(app: Express) {
 
   // OAuth callback handler - matches the route specified in GOOGLE_REDIRECT_URI
   app.get('/auth/google/callback', async (req, res) => {
+    console.log('==== GOOGLE AUTH CALLBACK RECEIVED ====');
+    console.log('Request query params:', req.query);
+    console.log('User authenticated:', req.isAuthenticated());
+    console.log('User ID:', req.user?.id);
+    
     const { code } = req.query;
     
     if (!code || typeof code !== 'string') {
@@ -96,13 +101,21 @@ export function setupGoogleAuth(app: Express) {
       });
       
       const tokens = tokenResponse.tokens;
-      console.log('Successfully exchanged code for tokens');
+      console.log('Successfully exchanged code for tokens:', tokens ? 'Tokens received' : 'No tokens received');
+      console.log('Access token received:', !!tokens.access_token);
+      console.log('Refresh token received:', !!tokens.refresh_token);
       
       // Save tokens to the user's record in database
       if (req.isAuthenticated() && req.user?.id) {
-        await storage.saveGoogleTokens(req.user.id, tokens);
-        console.log(`Saved Google tokens for user ${req.user.id}`);
-        res.redirect('/emails'); // Redirect to the email interface
+        try {
+          await storage.saveGoogleTokens(req.user.id, tokens);
+          console.log(`Saved Google tokens for user ${req.user.id}`);
+          res.redirect('/emails'); // Redirect to the email interface
+        } catch (error) {
+          const saveError = error as Error;
+          console.error('Error saving tokens to database:', saveError);
+          res.redirect('/emails?error=token_save_failed&message=' + encodeURIComponent(saveError.message || 'Unknown error'));
+        }
       } else {
         console.error('User not authenticated during Google callback');
         res.redirect('/auth?error=not_authenticated');
@@ -146,12 +159,21 @@ export function setupGoogleAuth(app: Express) {
 
   // Endpoint to check if user has connected Gmail
   app.get('/api/google/status', async (req, res) => {
+    console.log('Checking Gmail connection status for user:', req.user?.id);
+    
     if (!req.isAuthenticated()) {
+      console.log('User not authenticated when checking Gmail status');
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
     try {
       const tokens = await storage.getGoogleTokens(req.user!.id);
+      console.log('Gmail tokens found for user:', !!tokens);
+      if (tokens) {
+        console.log('Token details: access_token exists:', !!tokens.accessToken);
+        console.log('Token details: refresh_token exists:', !!tokens.refreshToken);
+        console.log('Token details: expiry exists:', !!tokens.tokenExpiry);
+      }
       res.json({ connected: !!tokens });
     } catch (error) {
       console.error('Error checking Google connection status:', error);
