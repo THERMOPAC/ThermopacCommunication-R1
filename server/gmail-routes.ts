@@ -2,7 +2,8 @@ import express, { Request, Response } from 'express';
 import { storage } from './storage';
 import { getGmailClient } from './google-auth';
 import { gmail_v1 } from 'googleapis';
-import { getAuthUrl } from './google-auth';
+// Import getAuthUrl from google-oauth.ts instead of google-auth.ts
+import { getAuthUrl } from './google-oauth';
 
 export function setupGmailRoutes(app: express.Express) {
   // Get Gmail auth URL for connecting account

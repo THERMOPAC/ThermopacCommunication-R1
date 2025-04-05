@@ -2,11 +2,12 @@ import { google } from 'googleapis';
 import { Express, Request, Response } from 'express';
 import { storage } from './storage';
 
-// Configure OAuth 2.0 client
+// Configure OAuth 2.0 client with hardcoded redirect URI for consistency
+const redirectUri = 'https://thermopac-communication-thermopacllp.replit.app/auth/google/callback';
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
+  redirectUri
 );
 
 // Define the scopes needed for Gmail access
@@ -23,21 +24,29 @@ const SCOPES = [
 export function getAuthUrl() {
   // Log OAuth configuration for debugging
   console.log(`OAuth Config - Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
-  console.log(`OAuth Config - Redirect URI: ${process.env.GOOGLE_REDIRECT_URI}`);
+  console.log(`OAuth Config - Using redirect URI: ${redirectUri}`);
   
   // Validate required parameters
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REDIRECT_URI) {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     console.error('Missing OAuth credentials - please check environment variables');
     throw new Error('OAuth configuration is incomplete');
   }
   
-  return oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    prompt: 'consent',
-    scope: SCOPES,
-    redirect_uri: process.env.GOOGLE_REDIRECT_URI, // Explicitly include the redirect URI
-    client_id: process.env.GOOGLE_CLIENT_ID // Explicitly include the client ID
-  });
+  try {
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: SCOPES,
+      redirect_uri: redirectUri, // Use hardcoded redirect URI
+      client_id: process.env.GOOGLE_CLIENT_ID // Explicitly include the client ID
+    });
+    
+    console.log(`Successfully generated auth URL: ${authUrl.substring(0, 50)}...`);
+    return authUrl;
+  } catch (error) {
+    console.error('Error generating auth URL:', error);
+    throw new Error(`Failed to generate auth URL: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 // Set up Google OAuth routes and handlers
@@ -66,11 +75,15 @@ export function setupGoogleAuth(app: Express) {
       
       // Exchange code for tokens
       console.log('Attempting to exchange code for tokens with:');
-      console.log(`- Redirect URI: ${process.env.GOOGLE_REDIRECT_URI}`);
+      console.log(`- Redirect URI: ${redirectUri}`);
       console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
       
-      // Use the existing OAuth client
-      const tokenResponse = await oauth2Client.getToken(code);
+      // Use the existing OAuth client with explicit redirect URI
+      const tokenResponse = await oauth2Client.getToken({
+        code,
+        redirect_uri: redirectUri
+      });
+      
       const tokens = tokenResponse.tokens;
       console.log('Successfully exchanged code for tokens');
       
@@ -142,7 +155,7 @@ export async function getGmailClient(userId: number) {
   const userOAuth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
+    redirectUri // Use hardcoded redirect URI
   );
   
   // Configure oauth client with user's tokens

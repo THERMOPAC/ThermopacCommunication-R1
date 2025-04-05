@@ -6,23 +6,24 @@ const redirectUri = 'https://thermopac-communication-thermopacllp.replit.app/aut
 // Override environment variable with the correct redirect URI
 process.env.GOOGLE_REDIRECT_URI = redirectUri;
 
-// Validate OAuth credentials
+// Validate OAuth credentials and add detailed logging
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-  console.error('WARNING: Missing required Google OAuth credentials in environment variables');
+  console.error('ERROR: Missing required Google OAuth credentials in environment variables');
   console.error('Please ensure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set');
+  throw new Error('Google OAuth credentials are missing');
 }
 
 // Log OAuth configuration (with truncated sensitive data for security)
 console.log('Google OAuth Configuration:');
 console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.substring(0, 5) + '...' : 'MISSING'}`);
 console.log(`- Client Secret: ${process.env.GOOGLE_CLIENT_SECRET ? '******' : 'MISSING'}`);
-console.log(`- Redirect URI: ${process.env.GOOGLE_REDIRECT_URI || 'MISSING'}`);
+console.log(`- Redirect URI: ${redirectUri}`);
 
-// Create an OAuth2 client using environment variables
+// Create an OAuth2 client with explicit credentials (no environment variables)
 export const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
+  redirectUri
 );
 
 // Define the scopes we need for Gmail access
@@ -35,11 +36,25 @@ export const SCOPES = [
  * Generate a URL for user authorization
  */
 export function getAuthUrl(): string {
-  return oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: SCOPES,
-    prompt: 'consent' // Force re-consent to get refresh token each time
-  });
+  console.log('Generating auth URL with the following parameters:');
+  console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
+  console.log(`- Redirect URI: ${redirectUri}`);
+  console.log(`- Scopes: ${SCOPES.join(', ')}`);
+  
+  try {
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: SCOPES,
+      prompt: 'consent', // Force re-consent to get refresh token each time
+      redirect_uri: redirectUri // Explicitly set redirect URI
+    });
+    
+    console.log(`Successfully generated auth URL: ${authUrl.substring(0, 50)}...`);
+    return authUrl;
+  } catch (error) {
+    console.error('Error generating auth URL:', error);
+    throw new Error(`Failed to generate auth URL: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 /**
