@@ -9,6 +9,7 @@ import { promisify } from "util";
 import { eq } from "drizzle-orm";
 import { setupGmailRoutes } from "./gmail-routes";
 import { setupGoogleAuth } from "./google-auth";
+import { hashPassword as updatePasswordHash } from "./update-password";
 
 const scryptAsync = promisify(scrypt);
 
@@ -78,7 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Hash and update new password
-      const hashedPassword = await hashPassword(newPassword);
+      const hashedPassword = await updatePasswordHash(newPassword);
       await storage.updateUser(user.id, { password: hashedPassword });
 
       console.log(`Password updated successfully for user ${user.username}`);
@@ -134,7 +135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Hash and update new password
-      const hashedPassword = await hashPassword(newPassword);
+      const hashedPassword = await updatePasswordHash(newPassword);
       await storage.updateUser(user.id, { password: hashedPassword });
 
       // Log password change for audit purposes (without sensitive data)
@@ -174,7 +175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (userData.password) {
         userData = {
           ...userData,
-          password: await hashPassword(userData.password)
+          password: await updatePasswordHash(userData.password)
         };
       }
 
@@ -426,7 +427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Username already exists" });
       }
 
-      const hashedPassword = await hashPassword(req.body.password);
+      const hashedPassword = await updatePasswordHash(req.body.password);
       const user = await storage.createUser({
         ...req.body,
         password: hashedPassword,
