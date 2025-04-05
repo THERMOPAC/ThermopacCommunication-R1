@@ -35,7 +35,8 @@ export default function Layout({ children }: LayoutProps) {
     { icon: Mail, label: "Emails", href: "/emails" },
     { icon: UserIcon, label: "Profile", href: "/profile" },
     ...(user?.role === "Superuser" ? [
-      { icon: UserCog, label: "User Management", href: "/users" }
+      { icon: UserCog, label: "User Management", href: "/users" },
+      { icon: Users, label: "Password Management", href: "/password-management" }
     ] : [])
   ];
 

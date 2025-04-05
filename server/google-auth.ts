@@ -40,23 +40,29 @@ export function setupGoogleAuth(app: Express) {
     res.json({ authUrl });
   });
 
-  // OAuth callback handler
+  // OAuth callback handler - matches the route specified in GOOGLE_REDIRECT_URI
   app.get('/auth/google/callback', async (req, res) => {
     const { code } = req.query;
     
     if (!code || typeof code !== 'string') {
+      console.error('Authentication failed: No code provided');
       return res.status(400).send('Authentication failed: No code provided');
     }
 
     try {
+      console.log('Received Google auth callback with code');
+      
       // Exchange code for tokens
       const { tokens } = await oauth2Client.getToken(code);
+      console.log('Successfully exchanged code for tokens');
       
       // Save tokens to the user's record in database
       if (req.isAuthenticated() && req.user?.id) {
         await storage.saveGoogleTokens(req.user.id, tokens);
+        console.log(`Saved Google tokens for user ${req.user.id}`);
         res.redirect('/emails'); // Redirect to the email interface
       } else {
+        console.error('User not authenticated during Google callback');
         res.redirect('/auth?error=not_authenticated');
       }
     } catch (error) {
@@ -99,17 +105,28 @@ export function setupGoogleAuth(app: Express) {
 // Helper function to get authenticated Gmail client for a user
 export async function getGmailClient(userId: number) {
   // Get stored tokens
-  const tokens = await storage.getGoogleTokens(userId);
+  const storedTokens = await storage.getGoogleTokens(userId);
   
-  if (!tokens) {
+  if (!storedTokens) {
     throw new Error('User has not connected Gmail');
   }
 
+  // Create a new OAuth2 client with the same client ID and secret
+  const userOAuth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI
+  );
+  
   // Configure oauth client with user's tokens
-  oauth2Client.setCredentials(tokens);
+  userOAuth2Client.setCredentials({
+    access_token: storedTokens.accessToken,
+    refresh_token: storedTokens.refreshToken || undefined,
+    expiry_date: storedTokens.tokenExpiry ? new Date(storedTokens.tokenExpiry).getTime() : undefined
+  });
 
   // Create Gmail client
-  const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+  const gmail = google.gmail({ version: 'v1', auth: userOAuth2Client });
   
   return gmail;
 }

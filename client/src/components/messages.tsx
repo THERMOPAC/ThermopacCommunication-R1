@@ -252,16 +252,68 @@ function Messages() {
 
   if (!connectionStatus?.connected) {
     return (
-      <div className="flex flex-col items-center justify-center space-y-6 p-8">
-        <Mail className="h-16 w-16 text-primary/50" />
-        <h2 className="text-2xl font-bold">Connect to Gmail</h2>
-        <p className="text-center text-muted-foreground max-w-md">
-          Connect your Gmail account to view and manage THERMOPAC emails directly in this dashboard.
-        </p>
-        <Button onClick={connectToGmail} className="mt-4">
-          Connect Gmail Account
-        </Button>
-      </div>
+      <Card className="shadow-lg">
+        <CardHeader className="text-center pb-0">
+          <div className="mx-auto rounded-full bg-primary/10 p-4 w-16 h-16 flex items-center justify-center mb-3">
+            <Mail className="h-8 w-8 text-primary" />
+          </div>
+          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-red-600 text-transparent bg-clip-text">
+            Connect to Gmail
+          </CardTitle>
+          <CardDescription className="text-base max-w-md mx-auto mt-2">
+            Connect your Gmail account to view and manage THERMOPAC emails directly in this dashboard.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6 pb-8 text-center">
+          <div className="space-y-6 mx-auto max-w-md">
+            <div className="grid grid-cols-1 gap-4 text-left">
+              <div className="flex items-start">
+                <div className="bg-primary/10 p-2 rounded mr-3 mt-1">
+                  <MailOpen className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-medium">Stay Connected</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Access your Gmail inbox without leaving the THERMOPAC platform
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start">
+                <div className="bg-primary/10 p-2 rounded mr-3 mt-1">
+                  <Star className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-medium">Priority Handling</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Mark important emails and manage priorities efficiently
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start">
+                <div className="bg-primary/10 p-2 rounded mr-3 mt-1">
+                  <RotateCw className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-medium">Auto-Sync</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Set up automatic synchronization to always stay up-to-date
+                  </p>
+                </div>
+              </div>
+            </div>
+            <Button 
+              onClick={connectToGmail} 
+              className="w-full bg-gradient-to-r from-blue-600 to-red-600 hover:from-blue-700 hover:to-red-700"
+              size="lg"
+            >
+              Connect Gmail Account
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Note: You'll be redirected to Google to authorize access and then returned to this page.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 

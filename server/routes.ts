@@ -93,21 +93,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add password change endpoint
   app.post("/api/admin/change-password", async (req, res) => {
-    if (!req.isAuthenticated() || req.user!.role !== "Superuser") {
-      return res.sendStatus(403);
+    try {
+      // Check authentication and authorization
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in to perform this action" });
+      }
+      
+      if (req.user!.role !== "Superuser") {
+        return res.status(403).json({ message: "Only Superusers can change other users' passwords" });
+      }
+
+      const { userId, newPassword } = req.body;
+      
+      // Validate input
+      if (!userId || !newPassword) {
+        return res.status(400).json({ message: "Missing required fields: userId and newPassword" });
+      }
+      
+      // Password complexity validation
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters long" });
+      }
+      
+      // Additional server-side password validation
+      const hasUppercase = /[A-Z]/.test(newPassword);
+      const hasLowercase = /[a-z]/.test(newPassword);
+      const hasNumber = /[0-9]/.test(newPassword);
+      const hasSpecial = /[^A-Za-z0-9]/.test(newPassword);
+      
+      if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
+        return res.status(400).json({ 
+          message: "Password must include at least one uppercase letter, one lowercase letter, one number, and one special character" 
+        });
+      }
+
+      // Get user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Hash and update new password
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateUser(user.id, { password: hashedPassword });
+
+      // Log password change for audit purposes (without sensitive data)
+      console.log(`Password updated for user ${userId} by Superuser ${req.user!.id} on ${new Date().toISOString()}`);
+
+      res.status(200).json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Password change error:", error);
+      res.status(500).json({ message: "An error occurred while changing the password" });
     }
-
-    const { userId, newPassword } = req.body;
-
-    // Get user
-    const user = await storage.getUser(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    // Hash and update new password
-    const hashedPassword = await hashPassword(newPassword);
-    await storage.updateUser(user.id, { password: hashedPassword });
-
-    res.sendStatus(200);
   });
 
   // User Management Routes
