@@ -80,8 +80,76 @@ export function getAuthUrl(): string {
  * Exchange authorization code for tokens
  */
 export async function getTokens(code: string) {
-  const { tokens } = await oauth2Client.getToken(code);
-  return tokens;
+  // Sanitize the code first
+  code = sanitizeAuthCode(code);
+  console.log(`Exchanging auth code for tokens (code length: ${code.length})`);
+  
+  try {
+    const { tokens } = await oauth2Client.getToken({
+      code,
+      redirect_uri: redirectUri
+    });
+    
+    console.log('Successfully exchanged code for tokens');
+    console.log('Access token received:', !!tokens.access_token);
+    console.log('Refresh token received:', !!tokens.refresh_token);
+    
+    return tokens;
+  } catch (error) {
+    console.error('Error exchanging code for tokens:', error);
+    throw error;
+  }
+}
+
+/**
+ * Clean and validate an authorization code
+ */
+function sanitizeAuthCode(code: string): string {
+  console.log('Sanitizing auth code, original length:', code.length);
+  
+  // Trim whitespace and remove any quotes that might have been accidentally included
+  code = code.trim().replace(/["']/g, '');
+  
+  // Check if it's a full URL containing a code parameter
+  if (code.includes('https://') && code.includes('code=')) {
+    try {
+      console.log('Detected full URL with code parameter');
+      const match = code.match(/[?&]code=([^&]+)/);
+      if (match && match[1]) {
+        console.log('Extracted code from URL parameter');
+        code = match[1];
+      }
+    } catch (err) {
+      console.error('Error extracting code from URL:', err);
+    }
+  } 
+  // If it's just a code parameter fragment (code=xxxx)
+  else if (code.startsWith('code=')) {
+    try {
+      console.log('Detected code parameter fragment');
+      const parts = code.split('=');
+      if (parts.length > 1) {
+        code = parts[1];
+        console.log('Extracted code value from fragment');
+      }
+    } catch (err) {
+      console.error('Error extracting code from fragment:', err);
+    }
+  }
+  
+  // Handle possible URL encoding
+  try {
+    if (code.includes('%')) {
+      const decodedCode = decodeURIComponent(code);
+      console.log('Decoded URL-encoded auth code');
+      code = decodedCode;
+    }
+  } catch (err) {
+    console.error('Error decoding auth code:', err);
+  }
+  
+  console.log('Sanitized code length:', code.length);
+  return code;
 }
 
 /**

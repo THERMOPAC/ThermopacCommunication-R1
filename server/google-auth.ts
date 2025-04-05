@@ -1,6 +1,16 @@
 import { google } from 'googleapis';
 import { Express, Request, Response } from 'express';
 import { storage } from './storage';
+import { SessionData } from 'express-session';
+
+// Extend the session data type to include our custom properties
+declare module 'express-session' {
+  interface SessionData {
+    passport?: { user: number };
+    gmailAuthUser?: number;
+    temporaryGoogleTokens?: any;
+  }
+}
 
 // Set the redirect URI to match exactly what's configured in Google Cloud Console
 // IMPORTANT: This MUST match exactly what's configured in Google Cloud Console
@@ -73,27 +83,41 @@ export function setupGoogleAuth(app: Express) {
       return res.status(401).json({ error: 'You must be logged in to connect Gmail' });
     }
     
-    // Save session immediately to ensure it persists through the OAuth flow
-    req.session.save((err: Error | null) => {
-      if (err) {
-        console.error('Failed to save session before OAuth flow:', err);
+    // Force save the session with a regenerated ID to ensure persistence
+    req.session.regenerate((regenerateErr: Error | null) => {
+      if (regenerateErr) {
+        console.error('Failed to regenerate session ID:', regenerateErr);
         return res.status(500).json({ error: 'Session error, please try again' });
       }
       
-      console.log(`User ${req.user?.username} (ID: ${req.user?.id}) starting Gmail authorization`);
-      console.log('Session ID:', req.sessionID);
+      // Save user info in regenerated session
+      req.session.passport = { user: req.user?.id };
       
-      try {
-        const authUrl = getAuthUrl();
-        console.log('Generated auth URL:', authUrl.substring(0, 50) + '...');
-        res.json({ authUrl });
-      } catch (error) {
-        console.error('Error generating auth URL:', error);
-        res.status(500).json({ 
-          error: 'Failed to generate Google authorization URL',
-          message: error instanceof Error ? error.message : String(error)
-        });
-      }
+      // Now save the session
+      req.session.save((saveErr: Error | null) => {
+        if (saveErr) {
+          console.error('Failed to save session before OAuth flow:', saveErr);
+          return res.status(500).json({ error: 'Session error, please try again' });
+        }
+        
+        console.log(`User ${req.user?.username} (ID: ${req.user?.id}) starting Gmail authorization`);
+        console.log('Session ID (regenerated):', req.sessionID);
+        
+        // Store the user ID directly in the session for recovery
+        req.session.gmailAuthUser = req.user?.id;
+        
+        try {
+          const authUrl = getAuthUrl();
+          console.log('Generated auth URL:', authUrl.substring(0, 50) + '...');
+          res.json({ url: authUrl, authUrl: authUrl });
+        } catch (error) {
+          console.error('Error generating auth URL:', error);
+          res.status(500).json({ 
+            error: 'Failed to generate Google authorization URL',
+            message: error instanceof Error ? error.message : String(error)
+          });
+        }
+      });
     });
   });
 
@@ -126,6 +150,7 @@ export function setupGoogleAuth(app: Express) {
     console.log('Request query params:', req.query);
     console.log('User authenticated:', req.isAuthenticated());
     console.log('User ID:', req.user?.id);
+    console.log('Session data:', JSON.stringify(req.session));
     
     const { code } = req.query;
     
@@ -142,9 +167,13 @@ export function setupGoogleAuth(app: Express) {
       console.log(`- Redirect URI: ${redirectUri}`);
       console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
       
+      // Clean the code to make sure it's properly formatted
+      const cleanCode = sanitizeAuthCode(code);
+      console.log(`Original code length: ${code.length}, cleaned code length: ${cleanCode.length}`);
+      
       // Use the existing OAuth client with explicit redirect URI
       const tokenResponse = await oauth2Client.getToken({
-        code,
+        code: cleanCode,
         redirect_uri: redirectUri
       });
       
@@ -153,19 +182,22 @@ export function setupGoogleAuth(app: Express) {
       console.log('Access token received:', !!tokens.access_token);
       console.log('Refresh token received:', !!tokens.refresh_token);
       
-      // Save tokens to the user's record in database
-      if (req.isAuthenticated() && req.user?.id) {
+      // Check if we have an authenticated user
+      const userId = req.isAuthenticated() ? req.user?.id : (req.session?.gmailAuthUser || null);
+      
+      if (userId) {
         try {
-          console.log(`User is authenticated as: ${req.user?.username} (ID: ${req.user?.id})`);
-          await storage.saveGoogleTokens(req.user.id, tokens);
-          console.log(`Successfully saved Google tokens for user ${req.user.id}`);
-          // Make sure to preserve the session after Google redirect
+          console.log(`Saving tokens for user ID: ${userId}`);
+          await storage.saveGoogleTokens(userId, tokens);
+          console.log(`Successfully saved Google tokens for user ${userId}`);
+          
+          // Make sure the session is preserved after redirecting
           req.session.save((err: Error | null) => {
             if (err) {
               console.error('Error saving session after OAuth:', err);
             }
             console.log('Session saved successfully, redirecting to emails page');
-            res.redirect('/emails');
+            res.redirect('/emails?success=true');
           });
         } catch (error) {
           const saveError = error as Error;
@@ -173,11 +205,16 @@ export function setupGoogleAuth(app: Express) {
           res.redirect('/emails?error=token_save_failed&message=' + encodeURIComponent(saveError.message || 'Unknown error'));
         }
       } else {
-        console.error('CRITICAL ERROR: User not authenticated during Google callback');
+        console.error('CRITICAL ERROR: Cannot identify user during Google callback');
         console.error('Session may have been lost during the OAuth flow');
         console.error('Session ID:', req.sessionID);
-        console.error('Session data:', req.session);
-        res.redirect('/auth?error=not_authenticated&message=Session%20lost%20during%20authentication');
+        console.error('Session data:', JSON.stringify(req.session));
+        
+        // Save the tokens temporarily in the session as a fallback
+        req.session.temporaryGoogleTokens = tokens;
+        req.session.save(() => {
+          res.redirect('/emails?error=session_lost&message=Please+try+manual+authentication');
+        });
       }
     } catch (error) {
       console.error('Error during token exchange:', error);
@@ -248,12 +285,15 @@ export function setupGoogleAuth(app: Express) {
   
   // Function to clean and validate an authorization code
   function sanitizeAuthCode(code: string): string {
+    console.log('Sanitizing auth code, original length:', code.length);
+    
     // Trim whitespace and remove any quotes that might have been accidentally included
     code = code.trim().replace(/["']/g, '');
     
-    // Check if it's a URL and extract the code parameter
-    if (code.includes('code=')) {
+    // Check if it's a full URL containing a code parameter
+    if (code.includes('https://') && code.includes('code=')) {
       try {
+        console.log('Detected full URL with code parameter');
         const match = code.match(/[?&]code=([^&]+)/);
         if (match && match[1]) {
           console.log('Extracted code from URL parameter');
@@ -262,18 +302,33 @@ export function setupGoogleAuth(app: Express) {
       } catch (err) {
         console.error('Error extracting code from URL:', err);
       }
+    } 
+    // If it's just a code parameter fragment (code=xxxx)
+    else if (code.startsWith('code=')) {
+      try {
+        console.log('Detected code parameter fragment');
+        const parts = code.split('=');
+        if (parts.length > 1) {
+          code = parts[1];
+          console.log('Extracted code value from fragment');
+        }
+      } catch (err) {
+        console.error('Error extracting code from fragment:', err);
+      }
     }
     
-    // Decode if it's URL-encoded
+    // Handle possible URL encoding
     try {
       if (code.includes('%')) {
-        code = decodeURIComponent(code);
+        const decodedCode = decodeURIComponent(code);
         console.log('Decoded URL-encoded auth code');
+        code = decodedCode;
       }
     } catch (err) {
       console.error('Error decoding auth code:', err);
     }
     
+    console.log('Sanitized code length:', code.length);
     return code;
   }
 

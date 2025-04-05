@@ -248,12 +248,15 @@ function Messages() {
   
   // Extract clean code from a URL or raw code string
   const extractAuthCode = (input: string): string => {
+    if (!input) return '';
+    
+    console.log('Processing auth code input, length:', input.length);
     input = input.trim();
     
-    // Check if this looks like a URL with a code parameter
-    if (input.includes('code=')) {
+    // Handle full URLs with code parameter
+    if (input.includes('https://') && input.includes('code=')) {
       try {
-        // Try to extract just the code from a URL like https://...?code=abc123&scope=email
+        console.log('Detected full URL with code parameter');
         const match = input.match(/[?&]code=([^&]+)/);
         if (match && match[1]) {
           console.log('Extracted code from URL parameter');
@@ -263,8 +266,34 @@ function Messages() {
         console.error('Error extracting code from URL:', err);
       }
     }
+    // Handle code parameter fragment (code=xxxx)
+    else if (input.startsWith('code=')) {
+      try {
+        console.log('Detected code parameter fragment');
+        const parts = input.split('=');
+        if (parts.length > 1) {
+          return parts[1];
+        }
+      } catch (err) {
+        console.error('Error extracting code from fragment:', err);
+      }
+    }
+    // Handle JSON-like objects that might be copied from DevTools
+    else if (input.includes('"code":')) {
+      try {
+        console.log('Detected JSON-like string with code property');
+        const match = input.match(/"code"\s*:\s*"([^"]+)"/);
+        if (match && match[1]) {
+          console.log('Extracted code from JSON');
+          return match[1];
+        }
+      } catch (err) {
+        console.error('Error extracting code from JSON:', err);
+      }
+    }
     
-    // If not a URL or extraction failed, return as is
+    // If we couldn't parse it as a special format, return as is
+    console.log('No special format detected, using as-is');
     return input;
   };
   
@@ -461,7 +490,7 @@ function Messages() {
                       </div>
                       <div className="ml-3">
                         <p className="text-sm text-yellow-700 font-medium">
-                          Important: You need to complete the authorization process with Google first!
+                          Important: You must complete the Google authorization process first!
                         </p>
                       </div>
                     </div>
@@ -469,14 +498,19 @@ function Messages() {
                   <ol className="list-decimal list-inside space-y-2 text-sm">
                     <li><strong>Step 1:</strong> Click the "Open Google Authorization Page" button below and a new tab will open.</li>
                     <li><strong>Step 2:</strong> In the new tab, complete the Google sign-in and grant permission when asked.</li>
-                    <li><strong>Step 3:</strong> After approval, Google will redirect you to a URL that contains <code className="bg-muted p-1 rounded">code=</code> in it.</li>
-                    <li><strong>Step 4:</strong> Copy the entire redirect URL from your browser's address bar after approving permissions.</li>
-                    <li><strong>Step 5:</strong> Return to this tab and paste the redirect URL in the field below.</li>
-                    <li><strong>Step 6:</strong> Click "Connect Account" quickly (codes expire within minutes).</li>
+                    <li><strong>Step 3:</strong> After approval, Google will redirect you to a page with a URL containing <code className="bg-muted p-1 rounded">code=</code>.</li>
+                    <li><strong>Step 4:</strong> Copy the ENTIRE URL from your browser's address bar. It should look like:</li>
+                    <li className="ml-5 list-none text-xs text-muted-foreground">
+                      <code className="bg-muted p-1 rounded break-all">
+                        https://thermopac-communication-thermopacllp.replit.app/auth/google/callback?code=4/0AfJohXm...
+                      </code>
+                    </li>
+                    <li><strong>Step 5:</strong> Return to this tab and paste the complete URL in the field below.</li>
+                    <li><strong>Step 6:</strong> Click "Connect Account" quickly (authorization codes expire within minutes).</li>
                   </ol>
                   <div className="mt-4 bg-blue-50 border-l-4 border-blue-500 p-4">
                     <p className="text-sm text-blue-700">
-                      <strong>Note:</strong> You might see an error page during redirection, but that's expected. Just copy the URL from the address bar.
+                      <strong>Note:</strong> If you see "This site can't be reached" or an error page after authorization, that's normal. What matters is copying the full URL from your browser's address bar.
                     </p>
                   </div>
                 </div>
@@ -503,13 +537,17 @@ function Messages() {
                 <form onSubmit={handleManualSubmit}>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="authCode">Authorization Code</Label>
+                      <Label htmlFor="authCode">Paste the Complete Authorization URL</Label>
                       <Input
                         id="authCode"
                         value={authCode}
                         onChange={(e) => setAuthCode(e.target.value)}
-                        placeholder="Paste the authorization code here"
+                        placeholder="https://thermopac-communication-thermopacllp.replit.app/auth/google/callback?code=..."
+                        className="font-mono text-xs"
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Paste the entire URL from your browser's address bar after authorization
+                      </p>
                     </div>
                     
                     <div className="flex justify-between">
