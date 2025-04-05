@@ -49,7 +49,19 @@ export default function Layout({ children }: LayoutProps) {
             <img 
               src="/images/thermopac-logo.jpg" 
               alt="Thermopac Logo" 
-              className="h-16 mb-2"
+              className="h-16 mb-2 object-contain"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                console.log("Logo image failed to load, using text fallback");
+                target.style.display = 'none';
+                const parent = target.parentElement;
+                if (parent) {
+                  const textLogo = document.createElement('div');
+                  textLogo.className = 'text-2xl font-bold text-primary mb-2';
+                  textLogo.textContent = 'THERMOPAC';
+                  parent.appendChild(textLogo);
+                }
+              }}
             />
           </div>
           <UserProfile user={user!} />

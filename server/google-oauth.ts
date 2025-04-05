@@ -1,10 +1,25 @@
 import { OAuth2Client } from 'google-auth-library';
 
-// Default hardcoded URI known to work
-const defaultUri = 'https://thermopac-communication-thermopacllp.replit.app/auth/google/callback';
+// Get the hostname from the environment or use a fallback
+const replit_domain = process.env.REPL_SLUG && process.env.REPL_OWNER 
+  ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER.toLowerCase()}.repl.co`
+  : 'https://thermopac-communication-thermopacllp.replit.app';
 
 // Set proper redirect URI based on environment
-const redirectUri = process.env.GOOGLE_REDIRECT_URI || defaultUri;
+// IMPORTANT: This MUST match exactly what's configured in Google Cloud Console
+const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${replit_domain}/auth/google/callback`;
+
+// Check existing environment variable and issue warning if it appears to be a placeholder
+if (process.env.GOOGLE_REDIRECT_URI && process.env.GOOGLE_REDIRECT_URI.includes('your-domain')) {
+  console.warn('WARNING: GOOGLE_REDIRECT_URI appears to contain a placeholder value!');
+  console.warn('Current value:', process.env.GOOGLE_REDIRECT_URI);
+  console.warn('Please set GOOGLE_REDIRECT_URI to the exact value from your Google Cloud Console');
+}
+
+// Note: If you continue to see redirect_uri_mismatch errors, you need to:
+// 1. Copy the exact URI from the google error message
+// 2. Add it to your Google Cloud Console under "Authorized redirect URIs"
+// 3. Then set it as GOOGLE_REDIRECT_URI in your Replit environment variables
 
 // Log the effective redirect URI for debugging
 console.log(`Using OAuth redirect URI: ${redirectUri}`);

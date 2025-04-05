@@ -495,23 +495,17 @@ function Messages() {
                 <Card className="p-6 text-center">
                   <div className="bg-red-50 p-4 rounded-lg mb-4">
                     <Mail className="h-6 w-6 text-red-600 mx-auto mb-2" />
-                    <p className="text-red-700 font-medium">Gmail Connection Error</p>
+                    <p className="text-red-700 font-medium">Error loading messages</p>
                     <p className="text-sm text-red-600 mt-1">
                       {messagesError instanceof Error 
                         ? messagesError.message.includes("failed to fetch") 
                           ? "Connection to Gmail failed. Your authentication may have expired." 
-                          : messagesError.message.includes("401")
-                            ? "Your Gmail authorization has expired."
-                            : messagesError.message
+                          : messagesError.message
                         : "Unknown error"}
                     </p>
                     <div className="mt-2 text-xs text-red-600">
-                      {messagesError instanceof Error && (
-                        messagesError.message.includes("401") 
-                          ? <p>Please disconnect and reconnect your account using the buttons below.</p>
-                          : messagesError.message.includes("redirect_uri_mismatch")
-                            ? <p>There's a mismatch between the redirect URI configured in Google Cloud Console and this application.</p>
-                            : null
+                      {messagesError instanceof Error && messagesError.message.includes("401") && (
+                        <p>Your Gmail authorization has expired. Please disconnect and reconnect your account.</p>
                       )}
                     </div>
                   </div>
