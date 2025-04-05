@@ -64,16 +64,62 @@ export function getAuthUrl() {
 export function setupGoogleAuth(app: Express) {
   // Endpoint to initiate OAuth flow
   app.get('/api/auth/google', (req, res) => {
+    console.log('OAuth initiation requested by user:', req.user?.id);
+    
     if (!req.isAuthenticated()) {
+      console.error('Unauthenticated user attempted to connect Gmail');
       return res.status(401).json({ error: 'You must be logged in to connect Gmail' });
     }
-
-    const authUrl = getAuthUrl();
-    res.json({ authUrl });
+    
+    // Save session immediately to ensure it persists through the OAuth flow
+    req.session.save((err: Error | null) => {
+      if (err) {
+        console.error('Failed to save session before OAuth flow:', err);
+        return res.status(500).json({ error: 'Session error, please try again' });
+      }
+      
+      console.log(`User ${req.user?.username} (ID: ${req.user?.id}) starting Gmail authorization`);
+      console.log('Session ID:', req.sessionID);
+      
+      try {
+        const authUrl = getAuthUrl();
+        console.log('Generated auth URL:', authUrl.substring(0, 50) + '...');
+        res.json({ authUrl });
+      } catch (error) {
+        console.error('Error generating auth URL:', error);
+        res.status(500).json({ 
+          error: 'Failed to generate Google authorization URL',
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
   });
 
-  // OAuth callback handler - matches the route specified in GOOGLE_REDIRECT_URI
-  app.get('/auth/google/callback', async (req, res) => {
+  // First, capture any path that ends with /auth/google/callback
+  // This helps us handle potential path prefixes or variations
+  app.get('**/auth/google/callback', (req, res, next) => {
+    console.log('==== CALLBACK HANDLER TRIGGERED ====');
+    console.log('Original URL:', req.originalUrl);
+    console.log('Path:', req.path);
+    console.log('Query:', req.query);
+    console.log('Is authenticated:', req.isAuthenticated());
+    
+    // If this is our exact expected path, let this route handle it
+    if (req.path === '/auth/google/callback') {
+      console.log('Processing exact callback path match');
+      handleGoogleCallback(req, res);
+    } else {
+      // If it's a variation, redirect to the correct path
+      const callbackPath = '/auth/google/callback';
+      const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+      const redirectUrl = `${callbackPath}${queryString}`;
+      console.log(`Redirecting variant callback path to: ${redirectUrl}`);
+      res.redirect(redirectUrl);
+    }
+  });
+  
+  // Define a function to handle the callback logic
+  async function handleGoogleCallback(req: any, res: any) {
     console.log('==== GOOGLE AUTH CALLBACK RECEIVED ====');
     console.log('Request query params:', req.query);
     console.log('User authenticated:', req.isAuthenticated());
@@ -108,17 +154,28 @@ export function setupGoogleAuth(app: Express) {
       // Save tokens to the user's record in database
       if (req.isAuthenticated() && req.user?.id) {
         try {
+          console.log(`User is authenticated as: ${req.user?.username} (ID: ${req.user?.id})`);
           await storage.saveGoogleTokens(req.user.id, tokens);
-          console.log(`Saved Google tokens for user ${req.user.id}`);
-          res.redirect('/emails'); // Redirect to the email interface
+          console.log(`Successfully saved Google tokens for user ${req.user.id}`);
+          // Make sure to preserve the session after Google redirect
+          req.session.save((err: Error | null) => {
+            if (err) {
+              console.error('Error saving session after OAuth:', err);
+            }
+            console.log('Session saved successfully, redirecting to emails page');
+            res.redirect('/emails');
+          });
         } catch (error) {
           const saveError = error as Error;
           console.error('Error saving tokens to database:', saveError);
           res.redirect('/emails?error=token_save_failed&message=' + encodeURIComponent(saveError.message || 'Unknown error'));
         }
       } else {
-        console.error('User not authenticated during Google callback');
-        res.redirect('/auth?error=not_authenticated');
+        console.error('CRITICAL ERROR: User not authenticated during Google callback');
+        console.error('Session may have been lost during the OAuth flow');
+        console.error('Session ID:', req.sessionID);
+        console.error('Session data:', req.session);
+        res.redirect('/auth?error=not_authenticated&message=Session%20lost%20during%20authentication');
       }
     } catch (error) {
       console.error('Error during token exchange:', error);
@@ -146,16 +203,7 @@ export function setupGoogleAuth(app: Express) {
       // Redirect with specific error information
       res.redirect(`/emails?error=${errorType}&message=${encodeURIComponent(errorMessage)}`);
     }
-  });
-  
-  // Add a duplicate route to handle the variant of the redirect URI
-  app.get('*/auth/google/callback', (req, res) => {
-    // Strip any prefix and forward to the actual callback handler
-    const callbackPath = '/auth/google/callback';
-    const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
-    console.log(`Redirecting OAuth callback to ${callbackPath}${queryString}`);
-    res.redirect(`${callbackPath}${queryString}`);
-  });
+  }
 
   // Endpoint to check if user has connected Gmail
   app.get('/api/google/status', async (req, res) => {
