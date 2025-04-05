@@ -243,6 +243,70 @@ export function setupGoogleAuth(app: Express) {
       res.status(500).json({ error: 'Failed to disconnect Google' });
     }
   });
+  
+  // Manual authentication endpoint for when redirect doesn't work
+  app.post('/api/gmail/manual-auth', async (req, res) => {
+    console.log('Manual Gmail authentication attempt');
+    
+    if (!req.isAuthenticated()) {
+      console.error('Unauthorized manual auth attempt');
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const { code } = req.body;
+    
+    if (!code || typeof code !== 'string') {
+      console.error('No authorization code provided for manual auth');
+      return res.status(400).json({ error: 'Authorization code is required' });
+    }
+    
+    console.log('Processing manual authentication with code');
+    
+    try {
+      // Exchange code for tokens
+      console.log('Attempting to exchange code for tokens with:');
+      console.log(`- Redirect URI: ${redirectUri}`);
+      console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
+      
+      const tokenResponse = await oauth2Client.getToken({
+        code,
+        redirect_uri: redirectUri
+      });
+      
+      const tokens = tokenResponse.tokens;
+      console.log('Successfully exchanged code for tokens:', tokens ? 'Tokens received' : 'No tokens received');
+      console.log('Access token received:', !!tokens.access_token);
+      console.log('Refresh token received:', !!tokens.refresh_token);
+      
+      // Save tokens to the user's record in database
+      await storage.saveGoogleTokens(req.user!.id, tokens);
+      console.log(`Successfully saved Google tokens for user ${req.user!.id} via manual auth`);
+      
+      res.json({ 
+        success: true, 
+        message: 'Gmail account connected successfully' 
+      });
+    } catch (error) {
+      console.error('Error during manual token exchange:', error);
+      
+      // Determine specific error type
+      let errorType = 'token_exchange_failed';
+      let errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (error instanceof Error) {
+        if (errorMessage.includes('redirect_uri_mismatch')) {
+          errorType = 'redirect_uri_mismatch';
+        } else if (errorMessage.includes('invalid_grant')) {
+          errorType = 'invalid_grant';
+        }
+      }
+      
+      res.status(400).json({ 
+        error: errorType, 
+        message: errorMessage 
+      });
+    }
+  });
 }
 
 // Helper function to get authenticated Gmail client for a user

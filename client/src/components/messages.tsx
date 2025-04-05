@@ -173,6 +173,38 @@ function Messages() {
   });
 
   // Connect to Gmail
+  const [manualMode, setManualMode] = useState(false);
+  const [authCode, setAuthCode] = useState("");
+  const [isSubmittingCode, setIsSubmittingCode] = useState(false);
+  const [authUrl, setAuthUrl] = useState<string | null>(null);
+  
+  // Manual auth mutation
+  const manualAuthMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const res = await apiRequest("POST", "/api/gmail/manual-auth", { code });
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Gmail account connected successfully!",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
+      setManualMode(false);
+      setAuthCode("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Authentication Failed",
+        description: error.message || "Failed to authenticate with Google. Please try again with a new code.",
+        variant: "destructive"
+      });
+    },
+    onSettled: () => {
+      setIsSubmittingCode(false); 
+    }
+  });
+  
   const connectToGmail = async () => {
     try {
       // First attempt to get the URL
@@ -186,6 +218,12 @@ function Messages() {
       
       // Check if we got a URL or an error
       if (data.url) {
+        // Save the URL for manual mode
+        setAuthUrl(data.url);
+        
+        // Save the timestamp in localStorage to help diagnose redirect issues
+        localStorage.setItem('gmailAuthAttempt', new Date().toISOString());
+        
         // Open Google auth page in a new tab
         window.open(data.url, '_blank');
       } else if (data.error) {
@@ -205,6 +243,22 @@ function Messages() {
         variant: "destructive"
       });
     }
+  };
+  
+  // Handle manual auth submission
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authCode.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter the authorization code",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSubmittingCode(true);
+    manualAuthMutation.mutate(authCode);
   };
 
   // Disconnect from Gmail
@@ -309,51 +363,129 @@ function Messages() {
         </CardHeader>
         <CardContent className="pt-6 pb-8 text-center">
           <div className="space-y-6 mx-auto max-w-md">
-            <div className="grid grid-cols-1 gap-4 text-left">
-              <div className="flex items-start">
-                <div className="bg-primary/10 p-2 rounded mr-3 mt-1">
-                  <MailOpen className="h-4 w-4 text-primary" />
+            {!manualMode ? (
+              /* Regular Connect Mode */
+              <>
+                <div className="grid grid-cols-1 gap-4 text-left">
+                  <div className="flex items-start">
+                    <div className="bg-primary/10 p-2 rounded mr-3 mt-1">
+                      <MailOpen className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Stay Connected</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Access your Gmail inbox without leaving the THERMOPAC platform
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="bg-primary/10 p-2 rounded mr-3 mt-1">
+                      <Star className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Priority Handling</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Mark important emails and manage priorities efficiently
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="bg-primary/10 p-2 rounded mr-3 mt-1">
+                      <RotateCw className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Auto-Sync</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Set up automatic synchronization to always stay up-to-date
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-medium">Stay Connected</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Access your Gmail inbox without leaving the THERMOPAC platform
+                <Button 
+                  onClick={connectToGmail} 
+                  className="w-full bg-gradient-to-r from-blue-600 to-red-600 hover:from-blue-700 hover:to-red-700"
+                  size="lg"
+                >
+                  Connect Gmail Account
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Note: You'll be redirected to Google to authorize access and then returned to this page.
+                </p>
+                <Button 
+                  variant="link" 
+                  onClick={() => setManualMode(true)} 
+                  className="text-sm w-full"
+                >
+                  Having problems? Try manual authentication
+                </Button>
+              </>
+            ) : (
+              /* Manual Connect Mode */
+              <>
+                <div className="text-left mb-6">
+                  <h3 className="text-lg font-medium mb-2">Manual Gmail Authentication</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    If automatic redirect isn't working, follow these steps:
                   </p>
+                  <ol className="list-decimal list-inside space-y-2 text-sm">
+                    <li>Click the button below to open the Google authorization page.</li>
+                    <li>Complete the Google sign-in and authorization process.</li>
+                    <li>Google will display an authorization code.</li>
+                    <li>Copy the code and paste it in the field below.</li>
+                  </ol>
                 </div>
-              </div>
-              <div className="flex items-start">
-                <div className="bg-primary/10 p-2 rounded mr-3 mt-1">
-                  <Star className="h-4 w-4 text-primary" />
+                
+                <div className="mb-6">
+                  <Button 
+                    onClick={connectToGmail} 
+                    className="w-full mb-4"
+                    variant="outline"
+                  >
+                    Open Google Authorization Page
+                  </Button>
+                  
+                  {authUrl && (
+                    <div className="text-xs text-left mt-2 overflow-hidden">
+                      <p className="font-medium mb-1">Or copy this URL manually:</p>
+                      <div className="bg-secondary p-2 rounded overflow-x-auto whitespace-normal break-all">
+                        {authUrl}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <h3 className="font-medium">Priority Handling</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Mark important emails and manage priorities efficiently
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start">
-                <div className="bg-primary/10 p-2 rounded mr-3 mt-1">
-                  <RotateCw className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-medium">Auto-Sync</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Set up automatic synchronization to always stay up-to-date
-                  </p>
-                </div>
-              </div>
-            </div>
-            <Button 
-              onClick={connectToGmail} 
-              className="w-full bg-gradient-to-r from-blue-600 to-red-600 hover:from-blue-700 hover:to-red-700"
-              size="lg"
-            >
-              Connect Gmail Account
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              Note: You'll be redirected to Google to authorize access and then returned to this page.
-            </p>
+                
+                <form onSubmit={handleManualSubmit}>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="authCode">Authorization Code</Label>
+                      <Input
+                        id="authCode"
+                        value={authCode}
+                        onChange={(e) => setAuthCode(e.target.value)}
+                        placeholder="Paste the authorization code here"
+                      />
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        onClick={() => setManualMode(false)}
+                      >
+                        Back
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        disabled={isSubmittingCode || manualAuthMutation.isPending || !authCode.trim()}
+                        className="bg-gradient-to-r from-blue-600 to-red-600 hover:from-blue-700 hover:to-red-700"
+                      >
+                        {manualAuthMutation.isPending ? "Connecting..." : "Connect Account"}
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
