@@ -22,6 +22,7 @@ import {
   Settings,
   ArrowLeft,
   ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -453,14 +454,31 @@ function Messages() {
                   <p className="text-sm text-muted-foreground mb-4">
                     If automatic redirect isn't working, follow these steps:
                   </p>
+                  <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-yellow-700 font-medium">
+                          Important: You need to complete the authorization process with Google first!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                   <ol className="list-decimal list-inside space-y-2 text-sm">
-                    <li>Click the button below to open the Google authorization page.</li>
-                    <li>Complete the Google sign-in and authorization process.</li>
-                    <li>When Google redirects you, copy the URL from your browser's address bar.</li>
-                    <li>Look for the part in the URL that starts with <code className="bg-muted p-1 rounded">code=</code> followed by a long string of characters.</li>
-                    <li>Copy <strong>only</strong> the code value (the part after <code className="bg-muted p-1 rounded">code=</code> and before any <code className="bg-muted p-1 rounded">&</code> character).</li>
-                    <li>Paste that code in the field below and submit quickly (codes expire within minutes).</li>
+                    <li><strong>Step 1:</strong> Click the "Open Google Authorization Page" button below and a new tab will open.</li>
+                    <li><strong>Step 2:</strong> In the new tab, complete the Google sign-in and grant permission when asked.</li>
+                    <li><strong>Step 3:</strong> After approval, Google will redirect you to a URL that contains <code className="bg-muted p-1 rounded">code=</code> in it.</li>
+                    <li><strong>Step 4:</strong> Copy the entire redirect URL from your browser's address bar after approving permissions.</li>
+                    <li><strong>Step 5:</strong> Return to this tab and paste the redirect URL in the field below.</li>
+                    <li><strong>Step 6:</strong> Click "Connect Account" quickly (codes expire within minutes).</li>
                   </ol>
+                  <div className="mt-4 bg-blue-50 border-l-4 border-blue-500 p-4">
+                    <p className="text-sm text-blue-700">
+                      <strong>Note:</strong> You might see an error page during redirection, but that's expected. Just copy the URL from the address bar.
+                    </p>
+                  </div>
                 </div>
                 
                 <div className="mb-6">
