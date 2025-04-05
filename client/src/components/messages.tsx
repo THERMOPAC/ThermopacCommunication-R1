@@ -148,17 +148,33 @@ function Messages() {
   // Connect to Gmail
   const connectToGmail = async () => {
     try {
-      const res = await apiRequest("GET", "/api/gmail/auth-url");
-      const data = await res.json();
+      // First attempt to get the URL
+      const response = await fetch("/api/gmail/auth-url", {
+        method: "GET",
+        credentials: "include",
+      });
       
+      // Parse the response
+      const data = await response.json();
+      
+      // Check if we got a URL or an error
       if (data.url) {
         // Open Google auth page in a new tab
         window.open(data.url, '_blank');
+      } else if (data.error) {
+        // Display specific error from the server
+        toast({
+          title: "OAuth Configuration Error",
+          description: data.message || "Google OAuth is not properly configured on the server.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
+      // Handle any other errors
+      console.error("Gmail connection error:", error);
       toast({
         title: "Error",
-        description: "Failed to generate authentication URL",
+        description: "Failed to generate authentication URL. Please try again later.",
         variant: "destructive"
       });
     }
