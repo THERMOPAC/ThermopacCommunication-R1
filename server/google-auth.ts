@@ -2,14 +2,9 @@ import { google } from 'googleapis';
 import { Express, Request, Response } from 'express';
 import { storage } from './storage';
 
-// Get the hostname from the environment or use a fallback
-const replit_domain = process.env.REPL_SLUG && process.env.REPL_OWNER 
-  ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER.toLowerCase()}.repl.co`
-  : 'https://thermopac-communication-thermopacllp.replit.app';
-
-// Set proper redirect URI based on environment
+// Set the redirect URI to match exactly what's configured in Google Cloud Console
 // IMPORTANT: This MUST match exactly what's configured in Google Cloud Console
-const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${replit_domain}/auth/google/callback`;
+const redirectUri = "https://thermopac-communication-thermopacllp.replit.app/auth/google/callback";
 
 // Note: If you continue to see redirect_uri_mismatch errors, you need to:
 // 1. Copy the exact URI from the google error message
