@@ -152,11 +152,17 @@ export async function getTokens(code: string) {
 /**
  * Clean and validate an authorization code
  */
-function sanitizeAuthCode(code: string): string {
+export function sanitizeAuthCode(code: string): string {
   console.log('Sanitizing auth code, original length:', code.length);
   
   // Trim whitespace and remove any quotes that might have been accidentally included
   code = code.trim().replace(/["']/g, '');
+  
+  // Direct Google authorization code format - if it already looks like a valid Google code, return it as is
+  if (/^4\/0A[a-zA-Z0-9_-]+$/.test(code)) {
+    console.log('Detected direct Google OAuth code format, using as-is');
+    return code;
+  }
   
   // Check if it's a full URL containing a code parameter
   if (code.includes('https://') && code.includes('code=')) {
@@ -182,6 +188,19 @@ function sanitizeAuthCode(code: string): string {
       }
     } catch (err) {
       console.error('Error extracting code from fragment:', err);
+    }
+  }
+  // Handle JSON-like objects that might be pasted
+  else if (code.includes('"code":')) {
+    try {
+      console.log('Detected JSON-like string with code property');
+      const match = code.match(/"code"\s*:\s*"([^"]+)"/);
+      if (match && match[1]) {
+        console.log('Extracted code from JSON');
+        code = match[1];
+      }
+    } catch (err) {
+      console.error('Error extracting code from JSON:', err);
     }
   }
   

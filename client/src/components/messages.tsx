@@ -274,6 +274,12 @@ function Messages() {
     console.log('Processing auth code input, length:', input.length);
     input = input.trim();
     
+    // Handle direct Google auth codes (they typically start with "4/0A" for OAuth 2.0)
+    if (/^4\/0A[a-zA-Z0-9_-]+$/.test(input)) {
+      console.log('Detected direct Google OAuth code format');
+      return input;
+    }
+    
     // Handle full URLs with code parameter
     if (input.includes('https://') && input.includes('code=')) {
       try {
@@ -312,6 +318,11 @@ function Messages() {
         console.error('Error extracting code from JSON:', err);
       }
     }
+    // Handle just the code extracted from a URL (if it matches the Google pattern)
+    else if (/^[a-zA-Z0-9_-]+$/.test(input) && input.length >= 20) {
+      console.log('Input appears to be a raw authorization code');
+      return input;
+    }
     
     // If we couldn't parse it as a special format, return as is
     console.log('No special format detected, using as-is');
@@ -327,20 +338,23 @@ function Messages() {
     setManualAuthError(null);
     
     if (!authCode.trim()) {
-      setManualAuthError("Please enter the complete authorization URL");
+      setManualAuthError("Please enter the authorization code or complete URL");
       toast({
         title: "Error",
-        description: "Please enter the authorization URL",
+        description: "Please enter the authorization code",
         variant: "destructive",
       });
       return;
     }
     
-    if (!authCode.includes('code=')) {
-      setManualAuthError("The URL must contain 'code=' parameter. Please copy the entire URL from your browser after Google authorization.");
+    // For direct code input (when it doesn't contain 'code=' but looks like a Google auth code)
+    const isDirect4StyleCode = /^4\/0A[a-zA-Z0-9_-]+$/.test(authCode.trim());
+    
+    if (!isDirect4StyleCode && !authCode.includes('code=')) {
+      setManualAuthError("Invalid authorization code format. Please enter either the code (starts with '4/0A...') or the complete callback URL.");
       toast({
-        title: "Invalid URL Format",
-        description: "The URL doesn't contain an authorization code",
+        title: "Invalid Format",
+        description: "Unrecognized authorization code format",
         variant: "destructive",
       });
       return;
@@ -351,10 +365,10 @@ function Messages() {
     console.log('Submitting cleaned auth code (first 10 chars):', cleanCode.substring(0, 10) + '...');
     
     if (cleanCode.length < 20) {
-      setManualAuthError("The extracted authorization code appears to be too short. Please ensure you're copying the complete URL after Google authorization.");
+      setManualAuthError("The authorization code appears to be too short. Google authorization codes are typically longer.");
       toast({
         title: "Invalid Code",
-        description: "Extracted authorization code appears invalid",
+        description: "Authorization code appears invalid",
         variant: "destructive",
       });
       return;
@@ -604,17 +618,21 @@ function Messages() {
                 <form onSubmit={handleManualSubmit}>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="authCode">Paste the Complete Authorization URL</Label>
+                      <Label htmlFor="authCode">Paste the Authorization Code or Complete URL</Label>
                       <Input
                         id="authCode"
                         value={authCode}
                         onChange={(e) => setAuthCode(e.target.value)}
-                        placeholder="https://thermopac-communication-thermopacllp.replit.app/auth/google/callback?code=..."
+                        placeholder="4/0AbCD...EfGhI or the full callback URL..."
                         className="font-mono text-xs"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Paste the entire URL from your browser's address bar after authorization
-                      </p>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        <p className="mb-1">You can paste either:</p>
+                        <ul className="list-disc list-inside space-y-1">
+                          <li>Just the authorization code (starts with "4/0A...")</li>
+                          <li>OR the complete URL from your browser after authorization</li>
+                        </ul>
+                      </div>
                       
                       {manualAuthError && (
                         <div className="mt-2 bg-red-50 border-l-4 border-red-400 p-3 text-red-800 text-xs">

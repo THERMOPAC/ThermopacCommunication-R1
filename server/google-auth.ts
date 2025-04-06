@@ -2,6 +2,7 @@ import { google } from 'googleapis';
 import { Express, Request, Response } from 'express';
 import { storage } from './storage';
 import { SessionData } from 'express-session';
+import { sanitizeAuthCode } from './google-oauth';
 
 // Extend the session data type to include our custom properties
 declare module 'express-session' {
@@ -294,141 +295,7 @@ export function setupGoogleAuth(app: Express) {
     }
   });
   
-  // Function to clean and validate an authorization code
-  function sanitizeAuthCode(code: string): string {
-    console.log('Sanitizing auth code, original length:', code.length);
-    console.log('Raw input (first 30 chars):', code.substring(0, 30) + '...');
-    
-    // Early return for empty input
-    if (!code) {
-      console.log('Empty code provided');
-      return '';
-    }
-    
-    // Step 1: Trim whitespace and remove any quotes that might have been accidentally included
-    code = code.trim().replace(/["']/g, '');
-    
-    // Step 2: Handle URL encoding FIRST (before extracting) as the URL itself might be encoded
-    try {
-      if (code.includes('%')) {
-        const decodedCode = decodeURIComponent(code);
-        console.log('Decoded URL-encoded auth code, length before:', code.length, 'after:', decodedCode.length);
-        code = decodedCode;
-      }
-    } catch (err) {
-      console.error('Error decoding auth code:', err);
-    }
-    
-    let originalCode = code;
-    let extractedCode = '';
-    
-    // Log the code we're trying to extract from
-    console.log('Attempting to extract code from:', code.substring(0, 100) + (code.length > 100 ? '...' : ''));
-    
-    // Step 3: Try different methods to extract the code until one works
-    
-    // Method 1: Full URL with code parameter (most common scenario)
-    if (!extractedCode && code.includes('code=')) {
-      try {
-        console.log('Trying to extract from URL with code parameter');
-        const match = code.match(/[?&]code=([^&]+)/);
-        if (match && match[1]) {
-          extractedCode = match[1];
-          console.log('Successfully extracted code from URL parameter, length:', extractedCode.length);
-        }
-      } catch (err) {
-        console.error('Error extracting code from URL:', err);
-      }
-    }
-    
-    // Method 2: Code parameter fragment (code=xxxx)
-    if (!extractedCode && code.startsWith('code=')) {
-      try {
-        console.log('Trying to extract from code parameter fragment');
-        const parts = code.split('=');
-        if (parts.length > 1) {
-          extractedCode = parts[1].split('&')[0]; // Handle potential additional params
-          console.log('Successfully extracted code from fragment, length:', extractedCode.length);
-        }
-      } catch (err) {
-        console.error('Error extracting code from fragment:', err);
-      }
-    }
-    
-    // Method 3: Just code portion after code= anywhere in the string (more flexible)
-    if (!extractedCode && code.includes('code=')) {
-      try {
-        console.log('Trying flexible extraction after code=');
-        const codeStart = code.indexOf('code=') + 5;
-        let codeEnd = code.indexOf('&', codeStart);
-        if (codeEnd === -1) codeEnd = code.length;
-        
-        if (codeStart > 5 && codeEnd > codeStart) {
-          extractedCode = code.substring(codeStart, codeEnd);
-          console.log('Successfully extracted code using flexible method, length:', extractedCode.length);
-        }
-      } catch (err) {
-        console.error('Error using flexible extraction:', err);
-      }
-    }
-    
-    // Method 4: JSON-like structure with code property
-    if (!extractedCode && code.includes('"code"')) {
-      try {
-        console.log('Trying to extract from JSON-like structure');
-        const match = code.match(/"code"\s*:\s*"([^"]+)"/);
-        if (match && match[1]) {
-          extractedCode = match[1];
-          console.log('Successfully extracted code from JSON structure, length:', extractedCode.length);
-        }
-      } catch (err) {
-        console.error('Error extracting code from JSON structure:', err);
-      }
-    }
-    
-    // Method 5: Try to extract after "callback?code=" which is most common for Google
-    if (!extractedCode && code.includes('callback?code=')) {
-      try {
-        console.log('Trying specific extraction after callback?code=');
-        const codeStart = code.indexOf('callback?code=') + 'callback?code='.length;
-        let codeEnd = code.indexOf('&', codeStart);
-        if (codeEnd === -1) codeEnd = code.length;
-        
-        if (codeStart > 'callback?code='.length && codeEnd > codeStart) {
-          extractedCode = code.substring(codeStart, codeEnd);
-          console.log('Successfully extracted code after callback, length:', extractedCode.length);
-        }
-      } catch (err) {
-        console.error('Error using callback extraction:', err);
-      }
-    }
-    
-    // If any extraction method worked, use that result
-    if (extractedCode) {
-      code = extractedCode;
-      console.log('Using extracted code:', code.substring(0, 10) + '...');
-    } else {
-      // If no method worked and the input looks like it might already be just the code,
-      // keep it as is but log a warning
-      if (code.length > 20 && !code.includes(' ') && !code.includes('=')) {
-        console.log('No extraction method worked, but input appears to be a raw code already');
-      } else {
-        console.warn('WARNING: Failed to extract authorization code from input');
-        console.warn('Input was:', code.substring(0, 100) + (code.length > 100 ? '...' : ''));
-      }
-    }
-    
-    // Final trim and validation
-    code = code.trim();
-    
-    // Simple validation to ensure it looks like a typical OAuth2 code
-    if (code.length < 10) {
-      console.warn('WARNING: Extracted code seems too short:', code.length);
-    }
-    
-    console.log('Original input length:', originalCode.length, 'Final code length:', code.length);
-    return code;
-  }
+  // Using the imported sanitizeAuthCode function from google-oauth.ts
 
   // Manual authentication endpoint for when redirect doesn't work
   app.post('/api/gmail/manual-auth', async (req, res) => {

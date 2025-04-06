@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { storage } from './storage';
 import { getGmailClient, getAuthUrl } from './google-auth';
+import { getTokens, sanitizeAuthCode } from './google-oauth';
 import { gmail_v1 } from 'googleapis';
 
 export function setupGmailRoutes(app: express.Express) {
@@ -22,9 +23,6 @@ export function setupGmailRoutes(app: express.Express) {
       }
       
       console.log(`Raw input code length: ${code.length}`);
-      
-      // Import functions from google-oauth
-      const { getTokens, sanitizeAuthCode } = require('./google-oauth');
       
       // Clean the code to extract the authorization code
       const cleanCode = sanitizeAuthCode(code);
