@@ -98,7 +98,7 @@ function Messages() {
   // Mark message as read
   const markAsReadMutation = useMutation({
     mutationFn: async (messageId: number) => {
-      const res = await apiRequest("PATCH", `/api/gmail/messages/${messageId}/read`);
+      const res = await apiRequest("PATCH", `/api/gmail/messages/${messageId}/read`, { isRead: true });
       return await res.json();
     },
     onSuccess: () => {
@@ -107,7 +107,7 @@ function Messages() {
     onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to mark message as read",
+        description: "Failed to mark as Read.",
         variant: "destructive"
       });
     }
@@ -155,6 +155,13 @@ function Messages() {
       });
     }
   });
+  
+  // Handle delete message with confirmation
+  const handleDeleteMessage = (messageId: number) => {
+    if (window.confirm("Are you sure you want to delete this message? This action cannot be undone.")) {
+      deleteMessageMutation.mutate(messageId);
+    }
+  };
 
   // Sync Gmail messages
   const syncMutation = useMutation({
@@ -838,8 +845,8 @@ function Messages() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        if (selectedMessage && window.confirm("Are you sure you want to delete this message? This action cannot be undone.")) {
-                          deleteMessageMutation.mutate(selectedMessage.id);
+                        if (selectedMessage) {
+                          handleDeleteMessage(selectedMessage.id);
                         }
                       }}
                     >
