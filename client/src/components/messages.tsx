@@ -132,6 +132,29 @@ function Messages() {
       });
     }
   });
+  
+  // Delete message
+  const deleteMessageMutation = useMutation({
+    mutationFn: async (messageId: number) => {
+      const res = await apiRequest("DELETE", `/api/gmail/messages/${messageId}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      setSelectedMessageId(null); // Return to message list after deletion
+      queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+      toast({
+        title: "Success",
+        description: "Message deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete message",
+        variant: "destructive"
+      });
+    }
+  });
 
   // Sync Gmail messages
   const syncMutation = useMutation({
@@ -810,6 +833,17 @@ function Messages() {
                       <Star 
                         className={`h-4 w-4 ${selectedMessage?.isImportant ? 'fill-yellow-400 text-yellow-400' : ''}`} 
                       />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (selectedMessage && window.confirm("Are you sure you want to delete this message? This action cannot be undone.")) {
+                          deleteMessageMutation.mutate(selectedMessage.id);
+                        }
+                      }}
+                    >
+                      <Trash className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 </div>

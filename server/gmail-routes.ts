@@ -374,6 +374,53 @@ export function setupGmailRoutes(app: express.Express) {
       res.status(500).json({ error: 'Failed to update Gmail settings' });
     }
   });
+  
+  // Delete Gmail message
+  app.delete('/api/gmail/messages/:id', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const messageId = parseInt(req.params.id);
+    
+    if (isNaN(messageId)) {
+      return res.status(400).json({ error: 'Invalid message ID' });
+    }
+    
+    try {
+      // First, get the message to check if it belongs to the user and to get the Gmail message ID
+      const message = await storage.getGmailMessage(messageId);
+      
+      if (!message) {
+        return res.status(404).json({ error: 'Message not found' });
+      }
+      
+      if (message.userId !== req.user!.id) {
+        return res.status(403).json({ error: 'You do not have permission to delete this message' });
+      }
+      
+      // Also delete from Gmail if connected
+      try {
+        const gmail = await getGmailClient(req.user!.id);
+        await gmail.users.messages.trash({
+          userId: 'me',
+          id: message.messageId
+        });
+        console.log(`Moved Gmail message ${message.messageId} to trash in Gmail`);
+      } catch (error) {
+        console.warn('Could not delete message in Gmail:', error);
+        // Continue anyway as we'll delete from the local database
+      }
+      
+      // Delete from the database
+      await storage.deleteGmailMessage(messageId);
+      
+      res.json({ success: true, message: 'Email message deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting Gmail message:', error);
+      res.status(500).json({ error: 'Failed to delete Gmail message' });
+    }
+  });
 
   // Trigger manual sync
   app.post('/api/gmail/sync', async (req: Request, res: Response) => {
