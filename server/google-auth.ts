@@ -396,29 +396,73 @@ export function setupGoogleAuth(app: Express) {
 
 // Helper function to get authenticated Gmail client for a user
 export async function getGmailClient(userId: number) {
+  console.log(`Getting Gmail client for user ${userId}`);
+  
   // Get stored tokens
   const storedTokens = await storage.getGoogleTokens(userId);
   
   if (!storedTokens) {
+    console.error(`No Google tokens found for user ${userId}`);
     throw new Error('User has not connected Gmail');
   }
-
-  // Create a new OAuth2 client with the same client ID and secret
-  const userOAuth2Client = new google.auth.OAuth2(
-    clientId,
-    clientSecret,
-    redirectUri // Use hardcoded redirect URI
-  );
   
-  // Configure oauth client with user's tokens
-  userOAuth2Client.setCredentials({
-    access_token: storedTokens.accessToken,
-    refresh_token: storedTokens.refreshToken || undefined,
-    expiry_date: storedTokens.tokenExpiry ? new Date(storedTokens.tokenExpiry).getTime() : undefined
+  console.log(`Retrieved tokens for user ${userId}:`, {
+    hasAccessToken: !!storedTokens.accessToken,
+    accessTokenLength: storedTokens.accessToken ? storedTokens.accessToken.length : 0,
+    hasRefreshToken: !!storedTokens.refreshToken,
+    refreshTokenLength: storedTokens.refreshToken ? storedTokens.refreshToken.length : 0,
+    tokenExpiry: storedTokens.tokenExpiry ? new Date(storedTokens.tokenExpiry).toISOString() : 'none',
+    isExpired: storedTokens.tokenExpiry ? new Date(storedTokens.tokenExpiry).getTime() < Date.now() : 'unknown',
+    updatedAt: storedTokens.updatedAt ? new Date(storedTokens.updatedAt).toISOString() : 'unknown'
   });
-
-  // Create Gmail client
-  const gmail = google.gmail({ version: 'v1', auth: userOAuth2Client });
   
-  return gmail;
+  try {
+    // Create a new OAuth2 client with the same client ID and secret
+    const userOAuth2Client = new google.auth.OAuth2(
+      clientId,
+      clientSecret,
+      redirectUri // Use hardcoded redirect URI
+    );
+    
+    // Check for token expiration
+    const tokenExpiry = storedTokens.tokenExpiry ? new Date(storedTokens.tokenExpiry).getTime() : undefined;
+    if (tokenExpiry && tokenExpiry < Date.now()) {
+      console.warn(`Access token for user ${userId} has expired. Token expiry: ${new Date(tokenExpiry).toISOString()}`);
+      console.log('Will attempt to refresh using refresh token...');
+    }
+    
+    // Configure oauth client with user's tokens
+    userOAuth2Client.setCredentials({
+      access_token: storedTokens.accessToken,
+      refresh_token: storedTokens.refreshToken || undefined,
+      expiry_date: tokenExpiry
+    });
+    
+    // Create Gmail client
+    console.log(`Creating Gmail client for user ${userId}`);
+    const gmail = google.gmail({ version: 'v1', auth: userOAuth2Client });
+    
+    // Set up token refresh handler to update stored tokens
+    userOAuth2Client.on('tokens', async (tokens) => {
+      console.log(`Received token refresh for user ${userId}`);
+      if (tokens.access_token) {
+        console.log('Updating access token in database');
+        try {
+          await storage.updateGmailToken(userId, {
+            accessToken: tokens.access_token,
+            tokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
+            updatedAt: new Date()
+          });
+          console.log(`Successfully updated tokens for user ${userId}`);
+        } catch (error) {
+          console.error('Error updating tokens after refresh:', error);
+        }
+      }
+    });
+    
+    return gmail;
+  } catch (error) {
+    console.error(`Error creating Gmail client for user ${userId}:`, error);
+    throw error;
+  }
 }

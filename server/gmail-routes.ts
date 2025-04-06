@@ -386,13 +386,23 @@ export function setupGmailRoutes(app: express.Express) {
       
       const token = await storage.getGmailToken(req.user!.id);
       if (!token) {
+        console.log('No Gmail token found for user:', req.user!.id);
         return res.status(400).json({ error: 'Gmail not connected. Please connect your Gmail account first.' });
       }
+      
+      console.log('Gmail token found:', {
+        userId: token.userId,
+        tokenAge: token.updatedAt ? `${Math.floor((Date.now() - new Date(token.updatedAt).getTime()) / (1000 * 60))} minutes` : 'unknown',
+        hasAccessToken: !!token.accessToken,
+        hasRefreshToken: !!token.refreshToken,
+        tokenExpiry: token.tokenExpiry ? new Date(token.tokenExpiry).toISOString() : 'none'
+      });
       
       let gmail: any;
       let messageIds: string[] = [];
       
       try {
+        console.log('Attempting to get Gmail client for user:', req.user!.id);
         gmail = await getGmailClient(req.user!.id);
         
         // Get most recent messages
