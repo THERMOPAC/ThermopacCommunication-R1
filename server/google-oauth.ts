@@ -36,10 +36,19 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
   console.log(`- Client Secret Length: ${process.env.GOOGLE_CLIENT_SECRET?.length || 0}`);
 }
 
-// Create an OAuth2 client with explicit credentials (no environment variables)
+// Temporary hardcoded fallback values (will be replaced with proper environment variables)
+const clientId = process.env.GOOGLE_CLIENT_ID || "1078980534389-n5207fth1m2oo2iqgnsqpp530qdalb73.apps.googleusercontent.com";
+const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "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";
+
+// Log the credentials we're using (partially masked for security)
+console.log(`Using credential configuration:`);
+console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
+console.log(`- Client Secret: ${clientSecret.substring(0, 6)}...`);
+
+// Create an OAuth2 client with explicit credentials
 export const oauth2Client = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
+  clientId,
+  clientSecret,
   redirectUri
 );
 
@@ -53,14 +62,9 @@ export const SCOPES = [
  * Generate a URL for user authorization
  */
 export function getAuthUrl(): string {
-  // Check if OAuth credentials are available
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    console.error('Missing Google OAuth credentials - cannot generate auth URL');
-    throw new Error('Google OAuth is not configured. Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.');
-  }
-  
+  // We are now using the hardcoded fallback credentials if env vars are not available
   console.log('Generating auth URL with the following parameters:');
-  console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
+  console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
   console.log(`- Redirect URI: ${redirectUri}`);
   console.log(`- Scopes: ${SCOPES.join(', ')}`);
   
@@ -69,7 +73,8 @@ export function getAuthUrl(): string {
       access_type: 'offline',
       scope: SCOPES,
       prompt: 'consent', // Force re-consent to get refresh token each time
-      redirect_uri: redirectUri // Explicitly set redirect URI
+      redirect_uri: redirectUri, // Explicitly set redirect URI
+      client_id: clientId // Use our variable that has the fallback
     });
     
     console.log(`Successfully generated auth URL: ${authUrl.substring(0, 50)}...`);
@@ -89,7 +94,20 @@ export async function getTokens(code: string) {
   console.log(`Exchanging auth code for tokens (code length: ${code.length})`);
   
   try {
-    const { tokens } = await oauth2Client.getToken({
+    // Use the same client ID and redirect URI that we used for generating the auth URL
+    console.log(`Using credentials for token exchange:`);
+    console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
+    console.log(`- Redirect URI: ${redirectUri}`);
+    
+    // Create a new OAuth client with our credentials to avoid the type errors
+    const tokenOAuthClient = new OAuth2Client(
+      clientId,
+      clientSecret,
+      redirectUri
+    );
+    
+    // Then call getToken with just the code and redirect URI
+    const { tokens } = await tokenOAuthClient.getToken({
       code,
       redirect_uri: redirectUri
     });
@@ -101,6 +119,7 @@ export async function getTokens(code: string) {
     return tokens;
   } catch (error) {
     console.error('Error exchanging code for tokens:', error);
+    console.error('Error details:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

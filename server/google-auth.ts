@@ -26,10 +26,19 @@ const redirectUri = process.env.GOOGLE_REDIRECT_URI || "https://thermopac-commun
 console.log(`Google Auth using OAuth redirect URI: ${redirectUri}`);
 console.log(`Using OAuth redirect URI: ${redirectUri}`);
 
-// Configure OAuth 2.0 client with the determined redirect URI
+// Temporary hardcoded fallback values (will be replaced with proper environment variables)
+const clientId = process.env.GOOGLE_CLIENT_ID || "1078980534389-n5207fth1m2oo2iqgnsqpp530qdalb73.apps.googleusercontent.com";
+const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "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";
+
+// Log the credentials we're using (partially masked for security)
+console.log(`Google Auth using credential configuration:`);
+console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
+console.log(`- Client Secret: ${clientSecret.substring(0, 6)}...`);
+
+// Configure OAuth 2.0 client with the determined redirect URI and our credentials
 const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
+  clientId,
+  clientSecret,
   redirectUri
 );
 
@@ -46,17 +55,8 @@ const SCOPES = [
 // Generate authentication URL
 export function getAuthUrl() {
   // Log OAuth configuration for debugging
-  console.log(`OAuth Config - Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5) || 'NOT_SET'}...`);
+  console.log(`OAuth Config - Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
   console.log(`OAuth Config - Using redirect URI: ${redirectUri}`);
-  
-  // Validate required parameters
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    console.error('Missing OAuth credentials - please check environment variables');
-    console.error('GOOGLE_CLIENT_ID exists:', !!process.env.GOOGLE_CLIENT_ID);
-    console.error('GOOGLE_CLIENT_SECRET exists:', !!process.env.GOOGLE_CLIENT_SECRET);
-    console.error('GOOGLE_REDIRECT_URI:', process.env.GOOGLE_REDIRECT_URI || 'not set');
-    throw new Error('Google OAuth is not configured. Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.');
-  }
   
   try {
     const authUrl = oauth2Client.generateAuthUrl({
@@ -64,7 +64,7 @@ export function getAuthUrl() {
       prompt: 'consent',
       scope: SCOPES,
       redirect_uri: redirectUri, // Use hardcoded redirect URI
-      client_id: process.env.GOOGLE_CLIENT_ID // Explicitly include the client ID
+      client_id: clientId // Explicitly include the client ID
     });
     
     console.log(`Successfully generated auth URL: ${authUrl.substring(0, 50)}...`);
@@ -168,14 +168,21 @@ export function setupGoogleAuth(app: Express) {
       // Exchange code for tokens
       console.log('Attempting to exchange code for tokens with:');
       console.log(`- Redirect URI: ${redirectUri}`);
-      console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
+      console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
       
       // Clean the code to make sure it's properly formatted
       const cleanCode = sanitizeAuthCode(code);
       console.log(`Original code length: ${code.length}, cleaned code length: ${cleanCode.length}`);
       
-      // Use the existing OAuth client with explicit redirect URI
-      const tokenResponse = await oauth2Client.getToken({
+      // Create a new OAuth client with our hardcoded credentials
+      const callbackOAuthClient = new google.auth.OAuth2(
+        clientId,
+        clientSecret,
+        redirectUri
+      );
+      
+      // Use the new OAuth client with explicit redirect URI
+      const tokenResponse = await callbackOAuthClient.getToken({
         code: cleanCode,
         redirect_uri: redirectUri
       });
@@ -458,13 +465,13 @@ export function setupGoogleAuth(app: Express) {
       // Exchange code for tokens
       console.log('Attempting to exchange code for tokens with:');
       console.log(`- Redirect URI: ${redirectUri}`);
-      console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID?.substring(0, 5)}...`);
+      console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
       console.log(`- Using code (first 10 chars): ${cleanCode.substring(0, 10)}...`);
       
       // Create a fresh OAuth client for each request
       const freshOAuthClient = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
+        clientId,
+        clientSecret,
         redirectUri
       );
       
@@ -530,8 +537,8 @@ export async function getGmailClient(userId: number) {
 
   // Create a new OAuth2 client with the same client ID and secret
   const userOAuth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
+    clientId,
+    clientSecret,
     redirectUri // Use hardcoded redirect URI
   );
   
