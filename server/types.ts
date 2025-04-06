@@ -5,7 +5,8 @@ import {
   ProductivityMetric, InsertProductivityMetric,
   RecurringPattern, InsertRecurringPattern, RecurringTask, InsertRecurringTask,
   GmailToken, InsertGmailToken, GmailMessage, InsertGmailMessage, 
-  GmailSettings, InsertGmailSettings
+  GmailSettings, InsertGmailSettings,
+  InternalMessage, InsertInternalMessage
 } from "@shared/schema";
 import { Store } from "express-session";
 
@@ -115,4 +116,14 @@ export interface IStorage {
   saveGmailSettings(settings: InsertGmailSettings): Promise<GmailSettings>;
   getGmailSettings(userId: number): Promise<GmailSettings | undefined>;
   updateGmailSettings(userId: number, updateData: Partial<GmailSettings>): Promise<GmailSettings>;
+  
+  // Internal Messages
+  createInternalMessage(message: InsertInternalMessage): Promise<InternalMessage>;
+  getInternalMessagesForUser(userId: number, filters?: {
+    type?: 'inbox' | 'sent';
+    search?: string;
+  }): Promise<InternalMessage[]>;
+  getInternalMessage(id: number): Promise<InternalMessage | undefined>;
+  updateInternalMessage(id: number, updateData: Partial<InternalMessage>): Promise<InternalMessage>;
+  deleteInternalMessage(id: number): Promise<void>;
 }

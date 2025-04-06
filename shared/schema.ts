@@ -312,3 +312,26 @@ export type GmailMessage = typeof gmailMessages.$inferSelect;
 export type InsertGmailMessage = z.infer<typeof insertGmailMessageSchema>;
 export type GmailSettings = typeof gmailSettings.$inferSelect;
 export type InsertGmailSettings = z.infer<typeof insertGmailSettingsSchema>;
+
+// Internal messages table for in-system communication
+export const internalMessages = pgTable('internal_messages', {
+  id: serial('id').primaryKey(),
+  senderId: integer('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  senderName: text('sender_name').notNull(),
+  recipientId: integer('recipient_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  recipientName: text('recipient_name').notNull(),
+  subject: text('subject').notNull(),
+  content: text('content').notNull(),
+  isRead: boolean('is_read').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Internal messages schema & types
+export const insertInternalMessageSchema = createInsertSchema(internalMessages, {
+  senderName: z.string().optional(),
+  recipientName: z.string().optional(),
+  isRead: z.boolean().optional()
+});
+
+export type InternalMessage = typeof internalMessages.$inferSelect;
+export type InsertInternalMessage = z.infer<typeof insertInternalMessageSchema>;

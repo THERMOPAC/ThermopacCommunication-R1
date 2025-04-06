@@ -61,6 +61,7 @@ function EmailsPage() {
   return (
     <Layout>
       <div className="container mx-auto py-6">
+        <h1 className="text-3xl font-bold mb-6">External Emails</h1>
         {authError && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />

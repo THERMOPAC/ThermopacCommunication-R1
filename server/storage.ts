@@ -10,7 +10,8 @@ import type {
   RecurringTask, InsertRecurringTask,
   GmailToken, InsertGmailToken,
   GmailMessage, InsertGmailMessage,
-  GmailSettings, InsertGmailSettings
+  GmailSettings, InsertGmailSettings,
+  InternalMessage, InsertInternalMessage
 } from "@shared/schema";
 import { roleHierarchy, canManage } from "@shared/roles";
 import session from "express-session";
@@ -28,7 +29,8 @@ import {
   recurringTasks as recurringTasksTable,
   gmailTokens as gmailTokensTable,
   gmailMessages as gmailMessagesTable,
-  gmailSettings as gmailSettingsTable
+  gmailSettings as gmailSettingsTable,
+  internalMessages as internalMessagesTable
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 
@@ -51,6 +53,7 @@ export class DatabaseStorage implements IStorage {
   gmailTokensTable = gmailTokensTable;
   gmailMessagesTable = gmailMessagesTable;
   gmailSettingsTable = gmailSettingsTable;
+  internalMessagesTable = internalMessagesTable;
 
   constructor() {
     if (!process.env.DATABASE_URL) {
@@ -1534,6 +1537,109 @@ export class DatabaseStorage implements IStorage {
     
     console.log(`Updated Gmail settings for user ${userId}`);
     return settings;
+  }
+  // Internal Messages Implementation
+  async createInternalMessage(message: InsertInternalMessage): Promise<InternalMessage> {
+    console.log(`Creating internal message:`, {
+      ...message,
+      content: message.content.length > 100 ? message.content.substring(0, 100) + '...' : message.content
+    });
+    
+    // If senderName is not provided, retrieve it from the user table
+    if (!message.senderName) {
+      const sender = await this.getUser(message.senderId);
+      if (sender) {
+        message.senderName = sender.username;
+      }
+    }
+    
+    // If recipientName is not provided, retrieve it from the user table
+    if (!message.recipientName) {
+      const recipient = await this.getUser(message.recipientId);
+      if (recipient) {
+        message.recipientName = recipient.username;
+      }
+    }
+    
+    const result = await db.insert(internalMessagesTable).values({
+      ...message,
+      isRead: message.isRead || false,
+      createdAt: message.createdAt || new Date()
+    }).returning();
+    
+    const internalMessage = result[0] as InternalMessage;
+    console.log(`Created internal message with ID: ${internalMessage.id}`);
+    return internalMessage;
+  }
+
+  async getInternalMessagesForUser(userId: number, filters?: {
+    type?: 'inbox' | 'sent';
+    search?: string;
+  }): Promise<InternalMessage[]> {
+    console.log(`Getting internal messages for user ${userId} with filters:`, filters);
+    
+    let query = db.select().from(internalMessagesTable);
+    
+    // Apply user filter (inbox or sent)
+    if (filters?.type === 'inbox') {
+      query = query.where(eq(internalMessagesTable.recipientId, userId));
+    } else if (filters?.type === 'sent') {
+      query = query.where(eq(internalMessagesTable.senderId, userId));
+    } else {
+      // Default to getting both inbox and sent
+      query = query.where(
+        or(
+          eq(internalMessagesTable.recipientId, userId),
+          eq(internalMessagesTable.senderId, userId)
+        )
+      );
+    }
+    
+    // Apply search filter if provided
+    if (filters?.search) {
+      const searchTerm = `%${filters.search}%`;
+      query = query.where(
+        or(
+          like(internalMessagesTable.subject, searchTerm),
+          like(internalMessagesTable.content, searchTerm),
+          like(internalMessagesTable.senderName, searchTerm),
+          like(internalMessagesTable.recipientName, searchTerm)
+        )
+      );
+    }
+    
+    // Order by creation date, newest first
+    const messages = await query.orderBy(desc(internalMessagesTable.createdAt));
+    
+    console.log(`Found ${messages.length} internal messages for user ${userId}`);
+    return messages as InternalMessage[];
+  }
+
+  async getInternalMessage(id: number): Promise<InternalMessage | undefined> {
+    console.log(`Getting internal message with ID: ${id}`);
+    const result = await db.select().from(internalMessagesTable).where(eq(internalMessagesTable.id, id));
+    return result[0] as InternalMessage | undefined;
+  }
+
+  async updateInternalMessage(id: number, updateData: Partial<InternalMessage>): Promise<InternalMessage> {
+    console.log(`Updating internal message ${id} with data:`, updateData);
+    const result = await db
+      .update(internalMessagesTable)
+      .set(updateData)
+      .where(eq(internalMessagesTable.id, id))
+      .returning();
+    
+    const message = result[0] as InternalMessage;
+    if (!message) throw new Error("Internal message not found");
+    
+    console.log(`Updated internal message: ${id}`);
+    return message;
+  }
+
+  async deleteInternalMessage(id: number): Promise<void> {
+    console.log(`Deleting internal message ${id}`);
+    await db.delete(internalMessagesTable).where(eq(internalMessagesTable.id, id));
+    console.log(`Deleted internal message ${id}`);
   }
 }
 

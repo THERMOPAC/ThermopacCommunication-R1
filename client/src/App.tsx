@@ -11,6 +11,7 @@ import ProfilePage from "@/pages/profile-page";
 import LeaderboardPage from "@/pages/leaderboard-page";
 import RecurringTasksPage from "@/pages/recurring-tasks-page";
 import EmailsPage from "@/pages/emails-page";
+import MessagesPage from "@/pages/messages-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
@@ -60,7 +61,7 @@ function Router() {
       <ProtectedRoute path="/tasks" component={Dashboard} />
       <ProtectedRoute path="/team" component={Dashboard} />
       <ProtectedRoute path="/recommendations" component={Dashboard} />
-      <ProtectedRoute path="/messages" component={Dashboard} />
+      <ProtectedRoute path="/messages" component={MessagesPage} />
       <ProtectedRoute path="/emails" component={EmailsPage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/leaderboard" component={LeaderboardPage} />
