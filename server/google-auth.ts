@@ -52,6 +52,9 @@ export function getAuthUrl() {
   // Validate required parameters
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     console.error('Missing OAuth credentials - please check environment variables');
+    console.error('GOOGLE_CLIENT_ID exists:', !!process.env.GOOGLE_CLIENT_ID);
+    console.error('GOOGLE_CLIENT_SECRET exists:', !!process.env.GOOGLE_CLIENT_SECRET);
+    console.error('GOOGLE_REDIRECT_URI:', process.env.GOOGLE_REDIRECT_URI || 'not set');
     throw new Error('Google OAuth is not configured. Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.');
   }
   

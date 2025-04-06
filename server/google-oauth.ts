@@ -24,12 +24,16 @@ console.log(`Using OAuth redirect URI: ${redirectUri}`);
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
   console.warn('WARNING: Missing Google OAuth credentials in environment variables');
   console.warn('Google Mail integration will not work until GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set');
+  // Output environment variable keys to help with debugging
+  console.warn('Environment variables available:', Object.keys(process.env).filter(key => !key.includes('PASSWORD') && !key.includes('SECRET')).join(', '));
 } else {
   // Log OAuth configuration (with truncated sensitive data for security)
   console.log('Google OAuth Configuration:');
   console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.substring(0, 5) + '...' : 'MISSING'}`);
   console.log(`- Client Secret: ${process.env.GOOGLE_CLIENT_SECRET ? '******' : 'MISSING'}`);
   console.log(`- Redirect URI: ${redirectUri}`);
+  console.log(`- Client ID Length: ${process.env.GOOGLE_CLIENT_ID?.length || 0}`);
+  console.log(`- Client Secret Length: ${process.env.GOOGLE_CLIENT_SECRET?.length || 0}`);
 }
 
 // Create an OAuth2 client with explicit credentials (no environment variables)
