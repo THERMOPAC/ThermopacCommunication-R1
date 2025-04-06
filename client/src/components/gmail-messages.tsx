@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-function Messages() {
+export default function GmailMessages() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
@@ -61,7 +61,7 @@ function Messages() {
   });
   
   // Get all users for assignment dropdown
-  const { data: users } = useQuery({
+  const { data: users } = useQuery<User[]>({
     queryKey: ["/api/users"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/users");
@@ -170,8 +170,6 @@ function Messages() {
     }
   });
   
-
-  
   // Handle delete message with confirmation
   const handleDeleteMessage = (messageId: number) => {
     const message = messages?.find((m: GmailMessage) => m.id === messageId);
@@ -257,6 +255,99 @@ function Messages() {
   const [isSubmittingCode, setIsSubmittingCode] = useState(false);
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const [manualAuthError, setManualAuthError] = useState<string | null>(null); // Used for storing validation errors in the form
+  
+  // Task conversion modal state
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [taskFormData, setTaskFormData] = useState<Partial<InsertTask>>({});
+  const [editEmailData, setEditEmailData] = useState<{messageId?: number, subject?: string, body?: string, from?: string}>({});
+  
+  // Format to ISO date string in YYYY-MM-DD format
+  const formatDateForTask = (date: Date): string => {
+    return date.toISOString().split('T')[0];
+  };
+  
+  // Create task from email mutation
+  const createTaskMutation = useMutation({
+    mutationFn: async (taskData: InsertTask) => {
+      const res = await apiRequest("POST", "/api/tasks", taskData);
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Success",
+        description: "Email converted to task successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create task from email",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Convert email to task - open modal with pre-filled data
+  const handleConvertToTask = (messageId: number) => {
+    const message = messages?.find((m: GmailMessage) => m.id === messageId);
+    if (!message) return;
+    
+    // Extract content from email
+    const title = message.subject || 'Email task';
+    const description = message.body || message.snippet || '';
+    const fromEmail = message.from || '';
+    
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    
+    // Set task form data with email content
+    setTaskFormData({
+      title: title,
+      description: description,
+      status: "pending",
+      priority: "Medium",
+      startDate: formatDateForTask(today),
+      finishDate: formatDateForTask(nextWeek),
+      dueDate: formatDateForTask(nextWeek),
+      assignedTo: user?.id,
+      createdBy: user?.id,
+      category: "Email"
+    });
+    
+    // Save original email data for reference
+    setEditEmailData({
+      messageId,
+      subject: title,
+      body: description,
+      from: fromEmail
+    });
+    
+    // Open the edit modal
+    setIsTaskModalOpen(true);
+  };
+  
+  // Submit the edited task form
+  const handleTaskFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!taskFormData) return;
+    
+    // Create the final task data
+    const taskData: InsertTask = {
+      ...taskFormData as InsertTask,
+      createdAt: new Date().toISOString(),
+      description: taskFormData.description || '',
+      title: taskFormData.title || 'Email task',
+    };
+    
+    // Submit the task
+    createTaskMutation.mutate(taskData);
+    
+    // Close the modal
+    setIsTaskModalOpen(false);
+  };
   
   // Manual auth mutation
   const manualAuthMutation = useMutation({
@@ -406,7 +497,6 @@ function Messages() {
     return input;
   };
   
-  // Track error state for manual auth - already declared at line 182
   // Handle manual auth submission
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -477,99 +567,6 @@ function Messages() {
     }
   });
   
-  // Task modal state
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [taskFormData, setTaskFormData] = useState<Partial<InsertTask>>({});
-  const [editEmailData, setEditEmailData] = useState<{messageId?: number, subject?: string, body?: string, from?: string}>({});
-  
-  // Format to ISO date string in YYYY-MM-DD format
-  const formatDateForTask = (date: Date): string => {
-    return date.toISOString().split('T')[0];
-  };
-  
-  // Create task from email mutation
-  const createTaskMutation = useMutation({
-    mutationFn: async (taskData: InsertTask) => {
-      const res = await apiRequest("POST", "/api/tasks", taskData);
-      return await res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({
-        title: "Success",
-        description: "Email converted to task successfully",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create task from email",
-        variant: "destructive"
-      });
-    }
-  });
-  
-  // Convert email to task - open modal with pre-filled data
-  const handleConvertToTask = (messageId: number) => {
-    const message = messages?.find((m: GmailMessage) => m.id === messageId);
-    if (!message) return;
-    
-    // Extract content from email
-    const title = message.subject || 'Email task';
-    const description = message.body || message.snippet || '';
-    const fromEmail = message.from || '';
-    
-    const today = new Date();
-    const nextWeek = new Date(today);
-    nextWeek.setDate(today.getDate() + 7);
-    
-    // Set task form data with email content
-    setTaskFormData({
-      title: title,
-      description: description,
-      status: "pending",
-      priority: "Medium",
-      startDate: formatDateForTask(today),
-      finishDate: formatDateForTask(nextWeek),
-      dueDate: formatDateForTask(nextWeek),
-      assignedTo: user?.id,
-      createdBy: user?.id,
-      category: "Email"
-    });
-    
-    // Save original email data for reference
-    setEditEmailData({
-      messageId,
-      subject: title,
-      body: description,
-      from: fromEmail
-    });
-    
-    // Open the edit modal
-    setIsTaskModalOpen(true);
-  };
-  
-  // Submit the edited task form
-  const handleTaskFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!taskFormData) return;
-    
-    // Create the final task data
-    const taskData: InsertTask = {
-      ...taskFormData as InsertTask,
-      createdAt: new Date().toISOString(),
-      description: taskFormData.description || '',
-      title: taskFormData.title || 'Email task',
-    };
-    
-    // Submit the task
-    createTaskMutation.mutate(taskData);
-    
-    // Close the modal
-    setIsTaskModalOpen(false);
-  };
-
   // Update Gmail settings
   const updateSettingsMutation = useMutation({
     mutationFn: async (updateData: { autoSyncEnabled?: boolean, syncFrequencyMinutes?: number }) => {
@@ -868,7 +865,7 @@ function Messages() {
                 <Input 
                   id="title" 
                   value={taskFormData.title || ''} 
-                  onChange={(e) => setTaskFormData({...taskFormData, title: e.target.value})}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTaskFormData({...taskFormData, title: e.target.value})}
                   placeholder="Enter task title"
                   required
                 />
@@ -879,7 +876,7 @@ function Messages() {
                 <Textarea 
                   id="description" 
                   value={taskFormData.description || ''} 
-                  onChange={(e) => setTaskFormData({...taskFormData, description: e.target.value})}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setTaskFormData({...taskFormData, description: e.target.value})}
                   placeholder="Enter task description"
                   className="min-h-[100px]"
                 />
@@ -933,7 +930,7 @@ function Messages() {
                     id="startDate" 
                     type="date" 
                     value={taskFormData.startDate || ''} 
-                    onChange={(e) => setTaskFormData({...taskFormData, startDate: e.target.value})}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTaskFormData({...taskFormData, startDate: e.target.value})}
                     required
                   />
                 </div>
@@ -944,7 +941,7 @@ function Messages() {
                     id="finishDate" 
                     type="date" 
                     value={taskFormData.finishDate || ''} 
-                    onChange={(e) => setTaskFormData({...taskFormData, finishDate: e.target.value})}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTaskFormData({...taskFormData, finishDate: e.target.value})}
                     required
                   />
                 </div>
@@ -955,7 +952,7 @@ function Messages() {
                     id="dueDate" 
                     type="date" 
                     value={taskFormData.dueDate || ''} 
-                    onChange={(e) => setTaskFormData({...taskFormData, dueDate: e.target.value})}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTaskFormData({...taskFormData, dueDate: e.target.value})}
                   />
                 </div>
               </div>
@@ -970,7 +967,7 @@ function Messages() {
                     <SelectValue placeholder="Select user" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users?.map((u) => (
+                    {users?.map((u: User) => (
                       <SelectItem key={u.id} value={u.id.toString()}>
                         {u.username} {u.role ? `(${u.role})` : ''}
                       </SelectItem>
@@ -1214,21 +1211,19 @@ function Messages() {
                               <Mail className="h-5 w-5 text-primary mt-1" />
                             )}
                             <div>
-                              <div className="font-medium flex items-center">
-                                {message.from.split('<')[0].trim() || message.from}
+                              <div className="font-medium">
+                                {message.from}
                                 {message.isImportant && (
-                                  <Star className="h-4 w-4 ml-2 fill-yellow-400 text-yellow-400" />
+                                  <Star className="h-4 w-4 inline-block ml-2 fill-yellow-400 text-yellow-400" />
                                 )}
                               </div>
-                              <div className={`text-sm ${!message.isRead ? 'font-bold' : ''}`}>
-                                {message.subject || 'No Subject'}
-                              </div>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {message.snippet}
+                              <div className="font-bold">{message.subject || 'No Subject'}</div>
+                              <div className="text-sm text-muted-foreground line-clamp-1">
+                                {message.snippet || 'No preview available'}
                               </div>
                             </div>
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground whitespace-nowrap">
                             {message.receivedAt && formatDate(message.receivedAt.toString())}
                           </div>
                         </div>
@@ -1237,20 +1232,19 @@ function Messages() {
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                  <Mail className="h-12 w-12 mb-2" />
-                  <p>No messages found</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-4"
-                    onClick={() => syncMutation.mutate()}
-                    disabled={syncMutation.isPending}
-                  >
+                <Card className="p-6 text-center">
+                  <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-lg font-medium mb-2">No messages found</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {connectionStatus?.connected
+                      ? "Your inbox is empty or no messages match your filters"
+                      : "Connect your Gmail account to view messages"}
+                  </p>
+                  <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
                     <RotateCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
                     Sync Messages
                   </Button>
-                </div>
+                </Card>
               )}
             </div>
           )}
@@ -1259,77 +1253,123 @@ function Messages() {
         <TabsContent value="settings" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Gmail Integration Settings</CardTitle>
+              <CardTitle>Gmail Settings</CardTitle>
               <CardDescription>
                 Configure your Gmail integration settings
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="auto-sync">Auto Sync</Label>
-                  <Switch
-                    id="auto-sync"
-                    checked={settings?.autoSyncEnabled || false}
-                    onCheckedChange={(checked) => {
-                      updateSettingsMutation.mutate({ autoSyncEnabled: checked });
-                    }}
-                    disabled={isLoadingSettings || updateSettingsMutation.isPending}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="sync-frequency">Sync Frequency (minutes)</Label>
-                  <div className="flex items-center space-x-2 mt-2">
-                    <Select
-                      value={String(settings?.syncFrequencyMinutes || 30)}
-                      onValueChange={(value) => {
-                        updateSettingsMutation.mutate({ syncFrequencyMinutes: parseInt(value) });
-                      }}
-                      disabled={isLoadingSettings || updateSettingsMutation.isPending || !settings?.autoSyncEnabled}
-                    >
-                      <SelectTrigger id="sync-frequency">
-                        <SelectValue placeholder="Select frequency" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="5">5 minutes</SelectItem>
-                        <SelectItem value="15">15 minutes</SelectItem>
-                        <SelectItem value="30">30 minutes</SelectItem>
-                        <SelectItem value="60">1 hour</SelectItem>
-                        <SelectItem value="120">2 hours</SelectItem>
-                      </SelectContent>
-                    </Select>
+              {settings ? (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium">Auto-sync messages</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Automatically sync messages from Gmail periodically
+                        </p>
+                      </div>
+                      <Switch 
+                        checked={settings.autoSyncEnabled}
+                        onCheckedChange={(checked) => {
+                          updateSettingsMutation.mutate({
+                            autoSyncEnabled: checked
+                          });
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div>
-                <h3 className="font-medium mb-2">Account</h3>
-                <div className="flex items-center justify-between">
-                  <div>
+                  
+                  {settings.autoSyncEnabled && (
+                    <div className="space-y-2">
+                      <h3 className="font-medium">Sync frequency</h3>
+                      <p className="text-sm text-muted-foreground">
+                        How often to sync messages from Gmail
+                      </p>
+                      <Select 
+                        value={settings.syncFrequencyMinutes.toString()}
+                        onValueChange={(value) => {
+                          updateSettingsMutation.mutate({
+                            syncFrequencyMinutes: parseInt(value)
+                          });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select frequency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">Every 5 minutes</SelectItem>
+                          <SelectItem value="15">Every 15 minutes</SelectItem>
+                          <SelectItem value="30">Every 30 minutes</SelectItem>
+                          <SelectItem value="60">Every hour</SelectItem>
+                          <SelectItem value="120">Every 2 hours</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  
+                  <Separator />
+                  
+                  <div className="space-y-2">
+                    <h3 className="font-medium">Connection Status</h3>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        Connected
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        Last synced: {settings.lastSyncedAt ? formatDate(settings.lastSyncedAt.toString()) : "Never"}
+                      </span>
+                    </div>
                     <p className="text-sm text-muted-foreground">
-                      Connected since {connectionStatus?.connectedSince ? formatDate(connectionStatus.connectedSince) : 'Unknown'}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Token Status: {connectionStatus?.tokenValid ? 'Valid' : 'Expired'}
+                      Connected account: <span className="font-medium">{settings.gmailUserEmail || "Unknown"}</span>
                     </p>
                   </div>
-                  <Button 
-                    variant="destructive" 
-                    onClick={() => disconnectMutation.mutate()}
-                    disabled={disconnectMutation.isPending}
+                  
+                  <div className="space-y-2">
+                    <h3 className="font-medium">Account Actions</h3>
+                    <div className="flex flex-wrap gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => syncMutation.mutate()}
+                        disabled={syncMutation.isPending}
+                      >
+                        <RotateCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+                        Sync Now
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => disconnectMutation.mutate()}
+                      >
+                        Disconnect Gmail
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : isLoadingSettings ? (
+                <div className="flex items-center justify-center h-32">
+                  <RotateCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground">
+                    Could not load settings. Please try again.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/gmail/settings"] })}
+                    className="mt-2"
                   >
-                    Disconnect
+                    Retry
                   </Button>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
-};
-
-export default Messages;
+}

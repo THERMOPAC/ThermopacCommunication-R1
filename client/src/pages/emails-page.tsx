@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import Messages from "@/components/messages";
+import GmailMessages from "@/components/gmail-messages";
 import Layout from "@/components/layout";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -71,7 +71,7 @@ function EmailsPage() {
             </AlertDescription>
           </Alert>
         )}
-        <Messages />
+        <GmailMessages />
       </div>
     </Layout>
   );
