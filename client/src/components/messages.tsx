@@ -158,7 +158,10 @@ function Messages() {
   
   // Handle delete message with confirmation
   const handleDeleteMessage = (messageId: number) => {
-    if (window.confirm("Are you sure you want to delete this message? This action cannot be undone.")) {
+    const message = messages?.find((m: GmailMessage) => m.id === messageId);
+    const subject = message?.subject || 'No Subject';
+    
+    if (window.confirm(`Are you sure you want to delete this email?\n\nSubject: ${subject}\n\nThis action cannot be undone.`)) {
       deleteMessageMutation.mutate(messageId);
     }
   };
