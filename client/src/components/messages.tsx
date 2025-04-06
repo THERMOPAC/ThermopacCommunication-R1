@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { GmailMessage } from "@shared/schema";
+import { GmailMessage, InsertTask } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,11 +25,13 @@ import {
   ArrowLeft,
   ArrowRight,
   AlertTriangle,
+  FolderCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 
 function Messages() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -155,6 +158,8 @@ function Messages() {
       });
     }
   });
+  
+
   
   // Handle delete message with confirmation
   const handleDeleteMessage = (messageId: number) => {
@@ -460,6 +465,65 @@ function Messages() {
       });
     }
   });
+  
+  // Create task from email mutation
+  const createTaskMutation = useMutation({
+    mutationFn: async (taskData: InsertTask) => {
+      const res = await apiRequest("POST", "/api/tasks", taskData);
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Success",
+        description: "Email converted to task successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create task from email",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Convert email to task
+  const handleConvertToTask = (messageId: number) => {
+    const message = messages?.find((m: GmailMessage) => m.id === messageId);
+    if (!message) return;
+    
+    // Extract content from email
+    const title = message.subject || 'Email task';
+    const description = message.body || message.snippet || '';
+    const fromEmail = message.from || '';
+    
+    // Format to ISO date string in YYYY-MM-DD format
+    const formatDateForTask = (date: Date): string => {
+      return date.toISOString().split('T')[0];
+    };
+    
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    
+    // Create task data from email
+    const taskData: InsertTask = {
+      title: title,
+      description: `Email from: ${fromEmail}\n\n${description}`,
+      status: "pending",
+      priority: "Medium",
+      startDate: formatDateForTask(today),
+      finishDate: formatDateForTask(nextWeek),
+      dueDate: formatDateForTask(nextWeek),
+      assignedTo: user?.id,
+      createdBy: user?.id,
+      createdAt: new Date().toISOString(),
+      category: "Email"
+    };
+    
+    createTaskMutation.mutate(taskData);
+  };
 
   // Update Gmail settings
   const updateSettingsMutation = useMutation({
@@ -843,6 +907,18 @@ function Messages() {
                       <Star 
                         className={`h-4 w-4 ${selectedMessage?.isImportant ? 'fill-yellow-400 text-yellow-400' : ''}`} 
                       />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (selectedMessage) {
+                          handleConvertToTask(selectedMessage.id);
+                        }
+                      }}
+                    >
+                      <FolderCheck className="h-4 w-4 mr-2 text-primary" />
+                      Convert to Task
                     </Button>
                     <Button
                       variant="ghost"
