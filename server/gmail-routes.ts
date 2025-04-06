@@ -389,32 +389,67 @@ export function setupGmailRoutes(app: express.Express) {
         return res.status(400).json({ error: 'Gmail not connected. Please connect your Gmail account first.' });
       }
       
-      const gmail = await getGmailClient(req.user!.id);
+      let gmail: any;
+      let messageIds: string[] = [];
       
-      // Get most recent messages
-      const response = await gmail.users.messages.list({
-        userId: 'me',
-        maxResults: 20, // Limit to 20 messages for manual sync
-      });
-      
-      const messages = response.data.messages || [];
-      
-      if (messages.length === 0) {
-        console.log('No messages found in Gmail for user:', req.user!.id);
-        return res.json({ messageCount: 0, message: 'No new messages found.' });
+      try {
+        gmail = await getGmailClient(req.user!.id);
+        
+        // Get most recent messages
+        const response = await gmail.users.messages.list({
+          userId: 'me',
+          maxResults: 20, // Limit to 20 messages for manual sync
+        });
+        
+        const messages = response.data.messages || [];
+        
+        if (messages.length === 0) {
+          console.log('No messages found in Gmail for user:', req.user!.id);
+          return res.json({ messageCount: 0, message: 'No new messages found.' });
+        }
+        
+        console.log(`Found ${messages.length} messages in Gmail for user:`, req.user!.id);
+        
+        // Get all message IDs from the response
+        messageIds = messages.map((m: any) => m.id).filter(Boolean) as string[];
+      } catch (apiError: any) {
+        console.error('Gmail API Error:', apiError);
+        
+        // Check if this is an API not enabled error
+        if (apiError.message && apiError.message.includes('Gmail API has not been used in project') &&
+            apiError.message.includes('or it is disabled')) {
+          
+          // Extract the project ID and console URL from the error message if available
+          const projectIdMatch = apiError.message.match(/project (\d+)/);
+          const projectId = projectIdMatch ? projectIdMatch[1] : 'your Google Cloud project';
+          
+          const consoleUrlMatch = apiError.message.match(/(https:\/\/console\.developers\.google\.com\/apis\/api\/gmail\.googleapis\.com\/overview\?project=\d+)/);
+          const consoleUrl = consoleUrlMatch ? consoleUrlMatch[1] : 'https://console.cloud.google.com/apis/library/gmail.googleapis.com';
+          
+          return res.status(400).json({ 
+            error: 'Gmail API not enabled',
+            message: `The Gmail API needs to be enabled in your Google Cloud project (${projectId}). Please visit ${consoleUrl} to enable it, then try again. It may take a few minutes for the changes to propagate after enabling.`
+          });
+        }
+        
+        // Handle other API errors with appropriate messages
+        return res.status(400).json({
+          error: 'Gmail API error',
+          message: apiError.message || 'An error occurred while communicating with the Gmail API'
+        });
       }
       
-      console.log(`Found ${messages.length} messages in Gmail for user:`, req.user!.id);
-      
-      // Get all message IDs from the response
-      const messageIds = messages.map(m => m.id).filter(Boolean) as string[];
+      // Check if we successfully got messageIds
+      if (!messageIds.length) {
+        return res.json({ messageCount: 0, message: 'No messages found to sync.' });
+      }
       
       // Get existing messages in one query to avoid querying multiple times
       const existingMessages = await storage.getGmailMessagesForUser(req.user!.id, {});
       const existingMessageIds = new Set(existingMessages.map(m => m.messageId));
       
       // Filter to only process new messages
-      const newMessageIds = messageIds.filter(id => !existingMessageIds.has(id));
+      const newMessageIds = messageIds.filter((id: string) => !existingMessageIds.has(id));
       
       console.log(`Found ${newMessageIds.length} new messages to sync for user:`, req.user!.id);
       
@@ -422,72 +457,99 @@ export function setupGmailRoutes(app: express.Express) {
       
       // Process each new message
       for (const messageId of newMessageIds) {
-        console.log(`Processing message ${messageId} for user:`, req.user!.id);
-        
-        // Fetch full message details
-        const messageDetails = await gmail.users.messages.get({
-          userId: 'me',
-          id: messageId,
-          format: 'full',
-        });
-        
-        const payload = messageDetails.data.payload;
-        if (!payload) {
-          console.log(`No payload found for message ${messageId}`);
-          continue;
-        }
-        
-        // Extract headers
-        const headers = payload.headers || [];
-        const fromHeader = headers.find(h => h.name?.toLowerCase() === 'from');
-        const toHeader = headers.find(h => h.name?.toLowerCase() === 'to');
-        const subjectHeader = headers.find(h => h.name?.toLowerCase() === 'subject');
-        const dateHeader = headers.find(h => h.name?.toLowerCase() === 'date');
-        
-        // Extract message body
-        let body = '';
-        if (payload.body?.data) {
-          // Base64 encoded body
-          body = Buffer.from(payload.body.data, 'base64').toString('utf-8');
-        } else if (payload.parts) {
-          // Multipart message
-          for (const part of payload.parts) {
-            if (part.mimeType === 'text/plain' && part.body?.data) {
-              body = Buffer.from(part.body.data, 'base64').toString('utf-8');
-              break;
+        try {
+          console.log(`Processing message ${messageId} for user:`, req.user!.id);
+          
+          // Fetch full message details
+          const messageDetails = await gmail.users.messages.get({
+            userId: 'me',
+            id: messageId,
+            format: 'full',
+          });
+          
+          const payload = messageDetails.data.payload;
+          if (!payload) {
+            console.log(`No payload found for message ${messageId}`);
+            continue;
+          }
+          
+          // Extract headers
+          const headers = payload.headers || [];
+          const fromHeader = headers.find((h: any) => h.name?.toLowerCase() === 'from');
+          const toHeader = headers.find((h: any) => h.name?.toLowerCase() === 'to');
+          const subjectHeader = headers.find((h: any) => h.name?.toLowerCase() === 'subject');
+          const dateHeader = headers.find((h: any) => h.name?.toLowerCase() === 'date');
+          
+          // Extract message body
+          let body = '';
+          if (payload.body?.data) {
+            // Base64 encoded body
+            body = Buffer.from(payload.body.data, 'base64').toString('utf-8');
+          } else if (payload.parts) {
+            // Multipart message
+            for (const part of payload.parts) {
+              if (part.mimeType === 'text/plain' && part.body?.data) {
+                body = Buffer.from(part.body.data, 'base64').toString('utf-8');
+                break;
+              }
             }
           }
+          
+          // Determine labels
+          const labels = messageDetails.data.labelIds || [];
+          const isRead = !labels.includes('UNREAD');
+          const isImportant = labels.includes('IMPORTANT');
+          
+          // Create message in database
+          const newMessage = await storage.saveGmailMessage({
+            userId: req.user!.id,
+            messageId: messageId,
+            threadId: messageDetails.data.threadId || '',
+            from: fromHeader?.value || 'Unknown',
+            to: toHeader?.value || 'Unknown',
+            subject: subjectHeader?.value || '',
+            snippet: messageDetails.data.snippet || '',
+            body,
+            receivedAt: dateHeader?.value ? new Date(dateHeader.value) : new Date(),
+            isRead,
+            isImportant,
+            labels
+          });
+          
+          syncedMessages.push(newMessage);
+        } catch (messageError) {
+          console.error(`Error processing message ${messageId}:`, messageError);
+          // Continue with the next message even if one fails
+          continue;
         }
-        
-        // Determine labels
-        const labels = messageDetails.data.labelIds || [];
-        const isRead = !labels.includes('UNREAD');
-        const isImportant = labels.includes('IMPORTANT');
-        
-        // Create message in database
-        const newMessage = await storage.saveGmailMessage({
-          userId: req.user!.id,
-          messageId: messageId,
-          threadId: messageDetails.data.threadId || '',
-          from: fromHeader?.value || 'Unknown',
-          to: toHeader?.value || 'Unknown',
-          subject: subjectHeader?.value || '',
-          snippet: messageDetails.data.snippet || '',
-          body,
-          receivedAt: dateHeader?.value ? new Date(dateHeader.value) : new Date(),
-          isRead,
-          isImportant,
-          labels
-        });
-        
-        syncedMessages.push(newMessage);
       }
       
       console.log(`Successfully synced ${syncedMessages.length} messages for user:`, req.user!.id);
       res.json({ messageCount: syncedMessages.length, message: `Successfully synced ${syncedMessages.length} messages` });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error syncing Gmail messages:', error);
-      res.status(500).json({ error: 'Failed to sync Gmail messages' });
+      
+      // Provide a more helpful error message
+      let errorMessage = 'Failed to sync Gmail messages';
+      
+      if (error.message) {
+        // Check if this is a common error
+        if (error.message.includes('Gmail API has not been used')) {
+          errorMessage = 'Gmail API not enabled. Please enable it in your Google Cloud Console.';
+        } else if (error.message.includes('invalid_grant')) {
+          errorMessage = 'Your Gmail authorization has expired. Please reconnect your Gmail account.';
+        } else if (error.message.includes('Rate Limit Exceeded')) {
+          errorMessage = 'Gmail API rate limit exceeded. Please try again later.';
+        } else {
+          // Include a generic version of the error message
+          errorMessage = `Failed to sync Gmail messages: ${error.message}`;
+        }
+      }
+      
+      res.status(500).json({ 
+        error: errorMessage,
+        details: error.message || 'Unknown error'
+      });
     }
   });
 }

@@ -144,7 +144,14 @@ function Messages() {
           // Get the error message from the response
           const errorData = await res.json();
           console.error('Sync error:', errorData);
-          throw new Error(errorData.error || 'Failed to sync Gmail messages');
+          
+          if (errorData.error === 'Gmail API not enabled') {
+            throw new Error(errorData.message || 'The Gmail API needs to be enabled in your Google Cloud project. Please visit the Google Cloud Console to enable it.');
+          } else if (errorData.error === 'Gmail API error') {
+            throw new Error(`Gmail API error: ${errorData.message || 'Unknown API error'}`);
+          } else {
+            throw new Error(errorData.error || 'Failed to sync Gmail messages');
+          }
         }
         
         console.log('Sync request successful, parsing response');
@@ -166,9 +173,25 @@ function Messages() {
     },
     onError: (error: any) => {
       console.error('Sync mutation error in callback:', error);
+      
+      // Handle specific error cases
+      let title = "Gmail Sync Failed";
+      let description = error.message || "Failed to sync messages from Gmail. Please try again.";
+      
+      if (error.message && error.message.includes('Gmail API needs to be enabled')) {
+        title = "Gmail API Not Enabled";
+        // Keep the full error message as it contains the link to enable the API
+      } else if (error.message && error.message.includes('authorization has expired')) {
+        title = "Authorization Expired";
+        description = "Your Gmail authorization has expired. Please disconnect and reconnect your Gmail account.";
+      } else if (error.message && error.message.includes('Rate Limit Exceeded')) {
+        title = "Rate Limit Exceeded";
+        description = "Gmail API rate limit exceeded. Please try again later.";
+      }
+      
       toast({
-        title: "Gmail Sync Failed",
-        description: error.message || "Failed to sync messages from Gmail. Please try again.",
+        title: title,
+        description: description,
         variant: "destructive"
       });
     }
