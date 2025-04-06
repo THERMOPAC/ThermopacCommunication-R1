@@ -3,11 +3,12 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { roles, roleHierarchy } from "@shared/roles";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -21,7 +22,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-// Define the internal message structure
+// Define interface structures
 interface InternalMessage {
   id: number;
   senderId: number;
@@ -32,6 +33,13 @@ interface InternalMessage {
   content: string;
   isRead: boolean;
   createdAt: string;
+}
+
+interface User {
+  id: number;
+  username: string;
+  role: string;
+  email: string;
 }
 
 function InternalMessages() {
@@ -47,7 +55,7 @@ function InternalMessages() {
   const [showComposeForm, setShowComposeForm] = useState(false);
 
   // Get users for the recipient dropdown
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ["/api/users"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/users");
@@ -56,7 +64,7 @@ function InternalMessages() {
   });
 
   // Fetch internal messages
-  const { data: messages = [], isLoading: isLoadingMessages } = useQuery({
+  const { data: messages = [], isLoading: isLoadingMessages } = useQuery<InternalMessage[]>({
     queryKey: ["/api/internal-messages", activeTab, searchTerm],
     queryFn: async () => {
       try {
@@ -80,8 +88,12 @@ function InternalMessages() {
   });
 
   // Send a new message
-  const sendMessageMutation = useMutation({
-    mutationFn: async (message: { recipientId: number, subject: string, content: string }) => {
+  const sendMessageMutation = useMutation<
+    InternalMessage, 
+    Error, 
+    { recipientId: number, subject: string, content: string }
+  >({
+    mutationFn: async (message) => {
       const res = await apiRequest("POST", "/api/internal-messages", message);
       return await res.json();
     },
@@ -106,8 +118,8 @@ function InternalMessages() {
   });
 
   // Mark message as read
-  const markAsReadMutation = useMutation({
-    mutationFn: async (messageId: number) => {
+  const markAsReadMutation = useMutation<InternalMessage, Error, number>({
+    mutationFn: async (messageId) => {
       const res = await apiRequest("PATCH", `/api/internal-messages/${messageId}/read`);
       return await res.json();
     },
@@ -125,7 +137,7 @@ function InternalMessages() {
 
   // Selected message details
   const selectedMessage = selectedMessageId 
-    ? messages.find((m: InternalMessage) => m.id === selectedMessageId) 
+    ? messages.find((m) => m.id === selectedMessageId) 
     : null;
 
   // Format date for display
@@ -162,7 +174,7 @@ function InternalMessages() {
     setSelectedMessageId(messageId);
     
     // If the message is unread, mark it as read
-    const message = messages.find((m: InternalMessage) => m.id === messageId);
+    const message = messages.find((m) => m.id === messageId);
     if (message && !message.isRead) {
       markAsReadMutation.mutate(messageId);
     }
@@ -203,11 +215,24 @@ function InternalMessages() {
                   <SelectValue placeholder="Select recipient" />
                 </SelectTrigger>
                 <SelectContent>
-                  {users.map((user: any) => (
-                    <SelectItem key={user.id} value={user.id.toString()}>
-                      {user.username}
-                    </SelectItem>
-                  ))}
+                  {/* Group users by role for better organization */}
+                  {[...roles].sort((a, b) => roleHierarchy[a] - roleHierarchy[b]).map((role) => {
+                    const usersWithRole = users.filter((u) => u.role === role);
+                    if (usersWithRole.length === 0) return null;
+                    
+                    return (
+                      <SelectGroup key={role}>
+                        <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                          {role}s
+                        </SelectLabel>
+                        {usersWithRole.map((user) => (
+                          <SelectItem key={user.id} value={user.id.toString()}>
+                            {user.username}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -324,7 +349,7 @@ function InternalMessages() {
         <TabsContent value="inbox" className="mt-4">
           {messages.length > 0 ? (
             <div className="space-y-2">
-              {messages.map((message: InternalMessage) => (
+              {messages.map((message) => (
                 <Card 
                   key={message.id} 
                   className={`cursor-pointer hover:bg-accent transition-colors ${!message.isRead ? 'border-primary' : ''}`}
@@ -375,7 +400,7 @@ function InternalMessages() {
         <TabsContent value="sent" className="mt-4">
           {messages.length > 0 ? (
             <div className="space-y-2">
-              {messages.map((message: InternalMessage) => (
+              {messages.map((message) => (
                 <Card 
                   key={message.id} 
                   className="cursor-pointer hover:bg-accent transition-colors"
