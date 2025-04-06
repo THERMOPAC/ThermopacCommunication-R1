@@ -403,13 +403,28 @@ export function setupGmailRoutes(app: express.Express) {
       
       try {
         console.log('Attempting to get Gmail client for user:', req.user!.id);
-        gmail = await getGmailClient(req.user!.id);
+        
+        try {
+          gmail = await getGmailClient(req.user!.id);
+        } catch (error: any) {
+          console.error('Failed to initialize Gmail client:', error);
+          throw new Error(`Failed to initialize Gmail client: ${error.message || 'Unknown error'}`);
+        }
+        
+        console.log('Gmail client initialized successfully');
         
         // Get most recent messages
-        const response = await gmail.users.messages.list({
-          userId: 'me',
-          maxResults: 20, // Limit to 20 messages for manual sync
-        });
+        let response;
+        try {
+          response = await gmail.users.messages.list({
+            userId: 'me',
+            maxResults: 20, // Limit to 20 messages for manual sync
+          });
+          console.log('Gmail API messages.list request successful');
+        } catch (apiError) {
+          console.error('Gmail API messages.list request failed:', apiError);
+          throw apiError;
+        }
         
         const messages = response.data.messages || [];
         
@@ -471,11 +486,19 @@ export function setupGmailRoutes(app: express.Express) {
           console.log(`Processing message ${messageId} for user:`, req.user!.id);
           
           // Fetch full message details
-          const messageDetails = await gmail.users.messages.get({
-            userId: 'me',
-            id: messageId,
-            format: 'full',
-          });
+          let messageDetails;
+          try {
+            console.log(`Fetching details for message ${messageId}`);
+            messageDetails = await gmail.users.messages.get({
+              userId: 'me',
+              id: messageId,
+              format: 'full',
+            });
+            console.log(`Successfully fetched details for message ${messageId}`);
+          } catch (error: any) {
+            console.error(`Error fetching details for message ${messageId}:`, error);
+            throw new Error(`Failed to fetch message details: ${error.message || 'Unknown error'}`);
+          }
           
           const payload = messageDetails.data.payload;
           if (!payload) {
@@ -527,8 +550,23 @@ export function setupGmailRoutes(app: express.Express) {
           });
           
           syncedMessages.push(newMessage);
-        } catch (messageError) {
-          console.error(`Error processing message ${messageId}:`, messageError);
+        } catch (error: any) {
+          console.error(`Error processing message ${messageId}:`, error);
+          
+          // Add more detailed error logging
+          if (error.response) {
+            console.error(`Message ${messageId} API Error Response:`, {
+              status: error.response.status,
+              statusText: error.response.statusText,
+              data: error.response.data
+            });
+          }
+          
+          if (error.stack) {
+            console.error(`Message ${messageId} Error Stack:`, error.stack);
+          }
+          
+          console.error(`Skipping message ${messageId} due to error: ${error.message || 'Unknown error'}`);
           // Continue with the next message even if one fails
           continue;
         }
@@ -539,25 +577,67 @@ export function setupGmailRoutes(app: express.Express) {
     } catch (error: any) {
       console.error('Error syncing Gmail messages:', error);
       
+      // More detailed error logging
+      if (error.response) {
+        console.error('Gmail API Error Response:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+          headers: error.response.headers
+        });
+      }
+      
+      if (error.config) {
+        console.error('Gmail API Request Configuration:', {
+          method: error.config.method,
+          url: error.config.url,
+          headers: error.config.headers,
+          // Don't log potentially sensitive data
+          // data: error.config.data
+        });
+      }
+      
+      if (error.stack) {
+        console.error('Error Stack Trace:', error.stack);
+      }
+      
       // Provide a more helpful error message
       let errorMessage = 'Failed to sync Gmail messages';
+      let errorCode = 'sync_failed';
       
       if (error.message) {
+        console.error('Detailed error message:', error.message);
+        
         // Check if this is a common error
-        if (error.message.includes('Gmail API has not been used')) {
+        if (error.message.includes('Gmail API has not been used') || 
+            error.message.includes('API not enabled')) {
           errorMessage = 'Gmail API not enabled. Please enable it in your Google Cloud Console.';
+          errorCode = 'api_not_enabled';
         } else if (error.message.includes('invalid_grant')) {
           errorMessage = 'Your Gmail authorization has expired. Please reconnect your Gmail account.';
+          errorCode = 'token_expired';
         } else if (error.message.includes('Rate Limit Exceeded')) {
           errorMessage = 'Gmail API rate limit exceeded. Please try again later.';
+          errorCode = 'rate_limit';
+        } else if (error.message.includes('Token has been expired or revoked')) {
+          errorMessage = 'Your Gmail token has expired. Please reconnect your Gmail account.';
+          errorCode = 'token_expired';
+        } else if (error.message.includes('User has not connected Gmail')) {
+          errorMessage = 'Gmail not connected. Please connect your Gmail account first.';
+          errorCode = 'not_connected';
+        } else if (error.message.includes('Invalid Credentials')) {
+          errorMessage = 'Invalid credentials. Please reconnect your Gmail account.';
+          errorCode = 'invalid_credentials';
         } else {
           // Include a generic version of the error message
           errorMessage = `Failed to sync Gmail messages: ${error.message}`;
+          errorCode = 'unknown_error';
         }
       }
       
       res.status(500).json({ 
         error: errorMessage,
+        errorCode: errorCode,
         details: error.message || 'Unknown error'
       });
     }

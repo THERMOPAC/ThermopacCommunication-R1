@@ -406,15 +406,32 @@ export async function getGmailClient(userId: number) {
     throw new Error('User has not connected Gmail');
   }
   
-  console.log(`Retrieved tokens for user ${userId}:`, {
+  // Validate token data
+  if (!storedTokens.accessToken) {
+    console.error(`Invalid token data for user ${userId}: Missing access token`);
+    throw new Error('Invalid Gmail token: Missing access token');
+  }
+  
+  const now = Date.now();
+  const tokenExpiry = storedTokens.tokenExpiry ? new Date(storedTokens.tokenExpiry).getTime() : undefined;
+  const isExpired = tokenExpiry ? tokenExpiry < now : false;
+  const timeUntilExpiry = tokenExpiry ? Math.floor((tokenExpiry - now) / 1000 / 60) : 'unknown';
+  
+  console.log(`Token diagnostics for user ${userId}:`, {
     hasAccessToken: !!storedTokens.accessToken,
     accessTokenLength: storedTokens.accessToken ? storedTokens.accessToken.length : 0,
     hasRefreshToken: !!storedTokens.refreshToken,
     refreshTokenLength: storedTokens.refreshToken ? storedTokens.refreshToken.length : 0,
-    tokenExpiry: storedTokens.tokenExpiry ? new Date(storedTokens.tokenExpiry).toISOString() : 'none',
-    isExpired: storedTokens.tokenExpiry ? new Date(storedTokens.tokenExpiry).getTime() < Date.now() : 'unknown',
+    tokenExpiry: tokenExpiry ? new Date(tokenExpiry).toISOString() : 'none',
+    isExpired: isExpired,
+    timeUntilExpiryMinutes: timeUntilExpiry,
     updatedAt: storedTokens.updatedAt ? new Date(storedTokens.updatedAt).toISOString() : 'unknown'
   });
+  
+  if (isExpired && !storedTokens.refreshToken) {
+    console.error(`Token expired for user ${userId} and no refresh token available`);
+    throw new Error('Token has been expired and no refresh token is available. Please reconnect your Gmail account.');
+  }
   
   try {
     // Create a new OAuth2 client with the same client ID and secret
@@ -425,10 +442,13 @@ export async function getGmailClient(userId: number) {
     );
     
     // Check for token expiration
-    const tokenExpiry = storedTokens.tokenExpiry ? new Date(storedTokens.tokenExpiry).getTime() : undefined;
-    if (tokenExpiry && tokenExpiry < Date.now()) {
-      console.warn(`Access token for user ${userId} has expired. Token expiry: ${new Date(tokenExpiry).toISOString()}`);
+    if (isExpired) {
+      console.warn(`Access token for user ${userId} has expired. Token expiry: ${tokenExpiry ? new Date(tokenExpiry).toISOString() : 'unknown'}`);
       console.log('Will attempt to refresh using refresh token...');
+      
+      if (!storedTokens.refreshToken) {
+        throw new Error('Cannot refresh token: No refresh token available');
+      }
     }
     
     // Configure oauth client with user's tokens
@@ -438,21 +458,34 @@ export async function getGmailClient(userId: number) {
       expiry_date: tokenExpiry
     });
     
-    // Create Gmail client
-    console.log(`Creating Gmail client for user ${userId}`);
-    const gmail = google.gmail({ version: 'v1', auth: userOAuth2Client });
-    
     // Set up token refresh handler to update stored tokens
     userOAuth2Client.on('tokens', async (tokens) => {
-      console.log(`Received token refresh for user ${userId}`);
-      if (tokens.access_token) {
-        console.log('Updating access token in database');
+      console.log(`Received token refresh for user ${userId}:`, {
+        hasNewAccessToken: !!tokens.access_token,
+        hasNewRefreshToken: !!tokens.refresh_token,
+        hasNewExpiryDate: !!tokens.expiry_date
+      });
+      
+      if (tokens.access_token || tokens.refresh_token) {
+        console.log('Updating tokens in database');
         try {
-          await storage.updateGmailToken(userId, {
-            accessToken: tokens.access_token,
-            tokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
+          const updates: Partial<GmailToken> = {
             updatedAt: new Date()
-          });
+          };
+          
+          if (tokens.access_token) {
+            updates.accessToken = tokens.access_token;
+          }
+          
+          if (tokens.refresh_token) {
+            updates.refreshToken = tokens.refresh_token;
+          }
+          
+          if (tokens.expiry_date) {
+            updates.tokenExpiry = new Date(tokens.expiry_date);
+          }
+          
+          await storage.updateGmailToken(userId, updates);
           console.log(`Successfully updated tokens for user ${userId}`);
         } catch (error) {
           console.error('Error updating tokens after refresh:', error);
@@ -460,9 +493,34 @@ export async function getGmailClient(userId: number) {
       }
     });
     
+    // Force token refresh if expired
+    if (isExpired && storedTokens.refreshToken) {
+      try {
+        console.log('Forcing token refresh...');
+        // This will trigger the 'tokens' event if successful
+        const refreshResult = await userOAuth2Client.getAccessToken();
+        console.log('Token refresh successful:', refreshResult ? 'Got result' : 'No result');
+      } catch (refreshError: any) {
+        console.error('Error refreshing token:', refreshError.message || refreshError);
+        throw new Error(`Failed to refresh expired token: ${refreshError.message || 'Unknown error'}`);
+      }
+    }
+    
+    // Create Gmail client
+    console.log(`Creating Gmail client for user ${userId}`);
+    const gmail = google.gmail({ version: 'v1', auth: userOAuth2Client });
+    
     return gmail;
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error creating Gmail client for user ${userId}:`, error);
-    throw error;
+    
+    // Provide more specific error messages for common issues
+    if (error.message?.includes('invalid_grant')) {
+      throw new Error('Invalid or expired refresh token. Please reconnect your Gmail account.');
+    } else if (error.message?.includes('Token has been expired')) {
+      throw new Error('Your Google authentication has expired. Please reconnect your Gmail account.');
+    } else {
+      throw error;
+    }
   }
 }
