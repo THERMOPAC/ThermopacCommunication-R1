@@ -210,6 +210,8 @@ function Messages() {
   
   const connectToGmail = async () => {
     try {
+      console.log("Initiating Gmail connection...");
+      
       // First attempt to get the URL
       const response = await fetch("/api/gmail/auth-url", {
         method: "GET",
@@ -218,19 +220,30 @@ function Messages() {
       
       // Parse the response
       const data = await response.json();
+      console.log("Auth URL response:", data);
       
       // Check if we got a URL or an error
       if (data.url) {
         // Save the URL for manual mode
         setAuthUrl(data.url);
+        console.log("Auth URL received:", data.url.substring(0, 50) + "...");
         
         // Save the timestamp in localStorage to help diagnose redirect issues
         localStorage.setItem('gmailAuthAttempt', new Date().toISOString());
         
+        // Log the complete URL for debugging (careful with sensitive data)
+        console.log("Full auth URL for debugging:", data.url);
+        
         // Open Google auth page in a new tab
         window.open(data.url, '_blank');
+        
+        toast({
+          title: "Gmail Authorization",
+          description: "Google authorization page has been opened in a new tab. Please complete the authorization there.",
+        });
       } else if (data.error) {
         // Display specific error from the server
+        console.error("OAuth configuration error:", data);
         toast({
           title: "OAuth Configuration Error",
           description: data.message || "Google OAuth is not properly configured on the server.",
@@ -240,9 +253,15 @@ function Messages() {
     } catch (error) {
       // Handle any other errors
       console.error("Gmail connection error:", error);
+      if (error instanceof Error) {
+        console.error("Error details:", error.message, error.stack);
+      }
+      
       toast({
-        title: "Error",
-        description: "Failed to generate authentication URL. Please try again later.",
+        title: "Gmail Connection Error",
+        description: error instanceof Error 
+          ? `Error: ${error.message}` 
+          : "Failed to generate authentication URL. Please try again later.",
         variant: "destructive"
       });
     }

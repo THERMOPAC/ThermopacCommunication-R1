@@ -11,33 +11,79 @@ export function setupGmailRoutes(app: express.Express) {
     }
     
     try {
+      console.log('=== MANUAL GMAIL AUTHENTICATION ===');
+      console.log(`User ${req.user!.username} (ID: ${req.user!.id}) attempting manual authentication`);
+      
       const { code } = req.body;
       
       if (!code) {
+        console.error('No code provided in request body');
         return res.status(400).json({ error: 'Authorization code is required' });
       }
       
-      // Import the getTokens function from google-oauth
-      const { getTokens } = require('./google-oauth');
+      console.log(`Raw input code length: ${code.length}`);
+      
+      // Import functions from google-oauth
+      const { getTokens, sanitizeAuthCode } = require('./google-oauth');
+      
+      // Clean the code to extract the authorization code
+      const cleanCode = sanitizeAuthCode(code);
+      console.log(`Cleaned code length: ${cleanCode.length}`);
+      
+      if (!cleanCode || cleanCode.length < 20) {
+        console.error('Invalid authorization code after cleaning');
+        return res.status(400).json({ 
+          error: 'Invalid authorization code', 
+          details: 'The code could not be extracted from your input. Please make sure to copy the full URL after Google authorization.'
+        });
+      }
       
       // Exchange the code for tokens
       console.log(`Attempting to exchange manual auth code for user: ${req.user!.id}`);
-      const tokens = await getTokens(code);
+      const tokens = await getTokens(cleanCode);
       
       if (!tokens) {
+        console.error('No tokens returned from getTokens');
         return res.status(400).json({ error: 'Failed to exchange authorization code for tokens' });
       }
+      
+      console.log('Token exchange successful:');
+      console.log('- Access token received:', !!tokens.access_token);
+      console.log('- Refresh token received:', !!tokens.refresh_token);
       
       // Save the tokens in database
       await storage.saveGoogleTokens(req.user!.id, tokens);
       
       console.log(`Successfully saved Google tokens for user ${req.user!.id} via manual auth`);
-      res.json({ success: true });
+      res.json({ 
+        success: true, 
+        message: 'Gmail connected successfully!'
+      });
     } catch (error) {
-      console.error('Manual auth error:', error);
+      console.error('=== MANUAL AUTH ERROR ===');
+      console.error('Error details:', error);
+      
+      let errorMessage = 'Authentication failed';
+      let errorDetails = '';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        console.error('Error message:', errorMessage);
+        console.error('Error stack:', error.stack);
+        
+        // Check for specific error types
+        if (errorMessage.includes('invalid_grant')) {
+          errorDetails = 'The authorization code has expired or has already been used. Please try again with a new authorization.';
+        } else if (errorMessage.includes('redirect_uri_mismatch')) {
+          errorDetails = 'The redirect URI doesn\'t match what\'s configured in Google Cloud Console.';
+        } else if (errorMessage.includes('invalid_request')) {
+          errorDetails = 'The request was malformed. Please ensure you\'re copying the complete URL after authorization.';
+        }
+      }
+      
       res.status(500).json({ 
-        error: 'Authentication failed', 
-        message: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage,
+        details: errorDetails || 'An unexpected error occurred during OAuth authentication'
       });
     }
   });
@@ -47,21 +93,52 @@ export function setupGmailRoutes(app: express.Express) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    // Check if OAuth credentials are available
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      console.error('Missing Google OAuth credentials - cannot generate auth URL');
-      return res.status(503).json({ 
-        error: 'Google OAuth is not configured on the server',
-        message: 'Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.'
-      });
-    }
-    
     try {
+      console.log('=== GENERATING GMAIL AUTH URL ===');
+      console.log(`User ${req.user!.username} (ID: ${req.user!.id}) requesting Gmail auth URL`);
+      
+      // Store the user ID in the session to help with redirects
+      req.session.gmailAuthUser = req.user!.id;
+      
+      // Save the session before proceeding
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error('Error saving session before Gmail auth:', err);
+            reject(err);
+          } else {
+            console.log('Session saved successfully with ID:', req.sessionID);
+            resolve();
+          }
+        });
+      });
+      
+      // Use the auth utility to generate the URL - with fallback credentials if needed
       const authUrl = getAuthUrl();
-      res.json({ url: authUrl });
+      
+      // Log the auth operation
+      console.log('Auth URL generated and returning to client');
+      
+      // Return the URL to the client
+      res.json({ 
+        url: authUrl,
+        sessionId: req.sessionID, // Include session ID for debugging
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
       console.error('Error generating auth URL:', error);
-      res.status(500).json({ error: 'Failed to generate authentication URL' });
+      let errorMessage = 'Failed to generate authentication URL';
+      
+      if (error instanceof Error) {
+        console.error('Detailed error message:', error.message);
+        console.error('Error stack:', error.stack);
+        errorMessage = error.message;
+      }
+      
+      res.status(500).json({ 
+        error: errorMessage,
+        timestamp: new Date().toISOString()
+      });
     }
   });
   

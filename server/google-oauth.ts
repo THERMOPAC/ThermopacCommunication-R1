@@ -37,6 +37,7 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
 }
 
 // Temporary hardcoded fallback values (will be replaced with proper environment variables)
+// Using only one set of credentials - the environment variables if available, or hardcoded if not
 const clientId = process.env.GOOGLE_CLIENT_ID || "1078980534389-n5207fth1m2oo2iqgnsqpp530qdalb73.apps.googleusercontent.com";
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "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";
 
@@ -44,6 +45,8 @@ const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "GOCSPX-y-5xaXTBCUPRxOf
 console.log(`Using credential configuration:`);
 console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
 console.log(`- Client Secret: ${clientSecret.substring(0, 6)}...`);
+console.log(`- Redirect URI: ${redirectUri}`);
+console.log(`- Environment variables present: GOOGLE_CLIENT_ID=${!!process.env.GOOGLE_CLIENT_ID}, GOOGLE_CLIENT_SECRET=${!!process.env.GOOGLE_CLIENT_SECRET}, GOOGLE_REDIRECT_URI=${!!process.env.GOOGLE_REDIRECT_URI}`);
 
 // Create an OAuth2 client with explicit credentials
 export const oauth2Client = new OAuth2Client(
@@ -63,24 +66,45 @@ export const SCOPES = [
  */
 export function getAuthUrl(): string {
   // We are now using the hardcoded fallback credentials if env vars are not available
-  console.log('Generating auth URL with the following parameters:');
+  console.log('===== GENERATING OAUTH URL =====');
+  console.log('Using the following parameters:');
   console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
+  console.log(`- Client ID Length: ${clientId.length} characters`);
   console.log(`- Redirect URI: ${redirectUri}`);
+  console.log(`- Redirect URI Length: ${redirectUri.length} characters`);
   console.log(`- Scopes: ${SCOPES.join(', ')}`);
+  console.log(`- Environment variables present: GOOGLE_CLIENT_ID=${!!process.env.GOOGLE_CLIENT_ID}, GOOGLE_CLIENT_SECRET=${!!process.env.GOOGLE_CLIENT_SECRET}, GOOGLE_REDIRECT_URI=${!!process.env.GOOGLE_REDIRECT_URI}`);
   
   try {
-    const authUrl = oauth2Client.generateAuthUrl({
+    // Create a fresh OAuth2 client specifically for this request to avoid any state issues
+    const authClient = new OAuth2Client(
+      clientId,
+      clientSecret,
+      redirectUri
+    );
+    
+    const authUrl = authClient.generateAuthUrl({
       access_type: 'offline',
       scope: SCOPES,
       prompt: 'consent', // Force re-consent to get refresh token each time
-      redirect_uri: redirectUri, // Explicitly set redirect URI
-      client_id: clientId // Use our variable that has the fallback
+      include_granted_scopes: true,
+      redirect_uri: redirectUri // Explicitly set redirect URI
     });
     
     console.log(`Successfully generated auth URL: ${authUrl.substring(0, 50)}...`);
+    
+    // Log the complete URL for debugging (careful with logs in production)
+    console.log('Complete OAuth URL for debugging:');
+    console.log(authUrl);
+    
     return authUrl;
   } catch (error) {
-    console.error('Error generating auth URL:', error);
+    console.error('===== ERROR GENERATING AUTH URL =====');
+    console.error('Error details:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     throw new Error(`Failed to generate auth URL: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

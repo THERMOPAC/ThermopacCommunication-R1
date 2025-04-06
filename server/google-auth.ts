@@ -54,25 +54,10 @@ const SCOPES = [
 
 // Generate authentication URL
 export function getAuthUrl() {
-  // Log OAuth configuration for debugging
-  console.log(`OAuth Config - Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
-  console.log(`OAuth Config - Using redirect URI: ${redirectUri}`);
-  
-  try {
-    const authUrl = oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      prompt: 'consent',
-      scope: SCOPES,
-      redirect_uri: redirectUri, // Use hardcoded redirect URI
-      client_id: clientId // Explicitly include the client ID
-    });
-    
-    console.log(`Successfully generated auth URL: ${authUrl.substring(0, 50)}...`);
-    return authUrl;
-  } catch (error) {
-    console.error('Error generating auth URL:', error);
-    throw new Error(`Failed to generate auth URL: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  // Use the consistent implementation from google-oauth.ts
+  // This avoids having two different implementations that could be out of sync
+  const { getAuthUrl: getOAuthUrl } = require('./google-oauth');
+  return getOAuthUrl();
 }
 
 // Set up Google OAuth routes and handlers
