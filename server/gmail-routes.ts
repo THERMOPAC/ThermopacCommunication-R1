@@ -427,8 +427,8 @@ export function setupGmailRoutes(app: express.Express) {
           const consoleUrl = consoleUrlMatch ? consoleUrlMatch[1] : 'https://console.cloud.google.com/apis/library/gmail.googleapis.com';
           
           return res.status(400).json({ 
-            error: 'Gmail API not enabled',
-            message: `The Gmail API needs to be enabled in your Google Cloud project (${projectId}). Please visit ${consoleUrl} to enable it, then try again. It may take a few minutes for the changes to propagate after enabling.`
+            error: 'Gmail API not enabled or still activating',
+            message: `The Gmail API needs to be enabled in your Google Cloud project (${projectId}). If you've already enabled it, please wait 5-10 minutes for the changes to fully propagate through Google's systems. You can verify the API is enabled at ${consoleUrl}`
           });
         }
         

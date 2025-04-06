@@ -145,7 +145,9 @@ function Messages() {
           const errorData = await res.json();
           console.error('Sync error:', errorData);
           
-          if (errorData.error === 'Gmail API not enabled') {
+          if (errorData.error === 'Gmail API not enabled or still activating') {
+            throw new Error(errorData.message || 'The Gmail API needs to be enabled in your Google Cloud project. If already enabled, please wait 5-10 minutes for the changes to propagate.');
+          } else if (errorData.error === 'Gmail API not enabled') {
             throw new Error(errorData.message || 'The Gmail API needs to be enabled in your Google Cloud project. Please visit the Google Cloud Console to enable it.');
           } else if (errorData.error === 'Gmail API error') {
             throw new Error(`Gmail API error: ${errorData.message || 'Unknown API error'}`);
@@ -181,6 +183,9 @@ function Messages() {
       if (error.message && error.message.includes('Gmail API needs to be enabled')) {
         title = "Gmail API Not Enabled";
         // Keep the full error message as it contains the link to enable the API
+      } else if (error.message && error.message.includes('already enabled it, please wait')) {
+        title = "Gmail API Still Activating";
+        description = "The Gmail API is enabled but still activating. Please wait 5-10 minutes for Google to fully activate it across their systems, then try again.";
       } else if (error.message && error.message.includes('authorization has expired')) {
         title = "Authorization Expired";
         description = "Your Gmail authorization has expired. Please disconnect and reconnect your Gmail account.";
