@@ -309,7 +309,6 @@ export default function GmailMessages() {
       status: "pending",
       priority: "Medium",
       startDate: formatDateForTask(today),
-      finishDate: formatDateForTask(nextWeek),
       dueDate: formatDateForTask(nextWeek),
       assignedTo: user?.id,
       createdBy: user?.id,
@@ -923,7 +922,7 @@ export default function GmailMessages() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="startDate">Start Date</Label>
                   <Input 
@@ -936,23 +935,13 @@ export default function GmailMessages() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="finishDate">Finish Date</Label>
-                  <Input 
-                    id="finishDate" 
-                    type="date" 
-                    value={taskFormData.finishDate || ''} 
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTaskFormData({...taskFormData, finishDate: e.target.value})}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
                   <Label htmlFor="dueDate">Due Date</Label>
                   <Input 
                     id="dueDate" 
                     type="date" 
                     value={taskFormData.dueDate || ''} 
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTaskFormData({...taskFormData, dueDate: e.target.value})}
+                    required
                   />
                 </div>
               </div>
