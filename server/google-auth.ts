@@ -311,12 +311,15 @@ export function setupGoogleAuth(app: Express) {
     let originalCode = code;
     let extractedCode = '';
     
+    // Log the code we're trying to extract from
+    console.log('Attempting to extract code from:', code.substring(0, 100) + (code.length > 100 ? '...' : ''));
+    
     // Step 3: Try different methods to extract the code until one works
     
-    // Method 1: Full URL with code parameter
-    if (!extractedCode && (code.includes('https://') || code.includes('http://')) && code.includes('code=')) {
+    // Method 1: Full URL with code parameter (most common scenario)
+    if (!extractedCode && code.includes('code=')) {
       try {
-        console.log('Trying to extract from full URL with code parameter');
+        console.log('Trying to extract from URL with code parameter');
         const match = code.match(/[?&]code=([^&]+)/);
         if (match && match[1]) {
           extractedCode = match[1];
@@ -341,7 +344,24 @@ export function setupGoogleAuth(app: Express) {
       }
     }
     
-    // Method 3: JSON-like structure with code property
+    // Method 3: Just code portion after code= anywhere in the string (more flexible)
+    if (!extractedCode && code.includes('code=')) {
+      try {
+        console.log('Trying flexible extraction after code=');
+        const codeStart = code.indexOf('code=') + 5;
+        let codeEnd = code.indexOf('&', codeStart);
+        if (codeEnd === -1) codeEnd = code.length;
+        
+        if (codeStart > 5 && codeEnd > codeStart) {
+          extractedCode = code.substring(codeStart, codeEnd);
+          console.log('Successfully extracted code using flexible method, length:', extractedCode.length);
+        }
+      } catch (err) {
+        console.error('Error using flexible extraction:', err);
+      }
+    }
+    
+    // Method 4: JSON-like structure with code property
     if (!extractedCode && code.includes('"code"')) {
       try {
         console.log('Trying to extract from JSON-like structure');
@@ -355,9 +375,27 @@ export function setupGoogleAuth(app: Express) {
       }
     }
     
+    // Method 5: Try to extract after "callback?code=" which is most common for Google
+    if (!extractedCode && code.includes('callback?code=')) {
+      try {
+        console.log('Trying specific extraction after callback?code=');
+        const codeStart = code.indexOf('callback?code=') + 'callback?code='.length;
+        let codeEnd = code.indexOf('&', codeStart);
+        if (codeEnd === -1) codeEnd = code.length;
+        
+        if (codeStart > 'callback?code='.length && codeEnd > codeStart) {
+          extractedCode = code.substring(codeStart, codeEnd);
+          console.log('Successfully extracted code after callback, length:', extractedCode.length);
+        }
+      } catch (err) {
+        console.error('Error using callback extraction:', err);
+      }
+    }
+    
     // If any extraction method worked, use that result
     if (extractedCode) {
       code = extractedCode;
+      console.log('Using extracted code:', code.substring(0, 10) + '...');
     } else {
       // If no method worked and the input looks like it might already be just the code,
       // keep it as is but log a warning
@@ -365,6 +403,7 @@ export function setupGoogleAuth(app: Express) {
         console.log('No extraction method worked, but input appears to be a raw code already');
       } else {
         console.warn('WARNING: Failed to extract authorization code from input');
+        console.warn('Input was:', code.substring(0, 100) + (code.length > 100 ? '...' : ''));
       }
     }
     

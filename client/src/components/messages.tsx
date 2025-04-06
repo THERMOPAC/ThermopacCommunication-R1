@@ -179,6 +179,7 @@ function Messages() {
   const [authCode, setAuthCode] = useState("");
   const [isSubmittingCode, setIsSubmittingCode] = useState(false);
   const [authUrl, setAuthUrl] = useState<string | null>(null);
+  const [manualAuthError, setManualAuthError] = useState<string | null>(null); // Used for storing validation errors in the form
   
   // Manual auth mutation
   const manualAuthMutation = useMutation({
@@ -298,9 +299,7 @@ function Messages() {
     return input;
   };
   
-  // Track error state for manual auth
-  const [manualAuthError, setManualAuthError] = React.useState<string | null>(null);
-
+  // Track error state for manual auth - already declared at line 182
   // Handle manual auth submission
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
