@@ -4,6 +4,43 @@ import { getGmailClient, getAuthUrl } from './google-auth';
 import { gmail_v1 } from 'googleapis';
 
 export function setupGmailRoutes(app: express.Express) {
+  // Manual authentication endpoint for Gmail
+  app.post('/api/gmail/manual-auth', async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    try {
+      const { code } = req.body;
+      
+      if (!code) {
+        return res.status(400).json({ error: 'Authorization code is required' });
+      }
+      
+      // Import the getTokens function from google-oauth
+      const { getTokens } = require('./google-oauth');
+      
+      // Exchange the code for tokens
+      console.log(`Attempting to exchange manual auth code for user: ${req.user!.id}`);
+      const tokens = await getTokens(code);
+      
+      if (!tokens) {
+        return res.status(400).json({ error: 'Failed to exchange authorization code for tokens' });
+      }
+      
+      // Save the tokens in database
+      await storage.saveGoogleTokens(req.user!.id, tokens);
+      
+      console.log(`Successfully saved Google tokens for user ${req.user!.id} via manual auth`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Manual auth error:', error);
+      res.status(500).json({ 
+        error: 'Authentication failed', 
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
   // Get Gmail auth URL for connecting account
   app.get('/api/gmail/auth-url', async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
