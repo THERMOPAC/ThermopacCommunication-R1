@@ -310,6 +310,7 @@ export default function GmailMessages() {
       priority: "Medium",
       startDate: formatDateForTask(today),
       dueDate: formatDateForTask(nextWeek),
+      finishDate: formatDateForTask(nextWeek), // Add finishDate for backend validation
       assignedTo: user?.id,
       createdBy: user?.id,
       category: "Email"
@@ -333,12 +334,19 @@ export default function GmailMessages() {
     
     if (!taskFormData) return;
     
+    // Make sure we have a dueDate for finishDate value
+    const dueDate = taskFormData.dueDate || new Date().toISOString().split('T')[0];
+    
     // Create the final task data
     const taskData: InsertTask = {
       ...taskFormData as InsertTask,
       createdAt: new Date().toISOString(),
       description: taskFormData.description || '',
       title: taskFormData.title || 'Email task',
+      // Set finishDate equal to dueDate for backend validation
+      finishDate: dueDate,
+      // Ensure dueDate is set if it wasn't already
+      dueDate: dueDate,
     };
     
     // Submit the task
