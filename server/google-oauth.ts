@@ -1,4 +1,5 @@
 import { OAuth2Client } from 'google-auth-library';
+import { google } from 'googleapis';
 
 // Set the redirect URI to match exactly what's configured in Google Cloud Console
 // IMPORTANT: This MUST match exactly what's configured in Google Cloud Console
@@ -210,7 +211,7 @@ export function setCredentials(tokens: any) {
  * Get a Gmail client
  */
 export function getGmailClient() {
-  const { google } = require('googleapis');
+  // Use the already imported google object from the top of this file
   return google.gmail({ version: 'v1', auth: oauth2Client });
 }
 

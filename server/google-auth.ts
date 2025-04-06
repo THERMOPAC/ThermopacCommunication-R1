@@ -54,10 +54,26 @@ const SCOPES = [
 
 // Generate authentication URL
 export function getAuthUrl() {
-  // Use the consistent implementation from google-oauth.ts
-  // This avoids having two different implementations that could be out of sync
-  const { getAuthUrl: getOAuthUrl } = require('./google-oauth');
-  return getOAuthUrl();
+  // Create a direct implementation to avoid import issues
+  console.log('===== GENERATING OAUTH URL DIRECTLY =====');
+  
+  // Create a fresh OAuth2 client specifically for this request to avoid any state issues
+  const authClient = new google.auth.OAuth2(
+    clientId,
+    clientSecret,
+    redirectUri
+  );
+  
+  const authUrl = authClient.generateAuthUrl({
+    access_type: 'offline',
+    scope: SCOPES,
+    prompt: 'consent', // Force re-consent to get refresh token each time
+    include_granted_scopes: true,
+    redirect_uri: redirectUri // Explicitly set redirect URI
+  });
+  
+  console.log(`Successfully generated auth URL: ${authUrl.substring(0, 50)}...`);
+  return authUrl;
 }
 
 // Set up Google OAuth routes and handlers
