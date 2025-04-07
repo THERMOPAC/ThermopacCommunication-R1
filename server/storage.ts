@@ -1435,8 +1435,18 @@ export class DatabaseStorage implements IStorage {
     
     // Apply filters if provided
     if (filters) {
+      console.log("Applying isRead filter:", filters.isRead);
       if (filters.isRead !== undefined) {
-        query = query.where(eq(gmailMessagesTable.isRead, filters.isRead));
+        console.log("Filter type:", typeof filters.isRead);
+        // Parse the value to boolean based on its type
+        let isReadValue;
+        if (typeof filters.isRead === 'string') {
+          isReadValue = filters.isRead === 'true';
+        } else {
+          isReadValue = Boolean(filters.isRead);
+        }
+        console.log("Converted isRead value:", isReadValue, "original type:", typeof filters.isRead);
+        query = query.where(eq(gmailMessagesTable.isRead, isReadValue));
       }
       
       if (filters.isImportant !== undefined) {

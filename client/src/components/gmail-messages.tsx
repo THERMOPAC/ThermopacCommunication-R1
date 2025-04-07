@@ -92,8 +92,14 @@ export default function GmailMessages() {
         // Always exclude spam emails
         queryParams.set("excludeSpam", "true");
         
-        if (filterStatus === "read") queryParams.set("isRead", "true");
-        if (filterStatus === "unread") queryParams.set("isRead", "false");
+        if (filterStatus === "read") {
+          queryParams.set("isRead", "true");
+          console.log('Setting isRead=true in query params');
+        }
+        if (filterStatus === "unread") {
+          queryParams.set("isRead", "false");
+          console.log('Setting isRead=false in query params');
+        }
         
         if (filterImportance === "important") queryParams.set("isImportant", "true");
         if (filterImportance === "notImportant") queryParams.set("isImportant", "false");
@@ -107,9 +113,19 @@ export default function GmailMessages() {
           }
         }
         
-        const res = await apiRequest("GET", `/api/gmail/messages?${queryParams.toString()}`);
+        const queryString = queryParams.toString();
+        console.log('Final query string:', queryString);
+        const res = await apiRequest("GET", `/api/gmail/messages?${queryString}`);
         const data = await res.json();
         console.log('Messages fetched successfully:', data.length);
+        
+        // Log if we have any read/unread messages in results
+        if (filterStatus === "unread") {
+          const readCount = data.filter((m: any) => m.isRead).length;
+          const unreadCount = data.filter((m: any) => !m.isRead).length;
+          console.log(`Results should be unread only. Got: ${unreadCount} unread, ${readCount} read messages`);
+        }
+        
         return data;
       } catch (error) {
         console.error('Error fetching messages:', error);

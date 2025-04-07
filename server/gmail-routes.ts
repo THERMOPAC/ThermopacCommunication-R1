@@ -187,8 +187,14 @@ export function setupGmailRoutes(app: express.Express) {
       // Set up filters
       const filters: any = {};
       
+      console.log('Request Query Params:', req.query);
+      
       if (req.query.isRead !== undefined) {
-        filters.isRead = req.query.isRead === 'true';
+        // Make sure we properly convert to boolean
+        const isReadParam = req.query.isRead;
+        // String-only comparison since query params are always strings
+        filters.isRead = isReadParam === 'true';
+        console.log('Setting isRead filter to:', filters.isRead, 'from value:', req.query.isRead, 'type:', typeof req.query.isRead);
       }
       
       // Add a safety filter to never return messages with SPAM label
