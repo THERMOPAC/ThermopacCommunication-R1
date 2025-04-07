@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { GmailMessage, InsertTask, User } from "@shared/schema";
@@ -71,10 +71,10 @@ export default function GmailMessages() {
   });
   
   // Group users by role for the task assignment dropdown - same format as task-list.tsx
-  const groupedUsers = users ? roles
-    .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
-    .reduce((acc, role) => {
-      const usersInRole = users.filter(u => u.role === role);
+  const groupedUsers = users ? ([...roles] as string[])
+    .sort((a: string, b: string) => roleHierarchy[a] - roleHierarchy[b])
+    .reduce((acc: Record<string, User[]>, role: string) => {
+      const usersInRole = users.filter((u: User) => u.role === role);
       if (usersInRole.length > 0) {
         acc[role] = usersInRole;
       }
@@ -619,18 +619,50 @@ export default function GmailMessages() {
   };
 
   // Handle view message
+  // Track timeout for marking messages as read
+  const [readTimeout, setReadTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  // Clean up timeout when component unmounts
+  useEffect(() => {
+    return () => {
+      if (readTimeout) {
+        clearTimeout(readTimeout);
+      }
+    };
+  }, [readTimeout]);
+
   const handleViewMessage = (messageId: number) => {
     setSelectedMessageId(messageId);
     
-    // If the message is unread, mark it as read
+    // If the message is unread, set a timer to mark it as read after 5 seconds
     const message = messages?.find((m: GmailMessage) => m.id === messageId);
     if (message && !message.isRead) {
-      markAsReadMutation.mutate(messageId);
+      // Clear any existing timeout
+      if (readTimeout) {
+        clearTimeout(readTimeout);
+      }
+      
+      // Set a new timeout
+      const timeout = setTimeout(() => {
+        // Only mark as read if this message is still selected
+        if (selectedMessageId === messageId) {
+          markAsReadMutation.mutate(messageId);
+        }
+      }, 5000); // 5 seconds delay
+      
+      // Save the timeout ID so it can be cleared if needed
+      setReadTimeout(timeout);
     }
   };
 
   // Handle back button
   const handleBack = () => {
+    // Clear any existing timeout when navigating away
+    if (readTimeout) {
+      clearTimeout(readTimeout);
+      setReadTimeout(null);
+    }
+    
     setSelectedMessageId(null);
   };
 
