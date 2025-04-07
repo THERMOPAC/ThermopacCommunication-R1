@@ -157,10 +157,22 @@ export default function GmailMessages() {
   // Mark message as read
   const markAsReadMutation = useMutation({
     mutationFn: async ({ messageId, isRead }: { messageId: number, isRead: boolean }) => {
+      console.log(`Marking message ${messageId} as ${isRead ? 'read' : 'unread'}`);
       const res = await apiRequest("PATCH", `/api/gmail/messages/${messageId}/read`, { isRead });
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      console.log(`Successfully marked message ${variables.messageId} as ${variables.isRead ? 'read' : 'unread'}`);
+      // Update the messages in the cache directly to provide immediate UI feedback
+      const previousMessages = queryClient.getQueryData<GmailMessage[]>(["/api/gmail/messages"]);
+      if (previousMessages) {
+        const updatedMessages = previousMessages.map(msg => 
+          msg.id === variables.messageId ? { ...msg, isRead: variables.isRead } : msg
+        );
+        queryClient.setQueryData(["/api/gmail/messages"], updatedMessages);
+      }
+      
+      // Then invalidate to get fresh data from server
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
     },
     onError: (error) => {
@@ -712,11 +724,24 @@ export default function GmailMessages() {
     // If there's a selected message and it's not already marked as read, mark it as read now
     if (selectedMessageId) {
       const message = messages?.find((m: GmailMessage) => m.id === selectedMessageId);
+      
       if (message && !message.isRead) {
-        markAsReadMutation.mutate({ messageId: selectedMessageId, isRead: true });
+        console.log("Marking message as read on back button:", selectedMessageId);
+        // Ensure we mark as read when clicking back
+        markAsReadMutation.mutate({ 
+          messageId: selectedMessageId, 
+          isRead: true 
+        }, {
+          // Add onSuccess handler to ensure state is updated
+          onSuccess: () => {
+            // Force refresh the messages
+            queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
+          }
+        });
       }
     }
     
+    // Reset the selected message
     setSelectedMessageId(null);
   };
 
@@ -1385,17 +1410,25 @@ export default function GmailMessages() {
                       <CardHeader className="p-4">
                         <div className="flex justify-between">
                           <div className="flex items-start space-x-2">
-                            <div className="flex items-center mt-1 mr-1" onClick={(e) => e.stopPropagation()}>
+                            <div 
+                              className="flex items-center mt-1 mr-1" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Directly toggle the read status
+                                markAsReadMutation.mutate({ 
+                                  messageId: message.id, 
+                                  isRead: !message.isRead 
+                                });
+                              }}
+                            >
                               <Checkbox 
                                 id={`read-checkbox-${message.id}`}
                                 checked={message.isRead || false}
-                                onCheckedChange={(checked: CheckedState) => {
-                                  // Mark message as read or unread
-                                  markAsReadMutation.mutate({ 
-                                    messageId: message.id, 
-                                    isRead: checked === true 
-                                  });
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Event will be handled by parent div's onClick
                                 }}
+                                onCheckedChange={() => {}}
                               />
                             </div>
                             {message.isRead ? (
