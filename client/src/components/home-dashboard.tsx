@@ -75,6 +75,14 @@ export default function HomeDashboard() {
   today.setHours(0, 0, 0, 0);
   
   // Calculate overdue tasks
+  console.log('Today date:', today.toISOString());
+  console.log('Tasks with due dates:', pendingTasks.filter(t => t.dueDate).map(t => ({
+    id: t.id,
+    title: t.title,
+    dueDate: t.dueDate,
+    isBeforeToday: new Date(t.dueDate!) < today
+  })));
+  
   const overdueTasks = pendingTasks.filter(task => {
     if (!task.dueDate) return false;
     const dueDate = new Date(task.dueDate);
