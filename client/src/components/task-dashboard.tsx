@@ -295,7 +295,11 @@ export default function TaskDashboard() {
         
         <div className="mt-4">
           {filteredTasks.length > 0 ? (
-            <TaskList tasks={filteredTasks} subordinates={subordinates} />
+            <TaskList 
+              tasks={filteredTasks} 
+              subordinates={subordinates} 
+              initialShowCompleted={activeTab === "completed"}
+            />
           ) : (
             <Card>
               <CardContent className="p-8 text-center">

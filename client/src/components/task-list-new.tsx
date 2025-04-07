@@ -56,6 +56,7 @@ const editTaskSchema = z.object({
 type TaskListProps = {
   tasks: Task[];
   subordinates: User[];
+  initialShowCompleted?: boolean;
 };
 
 const forwardTaskSchema = z.object({
@@ -64,7 +65,7 @@ const forwardTaskSchema = z.object({
 
 type ForwardTaskForm = z.infer<typeof forwardTaskSchema>;
 
-export default function TaskList({ tasks, subordinates }: TaskListProps) {
+export default function TaskList({ tasks, subordinates, initialShowCompleted = false }: TaskListProps) {
   const [open, setOpen] = useState(false);
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
@@ -83,7 +84,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
   const [filterPriority, setFilterPriority] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [filterAssignee, setFilterAssignee] = useState<number | null>(null);
-  const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+  const [showCompletedTasks, setShowCompletedTasks] = useState(initialShowCompleted);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // State for collapsible sections

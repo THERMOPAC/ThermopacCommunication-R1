@@ -924,9 +924,9 @@ export default function GmailMessages() {
             {messageToDelete && messages ? (
               <div className="bg-muted p-3 rounded-md">
                 <p className="font-semibold">Subject:</p>
-                <p className="text-sm mb-2">{messages.find(m => m.id === messageToDelete)?.subject || 'No Subject'}</p>
+                <p className="text-sm mb-2">{messages.find((m: GmailMessage) => m.id === messageToDelete)?.subject || 'No Subject'}</p>
                 <p className="font-semibold">From:</p>
-                <p className="text-sm">{messages.find(m => m.id === messageToDelete)?.from || 'Unknown Sender'}</p>
+                <p className="text-sm">{messages.find((m: GmailMessage) => m.id === messageToDelete)?.from || 'Unknown Sender'}</p>
               </div>
             ) : null}
           </div>
