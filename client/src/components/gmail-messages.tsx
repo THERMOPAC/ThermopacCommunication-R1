@@ -16,6 +16,8 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import type { CheckedState } from "@radix-ui/react-checkbox";
 import {
   RotateCw,
   Mail,
@@ -154,8 +156,8 @@ export default function GmailMessages() {
 
   // Mark message as read
   const markAsReadMutation = useMutation({
-    mutationFn: async (messageId: number) => {
-      const res = await apiRequest("PATCH", `/api/gmail/messages/${messageId}/read`, { isRead: true });
+    mutationFn: async ({ messageId, isRead }: { messageId: number, isRead: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/gmail/messages/${messageId}/read`, { isRead });
       return await res.json();
     },
     onSuccess: () => {
@@ -164,7 +166,7 @@ export default function GmailMessages() {
     onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to mark as Read.",
+        description: "Failed to update read status.",
         variant: "destructive"
       });
     }
@@ -690,7 +692,7 @@ export default function GmailMessages() {
       const timeout = setTimeout(() => {
         // Only mark as read if this message is still selected
         if (selectedMessageId === messageId) {
-          markAsReadMutation.mutate(messageId);
+          markAsReadMutation.mutate({ messageId, isRead: true });
         }
       }, 5000); // 5 seconds delay
       
@@ -711,7 +713,7 @@ export default function GmailMessages() {
     if (selectedMessageId) {
       const message = messages?.find((m: GmailMessage) => m.id === selectedMessageId);
       if (message && !message.isRead) {
-        markAsReadMutation.mutate(selectedMessageId);
+        markAsReadMutation.mutate({ messageId: selectedMessageId, isRead: true });
       }
     }
     
@@ -1383,6 +1385,19 @@ export default function GmailMessages() {
                       <CardHeader className="p-4">
                         <div className="flex justify-between">
                           <div className="flex items-start space-x-2">
+                            <div className="flex items-center mt-1 mr-1" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox 
+                                id={`read-checkbox-${message.id}`}
+                                checked={message.isRead || false}
+                                onCheckedChange={(checked: CheckedState) => {
+                                  // Mark message as read or unread
+                                  markAsReadMutation.mutate({ 
+                                    messageId: message.id, 
+                                    isRead: checked === true 
+                                  });
+                                }}
+                              />
+                            </div>
                             {message.isRead ? (
                               <MailOpen className="h-5 w-5 text-muted-foreground mt-1" />
                             ) : (
@@ -1448,8 +1463,8 @@ export default function GmailMessages() {
                         </p>
                       </div>
                       <Switch 
-                        checked={settings.autoSyncEnabled}
-                        onCheckedChange={(checked) => {
+                        checked={settings.autoSyncEnabled || false}
+                        onCheckedChange={(checked: boolean) => {
                           updateSettingsMutation.mutate({
                             autoSyncEnabled: checked
                           });
