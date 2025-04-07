@@ -116,14 +116,26 @@ export default function GmailMessages() {
         const queryString = queryParams.toString();
         console.log('Final query string:', queryString);
         const res = await apiRequest("GET", `/api/gmail/messages?${queryString}`);
-        const data = await res.json();
+        let data = await res.json();
         console.log('Messages fetched successfully:', data.length);
         
-        // Log if we have any read/unread messages in results
+        // Add client-side filtering as a backup if the server filter didn't work
         if (filterStatus === "unread") {
           const readCount = data.filter((m: any) => m.isRead).length;
           const unreadCount = data.filter((m: any) => !m.isRead).length;
           console.log(`Results should be unread only. Got: ${unreadCount} unread, ${readCount} read messages`);
+          
+          // Apply client-side filter if we see read messages in the results
+          if (readCount > 0) {
+            console.log('Applying client-side filter for unread messages');
+            data = data.filter((m: any) => !m.isRead);
+            console.log(`After client-side filtering: ${data.length} messages`);
+          }
+        } else if (filterStatus === "read") {
+          // Also apply client-side filtering for read messages
+          console.log('Applying client-side filter for read messages');
+          data = data.filter((m: any) => m.isRead);
+          console.log(`After client-side filtering: ${data.length} messages`);
         }
         
         return data;
