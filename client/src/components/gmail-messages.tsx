@@ -690,26 +690,24 @@ export default function GmailMessages() {
   }, [readTimeout]);
 
   const handleViewMessage = (messageId: number) => {
+    console.log(`Opening message ${messageId}`);
     setSelectedMessageId(messageId);
     
-    // If the message is unread, set a timer to mark it as read after 5 seconds
+    // Immediately mark the message as read when opening it
     const message = messages?.find((m: GmailMessage) => m.id === messageId);
     if (message && !message.isRead) {
-      // Clear any existing timeout
-      if (readTimeout) {
-        clearTimeout(readTimeout);
-      }
-      
-      // Set a new timeout
-      const timeout = setTimeout(() => {
-        // Only mark as read if this message is still selected
-        if (selectedMessageId === messageId) {
-          markAsReadMutation.mutate({ messageId, isRead: true });
+      console.log(`Message ${messageId} is unread, marking as read immediately`);
+      // No delay, mark it as read right away
+      markAsReadMutation.mutate({ 
+        messageId, 
+        isRead: true 
+      }, {
+        onSuccess: () => {
+          console.log(`Successfully marked message ${messageId} as read on view`);
         }
-      }, 5000); // 5 seconds delay
-      
-      // Save the timeout ID so it can be cleared if needed
-      setReadTimeout(timeout);
+      });
+    } else {
+      console.log(`Message ${messageId} is already read`);
     }
   };
 
@@ -1410,10 +1408,15 @@ export default function GmailMessages() {
                       <CardHeader className="p-4">
                         <div className="flex justify-between">
                           <div className="flex items-start space-x-2">
-                            <div 
-                              className="flex items-center mt-1 mr-1" 
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 rounded-full mt-1 mr-1"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                e.preventDefault();
+                                console.log(`Button clicked for message ${message.id}, current isRead: ${message.isRead}`);
                                 // Directly toggle the read status
                                 markAsReadMutation.mutate({ 
                                   messageId: message.id, 
@@ -1421,16 +1424,14 @@ export default function GmailMessages() {
                                 });
                               }}
                             >
-                              <Checkbox 
-                                id={`read-checkbox-${message.id}`}
-                                checked={message.isRead || false}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Event will be handled by parent div's onClick
-                                }}
-                                onCheckedChange={() => {}}
-                              />
-                            </div>
+                              <div className="flex items-center justify-center">
+                                {message.isRead ? (
+                                  <div className="h-4 w-4 rounded border border-primary bg-primary"></div>
+                                ) : (
+                                  <div className="h-4 w-4 rounded border border-primary"></div>
+                                )}
+                              </div>
+                            </Button>
                             {message.isRead ? (
                               <MailOpen className="h-5 w-5 text-muted-foreground mt-1" />
                             ) : (
