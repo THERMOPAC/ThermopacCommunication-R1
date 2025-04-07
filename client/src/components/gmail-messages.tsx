@@ -184,11 +184,16 @@ export default function GmailMessages() {
   
   // Handle delete message with confirmation
   const handleDeleteMessage = (messageId: number) => {
-    const message = messages?.find((m: GmailMessage) => m.id === messageId);
-    const subject = message?.subject || 'No Subject';
-    
-    if (window.confirm(`Are you sure you want to delete this email?\n\nSubject: ${subject}\n\nThis action cannot be undone.`)) {
-      deleteMessageMutation.mutate(messageId);
+    setMessageToDelete(messageId);
+    setIsDeleteDialogOpen(true);
+  };
+  
+  // Confirm delete message
+  const confirmDeleteMessage = () => {
+    if (messageToDelete) {
+      deleteMessageMutation.mutate(messageToDelete);
+      setIsDeleteDialogOpen(false);
+      setMessageToDelete(null);
     }
   };
 
@@ -272,6 +277,10 @@ export default function GmailMessages() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskFormData, setTaskFormData] = useState<Partial<InsertTask>>({});
   const [editEmailData, setEditEmailData] = useState<{messageId?: number, subject?: string, body?: string, from?: string}>({});
+  
+  // Delete confirmation dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<number | null>(null);
   
   // Format to ISO date string in YYYY-MM-DD format
   const formatDateForTask = (date: Date): string => {
@@ -899,6 +908,60 @@ export default function GmailMessages() {
 
   return (
     <div className="space-y-4">
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Trash className="h-5 w-5" /> Delete Email Message
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this email? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-3">
+            {messageToDelete && messages ? (
+              <div className="bg-muted p-3 rounded-md">
+                <p className="font-semibold">Subject:</p>
+                <p className="text-sm mb-2">{messages.find(m => m.id === messageToDelete)?.subject || 'No Subject'}</p>
+                <p className="font-semibold">From:</p>
+                <p className="text-sm">{messages.find(m => m.id === messageToDelete)?.from || 'Unknown Sender'}</p>
+              </div>
+            ) : null}
+          </div>
+          
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDeleteMessage}
+              disabled={deleteMessageMutation.isPending}
+              className="gap-2"
+            >
+              {deleteMessageMutation.isPending ? (
+                <>
+                  <RotateCw className="h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash className="h-4 w-4" />
+                  Delete Email
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       {/* Task Creation Modal */}
       <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
