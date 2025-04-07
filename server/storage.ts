@@ -1424,6 +1424,7 @@ export class DatabaseStorage implements IStorage {
     subject?: string;
     startDate?: Date;
     endDate?: Date;
+    excludeSpam?: boolean;
   }): Promise<GmailMessage[]> {
     console.log(`Getting Gmail messages for user ${userId} with filters:`, filters);
     
@@ -1460,6 +1461,13 @@ export class DatabaseStorage implements IStorage {
       
       if (filters.endDate) {
         query = query.where(sql`${gmailMessagesTable.receivedAt} <= ${filters.endDate.toISOString()}`);
+      }
+      
+      // Filter out spam emails if requested
+      if (filters.excludeSpam) {
+        query = query.where(
+          sql`NOT (${gmailMessagesTable.labels}::text LIKE '%SPAM%')`
+        );
       }
     }
     

@@ -89,6 +89,9 @@ export default function GmailMessages() {
         console.log('Fetching messages with filters:', { filterStatus, filterImportance, searchTerm });
         const queryParams = new URLSearchParams();
         
+        // Always exclude spam emails
+        queryParams.set("excludeSpam", "true");
+        
         if (filterStatus === "read") queryParams.set("isRead", "true");
         if (filterStatus === "unread") queryParams.set("isRead", "false");
         

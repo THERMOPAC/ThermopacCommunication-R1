@@ -191,6 +191,9 @@ export function setupGmailRoutes(app: express.Express) {
         filters.isRead = req.query.isRead === 'true';
       }
       
+      // Add a safety filter to never return messages with SPAM label
+      filters.excludeSpam = true;
+      
       if (req.query.isImportant !== undefined) {
         filters.isImportant = req.query.isImportant === 'true';
       }
@@ -463,9 +466,11 @@ export function setupGmailRoutes(app: express.Express) {
         // Get most recent messages
         let response;
         try {
+          // Explicitly exclude SPAM and TRASH emails
           response = await gmail.users.messages.list({
             userId: 'me',
             maxResults: 20, // Limit to 20 messages for manual sync
+            q: '-in:spam -in:trash', // Gmail API query to exclude spam and trash folders
           });
           console.log('Gmail API messages.list request successful');
         } catch (apiError) {
@@ -579,6 +584,12 @@ export function setupGmailRoutes(app: express.Express) {
           const labels = messageDetails.data.labelIds || [];
           const isRead = !labels.includes('UNREAD');
           const isImportant = labels.includes('IMPORTANT');
+          
+          // Double-check: Skip any messages with SPAM or TRASH labels (security feature)
+          if (labels.includes('SPAM') || labels.includes('TRASH')) {
+            console.log(`Skipping message ${messageId} as it has SPAM or TRASH label`);
+            continue;
+          }
           
           // Create message in database
           const newMessage = await storage.saveGmailMessage({

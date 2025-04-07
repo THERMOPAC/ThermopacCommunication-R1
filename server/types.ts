@@ -107,6 +107,7 @@ export interface IStorage {
     subject?: string;
     startDate?: Date;
     endDate?: Date;
+    excludeSpam?: boolean;
   }): Promise<GmailMessage[]>;
   getGmailMessage(id: number): Promise<GmailMessage | undefined>;
   updateGmailMessage(id: number, updateData: Partial<GmailMessage>): Promise<GmailMessage>;

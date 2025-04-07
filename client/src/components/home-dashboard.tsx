@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Task, User, WorkflowRecommendation, GmailMessage } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -42,9 +43,17 @@ export default function HomeDashboard() {
     queryKey: ["/api/recommendations/active"],
   });
   
-  // Fetch Gmail messages 
+  // Fetch Gmail messages (excluding spam)
   const { data: gmailMessages = [] } = useQuery<GmailMessage[]>({
     queryKey: ["/api/gmail/messages"],
+    queryFn: async () => {
+      // Add excludeSpam filter parameter to ensure spam messages are not included in counts
+      const queryParams = new URLSearchParams();
+      queryParams.set("excludeSpam", "true");
+      
+      const res = await apiRequest("GET", `/api/gmail/messages?${queryParams.toString()}`);
+      return await res.json();
+    }
   });
   
   // Gmail stats
