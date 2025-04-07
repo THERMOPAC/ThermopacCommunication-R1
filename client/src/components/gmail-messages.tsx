@@ -693,19 +693,26 @@ export default function GmailMessages() {
     console.log(`Opening message ${messageId}`);
     setSelectedMessageId(messageId);
     
-    // Immediately mark the message as read when opening it
+    // Only mark as read immediately if not in unread filter mode
     const message = messages?.find((m: GmailMessage) => m.id === messageId);
+    
     if (message && !message.isRead) {
-      console.log(`Message ${messageId} is unread, marking as read immediately`);
-      // No delay, mark it as read right away
-      markAsReadMutation.mutate({ 
-        messageId, 
-        isRead: true 
-      }, {
-        onSuccess: () => {
-          console.log(`Successfully marked message ${messageId} as read on view`);
-        }
-      });
+      // Check if we're in the unread filter mode
+      if (filterStatus !== "unread") {
+        console.log(`Message ${messageId} is unread, marking as read immediately (not in unread filter)`);
+        // Not in unread filter, so mark it right away
+        markAsReadMutation.mutate({ 
+          messageId, 
+          isRead: true 
+        }, {
+          onSuccess: () => {
+            console.log(`Successfully marked message ${messageId} as read on view`);
+          }
+        });
+      } else {
+        console.log(`Message ${messageId} is unread but in unread filter mode, will mark as read on back button only`);
+        // In unread filter, so don't mark as read yet, wait for back button
+      }
     } else {
       console.log(`Message ${messageId} is already read`);
     }
