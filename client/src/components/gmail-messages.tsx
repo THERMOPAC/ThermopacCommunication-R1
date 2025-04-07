@@ -142,6 +142,23 @@ export default function GmailMessages() {
           console.log(`After client-side filtering: ${data.length} messages`);
         }
         
+        // Apply client-side search filtering
+        if (searchTerm && data.length > 0) {
+          console.log('Applying client-side search filter for:', searchTerm);
+          const lowercaseSearch = searchTerm.toLowerCase();
+          
+          // Filter by subject or from email address
+          data = data.filter((m: any) => {
+            const subject = (m.subject || '').toLowerCase();
+            const from = (m.from || '').toLowerCase();
+            
+            return subject.includes(lowercaseSearch) || 
+                   from.includes(lowercaseSearch);
+          });
+          
+          console.log(`After client-side search filtering: ${data.length} messages`);
+        }
+        
         return data;
       } catch (error) {
         console.error('Error fetching messages:', error);
