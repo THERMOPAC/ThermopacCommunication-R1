@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Task, User, WorkflowRecommendation } from "@shared/schema";
+import { Task, User, WorkflowRecommendation, GmailMessage } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,14 @@ export default function HomeDashboard() {
   const { data: recommendations = [] } = useQuery<WorkflowRecommendation[]>({
     queryKey: ["/api/recommendations/active"],
   });
+  
+  // Fetch Gmail messages 
+  const { data: gmailMessages = [] } = useQuery<GmailMessage[]>({
+    queryKey: ["/api/gmail/messages"],
+  });
+  
+  // Gmail stats
+  const unreadEmailCount = gmailMessages.filter(m => !m.isRead).length;
 
   // Animation for progress bars
   useEffect(() => {
@@ -187,10 +195,10 @@ export default function HomeDashboard() {
           </Button>
           
           <Button variant="ghost" size="sm" className="flex items-center gap-1" asChild>
-            <Link href="/messages">
+            <Link href="/emails">
               <Mail className="h-4 w-4" />
               <Badge className="h-5 w-5 flex items-center justify-center rounded-full text-xs p-0 bg-primary text-white">
-                3
+                {unreadEmailCount}
               </Badge>
             </Link>
           </Button>
@@ -529,10 +537,10 @@ export default function HomeDashboard() {
                     Recurring Tasks
                   </Button>
                 </Link>
-                <Link href="/messages">
+                <Link href="/emails">
                   <Button variant="outline" className="w-full justify-start gap-2">
                     <Mail className="h-4 w-4" />
-                    Messages
+                    Emails
                   </Button>
                 </Link>
                 <Link href="/profile">

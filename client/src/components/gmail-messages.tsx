@@ -918,8 +918,32 @@ export default function GmailMessages() {
     );
   }
 
+  // Calculate unread count
+  const unreadCount = messages?.filter((m: GmailMessage) => !m.isRead).length || 0;
+  const totalCount = messages?.length || 0;
+  
   return (
     <div className="space-y-4">
+      {/* Email Count Stats */}
+      {messages && messages.length > 0 && !selectedMessageId && (
+        <div className="flex justify-between bg-muted p-3 rounded-md text-sm">
+          <div className="flex gap-4">
+            <div>
+              <span className="font-semibold">Total:</span> {totalCount}
+            </div>
+            <div>
+              <span className="font-semibold text-amber-600">Unread:</span> {unreadCount}
+            </div>
+            <div>
+              <span className="font-semibold text-green-600">Read:</span> {totalCount - unreadCount}
+            </div>
+          </div>
+          <div className="text-muted-foreground">
+            Last synced: {connectionStatus?.lastSyncTime ? formatDate(new Date(connectionStatus.lastSyncTime).toString()) : "Never"}
+          </div>
+        </div>
+      )}
+      
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
