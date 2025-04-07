@@ -676,6 +676,14 @@ export default function GmailMessages() {
       setReadTimeout(null);
     }
     
+    // If there's a selected message and it's not already marked as read, mark it as read now
+    if (selectedMessageId) {
+      const message = messages?.find((m: GmailMessage) => m.id === selectedMessageId);
+      if (message && !message.isRead) {
+        markAsReadMutation.mutate(selectedMessageId);
+      }
+    }
+    
     setSelectedMessageId(null);
   };
 
