@@ -617,11 +617,15 @@ export default function GmailMessages() {
     }
   });
 
-  // Format date for display
+  // Format date for display in Indian Standard Time (IST)
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Unknown date";
     try {
-      return format(new Date(dateString), "MMM d, yyyy h:mm a");
+      // Convert to IST by adding 5 hours and 30 minutes to UTC
+      const date = new Date(dateString);
+      const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+      const istDate = new Date(date.getTime() + istOffset);
+      return format(istDate, "MMM d, yyyy h:mm a") + " IST";
     } catch (e) {
       return dateString;
     }
