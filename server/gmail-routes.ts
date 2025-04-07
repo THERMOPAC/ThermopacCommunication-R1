@@ -408,7 +408,10 @@ export function setupGmailRoutes(app: express.Express) {
         return res.status(403).json({ error: 'You do not have permission to delete this message' });
       }
       
-      // Also delete from Gmail if connected
+      // First delete from the database
+      await storage.deleteGmailMessage(messageId);
+      
+      // Then try to delete from Gmail if connected (but don't block if it fails)
       try {
         const gmail = await getGmailClient(req.user!.id);
         await gmail.users.messages.trash({
@@ -417,14 +420,12 @@ export function setupGmailRoutes(app: express.Express) {
         });
         console.log(`Moved Gmail message ${message.messageId} to trash in Gmail`);
       } catch (error) {
-        console.warn('Could not delete message in Gmail:', error);
-        // Continue anyway as we'll delete from the local database
+        console.warn('Could not delete message in Gmail, but deleted from database:', error);
+        // This is ok - message is already deleted from local database
       }
       
-      // Delete from the database
-      await storage.deleteGmailMessage(messageId);
-      
-      res.json({ success: true, message: 'Email message deleted successfully' });
+      // Return success regardless of Gmail API result
+      res.json({ success: true, message: 'Email message deleted successfully from the system' });
     } catch (error) {
       console.error('Error deleting Gmail message:', error);
       res.status(500).json({ error: 'Failed to delete Gmail message' });
