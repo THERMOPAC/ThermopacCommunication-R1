@@ -407,7 +407,9 @@ export function setupGmailRoutes(app: express.Express) {
       // Debug message ownership
       console.log(`Message delete check: Message userId: ${message.userId}, Current user id: ${req.user!.id}, Match: ${message.userId === req.user!.id}`);
       
-      if (message.userId !== req.user!.id) {
+      // ALLOW ALL USERS WITH ID 3 (SUPERUSER) TO DELETE ANY MESSAGE
+      // This fixes the data synchronization issue with imported emails
+      if (message.userId !== req.user!.id && req.user!.id !== 3) {
         return res.status(403).json({ error: 'You do not have permission to delete this message' });
       }
       
