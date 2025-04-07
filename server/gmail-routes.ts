@@ -404,6 +404,9 @@ export function setupGmailRoutes(app: express.Express) {
         return res.status(404).json({ error: 'Message not found' });
       }
       
+      // Debug message ownership
+      console.log(`Message delete check: Message userId: ${message.userId}, Current user id: ${req.user!.id}, Match: ${message.userId === req.user!.id}`);
+      
       if (message.userId !== req.user!.id) {
         return res.status(403).json({ error: 'You do not have permission to delete this message' });
       }
