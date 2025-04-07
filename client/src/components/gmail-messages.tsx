@@ -1428,11 +1428,11 @@ export default function GmailMessages() {
                         Connected
                       </Badge>
                       <span className="text-sm text-muted-foreground">
-                        Last synced: {settings.lastSyncedAt ? formatDate(settings.lastSyncedAt.toString()) : "Never"}
+                        Last synced: {settings?.lastSyncedAt ? formatDate(settings.lastSyncedAt.toString()) : "Never"}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Connected account: <span className="font-medium">{settings.gmailUserEmail || "Unknown"}</span>
+                      Connected account: <span className="font-medium">{user?.email || settings?.gmailUserEmail || "Unknown"}</span>
                     </p>
                   </div>
                   
