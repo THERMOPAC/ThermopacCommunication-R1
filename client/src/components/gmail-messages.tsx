@@ -2,13 +2,14 @@ import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { GmailMessage, InsertTask, User } from "@shared/schema";
+import { roles, roleHierarchy } from "@shared/roles";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -68,6 +69,17 @@ export default function GmailMessages() {
       return await res.json();
     }
   });
+  
+  // Group users by role for the task assignment dropdown - same format as task-list.tsx
+  const groupedUsers = users ? roles
+    .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
+    .reduce((acc, role) => {
+      const usersInRole = users.filter(u => u.role === role);
+      if (usersInRole.length > 0) {
+        acc[role] = usersInRole;
+      }
+      return acc;
+    }, {} as Record<string, User[]>) : {};
 
   // Gmail messages
   const { data: messages, isLoading: isLoadingMessages, error: messagesError } = useQuery({
@@ -961,13 +973,20 @@ export default function GmailMessages() {
                   onValueChange={(value) => setTaskFormData({...taskFormData, assignedTo: parseInt(value)})}
                 >
                   <SelectTrigger id="assignedTo">
-                    <SelectValue placeholder="Select user" />
+                    <SelectValue placeholder="Select team member" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users?.map((u: User) => (
-                      <SelectItem key={u.id} value={u.id.toString()}>
-                        {u.username} {u.role ? `(${u.role})` : ''}
-                      </SelectItem>
+                    {Object.entries(groupedUsers).map(([role, roleUsers]) => (
+                      <SelectGroup key={role}>
+                        <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                          {role}s
+                        </SelectLabel>
+                        {roleUsers.map((u) => (
+                          <SelectItem key={u.id} value={u.id.toString()}>
+                            {u.username}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     ))}
                   </SelectContent>
                 </Select>
