@@ -24,6 +24,7 @@ import {
   MailOpen,
   Star,
   Trash,
+  Trash2,
   AlertCircle,
   Filter,
   Settings,
@@ -31,6 +32,7 @@ import {
   ArrowRight,
   AlertTriangle,
   FolderCheck,
+  ListTodo,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -751,10 +753,10 @@ export default function GmailMessages() {
   };
 
   // Handle toggle importance
-  const handleToggleImportance = (messageId: number, currentImportance: boolean) => {
+  const handleToggleImportance = (messageId: number, currentImportance: boolean | null) => {
     toggleImportanceMutation.mutate({
       messageId,
-      important: !currentImportance
+      important: !(currentImportance === true)
     });
   };
 
@@ -1409,7 +1411,7 @@ export default function GmailMessages() {
                   {messages.map((message: GmailMessage) => (
                     <Card 
                       key={message.id}
-                      className={`hover:bg-accent/50 cursor-pointer transition-colors ${!message.isRead ? 'border-l-4 border-l-primary' : ''}`}
+                      className={`group hover:bg-accent/50 cursor-pointer transition-colors ${!message.isRead ? 'border-l-4 border-l-primary' : ''}`}
                       onClick={() => handleViewMessage(message.id)}
                     >
                       <CardHeader className="p-4">
@@ -1457,8 +1459,69 @@ export default function GmailMessages() {
                               </div>
                             </div>
                           </div>
-                          <div className="text-xs text-muted-foreground whitespace-nowrap">
-                            {message.receivedAt && formatDate(message.receivedAt.toString())}
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="text-xs text-muted-foreground whitespace-nowrap">
+                              {message.receivedAt && formatDate(message.receivedAt.toString())}
+                            </div>
+                            
+                            {/* One-tap action shortcuts - only visible on hover */}
+                            <div className="hidden group-hover:flex items-center gap-1 mt-2 transition-all duration-150">
+                              {/* Delete shortcut */}
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 rounded-full hover:bg-red-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  console.log(`Delete button clicked for message ${message.id}`);
+                                  setMessageToDelete(message.id);
+                                  setIsDeleteDialogOpen(true);
+                                }}
+                                title="Delete email"
+                              >
+                                <Trash className="h-4 w-4 text-red-600" />
+                              </Button>
+                              
+                              {/* Star/Unstar shortcut */}
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 rounded-full hover:bg-amber-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  console.log(`Star button clicked for message ${message.id}`);
+                                  handleToggleImportance(message.id, message.isImportant);
+                                }}
+                                title={message.isImportant ? "Unstar email" : "Star email"}
+                              >
+                                {message.isImportant ? (
+                                  <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                                ) : (
+                                  <Star className="h-4 w-4 text-amber-400" />
+                                )}
+                              </Button>
+                              
+                              {/* Convert to Task shortcut */}
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost" 
+                                className="h-7 w-7 p-0 rounded-full hover:bg-blue-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  console.log(`Convert to task button clicked for message ${message.id}`);
+                                  handleConvertToTask(message.id);
+                                }}
+                                title="Create task from email"
+                              >
+                                <FolderCheck className="h-4 w-4 text-blue-600" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </CardHeader>
