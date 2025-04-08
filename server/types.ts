@@ -13,7 +13,8 @@ import {
   Deliverable, InsertDeliverable,
   ProjectTask, InsertProjectTask,
   PhaseApproval, InsertPhaseApproval,
-  ProjectDocument, InsertProjectDocument
+  ProjectDocument, InsertProjectDocument,
+  ProjectItem, InsertProjectItem
 } from "@shared/schema";
 import { Store } from "express-session";
 
@@ -178,4 +179,13 @@ export interface IStorage {
   getPhaseDocuments(phaseId: number): Promise<ProjectDocument[]>;
   getProjectDocument(id: number): Promise<ProjectDocument | undefined>;
   updateProjectDocument(id: number, updateData: Partial<ProjectDocument>): Promise<ProjectDocument>;
+  
+  // Project Items
+  createProjectItem(item: InsertProjectItem): Promise<ProjectItem>;
+  getProjectItems(projectId: number): Promise<ProjectItem[]>;
+  getProjectItemsByCode(projectCode: string): Promise<ProjectItem[]>;
+  getProjectItem(id: number): Promise<ProjectItem | undefined>;
+  updateProjectItem(id: number, updateData: Partial<ProjectItem>): Promise<ProjectItem>;
+  deleteProjectItem(id: number): Promise<void>;
+  deleteProjectItems(projectId: number): Promise<number>;
 }

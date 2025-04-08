@@ -25,16 +25,28 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { 
   Loader2, Plus, Search, Calendar, Info, Users, CheckSquare, FileText, RefreshCw,
-  Upload, Truck, LayoutList, Settings, ClipboardList, BadgePercent, Pencil
+  Upload, Truck, LayoutList, Settings, ClipboardList, BadgePercent, Pencil, X
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
+// Define project item schema
+const projectItemSchema = z.object({
+  id: z.number().optional(), // Optional for new items
+  description: z.string().min(3, "Item description must be at least 3 characters"),
+  specification: z.string().optional(),
+  quantity: z.number().positive("Quantity must be positive"),
+  uom: z.string().min(1, "Unit of Measurement is required"),
+  makeOrBuy: z.enum(["Make", "Buy"]).optional(),
+});
+
+// Define the main project form schema
 const projectFormSchema = z.object({
   name: z.string().min(3, "Project name must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
@@ -51,9 +63,11 @@ const projectFormSchema = z.object({
   client: z.string().optional(),
   budget: z.number().optional(),
   tags: z.array(z.string()).optional(),
+  items: z.array(projectItemSchema).optional(), // Add items array
 });
 
 type ProjectFormValues = z.infer<typeof projectFormSchema>;
+type ProjectItemValues = z.infer<typeof projectItemSchema>;
 
 // Function to get the current financial year in the format "FY23-24"
 function getCurrentFinancialYear(): string {
@@ -118,6 +132,10 @@ async function getNextProjectCode(financialYear: string): Promise<string> {
 export default function ProjectList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
+  const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
+  const [currentItems, setCurrentItems] = useState<ProjectItemValues[]>([]);
+  const [editingItem, setEditingItem] = useState<ProjectItemValues | null>(null);
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const [_, navigate] = useLocation();
   const { toast } = useToast();
@@ -173,7 +191,12 @@ export default function ProjectList() {
   });
 
   function onSubmit(data: ProjectFormValues) {
-    createProjectMutation.mutate(data);
+    // Add current items to the form data before submitting
+    const submissionData = {
+      ...data,
+      items: currentItems.length > 0 ? currentItems : undefined
+    };
+    createProjectMutation.mutate(submissionData);
   }
   
   // Initialize the form with default values and get a project code
@@ -288,6 +311,8 @@ export default function ProjectList() {
               if (open) {
                 // Initialize form when opening dialog
                 initializeProjectForm();
+                // Reset items
+                setCurrentItems([]);
               }
               setIsNewProjectDialogOpen(open);
             }}
@@ -515,7 +540,17 @@ export default function ProjectList() {
                         <div className="space-y-3 border rounded-md p-4">
                           <div className="flex justify-between items-center">
                             <h3 className="text-sm font-medium">Project Items</h3>
-                            <Button type="button" variant="outline" size="sm" className="h-8">
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8"
+                              onClick={() => {
+                                setEditingItem(null);
+                                setEditingItemIndex(null);
+                                setIsItemDialogOpen(true);
+                              }}
+                            >
                               <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
                             </Button>
                           </div>
@@ -532,36 +567,208 @@ export default function ProjectList() {
                             </div>
                             
                             <div className="max-h-[300px] overflow-y-auto">
-                              {/* Empty state */}
-                              <div className="py-8 text-center text-muted-foreground text-sm">
-                                No items added. Click "Add Item" to add project items.
-                              </div>
-                              
-                              {/* This would be replaced with actual items when added 
-                              
-                              Example of how an item row would look:
-                              
-                              <div className="grid grid-cols-12 gap-2 p-2 border-b hover:bg-muted/20 text-sm">
-                                <div className="col-span-1">1</div>
-                                <div className="col-span-4">Thermal Oil Heater</div>
-                                <div className="col-span-2">500kW</div>
-                                <div className="col-span-1">2</div>
-                                <div className="col-span-1">Nos</div>
-                                <div className="col-span-2">Thermopac</div>
-                                <div className="col-span-1">
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
+                              {currentItems.length === 0 ? (
+                                <div className="py-8 text-center text-muted-foreground text-sm">
+                                  No items added. Click "Add Item" to add project items.
                                 </div>
-                              </div>
-                              
-                              */}
+                              ) : (
+                                currentItems.map((item, index) => (
+                                  <div key={index} className="grid grid-cols-12 gap-2 p-2 border-b hover:bg-muted/20 text-sm">
+                                    <div className="col-span-1">{index + 1}</div>
+                                    <div className="col-span-4">{item.description}</div>
+                                    <div className="col-span-2">{item.specification || '-'}</div>
+                                    <div className="col-span-1">{item.quantity}</div>
+                                    <div className="col-span-1">{item.uom}</div>
+                                    <div className="col-span-2">{item.makeOrBuy || '-'}</div>
+                                    <div className="col-span-1 flex space-x-1">
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => {
+                                          setEditingItem(item);
+                                          setEditingItemIndex(index);
+                                          setIsItemDialogOpen(true);
+                                        }}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-8 w-8 p-0 text-destructive hover:text-destructive/90"
+                                        onClick={() => {
+                                          // Remove the item
+                                          const updatedItems = [...currentItems];
+                                          updatedItems.splice(index, 1);
+                                          setCurrentItems(updatedItems);
+                                          form.setValue('items', updatedItems);
+                                        }}
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
                             </div>
                           </div>
                           
                           <p className="text-xs text-muted-foreground">
                             Add up to 50 items for this project with their specifications, quantities, and units of measurement.
                           </p>
+                          
+                          {/* Project Item Dialog */}
+                          <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
+                            <DialogContent className="sm:max-w-[500px]">
+                              <DialogHeader>
+                                <DialogTitle>{editingItem ? 'Edit Project Item' : 'Add Project Item'}</DialogTitle>
+                                <DialogDescription>
+                                  {editingItem 
+                                    ? 'Edit the details of this project item.'
+                                    : 'Add a new item to this project with its details.'}
+                                </DialogDescription>
+                              </DialogHeader>
+                              
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="item-description">Item Description*</Label>
+                                  <Input 
+                                    id="item-description"
+                                    placeholder="Thermal Oil Heater"
+                                    defaultValue={editingItem?.description || ''}
+                                    ref={input => {
+                                      if (input && !editingItem) input.focus();
+                                    }}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="item-specification">Specification</Label>
+                                  <Input 
+                                    id="item-specification"
+                                    placeholder="500kW"
+                                    defaultValue={editingItem?.specification || ''}
+                                  />
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="item-quantity">Quantity*</Label>
+                                    <Input 
+                                      id="item-quantity"
+                                      type="number"
+                                      placeholder="2"
+                                      defaultValue={editingItem?.quantity || ''}
+                                      min="0.01"
+                                      step="0.01"
+                                    />
+                                  </div>
+                                  
+                                  <div className="space-y-2">
+                                    <Label htmlFor="item-uom">Unit of Measurement*</Label>
+                                    <Input 
+                                      id="item-uom"
+                                      placeholder="Nos"
+                                      defaultValue={editingItem?.uom || ''}
+                                    />
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="item-makeorbuy">Make or Buy</Label>
+                                  <Select defaultValue={editingItem?.makeOrBuy || ''}>
+                                    <SelectTrigger id="item-makeorbuy">
+                                      <SelectValue placeholder="Select Make or Buy" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Make">Make (In-house)</SelectItem>
+                                      <SelectItem value="Buy">Buy (Purchase)</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              
+                              <DialogFooter>
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => setIsItemDialogOpen(false)}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button 
+                                  onClick={() => {
+                                    // Get values from form
+                                    const descriptionEl = document.getElementById('item-description') as HTMLInputElement;
+                                    const specificationEl = document.getElementById('item-specification') as HTMLInputElement;
+                                    const quantityEl = document.getElementById('item-quantity') as HTMLInputElement;
+                                    const uomEl = document.getElementById('item-uom') as HTMLInputElement;
+                                    const makeOrBuyEl = document.getElementById('item-makeorbuy') as HTMLSelectElement;
+                                    
+                                    // Validate
+                                    if (!descriptionEl.value) {
+                                      toast({
+                                        title: "Missing information",
+                                        description: "Item description is required",
+                                        variant: "destructive"
+                                      });
+                                      return;
+                                    }
+                                    
+                                    if (!quantityEl.value || parseFloat(quantityEl.value) <= 0) {
+                                      toast({
+                                        title: "Invalid quantity",
+                                        description: "Quantity must be greater than zero",
+                                        variant: "destructive"
+                                      });
+                                      return;
+                                    }
+                                    
+                                    if (!uomEl.value) {
+                                      toast({
+                                        title: "Missing information",
+                                        description: "Unit of measurement is required",
+                                        variant: "destructive"
+                                      });
+                                      return;
+                                    }
+                                    
+                                    // Create item object
+                                    const item: ProjectItemValues = {
+                                      description: descriptionEl.value,
+                                      specification: specificationEl.value || undefined,
+                                      quantity: parseFloat(quantityEl.value),
+                                      uom: uomEl.value,
+                                      makeOrBuy: makeOrBuyEl.value as "Make" | "Buy" || undefined
+                                    };
+                                    
+                                    // Update or add item
+                                    const updatedItems = [...currentItems];
+                                    if (editingItemIndex !== null) {
+                                      updatedItems[editingItemIndex] = item;
+                                    } else {
+                                      updatedItems.push(item);
+                                    }
+                                    
+                                    // Update state and form
+                                    setCurrentItems(updatedItems);
+                                    form.setValue('items', updatedItems);
+                                    setIsItemDialogOpen(false);
+                                    
+                                    // Show success toast
+                                    toast({
+                                      title: editingItem ? "Item updated" : "Item added",
+                                      description: editingItem 
+                                        ? "The project item has been updated successfully"
+                                        : "A new item has been added to the project"
+                                    });
+                                  }}
+                                >
+                                  {editingItem ? 'Update Item' : 'Add Item'}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </TabsContent>
                       

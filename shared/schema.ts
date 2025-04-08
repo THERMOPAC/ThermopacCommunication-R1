@@ -346,6 +346,7 @@ export const projects = pgTable('projects', {
   code: text('code').notNull().unique(), // Project code for easy reference
   status: text('status').notNull().default('planning'), // planning, active, completed, on_hold, canceled
   priority: text('priority').notNull().default('Medium'), // Low, Medium, High
+  financialYear: text('financial_year').notNull(), // e.g., "FY25-26"
   
   // Client information
   clientName: text('client_name'),
@@ -524,6 +525,31 @@ export const projectDocuments = pgTable('project_documents', {
   tags: text('tags').array(),
 });
 
+// Project items table for storing up to 50 items per project
+export const projectItems = pgTable('project_items', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectCode: text('project_code').notNull(), // Reference to the project code for quicker lookups
+  
+  // Item details
+  itemCode: text('item_code'), // Optional item code
+  description: text('description').notNull(),
+  specification: text('specification'),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+  uom: text('uom').notNull(), // Unit of Measurement (e.g., Nos, Kg, Meter)
+  makeOrBuy: text('make_or_buy'), // Whether this item is made in-house or purchased
+  
+  // Additional details
+  estimatedCost: decimal('estimated_cost', { precision: 12, scale: 2 }),
+  actualCost: decimal('actual_cost', { precision: 12, scale: 2 }),
+  supplier: text('supplier'),
+  notes: text('notes'),
+  
+  // Tracking
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Create insert schemas for project management tables
 export const insertProjectSchema = createInsertSchema(projects, {
   tags: z.array(z.string()).optional(),
@@ -578,9 +604,22 @@ export const insertProjectDocumentSchema = createInsertSchema(projectDocuments, 
   version: z.string().default('1.0'),
 });
 
+// Project item insert schema
+export const insertProjectItemSchema = createInsertSchema(projectItems, {
+  quantity: z.number().positive(),
+  uom: z.string().min(1),
+  makeOrBuy: z.enum(['Make', 'Buy']).optional(),
+  estimatedCost: z.number().optional(),
+  actualCost: z.number().optional(),
+  supplier: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 // Define types for project management tables
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type ProjectItem = typeof projectItems.$inferSelect;
+export type InsertProjectItem = z.infer<typeof insertProjectItemSchema>;
 
 export type ProjectPhase = typeof projectPhases.$inferSelect;
 export type InsertProjectPhase = z.infer<typeof insertProjectPhaseSchema>;

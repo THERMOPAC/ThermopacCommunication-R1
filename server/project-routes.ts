@@ -7,7 +7,8 @@ import {
   insertDeliverableSchema,
   insertProjectTaskSchema,
   insertPhaseApprovalSchema,
-  insertProjectDocumentSchema 
+  insertProjectDocumentSchema,
+  insertProjectItemSchema
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
 
@@ -722,6 +723,171 @@ export function setupProjectRoutes(app: express.Express) {
     } catch (error) {
       console.error(`Error updating document ${req.params.id}:`, error);
       res.status(400).json({ error: 'Failed to update document', details: error.message });
+    }
+  });
+
+  // Project Items Routes
+  app.get('/api/projects/:projectId/items', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const items = await storage.getProjectItems(projectId);
+      res.json(items);
+    } catch (error) {
+      console.error(`Error fetching items for project ${req.params.projectId}:`, error);
+      res.status(500).json({ error: 'Failed to fetch project items' });
+    }
+  });
+
+  app.get('/api/projects/code/:projectCode/items', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectCode = req.params.projectCode;
+      const items = await storage.getProjectItemsByCode(projectCode);
+      res.json(items);
+    } catch (error) {
+      console.error(`Error fetching items for project code ${req.params.projectCode}:`, error);
+      res.status(500).json({ error: 'Failed to fetch project items by code' });
+    }
+  });
+
+  app.get('/api/project-items/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const itemId = parseInt(req.params.id);
+      const item = await storage.getProjectItem(itemId);
+      
+      if (!item) {
+        return res.status(404).json({ error: 'Project item not found' });
+      }
+      
+      res.json(item);
+    } catch (error) {
+      console.error(`Error fetching project item ${req.params.id}:`, error);
+      res.status(500).json({ error: 'Failed to fetch project item' });
+    }
+  });
+
+  app.post('/api/projects/:projectId/items', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = req.user!.id;
+      
+      // Check if project exists
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      
+      // Check if user is authorized
+      const projectMembers = await storage.getProjectMembers(projectId);
+      const userMember = projectMembers.find(member => member.userId === userId);
+      
+      if (!userMember && !canManage(req.user!.role, 'Manager')) {
+        return res.status(403).json({ error: 'Not authorized to add items to this project' });
+      }
+      
+      const itemData = insertProjectItemSchema.parse({
+        ...req.body,
+        projectId,
+        projectCode: project.code,
+        createdAt: new Date().toISOString(),
+        createdBy: userId,
+      });
+      
+      const item = await storage.createProjectItem(itemData);
+      res.status(201).json(item);
+    } catch (error) {
+      console.error(`Error creating item for project ${req.params.projectId}:`, error);
+      res.status(400).json({ error: 'Failed to create project item', details: error.message });
+    }
+  });
+
+  app.put('/api/project-items/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const itemId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
+      // Check if item exists
+      const item = await storage.getProjectItem(itemId);
+      if (!item) {
+        return res.status(404).json({ error: 'Project item not found' });
+      }
+      
+      // Check if user is authorized
+      const projectMembers = await storage.getProjectMembers(item.projectId);
+      const userMember = projectMembers.find(member => member.userId === userId);
+      
+      if (!userMember && !canManage(req.user!.role, 'Manager')) {
+        return res.status(403).json({ error: 'Not authorized to update this project item' });
+      }
+      
+      // Update item data
+      const updateData = {
+        ...req.body,
+        updatedAt: new Date().toISOString()
+      };
+      
+      const updatedItem = await storage.updateProjectItem(itemId, updateData);
+      res.json(updatedItem);
+    } catch (error) {
+      console.error(`Error updating project item ${req.params.id}:`, error);
+      res.status(400).json({ error: 'Failed to update project item', details: error.message });
+    }
+  });
+
+  app.delete('/api/project-items/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const itemId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
+      // Check if item exists
+      const item = await storage.getProjectItem(itemId);
+      if (!item) {
+        return res.status(404).json({ error: 'Project item not found' });
+      }
+      
+      // Check if user is authorized
+      const projectMembers = await storage.getProjectMembers(item.projectId);
+      const userMember = projectMembers.find(member => 
+        member.userId === userId && (member.role === 'project_manager' || canManage(req.user!.role, 'Manager'))
+      );
+      
+      if (!userMember) {
+        return res.status(403).json({ error: 'Not authorized to delete this project item' });
+      }
+      
+      await storage.deleteProjectItem(itemId);
+      res.status(204).send();
+    } catch (error) {
+      console.error(`Error deleting project item ${req.params.id}:`, error);
+      res.status(500).json({ error: 'Failed to delete project item' });
+    }
+  });
+
+  app.delete('/api/projects/:projectId/items', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = req.user!.id;
+      
+      // Check if project exists
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      
+      // Check if user is authorized
+      const projectMembers = await storage.getProjectMembers(projectId);
+      const userMember = projectMembers.find(member => 
+        member.userId === userId && (member.role === 'project_manager' || canManage(req.user!.role, 'Senior Manager'))
+      );
+      
+      if (!userMember) {
+        return res.status(403).json({ error: 'Not authorized to delete all items from this project' });
+      }
+      
+      const count = await storage.deleteProjectItems(projectId);
+      res.json({ deletedCount: count });
+    } catch (error) {
+      console.error(`Error deleting all items from project ${req.params.projectId}:`, error);
+      res.status(500).json({ error: 'Failed to delete project items' });
     }
   });
 }

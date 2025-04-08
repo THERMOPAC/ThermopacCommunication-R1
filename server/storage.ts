@@ -18,7 +18,8 @@ import type {
   Deliverable, InsertDeliverable,
   ProjectTask, InsertProjectTask,
   PhaseApproval, InsertPhaseApproval,
-  ProjectDocument, InsertProjectDocument
+  ProjectDocument, InsertProjectDocument,
+  ProjectItem, InsertProjectItem
 } from "@shared/schema";
 import { roleHierarchy, canManage } from "@shared/roles";
 import session from "express-session";
@@ -44,7 +45,8 @@ import {
   deliverables as deliverablesTable,
   projectTasks as projectTasksTable,
   phaseApprovals as phaseApprovalsTable,
-  projectDocuments as projectDocumentsTable
+  projectDocuments as projectDocumentsTable,
+  projectItems as projectItemsTable
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 
@@ -77,6 +79,7 @@ export class DatabaseStorage implements IStorage {
   projectTasksTable = projectTasksTable;
   phaseApprovalsTable = phaseApprovalsTable;
   projectDocumentsTable = projectDocumentsTable;
+  projectItemsTable = projectItemsTable;
 
   constructor() {
     if (!process.env.DATABASE_URL) {
@@ -2045,6 +2048,73 @@ export class DatabaseStorage implements IStorage {
     
     console.log(`Updated project document:`, document);
     return document;
+  }
+
+  // Project Items CRUD methods
+  async createProjectItem(item: InsertProjectItem): Promise<ProjectItem> {
+    console.log(`Creating new project item:`, item);
+    const result = await db.insert(projectItemsTable).values(item).returning();
+    const projectItem = result[0] as ProjectItem;
+    console.log(`Created project item:`, projectItem);
+    return projectItem;
+  }
+
+  async getProjectItems(projectId: number): Promise<ProjectItem[]> {
+    console.log(`Getting items for project ${projectId}`);
+    const items = await db
+      .select()
+      .from(projectItemsTable)
+      .where(eq(projectItemsTable.projectId, projectId))
+      .orderBy(projectItemsTable.id);
+    
+    console.log(`Found ${items.length} items for project ${projectId}`);
+    return items as ProjectItem[];
+  }
+
+  async getProjectItemsByCode(projectCode: string): Promise<ProjectItem[]> {
+    console.log(`Getting items for project code ${projectCode}`);
+    const items = await db
+      .select()
+      .from(projectItemsTable)
+      .where(eq(projectItemsTable.projectCode, projectCode))
+      .orderBy(projectItemsTable.id);
+    
+    console.log(`Found ${items.length} items for project code ${projectCode}`);
+    return items as ProjectItem[];
+  }
+
+  async getProjectItem(id: number): Promise<ProjectItem | undefined> {
+    console.log(`Getting project item with ID: ${id}`);
+    const result = await db.select().from(projectItemsTable).where(eq(projectItemsTable.id, id));
+    return result[0] as ProjectItem | undefined;
+  }
+
+  async updateProjectItem(id: number, updateData: Partial<ProjectItem>): Promise<ProjectItem> {
+    console.log(`Updating project item ${id} with data:`, updateData);
+    const result = await db
+      .update(projectItemsTable)
+      .set(updateData)
+      .where(eq(projectItemsTable.id, id))
+      .returning();
+    
+    const item = result[0] as ProjectItem;
+    if (!item) throw new Error("Project item not found");
+    
+    console.log(`Updated project item:`, item);
+    return item;
+  }
+
+  async deleteProjectItem(id: number): Promise<void> {
+    console.log(`Deleting project item ${id}`);
+    await db.delete(projectItemsTable).where(eq(projectItemsTable.id, id));
+    console.log(`Deleted project item ${id}`);
+  }
+
+  async deleteProjectItems(projectId: number): Promise<number> {
+    console.log(`Deleting all items for project ${projectId}`);
+    const result = await db.delete(projectItemsTable).where(eq(projectItemsTable.projectId, projectId)).returning();
+    console.log(`Deleted ${result.length} items for project ${projectId}`);
+    return result.length;
   }
 }
 
