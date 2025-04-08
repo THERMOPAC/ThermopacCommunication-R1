@@ -4,7 +4,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { roles, roleHierarchy } from "@shared/roles";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,8 +18,19 @@ import {
   Filter,
   ArrowLeft,
   Send,
-  Users
+  Users,
+  Trash,
+  AlertCircle
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { format } from "date-fns";
 
 // Define interface structures
@@ -137,6 +148,33 @@ function InternalMessages() {
       toast({
         title: "Error",
         description: "Failed to mark message as read",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Delete message
+  const [messageToDelete, setMessageToDelete] = useState<InternalMessage | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  
+  const deleteMessageMutation = useMutation<void, Error, number>({
+    mutationFn: async (messageId) => {
+      await apiRequest("DELETE", `/api/internal-messages/${messageId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Message Deleted",
+        description: "The message has been deleted successfully.",
+      });
+      setMessageToDelete(null);
+      setDeleteDialogOpen(false);
+      setSelectedMessageId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/internal-messages"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete message. Please try again.",
         variant: "destructive"
       });
     }
@@ -287,48 +325,98 @@ function InternalMessages() {
     );
   }
 
+  // Handle delete message
+  const handleDeleteMessage = (message: InternalMessage) => {
+    setMessageToDelete(message);
+    setDeleteDialogOpen(true);
+  };
+
   // Render message detail view
   if (selectedMessageId && selectedMessage) {
     return (
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <Button variant="ghost" size="sm" onClick={handleBack}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-            </div>
-            {/* Only show reply button for received messages (inbox), not for sent messages */}
-            {activeTab === 'inbox' && (
+      <>
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-start">
               <div>
+                <Button variant="ghost" size="sm" onClick={handleBack}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back
+                </Button>
+              </div>
+              <div className="flex space-x-2">
+                {/* Only show reply button for received messages (inbox), not for sent messages */}
+                {activeTab === 'inbox' && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleReply(selectedMessage)}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Reply
+                  </Button>
+                )}
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => handleReply(selectedMessage)}
+                  onClick={() => handleDeleteMessage(selectedMessage)}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Reply
+                  <Trash className="h-4 w-4 mr-2" />
+                  Delete
                 </Button>
               </div>
-            )}
-          </div>
-          <CardTitle>{selectedMessage.subject || 'No Subject'}</CardTitle>
-          <div className="flex justify-between text-sm text-muted-foreground mt-2">
-            <div>
-              <span className="font-medium">
-                {activeTab === 'sent' ? `To: ${selectedMessage.recipientName}` : `From: ${selectedMessage.senderName}`}
-              </span>
             </div>
-            <div>{formatDate(selectedMessage.createdAt)}</div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="prose max-w-none">
-            <p className="whitespace-pre-wrap">{selectedMessage.content}</p>
-          </div>
-        </CardContent>
-      </Card>
+            <CardTitle>{selectedMessage.subject || 'No Subject'}</CardTitle>
+            <div className="flex justify-between text-sm text-muted-foreground mt-2">
+              <div>
+                <span className="font-medium">
+                  {activeTab === 'sent' ? `To: ${selectedMessage.recipientName}` : `From: ${selectedMessage.senderName}`}
+                </span>
+              </div>
+              <div>{formatDate(selectedMessage.createdAt)}</div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="prose max-w-none">
+              <p className="whitespace-pre-wrap">{selectedMessage.content}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Delete confirmation dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
+                <AlertCircle className="h-5 w-5 mr-2 text-destructive" />
+                Confirm Delete
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this message?
+                <div className="mt-2 p-2 border rounded bg-muted/50">
+                  <strong>Subject:</strong> {messageToDelete?.subject || 'No Subject'}
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setDeleteDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => messageToDelete && deleteMessageMutation.mutate(messageToDelete.id)}
+                disabled={deleteMessageMutation.isPending}
+              >
+                {deleteMessageMutation.isPending ? "Deleting..." : "Delete Message"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
@@ -387,12 +475,14 @@ function InternalMessages() {
               {messages.map((message) => (
                 <Card 
                   key={message.id} 
-                  className={`cursor-pointer hover:bg-accent transition-colors ${!message.isRead ? 'border-primary' : ''}`}
-                  onClick={() => handleViewMessage(message.id)}
+                  className={`hover:bg-accent transition-colors ${!message.isRead ? 'border-primary' : ''}`}
                 >
                   <CardHeader className="p-4">
                     <div className="flex justify-between items-start">
-                      <div className="flex items-start space-x-4">
+                      <div 
+                        className="flex items-start space-x-4 cursor-pointer flex-1"
+                        onClick={() => handleViewMessage(message.id)}
+                      >
                         <Avatar className="h-10 w-10">
                           <AvatarFallback>{message.senderName.substring(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
@@ -408,8 +498,21 @@ function InternalMessages() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDate(message.createdAt)}
+                      <div className="flex items-center space-x-2">
+                        <div className="text-xs text-muted-foreground">
+                          {formatDate(message.createdAt)}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteMessage(message);
+                          }}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
@@ -438,12 +541,14 @@ function InternalMessages() {
               {messages.map((message) => (
                 <Card 
                   key={message.id} 
-                  className="cursor-pointer hover:bg-accent transition-colors"
-                  onClick={() => handleViewMessage(message.id)}
+                  className="hover:bg-accent transition-colors"
                 >
                   <CardHeader className="p-4">
                     <div className="flex justify-between items-start">
-                      <div className="flex items-start space-x-4">
+                      <div 
+                        className="flex items-start space-x-4 cursor-pointer flex-1"
+                        onClick={() => handleViewMessage(message.id)}
+                      >
                         <Avatar className="h-10 w-10">
                           <AvatarFallback>{message.recipientName.substring(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
@@ -459,8 +564,21 @@ function InternalMessages() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDate(message.createdAt)}
+                      <div className="flex items-center space-x-2">
+                        <div className="text-xs text-muted-foreground">
+                          {formatDate(message.createdAt)}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteMessage(message);
+                          }}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
