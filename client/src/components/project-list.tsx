@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { format } from 'date-fns';
@@ -28,13 +28,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Loader2, Plus, Search, Calendar, Info, Users, CheckSquare, FileText } from "lucide-react";
+import { Loader2, Plus, Search, Calendar, Info, Users, CheckSquare, FileText, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const projectFormSchema = z.object({
   name: z.string().min(3, "Project name must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   code: z.string().min(2, "Project code must be at least 2 characters"),
+  financialYear: z.string(),
   status: z.enum(["planning", "active", "on_hold", "completed", "canceled"]),
   priority: z.enum(["Low", "Medium", "High"]),
   startDate: z.string().refine(val => !isNaN(Date.parse(val)), {
@@ -49,6 +50,58 @@ const projectFormSchema = z.object({
 });
 
 type ProjectFormValues = z.infer<typeof projectFormSchema>;
+
+// Function to get the current financial year in the format "FY23-24"
+function getCurrentFinancialYear(): string {
+  const today = new Date();
+  const currentMonth = today.getMonth(); // 0-11 (Jan-Dec)
+  
+  // In India, financial year starts from April 1 and ends on March 31
+  let financialYearStart: number;
+  
+  // If current month is January to March, financial year started in previous calendar year
+  // Otherwise, financial year started in current calendar year
+  if (currentMonth < 3) { // January to March
+    financialYearStart = today.getFullYear() - 1;
+  } else { // April to December
+    financialYearStart = today.getFullYear();
+  }
+  
+  // Financial year is represented as "FY23-24" where 23 is the last two digits of start year
+  // and 24 is the last two digits of end year
+  const startYearShort = (financialYearStart % 100).toString().padStart(2, '0');
+  const endYearShort = ((financialYearStart + 1) % 100).toString().padStart(2, '0');
+  
+  return `FY${startYearShort}-${endYearShort}`;
+}
+
+// Function to generate a project code
+function generateProjectCode(projectName: string, financialYear: string): string {
+  if (!projectName) return '';
+  
+  // Extract initials from project name (up to 3 characters)
+  const nameParts = projectName.trim().split(/\s+/);
+  let initials = '';
+  for (let i = 0; i < Math.min(3, nameParts.length); i++) {
+    if (nameParts[i].length > 0) {
+      initials += nameParts[i][0].toUpperCase();
+    }
+  }
+  
+  // If we don't have enough initials, add characters from the first word
+  if (initials.length < 2 && nameParts[0].length > 1) {
+    initials += nameParts[0].substring(1, 3 - initials.length).toUpperCase();
+  }
+  
+  // Extract year part from financial year (e.g., "23-24" from "FY23-24")
+  const yearPart = financialYear.replace('FY', '');
+  
+  // Generate a random 3-digit number
+  const randomNum = Math.floor(Math.random() * 900 + 100);
+  
+  // Combine everything: initials + year part + random number
+  return `${initials}${yearPart.replace('-', '')}${randomNum}`;
+}
 
 export default function ProjectList() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -96,6 +149,7 @@ export default function ProjectList() {
       name: "",
       description: "",
       code: "",
+      financialYear: getCurrentFinancialYear(),
       status: "planning",
       priority: "Medium",
       startDate: new Date().toISOString().split('T')[0],
@@ -109,6 +163,16 @@ export default function ProjectList() {
   function onSubmit(data: ProjectFormValues) {
     createProjectMutation.mutate(data);
   }
+  
+  // Generate project code when the project name changes
+  const handleProjectNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const projectName = e.target.value;
+    const financialYear = form.getValues("financialYear");
+    if (projectName.length >= 3) {
+      const generatedCode = generateProjectCode(projectName, financialYear);
+      form.setValue("code", generatedCode);
+    }
+  };
 
   function formatDate(dateString: string) {
     try {
@@ -215,7 +279,14 @@ export default function ProjectList() {
                         <FormItem>
                           <FormLabel>Project Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter project name" {...field} />
+                            <Input
+                              placeholder="Enter project name"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                handleProjectNameChange(e);
+                              }}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -308,6 +379,60 @@ export default function ProjectList() {
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
+                      name="financialYear"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Financial Year</FormLabel>
+                          <FormControl>
+                            <div className="flex items-center space-x-2">
+                              <Input placeholder="FY23-24" {...field} />
+                              <Button 
+                                type="button" 
+                                size="icon" 
+                                variant="outline"
+                                onClick={() => {
+                                  const currentFY = getCurrentFinancialYear();
+                                  field.onChange(currentFY);
+                                  // Update project code if name exists
+                                  const projectName = form.getValues("name");
+                                  if (projectName.length >= 3) {
+                                    const generatedCode = generateProjectCode(projectName, currentFY);
+                                    form.setValue("code", generatedCode);
+                                  }
+                                }}
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="budget"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Budget (Optional)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="Budget amount" 
+                              {...field}
+                              value={field.value || ''}
+                              onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
                       name="startDate"
                       render={({ field }) => (
                         <FormItem>
@@ -342,26 +467,6 @@ export default function ProjectList() {
                         <FormLabel>Client (Optional)</FormLabel>
                         <FormControl>
                           <Input placeholder="Client name" {...field} value={field.value || ''} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="budget"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Budget (Optional)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="Budget amount" 
-                            {...field}
-                            value={field.value || ''}
-                            onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
