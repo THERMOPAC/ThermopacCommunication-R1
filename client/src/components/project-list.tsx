@@ -304,391 +304,394 @@ export default function ProjectList() {
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <Tabs defaultValue="project-details" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4">
-                      <TabsTrigger value="project-details" className="flex items-center gap-1">
-                        <ClipboardList className="h-4 w-4" />
-                        <span>Details</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="project-stages" className="flex items-center gap-1">
-                        <LayoutList className="h-4 w-4" />
-                        <span>Stages</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="logistics" className="flex items-center gap-1">
-                        <Truck className="h-4 w-4" />
-                        <span>Logistics</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="attachments" className="flex items-center gap-1">
-                        <Upload className="h-4 w-4" />
-                        <span>Attachments</span>
-                      </TabsTrigger>
-                    </TabsList>
-                    
-                    {/* Project Details Tab */}
-                    <TabsContent value="project-details" className="space-y-4 mt-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Project Name</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="Enter project name"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="code"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Project Code</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter project code" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
+                  {/* Main Project Details (always visible) */}
+                  <div className="space-y-4 mb-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
-                        name="description"
+                        name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Description</FormLabel>
+                            <FormLabel>Project Name</FormLabel>
                             <FormControl>
-                              <Input placeholder="Project description" {...field} />
+                              <Input
+                                placeholder="Enter project name"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                      <FormField
+                        control={form.control}
+                        name="code"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Project Code</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter project code" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="status"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Status</FormLabel>
-                              <Select 
-                                onValueChange={field.onChange} 
-                                defaultValue={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select status" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="planning">Planning</SelectItem>
-                                  <SelectItem value="active">Active</SelectItem>
-                                  <SelectItem value="on_hold">On Hold</SelectItem>
-                                  <SelectItem value="completed">Completed</SelectItem>
-                                  <SelectItem value="canceled">Canceled</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="priority"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Priority</FormLabel>
-                              <Select 
-                                onValueChange={field.onChange} 
-                                defaultValue={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select priority" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="Low">Low</SelectItem>
-                                  <SelectItem value="Medium">Medium</SelectItem>
-                                  <SelectItem value="High">High</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Project description" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="financialYear"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Financial Year</FormLabel>
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Status</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value}
+                            >
                               <FormControl>
-                                <div className="flex items-center space-x-2">
-                                  <Input 
-                                    placeholder="FY23-24" 
-                                    {...field}
-                                    onChange={async (e) => {
-                                      field.onChange(e);
-                                      
-                                      // Update project code with sequential number
-                                      const financialYear = e.target.value;
-                                      
-                                      if (financialYear.length >= 5) { // Make sure it's a valid financial year
-                                        try {
-                                          const nextCode = await getNextProjectCode(financialYear);
-                                          form.setValue("code", nextCode);
-                                        } catch (error) {
-                                          console.error("Error getting next project code:", error);
-                                          // Fallback in case of errors
-                                          const yearCode = convertFinancialYearToCode(financialYear);
-                                          if (yearCode) {
-                                            form.setValue("code", `${yearCode}-1`);
-                                          }
-                                        }
-                                      }
-                                    }} 
-                                  />
-                                  <Button 
-                                    type="button" 
-                                    size="icon" 
-                                    variant="outline"
-                                    onClick={async () => {
-                                      const currentFY = getCurrentFinancialYear();
-                                      field.onChange(currentFY);
-                                      
-                                      // Get sequential project code from server
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="planning">Planning</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="on_hold">On Hold</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                                <SelectItem value="canceled">Canceled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="priority"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Priority</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select priority" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Low">Low</SelectItem>
+                                <SelectItem value="Medium">Medium</SelectItem>
+                                <SelectItem value="High">High</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="financialYear"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Financial Year</FormLabel>
+                            <FormControl>
+                              <div className="flex items-center space-x-2">
+                                <Input 
+                                  placeholder="FY23-24" 
+                                  {...field}
+                                  onChange={async (e) => {
+                                    field.onChange(e);
+                                    
+                                    // Update project code with sequential number
+                                    const financialYear = e.target.value;
+                                    
+                                    if (financialYear.length >= 5) { // Make sure it's a valid financial year
                                       try {
-                                        const nextCode = await getNextProjectCode(currentFY);
+                                        const nextCode = await getNextProjectCode(financialYear);
                                         form.setValue("code", nextCode);
                                       } catch (error) {
                                         console.error("Error getting next project code:", error);
                                         // Fallback in case of errors
-                                        const yearCode = convertFinancialYearToCode(currentFY);
-                                        form.setValue("code", `${yearCode}-1`);
+                                        const yearCode = convertFinancialYearToCode(financialYear);
+                                        if (yearCode) {
+                                          form.setValue("code", `${yearCode}-1`);
+                                        }
                                       }
-                                    }}
-                                  >
-                                    <RefreshCw className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="budget"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Budget (Optional)</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  placeholder="Budget amount" 
-                                  {...field}
-                                  value={field.value || ''}
-                                  onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                    }
+                                  }} 
                                 />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      {/* Project Items Section */}
-                      <div className="space-y-3 border rounded-md p-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="text-sm font-medium">Project Items</h3>
-                          <Button type="button" variant="outline" size="sm" className="h-8">
-                            <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
-                          </Button>
-                        </div>
-                        
-                        <div className="border rounded-md">
-                          <div className="grid grid-cols-12 gap-2 p-2 bg-muted/50 text-xs font-medium border-b">
-                            <div className="col-span-1">#</div>
-                            <div className="col-span-4">Item Description</div>
-                            <div className="col-span-2">Specification</div>
-                            <div className="col-span-1">Quantity</div>
-                            <div className="col-span-1">UOM</div>
-                            <div className="col-span-2">Make/Brand</div>
-                            <div className="col-span-1">Actions</div>
-                          </div>
-                          
-                          <div className="max-h-[300px] overflow-y-auto">
-                            {/* Empty state */}
-                            <div className="py-8 text-center text-muted-foreground text-sm">
-                              No items added. Click "Add Item" to add project items.
-                            </div>
-                            
-                            {/* This would be replaced with actual items when added 
-                            
-                            Example of how an item row would look:
-                            
-                            <div className="grid grid-cols-12 gap-2 p-2 border-b hover:bg-muted/20 text-sm">
-                              <div className="col-span-1">1</div>
-                              <div className="col-span-4">Thermal Oil Heater</div>
-                              <div className="col-span-2">500kW</div>
-                              <div className="col-span-1">2</div>
-                              <div className="col-span-1">Nos</div>
-                              <div className="col-span-2">Thermopac</div>
-                              <div className="col-span-1">
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <Pencil className="h-3.5 w-3.5" />
+                                <Button 
+                                  type="button" 
+                                  size="icon" 
+                                  variant="outline"
+                                  onClick={async () => {
+                                    const currentFY = getCurrentFinancialYear();
+                                    field.onChange(currentFY);
+                                    
+                                    // Get sequential project code from server
+                                    try {
+                                      const nextCode = await getNextProjectCode(currentFY);
+                                      form.setValue("code", nextCode);
+                                    } catch (error) {
+                                      console.error("Error getting next project code:", error);
+                                      // Fallback in case of errors
+                                      const yearCode = convertFinancialYearToCode(currentFY);
+                                      form.setValue("code", `${yearCode}-1`);
+                                    }
+                                  }}
+                                >
+                                  <RefreshCw className="h-4 w-4" />
                                 </Button>
                               </div>
-                            </div>
-                            
-                            */}
-                          </div>
-                        </div>
-                        
-                        <p className="text-xs text-muted-foreground">
-                          Add up to 50 items for this project with their specifications, quantities, and units of measurement.
-                        </p>
-                      </div>
-                    </TabsContent>
-                    
-                    {/* Project Stages Tab */}
-                    <TabsContent value="project-stages" className="space-y-4 mt-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="startDate"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Start Date</FormLabel>
-                              <FormControl>
-                                <Input type="date" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="targetEndDate"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Target End Date</FormLabel>
-                              <FormControl>
-                                <Input type="date" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <div className="space-y-4 border rounded-md p-4">
-                        <h3 className="text-sm font-medium mb-2">Default Project Phases</h3>
-                        <div className="grid grid-cols-4 gap-2">
-                          <div className="border rounded p-2 bg-blue-50">
-                            <div className="text-xs font-semibold">Design</div>
-                            <div className="text-[10px] text-muted-foreground">Requirements analysis & planning</div>
-                          </div>
-                          <div className="border rounded p-2 bg-amber-50">
-                            <div className="text-xs font-semibold">Procurement</div>
-                            <div className="text-[10px] text-muted-foreground">Sourcing materials & components</div>
-                          </div>
-                          <div className="border rounded p-2 bg-green-50">
-                            <div className="text-xs font-semibold">Manufacturing</div>
-                            <div className="text-[10px] text-muted-foreground">Production & assembly</div>
-                          </div>
-                          <div className="border rounded p-2 bg-purple-50">
-                            <div className="text-xs font-semibold">Quality</div>
-                            <div className="text-[10px] text-muted-foreground">Testing & validation</div>
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground">These phases will be created automatically upon project creation.</p>
-                      </div>
-                    </TabsContent>
-                    
-                    {/* Logistics Tab */}
-                    <TabsContent value="logistics" className="space-y-4 mt-4">
-                      <FormField
-                        control={form.control}
-                        name="client"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Client (Optional)</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Client name" {...field} value={field.value || ''} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Delivery Terms</Label>
-                          <Select>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select delivery terms" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="ex_works">Ex Works (EXW)</SelectItem>
-                              <SelectItem value="fob">Free On Board (FOB)</SelectItem>
-                              <SelectItem value="cif">Cost, Insurance & Freight (CIF)</SelectItem>
-                              <SelectItem value="ddp">Delivered Duty Paid (DDP)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Payment Terms</Label>
-                          <Select>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select payment terms" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="advance">100% Advance</SelectItem>
-                              <SelectItem value="50_50">50% Advance, 50% Before Dispatch</SelectItem>
-                              <SelectItem value="30_days">Net 30 Days</SelectItem>
-                              <SelectItem value="lc">Letter of Credit</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Shipping Address</Label>
-                        <Input placeholder="Enter shipping address" />
-                      </div>
-                    </TabsContent>
+                    </div>
                     
-                    {/* Attachments Tab */}
-                    <TabsContent value="attachments" className="space-y-4 mt-4">
-                      <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                        <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                        <p className="text-sm mb-1">Drag & drop files here or click to browse</p>
-                        <p className="text-xs text-muted-foreground">Upload proposal documents, specifications, or requirement files</p>
-                        <Button variant="outline" size="sm" className="mt-4">
-                          <Upload className="h-4 w-4 mr-2" /> Select Files
-                        </Button>
-                      </div>
+                    <FormField
+                      control={form.control}
+                      name="budget"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Budget (Optional)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="Budget amount" 
+                              {...field}
+                              value={field.value || ''}
+                              onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="border-t pt-4">
+                    <Tabs defaultValue="project-details" className="w-full">
+                      <TabsList className="grid w-full grid-cols-4">
+                        <TabsTrigger value="project-details" className="flex items-center gap-1">
+                          <ClipboardList className="h-4 w-4" />
+                          <span>Details</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="project-stages" className="flex items-center gap-1">
+                          <LayoutList className="h-4 w-4" />
+                          <span>Stages</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="logistics" className="flex items-center gap-1">
+                          <Truck className="h-4 w-4" />
+                          <span>Logistics</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="attachments" className="flex items-center gap-1">
+                          <Upload className="h-4 w-4" />
+                          <span>Attachments</span>
+                        </TabsTrigger>
+                      </TabsList>
                       
-                      <p className="text-xs text-muted-foreground">
-                        You can upload additional documents after project creation.
-                      </p>
-                    </TabsContent>
-                  </Tabs>
+                      {/* Project Details Tab */}
+                      <TabsContent value="project-details" className="space-y-4 mt-4">
+                        {/* Project Items Section */}
+                        <div className="space-y-3 border rounded-md p-4">
+                          <div className="flex justify-between items-center">
+                            <h3 className="text-sm font-medium">Project Items</h3>
+                            <Button type="button" variant="outline" size="sm" className="h-8">
+                              <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+                            </Button>
+                          </div>
+                          
+                          <div className="border rounded-md">
+                            <div className="grid grid-cols-12 gap-2 p-2 bg-muted/50 text-xs font-medium border-b">
+                              <div className="col-span-1">#</div>
+                              <div className="col-span-4">Item Description</div>
+                              <div className="col-span-2">Specification</div>
+                              <div className="col-span-1">Quantity</div>
+                              <div className="col-span-1">UOM</div>
+                              <div className="col-span-2">Make/Brand</div>
+                              <div className="col-span-1">Actions</div>
+                            </div>
+                            
+                            <div className="max-h-[300px] overflow-y-auto">
+                              {/* Empty state */}
+                              <div className="py-8 text-center text-muted-foreground text-sm">
+                                No items added. Click "Add Item" to add project items.
+                              </div>
+                              
+                              {/* This would be replaced with actual items when added 
+                              
+                              Example of how an item row would look:
+                              
+                              <div className="grid grid-cols-12 gap-2 p-2 border-b hover:bg-muted/20 text-sm">
+                                <div className="col-span-1">1</div>
+                                <div className="col-span-4">Thermal Oil Heater</div>
+                                <div className="col-span-2">500kW</div>
+                                <div className="col-span-1">2</div>
+                                <div className="col-span-1">Nos</div>
+                                <div className="col-span-2">Thermopac</div>
+                                <div className="col-span-1">
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              */}
+                            </div>
+                          </div>
+                          
+                          <p className="text-xs text-muted-foreground">
+                            Add up to 50 items for this project with their specifications, quantities, and units of measurement.
+                          </p>
+                        </div>
+                      </TabsContent>
+                      
+                      {/* Project Stages Tab */}
+                      <TabsContent value="project-stages" className="space-y-4 mt-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="startDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Start Date</FormLabel>
+                                <FormControl>
+                                  <Input type="date" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="targetEndDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Target End Date</FormLabel>
+                                <FormControl>
+                                  <Input type="date" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                  <DialogFooter>
+                        <div className="space-y-4 border rounded-md p-4">
+                          <h3 className="text-sm font-medium mb-2">Default Project Phases</h3>
+                          <div className="grid grid-cols-4 gap-2">
+                            <div className="border rounded p-2 bg-blue-50">
+                              <div className="text-xs font-semibold">Design</div>
+                              <div className="text-[10px] text-muted-foreground">Requirements analysis & planning</div>
+                            </div>
+                            <div className="border rounded p-2 bg-amber-50">
+                              <div className="text-xs font-semibold">Procurement</div>
+                              <div className="text-[10px] text-muted-foreground">Sourcing materials & components</div>
+                            </div>
+                            <div className="border rounded p-2 bg-green-50">
+                              <div className="text-xs font-semibold">Manufacturing</div>
+                              <div className="text-[10px] text-muted-foreground">Production & assembly</div>
+                            </div>
+                            <div className="border rounded p-2 bg-purple-50">
+                              <div className="text-xs font-semibold">Quality</div>
+                              <div className="text-[10px] text-muted-foreground">Testing & validation</div>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">These phases will be created automatically upon project creation.</p>
+                        </div>
+                      </TabsContent>
+                      
+                      {/* Logistics Tab */}
+                      <TabsContent value="logistics" className="space-y-4 mt-4">
+                        <FormField
+                          control={form.control}
+                          name="client"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Client (Optional)</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Client name" {...field} value={field.value || ''} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Delivery Terms</Label>
+                            <Select>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select delivery terms" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ex_works">Ex Works (EXW)</SelectItem>
+                                <SelectItem value="fob">Free On Board (FOB)</SelectItem>
+                                <SelectItem value="cif">Cost, Insurance & Freight (CIF)</SelectItem>
+                                <SelectItem value="ddp">Delivered Duty Paid (DDP)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Payment Terms</Label>
+                            <Select>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select payment terms" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="advance">100% Advance</SelectItem>
+                                <SelectItem value="50_50">50% Advance, 50% Before Dispatch</SelectItem>
+                                <SelectItem value="30_days">Net 30 Days</SelectItem>
+                                <SelectItem value="lc">Letter of Credit</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Shipping Address</Label>
+                          <Input placeholder="Enter shipping address" />
+                        </div>
+                      </TabsContent>
+                      
+                      {/* Attachments Tab */}
+                      <TabsContent value="attachments" className="space-y-4 mt-4">
+                        <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                          <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm mb-1">Drag & drop files here or click to browse</p>
+                          <p className="text-xs text-muted-foreground">Upload proposal documents, specifications, or requirement files</p>
+                          <Button variant="outline" size="sm" className="mt-4">
+                            <Upload className="h-4 w-4 mr-2" /> Select Files
+                          </Button>
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground">
+                          You can upload additional documents after project creation.
+                        </p>
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+
+                  <DialogFooter className="mt-6">
                     <Button 
                       type="submit" 
                       disabled={createProjectMutation.isPending}
