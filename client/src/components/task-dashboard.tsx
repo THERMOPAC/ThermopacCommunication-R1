@@ -64,9 +64,15 @@ export default function TaskDashboard() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       filteredTasks = filteredTasks.filter(task => {
-        if (!task.dueDate) return false;
-        const dueDate = new Date(task.dueDate);
-        return task.status === "pending" && dueDate < today;
+        // Check either dueDate or finishDate for overdue tasks
+        const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+        const finishDate = task.finishDate ? new Date(task.finishDate) : null;
+        
+        // If either date exists and is before today, the task is overdue
+        const isDueOverdue = dueDate && dueDate < today;
+        const isFinishOverdue = finishDate && finishDate < today;
+        
+        return task.status === "pending" && (isDueOverdue || isFinishOverdue);
       });
     }
     
@@ -80,8 +86,9 @@ export default function TaskDashboard() {
     // Sort tasks
     filteredTasks.sort((a, b) => {
       if (sortBy === "dueDate") {
-        const dateA = a.dueDate ? new Date(a.dueDate) : new Date(0);
-        const dateB = b.dueDate ? new Date(b.dueDate) : new Date(0);
+        // Use either dueDate or finishDate for sorting, prioritizing finishDate
+        const dateA = a.finishDate ? new Date(a.finishDate) : (a.dueDate ? new Date(a.dueDate) : new Date(0));
+        const dateB = b.finishDate ? new Date(b.finishDate) : (b.dueDate ? new Date(b.dueDate) : new Date(0));
         return sortOrder === "asc" ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
       } else if (sortBy === "priority") {
         const priorityValues = { "Low": 1, "Medium": 2, "High": 3 };
@@ -108,9 +115,28 @@ export default function TaskDashboard() {
   // Count overdue tasks
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  
+  // Add debugging logs
+  console.log('Current date (today):', today.toISOString());
+  console.log('Tasks with finish dates:', tasks.filter(t => t.finishDate).map(t => ({
+    id: t.id,
+    title: t.title,
+    dueDate: t.dueDate,
+    finishDate: t.finishDate,
+    status: t.status
+  })));
+  
+  // The problem might be that we're checking dueDate but tasks actually use finishDate
+  // Let's check both fields to find overdue tasks
   const overdueCount = tasks.filter(task => {
     const dueDate = task.dueDate ? new Date(task.dueDate) : null;
-    return task.status === "pending" && dueDate && dueDate < today;
+    const finishDate = task.finishDate ? new Date(task.finishDate) : null;
+    
+    // Check if either dueDate or finishDate is before today
+    const isDueOverdue = dueDate && dueDate < today;
+    const isFinishOverdue = finishDate && finishDate < today;
+    
+    return task.status === "pending" && (isDueOverdue || isFinishOverdue);
   }).length;
 
   // Tasks stats

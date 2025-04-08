@@ -84,17 +84,32 @@ export default function HomeDashboard() {
   })));
   
   const overdueTasks = pendingTasks.filter(task => {
-    if (!task.dueDate) return false;
-    const dueDate = new Date(task.dueDate);
-    return dueDate < today;
+    // Check both dueDate and finishDate for overdue tasks
+    const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+    const finishDate = task.finishDate ? new Date(task.finishDate) : null;
+    
+    // If either date exists and is before today, the task is overdue
+    const isDueOverdue = dueDate && dueDate < today;
+    const isFinishOverdue = finishDate && finishDate < today;
+    
+    return isDueOverdue || isFinishOverdue;
   });
   
   // Calculate tasks due today
   const tasksDueToday = pendingTasks.filter(task => {
-    if (!task.dueDate) return false;
-    const dueDate = new Date(task.dueDate);
-    dueDate.setHours(0, 0, 0, 0);
-    return dueDate.getTime() === today.getTime();
+    // Check both dueDate and finishDate for tasks due today
+    const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+    const finishDate = task.finishDate ? new Date(task.finishDate) : null;
+    
+    // Normalize dates to midnight for comparison
+    if (dueDate) dueDate.setHours(0, 0, 0, 0);
+    if (finishDate) finishDate.setHours(0, 0, 0, 0);
+    
+    // Task is due today if either date matches today
+    const isDueToday = dueDate && dueDate.getTime() === today.getTime();
+    const isFinishToday = finishDate && finishDate.getTime() === today.getTime();
+    
+    return isDueToday || isFinishToday;
   });
   
   // Calculate tasks due this week
@@ -102,9 +117,15 @@ export default function HomeDashboard() {
   endOfWeek.setDate(today.getDate() + 7);
   
   const tasksDueThisWeek = pendingTasks.filter(task => {
-    if (!task.dueDate) return false;
-    const dueDate = new Date(task.dueDate);
-    return dueDate >= today && dueDate <= endOfWeek;
+    // Check both dueDate and finishDate for tasks due this week
+    const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+    const finishDate = task.finishDate ? new Date(task.finishDate) : null;
+    
+    // Task is due this week if either date is within this week
+    const isDueThisWeek = dueDate && dueDate >= today && dueDate <= endOfWeek;
+    const isFinishThisWeek = finishDate && finishDate >= today && finishDate <= endOfWeek;
+    
+    return isDueThisWeek || isFinishThisWeek;
   });
   
   // Calculate completion rate
@@ -125,13 +146,22 @@ export default function HomeDashboard() {
   // Get upcoming tasks (next 7 days)
   const upcomingTasks = [...pendingTasks]
     .filter(task => {
-      if (!task.dueDate) return false;
-      const dueDate = new Date(task.dueDate);
-      return dueDate >= today && dueDate <= endOfWeek;
+      // Consider both dueDate and finishDate
+      const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+      const finishDate = task.finishDate ? new Date(task.finishDate) : null;
+      
+      // Use either date, prioritizing finishDate if available
+      const effectiveDate = finishDate || dueDate;
+      
+      // If neither date exists, exclude the task
+      if (!effectiveDate) return false;
+      
+      return effectiveDate >= today && effectiveDate <= endOfWeek;
     })
     .sort((a, b) => {
-      const dateA = a.dueDate ? new Date(a.dueDate) : new Date();
-      const dateB = b.dueDate ? new Date(b.dueDate) : new Date();
+      // Sort by effective date (finishDate or dueDate)
+      const dateA = a.finishDate ? new Date(a.finishDate) : (a.dueDate ? new Date(a.dueDate) : new Date());
+      const dateB = b.finishDate ? new Date(b.finishDate) : (b.dueDate ? new Date(b.dueDate) : new Date());
       return dateA.getTime() - dateB.getTime();
     })
     .slice(0, 5); // Get top 5 upcoming
@@ -157,25 +187,25 @@ export default function HomeDashboard() {
   };
   
   // Format due date relative to today
-  const getRelativeDueDate = (dueDateStr: string) => {
-    const dueDate = new Date(dueDateStr);
-    dueDate.setHours(0, 0, 0, 0);
+  const getRelativeDueDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    date.setHours(0, 0, 0, 0);
     
-    if (dueDate.getTime() === today.getTime()) {
+    if (date.getTime() === today.getTime()) {
       return "Today";
     }
     
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
-    if (dueDate.getTime() === tomorrow.getTime()) {
+    if (date.getTime() === tomorrow.getTime()) {
       return "Tomorrow";
     }
     
     // Calculate days difference
-    const diffTime = Math.abs(dueDate.getTime() - today.getTime());
+    const diffTime = Math.abs(date.getTime() - today.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (dueDate < today) {
+    if (date < today) {
       return `${diffDays} day${diffDays !== 1 ? 's' : ''} overdue`;
     } else {
       return `In ${diffDays} day${diffDays !== 1 ? 's' : ''}`;
@@ -356,7 +386,11 @@ export default function HomeDashboard() {
                             <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                               <Calendar className="h-3 w-3" />
                               <span>
-                                {task.dueDate ? getRelativeDueDate(task.dueDate) : "No due date"}
+                                {task.finishDate 
+                                  ? getRelativeDueDate(task.finishDate) 
+                                  : (task.dueDate 
+                                     ? getRelativeDueDate(task.dueDate) 
+                                     : "No due date")}
                               </span>
                               {task.category && (
                                 <Badge variant="outline" className="text-xs">
@@ -366,8 +400,16 @@ export default function HomeDashboard() {
                             </div>
                           </div>
                         </div>
-                        <Badge variant={task.dueDate && new Date(task.dueDate) < today ? "destructive" : "outline"}>
-                          {task.dueDate && new Date(task.dueDate) < today ? "Overdue" : task.priority}
+                        <Badge variant={
+                          (task.finishDate && new Date(task.finishDate) < today) || 
+                          (task.dueDate && new Date(task.dueDate) < today) 
+                            ? "destructive" 
+                            : "outline"
+                        }>
+                          {(task.finishDate && new Date(task.finishDate) < today) || 
+                           (task.dueDate && new Date(task.dueDate) < today) 
+                            ? "Overdue" 
+                            : task.priority}
                         </Badge>
                       </div>
                     </div>
@@ -465,7 +507,31 @@ export default function HomeDashboard() {
                   <p className="text-sm font-medium">On-time Completion</p>
                   <p className="font-medium">
                     {totalTasks > 0
-                      ? `${Math.round((completedTasks.filter(t => !t.completedAt || !t.dueDate || (t.completedAt && t.dueDate && new Date(t.completedAt) <= new Date(t.dueDate))).length / totalTasks) * 100)}%`
+                      ? `${Math.round((completedTasks.filter(t => {
+                          // Check both finishDate and dueDate for on-time completion
+                          const hasCompletedAt = !!t.completedAt;
+                          
+                          // If no completion date or no deadline dates, it's considered on-time
+                          if (!hasCompletedAt || (!t.dueDate && !t.finishDate)) return true;
+                          
+                          // Get completed date
+                          const completedDate = new Date(t.completedAt);
+                          
+                          // Check against finishDate if it exists
+                          if (t.finishDate) {
+                            const finishDate = new Date(t.finishDate);
+                            if (completedDate <= finishDate) return true;
+                          }
+                          
+                          // Check against dueDate if it exists and wasn't already determined to be on time
+                          if (t.dueDate) {
+                            const dueDate = new Date(t.dueDate);
+                            if (completedDate <= dueDate) return true;
+                          }
+                          
+                          // If we get here, the task was completed after both deadline dates
+                          return false;
+                        }).length / totalTasks) * 100)}%`
                       : "0%"
                     }
                   </p>
