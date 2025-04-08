@@ -13,7 +13,8 @@ import {
   Award,
   TrendingUp,
   Repeat,
-  Mail
+  Mail,
+  Briefcase
 } from "lucide-react";
 
 type LayoutProps = {
@@ -28,6 +29,7 @@ export default function Layout({ children }: LayoutProps) {
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
+    { icon: Briefcase, label: "Projects", href: "/projects" },
     { icon: Users, label: "Team", href: "/team" },
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
