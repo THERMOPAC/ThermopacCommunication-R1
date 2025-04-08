@@ -30,7 +30,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { 
   Loader2, Plus, Search, Calendar, Info, Users, CheckSquare, FileText, RefreshCw,
-  Upload, Truck, LayoutList, Settings, ClipboardList, BadgePercent
+  Upload, Truck, LayoutList, Settings, ClipboardList, BadgePercent, Pencil
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -295,7 +295,7 @@ export default function ProjectList() {
             <DialogTrigger asChild>
               <Button><Plus className="mr-2 h-4 w-4" /> New Project</Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[550px]">
+            <DialogContent className="sm:max-w-[900px] max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Project</DialogTitle>
                 <DialogDescription>
@@ -507,6 +507,59 @@ export default function ProjectList() {
                             </FormItem>
                           )}
                         />
+                      </div>
+                      
+                      {/* Project Items Section */}
+                      <div className="space-y-3 border rounded-md p-4">
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-sm font-medium">Project Items</h3>
+                          <Button type="button" variant="outline" size="sm" className="h-8">
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+                          </Button>
+                        </div>
+                        
+                        <div className="border rounded-md">
+                          <div className="grid grid-cols-12 gap-2 p-2 bg-muted/50 text-xs font-medium border-b">
+                            <div className="col-span-1">#</div>
+                            <div className="col-span-4">Item Description</div>
+                            <div className="col-span-2">Specification</div>
+                            <div className="col-span-1">Quantity</div>
+                            <div className="col-span-1">UOM</div>
+                            <div className="col-span-2">Make/Brand</div>
+                            <div className="col-span-1">Actions</div>
+                          </div>
+                          
+                          <div className="max-h-[300px] overflow-y-auto">
+                            {/* Empty state */}
+                            <div className="py-8 text-center text-muted-foreground text-sm">
+                              No items added. Click "Add Item" to add project items.
+                            </div>
+                            
+                            {/* This would be replaced with actual items when added 
+                            
+                            Example of how an item row would look:
+                            
+                            <div className="grid grid-cols-12 gap-2 p-2 border-b hover:bg-muted/20 text-sm">
+                              <div className="col-span-1">1</div>
+                              <div className="col-span-4">Thermal Oil Heater</div>
+                              <div className="col-span-2">500kW</div>
+                              <div className="col-span-1">2</div>
+                              <div className="col-span-1">Nos</div>
+                              <div className="col-span-2">Thermopac</div>
+                              <div className="col-span-1">
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            */}
+                          </div>
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground">
+                          Add up to 50 items for this project with their specifications, quantities, and units of measurement.
+                        </p>
                       </div>
                     </TabsContent>
                     
