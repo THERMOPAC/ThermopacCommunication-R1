@@ -75,32 +75,40 @@ function getCurrentFinancialYear(): string {
   return `FY${startYearShort}-${endYearShort}`;
 }
 
-// Function to generate a project code
-function generateProjectCode(projectName: string, financialYear: string): string {
-  if (!projectName) return '';
-  
-  // Extract initials from project name (up to 3 characters)
-  const nameParts = projectName.trim().split(/\s+/);
-  let initials = '';
-  for (let i = 0; i < Math.min(3, nameParts.length); i++) {
-    if (nameParts[i].length > 0) {
-      initials += nameParts[i][0].toUpperCase();
+// Function to convert financial year to the format used for project codes
+function convertFinancialYearToCode(financialYear: string): string {
+  if (financialYear.startsWith('FY')) {
+    // Extract year digits from FY format: FY25-26 -> 2526
+    const matches = financialYear.match(/FY(\d{2})-(\d{2})/);
+    if (matches && matches.length === 3) {
+      return matches[1] + matches[2];
+    }
+  } else {
+    // If direct format like 2025-2026, extract last two digits of each year
+    const matches = financialYear.match(/(\d{4})-(\d{4})/);
+    if (matches && matches.length === 3) {
+      return matches[1].slice(-2) + matches[2].slice(-2);
     }
   }
-  
-  // If we don't have enough initials, add characters from the first word
-  if (initials.length < 2 && nameParts[0].length > 1) {
-    initials += nameParts[0].substring(1, 3 - initials.length).toUpperCase();
+  return '';
+}
+
+// Function to get the next project code from the server
+async function getNextProjectCode(financialYear: string): Promise<string> {
+  try {
+    const response = await fetch(`/api/projects/next-code/${financialYear}`);
+    if (!response.ok) {
+      throw new Error('Failed to get next project code');
+    }
+    const data = await response.json();
+    return data.nextCode;
+  } catch (error) {
+    console.error('Error getting next project code:', error);
+    
+    // Fallback: Generate a code in the format 2526-1
+    const yearCode = convertFinancialYearToCode(financialYear);
+    return `${yearCode}-1`;
   }
-  
-  // Extract year part from financial year (e.g., "23-24" from "FY23-24")
-  const yearPart = financialYear.replace('FY', '');
-  
-  // Generate a random 3-digit number
-  const randomNum = Math.floor(Math.random() * 900 + 100);
-  
-  // Combine everything: initials + year part + random number
-  return `${initials}${yearPart.replace('-', '')}${randomNum}`;
 }
 
 export default function ProjectList() {
@@ -164,13 +172,25 @@ export default function ProjectList() {
     createProjectMutation.mutate(data);
   }
   
-  // Generate project code when the project name changes
-  const handleProjectNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const projectName = e.target.value;
-    const financialYear = form.getValues("financialYear");
-    if (projectName.length >= 3) {
-      const generatedCode = generateProjectCode(projectName, financialYear);
-      form.setValue("code", generatedCode);
+  // Initialize the form with default values and get a project code
+  const initializeProjectForm = async () => {
+    // Set default form values
+    const currentFY = getCurrentFinancialYear();
+    form.setValue("financialYear", currentFY);
+    form.setValue("status", "planning");
+    form.setValue("priority", "Medium");
+    form.setValue("startDate", new Date().toISOString().split('T')[0]);
+    form.setValue("targetEndDate", new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0]);
+    
+    // Get the next project code from the server
+    try {
+      const nextCode = await getNextProjectCode(currentFY);
+      form.setValue("code", nextCode);
+    } catch (error) {
+      console.error("Error getting next project code:", error);
+      // Fallback in case of errors
+      const yearCode = convertFinancialYearToCode(currentFY);
+      form.setValue("code", `${yearCode}-1`);
     }
   };
 
@@ -258,7 +278,16 @@ export default function ProjectList() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Dialog open={isNewProjectDialogOpen} onOpenChange={setIsNewProjectDialogOpen}>
+          <Dialog 
+            open={isNewProjectDialogOpen} 
+            onOpenChange={(open) => {
+              if (open) {
+                // Initialize form when opening dialog
+                initializeProjectForm();
+              }
+              setIsNewProjectDialogOpen(open);
+            }}
+          >
             <DialogTrigger asChild>
               <Button><Plus className="mr-2 h-4 w-4" /> New Project</Button>
             </DialogTrigger>
@@ -282,10 +311,6 @@ export default function ProjectList() {
                             <Input
                               placeholder="Enter project name"
                               {...field}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                handleProjectNameChange(e);
-                              }}
                             />
                           </FormControl>
                           <FormMessage />
@@ -385,19 +410,47 @@ export default function ProjectList() {
                           <FormLabel>Financial Year</FormLabel>
                           <FormControl>
                             <div className="flex items-center space-x-2">
-                              <Input placeholder="FY23-24" {...field} />
+                              <Input 
+                                placeholder="FY23-24" 
+                                {...field}
+                                onChange={async (e) => {
+                                  field.onChange(e);
+                                  
+                                  // Update project code with sequential number
+                                  const financialYear = e.target.value;
+                                  
+                                  if (financialYear.length >= 5) { // Make sure it's a valid financial year
+                                    try {
+                                      const nextCode = await getNextProjectCode(financialYear);
+                                      form.setValue("code", nextCode);
+                                    } catch (error) {
+                                      console.error("Error getting next project code:", error);
+                                      // Fallback in case of errors
+                                      const yearCode = convertFinancialYearToCode(financialYear);
+                                      if (yearCode) {
+                                        form.setValue("code", `${yearCode}-1`);
+                                      }
+                                    }
+                                  }
+                                }} 
+                              />
                               <Button 
                                 type="button" 
                                 size="icon" 
                                 variant="outline"
-                                onClick={() => {
+                                onClick={async () => {
                                   const currentFY = getCurrentFinancialYear();
                                   field.onChange(currentFY);
-                                  // Update project code if name exists
-                                  const projectName = form.getValues("name");
-                                  if (projectName.length >= 3) {
-                                    const generatedCode = generateProjectCode(projectName, currentFY);
-                                    form.setValue("code", generatedCode);
+                                  
+                                  // Get sequential project code from server
+                                  try {
+                                    const nextCode = await getNextProjectCode(currentFY);
+                                    form.setValue("code", nextCode);
+                                  } catch (error) {
+                                    console.error("Error getting next project code:", error);
+                                    // Fallback in case of errors
+                                    const yearCode = convertFinancialYearToCode(currentFY);
+                                    form.setValue("code", `${yearCode}-1`);
                                   }
                                 }}
                               >

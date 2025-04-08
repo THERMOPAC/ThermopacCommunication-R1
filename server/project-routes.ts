@@ -31,6 +31,63 @@ export function setupProjectRoutes(app: express.Express) {
       res.status(500).json({ error: 'Failed to fetch projects' });
     }
   });
+  
+  // Get next project number for a financial year
+  app.get('/api/projects/next-code/:financialYear', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const financialYear = req.params.financialYear;
+      
+      // Format the financial year for the code: "2526" for FY 2025-2026
+      let yearCode: string;
+      
+      if (financialYear.startsWith('FY')) {
+        // Extract year digits from FY format: FY25-26 -> 2526
+        const matches = financialYear.match(/FY(\d{2})-(\d{2})/);
+        if (matches && matches.length === 3) {
+          yearCode = matches[1] + matches[2];
+        } else {
+          return res.status(400).json({ error: 'Invalid financial year format' });
+        }
+      } else {
+        // If direct format like 2025-2026, extract last two digits of each year
+        const matches = financialYear.match(/(\d{4})-(\d{4})/);
+        if (matches && matches.length === 3) {
+          yearCode = matches[1].slice(-2) + matches[2].slice(-2);
+        } else {
+          return res.status(400).json({ error: 'Invalid financial year format' });
+        }
+      }
+      
+      // Get all projects and filter by those starting with the year code
+      const userId = req.user!.id;
+      const allProjects = await storage.getUserProjects(userId);
+      
+      // Find projects with codes that match our pattern (e.g., "2526-1", "2526-2", etc.)
+      const regex = new RegExp(`^${yearCode}-(\\d+)$`);
+      const matchingProjects = allProjects.filter(project => regex.test(project.code));
+      
+      // Find the highest number used so far
+      let highestNumber = 0;
+      matchingProjects.forEach(project => {
+        const matches = project.code.match(regex);
+        if (matches && matches.length > 1) {
+          const projectNumber = parseInt(matches[1]);
+          if (projectNumber > highestNumber) {
+            highestNumber = projectNumber;
+          }
+        }
+      });
+      
+      // The next number is one more than the highest
+      const nextNumber = highestNumber + 1;
+      const nextCode = `${yearCode}-${nextNumber}`;
+      
+      res.json({ nextCode });
+    } catch (error) {
+      console.error('Error generating next project code:', error);
+      res.status(500).json({ error: 'Failed to generate next project code' });
+    }
+  });
 
   app.get('/api/projects/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
