@@ -11,7 +11,14 @@ import type {
   GmailToken, InsertGmailToken,
   GmailMessage, InsertGmailMessage,
   GmailSettings, InsertGmailSettings,
-  InternalMessage, InsertInternalMessage
+  InternalMessage, InsertInternalMessage,
+  Project, InsertProject,
+  ProjectPhase, InsertProjectPhase,
+  ProjectMember, InsertProjectMember,
+  Deliverable, InsertDeliverable,
+  ProjectTask, InsertProjectTask,
+  PhaseApproval, InsertPhaseApproval,
+  ProjectDocument, InsertProjectDocument
 } from "@shared/schema";
 import { roleHierarchy, canManage } from "@shared/roles";
 import session from "express-session";
@@ -30,7 +37,14 @@ import {
   gmailTokens as gmailTokensTable,
   gmailMessages as gmailMessagesTable,
   gmailSettings as gmailSettingsTable,
-  internalMessages as internalMessagesTable
+  internalMessages as internalMessagesTable,
+  projects as projectsTable,
+  projectPhases as projectPhasesTable,
+  projectMembers as projectMembersTable,
+  deliverables as deliverablesTable,
+  projectTasks as projectTasksTable,
+  phaseApprovals as phaseApprovalsTable,
+  projectDocuments as projectDocumentsTable
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 
@@ -54,6 +68,15 @@ export class DatabaseStorage implements IStorage {
   gmailMessagesTable = gmailMessagesTable;
   gmailSettingsTable = gmailSettingsTable;
   internalMessagesTable = internalMessagesTable;
+  
+  // Project Management tables
+  projectsTable = projectsTable;
+  projectPhasesTable = projectPhasesTable;
+  projectMembersTable = projectMembersTable;
+  deliverablesTable = deliverablesTable;
+  projectTasksTable = projectTasksTable;
+  phaseApprovalsTable = phaseApprovalsTable;
+  projectDocumentsTable = projectDocumentsTable;
 
   constructor() {
     if (!process.env.DATABASE_URL) {
@@ -1658,6 +1681,370 @@ export class DatabaseStorage implements IStorage {
     console.log(`Deleting internal message ${id}`);
     await db.delete(internalMessagesTable).where(eq(internalMessagesTable.id, id));
     console.log(`Deleted internal message ${id}`);
+  }
+
+  // PROJECT MANAGEMENT IMPLEMENTATION
+  
+  // Projects
+  async createProject(project: InsertProject): Promise<Project> {
+    console.log(`Creating new project:`, project);
+    const result = await db.insert(projectsTable).values(project).returning();
+    const newProject = result[0] as Project;
+    console.log(`Created project:`, newProject);
+    return newProject;
+  }
+
+  async getProject(id: number): Promise<Project | undefined> {
+    console.log(`Getting project with ID: ${id}`);
+    const result = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+    return result[0] as Project | undefined;
+  }
+
+  async updateProject(id: number, updateData: Partial<Project>): Promise<Project> {
+    console.log(`Updating project ${id} with data:`, updateData);
+    const result = await db
+      .update(projectsTable)
+      .set(updateData)
+      .where(eq(projectsTable.id, id))
+      .returning();
+    
+    const project = result[0] as Project;
+    if (!project) throw new Error("Project not found");
+    
+    console.log(`Updated project:`, project);
+    return project;
+  }
+
+  async getUserProjects(userId: number): Promise<Project[]> {
+    console.log(`Getting projects for user ${userId}`);
+    
+    // Get all projects where user is a member
+    const projectMembers = await db
+      .select()
+      .from(projectMembersTable)
+      .where(eq(projectMembersTable.userId, userId));
+    
+    const projectIds = projectMembers.map(member => member.projectId);
+    
+    // If user is not a member of any projects, return empty array
+    if (projectIds.length === 0) {
+      console.log(`User ${userId} is not a member of any projects`);
+      return [];
+    }
+    
+    // Get project details for all projects user is a member of
+    const projects = await db
+      .select()
+      .from(projectsTable)
+      .where(inArray(projectsTable.id, projectIds));
+    
+    console.log(`Found ${projects.length} projects for user ${userId}`);
+    return projects as Project[];
+  }
+
+  // Project Phases
+  async createProjectPhase(phase: InsertProjectPhase): Promise<ProjectPhase> {
+    console.log(`Creating new project phase:`, phase);
+    const result = await db.insert(projectPhasesTable).values(phase).returning();
+    const newPhase = result[0] as ProjectPhase;
+    console.log(`Created project phase:`, newPhase);
+    return newPhase;
+  }
+
+  async getProjectPhases(projectId: number): Promise<ProjectPhase[]> {
+    console.log(`Getting phases for project ${projectId}`);
+    const phases = await db
+      .select()
+      .from(projectPhasesTable)
+      .where(eq(projectPhasesTable.projectId, projectId))
+      .orderBy(projectPhasesTable.phaseNumber);
+    
+    console.log(`Found ${phases.length} phases for project ${projectId}`);
+    return phases as ProjectPhase[];
+  }
+
+  async getProjectPhase(id: number): Promise<ProjectPhase | undefined> {
+    console.log(`Getting project phase with ID: ${id}`);
+    const result = await db.select().from(projectPhasesTable).where(eq(projectPhasesTable.id, id));
+    return result[0] as ProjectPhase | undefined;
+  }
+
+  async updateProjectPhase(id: number, updateData: Partial<ProjectPhase>): Promise<ProjectPhase> {
+    console.log(`Updating project phase ${id} with data:`, updateData);
+    const result = await db
+      .update(projectPhasesTable)
+      .set(updateData)
+      .where(eq(projectPhasesTable.id, id))
+      .returning();
+    
+    const phase = result[0] as ProjectPhase;
+    if (!phase) throw new Error("Project phase not found");
+    
+    console.log(`Updated project phase:`, phase);
+    return phase;
+  }
+
+  // Project Members
+  async addProjectMember(projectMember: InsertProjectMember): Promise<ProjectMember> {
+    console.log(`Adding new project member:`, projectMember);
+    const result = await db.insert(projectMembersTable).values(projectMember).returning();
+    const newMember = result[0] as ProjectMember;
+    console.log(`Added project member:`, newMember);
+    return newMember;
+  }
+
+  async getProjectMembers(projectId: number): Promise<ProjectMember[]> {
+    console.log(`Getting members for project ${projectId}`);
+    const members = await db
+      .select({
+        member: projectMembersTable,
+        user: {
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          role: users.role
+        }
+      })
+      .from(projectMembersTable)
+      .innerJoin(users, eq(projectMembersTable.userId, users.id))
+      .where(eq(projectMembersTable.projectId, projectId));
+    
+    console.log(`Found ${members.length} members for project ${projectId}`);
+    return members.map(m => ({
+      ...m.member,
+      user: m.user
+    })) as unknown as ProjectMember[];
+  }
+
+  async removeProjectMember(projectId: number, userId: number): Promise<void> {
+    console.log(`Removing user ${userId} from project ${projectId}`);
+    await db
+      .delete(projectMembersTable)
+      .where(
+        and(
+          eq(projectMembersTable.projectId, projectId),
+          eq(projectMembersTable.userId, userId)
+        )
+      );
+    console.log(`Removed user ${userId} from project ${projectId}`);
+  }
+
+  async updateProjectMember(projectId: number, userId: number, updateData: Partial<ProjectMember>): Promise<ProjectMember> {
+    console.log(`Updating project member role for user ${userId} in project ${projectId}`);
+    const result = await db
+      .update(projectMembersTable)
+      .set(updateData)
+      .where(
+        and(
+          eq(projectMembersTable.projectId, projectId),
+          eq(projectMembersTable.userId, userId)
+        )
+      )
+      .returning();
+    
+    const member = result[0] as ProjectMember;
+    if (!member) throw new Error("Project member not found");
+    
+    console.log(`Updated project member:`, member);
+    return member;
+  }
+
+  // Deliverables
+  async createDeliverable(deliverable: InsertDeliverable): Promise<Deliverable> {
+    console.log(`Creating new deliverable:`, deliverable);
+    const result = await db.insert(deliverablesTable).values(deliverable).returning();
+    const newDeliverable = result[0] as Deliverable;
+    console.log(`Created deliverable:`, newDeliverable);
+    return newDeliverable;
+  }
+
+  async getPhaseDeliverables(phaseId: number): Promise<Deliverable[]> {
+    console.log(`Getting deliverables for phase ${phaseId}`);
+    const deliverables = await db
+      .select()
+      .from(deliverablesTable)
+      .where(eq(deliverablesTable.phaseId, phaseId))
+      .orderBy(deliverablesTable.dueDate);
+    
+    console.log(`Found ${deliverables.length} deliverables for phase ${phaseId}`);
+    return deliverables as Deliverable[];
+  }
+
+  async getDeliverable(id: number): Promise<Deliverable | undefined> {
+    console.log(`Getting deliverable with ID: ${id}`);
+    const result = await db.select().from(deliverablesTable).where(eq(deliverablesTable.id, id));
+    return result[0] as Deliverable | undefined;
+  }
+
+  async updateDeliverable(id: number, updateData: Partial<Deliverable>): Promise<Deliverable> {
+    console.log(`Updating deliverable ${id} with data:`, updateData);
+    const result = await db
+      .update(deliverablesTable)
+      .set(updateData)
+      .where(eq(deliverablesTable.id, id))
+      .returning();
+    
+    const deliverable = result[0] as Deliverable;
+    if (!deliverable) throw new Error("Deliverable not found");
+    
+    console.log(`Updated deliverable:`, deliverable);
+    return deliverable;
+  }
+
+  // Project Tasks
+  async createProjectTask(task: InsertProjectTask): Promise<ProjectTask> {
+    console.log(`Creating new project task:`, task);
+    const result = await db.insert(projectTasksTable).values(task).returning();
+    const newTask = result[0] as ProjectTask;
+    console.log(`Created project task:`, newTask);
+    return newTask;
+  }
+
+  async getProjectTasks(projectId: number): Promise<ProjectTask[]> {
+    console.log(`Getting tasks for project ${projectId}`);
+    const tasks = await db
+      .select()
+      .from(projectTasksTable)
+      .where(eq(projectTasksTable.projectId, projectId))
+      .orderBy(projectTasksTable.dueDate);
+    
+    console.log(`Found ${tasks.length} tasks for project ${projectId}`);
+    return tasks as ProjectTask[];
+  }
+
+  async getPhaseProjectTasks(phaseId: number): Promise<ProjectTask[]> {
+    console.log(`Getting tasks for phase ${phaseId}`);
+    const tasks = await db
+      .select()
+      .from(projectTasksTable)
+      .where(eq(projectTasksTable.phaseId, phaseId))
+      .orderBy(projectTasksTable.dueDate);
+    
+    console.log(`Found ${tasks.length} tasks for phase ${phaseId}`);
+    return tasks as ProjectTask[];
+  }
+
+  async getProjectTask(id: number): Promise<ProjectTask | undefined> {
+    console.log(`Getting project task with ID: ${id}`);
+    const result = await db.select().from(projectTasksTable).where(eq(projectTasksTable.id, id));
+    return result[0] as ProjectTask | undefined;
+  }
+
+  async updateProjectTask(id: number, updateData: Partial<ProjectTask>): Promise<ProjectTask> {
+    console.log(`Updating project task ${id} with data:`, updateData);
+    const result = await db
+      .update(projectTasksTable)
+      .set(updateData)
+      .where(eq(projectTasksTable.id, id))
+      .returning();
+    
+    const task = result[0] as ProjectTask;
+    if (!task) throw new Error("Project task not found");
+    
+    console.log(`Updated project task:`, task);
+    return task;
+  }
+
+  // Phase Approvals
+  async createPhaseApproval(approval: InsertPhaseApproval): Promise<PhaseApproval> {
+    console.log(`Creating new phase approval:`, approval);
+    const result = await db.insert(phaseApprovalsTable).values(approval).returning();
+    const newApproval = result[0] as PhaseApproval;
+    console.log(`Created phase approval:`, newApproval);
+    return newApproval;
+  }
+
+  async getPhaseApprovals(phaseId: number): Promise<PhaseApproval[]> {
+    console.log(`Getting approvals for phase ${phaseId}`);
+    const approvals = await db
+      .select({
+        approval: phaseApprovalsTable,
+        approver: {
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          role: users.role
+        }
+      })
+      .from(phaseApprovalsTable)
+      .leftJoin(users, eq(phaseApprovalsTable.approverId, users.id))
+      .where(eq(phaseApprovalsTable.phaseId, phaseId))
+      .orderBy(phaseApprovalsTable.createdAt);
+    
+    console.log(`Found ${approvals.length} approvals for phase ${phaseId}`);
+    return approvals.map(a => ({
+      ...a.approval,
+      approver: a.approver
+    })) as unknown as PhaseApproval[];
+  }
+
+  async updatePhaseApproval(id: number, updateData: Partial<PhaseApproval>): Promise<PhaseApproval> {
+    console.log(`Updating phase approval ${id} with data:`, updateData);
+    const result = await db
+      .update(phaseApprovalsTable)
+      .set(updateData)
+      .where(eq(phaseApprovalsTable.id, id))
+      .returning();
+    
+    const approval = result[0] as PhaseApproval;
+    if (!approval) throw new Error("Phase approval not found");
+    
+    console.log(`Updated phase approval:`, approval);
+    return approval;
+  }
+
+  // Project Documents
+  async createProjectDocument(document: InsertProjectDocument): Promise<ProjectDocument> {
+    console.log(`Creating new project document:`, document);
+    const result = await db.insert(projectDocumentsTable).values(document).returning();
+    const newDocument = result[0] as ProjectDocument;
+    console.log(`Created project document:`, newDocument);
+    return newDocument;
+  }
+
+  async getProjectDocuments(projectId: number): Promise<ProjectDocument[]> {
+    console.log(`Getting documents for project ${projectId}`);
+    const documents = await db
+      .select()
+      .from(projectDocumentsTable)
+      .where(eq(projectDocumentsTable.projectId, projectId))
+      .orderBy(projectDocumentsTable.createdAt);
+    
+    console.log(`Found ${documents.length} documents for project ${projectId}`);
+    return documents as ProjectDocument[];
+  }
+
+  async getPhaseDocuments(phaseId: number): Promise<ProjectDocument[]> {
+    console.log(`Getting documents for phase ${phaseId}`);
+    const documents = await db
+      .select()
+      .from(projectDocumentsTable)
+      .where(eq(projectDocumentsTable.phaseId, phaseId))
+      .orderBy(projectDocumentsTable.createdAt);
+    
+    console.log(`Found ${documents.length} documents for phase ${phaseId}`);
+    return documents as ProjectDocument[];
+  }
+
+  async getProjectDocument(id: number): Promise<ProjectDocument | undefined> {
+    console.log(`Getting project document with ID: ${id}`);
+    const result = await db.select().from(projectDocumentsTable).where(eq(projectDocumentsTable.id, id));
+    return result[0] as ProjectDocument | undefined;
+  }
+
+  async updateProjectDocument(id: number, updateData: Partial<ProjectDocument>): Promise<ProjectDocument> {
+    console.log(`Updating project document ${id} with data:`, updateData);
+    const result = await db
+      .update(projectDocumentsTable)
+      .set(updateData)
+      .where(eq(projectDocumentsTable.id, id))
+      .returning();
+    
+    const document = result[0] as ProjectDocument;
+    if (!document) throw new Error("Project document not found");
+    
+    console.log(`Updated project document:`, document);
+    return document;
   }
 }
 

@@ -6,7 +6,14 @@ import {
   RecurringPattern, InsertRecurringPattern, RecurringTask, InsertRecurringTask,
   GmailToken, InsertGmailToken, GmailMessage, InsertGmailMessage, 
   GmailSettings, InsertGmailSettings,
-  InternalMessage, InsertInternalMessage
+  InternalMessage, InsertInternalMessage,
+  Project, InsertProject,
+  ProjectPhase, InsertProjectPhase,
+  ProjectMember, InsertProjectMember,
+  Deliverable, InsertDeliverable,
+  ProjectTask, InsertProjectTask,
+  PhaseApproval, InsertPhaseApproval,
+  ProjectDocument, InsertProjectDocument
 } from "@shared/schema";
 import { Store } from "express-session";
 
@@ -127,4 +134,48 @@ export interface IStorage {
   getInternalMessage(id: number): Promise<InternalMessage | undefined>;
   updateInternalMessage(id: number, updateData: Partial<InternalMessage>): Promise<InternalMessage>;
   deleteInternalMessage(id: number): Promise<void>;
+  
+  // Project Management
+  // Projects
+  createProject(project: InsertProject): Promise<Project>;
+  getProject(id: number): Promise<Project | undefined>;
+  updateProject(id: number, updateData: Partial<Project>): Promise<Project>;
+  getUserProjects(userId: number): Promise<Project[]>;
+  
+  // Project Phases
+  createProjectPhase(phase: InsertProjectPhase): Promise<ProjectPhase>;
+  getProjectPhases(projectId: number): Promise<ProjectPhase[]>;
+  getProjectPhase(id: number): Promise<ProjectPhase | undefined>;
+  updateProjectPhase(id: number, updateData: Partial<ProjectPhase>): Promise<ProjectPhase>;
+  
+  // Project Members
+  addProjectMember(projectMember: InsertProjectMember): Promise<ProjectMember>;
+  getProjectMembers(projectId: number): Promise<ProjectMember[]>;
+  removeProjectMember(projectId: number, userId: number): Promise<void>;
+  updateProjectMember(projectId: number, userId: number, updateData: Partial<ProjectMember>): Promise<ProjectMember>;
+  
+  // Deliverables
+  createDeliverable(deliverable: InsertDeliverable): Promise<Deliverable>;
+  getPhaseDeliverables(phaseId: number): Promise<Deliverable[]>;
+  getDeliverable(id: number): Promise<Deliverable | undefined>;
+  updateDeliverable(id: number, updateData: Partial<Deliverable>): Promise<Deliverable>;
+  
+  // Project Tasks
+  createProjectTask(task: InsertProjectTask): Promise<ProjectTask>;
+  getProjectTasks(projectId: number): Promise<ProjectTask[]>;
+  getPhaseProjectTasks(phaseId: number): Promise<ProjectTask[]>;
+  getProjectTask(id: number): Promise<ProjectTask | undefined>;
+  updateProjectTask(id: number, updateData: Partial<ProjectTask>): Promise<ProjectTask>;
+  
+  // Phase Approvals
+  createPhaseApproval(approval: InsertPhaseApproval): Promise<PhaseApproval>;
+  getPhaseApprovals(phaseId: number): Promise<PhaseApproval[]>;
+  updatePhaseApproval(id: number, updateData: Partial<PhaseApproval>): Promise<PhaseApproval>;
+  
+  // Project Documents
+  createProjectDocument(document: InsertProjectDocument): Promise<ProjectDocument>;
+  getProjectDocuments(projectId: number): Promise<ProjectDocument[]>;
+  getPhaseDocuments(phaseId: number): Promise<ProjectDocument[]>;
+  getProjectDocument(id: number): Promise<ProjectDocument | undefined>;
+  updateProjectDocument(id: number, updateData: Partial<ProjectDocument>): Promise<ProjectDocument>;
 }

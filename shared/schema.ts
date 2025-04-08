@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -335,3 +335,267 @@ export const insertInternalMessageSchema = createInsertSchema(internalMessages, 
 
 export type InternalMessage = typeof internalMessages.$inferSelect;
 export type InsertInternalMessage = z.infer<typeof insertInternalMessageSchema>;
+
+// ==================== PROJECT MANAGEMENT MODULE ====================
+
+// Projects table
+export const projects = pgTable('projects', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description').notNull(),
+  code: text('code').notNull().unique(), // Project code for easy reference
+  status: text('status').notNull().default('planning'), // planning, active, completed, on_hold, canceled
+  priority: text('priority').notNull().default('Medium'), // Low, Medium, High
+  
+  // Client information
+  clientName: text('client_name'),
+  clientContact: text('client_contact'),
+  clientEmail: text('client_email'),
+  
+  // Dates
+  startDate: text('start_date').notNull(),
+  targetEndDate: text('target_end_date').notNull(),
+  actualEndDate: text('actual_end_date'),
+  
+  // Budget and finances
+  estimatedBudget: decimal('estimated_budget', { precision: 12, scale: 2 }),
+  actualCost: decimal('actual_cost', { precision: 12, scale: 2 }),
+  currency: text('currency').default('INR'),
+  
+  // Progress tracking
+  progress: integer('progress').default(0), // 0-100%
+  
+  // Ownership
+  managerId: integer('manager_id').notNull().references(() => users.id),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  
+  // Additional details
+  notes: text('notes'),
+  tags: text('tags').array(),
+});
+
+// Project phases table (Design, Procurement, Manufacturing, Quality)
+export const projectPhases = pgTable('project_phases', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(), // Design, Procurement, Manufacturing, Quality
+  description: text('description').notNull(),
+  
+  // Ordering
+  order: integer('order').notNull(), // 1-based sequence for display
+  
+  // Dates
+  startDate: text('start_date').notNull(),
+  targetEndDate: text('target_end_date').notNull(),
+  actualEndDate: text('actual_end_date'),
+  
+  // Status
+  status: text('status').notNull().default('pending'), // pending, in_progress, completed, blocked
+  progress: integer('progress').default(0), // 0-100%
+  
+  // Ownership
+  phaseLeadId: integer('phase_lead_id').references(() => users.id),
+  
+  // Additional details
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Project members (team assignment)
+export const projectMembers = pgTable('project_members', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id),
+  
+  // Role within the project (not the same as system role)
+  role: text('role').notNull(), // project_manager, phase_lead, team_member, consultant
+  
+  // Specific phases this member is assigned to (can be null for project-wide roles)
+  phaseId: integer('phase_id').references(() => projectPhases.id),
+  
+  // Assignment details
+  assignedDate: timestamp('assigned_date').defaultNow().notNull(),
+  hourlyRate: decimal('hourly_rate', { precision: 10, scale: 2 }),
+  estimatedHours: integer('estimated_hours'),
+  actualHours: integer('actual_hours').default(0),
+  
+  // Assignment status
+  isActive: boolean('is_active').default(true).notNull(),
+  
+  // Additional details
+  notes: text('notes'),
+});
+
+// Project phase deliverables
+export const deliverables = pgTable('deliverables', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  phaseId: integer('phase_id').notNull().references(() => projectPhases.id, { onDelete: 'cascade' }),
+  
+  // Deliverable details
+  name: text('name').notNull(),
+  description: text('description').notNull(),
+  
+  // Dates
+  dueDate: text('due_date').notNull(),
+  submittedDate: text('submitted_date'),
+  
+  // Status
+  status: text('status').notNull().default('pending'), // pending, in_progress, submitted, approved, rejected
+  
+  // Ownership
+  assignedTo: integer('assigned_to').references(() => users.id),
+  reviewedBy: integer('reviewed_by').references(() => users.id),
+  
+  // Additional details
+  notes: text('notes'),
+  attachments: jsonb('attachments').$type<{
+    name: string;
+    url: string;
+    type: string;
+    size: number;
+    uploadedBy: number;
+    uploadedAt: string;
+  }[]>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Link tasks to project phases
+export const projectTasks = pgTable('project_tasks', {
+  id: serial('id').primaryKey(),
+  taskId: integer('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  projectId: integer('project_id').notNull().references(() => projects.id),
+  phaseId: integer('phase_id').references(() => projectPhases.id),
+  deliverableId: integer('deliverable_id').references(() => deliverables.id),
+  
+  // Additional metadata specific to project task relationship
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Phase approvals
+export const phaseApprovals = pgTable('phase_approvals', {
+  id: serial('id').primaryKey(),
+  phaseId: integer('phase_id').notNull().references(() => projectPhases.id, { onDelete: 'cascade' }),
+  
+  // Who needs to approve
+  approverId: integer('approver_id').notNull().references(() => users.id),
+  
+  // Approval status
+  status: text('status').notNull().default('pending'), // pending, approved, rejected
+  
+  // Approval details
+  requestedAt: timestamp('requested_at').defaultNow().notNull(),
+  respondedAt: timestamp('responded_at'),
+  comments: text('comments'),
+  
+  // Additional details
+  requirementsMet: boolean('requirements_met').default(false),
+  deliverablesFulfilled: boolean('deliverables_fulfilled').default(false),
+});
+
+// Project documents
+export const projectDocuments = pgTable('project_documents', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  phaseId: integer('phase_id').references(() => projectPhases.id),
+  
+  // Document details
+  name: text('name').notNull(),
+  description: text('description'),
+  type: text('type').notNull(), // contract, specification, drawing, report, invoice
+  url: text('url').notNull(),
+  
+  // Version control
+  version: text('version').notNull().default('1.0'),
+  
+  // Ownership
+  uploadedBy: integer('uploaded_by').notNull().references(() => users.id),
+  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
+  
+  // Additional details
+  size: integer('size'), // in bytes
+  format: text('format'), // pdf, docx, xlsx, etc.
+  isPublic: boolean('is_public').default(false), // whether client can see this document
+  tags: text('tags').array(),
+});
+
+// Create insert schemas for project management tables
+export const insertProjectSchema = createInsertSchema(projects, {
+  tags: z.array(z.string()).optional(),
+  estimatedBudget: z.number().optional(),
+  actualCost: z.number().optional(),
+  startDate: z.string(),
+  targetEndDate: z.string(),
+  actualEndDate: z.string().optional(),
+  status: z.enum(['planning', 'active', 'completed', 'on_hold', 'canceled']),
+  priority: z.enum(['Low', 'Medium', 'High']),
+});
+
+export const insertProjectPhaseSchema = createInsertSchema(projectPhases, {
+  startDate: z.string(),
+  targetEndDate: z.string(),
+  actualEndDate: z.string().optional(),
+  status: z.enum(['pending', 'in_progress', 'completed', 'blocked']),
+  name: z.enum(['Design', 'Procurement', 'Manufacturing', 'Quality']),
+});
+
+export const insertProjectMemberSchema = createInsertSchema(projectMembers, {
+  role: z.enum(['project_manager', 'phase_lead', 'team_member', 'consultant']),
+  phaseId: z.number().optional(),
+  hourlyRate: z.number().optional(),
+  estimatedHours: z.number().optional(),
+  actualHours: z.number().optional(),
+});
+
+export const insertDeliverableSchema = createInsertSchema(deliverables, {
+  dueDate: z.string(),
+  submittedDate: z.string().optional(),
+  status: z.enum(['pending', 'in_progress', 'submitted', 'approved', 'rejected']),
+  attachments: z.array(z.object({
+    name: z.string(),
+    url: z.string(),
+    type: z.string(),
+    size: z.number(),
+    uploadedBy: z.number(),
+    uploadedAt: z.string(),
+  })).optional(),
+});
+
+export const insertProjectTaskSchema = createInsertSchema(projectTasks);
+
+export const insertPhaseApprovalSchema = createInsertSchema(phaseApprovals, {
+  status: z.enum(['pending', 'approved', 'rejected']).default('pending'),
+});
+
+export const insertProjectDocumentSchema = createInsertSchema(projectDocuments, {
+  tags: z.array(z.string()).optional(),
+  type: z.enum(['contract', 'specification', 'drawing', 'report', 'invoice']),
+  version: z.string().default('1.0'),
+});
+
+// Define types for project management tables
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+
+export type ProjectPhase = typeof projectPhases.$inferSelect;
+export type InsertProjectPhase = z.infer<typeof insertProjectPhaseSchema>;
+
+export type ProjectMember = typeof projectMembers.$inferSelect;
+export type InsertProjectMember = z.infer<typeof insertProjectMemberSchema>;
+
+export type Deliverable = typeof deliverables.$inferSelect;
+export type InsertDeliverable = z.infer<typeof insertDeliverableSchema>;
+
+export type ProjectTask = typeof projectTasks.$inferSelect;
+export type InsertProjectTask = z.infer<typeof insertProjectTaskSchema>;
+
+export type PhaseApproval = typeof phaseApprovals.$inferSelect;
+export type InsertPhaseApproval = z.infer<typeof insertPhaseApprovalSchema>;
+
+export type ProjectDocument = typeof projectDocuments.$inferSelect;
+export type InsertProjectDocument = z.infer<typeof insertProjectDocumentSchema>;
