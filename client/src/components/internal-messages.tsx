@@ -53,6 +53,7 @@ function InternalMessages() {
   const [newMessageSubject, setNewMessageSubject] = useState("");
   const [newMessageContent, setNewMessageContent] = useState("");
   const [showComposeForm, setShowComposeForm] = useState(false);
+  const [replyingToMessage, setReplyingToMessage] = useState<InternalMessage | null>(null);
 
   // Get users for the recipient dropdown
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
@@ -87,6 +88,15 @@ function InternalMessages() {
     }
   });
 
+  // Reset form state
+  const resetComposeForm = () => {
+    setNewMessageRecipient("");
+    setNewMessageSubject("");
+    setNewMessageContent("");
+    setReplyingToMessage(null);
+    setShowComposeForm(false);
+  };
+
   // Send a new message
   const sendMessageMutation = useMutation<
     InternalMessage, 
@@ -102,10 +112,7 @@ function InternalMessages() {
         title: "Message Sent",
         description: "Your message has been sent successfully.",
       });
-      setNewMessageRecipient("");
-      setNewMessageSubject("");
-      setNewMessageContent("");
-      setShowComposeForm(false);
+      resetComposeForm();
       queryClient.invalidateQueries({ queryKey: ["/api/internal-messages"] });
     },
     onError: (error) => {
@@ -180,6 +187,17 @@ function InternalMessages() {
     }
   };
 
+  // Handle reply to message
+  const handleReply = (message: InternalMessage) => {
+    // Set up the reply
+    setReplyingToMessage(message);
+    setNewMessageRecipient(message.senderId.toString());
+    setNewMessageSubject(`Re: ${message.subject}`);
+    setNewMessageContent(`\n\n\n------- Original Message -------\nFrom: ${message.senderName}\nDate: ${formatDate(message.createdAt)}\n\n${message.content}`);
+    setShowComposeForm(true);
+    setSelectedMessageId(null);
+  };
+
   // Handle back button
   const handleBack = () => {
     setSelectedMessageId(null);
@@ -199,8 +217,12 @@ function InternalMessages() {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Compose Message</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => setShowComposeForm(false)}>
+            <CardTitle>{replyingToMessage ? 'Reply to Message' : 'Compose Message'}</CardTitle>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={resetComposeForm}
+            >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Messages
             </Button>
@@ -277,6 +299,19 @@ function InternalMessages() {
                 Back
               </Button>
             </div>
+            {/* Only show reply button for received messages (inbox), not for sent messages */}
+            {activeTab === 'inbox' && (
+              <div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleReply(selectedMessage)}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Reply
+                </Button>
+              </div>
+            )}
           </div>
           <CardTitle>{selectedMessage.subject || 'No Subject'}</CardTitle>
           <div className="flex justify-between text-sm text-muted-foreground mt-2">
