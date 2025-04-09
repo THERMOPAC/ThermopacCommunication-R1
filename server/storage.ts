@@ -2261,34 +2261,74 @@ export class DatabaseStorage implements IStorage {
     return projectItem;
   }
 
-  async getProjectItems(projectId: number): Promise<ProjectItem[]> {
+  async getProjectItems(projectId: number): Promise<(ProjectItem & { masterItem?: MasterItem })[]> {
     console.log(`Getting items for project ${projectId}`);
+    
+    // Join with master_items table to get complete item details
     const items = await db
-      .select()
+      .select({
+        projectItem: projectItemsTable,
+        masterItem: masterItemsTable
+      })
       .from(projectItemsTable)
+      .leftJoin(masterItemsTable, eq(projectItemsTable.itemId, masterItemsTable.id))
       .where(eq(projectItemsTable.projectId, projectId))
       .orderBy(projectItemsTable.id);
     
-    console.log(`Found ${items.length} items for project ${projectId}`);
-    return items as ProjectItem[];
+    // Transform the results to match the expected format
+    const formattedItems = items.map(item => ({
+      ...item.projectItem,
+      masterItem: item.masterItem
+    }));
+    
+    console.log(`Found ${formattedItems.length} items for project ${projectId}`);
+    return formattedItems;
   }
 
-  async getProjectItemsByCode(projectCode: string): Promise<ProjectItem[]> {
+  async getProjectItemsByCode(projectCode: string): Promise<(ProjectItem & { masterItem?: MasterItem })[]> {
     console.log(`Getting items for project code ${projectCode}`);
+    
+    // Join with master_items table to get complete item details
     const items = await db
-      .select()
+      .select({
+        projectItem: projectItemsTable,
+        masterItem: masterItemsTable
+      })
       .from(projectItemsTable)
+      .leftJoin(masterItemsTable, eq(projectItemsTable.itemId, masterItemsTable.id))
       .where(eq(projectItemsTable.projectCode, projectCode))
       .orderBy(projectItemsTable.id);
     
-    console.log(`Found ${items.length} items for project code ${projectCode}`);
-    return items as ProjectItem[];
+    // Transform the results to match the expected format
+    const formattedItems = items.map(item => ({
+      ...item.projectItem,
+      masterItem: item.masterItem
+    }));
+    
+    console.log(`Found ${formattedItems.length} items for project code ${projectCode}`);
+    return formattedItems;
   }
 
-  async getProjectItem(id: number): Promise<ProjectItem | undefined> {
+  async getProjectItem(id: number): Promise<(ProjectItem & { masterItem?: MasterItem }) | undefined> {
     console.log(`Getting project item with ID: ${id}`);
-    const result = await db.select().from(projectItemsTable).where(eq(projectItemsTable.id, id));
-    return result[0] as ProjectItem | undefined;
+    
+    // Join with master_items table to get complete item details
+    const result = await db
+      .select({
+        projectItem: projectItemsTable,
+        masterItem: masterItemsTable
+      })
+      .from(projectItemsTable)
+      .leftJoin(masterItemsTable, eq(projectItemsTable.itemId, masterItemsTable.id))
+      .where(eq(projectItemsTable.id, id));
+    
+    if (result.length === 0) return undefined;
+    
+    // Transform the result to match the expected format
+    return {
+      ...result[0].projectItem,
+      masterItem: result[0].masterItem
+    };
   }
   
   async getProjectItemByItemIdAndProject(itemId: number, projectId: number): Promise<ProjectItem | undefined> {
