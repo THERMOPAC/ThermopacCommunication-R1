@@ -1746,7 +1746,10 @@ export class DatabaseStorage implements IStorage {
   // Projects
   async createProject(project: InsertProject): Promise<Project> {
     console.log(`Creating new project:`, project);
-    const result = await db.insert(projectsTable).values(project).returning();
+    // Destructure to remove the financialYear field since it doesn't exist in the database
+    const { financialYear, ...projectData } = project;
+    console.log(`Using project data (without financialYear):`, projectData);
+    const result = await db.insert(projectsTable).values(projectData).returning();
     const newProject = result[0] as Project;
     console.log(`Created project:`, newProject);
     return newProject;
@@ -1760,9 +1763,12 @@ export class DatabaseStorage implements IStorage {
 
   async updateProject(id: number, updateData: Partial<Project>): Promise<Project> {
     console.log(`Updating project ${id} with data:`, updateData);
+    // Handle financialYear field which doesn't exist in the database
+    const { financialYear, ...projectData } = updateData as any;
+    
     const result = await db
       .update(projectsTable)
-      .set(updateData)
+      .set(projectData)
       .where(eq(projectsTable.id, id))
       .returning();
     
