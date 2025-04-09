@@ -159,7 +159,17 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         }
         throw new Error("Failed to fetch project details");
       }
-      return response.json();
+      const data = await response.json();
+      console.log("Project data received:", data);
+      console.log("Project data start_date:", data.start_date);
+      console.log("Project data target_end_date:", data.target_end_date);
+      console.log("Project data client_name:", data.client_name);
+      console.log("Project data financial_year:", data.financial_year);
+      console.log("Project data startDate:", data.startDate);
+      console.log("Project data targetEndDate:", data.targetEndDate);
+      console.log("Project data customerId:", data.customerId);
+      console.log("Project data financialYear:", data.financialYear);
+      return data;
     },
     enabled: !!projectId
   });
