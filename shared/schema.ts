@@ -548,7 +548,7 @@ export const projectItems = pgTable('project_items', {
   projectCode: text('project_code').notNull(), // Reference to the project code for quicker lookups
   
   // Item details
-  itemCode: text('item_code').notNull(), // Item code (required)
+  itemCode: text('item_code').notNull().unique(), // Item code (required and unique)
   description: text('description').notNull(),
   specification: text('specification'),
   quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
