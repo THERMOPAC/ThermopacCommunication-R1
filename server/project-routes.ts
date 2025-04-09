@@ -145,7 +145,7 @@ export function setupProjectRoutes(app: express.Express) {
           projectId: project.id,
           name: phaseNames[i],
           description: `${phaseNames[i]} phase for project ${project.name}`,
-          phaseNumber: i + 1,
+          order: i + 1, // Using order instead of phaseNumber
           startDate: phaseStartDate.toISOString().split('T')[0],
           targetEndDate: phaseEndDate.toISOString().split('T')[0],
           status: 'pending',
