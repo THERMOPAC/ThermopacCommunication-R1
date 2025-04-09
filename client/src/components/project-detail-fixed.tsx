@@ -420,8 +420,17 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     // Create a copy of the data to avoid mutating the original
     const formattedData = { ...data };
     
-    // Ensure dates are properly formatted as strings
-    // The server will handle the conversion to Date objects
+    // Ensure dates are properly formatted as strings in YYYY-MM-DD format
+    // which is exactly how the server is expecting them
+    if (formattedData.startDate) {
+      console.log("Start date before submission:", formattedData.startDate);
+      // Keep as is - already in YYYY-MM-DD format from the date input
+    }
+    
+    if (formattedData.targetEndDate) {
+      console.log("Target end date before submission:", formattedData.targetEndDate);
+      // Keep as is - already in YYYY-MM-DD format from the date input
+    }
     
     // Don't add updatedAt field here - let the server handle it
     // to avoid any date formatting issues

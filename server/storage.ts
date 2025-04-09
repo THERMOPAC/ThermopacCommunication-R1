@@ -1774,45 +1774,46 @@ export class DatabaseStorage implements IStorage {
     console.log(`Updating project ${id} with data:`, updateData);
     
     try {
-      // Build the SQL update query directly to avoid ORM date handling issues
-      let queryParts = [];
+      // Create a copy of the update data to avoid modifying the input
+      const { startDate, targetEndDate, createdAt, updatedAt, ...otherFields } = updateData;
+      
+      // Create the SET clause parts for our SQL query
+      const setParts = [];
       const params = [];
       let paramIndex = 1;
       
-      // Process each field to add to the SQL query
-      for (const [key, value] of Object.entries(updateData)) {
-        // Skip problematic fields or null/undefined values
+      // Add all regular fields
+      for (const [key, value] of Object.entries(otherFields)) {
         if (value === null || value === undefined || key === 'id') continue;
         
-        // Handle dates
-        if (key === 'startDate' || key === 'targetEndDate') {
-          if (typeof value === 'string' && value.trim() !== '') {
-            queryParts.push(`"${key}" = $${paramIndex}`);
-            params.push(value); // Pass as string, PostgreSQL will handle conversion
-            paramIndex++;
-          }
-        } 
-        // Handle all other fields
-        else if (key !== 'updatedAt' && key !== 'createdAt') {
-          queryParts.push(`"${key}" = $${paramIndex}`);
-          params.push(value);
-          paramIndex++;
-        }
+        setParts.push(`"${key}" = $${paramIndex}`);
+        params.push(value);
+        paramIndex++;
       }
       
-      // Always add the updated timestamp
-      queryParts.push(`"updatedAt" = $${paramIndex}`);
+      // Handle date fields separately
+      if (startDate) {
+        setParts.push(`"startDate" = $${paramIndex}`);
+        params.push(startDate);
+        paramIndex++;
+      }
+      
+      if (targetEndDate) {
+        setParts.push(`"targetEndDate" = $${paramIndex}`);
+        params.push(targetEndDate);
+        paramIndex++;
+      }
+      
+      // Always add updated timestamp
+      setParts.push(`"updatedAt" = $${paramIndex}`);
       params.push(new Date().toISOString());
       paramIndex++;
       
-      // Build and execute the SQL query
-      const query = `
-        UPDATE projects 
-        SET ${queryParts.join(', ')} 
-        WHERE id = $${paramIndex} 
-        RETURNING *
-      `;
+      // Final parameter is the project ID
       params.push(id);
+      
+      // Simplified SQL query
+      const query = `UPDATE projects SET ${setParts.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
       
       console.log("Direct SQL query:", query);
       console.log("SQL parameters:", params);
