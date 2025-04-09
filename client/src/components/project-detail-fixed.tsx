@@ -1315,25 +1315,17 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             </div>
             
             {/* Project Items Import Dialog */}
-            <Dialog open={isItemsImportOpen} onOpenChange={setIsItemsImportOpen}>
-              <DialogContent className="max-w-4xl">
-                <DialogHeader>
-                  <DialogTitle>Import Project Items</DialogTitle>
-                  <DialogDescription>
-                    Upload an Excel file to import project items.
-                  </DialogDescription>
-                </DialogHeader>
-                <ProjectItemsImport 
-                  projectId={projectId} 
-                  projectCode={project.code}
-                  onImportComplete={() => {
-                    setIsItemsImportOpen(false);
-                    // Invalidate the project items query to refresh the data
-                    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/items`] });
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
+            <ProjectItemsImport 
+              projectId={projectId} 
+              projectCode={project.code}
+              open={isItemsImportOpen}
+              onOpenChange={setIsItemsImportOpen}
+              onImportComplete={() => {
+                setIsItemsImportOpen(false);
+                // Invalidate the project items query to refresh the data
+                queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/items`] });
+              }}
+            />
             
             <Card>
               <CardHeader className="pb-2">
