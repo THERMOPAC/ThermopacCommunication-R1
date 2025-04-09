@@ -6,6 +6,24 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { 
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { 
   Tabs, 
   TabsContent, 
   TabsList, 
@@ -56,10 +74,14 @@ import {
   CheckCircle,
   XCircle,
   FileSpreadsheet,
-  Boxes
+  Boxes,
+  Building
 } from "lucide-react";
 import { ProjectItemsImport } from "@/components/project-items-import";
 import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 
 interface ProjectDetailProps {
   id: string;
@@ -71,6 +93,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [isItemsImportOpen, setIsItemsImportOpen] = useState(false);
+  const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   
   // Enhanced debugging for project ID handling
   console.log("Project ID from prop:", id);
@@ -183,6 +206,23 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     },
     enabled: !!project
   });
+  
+  // Fetch customers for use in edit form
+  const { data: customers, isLoading: isLoadingCustomers } = useQuery({
+    queryKey: ['/api/customers'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/customers');
+        if (!response.ok) {
+          throw new Error('Failed to fetch customers');
+        }
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+        throw error;
+      }
+    }
+  });
 
   function formatDate(dateString) {
     if (!dateString) return "Not set";
@@ -290,8 +330,216 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     );
   }
 
+  // Form schema for editing project
+  const editProjectSchema = z.object({
+    name: z.string().min(1, "Project name is required"),
+    description: z.string().min(1, "Project description is required"),
+    status: z.enum(["planning", "active", "on_hold", "completed", "canceled"]),
+    priority: z.enum(["High", "Medium", "Low"]),
+    customerId: z.number().optional().nullable(),
+  });
+
+  // Form type for editing project
+  type EditProjectValues = z.infer<typeof editProjectSchema>;
+
+  // Initialize form with project data
+  const form = useForm<EditProjectValues>({
+    resolver: zodResolver(editProjectSchema),
+    defaultValues: {
+      name: project?.name || "",
+      description: project?.description || "",
+      status: project?.status || "planning",
+      priority: project?.priority || "Medium",
+      customerId: project?.customerId || null,
+    },
+  });
+
+  // Submit handler for editing project
+  const updateProjectMutation = useMutation({
+    mutationFn: async (data: EditProjectValues) => {
+      const res = await apiRequest("PUT", `/api/projects/${projectId}`, data);
+      if (!res.ok) {
+        throw new Error("Failed to update project");
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      setIsEditProjectOpen(false);
+      toast({
+        title: "Project updated",
+        description: "Project details have been successfully updated.",
+      });
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error updating project",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  function onSubmit(data: EditProjectValues) {
+    updateProjectMutation.mutate(data);
+  }
+
   return (
     <div className="space-y-6">
+      {/* Edit Project Dialog */}
+      <Dialog open={isEditProjectOpen} onOpenChange={setIsEditProjectOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Project Details</DialogTitle>
+            <DialogDescription>
+              Update the project information below. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter project name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Enter project description" 
+                        {...field} 
+                        className="min-h-[100px]"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="planning">Planning</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="on_hold">On Hold</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="canceled">Canceled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priority</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Low">Low</SelectItem>
+                          <SelectItem value="Medium">Medium</SelectItem>
+                          <SelectItem value="High">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="customerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Customer</FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
+                      defaultValue={field.value?.toString() || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select customer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">No Customer</SelectItem>
+                        {customers?.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id.toString()}>
+                            {customer.bpName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsEditProjectOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateProjectMutation.isPending}
+                >
+                  {updateProjectMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       <div>
         <Button 
           variant="ghost" 
@@ -322,7 +570,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             <p className="mt-2">{project.description}</p>
           </div>
           <div className="flex gap-2 shrink-0">
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => setIsEditProjectOpen(true)}>
               <Edit className="mr-2 h-4 w-4" /> Edit Project
             </Button>
             <Button>
