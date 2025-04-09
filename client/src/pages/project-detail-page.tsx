@@ -5,23 +5,30 @@ import { Loader2 } from "lucide-react";
 
 interface ProjectDetailPageProps {
   id?: string;
+  params?: {
+    id: string;
+  };
 }
 
-export default function ProjectDetailPage({ id }: ProjectDetailPageProps) {
+export default function ProjectDetailPage({ id, params }: ProjectDetailPageProps) {
+  // If id is not directly provided but is available in params, use it
+  const projectId = id || (params && params.id);
   const [location] = useLocation();
   
   // Enhanced debugging for project ID from props
   console.log("ProjectDetailPage - Full URL path:", location);
   console.log("ProjectDetailPage - ID prop:", id);
-  console.log("ProjectDetailPage - ID prop type:", typeof id);
+  console.log("ProjectDetailPage - Params:", params);
+  console.log("ProjectDetailPage - ProjectId:", projectId);
+  console.log("ProjectDetailPage - ID prop type:", typeof projectId);
   
   useEffect(() => {
-    console.log("ProjectDetailPage mounted, ID prop:", id);
+    console.log("ProjectDetailPage mounted, ProjectId:", projectId);
     console.log("ProjectDetailPage location:", location);
-  }, [id, location]);
+  }, [projectId, location]);
   
-  if (!id) {
-    console.log("ProjectDetailPage - No ID provided");
+  if (!projectId) {
+    console.log("ProjectDetailPage - No Project ID provided");
     return (
       <div className="container mx-auto py-6 flex items-center justify-center h-64">
         <div className="text-center">
@@ -34,7 +41,7 @@ export default function ProjectDetailPage({ id }: ProjectDetailPageProps) {
 
   return (
     <div className="container mx-auto py-6">
-      <ProjectDetail id={id} />
+      <ProjectDetail id={projectId} />
     </div>
   );
 }
