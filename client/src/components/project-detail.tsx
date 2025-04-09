@@ -69,12 +69,18 @@ export default function ProjectDetail() {
   const [activeTab, setActiveTab] = useState("overview");
   const [isItemsImportOpen, setIsItemsImportOpen] = useState(false);
   
-  // Validate project ID before using it
-  if (!id || isNaN(parseInt(id))) {
+  // Debug output to understand what's happening
+  console.log("Project ID from URL param:", id);
+  
+  // Use the raw ID directly - it's a database primary key
+  const projectId = id;
+  
+  // Keep some basic sanity check to handle completely missing IDs
+  if (!projectId) {
     React.useEffect(() => {
       toast({
-        title: "Invalid Project ID",
-        description: "The project ID is not valid. Redirecting to the projects list.",
+        title: "Missing Project ID",
+        description: "No project ID was provided. Redirecting to the projects list.",
         variant: "destructive"
       });
       navigate("/projects");
@@ -84,15 +90,12 @@ export default function ProjectDetail() {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Invalid Project ID</h2>
+          <h2 className="text-2xl font-bold mb-2">Missing Project ID</h2>
           <p className="text-muted-foreground">Redirecting to projects list...</p>
         </div>
       </div>
     );
   }
-  
-  // Only parse ID after validation
-  const projectId = parseInt(id);
 
   const { data: project, isLoading: isLoadingProject, error: projectError } = useQuery({
     queryKey: [`/api/projects/${projectId}`],

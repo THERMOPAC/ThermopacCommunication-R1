@@ -94,15 +94,12 @@ export function setupProjectRoutes(app: express.Express) {
   app.get('/api/projects/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       console.log('Fetching project with ID:', req.params.id);
-      const projectId = parseInt(req.params.id);
-      console.log('Parsed project ID:', projectId);
       
-      // Check if projectId is a valid number
-      if (isNaN(projectId)) {
-        console.log('Project ID is invalid (NaN)');
-        return res.status(400).json({ error: 'Invalid project ID' });
-      }
+      // Use the raw project ID directly
+      const projectId = req.params.id;
+      console.log('Project ID for lookup:', projectId);
       
+      // Get the project directly from the database
       const project = await storage.getProject(projectId);
       
       if (!project) {
@@ -207,12 +204,17 @@ export function setupProjectRoutes(app: express.Express) {
   // Project Phases Routes
   app.get('/api/projects/:projectId/phases', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const projectId = parseInt(req.params.projectId);
+      const projectIdParam = req.params.projectId;
       
-      // Check if projectId is a valid number
-      if (isNaN(projectId)) {
-        return res.status(400).json({ error: 'Invalid project ID' });
+      // Get the project first to ensure it exists
+      const project = await storage.getProject(projectIdParam);
+      
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
       }
+      
+      // Use the numeric ID from the project record
+      const projectId = project.id;
       
       const phases = await storage.getProjectPhases(projectId);
       res.json(phases);
@@ -754,14 +756,23 @@ export function setupProjectRoutes(app: express.Express) {
   // Project Items Routes
   app.get('/api/projects/:projectId/items', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const projectId = parseInt(req.params.projectId);
+      const projectIdParam = req.params.projectId;
+      console.log('Fetching items for project ID:', projectIdParam);
       
-      // Check if projectId is a valid number
-      if (isNaN(projectId)) {
-        return res.status(400).json({ error: 'Invalid project ID' });
+      // Get the project first to ensure it exists
+      const project = await storage.getProject(projectIdParam);
+      
+      if (!project) {
+        console.log('Project not found for ID:', projectIdParam);
+        return res.status(404).json({ error: 'Project not found' });
       }
       
+      // Use the numeric ID from the project record
+      const projectId = project.id;
+      
+      // Get items for the project
       const items = await storage.getProjectItems(projectId);
+      console.log(`Found ${items.length} items for project ${projectId}`);
       res.json(items);
     } catch (error) {
       console.error(`Error fetching items for project ${req.params.projectId}:`, error);
@@ -895,14 +906,19 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.delete('/api/projects/:projectId/items', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const projectId = parseInt(req.params.projectId);
+      const projectIdParam = req.params.projectId;
       const userId = req.user!.id;
       
-      // Check if project exists
-      const project = await storage.getProject(projectId);
+      // Get the project first to ensure it exists
+      const project = await storage.getProject(projectIdParam);
+      
       if (!project) {
+        console.log('Project not found for ID:', projectIdParam);
         return res.status(404).json({ error: 'Project not found' });
       }
+      
+      // Use the numeric ID from the project record
+      const projectId = project.id;
       
       // Check if user is authorized
       const projectMembers = await storage.getProjectMembers(projectId);
@@ -915,6 +931,7 @@ export function setupProjectRoutes(app: express.Express) {
       }
       
       const count = await storage.deleteProjectItems(projectId);
+      console.log(`Deleted ${count} items from project ${projectId}`);
       res.json({ deletedCount: count });
     } catch (error) {
       console.error(`Error deleting all items from project ${req.params.projectId}:`, error);

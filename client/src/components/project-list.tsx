@@ -1059,13 +1059,13 @@ export default function ProjectList() {
                     console.log('Project:', project);
                     console.log('Project ID:', project.id);
                     console.log('Project ID type:', typeof project.id);
-                    console.log('Project ID is valid number:', !isNaN(Number(project.id)));
+                    console.log('Project code:', project.code);
                     
-                    // Validate project ID before navigation
-                    if (project.id && !isNaN(Number(project.id))) {
-                      const projectIdNum = Number(project.id);
-                      console.log('Project ID as number:', projectIdNum);
-                      navigate(`/projects/${projectIdNum}`);
+                    // Use project database ID for navigation
+                    if (project.id) {
+                      // No need to convert to number, just use the raw ID
+                      console.log('Using project ID for navigation:', project.id);
+                      navigate(`/projects/${project.id}`);
                     } else {
                       toast({
                         title: "Invalid Project ID",

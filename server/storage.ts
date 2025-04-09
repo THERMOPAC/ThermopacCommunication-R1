@@ -1752,10 +1752,22 @@ export class DatabaseStorage implements IStorage {
     return newProject;
   }
 
-  async getProject(id: number): Promise<Project | undefined> {
+  async getProject(id: number | string): Promise<Project | undefined> {
     console.log(`Getting project with ID: ${id}`);
-    const result = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
-    return result[0] as Project | undefined;
+    const numId = typeof id === 'string' ? parseInt(id) : id;
+    
+    if (isNaN(numId)) {
+      console.log(`Invalid project ID (not a number): ${id}`);
+      return undefined;
+    }
+    
+    try {
+      const result = await db.select().from(projectsTable).where(eq(projectsTable.id, numId));
+      return result[0] as Project | undefined;
+    } catch (error) {
+      console.error(`Error fetching project ${id}:`, error);
+      return undefined;
+    }
   }
 
   async updateProject(id: number, updateData: Partial<Project>): Promise<Project> {
