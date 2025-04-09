@@ -36,7 +36,8 @@ export function setupProjectItemsImportRoutes(app: Router) {
     'Specification': 'specification',
     'Make': 'make',
     'Source Type': 'sourceType',
-    'Supplier': 'supplier'
+    'Supplier': 'supplier',
+    'Make or Buy': 'make_or_buy'    // Added to support the make_or_buy column
   };
 
   // Define the fields that are required
@@ -166,11 +167,14 @@ export function setupProjectItemsImportRoutes(app: Router) {
           const colLetter = String.fromCharCode(65 + colIndex);
           
           if (row[colLetter] !== undefined) {
-            // Convert to number for quantity field
+            // Handle quantity field - store as string in database
             if (field === 'quantity') {
-              item[field] = parseFloat(row[colLetter]);
-              if (isNaN(item[field])) {
-                item[field] = 0;
+              // Parse to number for validation, but store as string
+              const numValue = parseFloat(row[colLetter]);
+              if (isNaN(numValue)) {
+                item[field] = "0";
+              } else {
+                item[field] = numValue.toString();
               }
             } else {
               item[field] = row[colLetter].toString().trim();
@@ -200,21 +204,52 @@ export function setupProjectItemsImportRoutes(app: Router) {
             }
 
             if (existingItem) {
-              results.errors.push(`Row ${i+1}: Item code "${validItem.itemCode}" already exists for this project`);
-              results.skipped++;
+              // Update the existing item instead of skipping it
+              try {
+                // Prepare update data - remove itemCode and projectId as they shouldn't be updated
+                // Ensure all fields have the correct types
+                const { itemCode, projectId, projectCode, ...updateDataRaw } = validItem;
+                
+                // Convert all numeric fields to strings for database compatibility
+                const updateData: Record<string, any> = {};
+                for (const [key, value] of Object.entries(updateDataRaw)) {
+                  if (typeof value === 'number') {
+                    updateData[key] = value.toString();
+                  } else {
+                    updateData[key] = value;
+                  }
+                }
+                
+                // Update the project item with new data
+                console.log('Updating project item with data:', {
+                  id: existingItem.id,
+                  itemCode: validItem.itemCode,
+                  updateData
+                });
+                await storage.updateProjectItem(existingItem.id, updateData);
+                console.log('Updated existing project item:', validItem.itemCode);
+                results.imported++;
+              } catch (error) {
+                const updateError = error as Error;
+                console.error('Error updating project item:', updateError);
+                results.errors.push(`Row ${i+1}: Failed to update item - ${updateError.message || 'Unknown error'}`);
+                results.skipped++;
+              }
             } else {
               // Create the project item
               try {
                 await storage.createProjectItem(validItem);
                 console.log('Created new project item:', validItem.itemCode);
                 results.imported++;
-              } catch (createError) {
+              } catch (error) {
+                const createError = error as Error;
                 console.error('Error creating project item:', createError);
                 results.errors.push(`Row ${i+1}: Failed to create item - ${createError.message || 'Unknown error'}`);
                 results.skipped++;
               }
             }
-          } catch (checkError) {
+          } catch (error) {
+            const checkError = error as Error;
             console.error('General error in project item creation:', checkError);
             results.errors.push(`Row ${i+1}: System error - ${checkError.message || 'Unknown error'}`);
             results.skipped++;
