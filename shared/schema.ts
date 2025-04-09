@@ -338,6 +338,19 @@ export type InsertInternalMessage = z.infer<typeof insertInternalMessageSchema>;
 
 // ==================== PROJECT MANAGEMENT MODULE ====================
 
+// Customers table
+export const customers = pgTable('customers', {
+  id: serial('id').primaryKey(),
+  bpCode: text('bp_code').notNull().unique(),
+  bpName: text('bp_name').notNull(),
+  contactPerson: text('contact_person'),
+  email: text('email'),
+  continent: text('continent'),
+  countryName: text('country_name'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Projects table
 export const projects = pgTable('projects', {
   id: serial('id').primaryKey(),
@@ -348,7 +361,10 @@ export const projects = pgTable('projects', {
   priority: text('priority').notNull().default('Medium'), // Low, Medium, High
   financialYear: text('financial_year').notNull(), // e.g., "FY25-26"
   
-  // Client information
+  // Customer reference
+  customerId: integer('customer_id').references(() => customers.id),
+  
+  // Client information (legacy fields, will be replaced by customer reference)
   clientName: text('client_name'),
   clientContact: text('client_contact'),
   clientEmail: text('client_email'),
@@ -551,6 +567,8 @@ export const projectItems = pgTable('project_items', {
 });
 
 // Create insert schemas for project management tables
+export const insertCustomerSchema = createInsertSchema(customers);
+
 export const insertProjectSchema = createInsertSchema(projects, {
   tags: z.array(z.string()).optional(),
   estimatedBudget: z.number().optional(),
@@ -638,3 +656,6 @@ export type InsertPhaseApproval = z.infer<typeof insertPhaseApprovalSchema>;
 
 export type ProjectDocument = typeof projectDocuments.$inferSelect;
 export type InsertProjectDocument = z.infer<typeof insertProjectDocumentSchema>;
+
+export type Customer = typeof customers.$inferSelect;
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;

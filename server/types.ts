@@ -7,6 +7,7 @@ import {
   GmailToken, InsertGmailToken, GmailMessage, InsertGmailMessage, 
   GmailSettings, InsertGmailSettings,
   InternalMessage, InsertInternalMessage,
+  Customer, InsertCustomer,
   Project, InsertProject,
   ProjectPhase, InsertProjectPhase,
   ProjectMember, InsertProjectMember,
@@ -137,6 +138,14 @@ export interface IStorage {
   deleteInternalMessage(id: number): Promise<void>;
   
   // Project Management
+  // Customers
+  createCustomer(customer: InsertCustomer): Promise<Customer>;
+  getAllCustomers(): Promise<Customer[]>;
+  getCustomer(id: number): Promise<Customer | undefined>;
+  getCustomerByBPCode(bpCode: string): Promise<Customer | undefined>;
+  updateCustomer(id: number, updateData: Partial<Customer>): Promise<Customer>;
+  deleteCustomer(id: number): Promise<void>;
+  
   // Projects
   createProject(project: InsertProject): Promise<Project>;
   getProject(id: number): Promise<Project | undefined>;

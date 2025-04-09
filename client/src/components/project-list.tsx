@@ -60,6 +60,7 @@ const projectFormSchema = z.object({
   targetEndDate: z.string().refine(val => !isNaN(Date.parse(val)), {
     message: "Target end date must be a valid date"
   }),
+  customerId: z.number().optional(),
   client: z.string().optional(),
   budget: z.number().optional(),
   tags: z.array(z.string()).optional(),
@@ -150,6 +151,18 @@ export default function ProjectList() {
       return response.json();
     }
   });
+  
+  // Fetch customers for dropdown
+  const { data: customers } = useQuery({
+    queryKey: ["/api/customers"],
+    queryFn: async () => {
+      const response = await fetch("/api/customers");
+      if (!response.ok) {
+        throw new Error("Failed to fetch customers");
+      }
+      return response.json();
+    }
+  });
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: ProjectFormValues) => {
@@ -184,6 +197,7 @@ export default function ProjectList() {
       priority: "Medium",
       startDate: new Date().toISOString().split('T')[0],
       targetEndDate: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0],
+      customerId: undefined,
       client: "",
       budget: undefined,
       tags: [],
@@ -491,6 +505,34 @@ export default function ProjectList() {
                         )}
                       />
                     </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="customerId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Customer</FormLabel>
+                          <Select
+                            onValueChange={(value) => field.onChange(parseInt(value))}
+                            value={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select customer" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {customers?.map((customer) => (
+                                <SelectItem key={customer.id} value={customer.id.toString()}>
+                                  {customer.name} {customer.bpCode ? `(${customer.bpCode})` : ''}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     
                     <FormField
                       control={form.control}

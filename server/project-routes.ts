@@ -8,7 +8,8 @@ import {
   insertProjectTaskSchema,
   insertPhaseApprovalSchema,
   insertProjectDocumentSchema,
-  insertProjectItemSchema
+  insertProjectItemSchema,
+  insertCustomerSchema
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
 
@@ -888,6 +889,133 @@ export function setupProjectRoutes(app: express.Express) {
     } catch (error) {
       console.error(`Error deleting all items from project ${req.params.projectId}:`, error);
       res.status(500).json({ error: 'Failed to delete project items' });
+    }
+  });
+
+  // Customer Management Routes
+  app.get('/api/customers', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const customers = await storage.getAllCustomers();
+      res.json(customers);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      res.status(500).json({ error: 'Failed to fetch customers' });
+    }
+  });
+
+  app.get('/api/customers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const customerId = parseInt(req.params.id);
+      const customer = await storage.getCustomer(customerId);
+      
+      if (!customer) {
+        return res.status(404).json({ error: 'Customer not found' });
+      }
+      
+      res.json(customer);
+    } catch (error) {
+      console.error(`Error fetching customer ${req.params.id}:`, error);
+      res.status(500).json({ error: 'Failed to fetch customer details' });
+    }
+  });
+
+  app.post('/api/customers', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Check if the user has permission to create customers
+      if (!canManage(req.user!.role, 'Manager')) {
+        return res.status(403).json({ error: 'Not authorized to create customers' });
+      }
+      
+      const customerData = insertCustomerSchema.parse({
+        ...req.body,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Check if BP code already exists
+      if (customerData.bpCode) {
+        const existingCustomer = await storage.getCustomerByBPCode(customerData.bpCode);
+        if (existingCustomer) {
+          return res.status(400).json({ error: 'A customer with this BP code already exists' });
+        }
+      }
+      
+      const customer = await storage.createCustomer(customerData);
+      res.status(201).json(customer);
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      res.status(400).json({ error: 'Failed to create customer', details: error.message });
+    }
+  });
+
+  app.put('/api/customers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const customerId = parseInt(req.params.id);
+      
+      // Check if the user has permission to update customers
+      if (!canManage(req.user!.role, 'Manager')) {
+        return res.status(403).json({ error: 'Not authorized to update customers' });
+      }
+      
+      // Check if customer exists
+      const customer = await storage.getCustomer(customerId);
+      if (!customer) {
+        return res.status(404).json({ error: 'Customer not found' });
+      }
+      
+      // Check if BP code is being changed and if it already exists
+      if (req.body.bpCode && req.body.bpCode !== customer.bpCode) {
+        const existingCustomer = await storage.getCustomerByBPCode(req.body.bpCode);
+        if (existingCustomer && existingCustomer.id !== customerId) {
+          return res.status(400).json({ error: 'A customer with this BP code already exists' });
+        }
+      }
+      
+      // Update customer data
+      const updateData = {
+        ...req.body,
+        updatedAt: new Date().toISOString()
+      };
+      
+      const updatedCustomer = await storage.updateCustomer(customerId, updateData);
+      res.json(updatedCustomer);
+    } catch (error) {
+      console.error(`Error updating customer ${req.params.id}:`, error);
+      res.status(400).json({ error: 'Failed to update customer', details: error.message });
+    }
+  });
+
+  app.delete('/api/customers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const customerId = parseInt(req.params.id);
+      
+      // Check if the user has permission to delete customers
+      if (!canManage(req.user!.role, 'Senior Manager')) {
+        return res.status(403).json({ error: 'Not authorized to delete customers' });
+      }
+      
+      // Check if customer exists
+      const customer = await storage.getCustomer(customerId);
+      if (!customer) {
+        return res.status(404).json({ error: 'Customer not found' });
+      }
+      
+      // Check if customer is associated with any projects
+      const projects = await storage.getUserProjects(req.user!.id);
+      const associatedProjects = projects.filter(project => project.customerId === customerId);
+      
+      if (associatedProjects.length > 0) {
+        return res.status(400).json({ 
+          error: 'Cannot delete customer with associated projects', 
+          projects: associatedProjects.map(p => ({ id: p.id, name: p.name, code: p.code }))
+        });
+      }
+      
+      await storage.deleteCustomer(customerId);
+      res.status(204).send();
+    } catch (error) {
+      console.error(`Error deleting customer ${req.params.id}:`, error);
+      res.status(500).json({ error: 'Failed to delete customer' });
     }
   });
 }

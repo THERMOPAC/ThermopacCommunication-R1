@@ -19,7 +19,8 @@ import type {
   ProjectTask, InsertProjectTask,
   PhaseApproval, InsertPhaseApproval,
   ProjectDocument, InsertProjectDocument,
-  ProjectItem, InsertProjectItem
+  ProjectItem, InsertProjectItem,
+  Customer, InsertCustomer
 } from "@shared/schema";
 import { roleHierarchy, canManage } from "@shared/roles";
 import session from "express-session";
@@ -39,6 +40,7 @@ import {
   gmailMessages as gmailMessagesTable,
   gmailSettings as gmailSettingsTable,
   internalMessages as internalMessagesTable,
+  customers as customersTable,
   projects as projectsTable,
   projectPhases as projectPhasesTable,
   projectMembers as projectMembersTable,
@@ -72,6 +74,7 @@ export class DatabaseStorage implements IStorage {
   internalMessagesTable = internalMessagesTable;
   
   // Project Management tables
+  customersTable = customersTable;
   projectsTable = projectsTable;
   projectPhasesTable = projectPhasesTable;
   projectMembersTable = projectMembersTable;
@@ -1687,6 +1690,58 @@ export class DatabaseStorage implements IStorage {
   }
 
   // PROJECT MANAGEMENT IMPLEMENTATION
+  
+  // Customers
+  async createCustomer(customer: InsertCustomer): Promise<Customer> {
+    console.log(`Creating new customer:`, customer);
+    const result = await db.insert(customersTable).values(customer).returning();
+    const newCustomer = result[0] as Customer;
+    console.log(`Created customer:`, newCustomer);
+    return newCustomer;
+  }
+
+  async getAllCustomers(): Promise<Customer[]> {
+    console.log(`Getting all customers`);
+    const customers = await db.select().from(customersTable).orderBy(customersTable.bpName);
+    console.log(`Found ${customers.length} customers`);
+    return customers as Customer[];
+  }
+
+  async getCustomer(id: number): Promise<Customer | undefined> {
+    console.log(`Getting customer with ID: ${id}`);
+    const result = await db.select().from(customersTable).where(eq(customersTable.id, id));
+    const customer = result[0] as Customer | undefined;
+    console.log(`Found customer:`, customer);
+    return customer;
+  }
+
+  async getCustomerByBPCode(bpCode: string): Promise<Customer | undefined> {
+    console.log(`Looking for customer with BP code: ${bpCode}`);
+    const result = await db.select().from(customersTable).where(eq(customersTable.bpCode, bpCode));
+    const customer = result[0] as Customer | undefined;
+    console.log(`Found customer:`, customer);
+    return customer;
+  }
+
+  async updateCustomer(id: number, updateData: Partial<Customer>): Promise<Customer> {
+    console.log(`Updating customer ${id} with data:`, updateData);
+    const result = await db
+      .update(customersTable)
+      .set(updateData)
+      .where(eq(customersTable.id, id))
+      .returning();
+    const customer = result[0] as Customer;
+
+    if (!customer) throw new Error("Customer not found");
+    console.log(`Updated customer:`, customer);
+    return customer;
+  }
+
+  async deleteCustomer(id: number): Promise<void> {
+    console.log(`Deleting customer ${id}`);
+    await db.delete(customersTable).where(eq(customersTable.id, id));
+    console.log(`Deleted customer ${id}`);
+  }
   
   // Projects
   async createProject(project: InsertProject): Promise<Project> {
