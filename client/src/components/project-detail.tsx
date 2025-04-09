@@ -107,18 +107,20 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     console.log("Project Detail Component mounted with ID:", projectId);
   }, [projectId]);
   
-  // Keep some basic sanity check to handle completely missing IDs
-  if (!projectId) {
-    useEffect(() => {
+  // Handle missing project ID
+  useEffect(() => {
+    if (!projectId) {
       toast({
         title: "Missing Project ID",
         description: "No project ID was provided. Redirecting to the projects list.",
         variant: "destructive"
       });
       navigate("/projects");
-    }, []);
-    
-    // Return early to prevent any API calls with invalid ID
+    }
+  }, [projectId, navigate, toast]);
+  
+  // Return early to prevent any API calls with invalid ID
+  if (!projectId) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
