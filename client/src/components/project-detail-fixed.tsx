@@ -94,6 +94,8 @@ const editProjectSchema = z.object({
   status: z.enum(["planning", "active", "on_hold", "completed", "canceled"]),
   priority: z.enum(["High", "Medium", "Low"]),
   customerId: z.number().optional().nullable(),
+  startDate: z.string().min(1, "Start date is required"),
+  targetEndDate: z.string().min(1, "Target end date is required"),
 });
 
 // Form type for editing project
@@ -123,6 +125,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       status: "planning",
       priority: "Medium",
       customerId: null,
+      startDate: "",
+      targetEndDate: "",
     },
   });
   
@@ -183,6 +187,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         status: project.status || "planning",
         priority: project.priority || "Medium",
         customerId: project.customerId || null,
+        startDate: project.startDate || "",
+        targetEndDate: project.targetEndDate || "",
       });
     }
   }, [project, form]);
@@ -546,6 +552,42 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   </FormItem>
                 )}
               />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start Date</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="date" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="targetEndDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Target End Date</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="date" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <DialogFooter>
                 <Button 
