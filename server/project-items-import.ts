@@ -1,41 +1,34 @@
-import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import * as XLSX from 'xlsx';
+import { Router, Request, Response } from 'express';
+import { read, utils } from 'xlsx';
 import { storage } from './storage';
-import { InsertProjectItem } from '@shared/schema';
+import { insertProjectItemSchema } from '@shared/schema';
+import { z } from 'zod';
 
-// Define a function to check if a user is authenticated
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
     return next();
   }
-  res.status(401).send('Not authenticated');
+  res.status(401).json({ message: "Unauthorized" });
 }
 
-// Define a function to check if a user can manage project items
 function canManage(role: string): boolean {
-  return ['Superuser', 'General Manager', 'Senior Manager', 'Manager'].includes(role);
+  const managerRoles = ["Superuser", "General Manager", "Senior Manager", "Manager"];
+  return managerRoles.includes(role);
 }
 
 export function setupProjectItemsImportRoutes(app: Router) {
-  // Configure multer for memory storage
+  // Configure multer for file uploads
+  const storage = multer.memoryStorage();
   const upload = multer({ 
-    storage: multer.memoryStorage(),
+    storage: storage,
     limits: {
-      fileSize: 5 * 1024 * 1024, // 5MB limit
+      fileSize: 5 * 1024 * 1024 // 5MB max file size
     }
   });
 
-  // Define expected column headers and required fields
-  const EXPECTED_COLUMNS = [
-    'Item Code',
-    'Description',
-    'Quantity',
-    'UOM',
-  ];
-
-  // Define column mapping from Excel headers to database fields
-  const COLUMN_MAPPING: Record<string, keyof InsertProjectItem> = {
+  // Map Excel column names to project item fields
+  const columnMap: Record<string, string> = {
     'Item Code': 'itemCode',
     'Description': 'description',
     'Quantity': 'quantity',
@@ -46,7 +39,9 @@ export function setupProjectItemsImportRoutes(app: Router) {
     'Supplier': 'supplier'
   };
 
-  // Define the interface for the file in the request
+  // Define the fields that are required
+  const requiredFields = ['itemCode', 'description', 'quantity', 'uom'];
+
   interface File {
     fieldname: string;
     originalname: string;
@@ -56,132 +51,159 @@ export function setupProjectItemsImportRoutes(app: Router) {
     buffer: Buffer;
   }
 
-  // Extend the Request interface to include the file
   interface MulterRequest extends Request {
     file?: File;
     user?: any;
   }
 
-  // Set up the route for importing project items from Excel
   app.post('/api/projects/items/import-excel', ensureAuthenticated, upload.single('file'), async (req: MulterRequest, res: Response) => {
     try {
-      // Check if user role can manage project items
-      if (!req.user || !canManage(req.user.role)) {
-        return res.status(403).send('You do not have permission to import project items');
+      // Check if user has permissions to import project items
+      if (!canManage(req.user!.role)) {
+        return res.status(403).json({ message: "You don't have permission to import project items" });
       }
 
-      // Check if file was uploaded
+      // Check if file was provided
       if (!req.file) {
-        return res.status(400).send('No file uploaded');
+        return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Check if the file is an Excel file
-      if (!req.file.mimetype.includes('excel') && !req.file.originalname.match(/\.(xlsx|xls)$/)) {
-        return res.status(400).send('Only Excel files are allowed');
-      }
-
-      // Get project ID and code from the request
+      // Get the project ID and code from the request body
       const projectId = parseInt(req.body.projectId);
       const projectCode = req.body.projectCode;
 
-      if (!projectId || isNaN(projectId)) {
-        return res.status(400).send('Invalid project ID');
+      if (!projectId || !projectCode) {
+        return res.status(400).json({ message: "Project ID and project code are required" });
       }
 
-      if (!projectCode) {
-        return res.status(400).send('Project code is required');
+      // Check file type
+      const allowedMimeTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel'
+      ];
+
+      if (!allowedMimeTypes.includes(req.file.mimetype) && 
+          !req.file.originalname.endsWith('.xlsx') && 
+          !req.file.originalname.endsWith('.xls')) {
+        return res.status(400).json({ message: "Invalid file type. Only Excel files (.xlsx, .xls) are allowed." });
       }
 
-      // Read the Excel file
-      const workbook = XLSX.read(req.file.buffer);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const data = XLSX.utils.sheet_to_json<any>(worksheet);
+      const workbook = read(req.file.buffer, { type: 'buffer' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = utils.sheet_to_json(worksheet, { header: 'A' });
 
-      if (data.length === 0) {
-        return res.status(400).send('Excel file is empty');
+      if (data.length < 2) {
+        return res.status(400).json({ message: "The Excel file is empty or has no data rows" });
       }
 
-      // Validate the file has required columns
-      const firstRow = data[0];
-      const missingColumns = EXPECTED_COLUMNS.filter(col => !(col in firstRow));
-      
-      if (missingColumns.length > 0) {
-        return res.status(400).send(`Missing required columns: ${missingColumns.join(', ')}`);
+      // Extract header row (first row)
+      const headerRow: any = data[0];
+      const headers: Record<string, number> = {};
+
+      // Map Excel column letters to our field names
+      Object.keys(headerRow).forEach(key => {
+        const columnName = headerRow[key];
+        if (columnName && columnMap[columnName]) {
+          headers[columnMap[columnName]] = key.charCodeAt(0) - 65; // Convert A->0, B->1, etc.
+        }
+      });
+
+      // Check if all required fields are present
+      const missingFields = requiredFields.filter(field => !headers.hasOwnProperty(field));
+      if (missingFields.length > 0) {
+        return res.status(400).json({
+          message: `Missing required columns: ${missingFields.join(', ')}`,
+          requiredColumns: Object.keys(columnMap).filter(col => 
+            requiredFields.includes(columnMap[col])
+          ).join(', ')
+        });
       }
 
-      // Results tracking
+      // Skip the header row, process data rows
       const results = {
-        totalRecords: data.length,
+        totalRecords: data.length - 1,
         imported: 0,
         skipped: 0,
         errors: [] as string[]
       };
 
-      // Process each row
-      for (const row of data) {
-        try {
-          // Map Excel columns to database fields
-          const item: Partial<InsertProjectItem> = {
-            projectId,
-            projectCode,
-          };
+      // Prepare items for import
+      for (let i = 1; i < data.length; i++) {
+        const row: any = data[i];
+        
+        // Skip empty rows
+        if (!row['A']) {
+          results.skipped++;
+          continue;
+        }
 
-          // Map each column
-          for (const [excelCol, dbField] of Object.entries(COLUMN_MAPPING)) {
-            if (excelCol in row) {
-              // Handle numeric fields
-              if (dbField === 'quantity') {
-                item[dbField] = parseFloat(row[excelCol]);
-                if (isNaN(item[dbField] as number)) {
-                  throw new Error(`Invalid quantity value for item code "${row['Item Code']}"`);
-                }
-              } else {
-                item[dbField] = row[excelCol]?.toString()?.trim();
+        // Create item object from row data
+        const item: Record<string, any> = {
+          projectId,
+          projectCode,
+          itemCode: '',
+          description: '',
+          quantity: 0,
+          uom: ''
+        };
+
+        // Extract data using the headers mapping
+        for (const [field, colIndex] of Object.entries(headers)) {
+          const colLetter = String.fromCharCode(65 + colIndex);
+          
+          if (row[colLetter] !== undefined) {
+            // Convert to number for quantity field
+            if (field === 'quantity') {
+              item[field] = parseFloat(row[colLetter]);
+              if (isNaN(item[field])) {
+                item[field] = 0;
               }
+            } else {
+              item[field] = row[colLetter].toString().trim();
             }
           }
+        }
 
-          // Validate required fields
-          if (!item.itemCode) {
-            throw new Error('Item Code is required');
-          }
-
-          if (!item.description) {
-            throw new Error(`Description is required for item code "${item.itemCode}"`);
-          }
-
-          if (item.quantity === undefined || item.quantity <= 0) {
-            throw new Error(`Quantity must be greater than 0 for item code "${item.itemCode}"`);
-          }
-
-          if (!item.uom) {
-            throw new Error(`UOM is required for item code "${item.itemCode}"`);
-          }
-
-          // Check if item with same code already exists in this project
-          const existingItem = await storage.getProjectItemByCodeAndProject(item.itemCode!, projectCode);
+        try {
+          // Validate against the schema
+          const validItem = insertProjectItemSchema.parse(item);
           
-          if (existingItem) {
-            results.skipped++;
-            results.errors.push(`Item with code "${item.itemCode}" already exists in this project`);
-            continue;
-          }
+          // Check if this item code already exists for this project
+          const existingItem = await storage.getProjectItemByCodeAndProject(
+            validItem.itemCode, 
+            validItem.projectId
+          );
 
-          // Create the project item
-          await storage.createProjectItem(item as InsertProjectItem);
-          results.imported++;
-        } catch (error: any) {
+          if (existingItem) {
+            results.errors.push(`Row ${i+1}: Item code "${validItem.itemCode}" already exists for this project`);
+            results.skipped++;
+          } else {
+            // Create the project item
+            await storage.createProjectItem(validItem);
+            results.imported++;
+          }
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            const errorMessages = error.errors.map(err => 
+              `Row ${i+1}: ${err.path.join('.')} - ${err.message}`
+            );
+            results.errors.push(...errorMessages);
+          } else {
+            results.errors.push(`Row ${i+1}: ${(error as Error).message || 'Unknown error'}`);
+          }
           results.skipped++;
-          results.errors.push(error.message || 'Unknown error processing row');
         }
       }
 
-      return res.status(200).json({ results });
-
-    } catch (error: any) {
+      console.log(`Project items import completed: ${results.imported} imported, ${results.skipped} skipped`);
+      res.status(200).json({ results });
+      
+    } catch (error) {
       console.error('Error importing project items:', error);
-      return res.status(500).send(error.message || 'An error occurred during import');
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : 'Error importing project items',
+        error: process.env.NODE_ENV === 'development' ? error : undefined
+      });
     }
   });
 }

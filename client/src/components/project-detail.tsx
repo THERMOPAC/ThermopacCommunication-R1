@@ -58,7 +58,7 @@ import {
   FileSpreadsheet,
   Boxes
 } from "lucide-react";
-import ProjectItemsImport from "./project-items-import";
+import { ProjectItemsImport } from "@/components/project-items-import";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ProjectDetail() {
@@ -880,6 +880,14 @@ export default function ProjectDetail() {
             onOpenChange={setIsItemsImportOpen}
             projectId={projectId}
             projectCode={project.code}
+            onImportComplete={() => {
+              // Refetch project items after import is completed
+              queryClient.invalidateQueries([`/api/projects/${projectId}/items`]);
+              toast({
+                title: "Items imported successfully",
+                description: "The project items have been updated.",
+              });
+            }}
           />
         </TabsContent>
         

@@ -194,6 +194,7 @@ export interface IStorage {
   getProjectItems(projectId: number): Promise<ProjectItem[]>;
   getProjectItemsByCode(projectCode: string): Promise<ProjectItem[]>;
   getProjectItem(id: number): Promise<ProjectItem | undefined>;
+  getProjectItemByCodeAndProject(itemCode: string, projectId: number): Promise<ProjectItem | undefined>;
   updateProjectItem(id: number, updateData: Partial<ProjectItem>): Promise<ProjectItem>;
   deleteProjectItem(id: number): Promise<void>;
   deleteProjectItems(projectId: number): Promise<number>;

@@ -2144,15 +2144,15 @@ export class DatabaseStorage implements IStorage {
     return result[0] as ProjectItem | undefined;
   }
   
-  async getProjectItemByCodeAndProject(itemCode: string, projectCode: string): Promise<ProjectItem | undefined> {
-    console.log(`Checking for item with code ${itemCode} in project ${projectCode}`);
+  async getProjectItemByCodeAndProject(itemCode: string, projectId: number): Promise<ProjectItem | undefined> {
+    console.log(`Checking for item with code ${itemCode} in project ${projectId}`);
     const result = await db
       .select()
       .from(projectItemsTable)
       .where(
         and(
           eq(projectItemsTable.itemCode, itemCode),
-          eq(projectItemsTable.projectCode, projectCode)
+          eq(projectItemsTable.projectId, projectId)
         )
       );
     return result[0] as ProjectItem | undefined;
