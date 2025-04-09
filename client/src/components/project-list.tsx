@@ -541,7 +541,7 @@ export default function ProjectList() {
                             <SelectContent>
                               {customers?.map((customer) => (
                                 <SelectItem key={customer.id} value={customer.id.toString()}>
-                                  {customer.name} {customer.bpCode ? `(${customer.bpCode})` : ''}
+                                  {customer.bpName} {customer.bpCode ? `(${customer.bpCode})` : ''}
                                 </SelectItem>
                               ))}
                             </SelectContent>
