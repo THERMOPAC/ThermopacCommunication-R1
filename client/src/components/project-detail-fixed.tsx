@@ -928,6 +928,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 </TabsContent>
               </Tabs>
               
+              {/* Add Project Items Import Dialog inside the Edit Project dialog */}
+              <ProjectItemsImport 
+                projectId={projectId} 
+                projectCode={project?.code || ''}
+                open={isItemsImportOpen}
+                onOpenChange={setIsItemsImportOpen}
+                onImportComplete={() => {
+                  setIsItemsImportOpen(false);
+                  // Invalidate the project items query to refresh the data
+                  queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/items`] });
+                }}
+              />
+
               <DialogFooter>
                 <Button 
                   type="button" 
