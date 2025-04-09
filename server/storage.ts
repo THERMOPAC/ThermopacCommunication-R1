@@ -19,6 +19,7 @@ import type {
   ProjectTask, InsertProjectTask,
   PhaseApproval, InsertPhaseApproval,
   ProjectDocument, InsertProjectDocument,
+  MasterItem, InsertMasterItem,
   ProjectItem, InsertProjectItem,
   Customer, InsertCustomer
 } from "@shared/schema";
@@ -48,6 +49,7 @@ import {
   projectTasks as projectTasksTable,
   phaseApprovals as phaseApprovalsTable,
   projectDocuments as projectDocumentsTable,
+  masterItems as masterItemsTable,
   projectItems as projectItemsTable
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
@@ -82,6 +84,7 @@ export class DatabaseStorage implements IStorage {
   projectTasksTable = projectTasksTable;
   phaseApprovalsTable = phaseApprovalsTable;
   projectDocumentsTable = projectDocumentsTable;
+  masterItemsTable = masterItemsTable;
   projectItemsTable = projectItemsTable;
 
   constructor() {
@@ -2196,6 +2199,59 @@ export class DatabaseStorage implements IStorage {
     return document;
   }
 
+  // Master Items CRUD methods
+  async createMasterItem(item: InsertMasterItem): Promise<MasterItem> {
+    console.log(`Creating new master item:`, item);
+    const result = await db.insert(masterItemsTable).values(item).returning();
+    const masterItem = result[0] as MasterItem;
+    console.log(`Created master item:`, masterItem);
+    return masterItem;
+  }
+
+  async getMasterItemByCode(itemCode: string): Promise<MasterItem | undefined> {
+    console.log(`Looking for master item with code: ${itemCode}`);
+    const result = await db
+      .select()
+      .from(masterItemsTable)
+      .where(eq(masterItemsTable.itemCode, itemCode));
+    return result[0] as MasterItem | undefined;
+  }
+
+  async getMasterItem(id: number): Promise<MasterItem | undefined> {
+    console.log(`Getting master item with ID: ${id}`);
+    const result = await db
+      .select()
+      .from(masterItemsTable)
+      .where(eq(masterItemsTable.id, id));
+    return result[0] as MasterItem | undefined;
+  }
+
+  async getAllMasterItems(): Promise<MasterItem[]> {
+    console.log(`Getting all master items`);
+    const items = await db
+      .select()
+      .from(masterItemsTable)
+      .orderBy(masterItemsTable.id);
+    
+    console.log(`Found ${items.length} master items`);
+    return items as MasterItem[];
+  }
+
+  async updateMasterItem(id: number, updateData: Partial<MasterItem>): Promise<MasterItem> {
+    console.log(`Updating master item ${id} with data:`, updateData);
+    const result = await db
+      .update(masterItemsTable)
+      .set(updateData)
+      .where(eq(masterItemsTable.id, id))
+      .returning();
+    
+    const item = result[0] as MasterItem;
+    if (!item) throw new Error("Master item not found");
+    
+    console.log(`Updated master item:`, item);
+    return item;
+  }
+
   // Project Items CRUD methods
   async createProjectItem(item: InsertProjectItem): Promise<ProjectItem> {
     console.log(`Creating new project item:`, item);
@@ -2235,14 +2291,14 @@ export class DatabaseStorage implements IStorage {
     return result[0] as ProjectItem | undefined;
   }
   
-  async getProjectItemByCodeAndProject(itemCode: string, projectId: number): Promise<ProjectItem | undefined> {
-    console.log(`Checking for item with code ${itemCode} in project ${projectId}`);
+  async getProjectItemByItemIdAndProject(itemId: number, projectId: number): Promise<ProjectItem | undefined> {
+    console.log(`Checking for item with ID ${itemId} in project ${projectId}`);
     const result = await db
       .select()
       .from(projectItemsTable)
       .where(
         and(
-          eq(projectItemsTable.itemCode, itemCode),
+          eq(projectItemsTable.itemId, itemId),
           eq(projectItemsTable.projectId, projectId)
         )
       );

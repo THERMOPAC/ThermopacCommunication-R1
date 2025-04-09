@@ -2,8 +2,9 @@ import multer from 'multer';
 import { Router, Request, Response } from 'express';
 import { read, utils } from 'xlsx';
 import { storage } from './storage';
-import { insertProjectItemSchema } from '@shared/schema';
+import { insertProjectItemSchema, insertMasterItemSchema } from '@shared/schema';
 import { z } from 'zod';
+// No need to import Express type, we'll use any for MulterFile
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
@@ -43,17 +44,18 @@ export function setupProjectItemsImportRoutes(app: Router) {
   // Define the fields that are required
   const requiredFields = ['itemCode', 'description', 'quantity', 'uom'];
 
-  interface File {
+  // Define a simple file interface to handle multer uploads
+  interface MulterFile {
     fieldname: string;
     originalname: string;
     encoding: string;
     mimetype: string;
-    size: number;
     buffer: Buffer;
+    size: number;
   }
-
+  
   interface MulterRequest extends Request {
-    file?: File;
+    file?: MulterFile;
     user?: any;
   }
 
@@ -152,117 +154,150 @@ export function setupProjectItemsImportRoutes(app: Router) {
           continue;
         }
 
-        // Create item object from row data
-        const item: Record<string, any> = {
-          projectId,
-          projectCode,
-          itemCode: '',
-          description: '',
-          quantity: 0,
-          uom: ''
-        };
-
-        // Extract data using the headers mapping
+        // Extract raw data from Excel
+        const rawItemData: Record<string, any> = {};
         for (const [field, colIndex] of Object.entries(headers)) {
           const colLetter = String.fromCharCode(65 + colIndex);
           
           if (row[colLetter] !== undefined) {
-            // Handle quantity field - store as string in database
             if (field === 'quantity') {
-              // Parse to number for validation, but store as string
+              // Parse quantity to number
               const numValue = parseFloat(row[colLetter]);
-              if (isNaN(numValue)) {
-                item[field] = "0";
-              } else {
-                item[field] = numValue.toString();
-              }
+              rawItemData[field] = isNaN(numValue) ? 0 : numValue;
             } else {
-              item[field] = row[colLetter].toString().trim();
+              rawItemData[field] = row[colLetter].toString().trim();
             }
           }
         }
 
         try {
-          // Validate against the schema
-          const validItem = insertProjectItemSchema.parse(item);
-          
-          // Check if this item code already exists for this project
-          try {
-            // Try to see if a method for checking duplicate items exists
-            let existingItem = null;
-            
+          // First check if we have a master item with this code
+          const itemCode = rawItemData.itemCode;
+          if (!itemCode) {
+            results.errors.push(`Row ${i+1}: Missing item code`);
+            results.skipped++;
+            continue;
+          }
+
+          // Step 1: Check if the master item exists or needs to be created
+          let masterItem = await storage.getMasterItemByCode(itemCode);
+          let masterItemId: number;
+
+          if (!masterItem) {
+            // Create new master item
+            const masterItemData = {
+              itemCode: rawItemData.itemCode,
+              description: rawItemData.description,
+              specification: rawItemData.specification || null,
+              uom: rawItemData.uom,
+              makeOrBuy: rawItemData.make_or_buy || null,
+              supplier: rawItemData.supplier || null,
+              notes: rawItemData.notes || null,
+              standardCost: rawItemData.standardCost || null
+            };
+
             try {
-              existingItem = await storage.getProjectItemByCodeAndProject(
-                validItem.itemCode, 
-                validItem.projectId
-              );
-              console.log('Found existing item check result:', existingItem);
-            } catch (lookupError) {
-              console.error('Error looking up existing item:', lookupError);
-              // If the method doesn't exist, we'll proceed with creation
-              existingItem = null;
+              // Validate master item data
+              const validMasterItem = insertMasterItemSchema.parse(masterItemData);
+              
+              // Create the master item
+              masterItem = await storage.createMasterItem(validMasterItem);
+              console.log('Created new master item:', masterItem.itemCode);
+              masterItemId = masterItem.id;
+            } catch (error) {
+              console.error('Error creating master item:', error);
+              if (error instanceof z.ZodError) {
+                const errorMessages = error.errors.map(err => 
+                  `Row ${i+1}: ${err.path.join('.')} - ${err.message} (master item)`
+                );
+                results.errors.push(...errorMessages);
+              } else {
+                results.errors.push(`Row ${i+1}: ${(error as Error).message || 'Unknown error'} (master item)`);
+              }
+              results.skipped++;
+              continue;
             }
+          } else {
+            // Use existing master item
+            masterItemId = masterItem.id;
+            console.log('Using existing master item:', masterItem.itemCode, 'with ID:', masterItemId);
+          }
+
+          // Step: 2 Create or update the project item referencing the master item
+          const projectItemData = {
+            projectId,
+            projectCode,
+            itemId: masterItemId,
+            quantity: rawItemData.quantity,
+            estimatedCost: rawItemData.estimatedCost || null,
+            actualCost: rawItemData.actualCost || null,
+            notes: rawItemData.notes || null
+          };
+
+          try {
+            // Validate project item data
+            const validProjectItem = insertProjectItemSchema.parse(projectItemData);
+            
+            // Check if this item already exists for this project
+            const existingItem = await storage.getProjectItemByItemIdAndProject(
+              masterItemId,
+              projectId
+            );
 
             if (existingItem) {
               // Update the existing item instead of skipping it
-              try {
-                // Prepare update data - remove itemCode and projectId as they shouldn't be updated
-                // Ensure all fields have the correct types
-                const { itemCode, projectId, projectCode, ...updateDataRaw } = validItem;
-                
-                // Convert all numeric fields to strings for database compatibility
-                const updateData: Record<string, any> = {};
-                for (const [key, value] of Object.entries(updateDataRaw)) {
-                  if (typeof value === 'number') {
-                    updateData[key] = value.toString();
-                  } else {
-                    updateData[key] = value;
-                  }
+              const { projectId, projectCode, itemId, ...updateDataRaw } = validProjectItem;
+              
+              // Convert numeric values to strings for compatibility with database schema
+              const updateData: Record<string, any> = {};
+              for (const [key, value] of Object.entries(updateDataRaw)) {
+                if (typeof value === 'number') {
+                  updateData[key] = value.toString();
+                } else {
+                  updateData[key] = value;
                 }
-                
-                // Update the project item with new data
-                console.log('Updating project item with data:', {
-                  id: existingItem.id,
-                  itemCode: validItem.itemCode,
-                  updateData
-                });
-                await storage.updateProjectItem(existingItem.id, updateData);
-                console.log('Updated existing project item:', validItem.itemCode);
-                results.imported++;
-              } catch (error) {
-                const updateError = error as Error;
-                console.error('Error updating project item:', updateError);
-                results.errors.push(`Row ${i+1}: Failed to update item - ${updateError.message || 'Unknown error'}`);
-                results.skipped++;
               }
+              
+              console.log('Updating project item with data:', {
+                id: existingItem.id,
+                itemId: masterItemId,
+                updateData
+              });
+              
+              await storage.updateProjectItem(existingItem.id, updateData);
+              console.log('Updated existing project item for master item ID:', masterItemId);
+              results.imported++;
             } else {
-              // Create the project item
-              try {
-                await storage.createProjectItem(validItem);
-                console.log('Created new project item:', validItem.itemCode);
-                results.imported++;
-              } catch (error) {
-                const createError = error as Error;
-                console.error('Error creating project item:', createError);
-                results.errors.push(`Row ${i+1}: Failed to create item - ${createError.message || 'Unknown error'}`);
-                results.skipped++;
+              // Create new project item
+              // Convert numeric values to strings for database schema compatibility
+              const createData: Record<string, any> = {};
+              for (const [key, value] of Object.entries(validProjectItem)) {
+                if (typeof value === 'number') {
+                  createData[key] = value.toString();
+                } else {
+                  createData[key] = value;
+                }
               }
+              // Use type assertion to bypass type checking since we've explicitly converted values
+              await storage.createProjectItem(createData as any);
+              console.log('Created new project item for master item ID:', masterItemId);
+              results.imported++;
             }
           } catch (error) {
-            const checkError = error as Error;
-            console.error('General error in project item creation:', checkError);
-            results.errors.push(`Row ${i+1}: System error - ${checkError.message || 'Unknown error'}`);
+            console.error('Error with project item:', error);
+            if (error instanceof z.ZodError) {
+              const errorMessages = error.errors.map(err => 
+                `Row ${i+1}: ${err.path.join('.')} - ${err.message} (project item)`
+              );
+              results.errors.push(...errorMessages);
+            } else {
+              results.errors.push(`Row ${i+1}: ${(error as Error).message || 'Unknown error'} (project item)`);
+            }
             results.skipped++;
           }
         } catch (error) {
-          if (error instanceof z.ZodError) {
-            const errorMessages = error.errors.map(err => 
-              `Row ${i+1}: ${err.path.join('.')} - ${err.message}`
-            );
-            results.errors.push(...errorMessages);
-          } else {
-            results.errors.push(`Row ${i+1}: ${(error as Error).message || 'Unknown error'}`);
-          }
+          console.error('General error in item processing:', error);
+          results.errors.push(`Row ${i+1}: System error - ${(error as Error).message || 'Unknown error'}`);
           results.skipped++;
         }
       }

@@ -542,23 +542,38 @@ export const projectDocuments = pgTable('project_documents', {
 });
 
 // Project items table for storing up to 50 items per project
-export const projectItems = pgTable('project_items', {
+// Master items catalog
+export const masterItems = pgTable('master_items', {
   id: serial('id').primaryKey(),
-  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  projectCode: text('project_code').notNull(), // Reference to the project code for quicker lookups
   
   // Item details
   itemCode: text('item_code').notNull().unique(), // Item code (required and unique)
   description: text('description').notNull(),
   specification: text('specification'),
-  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
   uom: text('uom').notNull(), // Unit of Measurement (e.g., Nos, Kg, Meter)
   makeOrBuy: text('make_or_buy'), // Whether this item is made in-house or purchased
   
   // Additional details
+  standardCost: decimal('standard_cost', { precision: 12, scale: 2 }),
+  supplier: text('supplier'),
+  notes: text('notes'),
+  
+  // Tracking
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Project-specific items (linking projects to master items)
+export const projectItems = pgTable('project_items', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectCode: text('project_code').notNull(), // Reference to the project code for quicker lookups
+  itemId: integer('item_id').notNull().references(() => masterItems.id),
+  
+  // Project-specific details
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
   estimatedCost: decimal('estimated_cost', { precision: 12, scale: 2 }),
   actualCost: decimal('actual_cost', { precision: 12, scale: 2 }),
-  supplier: text('supplier'),
   notes: text('notes'),
   
   // Tracking
@@ -568,6 +583,17 @@ export const projectItems = pgTable('project_items', {
 
 // Create insert schemas for project management tables
 export const insertCustomerSchema = createInsertSchema(customers);
+
+// Master item insert schema
+export const insertMasterItemSchema = createInsertSchema(masterItems, {
+  itemCode: z.string().min(1),
+  description: z.string().min(1),
+  uom: z.string().min(1),
+  makeOrBuy: z.enum(['Make', 'Buy']).optional(),
+  standardCost: z.number().optional(),
+  supplier: z.string().optional(),
+  notes: z.string().optional(),
+});
 
 export const insertProjectSchema = createInsertSchema(projects, {
   tags: z.array(z.string()).optional(),
@@ -624,19 +650,18 @@ export const insertProjectDocumentSchema = createInsertSchema(projectDocuments, 
 
 // Project item insert schema
 export const insertProjectItemSchema = createInsertSchema(projectItems, {
-  itemCode: z.string().min(1),
+  itemId: z.number().positive(),
   quantity: z.number().positive(),
-  uom: z.string().min(1),
-  makeOrBuy: z.enum(['Make', 'Buy']).optional(),
   estimatedCost: z.number().optional(),
   actualCost: z.number().optional(),
-  supplier: z.string().optional(),
   notes: z.string().optional(),
 });
 
 // Define types for project management tables
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type MasterItem = typeof masterItems.$inferSelect;
+export type InsertMasterItem = z.infer<typeof insertMasterItemSchema>;
 export type ProjectItem = typeof projectItems.$inferSelect;
 export type InsertProjectItem = z.infer<typeof insertProjectItemSchema>;
 
