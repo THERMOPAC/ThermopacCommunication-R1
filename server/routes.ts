@@ -12,6 +12,7 @@ import { setupGoogleAuth } from "./google-auth";
 import { setupInternalMessagesRoutes } from "./internal-messages-routes";
 import { setupProjectRoutes } from "./project-routes";
 import { setupCustomerImportRoutes } from "./customer-import";
+import { setupProjectItemsImportRoutes } from "./project-items-import";
 import { hashPassword as updatePasswordHash } from "./update-password";
 
 const scryptAsync = promisify(scrypt);
@@ -46,6 +47,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up customer import routes
   setupCustomerImportRoutes(app);
+  
+  // Set up project items import routes
+  setupProjectItemsImportRoutes(app);
 
   // Logout endpoint with proper error handling
   app.post("/api/logout", (req, res) => {

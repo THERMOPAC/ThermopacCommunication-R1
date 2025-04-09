@@ -54,8 +54,11 @@ import {
   Plus,
   AlertCircle,
   CheckCircle,
-  XCircle 
+  XCircle,
+  FileSpreadsheet,
+  Boxes
 } from "lucide-react";
+import ProjectItemsImport from "./project-items-import";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ProjectDetail() {
@@ -65,6 +68,7 @@ export default function ProjectDetail() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
+  const [isItemsImportOpen, setIsItemsImportOpen] = useState(false);
 
   const { data: project, isLoading: isLoadingProject, error: projectError } = useQuery({
     queryKey: [`/api/projects/${projectId}`],
@@ -107,6 +111,18 @@ export default function ProjectDetail() {
       const response = await fetch(`/api/projects/${projectId}/tasks`);
       if (!response.ok) {
         throw new Error("Failed to fetch project tasks");
+      }
+      return response.json();
+    },
+    enabled: !!project
+  });
+  
+  const { data: projectItems, isLoading: isLoadingItems } = useQuery({
+    queryKey: [`/api/projects/${projectId}/items`],
+    queryFn: async () => {
+      const response = await fetch(`/api/projects/${projectId}/items`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch project items");
       }
       return response.json();
     },
@@ -404,6 +420,7 @@ export default function ProjectDetail() {
       >
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="phases">Phases</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
@@ -784,6 +801,86 @@ export default function ProjectDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="details">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Project Items</CardTitle>
+                <CardDescription>Manage items for this project</CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsItemsImportOpen(true)}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" /> Import Project Items
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {isLoadingItems ? (
+                <div className="flex justify-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              ) : projectItems?.length ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item Code</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Specification</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>UOM</TableHead>
+                      <TableHead>Make</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {projectItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.itemCode}</TableCell>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell>{item.specification || '-'}</TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{item.uom}</TableCell>
+                        <TableCell>{item.make || '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {item.sourceType || 'Unknown'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm">Edit</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center p-8 border rounded-lg">
+                  <Boxes className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No items found for this project.</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    You can import items from an Excel file or add them manually.
+                  </p>
+                  <Button 
+                    onClick={() => setIsItemsImportOpen(true)}
+                    className="mr-2"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2" /> Import Items
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <ProjectItemsImport 
+            open={isItemsImportOpen}
+            onOpenChange={setIsItemsImportOpen}
+            projectId={projectId}
+            projectCode={project.code}
+          />
         </TabsContent>
         
         <TabsContent value="documents">
