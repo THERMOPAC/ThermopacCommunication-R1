@@ -1054,7 +1054,18 @@ export default function ProjectList() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => navigate(`/projects/${project.id}`)}
+                  onClick={() => {
+                    // Validate project ID before navigation
+                    if (project.id && !isNaN(Number(project.id))) {
+                      navigate(`/projects/${project.id}`);
+                    } else {
+                      toast({
+                        title: "Invalid Project ID",
+                        description: "Unable to open this project due to an invalid ID.",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
                 >
                   View Details
                 </Button>
