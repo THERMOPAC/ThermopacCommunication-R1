@@ -63,12 +63,24 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const projectId = parseInt(id);
+  const projectId = parseInt(id || '');
   const [_, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [isItemsImportOpen, setIsItemsImportOpen] = useState(false);
+  
+  // Redirect to the projects list if projectId is invalid
+  React.useEffect(() => {
+    if (isNaN(projectId)) {
+      toast({
+        title: "Invalid Project ID",
+        description: "The project ID is not valid. Redirecting to the projects list.",
+        variant: "destructive"
+      });
+      navigate("/projects");
+    }
+  }, [projectId, navigate, toast]);
 
   const { data: project, isLoading: isLoadingProject, error: projectError } = useQuery({
     queryKey: [`/api/projects/${projectId}`],
