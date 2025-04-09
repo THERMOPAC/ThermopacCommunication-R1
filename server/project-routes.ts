@@ -209,39 +209,21 @@ export function setupProjectRoutes(app: express.Express) {
       // Base update data
       const updateData: any = { ...cleanRequestBody };
       
-      // Ensure dates are in the correct format
-      if (updateData.startDate && !(updateData.startDate instanceof Date)) {
-        try {
-          // If it's a string representing a date, convert it to a Date object
-          const dateValue = new Date(updateData.startDate);
-          if (!isNaN(dateValue.getTime())) {
-            updateData.startDate = dateValue;
-          } else {
-            delete updateData.startDate; // Remove invalid date
-          }
-        } catch (e) {
-          console.error("Error parsing startDate:", e);
-          delete updateData.startDate; // Remove invalid date
-        }
+      // Pass through dates as strings - they'll be handled by the storage.updateProject method
+      if (updateData.startDate) {
+        console.log("startDate type:", typeof updateData.startDate);
+        console.log("startDate value:", updateData.startDate);
+        // Don't try to convert to Date, pass as-is
       }
       
-      if (updateData.targetEndDate && !(updateData.targetEndDate instanceof Date)) {
-        try {
-          // If it's a string representing a date, convert it to a Date object
-          const dateValue = new Date(updateData.targetEndDate);
-          if (!isNaN(dateValue.getTime())) {
-            updateData.targetEndDate = dateValue;
-          } else {
-            delete updateData.targetEndDate; // Remove invalid date
-          }
-        } catch (e) {
-          console.error("Error parsing targetEndDate:", e);
-          delete updateData.targetEndDate; // Remove invalid date
-        }
+      if (updateData.targetEndDate) {
+        console.log("targetEndDate type:", typeof updateData.targetEndDate);
+        console.log("targetEndDate value:", updateData.targetEndDate);
+        // Don't try to convert to Date, pass as-is
       }
       
-      // Add updated timestamp - explicitly create as a Date object
-      updateData.updatedAt = new Date();
+      // Add updated timestamp as ISO string
+      updateData.updatedAt = new Date().toISOString();
       
       console.log("Final clean update data:", updateData);
       

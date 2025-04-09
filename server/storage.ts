@@ -1888,12 +1888,8 @@ export class DatabaseStorage implements IStorage {
   async getProjectPhases(projectId: number): Promise<ProjectPhase[]> {
     console.log(`Getting phases for project ${projectId}`);
     try {
-      // Use direct SQL query to avoid ORM issues
-      const query = `
-        SELECT * FROM project_phases 
-        WHERE "projectId" = $1 
-        ORDER BY "id"
-      `;
+      // Use simpler SQL query to avoid syntax issues
+      const query = `SELECT * FROM project_phases WHERE "projectId" = $1 ORDER BY id`;
       
       const { rows } = await pool.query(query, [projectId]);
       
@@ -2045,12 +2041,8 @@ export class DatabaseStorage implements IStorage {
   async getProjectTasks(projectId: number): Promise<ProjectTask[]> {
     console.log(`Getting tasks for project ${projectId}`);
     try {
-      // Use direct SQL query to avoid ORM issues
-      const query = `
-        SELECT * FROM project_tasks 
-        WHERE "projectId" = $1 
-        ORDER BY "id"
-      `;
+      // Use simpler SQL query to avoid syntax issues
+      const query = `SELECT * FROM project_tasks WHERE "projectId" = $1 ORDER BY id`;
       
       const { rows } = await pool.query(query, [projectId]);
       
@@ -2065,12 +2057,8 @@ export class DatabaseStorage implements IStorage {
   async getPhaseProjectTasks(phaseId: number): Promise<ProjectTask[]> {
     console.log(`Getting tasks for phase ${phaseId}`);
     try {
-      // Use direct SQL query to avoid ORM issues
-      const query = `
-        SELECT * FROM project_tasks 
-        WHERE "phaseId" = $1 
-        ORDER BY "id"
-      `;
+      // Use simpler SQL query to avoid syntax issues
+      const query = `SELECT * FROM project_tasks WHERE "phaseId" = $1 ORDER BY id`;
       
       const { rows } = await pool.query(query, [phaseId]);
       
