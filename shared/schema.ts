@@ -589,10 +589,11 @@ export const insertMasterItemSchema = createInsertSchema(masterItems, {
   itemCode: z.string().min(1),
   description: z.string().min(1),
   uom: z.string().min(1),
-  makeOrBuy: z.enum(['Make', 'Buy']).optional(),
-  standardCost: z.number().optional(),
-  supplier: z.string().optional(),
-  notes: z.string().optional(),
+  makeOrBuy: z.enum(['Make', 'Buy']).nullable().optional().transform(v => v === null ? undefined : v),
+  standardCost: z.number().nullable().optional().transform(v => v === null ? undefined : v),
+  supplier: z.string().nullable().optional().transform(v => v === null ? '' : v),
+  notes: z.string().nullable().optional().transform(v => v === null ? '' : v),
+  specification: z.string().nullable().optional().transform(v => v === null ? '' : v),
 });
 
 export const insertProjectSchema = createInsertSchema(projects, {
@@ -652,9 +653,9 @@ export const insertProjectDocumentSchema = createInsertSchema(projectDocuments, 
 export const insertProjectItemSchema = createInsertSchema(projectItems, {
   itemId: z.number().positive(),
   quantity: z.number().positive(),
-  estimatedCost: z.number().optional(),
-  actualCost: z.number().optional(),
-  notes: z.string().optional(),
+  estimatedCost: z.number().nullable().optional().transform(v => v === null ? undefined : v),
+  actualCost: z.number().nullable().optional().transform(v => v === null ? undefined : v),
+  notes: z.string().nullable().optional().transform(v => v === null ? '' : v),
 });
 
 // Define types for project management tables

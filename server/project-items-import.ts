@@ -185,12 +185,24 @@ export function setupProjectItemsImportRoutes(app: Router) {
 
           if (!masterItem) {
             // Create new master item
+            // Format makeOrBuy to match the expected enum values
+            let makeOrBuy = null;
+            if (rawItemData.make_or_buy) {
+              // Normalize the value to match our enum
+              const normalizedValue = rawItemData.make_or_buy.trim();
+              if (normalizedValue.toLowerCase() === 'make' || normalizedValue.toLowerCase() === 'm') {
+                makeOrBuy = 'Make';
+              } else if (normalizedValue.toLowerCase() === 'buy' || normalizedValue.toLowerCase() === 'b') {
+                makeOrBuy = 'Buy';
+              }
+            }
+            
             const masterItemData = {
               itemCode: rawItemData.itemCode,
-              description: rawItemData.description,
+              description: rawItemData.description || 'No description provided',
               specification: rawItemData.specification || null,
-              uom: rawItemData.uom,
-              makeOrBuy: rawItemData.make_or_buy || null,
+              uom: rawItemData.uom || 'Nos',
+              makeOrBuy: makeOrBuy,
               supplier: rawItemData.supplier || null,
               notes: rawItemData.notes || null,
               standardCost: rawItemData.standardCost || null
@@ -224,14 +236,37 @@ export function setupProjectItemsImportRoutes(app: Router) {
           }
 
           // Step: 2 Create or update the project item referencing the master item
+          // Ensure quantity is a valid number (default to 1 if not provided or invalid)
+          const quantity = typeof rawItemData.quantity === 'number' && !isNaN(rawItemData.quantity) && rawItemData.quantity > 0 
+            ? rawItemData.quantity 
+            : 1;
+          
+          // Parse estimated cost if provided, otherwise set to null
+          let estimatedCost = null;
+          if (rawItemData.estimatedCost !== undefined && rawItemData.estimatedCost !== null) {
+            const cost = parseFloat(rawItemData.estimatedCost);
+            if (!isNaN(cost)) {
+              estimatedCost = cost;
+            }
+          }
+          
+          // Parse actual cost if provided, otherwise set to null
+          let actualCost = null;
+          if (rawItemData.actualCost !== undefined && rawItemData.actualCost !== null) {
+            const cost = parseFloat(rawItemData.actualCost);
+            if (!isNaN(cost)) {
+              actualCost = cost;
+            }
+          }
+          
           const projectItemData = {
             projectId,
             projectCode,
             itemId: masterItemId,
-            quantity: rawItemData.quantity,
-            estimatedCost: rawItemData.estimatedCost || null,
-            actualCost: rawItemData.actualCost || null,
-            notes: rawItemData.notes || null
+            quantity,
+            estimatedCost,
+            actualCost,
+            notes: rawItemData.notes || ''
           };
 
           try {
