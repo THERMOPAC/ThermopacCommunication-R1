@@ -203,8 +203,11 @@ export function setupProjectRoutes(app: express.Express) {
       }
       
       // Update project data
-      // Make a copy of the request body to avoid modifying it directly
-      const updateData: any = { ...req.body };
+      // Create a clean copy of the request body without problematic fields
+      const { updatedAt, createdAt, ...cleanRequestBody } = req.body;
+      
+      // Base update data
+      const updateData: any = { ...cleanRequestBody };
       
       // Ensure dates are in the correct format
       if (updateData.startDate && !(updateData.startDate instanceof Date)) {
@@ -213,6 +216,8 @@ export function setupProjectRoutes(app: express.Express) {
           const dateValue = new Date(updateData.startDate);
           if (!isNaN(dateValue.getTime())) {
             updateData.startDate = dateValue;
+          } else {
+            delete updateData.startDate; // Remove invalid date
           }
         } catch (e) {
           console.error("Error parsing startDate:", e);
@@ -226,6 +231,8 @@ export function setupProjectRoutes(app: express.Express) {
           const dateValue = new Date(updateData.targetEndDate);
           if (!isNaN(dateValue.getTime())) {
             updateData.targetEndDate = dateValue;
+          } else {
+            delete updateData.targetEndDate; // Remove invalid date
           }
         } catch (e) {
           console.error("Error parsing targetEndDate:", e);
@@ -233,8 +240,10 @@ export function setupProjectRoutes(app: express.Express) {
         }
       }
       
-      // Add updated timestamp
+      // Add updated timestamp - explicitly create as a Date object
       updateData.updatedAt = new Date();
+      
+      console.log("Final clean update data:", updateData);
       
       const updatedProject = await storage.updateProject(projectId, updateData);
       res.json(updatedProject);
