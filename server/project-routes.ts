@@ -95,23 +95,38 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       console.log('Fetching project with ID:', req.params.id);
       
-      // Use the raw project ID directly
+      // Use the raw project ID directly - don't parse it as a number
       const projectId = req.params.id;
+      console.log('Project ID type:', typeof projectId);
       console.log('Project ID for lookup:', projectId);
       
-      // Get the project directly from the database
-      const project = await storage.getProject(projectId);
+      let project;
+      
+      // Check if it's a numeric ID or a project code
+      if (/^\d+$/.test(projectId)) {
+        // If it's a pure number, treat as a database ID
+        project = await storage.getProject(parseInt(projectId));
+        console.log("Looking up by numeric ID");
+      } else {
+        // Otherwise it might be a project code (like "2526-1")
+        console.log("Looking up by project code");
+        const allProjects = await storage.getAllProjects();
+        project = allProjects.find(p => p.code === projectId);
+      }
       
       if (!project) {
-        console.log('Project not found for ID:', projectId);
+        console.log('Project not found for identifier:', projectId);
         return res.status(404).json({ error: 'Project not found' });
       }
       
-      console.log('Project found:', project.id);
+      console.log('Project found:', project.id, project.code);
       res.json(project);
     } catch (error) {
       console.error(`Error fetching project ${req.params.id}:`, error);
-      res.status(500).json({ error: 'Failed to fetch project details' });
+      res.status(500).json({ 
+        error: 'Failed to fetch project details',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

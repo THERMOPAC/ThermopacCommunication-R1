@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { format } from 'date-fns';
@@ -62,22 +62,28 @@ import { ProjectItemsImport } from "@/components/project-items-import";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ProjectDetail() {
-  const { id } = useParams();
+  const params = useParams();
   const [_, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [isItemsImportOpen, setIsItemsImportOpen] = useState(false);
   
-  // Debug output to understand what's happening
-  console.log("Project ID from URL param:", id);
+  // Enhanced debugging for project ID handling
+  console.log("Project ID from URL param:", params.id);
+  console.log("Project ID type:", typeof params.id);
   
-  // Use the raw ID directly - it's a database primary key
-  const projectId = id;
+  // Use the raw ID directly from params - don't try to parse it as a number
+  const projectId = params.id;
+  
+  // Add a visible message if there are issues with the ID
+  useEffect(() => {
+    console.log("Project Detail Component mounted with ID:", projectId);
+  }, [projectId]);
   
   // Keep some basic sanity check to handle completely missing IDs
   if (!projectId) {
-    React.useEffect(() => {
+    useEffect(() => {
       toast({
         title: "Missing Project ID",
         description: "No project ID was provided. Redirecting to the projects list.",

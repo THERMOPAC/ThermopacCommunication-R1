@@ -1811,6 +1811,22 @@ export class DatabaseStorage implements IStorage {
     console.log(`Found ${projects.length} projects for user ${userId}`);
     return projects as Project[];
   }
+  
+  async getAllProjects(): Promise<Project[]> {
+    console.log(`Getting all projects`);
+    try {
+      const projects = await db
+        .select()
+        .from(projectsTable)
+        .orderBy(desc(projectsTable.createdAt));
+      
+      console.log(`Found ${projects.length} total projects`);
+      return projects as Project[];
+    } catch (error) {
+      console.error('Error getting all projects:', error);
+      return [];
+    }
+  }
 
   // Project Phases
   async createProjectPhase(phase: InsertProjectPhase): Promise<ProjectPhase> {
