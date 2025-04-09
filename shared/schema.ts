@@ -548,7 +548,7 @@ export const projectItems = pgTable('project_items', {
   projectCode: text('project_code').notNull(), // Reference to the project code for quicker lookups
   
   // Item details
-  itemCode: text('item_code'), // Optional item code
+  itemCode: text('item_code').notNull(), // Item code (required)
   description: text('description').notNull(),
   specification: text('specification'),
   quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
@@ -624,6 +624,7 @@ export const insertProjectDocumentSchema = createInsertSchema(projectDocuments, 
 
 // Project item insert schema
 export const insertProjectItemSchema = createInsertSchema(projectItems, {
+  itemCode: z.string().min(1),
   quantity: z.number().positive(),
   uom: z.string().min(1),
   makeOrBuy: z.enum(['Make', 'Buy']).optional(),

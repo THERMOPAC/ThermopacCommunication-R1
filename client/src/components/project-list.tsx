@@ -41,6 +41,7 @@ import CustomerImport from "./customer-import";
 // Define project item schema
 const projectItemSchema = z.object({
   id: z.number().optional(), // Optional for new items
+  itemCode: z.string().min(1, "Item code is required"),
   description: z.string().min(3, "Item description must be at least 3 characters"),
   specification: z.string().optional(),
   quantity: z.number().positive("Quantity must be positive"),
@@ -691,14 +692,23 @@ export default function ProjectList() {
                               
                               <div className="space-y-4 py-4">
                                 <div className="space-y-2">
+                                  <Label htmlFor="item-code">Item Code*</Label>
+                                  <Input 
+                                    id="item-code"
+                                    placeholder="TH001"
+                                    defaultValue={editingItem?.itemCode || ''}
+                                    ref={input => {
+                                      if (input && !editingItem) input.focus();
+                                    }}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
                                   <Label htmlFor="item-description">Item Description*</Label>
                                   <Input 
                                     id="item-description"
                                     placeholder="Thermal Oil Heater"
                                     defaultValue={editingItem?.description || ''}
-                                    ref={input => {
-                                      if (input && !editingItem) input.focus();
-                                    }}
                                   />
                                 </div>
                                 
@@ -758,6 +768,7 @@ export default function ProjectList() {
                                 <Button 
                                   onClick={() => {
                                     // Get values from form
+                                    const itemCodeEl = document.getElementById('item-code') as HTMLInputElement;
                                     const descriptionEl = document.getElementById('item-description') as HTMLInputElement;
                                     const specificationEl = document.getElementById('item-specification') as HTMLInputElement;
                                     const quantityEl = document.getElementById('item-quantity') as HTMLInputElement;
@@ -765,6 +776,15 @@ export default function ProjectList() {
                                     const makeOrBuyEl = document.getElementById('item-makeorbuy') as HTMLSelectElement;
                                     
                                     // Validate
+                                    if (!itemCodeEl.value) {
+                                      toast({
+                                        title: "Missing information",
+                                        description: "Item code is required",
+                                        variant: "destructive"
+                                      });
+                                      return;
+                                    }
+                                    
                                     if (!descriptionEl.value) {
                                       toast({
                                         title: "Missing information",
@@ -794,6 +814,7 @@ export default function ProjectList() {
                                     
                                     // Create item object
                                     const item: ProjectItemValues = {
+                                      itemCode: itemCodeEl.value,
                                       description: descriptionEl.value,
                                       specification: specificationEl.value || undefined,
                                       quantity: parseFloat(quantityEl.value),
