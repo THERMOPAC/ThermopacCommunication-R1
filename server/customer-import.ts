@@ -112,15 +112,11 @@ export function setupCustomerImportRoutes(app: Router) {
           // Create new customer
           await storage.createCustomer({
             bpCode: row['BP Code'],
-            name: row['BP Name'],
+            bpName: row['BP Name'], // Change name to bpName to match schema
             contactPerson: row['Contact Person'] || null,
-            email: row['Email'] || null,
+            email: row['E-Mail'] || null, // Updated to match Excel column name
             continent: row['Continent'] || null,
-            country: row['Country'] || null,
-            notes: row['Notes'] || null,
-            createdBy: req.user.id,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            countryName: row['Country Name'] || null, // Updated to match schema field name
           });
 
           results.imported++;
