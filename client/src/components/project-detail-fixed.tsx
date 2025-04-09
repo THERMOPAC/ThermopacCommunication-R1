@@ -511,8 +511,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <FormItem>
                     <FormLabel>Customer</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
-                      defaultValue={field.value?.toString() || ""}
+                      onValueChange={(value) => field.onChange(value && value !== "none" ? parseInt(value) : null)} 
+                      defaultValue={field.value?.toString() || "none"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -520,7 +520,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No Customer</SelectItem>
+                        <SelectItem value="none">No Customer</SelectItem>
                         {customers?.map((customer) => (
                           <SelectItem key={customer.id} value={customer.id.toString()}>
                             {customer.bpName}
