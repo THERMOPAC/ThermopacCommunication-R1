@@ -19,7 +19,7 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <ProjectDetail />
+      <ProjectDetail id={id} />
     </div>
   );
 }

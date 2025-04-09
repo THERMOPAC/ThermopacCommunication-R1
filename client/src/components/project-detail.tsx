@@ -61,8 +61,11 @@ import {
 import { ProjectItemsImport } from "@/components/project-items-import";
 import { useToast } from "@/hooks/use-toast";
 
-export default function ProjectDetail() {
-  const params = useParams();
+interface ProjectDetailProps {
+  id: string;
+}
+
+export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [_, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -70,11 +73,11 @@ export default function ProjectDetail() {
   const [isItemsImportOpen, setIsItemsImportOpen] = useState(false);
   
   // Enhanced debugging for project ID handling
-  console.log("Project ID from URL param:", params.id);
-  console.log("Project ID type:", typeof params.id);
+  console.log("Project ID from prop:", id);
+  console.log("Project ID type:", typeof id);
   
-  // Use the raw ID directly from params - don't try to parse it as a number
-  const projectId = params.id;
+  // Use the provided ID directly
+  const projectId = id;
   
   // Add a visible message if there are issues with the ID
   useEffect(() => {
