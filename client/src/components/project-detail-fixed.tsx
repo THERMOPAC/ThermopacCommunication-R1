@@ -280,12 +280,16 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   });
 
   function formatDate(dateString) {
-    if (!dateString) return "Not set";
+    if (!dateString || dateString === "null" || dateString === "undefined") return "Not set";
     try {
       const date = new Date(dateString);
+      // Check if date is valid
+      if (isNaN(date.getTime())) return "Not set";
+      
       return format(date, 'MMM d, yyyy');
     } catch (e) {
-      return dateString;
+      console.error("Error formatting date:", e);
+      return "Not set";
     }
   }
 
@@ -599,7 +603,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 <Building className="h-4 w-4" /> Customer: {project.client_name || "None"}
               </span>
               <span className="inline-flex items-center gap-1">
-                <FileText className="h-4 w-4" /> Financial Year: {project.financial_year}
+                <FileText className="h-4 w-4" /> Financial Year: {project.financial_year || "Not set"}
               </span>
             </p>
           </div>
