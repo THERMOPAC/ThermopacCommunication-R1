@@ -94,6 +94,12 @@ export function setupProjectRoutes(app: express.Express) {
   app.get('/api/projects/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.id);
+      
+      // Check if projectId is a valid number
+      if (isNaN(projectId)) {
+        return res.status(400).json({ error: 'Invalid project ID' });
+      }
+      
       const project = await storage.getProject(projectId);
       
       if (!project) {
@@ -197,6 +203,12 @@ export function setupProjectRoutes(app: express.Express) {
   app.get('/api/projects/:projectId/phases', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      
+      // Check if projectId is a valid number
+      if (isNaN(projectId)) {
+        return res.status(400).json({ error: 'Invalid project ID' });
+      }
+      
       const phases = await storage.getProjectPhases(projectId);
       res.json(phases);
     } catch (error) {
@@ -290,6 +302,12 @@ export function setupProjectRoutes(app: express.Express) {
   app.get('/api/projects/:projectId/members', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      
+      // Check if projectId is a valid number
+      if (isNaN(projectId)) {
+        return res.status(400).json({ error: 'Invalid project ID' });
+      }
+      
       const members = await storage.getProjectMembers(projectId);
       res.json(members);
     } catch (error) {
@@ -732,6 +750,12 @@ export function setupProjectRoutes(app: express.Express) {
   app.get('/api/projects/:projectId/items', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      
+      // Check if projectId is a valid number
+      if (isNaN(projectId)) {
+        return res.status(400).json({ error: 'Invalid project ID' });
+      }
+      
       const items = await storage.getProjectItems(projectId);
       res.json(items);
     } catch (error) {
