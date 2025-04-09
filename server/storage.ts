@@ -1772,9 +1772,45 @@ export class DatabaseStorage implements IStorage {
 
   async updateProject(id: number, updateData: Partial<Project>): Promise<Project> {
     console.log(`Updating project ${id} with data:`, updateData);
+    
+    // Create a clean object for the update
+    const cleanUpdateData: any = {};
+    
+    // Process each field to ensure dates are handled correctly
+    for (const [key, value] of Object.entries(updateData)) {
+      // Skip null/undefined values
+      if (value === null || value === undefined) continue;
+      
+      // Handle date fields
+      if (key === 'startDate' || key === 'targetEndDate' || key === 'updatedAt' || key === 'createdAt') {
+        try {
+          // If it's already a Date object, use it directly
+          if (value instanceof Date) {
+            cleanUpdateData[key] = value;
+          } 
+          // If it's a string that can be parsed as a date, convert it
+          else if (typeof value === 'string' && !isNaN(new Date(value).getTime())) {
+            cleanUpdateData[key] = new Date(value);
+          }
+          // Otherwise skip the field to avoid errors
+          else {
+            console.log(`Skipping invalid date value for ${key}:`, value);
+          }
+        } catch (e) {
+          console.error(`Error processing date field ${key}:`, e);
+        }
+      } 
+      // For non-date fields, pass the value through
+      else {
+        cleanUpdateData[key] = value;
+      }
+    }
+    
+    console.log(`Cleaned update data:`, cleanUpdateData);
+    
     const result = await db
       .update(projectsTable)
-      .set(updateData)
+      .set(cleanUpdateData)
       .where(eq(projectsTable.id, id))
       .returning();
     

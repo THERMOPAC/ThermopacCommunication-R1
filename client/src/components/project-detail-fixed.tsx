@@ -421,19 +421,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     const formattedData = { ...data };
     
     // Ensure dates are properly formatted as strings
-    if (formattedData.startDate) {
-      // Use the date string directly - don't try to convert it again
-      formattedData.startDate = String(formattedData.startDate);
-    }
+    // The server will handle the conversion to Date objects
     
-    if (formattedData.targetEndDate) {
-      // Use the date string directly - don't try to convert it again
-      formattedData.targetEndDate = String(formattedData.targetEndDate);
-    }
+    // Don't add updatedAt field here - let the server handle it
+    // to avoid any date formatting issues
     
-    // Add current date as updatedAt
-    formattedData.updatedAt = new Date().toISOString();
-    
+    console.log("Submitting project update:", formattedData);
     updateProjectMutation.mutate(formattedData);
   }
   
