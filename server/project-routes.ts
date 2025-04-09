@@ -113,8 +113,9 @@ export function setupProjectRoutes(app: express.Express) {
       const projectData = insertProjectSchema.parse({
         ...req.body,
         createdBy: userId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        managerId: userId, // Add managerId which is required in the schema
+        createdAt: new Date(), // Use Date objects instead of strings
+        updatedAt: new Date()
       });
       
       // Create the project
@@ -125,7 +126,7 @@ export function setupProjectRoutes(app: express.Express) {
         projectId: project.id,
         userId,
         role: 'project_manager',
-        assignedDate: new Date().toISOString(),
+        assignedDate: new Date(), // Use Date object instead of string
         isActive: true
       });
       
@@ -321,7 +322,7 @@ export function setupProjectRoutes(app: express.Express) {
       const memberData = insertProjectMemberSchema.parse({
         ...req.body,
         projectId,
-        assignedDate: new Date().toISOString()
+        assignedDate: new Date() // Use Date object instead of string
       });
       
       const member = await storage.addProjectMember(memberData);
