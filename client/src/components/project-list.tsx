@@ -31,10 +31,12 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { 
   Loader2, Plus, Search, Calendar, Info, Users, CheckSquare, FileText, RefreshCw,
-  Upload, Truck, LayoutList, Settings, ClipboardList, BadgePercent, Pencil, X
+  Upload, Truck, LayoutList, Settings, ClipboardList, BadgePercent, Pencil, X, 
+  FileSpreadsheet
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import CustomerImport from "./customer-import";
 
 // Define project item schema
 const projectItemSchema = z.object({
@@ -133,6 +135,7 @@ async function getNextProjectCode(financialYear: string): Promise<string> {
 export default function ProjectList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
+  const [isCustomerImportOpen, setIsCustomerImportOpen] = useState(false);
   const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
   const [currentItems, setCurrentItems] = useState<ProjectItemValues[]>([]);
   const [editingItem, setEditingItem] = useState<ProjectItemValues | null>(null);
@@ -319,6 +322,20 @@ export default function ProjectList() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          {/* Import Customers Dialog */}
+          <CustomerImport 
+            open={isCustomerImportOpen}
+            onOpenChange={setIsCustomerImportOpen}
+          />
+
+          <Button 
+            variant="outline" 
+            onClick={() => setIsCustomerImportOpen(true)} 
+            className="mr-2"
+          >
+            <FileSpreadsheet className="mr-2 h-4 w-4" /> Import Customers
+          </Button>
+          
           <Dialog 
             open={isNewProjectDialogOpen} 
             onOpenChange={(open) => {
