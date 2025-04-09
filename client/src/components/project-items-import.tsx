@@ -79,7 +79,13 @@ export function ProjectItemsImport({
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('projectId', projectId.toString());
+      
+      // Log the types and values to debug
+      console.log('Project ID type:', typeof projectId, 'value:', projectId);
+      console.log('Project Code type:', typeof projectCode, 'value:', projectCode);
+      
+      // Always ensure we're sending the numeric project ID
+      formData.append('projectId', String(projectId));
       formData.append('projectCode', projectCode);
       
       const response = await fetch('/api/projects/items/import-excel', {

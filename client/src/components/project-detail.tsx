@@ -156,11 +156,21 @@ export default function ProjectDetail() {
   const { data: projectItems, isLoading: isLoadingItems } = useQuery({
     queryKey: [`/api/projects/${projectId}/items`],
     queryFn: async () => {
-      const response = await fetch(`/api/projects/${projectId}/items`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch project items");
+      console.log(`Fetching items for project ID: ${projectId}`);
+      try {
+        const response = await fetch(`/api/projects/${projectId}/items`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error fetching project items: ${errorText}`);
+          throw new Error("Failed to fetch project items");
+        }
+        const data = await response.json();
+        console.log(`Successfully fetched ${data.length} project items`);
+        return data;
+      } catch (error) {
+        console.error(`Exception in fetchProjectItems: ${error}`);
+        throw error;
       }
-      return response.json();
     },
     enabled: !!project
   });
@@ -914,7 +924,7 @@ export default function ProjectDetail() {
           <ProjectItemsImport 
             open={isItemsImportOpen}
             onOpenChange={setIsItemsImportOpen}
-            projectId={projectId}
+            projectId={project.id} // Use the numeric project.id instead of URL param
             projectCode={project.code}
             onImportComplete={() => {
               // Refetch project items after import is completed

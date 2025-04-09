@@ -69,11 +69,28 @@ export function setupProjectItemsImportRoutes(app: Router) {
       }
 
       // Get the project ID and code from the request body
-      const projectId = parseInt(req.body.projectId);
+      const projectIdRaw = req.body.projectId;
       const projectCode = req.body.projectCode;
+      
+      console.log('Received project import request:', {
+        projectIdRaw,
+        projectCode,
+        body: req.body
+      });
+      
+      // Convert the projectId to a number
+      const projectId = parseInt(projectIdRaw);
 
-      if (!projectId || !projectCode) {
-        return res.status(400).json({ message: "Project ID and project code are required" });
+      if (isNaN(projectId) || !projectCode) {
+        console.error('Invalid project data:', { projectIdRaw, projectId, projectCode });
+        return res.status(400).json({ message: "Valid project ID and project code are required" });
+      }
+      
+      // Verify the project exists
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        console.error('Project not found for ID:', projectId);
+        return res.status(404).json({ message: "Project not found" });
       }
 
       // Check file type
