@@ -96,6 +96,10 @@ const editProjectSchema = z.object({
   customerId: z.number().optional().nullable(),
   startDate: z.string().min(1, "Start date is required"),
   targetEndDate: z.string().min(1, "Target end date is required"),
+  budget: z.number().optional(),
+  // These fields are for display only (readonly in the edit form)
+  code: z.string().optional(),
+  financialYear: z.string().optional(),
 });
 
 // Form type for editing project
@@ -127,6 +131,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       customerId: null,
       startDate: "",
       targetEndDate: "",
+      budget: undefined,
+      code: "",
+      financialYear: "",
     },
   });
   
@@ -189,6 +196,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         customerId: project.customerId || null,
         startDate: project.startDate || "",
         targetEndDate: project.targetEndDate || "",
+        budget: project.budget || undefined,
+        code: project.code || "",
+        financialYear: project.financialYear || "",
       });
     }
   }, [project, form]);
@@ -588,6 +598,72 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   )}
                 />
               </div>
+
+              {/* Budget Field */}
+              <FormField
+                control={form.control}
+                name="budget"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Budget</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        placeholder="Enter project budget" 
+                        {...field}
+                        onChange={(e) => {
+                          const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                          field.onChange(value);
+                        }}
+                        value={field.value?.toString() || ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {/* Project Code - Read Only */}
+              <FormField
+                control={form.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Code</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        disabled 
+                        className="bg-muted cursor-not-allowed"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Project code cannot be modified
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
+
+              {/* Financial Year - Read Only */}
+              <FormField
+                control={form.control}
+                name="financialYear"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Financial Year</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        disabled 
+                        className="bg-muted cursor-not-allowed"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Financial year cannot be modified
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
               
               <DialogFooter>
                 <Button 
