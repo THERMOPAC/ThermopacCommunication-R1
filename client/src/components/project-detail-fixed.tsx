@@ -728,7 +728,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         type="button" 
                         variant="outline" 
                         size="sm"
-                        onClick={() => navigate(`/projects/${projectId}/items/import`)}
+                        onClick={() => setIsItemsImportOpen(true)}
                       >
                         <FileUp className="h-4 w-4 mr-2" />
                         Import Project Items
