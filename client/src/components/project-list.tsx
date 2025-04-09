@@ -571,6 +571,35 @@ export default function ProjectList() {
                         </FormItem>
                       )}
                     />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="startDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Start Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="targetEndDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Target End Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
                   
                   <div className="border-t pt-4">
@@ -854,35 +883,6 @@ export default function ProjectList() {
                       
                       {/* Project Stages Tab */}
                       <TabsContent value="project-stages" className="space-y-4 mt-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="startDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Start Date</FormLabel>
-                                <FormControl>
-                                  <Input type="date" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="targetEndDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Target End Date</FormLabel>
-                                <FormControl>
-                                  <Input type="date" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
                         <div className="space-y-4 border rounded-md p-4">
                           <h3 className="text-sm font-medium mb-2">Default Project Phases</h3>
                           <div className="grid grid-cols-4 gap-2">

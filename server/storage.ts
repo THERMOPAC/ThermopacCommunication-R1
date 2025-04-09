@@ -1890,7 +1890,7 @@ export class DatabaseStorage implements IStorage {
     console.log(`Getting phases for project ${projectId}`);
     try {
       // Use simpler SQL query to avoid syntax issues
-      const query = `SELECT * FROM project_phases WHERE "projectId" = $1 ORDER BY id`;
+      const query = `SELECT * FROM "project_phases" WHERE "projectId" = $1 ORDER BY "id"`;
       
       const { rows } = await pool.query(query, [projectId]);
       
@@ -2043,7 +2043,7 @@ export class DatabaseStorage implements IStorage {
     console.log(`Getting tasks for project ${projectId}`);
     try {
       // Use simpler SQL query to avoid syntax issues
-      const query = `SELECT * FROM project_tasks WHERE "projectId" = $1 ORDER BY id`;
+      const query = `SELECT * FROM "project_tasks" WHERE "projectId" = $1 ORDER BY "id"`;
       
       const { rows } = await pool.query(query, [projectId]);
       
@@ -2059,7 +2059,7 @@ export class DatabaseStorage implements IStorage {
     console.log(`Getting tasks for phase ${phaseId}`);
     try {
       // Use simpler SQL query to avoid syntax issues
-      const query = `SELECT * FROM project_tasks WHERE "phaseId" = $1 ORDER BY id`;
+      const query = `SELECT * FROM "project_tasks" WHERE "phaseId" = $1 ORDER BY "id"`;
       
       const { rows } = await pool.query(query, [phaseId]);
       
