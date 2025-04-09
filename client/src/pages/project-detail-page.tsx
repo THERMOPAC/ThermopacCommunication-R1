@@ -1,12 +1,27 @@
-import React from "react";
+import React, { useEffect } from "react";
 import ProjectDetail from "@/components/project-detail";
-import { useParams } from "wouter";
+import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 
-export default function ProjectDetailPage() {
-  const { id } = useParams();
+interface ProjectDetailPageProps {
+  id?: string;
+}
+
+export default function ProjectDetailPage({ id }: ProjectDetailPageProps) {
+  const [location] = useLocation();
+  
+  // Enhanced debugging for project ID from props
+  console.log("ProjectDetailPage - Full URL path:", location);
+  console.log("ProjectDetailPage - ID prop:", id);
+  console.log("ProjectDetailPage - ID prop type:", typeof id);
+  
+  useEffect(() => {
+    console.log("ProjectDetailPage mounted, ID prop:", id);
+    console.log("ProjectDetailPage location:", location);
+  }, [id, location]);
   
   if (!id) {
+    console.log("ProjectDetailPage - No ID provided");
     return (
       <div className="container mx-auto py-6 flex items-center justify-center h-64">
         <div className="text-center">

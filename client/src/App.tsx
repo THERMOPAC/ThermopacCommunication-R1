@@ -69,7 +69,12 @@ function Router() {
       <ProtectedRoute path="/leaderboard" component={LeaderboardPage} />
       <ProtectedRoute path="/recurring-tasks" component={RecurringTasksPage} />
       <ProtectedRoute path="/projects" component={ProjectsPage} />
-      <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />
+      <Route path="/projects/:id">
+        {(params) => {
+          console.log("Route matched with params:", params);
+          return <ProjectDetailPage id={params.id} />
+        }}
+      </Route>
       <SuperuserRoute path="/users" component={Dashboard} />
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <Route component={NotFound} />
