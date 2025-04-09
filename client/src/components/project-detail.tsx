@@ -63,30 +63,51 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const projectId = parseInt(id || '');
   const [_, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [isItemsImportOpen, setIsItemsImportOpen] = useState(false);
   
-  // Redirect to the projects list if projectId is invalid
-  React.useEffect(() => {
-    if (isNaN(projectId)) {
+  // Validate project ID before using it
+  if (!id || isNaN(parseInt(id))) {
+    React.useEffect(() => {
       toast({
         title: "Invalid Project ID",
         description: "The project ID is not valid. Redirecting to the projects list.",
         variant: "destructive"
       });
       navigate("/projects");
-    }
-  }, [projectId, navigate, toast]);
+    }, []);
+    
+    // Return early to prevent any API calls with invalid ID
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Invalid Project ID</h2>
+          <p className="text-muted-foreground">Redirecting to projects list...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Only parse ID after validation
+  const projectId = parseInt(id);
 
   const { data: project, isLoading: isLoadingProject, error: projectError } = useQuery({
     queryKey: [`/api/projects/${projectId}`],
     queryFn: async () => {
       const response = await fetch(`/api/projects/${projectId}`);
       if (!response.ok) {
+        if (response.status === 400) {
+          toast({
+            title: "Invalid Project ID",
+            description: "The project ID is not valid. Redirecting to the projects list.",
+            variant: "destructive"
+          });
+          navigate("/projects");
+          throw new Error("Invalid project ID");
+        }
         throw new Error("Failed to fetch project details");
       }
       return response.json();

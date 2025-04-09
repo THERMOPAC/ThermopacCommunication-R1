@@ -93,19 +93,24 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.get('/api/projects/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      console.log('Fetching project with ID:', req.params.id);
       const projectId = parseInt(req.params.id);
+      console.log('Parsed project ID:', projectId);
       
       // Check if projectId is a valid number
       if (isNaN(projectId)) {
+        console.log('Project ID is invalid (NaN)');
         return res.status(400).json({ error: 'Invalid project ID' });
       }
       
       const project = await storage.getProject(projectId);
       
       if (!project) {
+        console.log('Project not found for ID:', projectId);
         return res.status(404).json({ error: 'Project not found' });
       }
       
+      console.log('Project found:', project.id);
       res.json(project);
     } catch (error) {
       console.error(`Error fetching project ${req.params.id}:`, error);
