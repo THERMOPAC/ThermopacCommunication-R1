@@ -322,6 +322,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   }
 
   function getInitials(name) {
+    if (!name) return '?'; // Handle undefined or null names
+    
     return name
       .split(' ')
       .map(part => part.charAt(0))
