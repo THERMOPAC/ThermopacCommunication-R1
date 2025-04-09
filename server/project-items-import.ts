@@ -19,9 +19,9 @@ function canManage(role: string): boolean {
 
 export function setupProjectItemsImportRoutes(app: Router) {
   // Configure multer for file uploads
-  const storage = multer.memoryStorage();
+  const multerStorage = multer.memoryStorage();
   const upload = multer({ 
-    storage: storage,
+    storage: multerStorage,
     limits: {
       fileSize: 5 * 1024 * 1024 // 5MB max file size
     }
