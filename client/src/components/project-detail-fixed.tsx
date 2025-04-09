@@ -417,7 +417,24 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   }
 
   function onSubmit(data: EditProjectValues) {
-    updateProjectMutation.mutate(data);
+    // Create a copy of the data to avoid mutating the original
+    const formattedData = { ...data };
+    
+    // Ensure dates are properly formatted as strings
+    if (formattedData.startDate) {
+      // Use the date string directly - don't try to convert it again
+      formattedData.startDate = String(formattedData.startDate);
+    }
+    
+    if (formattedData.targetEndDate) {
+      // Use the date string directly - don't try to convert it again
+      formattedData.targetEndDate = String(formattedData.targetEndDate);
+    }
+    
+    // Add current date as updatedAt
+    formattedData.updatedAt = new Date().toISOString();
+    
+    updateProjectMutation.mutate(formattedData);
   }
   
   // Return early to prevent any API calls with invalid ID
