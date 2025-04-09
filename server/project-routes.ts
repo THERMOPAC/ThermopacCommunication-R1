@@ -207,7 +207,25 @@ export function setupProjectRoutes(app: express.Express) {
       const { updatedAt, createdAt, ...cleanRequestBody } = req.body;
       
       // Base update data
-      const updateData: any = { ...cleanRequestBody };
+      // Filter out fields that don't exist in the database table
+      const validColumns = [
+        'name', 'description', 'code', 'status', 'priority', 
+        'client_name', 'client_contact', 'client_email', 
+        'start_date', 'target_end_date', 'actual_end_date',
+        'estimated_budget', 'actual_cost', 'currency', 'progress',
+        'manager_id', 'created_by', 'notes', 'tags', 'financial_year',
+        'customer_id'
+      ];
+      
+      // Create a clean update object containing only valid fields
+      const updateData: any = {};
+      Object.keys(cleanRequestBody).forEach(key => {
+        // Convert camelCase keys to snake_case for comparison
+        const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        if (validColumns.includes(snakeKey)) {
+          updateData[key] = cleanRequestBody[key];
+        }
+      });
       
       // Pass through dates as strings - they'll be handled by the storage.updateProject method
       if (updateData.startDate) {
