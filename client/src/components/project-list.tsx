@@ -1055,9 +1055,17 @@ export default function ProjectList() {
                   variant="outline" 
                   size="sm"
                   onClick={() => {
+                    // Debug project data
+                    console.log('Project:', project);
+                    console.log('Project ID:', project.id);
+                    console.log('Project ID type:', typeof project.id);
+                    console.log('Project ID is valid number:', !isNaN(Number(project.id)));
+                    
                     // Validate project ID before navigation
                     if (project.id && !isNaN(Number(project.id))) {
-                      navigate(`/projects/${project.id}`);
+                      const projectIdNum = Number(project.id);
+                      console.log('Project ID as number:', projectIdNum);
+                      navigate(`/projects/${projectIdNum}`);
                     } else {
                       toast({
                         title: "Invalid Project ID",
