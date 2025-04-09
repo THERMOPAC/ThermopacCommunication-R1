@@ -1,0 +1,998 @@
+import React, { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams, useLocation } from "wouter";
+import { format } from 'date-fns';
+import { apiRequest } from "@/lib/queryClient";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { 
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { 
+  Avatar, 
+  AvatarFallback 
+} from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Table, 
+  TableHeader, 
+  TableRow, 
+  TableHead, 
+  TableBody, 
+  TableCell 
+} from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { 
+  Calendar, 
+  Clock, 
+  Edit, 
+  FileText, 
+  Loader2, 
+  ChevronLeft, 
+  Users, 
+  ClipboardList, 
+  AlertTriangle, 
+  CheckSquare, 
+  Plus,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  FileSpreadsheet,
+  Boxes,
+  Building
+} from "lucide-react";
+import { ProjectItemsImport } from "@/components/project-items-import";
+import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+
+interface ProjectDetailProps {
+  id: string;
+}
+
+// Define schema outside the component
+const editProjectSchema = z.object({
+  name: z.string().min(1, "Project name is required"),
+  description: z.string().min(1, "Project description is required"),
+  status: z.enum(["planning", "active", "on_hold", "completed", "canceled"]),
+  priority: z.enum(["High", "Medium", "Low"]),
+  customerId: z.number().optional().nullable(),
+});
+
+// Form type for editing project
+type EditProjectValues = z.infer<typeof editProjectSchema>;
+
+export default function ProjectDetail({ id }: ProjectDetailProps) {
+  const [_, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [isItemsImportOpen, setIsItemsImportOpen] = useState(false);
+  const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
+  
+  // Enhanced debugging for project ID handling
+  console.log("Project ID from prop:", id);
+  console.log("Project ID type:", typeof id);
+  
+  // Use the provided ID directly
+  const projectId = id;
+  
+  // Initialize form with empty values first (will be updated later)
+  const form = useForm<EditProjectValues>({
+    resolver: zodResolver(editProjectSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      status: "planning",
+      priority: "Medium",
+      customerId: null,
+    },
+  });
+  
+  // Add a visible message if there are issues with the ID
+  useEffect(() => {
+    console.log("Project Detail Component mounted with ID:", projectId);
+  }, [projectId]);
+  
+  // Handle missing project ID
+  useEffect(() => {
+    if (!projectId) {
+      toast({
+        title: "Missing Project ID",
+        description: "No project ID was provided. Redirecting to the projects list.",
+        variant: "destructive"
+      });
+      navigate("/projects");
+    }
+  }, [projectId, navigate, toast]);
+
+  const { data: project, isLoading: isLoadingProject, error: projectError } = useQuery({
+    queryKey: [`/api/projects/${projectId}`],
+    queryFn: async () => {
+      const response = await fetch(`/api/projects/${projectId}`);
+      if (!response.ok) {
+        if (response.status === 400) {
+          toast({
+            title: "Invalid Project ID",
+            description: "The project ID is not valid. Redirecting to the projects list.",
+            variant: "destructive"
+          });
+          navigate("/projects");
+          throw new Error("Invalid project ID");
+        }
+        throw new Error("Failed to fetch project details");
+      }
+      return response.json();
+    },
+    enabled: !!projectId
+  });
+  
+  // Update form values when project data is loaded
+  useEffect(() => {
+    if (project) {
+      form.reset({
+        name: project.name || "",
+        description: project.description || "",
+        status: project.status || "planning",
+        priority: project.priority || "Medium",
+        customerId: project.customerId || null,
+      });
+    }
+  }, [project, form]);
+
+  const { data: phases, isLoading: isLoadingPhases } = useQuery({
+    queryKey: [`/api/projects/${projectId}/phases`],
+    queryFn: async () => {
+      const response = await fetch(`/api/projects/${projectId}/phases`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch project phases");
+      }
+      return response.json();
+    },
+    enabled: !!project
+  });
+
+  const { data: members, isLoading: isLoadingMembers } = useQuery({
+    queryKey: [`/api/projects/${projectId}/members`],
+    queryFn: async () => {
+      const response = await fetch(`/api/projects/${projectId}/members`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch project members");
+      }
+      return response.json();
+    },
+    enabled: !!project
+  });
+
+  const { data: tasks, isLoading: isLoadingTasks } = useQuery({
+    queryKey: [`/api/projects/${projectId}/tasks`],
+    queryFn: async () => {
+      const response = await fetch(`/api/projects/${projectId}/tasks`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch project tasks");
+      }
+      return response.json();
+    },
+    enabled: !!project
+  });
+  
+  const { data: projectItems, isLoading: isLoadingItems } = useQuery({
+    queryKey: [`/api/projects/${projectId}/items`],
+    queryFn: async () => {
+      console.log(`Fetching items for project ID: ${projectId}`);
+      try {
+        const response = await fetch(`/api/projects/${projectId}/items`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error fetching project items: ${errorText}`);
+          throw new Error("Failed to fetch project items");
+        }
+        const data = await response.json();
+        console.log(`Successfully fetched ${data.length} project items`);
+        return data;
+      } catch (error) {
+        console.error(`Exception in fetchProjectItems: ${error}`);
+        throw error;
+      }
+    },
+    enabled: !!project
+  });
+  
+  // Fetch customers for use in edit form
+  const { data: customers, isLoading: isLoadingCustomers } = useQuery({
+    queryKey: ['/api/customers'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/customers');
+        if (!response.ok) {
+          throw new Error('Failed to fetch customers');
+        }
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+        throw error;
+      }
+    }
+  });
+
+  // Submit handler for editing project
+  const updateProjectMutation = useMutation({
+    mutationFn: async (data: EditProjectValues) => {
+      const res = await apiRequest("PUT", `/api/projects/${projectId}`, data);
+      if (!res.ok) {
+        throw new Error("Failed to update project");
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      setIsEditProjectOpen(false);
+      toast({
+        title: "Project updated",
+        description: "Project details have been successfully updated.",
+      });
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error updating project",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  function formatDate(dateString) {
+    if (!dateString) return "Not set";
+    try {
+      const date = new Date(dateString);
+      return format(date, 'MMM d, yyyy');
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  function getStatusBadgeColor(status) {
+    switch (status) {
+      case "planning":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "active":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "on_hold":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "completed":
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      case "canceled":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "pending":
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  }
+
+  function getPriorityBadgeColor(priority) {
+    switch (priority) {
+      case "High":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "Medium":
+        return "bg-orange-100 text-orange-800 border-orange-200";
+      case "Low":
+        return "bg-green-100 text-green-800 border-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  }
+
+  function getInitials(name) {
+    return name
+      .split(' ')
+      .map(part => part.charAt(0))
+      .join('')
+      .toUpperCase();
+  }
+
+  function calculateProgress(phases) {
+    if (!phases || phases.length === 0) return 0;
+    
+    const completedPhases = phases.filter(phase => phase.status === 'completed').length;
+    return Math.round((completedPhases / phases.length) * 100);
+  }
+
+  function getRoleColor(role) {
+    switch (role) {
+      case "project_manager":
+        return "bg-blue-100 text-blue-800";
+      case "phase_lead":
+        return "bg-purple-100 text-purple-800";
+      case "team_member":
+        return "bg-green-100 text-green-800";
+      case "consultant":
+        return "bg-yellow-100 text-yellow-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  }
+
+  function getPhaseStatusIcon(status) {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case "active":
+        return <Clock className="w-5 h-5 text-blue-500" />;
+      case "on_hold":
+        return <AlertCircle className="w-5 h-5 text-amber-500" />;
+      case "canceled":
+        return <XCircle className="w-5 h-5 text-red-500" />;
+      default:
+        return <AlertCircle className="w-5 h-5 text-gray-500" />;
+    }
+  }
+
+  function onSubmit(data: EditProjectValues) {
+    updateProjectMutation.mutate(data);
+  }
+  
+  // Return early to prevent any API calls with invalid ID
+  if (!projectId) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Missing Project ID</h2>
+          <p className="text-muted-foreground">Redirecting to projects list...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoadingProject) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (projectError || !project) {
+    return (
+      <div className="text-center p-4">
+        <p className="text-red-600">Error loading project details</p>
+        <Button variant="outline" onClick={() => navigate("/projects")}>
+          Back to Projects
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Edit Project Dialog */}
+      <Dialog open={isEditProjectOpen} onOpenChange={setIsEditProjectOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Project Details</DialogTitle>
+            <DialogDescription>
+              Update the project information below. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter project name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Enter project description" 
+                        {...field} 
+                        className="min-h-[100px]"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="planning">Planning</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="on_hold">On Hold</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="canceled">Canceled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priority</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Low">Low</SelectItem>
+                          <SelectItem value="Medium">Medium</SelectItem>
+                          <SelectItem value="High">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="customerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Customer</FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
+                      defaultValue={field.value?.toString() || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select customer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">No Customer</SelectItem>
+                        {customers?.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id.toString()}>
+                            {customer.bpName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsEditProjectOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateProjectMutation.isPending}
+                >
+                  {updateProjectMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <div>
+        <Button 
+          variant="ghost" 
+          className="mb-4" 
+          onClick={() => navigate("/projects")}
+        >
+          <ChevronLeft className="mr-1 h-4 w-4" /> Back to Projects
+        </Button>
+        
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <h1 className="text-3xl font-bold">{project.name}</h1>
+              <Badge 
+                variant="outline" 
+                className={`ml-2 ${getStatusBadgeColor(project.status)}`}
+              >
+                {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className={getPriorityBadgeColor(project.priority)}
+              >
+                {project.priority}
+              </Badge>
+            </div>
+            <p className="text-gray-500 text-sm">Project Code: {project.code}</p>
+            <p className="mt-2">{project.description}</p>
+            <p className="text-muted-foreground text-sm mt-2">
+              <span className="inline-flex items-center gap-1 mr-4">
+                <Calendar className="h-4 w-4" /> Started: {formatDate(project.start_date)}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-4 w-4" /> Target End: {formatDate(project.target_end_date)}
+              </span>
+            </p>
+            <p className="text-muted-foreground text-sm mt-2">
+              <span className="inline-flex items-center gap-1 mr-4">
+                <Building className="h-4 w-4" /> Customer: {project.client_name || "None"}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <FileText className="h-4 w-4" /> Financial Year: {project.financial_year}
+              </span>
+            </p>
+          </div>
+          <div className="space-x-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline"
+                    onClick={() => setIsEditProjectOpen(true)}
+                  >
+                    <Edit className="h-4 w-4 mr-1" /> Edit Project
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Edit project details
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+
+        <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="mt-6">
+          <TabsList className="mb-4">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="phases">Phases</TabsTrigger>
+            <TabsTrigger value="team">Team</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="details">Details</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Progress</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>{calculateProgress(phases)}% Complete</span>
+                      <span>{phases?.filter(p => p.status === 'completed').length || 0}/{phases?.length || 0} Phases</span>
+                    </div>
+                    <Progress value={calculateProgress(phases)} className="h-2" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Tasks</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-green-50 border border-green-100 rounded-md p-3 text-center">
+                        <p className="text-2xl font-bold text-green-700">
+                          {tasks?.filter(t => t.status === 'completed').length || 0}
+                        </p>
+                        <p className="text-xs text-green-600">Completed</p>
+                      </div>
+                      <div className="bg-amber-50 border border-amber-100 rounded-md p-3 text-center">
+                        <p className="text-2xl font-bold text-amber-700">
+                          {tasks?.filter(t => t.status !== 'completed').length || 0}
+                        </p>
+                        <p className="text-xs text-amber-600">Pending</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Team</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-1">
+                    {members?.map((member, index) => (
+                      <TooltipProvider key={index}>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Avatar className="h-8 w-8 border border-gray-200">
+                              <AvatarFallback className="text-xs">
+                                {getInitials(member.username)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{member.username}</p>
+                            <p className="text-xs text-muted-foreground">{member.role}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Recent Updates</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="relative pl-6 border-l border-border space-y-4">
+                  {project && (
+                    <div className="relative">
+                      <div className="absolute -left-[23px] bg-primary rounded-full h-4 w-4 border-4 border-background"></div>
+                      <p className="font-medium">Project Created</p>
+                      <p className="text-muted-foreground text-sm">{formatDate(project.created_at)}</p>
+                    </div>
+                  )}
+                  {phases?.filter(p => p.status === 'completed').map((p) => (
+                    <div className="relative" key={p.id}>
+                      <div className="absolute -left-[23px] bg-green-500 rounded-full h-4 w-4 border-4 border-background"></div>
+                      <p className="font-medium">{p.name} Phase Completed</p>
+                      <p className="text-muted-foreground text-sm">{formatDate(p.updated_at)}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="phases" className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Project Phases</h2>
+              <Button>
+                <Plus className="mr-1 h-4 w-4" /> Add Phase
+              </Button>
+            </div>
+            
+            <div className="grid gap-4">
+              {phases?.map((phase, index) => (
+                <Card key={index}>
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <CardTitle>{phase.name}</CardTitle>
+                          <Badge 
+                            variant="outline" 
+                            className={getStatusBadgeColor(phase.status)}
+                          >
+                            {phase.status.charAt(0).toUpperCase() + phase.status.slice(1)}
+                          </Badge>
+                        </div>
+                        <CardDescription>Phase {index + 1} of {phases.length}</CardDescription>
+                      </div>
+                      {getPhaseStatusIcon(phase.status)}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="mb-2">{phase.description}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
+                      <div>
+                        <p className="text-muted-foreground">Start Date</p>
+                        <p>{formatDate(phase.start_date)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">End Date</p>
+                        <p>{formatDate(phase.end_date)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Lead</p>
+                        <p>
+                          {members?.find(m => m.userId === phase.lead_id)?.username || 'Not assigned'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Progress</span>
+                        <span>
+                          {phase.deliverables_completed || 0}/{phase.deliverables_total || 0} Deliverables
+                        </span>
+                      </div>
+                      <Progress value={phase.progress || 0} className="h-2" />
+                    </div>
+                  </CardContent>
+                  <CardFooter className="border-t pt-4">
+                    <div className="flex justify-end space-x-2 w-full">
+                      <Button variant="outline" size="sm">
+                        <ClipboardList className="mr-1 h-4 w-4" /> Deliverables
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Edit className="mr-1 h-4 w-4" /> Edit
+                      </Button>
+                    </div>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="team" className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Project Team</h2>
+              <Button>
+                <Plus className="mr-1 h-4 w-4" /> Add Member
+              </Button>
+            </div>
+            
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Join Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {members?.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback>{getInitials(m.username)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{m.username}</p>
+                              <p className="text-xs text-muted-foreground">{m.email}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={getRoleColor(m.role)}>
+                            {m.role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(m.joined_date)}</TableCell>
+                        <TableCell>
+                          <Badge variant={m.isActive ? "default" : "outline"} className={m.isActive ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-gray-100 text-gray-800"}>
+                            {m.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="tasks" className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Project Tasks</h2>
+              <Button>
+                <Plus className="mr-1 h-4 w-4" /> Add Task
+              </Button>
+            </div>
+            
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Task</TableHead>
+                      <TableHead>Assignee</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tasks?.map((task) => (
+                      <TableRow key={task.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{task.title}</p>
+                            <p className="text-xs text-muted-foreground truncate max-w-[300px]">
+                              {task.description}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {task.assignedToName || "Unassigned"}
+                        </TableCell>
+                        <TableCell>{formatDate(task.dueDate)}</TableCell>
+                        <TableCell>
+                          <Badge variant={task.status === 'completed' ? "default" : "outline"} className={task.status === 'completed' ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-amber-100 text-amber-800"}>
+                            {task.status === 'completed' ? "Completed" : "In Progress"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="details" className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Project Details</h2>
+              <Button 
+                variant="outline"
+                onClick={() => setIsItemsImportOpen(true)}
+              >
+                <FileSpreadsheet className="mr-1 h-4 w-4" /> Import Project Items
+              </Button>
+            </div>
+            
+            {/* Project Items Import Dialog */}
+            <Dialog open={isItemsImportOpen} onOpenChange={setIsItemsImportOpen}>
+              <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                  <DialogTitle>Import Project Items</DialogTitle>
+                  <DialogDescription>
+                    Upload an Excel file to import project items.
+                  </DialogDescription>
+                </DialogHeader>
+                <ProjectItemsImport 
+                  projectId={projectId} 
+                  projectCode={project.code}
+                  onImportComplete={() => {
+                    setIsItemsImportOpen(false);
+                    // Invalidate the project items query to refresh the data
+                    queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/items`] });
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Project Items</CardTitle>
+                <CardDescription>
+                  {projectItems?.length || 0} items
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item Code</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>UOM</TableHead>
+                      <TableHead>Make/Buy</TableHead>
+                      <TableHead>Created At</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingItems ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-4">
+                          <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                        </TableCell>
+                      </TableRow>
+                    ) : projectItems?.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-4">
+                          <div className="flex flex-col items-center justify-center text-muted-foreground">
+                            <Boxes className="h-10 w-10 mb-2" />
+                            <p>No project items yet</p>
+                            <p className="text-sm">Import items using the button above</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      projectItems?.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.itemCode}</TableCell>
+                          <TableCell>{item.description}</TableCell>
+                          <TableCell>{item.quantity}</TableCell>
+                          <TableCell>{item.uom}</TableCell>
+                          <TableCell>{item.makeOrBuy}</TableCell>
+                          <TableCell>{formatDate(item.createdAt)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}

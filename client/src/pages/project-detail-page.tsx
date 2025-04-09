@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import ProjectDetail from "@/components/project-detail";
+import ProjectDetail from "@/components/project-detail-fixed";
 import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 
