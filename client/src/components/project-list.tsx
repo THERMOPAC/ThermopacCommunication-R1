@@ -309,10 +309,9 @@ export default function ProjectList() {
     );
   });
 
-  // Sort projects by priority (High > Medium > Low)
-  const prioritySortedProjects = filteredProjects ? [...filteredProjects].sort((a, b) => {
-    const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
-    return priorityOrder[a.priority] - priorityOrder[b.priority];
+  // Sort projects by ID in ascending order
+  const sortedProjects = filteredProjects ? [...filteredProjects].sort((a, b) => {
+    return a.id - b.id;
   }) : [];
 
   return (
@@ -1012,18 +1011,19 @@ export default function ProjectList() {
         </div>
       ) : (
         <div className="space-y-8">
-          {/* Collapsed view of all projects */}
+          {/* Projects ordered by ID */}
           <div className="border rounded-md p-4">
-            <h3 className="text-xl font-semibold mb-4">All Projects (Collapsed View)</h3>
+            <h3 className="text-xl font-semibold mb-4">All Projects</h3>
             <div className="space-y-2">
-              {filteredProjects?.map((project) => (
+              {sortedProjects.map((project) => (
                 <div 
-                  key={`collapsed-${project.id}`} 
+                  key={`project-${project.id}`} 
                   className="flex items-center justify-between p-3 rounded border hover:bg-gray-50 cursor-pointer"
                   onClick={() => navigate(`/projects/${project.id}`)}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${project.status === 'active' ? 'bg-green-500' : project.status === 'completed' ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
+                    <span className="text-sm text-gray-500">ID: {project.id}</span>
                     <span className="font-medium">{project.name}</span>
                     <span className="text-sm text-gray-500">{project.code}</span>
                   </div>
@@ -1034,79 +1034,6 @@ export default function ProjectList() {
                     <span className="text-xs text-gray-500">{formatDate(project.targetEndDate)}</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-          
-          {/* Projects by Priority (High to Low) */}
-          <div>
-            <h3 className="text-xl font-semibold mb-4">Projects by Priority</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {prioritySortedProjects.map((project) => (
-                <Card key={`priority-${project.id}`} className="overflow-hidden hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex gap-2 mb-1">
-                          <span className={`text-xs rounded-full px-2 py-0.5 ${getStatusColor(project.status)}`}>
-                            {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                          </span>
-                          <span className={`text-xs rounded-full px-2 py-0.5 ${getPriorityColor(project.priority)}`}>
-                            {project.priority}
-                          </span>
-                        </div>
-                        <CardTitle className="text-xl">{project.name}</CardTitle>
-                        <div className="text-xs text-gray-500 mt-1">Code: {project.code}</div>
-                      </div>
-                    </div>
-                    <CardDescription className="line-clamp-2 mt-2">
-                      {project.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-2 text-sm">
-                    <div className="grid grid-cols-2 gap-y-2">
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span>Start: {formatDate(project.startDate)}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span>End: {formatDate(project.targetEndDate)}</span>
-                      </div>
-                      {project.client && (
-                        <div className="flex items-center col-span-2">
-                          <Info className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <span>Client: {project.client}</span>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-2 flex justify-between items-center">
-                    <div className="flex space-x-2 text-xs text-muted-foreground">
-                      <span className="flex items-center"><Users className="h-3 w-3 mr-1" /> {project.memberCount || 0}</span>
-                      <span className="flex items-center"><CheckSquare className="h-3 w-3 mr-1" /> {project.completedTasks || 0}/{project.totalTasks || 0}</span>
-                      <span className="flex items-center"><FileText className="h-3 w-3 mr-1" /> {project.documentCount || 0}</span>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        if (project.id) {
-                          console.log('Using project ID for navigation:', project.id);
-                          navigate(`/projects/${project.id}`);
-                        } else {
-                          toast({
-                            title: "Invalid Project ID",
-                            description: "Unable to open this project due to an invalid ID.",
-                            variant: "destructive"
-                          });
-                        }
-                      }}
-                    >
-                      View Details
-                    </Button>
-                  </CardFooter>
-                </Card>
               ))}
             </div>
           </div>
