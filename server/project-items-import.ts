@@ -237,6 +237,20 @@ export function setupProjectItemsImportRoutes(app: Router) {
       
     } catch (error) {
       console.error('Error importing project items:', error);
+      
+      // Handle database connection errors specifically
+      if (error instanceof Error && 
+          (error.message.includes('terminating connection') || 
+           error.message.includes('database') || 
+           error.toString().includes('57P01'))) {
+        return res.status(503).json({
+          message: 'Database connection error: The database server is currently unavailable. Please try again in a moment.',
+          error: process.env.NODE_ENV === 'development' ? error : undefined,
+          isDbConnectionError: true
+        });
+      }
+      
+      // Handle other errors
       res.status(500).json({ 
         message: error instanceof Error ? error.message : 'Error importing project items',
         error: process.env.NODE_ENV === 'development' ? error : undefined

@@ -97,12 +97,25 @@ export function ProjectItemsImport({
         try {
           const data = await response.json();
           console.error('Import error response:', data);
+          
+          // Handle database connection errors specifically
+          if (data.message && data.message.includes('database') && data.message.includes('connection')) {
+            throw new Error('Database connection error: Please try again in a moment');
+          }
+          
           throw new Error(data.message || 'Failed to import project items');
         } catch (jsonError) {
           // If we can't parse the response as JSON
           console.error('Error parsing error response:', jsonError);
           console.error('Response status:', response.status);
-          console.error('Response text:', await response.text().catch(() => 'Could not read response text'));
+          const responseText = await response.text().catch(() => 'Could not read response text');
+          console.error('Response text:', responseText);
+          
+          // Check if the response includes database connection errors
+          if (responseText.includes('database') && (responseText.includes('connection') || responseText.includes('terminating'))) {
+            throw new Error('Database connection error: Please try again after a moment');
+          }
+          
           throw new Error(`Server error (${response.status}): Failed to import project items`);
         }
       }
