@@ -94,8 +94,17 @@ export function ProjectItemsImport({
       });
       
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to import project items');
+        try {
+          const data = await response.json();
+          console.error('Import error response:', data);
+          throw new Error(data.message || 'Failed to import project items');
+        } catch (jsonError) {
+          // If we can't parse the response as JSON
+          console.error('Error parsing error response:', jsonError);
+          console.error('Response status:', response.status);
+          console.error('Response text:', await response.text().catch(() => 'Could not read response text'));
+          throw new Error(`Server error (${response.status}): Failed to import project items`);
+        }
       }
       
       const data = await response.json();
