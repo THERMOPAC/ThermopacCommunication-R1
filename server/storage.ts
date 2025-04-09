@@ -1786,26 +1786,28 @@ export class DatabaseStorage implements IStorage {
       for (const [key, value] of Object.entries(otherFields)) {
         if (value === null || value === undefined || key === 'id') continue;
         
-        setParts.push(`"${key}" = $${paramIndex}`);
+        // Convert camelCase to snake_case for SQL column names
+        const snakeCaseKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        setParts.push(`"${snakeCaseKey}" = $${paramIndex}`);
         params.push(value);
         paramIndex++;
       }
       
       // Handle date fields separately
       if (startDate) {
-        setParts.push(`"startDate" = $${paramIndex}`);
+        setParts.push(`"start_date" = $${paramIndex}`);
         params.push(startDate);
         paramIndex++;
       }
       
       if (targetEndDate) {
-        setParts.push(`"targetEndDate" = $${paramIndex}`);
+        setParts.push(`"target_end_date" = $${paramIndex}`);
         params.push(targetEndDate);
         paramIndex++;
       }
       
-      // Always add updated timestamp
-      setParts.push(`"updatedAt" = $${paramIndex}`);
+      // Always add updated timestamp (snake_case for column name)
+      setParts.push(`"updated_at" = $${paramIndex}`);
       params.push(new Date().toISOString());
       paramIndex++;
       
@@ -1889,8 +1891,8 @@ export class DatabaseStorage implements IStorage {
   async getProjectPhases(projectId: number): Promise<ProjectPhase[]> {
     console.log(`Getting phases for project ${projectId}`);
     try {
-      // Use simpler SQL query to avoid syntax issues
-      const query = `SELECT * FROM "project_phases" WHERE "projectId" = $1 ORDER BY "id"`;
+      // Use simpler SQL query to avoid syntax issues with snake_case column names
+      const query = `SELECT * FROM "project_phases" WHERE "project_id" = $1 ORDER BY "id"`;
       
       const { rows } = await pool.query(query, [projectId]);
       
@@ -2042,8 +2044,8 @@ export class DatabaseStorage implements IStorage {
   async getProjectTasks(projectId: number): Promise<ProjectTask[]> {
     console.log(`Getting tasks for project ${projectId}`);
     try {
-      // Use simpler SQL query to avoid syntax issues
-      const query = `SELECT * FROM "project_tasks" WHERE "projectId" = $1 ORDER BY "id"`;
+      // Use simpler SQL query to avoid syntax issues with snake_case column names
+      const query = `SELECT * FROM "project_tasks" WHERE "project_id" = $1 ORDER BY "id"`;
       
       const { rows } = await pool.query(query, [projectId]);
       
@@ -2058,8 +2060,8 @@ export class DatabaseStorage implements IStorage {
   async getPhaseProjectTasks(phaseId: number): Promise<ProjectTask[]> {
     console.log(`Getting tasks for phase ${phaseId}`);
     try {
-      // Use simpler SQL query to avoid syntax issues
-      const query = `SELECT * FROM "project_tasks" WHERE "phaseId" = $1 ORDER BY "id"`;
+      // Use simpler SQL query to avoid syntax issues with snake_case column names
+      const query = `SELECT * FROM "project_tasks" WHERE "phase_id" = $1 ORDER BY "id"`;
       
       const { rows } = await pool.query(query, [phaseId]);
       
