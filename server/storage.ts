@@ -25,7 +25,7 @@ import type {
 import { roleHierarchy, canManage } from "@shared/roles";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { 
   users, 
   tasks as tasksTable, 
@@ -1773,52 +1773,64 @@ export class DatabaseStorage implements IStorage {
   async updateProject(id: number, updateData: Partial<Project>): Promise<Project> {
     console.log(`Updating project ${id} with data:`, updateData);
     
-    // Create a clean object for the update
-    const cleanUpdateData: any = {};
-    
-    // Process each field to ensure dates are handled correctly
-    for (const [key, value] of Object.entries(updateData)) {
-      // Skip null/undefined values
-      if (value === null || value === undefined) continue;
+    try {
+      // Build the SQL update query directly to avoid ORM date handling issues
+      let queryParts = [];
+      const params = [];
+      let paramIndex = 1;
       
-      // Handle date fields
-      if (key === 'startDate' || key === 'targetEndDate' || key === 'updatedAt' || key === 'createdAt') {
-        try {
-          // If it's already a Date object, use it directly
-          if (value instanceof Date) {
-            cleanUpdateData[key] = value;
-          } 
-          // If it's a string that can be parsed as a date, convert it
-          else if (typeof value === 'string' && !isNaN(new Date(value).getTime())) {
-            cleanUpdateData[key] = new Date(value);
+      // Process each field to add to the SQL query
+      for (const [key, value] of Object.entries(updateData)) {
+        // Skip problematic fields or null/undefined values
+        if (value === null || value === undefined || key === 'id') continue;
+        
+        // Handle dates
+        if (key === 'startDate' || key === 'targetEndDate') {
+          if (typeof value === 'string' && value.trim() !== '') {
+            queryParts.push(`"${key}" = $${paramIndex}`);
+            params.push(value); // Pass as string, PostgreSQL will handle conversion
+            paramIndex++;
           }
-          // Otherwise skip the field to avoid errors
-          else {
-            console.log(`Skipping invalid date value for ${key}:`, value);
-          }
-        } catch (e) {
-          console.error(`Error processing date field ${key}:`, e);
+        } 
+        // Handle all other fields
+        else if (key !== 'updatedAt' && key !== 'createdAt') {
+          queryParts.push(`"${key}" = $${paramIndex}`);
+          params.push(value);
+          paramIndex++;
         }
-      } 
-      // For non-date fields, pass the value through
-      else {
-        cleanUpdateData[key] = value;
       }
+      
+      // Always add the updated timestamp
+      queryParts.push(`"updatedAt" = $${paramIndex}`);
+      params.push(new Date().toISOString());
+      paramIndex++;
+      
+      // Build and execute the SQL query
+      const query = `
+        UPDATE projects 
+        SET ${queryParts.join(', ')} 
+        WHERE id = $${paramIndex} 
+        RETURNING *
+      `;
+      params.push(id);
+      
+      console.log("Direct SQL query:", query);
+      console.log("SQL parameters:", params);
+      
+      // Execute the query
+      const { rows } = await pool.query(query, params);
+      
+      if (rows.length === 0) {
+        throw new Error("Project not found");
+      }
+      
+      const project = rows[0] as Project;
+      console.log(`Updated project:`, project);
+      return project;
+    } catch (error) {
+      console.error(`Error in direct SQL update for project ${id}:`, error);
+      throw error;
     }
-    
-    console.log(`Cleaned update data:`, cleanUpdateData);
-    
-    const result = await db
-      .update(projectsTable)
-      .set(cleanUpdateData)
-      .where(eq(projectsTable.id, id))
-      .returning();
-    
-    const project = result[0] as Project;
-    if (!project) throw new Error("Project not found");
-    
-    console.log(`Updated project:`, project);
-    return project;
   }
 
   async getUserProjects(userId: number): Promise<Project[]> {
@@ -1875,14 +1887,22 @@ export class DatabaseStorage implements IStorage {
 
   async getProjectPhases(projectId: number): Promise<ProjectPhase[]> {
     console.log(`Getting phases for project ${projectId}`);
-    const phases = await db
-      .select()
-      .from(projectPhasesTable)
-      .where(eq(projectPhasesTable.projectId, projectId))
-      .orderBy(projectPhasesTable.phaseNumber);
-    
-    console.log(`Found ${phases.length} phases for project ${projectId}`);
-    return phases as ProjectPhase[];
+    try {
+      // Use direct SQL query to avoid ORM issues
+      const query = `
+        SELECT * FROM project_phases 
+        WHERE "projectId" = $1 
+        ORDER BY "id"
+      `;
+      
+      const { rows } = await pool.query(query, [projectId]);
+      
+      console.log(`Found ${rows.length} phases for project ${projectId}`);
+      return rows as ProjectPhase[];
+    } catch (error) {
+      console.error(`Error getting phases for project ${projectId}:`, error);
+      return [];
+    }
   }
 
   async getProjectPhase(id: number): Promise<ProjectPhase | undefined> {
@@ -2024,26 +2044,42 @@ export class DatabaseStorage implements IStorage {
 
   async getProjectTasks(projectId: number): Promise<ProjectTask[]> {
     console.log(`Getting tasks for project ${projectId}`);
-    const tasks = await db
-      .select()
-      .from(projectTasksTable)
-      .where(eq(projectTasksTable.projectId, projectId))
-      .orderBy(projectTasksTable.dueDate);
-    
-    console.log(`Found ${tasks.length} tasks for project ${projectId}`);
-    return tasks as ProjectTask[];
+    try {
+      // Use direct SQL query to avoid ORM issues
+      const query = `
+        SELECT * FROM project_tasks 
+        WHERE "projectId" = $1 
+        ORDER BY "id"
+      `;
+      
+      const { rows } = await pool.query(query, [projectId]);
+      
+      console.log(`Found ${rows.length} tasks for project ${projectId}`);
+      return rows as ProjectTask[];
+    } catch (error) {
+      console.error(`Error getting tasks for project ${projectId}:`, error);
+      return [];
+    }
   }
 
   async getPhaseProjectTasks(phaseId: number): Promise<ProjectTask[]> {
     console.log(`Getting tasks for phase ${phaseId}`);
-    const tasks = await db
-      .select()
-      .from(projectTasksTable)
-      .where(eq(projectTasksTable.phaseId, phaseId))
-      .orderBy(projectTasksTable.dueDate);
-    
-    console.log(`Found ${tasks.length} tasks for phase ${phaseId}`);
-    return tasks as ProjectTask[];
+    try {
+      // Use direct SQL query to avoid ORM issues
+      const query = `
+        SELECT * FROM project_tasks 
+        WHERE "phaseId" = $1 
+        ORDER BY "id"
+      `;
+      
+      const { rows } = await pool.query(query, [phaseId]);
+      
+      console.log(`Found ${rows.length} tasks for phase ${phaseId}`);
+      return rows as ProjectTask[];
+    } catch (error) {
+      console.error(`Error getting tasks for phase ${phaseId}:`, error);
+      return [];
+    }
   }
 
   async getProjectTask(id: number): Promise<ProjectTask | undefined> {
