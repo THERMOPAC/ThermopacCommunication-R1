@@ -75,7 +75,12 @@ import {
   XCircle,
   FileSpreadsheet,
   Boxes,
-  Building
+  Building,
+  Milestone,
+  Truck,
+  Paperclip,
+  FileUp,
+  Upload
 } from "lucide-react";
 import { ProjectItemsImport } from "@/components/project-items-import";
 import { useToast } from "@/hooks/use-toast";
@@ -100,6 +105,11 @@ const editProjectSchema = z.object({
   // These fields are for display only (readonly in the edit form)
   code: z.string().optional(),
   financialYear: z.string().optional(),
+  // Additional fields for logistics tab
+  shippingAddress: z.string().optional(),
+  deliveryMethod: z.enum(["standard", "express", "pickup"]).optional(),
+  client: z.string().optional(),
+  vendor: z.string().optional(),
 });
 
 // Form type for editing project
@@ -134,6 +144,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       budget: undefined,
       code: "",
       financialYear: "",
+      shippingAddress: "",
+      deliveryMethod: "standard",
+      client: "",
+      vendor: "",
     },
   });
   
@@ -199,6 +213,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         budget: project.budget || undefined,
         code: project.code || "",
         financialYear: project.financialYear || "",
+        shippingAddress: project.shippingAddress || "",
+        deliveryMethod: project.deliveryMethod || "standard",
+        client: project.client || "",
+        vendor: project.vendor || "",
       });
     }
   }, [project, form]);
@@ -437,7 +455,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     <div className="space-y-6">
       {/* Edit Project Dialog */}
       <Dialog open={isEditProjectOpen} onOpenChange={setIsEditProjectOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[900px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Project Details</DialogTitle>
             <DialogDescription>
@@ -664,6 +682,232 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   </FormItem>
                 )}
               />
+              
+              {/* Tabs for Project Details, Stages, Logistics, Attachments */}
+              <Tabs defaultValue="project-details" className="w-full mt-6">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="project-details" className="flex items-center gap-1">
+                    <ClipboardList className="h-4 w-4" /> Project Details
+                  </TabsTrigger>
+                  <TabsTrigger value="project-stages" className="flex items-center gap-1">
+                    <Milestone className="h-4 w-4" /> Project Stages
+                  </TabsTrigger>
+                  <TabsTrigger value="logistics" className="flex items-center gap-1">
+                    <Truck className="h-4 w-4" /> Logistics
+                  </TabsTrigger>
+                  <TabsTrigger value="attachments" className="flex items-center gap-1">
+                    <Paperclip className="h-4 w-4" /> Attachments
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="project-details" className="space-y-4 mt-4">
+                  {/* Project Items Section */}
+                  <div className="space-y-3 border rounded-md p-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-sm font-medium">Project Items</h3>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate(`/projects/${projectId}/items/import`)}
+                      >
+                        <FileUp className="h-4 w-4 mr-2" />
+                        Import Project Items
+                      </Button>
+                    </div>
+                    
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Item Code</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead>Quantity</TableHead>
+                            <TableHead>UOM</TableHead>
+                            <TableHead>Make/Buy</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {projectItems && projectItems.length > 0 ? (
+                            projectItems.map((item) => (
+                              <TableRow key={item.id}>
+                                <TableCell>{item.itemCode}</TableCell>
+                                <TableCell>{item.description}</TableCell>
+                                <TableCell>{item.quantity}</TableCell>
+                                <TableCell>{item.uom}</TableCell>
+                                <TableCell>{item.itemType}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                                No project items found. Use the Import button to add items.
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="project-stages" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="border rounded-md p-4">
+                      <h3 className="text-sm font-medium mb-3">Design Phase</h3>
+                      <p className="text-xs text-muted-foreground mb-2">Configure design phase details</p>
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-xs">
+                          <span>Status</span>
+                          <Badge variant="outline" className="bg-blue-50 text-blue-800">Planning</Badge>
+                        </div>
+                        <Progress value={0} className="h-1" />
+                      </div>
+                    </div>
+                    
+                    <div className="border rounded-md p-4">
+                      <h3 className="text-sm font-medium mb-3">Procurement Phase</h3>
+                      <p className="text-xs text-muted-foreground mb-2">Configure procurement phase details</p>
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-xs">
+                          <span>Status</span>
+                          <Badge variant="outline" className="bg-gray-50 text-gray-800">Not Started</Badge>
+                        </div>
+                        <Progress value={0} className="h-1" />
+                      </div>
+                    </div>
+                    
+                    <div className="border rounded-md p-4">
+                      <h3 className="text-sm font-medium mb-3">Manufacturing Phase</h3>
+                      <p className="text-xs text-muted-foreground mb-2">Configure manufacturing phase details</p>
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-xs">
+                          <span>Status</span>
+                          <Badge variant="outline" className="bg-gray-50 text-gray-800">Not Started</Badge>
+                        </div>
+                        <Progress value={0} className="h-1" />
+                      </div>
+                    </div>
+                    
+                    <div className="border rounded-md p-4">
+                      <h3 className="text-sm font-medium mb-3">Quality Phase</h3>
+                      <p className="text-xs text-muted-foreground mb-2">Configure quality phase details</p>
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-xs">
+                          <span>Status</span>
+                          <Badge variant="outline" className="bg-gray-50 text-gray-800">Not Started</Badge>
+                        </div>
+                        <Progress value={0} className="h-1" />
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="logistics" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="shippingAddress"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Shipping Address</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Enter shipping address"
+                                className="min-h-[100px]"
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="client"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client Contact Person</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Enter client contact person name"
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="deliveryMethod"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Delivery Method</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              value={field.value || "standard"}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select delivery method" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="standard">Standard Shipping</SelectItem>
+                                <SelectItem value="express">Express Shipping</SelectItem>
+                                <SelectItem value="pickup">Customer Pickup</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="vendor"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Vendor Contact</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Enter vendor contact information"
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="attachments" className="space-y-4 mt-4">
+                  <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm mb-1">Drag & drop files here or click to browse</p>
+                    <p className="text-xs text-muted-foreground mb-4">Upload project documentation, drawings, and other relevant files</p>
+                    <Button type="button" variant="outline" size="sm">Browse Files</Button>
+                  </div>
+                  
+                  <div className="rounded-md border">
+                    <div className="p-4">
+                      <h3 className="text-sm font-medium mb-3">Uploaded Attachments</h3>
+                      <p className="text-xs text-muted-foreground">No attachments yet. Add files above.</p>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
               
               <DialogFooter>
                 <Button 
