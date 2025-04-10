@@ -69,92 +69,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Only Superuser can perform this operation' });
       }
       
-      // Check if there are any project items referencing master items
+      // Count project items that reference master items
       const projectItems = await db
         .select()
         .from(projectItemsTable)
         .where(sql`${projectItemsTable.itemId} IS NOT NULL`);
       const projectItemCount = projectItems.length;
       
-      // Track if we're using an existing placeholder
-      let usingExistingPlaceholder = false;
+      console.log(`Found ${projectItemCount} project items referencing master items`);
       
-      // Begin a transaction to ensure data integrity
-      await db.transaction(async (tx) => {
-        console.log(`Found ${projectItemCount} project items referencing master items`);
+      // Determine if we need to keep a placeholder item
+      if (projectItemCount > 0) {
+        let placeholderId;
+        let usingExistingPlaceholder = false;
         
-        if (projectItemCount > 0) {
-          // First delete all items except any existing placeholder
-          await tx.delete(masterItemsTable)
-            .where(sql`${masterItemsTable.itemCode} != 'PLACEHOLDER-RESET-REFERENCE'`);
+        // Check if a placeholder item already exists
+        const existingPlaceholders = await db.select()
+          .from(masterItemsTable)
+          .where(eq(masterItemsTable.itemCode, "PLACEHOLDER-RESET-REFERENCE"));
+        
+        if (existingPlaceholders.length > 0) {
+          // Use existing placeholder
+          placeholderId = existingPlaceholders[0].id;
+          usingExistingPlaceholder = true;
+          console.log(`Using existing placeholder with ID: ${placeholderId}`);
           
-          console.log("Deleted all non-placeholder master items");
-          
-          // Check if placeholder already exists
-          const existingPlaceholders = await tx.select()
-            .from(masterItemsTable)
-            .where(eq(masterItemsTable.itemCode, "PLACEHOLDER-RESET-REFERENCE"))
-            .limit(1);
-            
-          let placeholderItem;
-          
-          if (existingPlaceholders.length > 0) {
-            console.log("Using existing placeholder item with ID:", existingPlaceholders[0].id);
-            placeholderItem = existingPlaceholders;
-            // Update the outer scope variable
-            usingExistingPlaceholder = true;
-          } else {
-            // Create a placeholder master item to preserve referential integrity
-            placeholderItem = await tx.insert(masterItemsTable)
-              .values({
-                itemCode: "PLACEHOLDER-RESET-REFERENCE",
-                description: "Placeholder reference for reset master items",
-                uom: "EA",
-                makeOrBuy: "N/A",
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                drawingNo: "N/A",
-                notes: "This is a placeholder item created during database reset. This item replaces references to deleted master items."
-              })
-              .returning();
-          }
-          
-          const placeholderId = placeholderItem[0].id;
-          console.log(`Using placeholder master item with ID ${placeholderId}`);
-          
-          // Update all project items to reference the placeholder
-          await tx.update(projectItemsTable)
+          // First update all project items to reference the placeholder
+          await db.update(projectItemsTable)
             .set({ itemId: placeholderId })
             .where(sql`${projectItemsTable.itemId} IS NOT NULL`);
+          console.log(`Updated ${projectItemCount} project items to reference placeholder`);
           
-          console.log(`Updated ${projectItemCount} project items to reference placeholder item`);
+          // Then delete all other master items
+          await db.delete(masterItemsTable)
+            .where(sql`${masterItemsTable.id} != ${placeholderId}`);
+          console.log("Deleted all other master items");
         } else {
-          // No project items using master items, safe to delete all
-          console.log("Deleting all master items");
-          await tx.delete(masterItemsTable);
+          // First, remove all existing master items
+          await db.delete(masterItemsTable);
+          console.log("Deleted all master items");
+          
+          // Then create a new placeholder
+          console.log("Creating a new placeholder");
+          const placeholderItem = await db.insert(masterItemsTable)
+            .values({
+              itemCode: "PLACEHOLDER-RESET-REFERENCE",
+              description: "Placeholder reference for reset master items",
+              uom: "EA",
+              makeOrBuy: "N/A",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              drawingNo: "N/A",
+              notes: "This is a placeholder item created during database reset. This item replaces references to deleted master items."
+            })
+            .returning();
+          
+          placeholderId = placeholderItem[0].id;
+          console.log(`Created new placeholder with ID: ${placeholderId}`);
+          
+          // Then update all project items to reference this placeholder
+          await db.update(projectItemsTable)
+            .set({ itemId: placeholderId })
+            .where(sql`${projectItemsTable.itemId} IS NOT NULL`);
+          console.log(`Updated ${projectItemCount} project items to reference new placeholder`);
         }
         
-        // Reset the auto-increment counter to start after the highest existing ID
-        console.log("Resetting auto-increment counter");
-        if (projectItemCount > 0) {
-          // Find the highest ID value currently in use
-          const maxIdResult = await tx.select({ maxId: sql`MAX(id)` }).from(masterItemsTable);
-          const maxId = typeof maxIdResult[0].maxId === 'number' ? maxIdResult[0].maxId : 1;
-          const nextId = maxId + 1;
-          
-          console.log(`Resetting auto-increment counter to ${nextId}`);
-          await tx.execute(sql`ALTER SEQUENCE master_items_id_seq RESTART WITH ${nextId}`);
-        } else {
-          await tx.execute(sql`ALTER SEQUENCE master_items_id_seq RESTART WITH 1`);
-        }
-      });
-      
-      res.status(200).json({ 
-        message: 'Master items table reset successfully', 
-        details: projectItemCount > 0 
-          ? `${usingExistingPlaceholder ? 'Used existing' : 'Created new'} placeholder master item and updated ${projectItemCount} project item references.` 
-          : 'No project item references needed to be updated.'
-      });
+        // Reset auto-increment counter
+        const maxIdResult = await db.select({ maxId: sql`MAX(id)` }).from(masterItemsTable);
+        const maxId = typeof maxIdResult[0].maxId === 'number' ? maxIdResult[0].maxId : 0;
+        const nextId = maxId + 1;
+        
+        await db.execute(sql`ALTER SEQUENCE master_items_id_seq RESTART WITH ${nextId}`);
+        console.log(`Reset auto-increment counter to ${nextId}`);
+        
+        // Return success response
+        res.status(200).json({ 
+          message: 'Master items table reset successfully', 
+          details: `${usingExistingPlaceholder ? 'Used existing' : 'Created new'} placeholder master item and updated ${projectItemCount} project item references.` 
+        });
+      } else {
+        // No project items referencing master items, can safely delete all
+        await db.delete(masterItemsTable);
+        console.log("Deleted all master items");
+        
+        // Reset auto-increment counter
+        await db.execute(sql`ALTER SEQUENCE master_items_id_seq RESTART WITH 1`);
+        console.log("Reset auto-increment counter to 1");
+        
+        // Return success response
+        res.status(200).json({ 
+          message: 'Master items table reset successfully', 
+          details: 'All master items deleted. No project item references needed to be updated.' 
+        });
+      }
     } catch (error) {
       console.error("Error resetting master items table:", error);
       res.status(500).json({ 
