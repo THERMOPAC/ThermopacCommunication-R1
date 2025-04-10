@@ -1082,6 +1082,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                     <Button
                                       variant="ghost"
                                       size="sm"
+                                      className="text-blue-600"
                                       onClick={() => {
                                         setSelectedItem(item);
                                         itemForm.reset({
@@ -1096,6 +1097,20 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                       }}
                                     >
                                       <Edit className="h-4 w-4 mr-1" /> Edit
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-red-600"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        console.log("Delete item clicked for item:", item);
+                                        setSelectedItem(item);
+                                        setIsDeleteConfirmOpen(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" /> Delete
                                     </Button>
                                   </div>
                                 </TableCell>
