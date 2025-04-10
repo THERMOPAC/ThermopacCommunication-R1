@@ -84,6 +84,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Found ${projectItemCount} project items referencing master items`);
         
         if (projectItemCount > 0) {
+          // First delete all items except any existing placeholder
+          await tx.delete(masterItemsTable)
+            .where(sql`${masterItemsTable.itemCode} != 'PLACEHOLDER-RESET-REFERENCE'`);
+          
+          console.log("Deleted all non-placeholder master items");
+          
           // Check if placeholder already exists
           const existingPlaceholders = await tx.select()
             .from(masterItemsTable)
@@ -122,11 +128,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(sql`${projectItemsTable.itemId} IS NOT NULL`);
           
           console.log(`Updated ${projectItemCount} project items to reference placeholder item`);
-          
-          // Delete all master items except the placeholder
-          console.log("Deleting all other master items");
-          await tx.delete(masterItemsTable)
-            .where(sql`${masterItemsTable.id} != ${placeholderId}`);
         } else {
           // No project items using master items, safe to delete all
           console.log("Deleting all master items");
