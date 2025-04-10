@@ -1736,16 +1736,16 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           <TableCell>{item.masterItem?.makeOrBuy || "N/A"}</TableCell>
                           <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
                           <TableCell>{formatDate(item.createdAt)}</TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex justify-center gap-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="text-blue-600 border-blue-600"
+                          <TableCell>
+                            <div className="flex items-center justify-center space-x-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-blue-600"
                                 onClick={(e) => {
-                                  e.preventDefault(); 
-                                  e.stopPropagation(); 
-                                  console.log("Edit item clicked for item:", item);
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log("Edit item clicked");
                                   setSelectedItem(item);
                                   itemForm.reset({
                                     itemCode: item.masterItem?.itemCode || "",
@@ -1758,24 +1758,21 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                   setIsEditItemOpen(true);
                                 }}
                               >
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
+                                <Edit className="h-4 w-4" />
                               </Button>
-                              
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="text-red-600 border-red-600"
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-red-600"
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  console.log("Delete item clicked for item:", item);
+                                  console.log("Delete item clicked");
                                   setSelectedItem(item);
                                   setIsDeleteConfirmOpen(true);
                                 }}
                               >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>
