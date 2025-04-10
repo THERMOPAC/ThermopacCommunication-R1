@@ -46,20 +46,9 @@ export function setupProjectItemsImportRoutes(app: Router) {
   // Define the fields that are required
   const requiredFields = ['itemCode', 'description', 'quantity', 'uom'];
 
-  // Define a simple file interface to handle multer uploads
-  interface MulterFile {
-    fieldname: string;
-    originalname: string;
-    encoding: string;
-    mimetype: string;
-    buffer: Buffer;
-    size: number;
-  }
-  
-  interface MulterRequest extends Request {
-    file?: MulterFile;
-    user?: any;
-  }
+  // Treat the req as any for multer file handling
+  // This avoids TypeScript errors with the multer file interface
+  type MulterRequest = any;
 
   app.post('/api/projects/items/import-excel', ensureAuthenticated, upload.single('file'), async (req: MulterRequest, res: Response) => {
     try {
@@ -233,8 +222,15 @@ export function setupProjectItemsImportRoutes(app: Router) {
               continue;
             }
           } else {
-            // Use existing master item
+            // Use existing master item but check if we need to update the drawing number
             masterItemId = masterItem.id;
+            
+            // Check if Drawing_No needs to be updated
+            if (rawItemData.drawingNo && (!masterItem.drawingNo || masterItem.drawingNo !== rawItemData.drawingNo)) {
+              console.log('Updating drawing number for existing master item:', masterItem.itemCode, 'to:', rawItemData.drawingNo);
+              await storage.updateMasterItem(masterItem.id, { drawingNo: rawItemData.drawingNo });
+            }
+            
             console.log('Using existing master item:', masterItem.itemCode, 'with ID:', masterItemId);
           }
 
