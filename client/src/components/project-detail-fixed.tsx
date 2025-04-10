@@ -1011,6 +1011,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             <TableHead>Quantity</TableHead>
                             <TableHead>UOM</TableHead>
                             <TableHead>Make/Buy</TableHead>
+                            <TableHead>Drawing No</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1021,12 +1023,35 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 <TableCell>{item.description}</TableCell>
                                 <TableCell>{item.quantity}</TableCell>
                                 <TableCell>{item.uom}</TableCell>
-                                <TableCell>{item.itemType}</TableCell>
+                                <TableCell>{item.makeOrBuy}</TableCell>
+                                <TableCell>{item.drawingNo || "-"}</TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedItem(item);
+                                        itemForm.reset({
+                                          itemCode: item.itemCode || "",
+                                          description: item.description || "",
+                                          quantity: item.quantity || 1,
+                                          uom: item.uom || "",
+                                          makeOrBuy: (item.makeOrBuy as "Make" | "Buy") || "Buy",
+                                          drawingNo: item.drawingNo || "",
+                                        });
+                                        setIsEditItemOpen(true);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4 mr-1" /> Edit
+                                    </Button>
+                                  </div>
+                                </TableCell>
                               </TableRow>
                             ))
                           ) : (
                             <TableRow>
-                              <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                              <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
                                 No project items found. Use the Import button to add items.
                               </TableCell>
                             </TableRow>

@@ -919,9 +919,24 @@ export function setupProjectRoutes(app: express.Express) {
         return res.status(403).json({ error: 'Not authorized to update this project item' });
       }
 
-      const { itemCode, description, quantity, uom, makeOrBuy, drawingNo, ...otherData } = req.body;
+      // Extract fields from request body, including camelCase and snake_case variations
+      const { 
+        itemCode, 
+        description, 
+        quantity, 
+        uom, 
+        makeOrBuy, 
+        make_or_buy, // Include snake_case version
+        drawingNo, 
+        drawing_no,  // Include snake_case version
+        ...otherData 
+      } = req.body;
       
-      console.log(`Extracted fields for update - itemCode: ${itemCode}, description: ${description}, quantity: ${quantity}, uom: ${uom}, makeOrBuy: ${makeOrBuy}, drawingNo: ${drawingNo}`);
+      // Use the camelCase version if available, otherwise use snake_case version
+      const effectiveMakeOrBuy = makeOrBuy || make_or_buy;
+      const effectiveDrawingNo = drawingNo || drawing_no;
+      
+      console.log(`Extracted fields for update - itemCode: ${itemCode}, description: ${description}, quantity: ${quantity}, uom: ${uom}, makeOrBuy: ${effectiveMakeOrBuy}, drawingNo: ${effectiveDrawingNo}`);
       
       // If itemCode is provided, we need to update the master item
       if (itemCode) {
@@ -953,14 +968,18 @@ export function setupProjectRoutes(app: express.Express) {
           }
           
           // Update the master item with new data
+          // Be explicit about field names to ensure they match the database schema
           const masterItemUpdateData = {
             itemCode,
             description,
             uom,
-            makeOrBuy,
-            drawingNo,
+            // Use the effective values which handle both camelCase and snake_case
+            makeOrBuy: effectiveMakeOrBuy,
+            drawingNo: effectiveDrawingNo,
             updatedAt: new Date().toISOString()
           };
+          
+          console.log(`Explicitly setting make_or_buy: ${makeOrBuy} and drawing_no: ${drawingNo}`);
           
           console.log(`Updating master item ${masterItem.id} with data:`, masterItemUpdateData);
           const updatedMasterItem = await storage.updateMasterItem(masterItem.id, masterItemUpdateData);

@@ -2273,10 +2273,28 @@ export class DatabaseStorage implements IStorage {
 
   async updateMasterItem(id: number, updateData: Partial<MasterItem>): Promise<MasterItem> {
     console.log(`Updating master item ${id} with data:`, updateData);
+    
+    // Handle field name mapping between camelCase and snake_case
+    const preparedData: Record<string, any> = {};
+    
+    // Copy all normal fields
+    Object.keys(updateData).forEach(key => {
+      // If the key is make_or_buy or drawing_no, we'll map it to the correct field in the DB
+      if (key === 'make_or_buy') {
+        preparedData.makeOrBuy = updateData[key];
+      } else if (key === 'drawing_no') {
+        preparedData.drawingNo = updateData[key];
+      } else {
+        preparedData[key] = updateData[key];
+      }
+    });
+    
+    console.log(`Prepared data after field mapping:`, preparedData);
+    
     try {
       const result = await db
         .update(masterItemsTable)
-        .set(updateData)
+        .set(preparedData)
         .where(eq(masterItemsTable.id, id))
         .returning();
       
@@ -2287,7 +2305,6 @@ export class DatabaseStorage implements IStorage {
       return item;
     } catch (error) {
       console.error("Error updating master item, table might not exist:", error);
-      // Return a simulated master item with the update data applied
       return {
         id,
         ...updateData,
