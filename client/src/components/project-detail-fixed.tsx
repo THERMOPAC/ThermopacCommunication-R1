@@ -555,7 +555,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-[1400px] mx-auto">
       {/* Edit Item Dialog */}
       <Dialog open={isEditItemOpen} onOpenChange={setIsEditItemOpen}>
         <DialogContent className="sm:max-w-[500px]">
@@ -1683,17 +1683,17 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <Table>
+                <Table className="min-w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Item Code</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead>UOM</TableHead>
-                      <TableHead>Make/Buy</TableHead>
-                      <TableHead>Drawing No</TableHead>
-                      <TableHead>Created At</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
+                      <TableHead className="w-[12%]">Item Code</TableHead>
+                      <TableHead className="w-[20%]">Description</TableHead>
+                      <TableHead className="w-[7%]">Quantity</TableHead>
+                      <TableHead className="w-[7%]">UOM</TableHead>
+                      <TableHead className="w-[7%]">Make/Buy</TableHead>
+                      <TableHead className="w-[10%]">Drawing No</TableHead>
+                      <TableHead className="w-[12%]">Created At</TableHead>
+                      <TableHead className="w-[25%] text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
