@@ -67,21 +67,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if there are any project items referencing master items
       const projectItems = await db.select().from(projectItemsTable).where(db.sql`item_id IS NOT NULL`);
+      const projectItemCount = projectItems.length;
       
-      if (projectItems.length > 0) {
-        return res.status(400).json({
-          error: 'Cannot reset master items table',
-          details: `There are ${projectItems.length} project items that reference master items. Please remove these references first.`
-        });
-      }
+      // Begin a transaction to ensure data integrity
+      await db.transaction(async (tx) => {
+        console.log(`Nullifying ${projectItemCount} project item references to master items`);
+        
+        // Nullify references from project items to master items
+        if (projectItemCount > 0) {
+          await tx.update(projectItemsTable)
+            .set({ item_id: null })
+            .where(db.sql`item_id IS NOT NULL`);
+        }
+        
+        // Delete all master items
+        console.log("Deleting all master items");
+        await tx.delete(masterItemsTable);
+        
+        // Reset the auto-increment counter
+        console.log("Resetting auto-increment counter");
+        await tx.execute(db.sql`ALTER SEQUENCE master_items_id_seq RESTART WITH 1`);
+      });
       
-      // Delete all master items
-      await db.delete(masterItemsTable);
-      
-      // Reset the auto-increment counter
-      await db.execute(db.sql`ALTER SEQUENCE master_items_id_seq RESTART WITH 1`);
-      
-      res.status(200).json({ message: 'Master items table reset successfully' });
+      res.status(200).json({ 
+        message: 'Master items table reset successfully', 
+        details: projectItemCount > 0 
+          ? `Nullified ${projectItemCount} project item references to master items.` 
+          : 'No project item references needed to be nullified.'
+      });
     } catch (error) {
       console.error("Error resetting master items table:", error);
       res.status(500).json({ 
