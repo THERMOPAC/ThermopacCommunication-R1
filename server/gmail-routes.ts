@@ -478,11 +478,11 @@ export function setupGmailRoutes(app: express.Express) {
         // Get most recent messages
         let response;
         try {
-          // Explicitly exclude SPAM and TRASH emails
+          // Only fetch emails with IMPORTANT label and exclude SPAM and TRASH
           response = await gmail.users.messages.list({
             userId: 'me',
             maxResults: 20, // Limit to 20 messages for manual sync
-            q: '-in:spam -in:trash', // Gmail API query to exclude spam and trash folders
+            q: 'is:important -in:spam -in:trash', // Gmail API query to get important emails only and exclude spam and trash folders
           });
           console.log('Gmail API messages.list request successful');
         } catch (apiError) {
