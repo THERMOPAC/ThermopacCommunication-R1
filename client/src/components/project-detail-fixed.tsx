@@ -1716,20 +1716,24 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     ) : (
                       projectItems?.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell>{item.masterItem?.itemCode || "N/A"}</TableCell>
-                          <TableCell>{item.masterItem?.description || "N/A"}</TableCell>
+                          <TableCell className="truncate max-w-0">{item.masterItem?.itemCode || "N/A"}</TableCell>
+                          <TableCell className="truncate max-w-0">
+                            <div className="truncate" title={item.masterItem?.description || "N/A"}>
+                              {item.masterItem?.description || "N/A"}
+                            </div>
+                          </TableCell>
                           <TableCell>{item.quantity}</TableCell>
                           <TableCell>{item.masterItem?.uom || "N/A"}</TableCell>
                           <TableCell>{item.masterItem?.makeOrBuy || "N/A"}</TableCell>
                           <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
                           <TableCell>{formatDate(item.createdAt)}</TableCell>
                           <TableCell>
-                            <div className="flex items-center justify-center space-x-2">
+                            <div className="flex flex-row items-center justify-center gap-3">
                               <Button
                                 variant="default"
                                 size="sm"
                                 type="button"
-                                className="bg-blue-500 hover:bg-blue-600 text-white"
+                                className="bg-blue-500 hover:bg-blue-600 text-white w-20"
                                 onClick={(e) => {
                                   e.preventDefault(); // Prevent any default behavior
                                   e.stopPropagation(); // Stop event bubbling
@@ -1753,6 +1757,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 variant="destructive"
                                 size="sm"
                                 type="button"
+                                className="w-20"
                                 onClick={(e) => {
                                   e.preventDefault(); // Prevent any default behavior
                                   e.stopPropagation(); // Stop event bubbling
