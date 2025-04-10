@@ -66,7 +66,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if there are any project items referencing master items
-      const projectItems = await db.select().from(projectItemsTable).where(db.sql`item_id IS NOT NULL`);
+      const projectItems = await db
+        .select()
+        .from(projectItemsTable)
+        .where(eq(projectItemsTable.itemId, sql.raw('IS NOT NULL')));
       const projectItemCount = projectItems.length;
       
       // Begin a transaction to ensure data integrity
@@ -76,8 +79,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Nullify references from project items to master items
         if (projectItemCount > 0) {
           await tx.update(projectItemsTable)
-            .set({ item_id: null })
-            .where(db.sql`item_id IS NOT NULL`);
+            .set({ itemId: null })
+            .where(eq(projectItemsTable.itemId, sql.raw('IS NOT NULL')));
         }
         
         // Delete all master items
@@ -86,7 +89,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Reset the auto-increment counter
         console.log("Resetting auto-increment counter");
-        await tx.execute(db.sql`ALTER SEQUENCE master_items_id_seq RESTART WITH 1`);
+        await tx.execute(sql`ALTER SEQUENCE master_items_id_seq RESTART WITH 1`);
       });
       
       res.status(200).json({ 
