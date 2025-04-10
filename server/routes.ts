@@ -69,7 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const projectItems = await db
         .select()
         .from(projectItemsTable)
-        .where(eq(projectItemsTable.itemId, sql.raw('IS NOT NULL')));
+        .where(sql`${projectItemsTable.itemId} IS NOT NULL`);
       const projectItemCount = projectItems.length;
       
       // Begin a transaction to ensure data integrity
@@ -80,7 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (projectItemCount > 0) {
           await tx.update(projectItemsTable)
             .set({ itemId: null })
-            .where(eq(projectItemsTable.itemId, sql.raw('IS NOT NULL')));
+            .where(sql`${projectItemsTable.itemId} IS NOT NULL`);
         }
         
         // Delete all master items
