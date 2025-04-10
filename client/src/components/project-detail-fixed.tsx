@@ -571,21 +571,25 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             </p>
           </div>
           <Form {...itemForm}>
-            <form onSubmit={itemForm.handleSubmit((data) => {
-              if (!selectedItem) return;
+            <form onSubmit={(e) => {
+              e.preventDefault(); // Prevent form from submitting normally
               
-              // Only update the quantity, as other fields are on the master item
-              // and should not be directly updated through the project item
-              const itemData = {
-                quantity: Number(data.quantity)
-              };
-              
-              console.log("Submitting project item update with data:", itemData);
-              updateProjectItemMutation.mutate({ 
-                id: selectedItem.id, 
-                data: itemData 
-              });
-            })} className="space-y-4">
+              itemForm.handleSubmit((data) => {
+                if (!selectedItem) return;
+                
+                // Only update the quantity, as other fields are on the master item
+                // and should not be directly updated through the project item
+                const itemData = {
+                  quantity: Number(data.quantity)
+                };
+                
+                console.log("Submitting project item update with data:", itemData);
+                updateProjectItemMutation.mutate({ 
+                  id: selectedItem.id, 
+                  data: itemData 
+                });
+              })(e); // Pass the event to the handleSubmit function
+            }} className="space-y-4">
               <FormField
                 control={itemForm.control}
                 name="itemCode"
@@ -1723,7 +1727,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => {
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault(); // Prevent any default behavior
+                                  e.stopPropagation(); // Stop event bubbling
+                                  
+                                  console.log("Edit item button clicked for item:", item);
                                   setSelectedItem(item);
                                   itemForm.reset({
                                     itemCode: item.masterItem?.itemCode || "",
@@ -1741,7 +1750,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => {
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault(); // Prevent any default behavior
+                                  e.stopPropagation(); // Stop event bubbling
+                                  
+                                  console.log("Delete item button clicked for item:", item);
                                   setSelectedItem(item);
                                   setIsDeleteConfirmOpen(true);
                                 }}
