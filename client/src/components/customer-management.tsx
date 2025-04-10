@@ -535,10 +535,16 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     <FormItem>
                       <FormLabel>BP Code *</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., C00001" {...field} />
+                        <Input 
+                          placeholder="e.g., C00001" 
+                          {...field} 
+                          readOnly={true}
+                          disabled={true}
+                          className="opacity-70 cursor-not-allowed"
+                        />
                       </FormControl>
                       <FormDescription>
-                        Unique business partner code
+                        BP Code cannot be modified after creation
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
