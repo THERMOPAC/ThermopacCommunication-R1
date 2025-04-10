@@ -1413,13 +1413,14 @@ export default function GmailMessages() {
                     </Button>
                   </div>
                   <div className="mt-4">
+                    <p className="text-xs text-blue-600 mb-2">Note: Only emails marked as 'IMPORTANT' in Gmail will be synced</p>
                     <Button 
                       onClick={() => syncMutation.mutate()}
                       disabled={syncMutation.isPending}
                       className="w-full"
                     >
                       <RotateCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-                      Sync Messages
+                      Sync Important Messages
                     </Button>
                   </div>
                 </Card>
@@ -1549,14 +1550,15 @@ export default function GmailMessages() {
                 <Card className="p-6 text-center">
                   <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-lg font-medium mb-2">No messages found</p>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="text-sm text-muted-foreground mb-2">
                     {connectionStatus?.connected
                       ? "Your inbox is empty or no messages match your filters"
                       : "Connect your Gmail account to view messages"}
                   </p>
+                  <p className="text-xs text-blue-600 mb-3">Note: Only emails marked as 'IMPORTANT' in Gmail will be synced</p>
                   <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
                     <RotateCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-                    Sync Messages
+                    Sync Important Messages
                   </Button>
                 </Card>
               )}
@@ -1578,9 +1580,9 @@ export default function GmailMessages() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="font-medium">Auto-sync messages</h3>
+                        <h3 className="font-medium">Auto-sync important messages</h3>
                         <p className="text-sm text-muted-foreground">
-                          Automatically sync messages from Gmail periodically
+                          Automatically sync messages marked as IMPORTANT from Gmail periodically
                         </p>
                       </div>
                       <Switch 
@@ -1647,9 +1649,10 @@ export default function GmailMessages() {
                         size="sm"
                         onClick={() => syncMutation.mutate()}
                         disabled={syncMutation.isPending}
+                        title="Only emails marked as IMPORTANT in Gmail will be synced"
                       >
                         <RotateCw className={`h-4 w-4 mr-2 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-                        Sync Now
+                        Sync Important Now
                       </Button>
                       <Button 
                         variant="outline" 
