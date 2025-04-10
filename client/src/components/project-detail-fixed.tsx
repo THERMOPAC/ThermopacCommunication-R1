@@ -80,7 +80,8 @@ import {
   Truck,
   Paperclip,
   FileUp,
-  Upload
+  Upload,
+  Info
 } from "lucide-react";
 import { ProjectItemsImport } from "@/components/project-items-import";
 import { useToast } from "@/hooks/use-toast";
