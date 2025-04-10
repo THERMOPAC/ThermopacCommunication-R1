@@ -62,7 +62,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Pencil, Trash2, Plus, RotateCcw } from 'lucide-react';
+import { Pencil, Trash2, Plus } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
@@ -114,7 +114,6 @@ const ItemMasterManagement: React.FC = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<MasterItem | null>(null);
   const [deleteDialogItem, setDeleteDialogItem] = useState<MasterItem | null>(null);
-  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -239,32 +238,7 @@ const ItemMasterManagement: React.FC = () => {
     },
   });
   
-  // Handle database reset
-  const resetMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/db-maintenance/reset-master-items');
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || errorData.details || 'Failed to reset master items table');
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/master-items'] });
-      toast({
-        title: "Success",
-        description: "Master items table has been reset successfully",
-      });
-      setIsResetDialogOpen(false);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+
   
   // Set form values when editing an item
   useEffect(() => {
@@ -312,7 +286,6 @@ const ItemMasterManagement: React.FC = () => {
   const canCreate = user && canManageContent(user.role, 'Manager');
   const canEdit = user && canManageContent(user.role, 'Manager');
   const canDelete = user && canManageContent(user.role, 'Senior Manager');
-  const canReset = user && user.role === 'Superuser';
   
   if (error) {
     return <div className="p-4 text-red-500">Error loading master items: {(error as Error).message}</div>;
@@ -328,15 +301,6 @@ const ItemMasterManagement: React.FC = () => {
               <CardDescription>Manage master items in the system</CardDescription>
             </div>
             <div className="flex gap-2">
-              {canReset && (
-                <Button 
-                  variant="outline" 
-                  className="border-red-500 text-red-500 hover:bg-red-50 hover:text-red-600"
-                  onClick={() => setIsResetDialogOpen(true)}
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" /> Reset Database
-                </Button>
-              )}
               {canCreate && (
                 <Button onClick={() => setIsCreateDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" /> Create Item
@@ -855,53 +819,7 @@ const ItemMasterManagement: React.FC = () => {
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Reset Database Dialog */}
-      <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600">Database Reset Confirmation</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-4">
-              <p className="font-medium text-gray-700">
-                You are about to perform a critical operation that will:
-              </p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Delete <span className="font-semibold">ALL</span> master items from the database</li>
-                <li>Reset the auto-increment counter</li>
-              </ul>
-              <p className="font-medium text-red-500">
-                This action cannot be undone. If any master items are currently referenced by project items, 
-                this operation will fail.
-              </p>
-              <p>
-                Type <span className="font-mono bg-gray-100 px-2 py-1 rounded">RESET</span> below to confirm:
-              </p>
-              <input 
-                type="text" 
-                className="border-2 border-gray-300 p-2 w-full mt-2 rounded-md"
-                placeholder="Type RESET to confirm"
-                onChange={(e) => {
-                  const isConfirmed = e.target.value === 'RESET';
-                  const resetButton = document.getElementById('reset-confirm-button');
-                  if (resetButton) {
-                    resetButton.disabled = !isConfirmed;
-                  }
-                }}
-              />
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              id="reset-confirm-button"
-              onClick={() => resetMutation.mutate()}
-              className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={true}
-            >
-              {resetMutation.isPending ? 'Resetting...' : 'Reset Database'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </div>
   );
 };
