@@ -792,6 +792,40 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 />
               </div>
               
+              {/* Status Field */}
+              <FormField
+                control={itemForm.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Not Started">Not Started</SelectItem>
+                        <SelectItem value="Drawing Received">Drawing Received</SelectItem>
+                        <SelectItem value="Material Received">Material Received</SelectItem>
+                        <SelectItem value="Under Construction">Under Construction</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="On Hold">On Hold</SelectItem>
+                        <SelectItem value="Cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Current status of this project item
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               <DialogFooter>
                 <Button type="submit" disabled={updateProjectItemMutation.isPending}>
                   {updateProjectItemMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -1812,21 +1846,22 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       <TableHead className="w-[6%]">Quantity</TableHead>
                       <TableHead className="w-[6%]">UOM</TableHead>
                       <TableHead className="w-[6%]">Make/Buy</TableHead>
-                      <TableHead className="w-[10%]">Drawing No</TableHead>
-                      <TableHead className="w-[10%]">Created At</TableHead>
-                      <TableHead className="w-[35%] text-center">Actions</TableHead>
+                      <TableHead className="w-[8%]">Drawing No</TableHead>
+                      <TableHead className="w-[10%]">Status</TableHead>
+                      <TableHead className="w-[8%]">Created At</TableHead>
+                      <TableHead className="w-[30%] text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoadingItems ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-4">
+                        <TableCell colSpan={9} className="text-center py-4">
                           <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                         </TableCell>
                       </TableRow>
                     ) : projectItems?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-4">
+                        <TableCell colSpan={9} className="text-center py-4">
                           <div className="flex flex-col items-center justify-center text-muted-foreground">
                             <Boxes className="h-10 w-10 mb-2" />
                             <p>No project items yet</p>
@@ -1847,6 +1882,25 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           <TableCell>{item.masterItem?.uom || "N/A"}</TableCell>
                           <TableCell>{item.masterItem?.makeOrBuy || "N/A"}</TableCell>
                           <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
+                          <TableCell>
+                            <Select 
+                              defaultValue={item.status || "Not Started"} 
+                              onValueChange={(value) => updateProjectItemStatus(item.id, value)}
+                            >
+                              <SelectTrigger className="h-8 w-full">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Not Started">Not Started</SelectItem>
+                                <SelectItem value="Drawing Received">Drawing Received</SelectItem>
+                                <SelectItem value="Material Received">Material Received</SelectItem>
+                                <SelectItem value="Under Construction">Under Construction</SelectItem>
+                                <SelectItem value="Completed">Completed</SelectItem>
+                                <SelectItem value="On Hold">On Hold</SelectItem>
+                                <SelectItem value="Cancelled">Cancelled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
                           <TableCell>{formatDate(item.createdAt)}</TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center space-x-2">
@@ -1866,6 +1920,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                     uom: item.masterItem?.uom || "",
                                     makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
                                     drawingNo: item.masterItem?.drawingNo || "",
+                                    status: item.status || "Not Started",
                                   });
                                   setIsEditItemOpen(true);
                                 }}
