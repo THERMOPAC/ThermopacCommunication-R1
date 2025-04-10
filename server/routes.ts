@@ -87,10 +87,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               itemCode: "PLACEHOLDER-RESET-REFERENCE",
               description: "Placeholder reference for reset master items",
               uom: "EA",
-              make_or_buy: "N/A",
+              makeOrBuy: "N/A",
               createdAt: new Date(),
               updatedAt: new Date(),
-              drawing_no: "N/A",
+              drawingNo: "N/A",
               notes: "This is a placeholder item created during database reset. This item replaces references to deleted master items."
             })
             .returning();

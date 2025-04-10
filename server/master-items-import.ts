@@ -69,18 +69,30 @@ export function setupMasterItemsImportRoutes(app: Router) {
       // Validate and import each row
       for (const row of jsonData) {
         try {
-          // Extract fields from Excel row
+          // Extract fields from Excel row with more flexible column names
+          const getValueFromRow = (possibleKeys: string[], defaultValue: string = '') => {
+            for (const key of possibleKeys) {
+              if (row[key] !== undefined) {
+                return String(row[key] || '').trim();
+              }
+            }
+            return defaultValue;
+          };
+          
           const itemData: any = {
-            itemCode: String(row['Item Code'] || '').trim(),
-            description: String(row['Description'] || '').trim(),
-            uom: String(row['UOM'] || '').trim(),
-            make_or_buy: String(row['make_or_buy'] || '').trim(),
-            drawing_no: String(row['Drawing_No'] || '').trim(),
+            itemCode: getValueFromRow(['Item Code', 'ItemCode', 'Item_Code', 'Code']),
+            description: getValueFromRow(['Description', 'Desc', 'Item Description']),
+            uom: getValueFromRow(['UOM', 'Unit', 'Unit of Measure', 'Unit Of Measurement', 'UnitOfMeasure', 'Unit_of_Measure']),
+            makeOrBuy: getValueFromRow(['make_or_buy', 'Make or Buy', 'Make/Buy', 'MakeOrBuy', 'Make_Buy']),
+            drawingNo: getValueFromRow(['Drawing_No', 'Drawing No', 'DrawingNo', 'Drawing Number', 'Drawing']),
             // Additional optional fields
-            supplier: row['Supplier'] !== undefined ? String(row['Supplier']).trim() : undefined,
-            specification: row['Specification'] !== undefined ? String(row['Specification']).trim() : undefined,
-            standard_cost: row['Standard Cost'] !== undefined ? parseFloat(row['Standard Cost']) : undefined,
-            notes: row['Notes'] !== undefined ? String(row['Notes']).trim() : undefined,
+            supplier: getValueFromRow(['Supplier', 'Vendor', 'Source']),
+            specification: getValueFromRow(['Specification', 'Specs', 'Specifications', 'Technical Specification']),
+            standardCost: (() => {
+              const cost = getValueFromRow(['Standard Cost', 'StandardCost', 'Cost', 'Price', 'Standard_Cost']);
+              return cost ? parseFloat(cost) : undefined;
+            })(),
+            notes: getValueFromRow(['Notes', 'Note', 'Comments', 'Remarks']),
             createdAt: new Date(),
             updatedAt: new Date()
           };

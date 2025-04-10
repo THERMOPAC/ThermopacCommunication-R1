@@ -242,8 +242,12 @@ const MasterItemsImport: React.FC = () => {
           <div className="mt-2">
             <Label className="text-sm font-medium mb-1 block">Excel Format Requirements:</Label>
             <p className="text-xs text-muted-foreground">
-              Your Excel file should include these columns: Item Code, Description, UOM, make_or_buy, and Drawing_No.
+              Your Excel file should include these columns: Item Code, Description, UOM, Make/Buy, and Drawing No.
               Optional columns: Supplier, Specification, Standard Cost, and Notes.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              <strong>Field flexibility:</strong> The system will recognize variations of column names, for example:
+              "UOM" or "Unit of Measure", "Make/Buy" or "MakeOrBuy", "Drawing No" or "DrawingNo".
             </p>
           </div>
         </div>
