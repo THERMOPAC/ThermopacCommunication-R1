@@ -109,14 +109,14 @@ export function setupCustomerImportRoutes(app: Router) {
             continue;
           }
 
-          // Create new customer
-          // Note: We're only using fields that exist in the database schema
-          // Bill_To_Address and Ship_To_Address are in the Excel file but not in our database schema
+          // Create new customer with all available fields including bill and ship addresses
           await storage.createCustomer({
             bpCode: row['BP Code'],
             bpName: row['BP Name'],
             contactPerson: row['Contact Person'] || null,
             email: row['E-Mail'] || null,
+            billToAddress: row['Bill_To_Address'] || null,
+            shipToAddress: row['Ship_To_Address'] || null,
             continent: row['Continent'] || null,
             countryName: row['Country Name'] || null,
             createdAt: new Date(),
@@ -133,7 +133,7 @@ export function setupCustomerImportRoutes(app: Router) {
       }
 
       // Add helpful message about supported columns
-      const supportedFields = "BP Code, BP Name, Contact Person, E-Mail, Continent, Country Name";
+      const supportedFields = "BP Code, BP Name, Contact Person, E-Mail, Bill_To_Address, Ship_To_Address, Continent, Country Name";
       
       // Return results
       return res.status(200).json({

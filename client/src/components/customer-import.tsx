@@ -114,12 +114,17 @@ const CustomerImport: React.FC<CustomerImportProps> = ({ open, onOpenChange }) =
               <li><strong>Country Name</strong> - Country of operation</li>
             </ul>
             <div className="mt-2 p-2 bg-amber-50 text-amber-800 text-xs rounded border border-amber-200">
-              <strong>Important:</strong> The following fields might appear in your Excel files but are not supported in the current database schema and will be ignored:
+              <strong>Important:</strong> All fields in the Excel file will be imported, including:
               <ul className="list-disc ml-5 mt-1">
+                <li><code>BP Code</code> (required)</li>
+                <li><code>BP Name</code> (required)</li>
+                <li><code>Contact Person</code></li>
+                <li><code>E-Mail</code></li>
                 <li><code>Bill_To_Address</code></li>
                 <li><code>Ship_To_Address</code></li>
+                <li><code>Continent</code></li>
+                <li><code>Country Name</code></li>
               </ul>
-              These fields are not available in the customer form because they don't exist in the database schema.
             </div>
           </DialogDescription>
         </DialogHeader>
