@@ -14,8 +14,12 @@ import {
   TrendingUp,
   Repeat,
   Mail,
-  Briefcase
+  Briefcase,
+  FolderKanban,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
+import { useState } from "react";
 
 type LayoutProps = {
   children: React.ReactNode;
@@ -24,12 +28,30 @@ type LayoutProps = {
 export default function Layout({ children }: LayoutProps) {
   const { user } = useAuth();
   const [location] = useLocation();
+  const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
+
+  // Check if we're on any project-related page
+  const isOnProjectsPage = location.startsWith('/project');
+  
+  // If we're on a project page, make sure the menu is open
+  if (isOnProjectsPage && !isProjectMenuOpen) {
+    setIsProjectMenuOpen(true);
+  }
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
-    { icon: Briefcase, label: "Projects", href: "/projects" },
+    { 
+      icon: FolderKanban, 
+      label: "Project Management", 
+      isSubmenu: true,
+      isOpen: isProjectMenuOpen,
+      toggle: () => setIsProjectMenuOpen(!isProjectMenuOpen),
+      children: [
+        { icon: Briefcase, label: "Projects", href: "/projects" }
+      ]
+    },
     { icon: Users, label: "Team", href: "/team" },
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
@@ -71,23 +93,80 @@ export default function Layout({ children }: LayoutProps) {
         <Separator />
         <nav className="flex-1 p-4">
           <ul className="space-y-2">
-            {menuItems.map((item) => {
+            {menuItems.map((item, index) => {
               const Icon = item.icon;
-              const isActive = location === item.href;
-              return (
-                <li key={item.href}>
-                  <Link href={item.href}>
+              const isActive = item.href ? location === item.href : false;
+              
+              if (item.isSubmenu) {
+                // Check if any child is active
+                const isChildActive = item.children?.some(child => location === child.href);
+                
+                return (
+                  <li key={`submenu-${index}`} className="space-y-1">
                     <button
-                      className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors w-full text-left
-                        ${isActive
-                          ? 'bg-primary text-primary-foreground'
-                          : 'hover:bg-accent hover:text-accent-foreground'
+                      onClick={item.toggle}
+                      className={`flex items-center justify-between gap-3 px-3 py-2 rounded-md transition-colors w-full text-left
+                        ${isChildActive
+                          ? 'bg-accent text-accent-foreground'
+                          : 'hover:bg-accent/50 hover:text-accent-foreground'
                         }`}
                     >
-                      <Icon className="h-4 w-4" />
-                      <span>{item.label}</span>
+                      <div className="flex items-center gap-3">
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </div>
+                      {item.isOpen ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
                     </button>
-                  </Link>
+                    
+                    {item.isOpen && (
+                      <ul className="pl-5 space-y-1">
+                        {item.children?.map((child, childIndex) => {
+                          const ChildIcon = child.icon;
+                          const isChildActive = location === child.href;
+                          
+                          return (
+                            <li key={`${index}-${childIndex}`}>
+                              <Link href={child.href || ''}>
+                                <button
+                                  className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors w-full text-left
+                                    ${isChildActive
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'hover:bg-accent hover:text-accent-foreground'
+                                    }`}
+                                >
+                                  <ChildIcon className="h-4 w-4" />
+                                  <span>{child.label}</span>
+                                </button>
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </li>
+                );
+              }
+              
+              return (
+                <li key={item.href || `item-${index}`}>
+                  {item.href && (
+                    <Link href={item.href || ''}>
+                      <button
+                        className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors w-full text-left
+                          ${isActive
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-accent hover:text-accent-foreground'
+                          }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </button>
+                    </Link>
+                  )}
                 </li>
               );
             })}
