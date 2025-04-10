@@ -14,6 +14,7 @@ import EmailsPage from "@/pages/emails-page";
 import MessagesPage from "@/pages/messages-page";
 import ProjectsPage from "@/pages/projects-page";
 import ProjectDetailPage from "@/pages/project-detail-page";
+import CustomersPage from "@/pages/customers-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
