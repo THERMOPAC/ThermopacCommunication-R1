@@ -65,6 +65,8 @@ const customerSchema = z.object({
   bpName: z.string().min(1, "BP Name is required").max(100),
   contactPerson: z.string().optional().nullable(),
   email: z.string().email("Invalid email address").optional().nullable(),
+  billToAddress: z.string().optional().nullable(),
+  shipToAddress: z.string().optional().nullable(),
   continent: z.string().optional().nullable(),
   countryName: z.string().optional().nullable(),
 });
@@ -89,6 +91,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       bpName: "",
       contactPerson: "",
       email: "",
+      billToAddress: "",
+      shipToAddress: "",
       continent: "",
       countryName: "",
     },
@@ -202,6 +206,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       bpName: customer.bpName,
       contactPerson: customer.contactPerson || "",
       email: customer.email || "",
+      billToAddress: customer.billToAddress || "",
+      shipToAddress: customer.shipToAddress || "",
       continent: customer.continent || "",
       countryName: customer.countryName || "",
     });
@@ -244,6 +250,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               bpName: "",
               contactPerson: "",
               email: "",
+              billToAddress: "",
+              shipToAddress: "",
               continent: "",
               countryName: "",
             });
