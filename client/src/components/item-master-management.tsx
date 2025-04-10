@@ -67,6 +67,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { canManageContent } from '@/lib/permissions';
+import MasterItemsImport from './master-items-import';
 
 // Define the MasterItem type based on your schema
 interface MasterItem {
@@ -306,6 +307,7 @@ const ItemMasterManagement: React.FC = () => {
                   <Plus className="mr-2 h-4 w-4" /> Create Item
                 </Button>
               )}
+              {canCreate && <MasterItemsImport />}
             </div>
           </div>
         </CardHeader>
