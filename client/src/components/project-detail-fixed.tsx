@@ -92,6 +92,17 @@ interface ProjectDetailProps {
   id: string;
 }
 
+// Project item edit schema
+const editItemSchema = z.object({
+  description: z.string().min(1, "Description is required"),
+  quantity: z.number().min(1, "Quantity must be at least 1"),
+  uom: z.string().min(1, "Unit of Measure is required"),
+  makeOrBuy: z.enum(["Make", "Buy"]),
+  drawingNo: z.string().optional(),
+});
+
+type EditItemValues = z.infer<typeof editItemSchema>;
+
 // Define schema outside the component
 const editProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -151,6 +162,18 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       deliveryMethod: "standard",
       client: "",
       vendor: "",
+    },
+  });
+  
+  // Form for editing project items
+  const itemForm = useForm<EditItemValues>({
+    resolver: zodResolver(editItemSchema),
+    defaultValues: {
+      description: "",
+      quantity: 1,
+      uom: "",
+      makeOrBuy: "Buy",
+      drawingNo: "",
     },
   });
   
@@ -1413,19 +1436,21 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       <TableHead>Quantity</TableHead>
                       <TableHead>UOM</TableHead>
                       <TableHead>Make/Buy</TableHead>
+                      <TableHead>Drawing No</TableHead>
                       <TableHead>Created At</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoadingItems ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-4">
+                        <TableCell colSpan={8} className="text-center py-4">
                           <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                         </TableCell>
                       </TableRow>
                     ) : projectItems?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-4">
+                        <TableCell colSpan={8} className="text-center py-4">
                           <div className="flex flex-col items-center justify-center text-muted-foreground">
                             <Boxes className="h-10 w-10 mb-2" />
                             <p>No project items yet</p>
@@ -1441,7 +1466,39 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           <TableCell>{item.quantity}</TableCell>
                           <TableCell>{item.uom}</TableCell>
                           <TableCell>{item.makeOrBuy}</TableCell>
+                          <TableCell>{item.drawingNo || "-"}</TableCell>
                           <TableCell>{formatDate(item.createdAt)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedItem(item);
+                                  itemForm.reset({
+                                    description: item.description || "",
+                                    quantity: item.quantity || 1,
+                                    uom: item.uom || "",
+                                    makeOrBuy: (item.makeOrBuy as "Make" | "Buy") || "Buy",
+                                    drawingNo: item.drawingNo || "",
+                                  });
+                                  setIsEditItemOpen(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedItem(item);
+                                  setIsDeleteConfirmOpen(true);
+                                }}
+                              >
+                                <XCircle className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
