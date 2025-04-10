@@ -81,25 +81,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Found ${projectItemCount} project items referencing master items`);
         
         if (projectItemCount > 0) {
-          // Create a placeholder master item to preserve referential integrity
-          const placeholderItem = await tx.insert(masterItemsTable)
-            .values({
-              itemCode: "PLACEHOLDER-RESET-REFERENCE",
-              description: "Placeholder reference for reset master items",
-              uom: "EA",
-              makeOrBuy: "N/A",
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              drawingNo: "N/A",
-              notes: "This is a placeholder item created during database reset. This item replaces references to deleted master items."
-            })
-            .returning();
+          // Check if placeholder already exists
+          const existingPlaceholder = await tx.select()
+            .from(masterItemsTable)
+            .where(eq(masterItemsTable.itemCode, "PLACEHOLDER-RESET-REFERENCE"))
+            .limit(1);
+            
+          let placeholderItem;
           
-          console.log(`Created placeholder master item with ID ${placeholderItem[0].id}`);
+          if (existingPlaceholder.length > 0) {
+            console.log("Using existing placeholder item with ID:", existingPlaceholder[0].id);
+            placeholderItem = existingPlaceholder;
+          } else {
+            // Create a placeholder master item to preserve referential integrity
+            placeholderItem = await tx.insert(masterItemsTable)
+              .values({
+                itemCode: "PLACEHOLDER-RESET-REFERENCE",
+                description: "Placeholder reference for reset master items",
+                uom: "EA",
+                makeOrBuy: "N/A",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                drawingNo: "N/A",
+                notes: "This is a placeholder item created during database reset. This item replaces references to deleted master items."
+              })
+              .returning();
+          }
+          
+          const placeholderId = placeholderItem[0].id;
+          console.log(`Using placeholder master item with ID ${placeholderId}`);
           
           // Update all project items to reference the placeholder
           await tx.update(projectItemsTable)
-            .set({ itemId: placeholderItem[0].id })
+            .set({ itemId: placeholderId })
             .where(sql`${projectItemsTable.itemId} IS NOT NULL`);
           
           console.log(`Updated ${projectItemCount} project items to reference placeholder item`);
@@ -107,17 +121,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Delete all master items except the placeholder
           console.log("Deleting all other master items");
           await tx.delete(masterItemsTable)
-            .where(sql`${masterItemsTable.id} != ${placeholderItem[0].id}`);
+            .where(sql`${masterItemsTable.id} != ${placeholderId}`);
         } else {
           // No project items using master items, safe to delete all
           console.log("Deleting all master items");
           await tx.delete(masterItemsTable);
         }
         
-        // Reset the auto-increment counter to start after the placeholder
+        // Reset the auto-increment counter to start after the highest existing ID
         console.log("Resetting auto-increment counter");
         if (projectItemCount > 0) {
-          await tx.execute(sql`ALTER SEQUENCE master_items_id_seq RESTART WITH 2`);
+          // Find the highest ID value currently in use
+          const maxIdResult = await tx.select({ maxId: sql`MAX(id)` }).from(masterItemsTable);
+          const maxId = typeof maxIdResult[0].maxId === 'number' ? maxIdResult[0].maxId : 1;
+          const nextId = maxId + 1;
+          
+          console.log(`Resetting auto-increment counter to ${nextId}`);
+          await tx.execute(sql`ALTER SEQUENCE master_items_id_seq RESTART WITH ${nextId}`);
         } else {
           await tx.execute(sql`ALTER SEQUENCE master_items_id_seq RESTART WITH 1`);
         }
@@ -126,7 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).json({ 
         message: 'Master items table reset successfully', 
         details: projectItemCount > 0 
-          ? `Created a placeholder master item and updated ${projectItemCount} project item references.` 
+          ? `Placeholder master item and updated ${projectItemCount} project item references.` 
           : 'No project item references needed to be updated.'
       });
     } catch (error) {
