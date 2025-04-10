@@ -1019,12 +1019,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           {projectItems && projectItems.length > 0 ? (
                             projectItems.map((item) => (
                               <TableRow key={item.id}>
-                                <TableCell>{item.itemCode}</TableCell>
-                                <TableCell>{item.description}</TableCell>
+                                <TableCell>{item.masterItem?.itemCode || "N/A"}</TableCell>
+                                <TableCell>{item.masterItem?.description || "N/A"}</TableCell>
                                 <TableCell>{item.quantity}</TableCell>
-                                <TableCell>{item.uom}</TableCell>
-                                <TableCell>{item.makeOrBuy}</TableCell>
-                                <TableCell>{item.drawingNo || "-"}</TableCell>
+                                <TableCell>{item.masterItem?.uom || "N/A"}</TableCell>
+                                <TableCell>{item.masterItem?.makeOrBuy || "N/A"}</TableCell>
+                                <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
                                 <TableCell className="text-right">
                                   <div className="flex justify-end gap-2">
                                     <Button
@@ -1033,12 +1033,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                       onClick={() => {
                                         setSelectedItem(item);
                                         itemForm.reset({
-                                          itemCode: item.itemCode || "",
-                                          description: item.description || "",
+                                          itemCode: item.masterItem?.itemCode || "",
+                                          description: item.masterItem?.description || "",
                                           quantity: item.quantity || 1,
-                                          uom: item.uom || "",
-                                          makeOrBuy: (item.makeOrBuy as "Make" | "Buy") || "Buy",
-                                          drawingNo: item.drawingNo || "",
+                                          uom: item.masterItem?.uom || "",
+                                          makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
+                                          drawingNo: item.masterItem?.drawingNo || "",
                                         });
                                         setIsEditItemOpen(true);
                                       }}
@@ -1673,12 +1673,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     ) : (
                       projectItems?.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell>{item.itemCode}</TableCell>
-                          <TableCell>{item.description}</TableCell>
+                          <TableCell>{item.masterItem?.itemCode || "N/A"}</TableCell>
+                          <TableCell>{item.masterItem?.description || "N/A"}</TableCell>
                           <TableCell>{item.quantity}</TableCell>
-                          <TableCell>{item.uom}</TableCell>
-                          <TableCell>{item.makeOrBuy}</TableCell>
-                          <TableCell>{item.drawingNo || "-"}</TableCell>
+                          <TableCell>{item.masterItem?.uom || "N/A"}</TableCell>
+                          <TableCell>{item.masterItem?.makeOrBuy || "N/A"}</TableCell>
+                          <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
                           <TableCell>{formatDate(item.createdAt)}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
@@ -1688,12 +1688,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 onClick={() => {
                                   setSelectedItem(item);
                                   itemForm.reset({
-                                    itemCode: item.itemCode || "",
-                                    description: item.description || "",
+                                    itemCode: item.masterItem?.itemCode || "",
+                                    description: item.masterItem?.description || "",
                                     quantity: item.quantity || 1,
-                                    uom: item.uom || "",
-                                    makeOrBuy: (item.makeOrBuy as "Make" | "Buy") || "Buy",
-                                    drawingNo: item.drawingNo || "",
+                                    uom: item.masterItem?.uom || "",
+                                    makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
+                                    drawingNo: item.masterItem?.drawingNo || "",
                                   });
                                   setIsEditItemOpen(true);
                                 }}
