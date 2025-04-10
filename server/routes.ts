@@ -95,21 +95,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Using existing placeholder with ID: ${placeholderId}`);
           
           // First update all project items to reference the placeholder
-          await db.update(projectItemsTable)
-            .set({ itemId: placeholderId })
-            .where(sql`${projectItemsTable.itemId} IS NOT NULL`);
-          console.log(`Updated ${projectItemCount} project items to reference placeholder`);
+          console.log(`Updating ${projectItemCount} project items to reference placeholder ${placeholderId}`);
+          
+          // Loop through each project item and update them one by one to prevent constraint violations
+          for (const projectItem of projectItems) {
+            await db.update(projectItemsTable)
+              .set({ itemId: placeholderId })
+              .where(eq(projectItemsTable.id, projectItem.id));
+            console.log(`Updated project item ${projectItem.id} to reference placeholder ${placeholderId}`);
+          }
+          
+          console.log(`Updated all ${projectItemCount} project items to reference placeholder`);
           
           // Then delete all other master items
+          console.log("Deleting all other master items");
           await db.delete(masterItemsTable)
             .where(sql`${masterItemsTable.id} != ${placeholderId}`);
-          console.log("Deleted all other master items");
+          console.log("Successfully deleted all other master items");
         } else {
-          // First, remove all existing master items
-          await db.delete(masterItemsTable);
-          console.log("Deleted all master items");
-          
-          // Then create a new placeholder
+          // First create a new placeholder
           console.log("Creating a new placeholder");
           const placeholderItem = await db.insert(masterItemsTable)
             .values({
@@ -128,10 +132,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Created new placeholder with ID: ${placeholderId}`);
           
           // Then update all project items to reference this placeholder
-          await db.update(projectItemsTable)
-            .set({ itemId: placeholderId })
-            .where(sql`${projectItemsTable.itemId} IS NOT NULL`);
-          console.log(`Updated ${projectItemCount} project items to reference new placeholder`);
+          console.log(`Updating ${projectItemCount} project items to reference placeholder ${placeholderId}`);
+          
+          // Loop through each project item and update them one by one to prevent constraint violations
+          for (const projectItem of projectItems) {
+            await db.update(projectItemsTable)
+              .set({ itemId: placeholderId })
+              .where(eq(projectItemsTable.id, projectItem.id));
+            console.log(`Updated project item ${projectItem.id} to reference placeholder ${placeholderId}`);
+          }
+          
+          console.log(`Updated all ${projectItemCount} project items to reference new placeholder`);
+          
+          // Now it's safe to delete all other master items
+          console.log("Deleting all other master items");
+          await db.delete(masterItemsTable)
+            .where(sql`${masterItemsTable.id} != ${placeholderId}`);
+          console.log("Successfully deleted all other master items");
         }
         
         // Reset auto-increment counter
