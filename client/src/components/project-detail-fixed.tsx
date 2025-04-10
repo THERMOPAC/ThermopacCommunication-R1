@@ -111,6 +111,15 @@ const editItemSchema = z.object({
   uom: z.string().min(1, "Unit of Measure is required"),
   makeOrBuy: z.enum(["Make", "Buy"]),
   drawingNo: z.string().optional(),
+  status: z.enum([
+    "Not Started",
+    "Drawing Received",
+    "Material Received",
+    "Under Construction",
+    "Completed",
+    "On Hold",
+    "Cancelled"
+  ]).default("Not Started"),
 });
 
 type EditItemValues = z.infer<typeof editItemSchema>;
@@ -187,6 +196,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       uom: "",
       makeOrBuy: "Buy",
       drawingNo: "",
+      status: "Not Started",
     },
   });
   
@@ -416,6 +426,37 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       });
     },
   });
+  
+  // Update project item status
+  const updateProjectItemStatusMutation = useMutation({
+    mutationFn: async ({ itemId, status }: { itemId: number, status: string }) => {
+      const res = await apiRequest("PATCH", `/api/project-items/${itemId}`, { status });
+      if (!res.ok) {
+        throw new Error("Failed to update item status");
+      }
+      return res.status === 204 ? { status } : await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Status updated",
+        description: `Item status has been changed to "${data.status}".`,
+      });
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/items`] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error updating status",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Helper function to update project item status
+  const updateProjectItemStatus = (itemId: number, status: string) => {
+    updateProjectItemStatusMutation.mutate({ itemId, status });
+  };
 
   function formatDate(dateString) {
     if (!dateString || dateString === "null" || dateString === "undefined") return "Not set";
@@ -599,10 +640,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               itemForm.handleSubmit((data) => {
                 if (!selectedItem) return;
                 
-                // Only update the quantity, as other fields are on the master item
+                // Only update the quantity and status, as other fields are on the master item
                 // and should not be directly updated through the project item
                 const itemData = {
-                  quantity: Number(data.quantity)
+                  quantity: Number(data.quantity),
+                  status: data.status
                 };
                 
                 console.log("Submitting project item update with data:", itemData);
