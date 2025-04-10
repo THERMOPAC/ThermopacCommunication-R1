@@ -94,6 +94,7 @@ interface ProjectDetailProps {
 
 // Project item edit schema
 const editItemSchema = z.object({
+  itemCode: z.string().min(1, "Item Code is required"),
   description: z.string().min(1, "Description is required"),
   quantity: z.number().min(1, "Quantity must be at least 1"),
   uom: z.string().min(1, "Unit of Measure is required"),
@@ -169,6 +170,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const itemForm = useForm<EditItemValues>({
     resolver: zodResolver(editItemSchema),
     defaultValues: {
+      itemCode: "",
       description: "",
       quantity: 1,
       uom: "",
@@ -576,6 +578,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 data: itemData 
               });
             })} className="space-y-4">
+              <FormField
+                control={itemForm.control}
+                name="itemCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Item Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter item code" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={itemForm.control}
                 name="description"
@@ -1647,6 +1662,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 onClick={() => {
                                   setSelectedItem(item);
                                   itemForm.reset({
+                                    itemCode: item.itemCode || "",
                                     description: item.description || "",
                                     quantity: item.quantity || 1,
                                     uom: item.uom || "",
