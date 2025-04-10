@@ -899,49 +899,73 @@ export function setupProjectRoutes(app: express.Express) {
       const itemId = parseInt(req.params.id);
       const userId = req.user!.id;
       
+      console.log(`Updating project item ${itemId} by user ${userId} with data:`, req.body);
+      
       // Check if item exists
       const item = await storage.getProjectItem(itemId);
       if (!item) {
+        console.log(`Project item ${itemId} not found`);
         return res.status(404).json({ error: 'Project item not found' });
       }
+      
+      console.log(`Found project item:`, item);
       
       // Check if user is authorized
       const projectMembers = await storage.getProjectMembers(item.projectId);
       const userMember = projectMembers.find(member => member.userId === userId);
       
       if (!userMember && !canManage(req.user!.role, 'Manager')) {
+        console.log(`User ${userId} not authorized to update project item ${itemId}`);
         return res.status(403).json({ error: 'Not authorized to update this project item' });
       }
 
       const { itemCode, description, quantity, uom, makeOrBuy, drawingNo, ...otherData } = req.body;
       
+      console.log(`Extracted fields for update - itemCode: ${itemCode}, description: ${description}, quantity: ${quantity}, uom: ${uom}, makeOrBuy: ${makeOrBuy}, drawingNo: ${drawingNo}`);
+      
       // If itemCode is provided, we need to update the master item
       if (itemCode) {
         try {
           // First, get the master item associated with this project item
+          console.log(`Getting master item for item ID: ${item.itemId}`);
           const masterItem = await storage.getMasterItem(item.itemId);
           
           if (!masterItem) {
+            console.log(`Master item with ID ${item.itemId} not found`);
             return res.status(404).json({ error: 'Associated master item not found' });
           }
           
+          console.log(`Found master item:`, masterItem);
+          
           // Check if the new itemCode already exists (but isn't this item)
           if (itemCode !== masterItem.itemCode) {
+            console.log(`Checking if item code ${itemCode} already exists (current code: ${masterItem.itemCode})`);
             const existingItem = await storage.getMasterItemByCode(itemCode);
-            if (existingItem && existingItem.id !== masterItem.id) {
-              return res.status(400).json({ error: 'Item code already exists for another item' });
+            
+            if (existingItem) {
+              console.log(`Found existing item with code ${itemCode}:`, existingItem);
+              
+              if (existingItem.id !== masterItem.id) {
+                console.log(`Item code ${itemCode} already exists for another item (ID: ${existingItem.id})`);
+                return res.status(400).json({ error: 'Item code already exists for another item' });
+              }
             }
           }
           
           // Update the master item with new data
-          await storage.updateMasterItem(masterItem.id, {
+          const masterItemUpdateData = {
             itemCode,
             description,
             uom,
             makeOrBuy,
             drawingNo,
             updatedAt: new Date().toISOString()
-          });
+          };
+          
+          console.log(`Updating master item ${masterItem.id} with data:`, masterItemUpdateData);
+          const updatedMasterItem = await storage.updateMasterItem(masterItem.id, masterItemUpdateData);
+          console.log(`Master item updated successfully:`, updatedMasterItem);
+          
         } catch (error) {
           console.error(`Error updating master item for project item ${itemId}:`, error);
           return res.status(400).json({ error: 'Failed to update master item', details: error.message });
@@ -955,10 +979,13 @@ export function setupProjectRoutes(app: express.Express) {
         updatedAt: new Date().toISOString()
       };
       
+      console.log(`Updating project item ${itemId} with data:`, projectItemUpdateData);
       const updatedItem = await storage.updateProjectItem(itemId, projectItemUpdateData);
+      console.log(`Project item updated successfully:`, updatedItem);
       
       // Return the full updated item with master item data
       const fullUpdatedItem = await storage.getProjectItem(itemId);
+      console.log(`Returning full updated item:`, fullUpdatedItem);
       res.json(fullUpdatedItem);
     } catch (error) {
       console.error(`Error updating project item ${req.params.id}:`, error);
