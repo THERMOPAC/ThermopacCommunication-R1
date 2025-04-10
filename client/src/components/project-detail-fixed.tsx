@@ -396,7 +396,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       if (!res.ok) {
         throw new Error("Failed to delete project item");
       }
-      return await res.json();
+      // For 204 No Content response, return empty object instead of trying to parse JSON
+      return res.status === 204 ? {} : await res.json();
     },
     onSuccess: () => {
       setIsDeleteConfirmOpen(false);
