@@ -1089,6 +1089,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             <TableHead>UOM</TableHead>
                             <TableHead>Make/Buy</TableHead>
                             <TableHead>Drawing No</TableHead>
+                            <TableHead>Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1102,6 +1103,32 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 <TableCell>{item.masterItem?.uom || "N/A"}</TableCell>
                                 <TableCell>{item.masterItem?.makeOrBuy || "N/A"}</TableCell>
                                 <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
+                                <TableCell>
+                                  <Select 
+                                    value={item.status || "Not Started"}
+                                    onValueChange={(newStatus) => {
+                                      if (selectedItem?.id === item.id) {
+                                        updateProjectItemStatus(item.id, newStatus);
+                                      } else {
+                                        setSelectedItem(item);
+                                        updateProjectItemStatus(item.id, newStatus);
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-8 w-full">
+                                      <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Not Started">Not Started</SelectItem>
+                                      <SelectItem value="Drawing Received">Drawing Received</SelectItem>
+                                      <SelectItem value="Material Received">Material Received</SelectItem>
+                                      <SelectItem value="Under Construction">Under Construction</SelectItem>
+                                      <SelectItem value="Completed">Completed</SelectItem>
+                                      <SelectItem value="On Hold">On Hold</SelectItem>
+                                      <SelectItem value="Cancelled">Cancelled</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
                                 <TableCell className="text-right">
                                   <div className="flex justify-end gap-2">
                                     <Button
@@ -1146,7 +1173,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             ))
                           ) : (
                             <TableRow>
-                              <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
+                              <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
                                 No project items found. Use the Import button to add items.
                               </TableCell>
                             </TableRow>
