@@ -82,8 +82,17 @@ import {
   FileUp,
   Upload,
   Info,
-  Trash2
+  Trash2,
+  MoreVertical
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ProjectItemsImport } from "@/components/project-items-import";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1728,48 +1737,53 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
                           <TableCell>{formatDate(item.createdAt)}</TableCell>
                           <TableCell className="text-center">
-                            <div className="flex flex-col items-center justify-center gap-2">
-                              <Button
-                                variant="default"
-                                size="sm"
-                                type="button"
-                                className="bg-blue-500 hover:bg-blue-600 text-white w-24"
-                                onClick={(e) => {
-                                  e.preventDefault(); // Prevent any default behavior
-                                  e.stopPropagation(); // Stop event bubbling
-                                  
-                                  console.log("Edit item button clicked for item:", item);
-                                  setSelectedItem(item);
-                                  itemForm.reset({
-                                    itemCode: item.masterItem?.itemCode || "",
-                                    description: item.masterItem?.description || "",
-                                    quantity: item.quantity || 1,
-                                    uom: item.masterItem?.uom || "",
-                                    makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
-                                    drawingNo: item.masterItem?.drawingNo || "",
-                                  });
-                                  setIsEditItemOpen(true);
-                                }}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                type="button"
-                                className="w-24"
-                                onClick={(e) => {
-                                  e.preventDefault(); // Prevent any default behavior
-                                  e.stopPropagation(); // Stop event bubbling
-                                  
-                                  console.log("Delete item button clicked for item:", item);
-                                  setSelectedItem(item);
-                                  setIsDeleteConfirmOpen(true);
-                                }}
-                              >
-                                Delete
-                              </Button>
-                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreVertical className="h-5 w-5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  className="text-blue-600 cursor-pointer"
+                                  onClick={(e) => {
+                                    e.preventDefault(); // Prevent any default behavior
+                                    e.stopPropagation(); // Stop event bubbling
+                                    
+                                    console.log("Edit item clicked for item:", item);
+                                    setSelectedItem(item);
+                                    itemForm.reset({
+                                      itemCode: item.masterItem?.itemCode || "",
+                                      description: item.masterItem?.description || "",
+                                      quantity: item.quantity || 1,
+                                      uom: item.masterItem?.uom || "",
+                                      makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
+                                      drawingNo: item.masterItem?.drawingNo || "",
+                                    });
+                                    setIsEditItemOpen(true);
+                                  }}
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit Item
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="text-red-600 cursor-pointer"
+                                  onClick={(e) => {
+                                    e.preventDefault(); // Prevent any default behavior
+                                    e.stopPropagation(); // Stop event bubbling
+                                    
+                                    console.log("Delete item clicked for item:", item);
+                                    setSelectedItem(item);
+                                    setIsDeleteConfirmOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete Item
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))
