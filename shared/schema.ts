@@ -579,6 +579,9 @@ export const projectItems = pgTable('project_items', {
   actualCost: decimal('actual_cost', { precision: 12, scale: 2 }),
   notes: text('notes'),
   
+  // Item status in the project
+  status: text('status').default('Not Started'), // Not Started, Drawing Received, Material Received, Under Construction, Completed, On Hold, Cancelled
+  
   // Tracking
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -660,6 +663,7 @@ export const insertProjectItemSchema = createInsertSchema(projectItems, {
   estimatedCost: z.number().nullable().optional().transform(v => v === null ? undefined : v),
   actualCost: z.number().nullable().optional().transform(v => v === null ? undefined : v),
   notes: z.string().nullable().optional().transform(v => v === null ? '' : v),
+  status: z.enum(['Not Started', 'Drawing Received', 'Material Received', 'Under Construction', 'Completed', 'On Hold', 'Cancelled']).default('Not Started'),
 });
 
 // Define types for project management tables
