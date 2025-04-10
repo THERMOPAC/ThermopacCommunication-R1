@@ -552,6 +552,7 @@ export const masterItems = pgTable('master_items', {
   specification: text('specification'),
   uom: text('uom').notNull(), // Unit of Measurement (e.g., Nos, Kg, Meter)
   makeOrBuy: text('make_or_buy'), // Whether this item is made in-house or purchased
+  drawingNo: text('drawing_no'), // Drawing Number reference
   
   // Additional details
   standardCost: decimal('standard_cost', { precision: 12, scale: 2 }),
@@ -590,6 +591,7 @@ export const insertMasterItemSchema = createInsertSchema(masterItems, {
   description: z.string().min(1),
   uom: z.string().min(1),
   makeOrBuy: z.enum(['Make', 'Buy']).nullable().optional().transform(v => v === null ? undefined : v),
+  drawingNo: z.string().nullable().optional().transform(v => v === null ? undefined : v),
   standardCost: z.number().nullable().optional().transform(v => v === null ? undefined : v),
   supplier: z.string().nullable().optional().transform(v => v === null ? '' : v),
   notes: z.string().nullable().optional().transform(v => v === null ? '' : v),

@@ -38,7 +38,9 @@ export function setupProjectItemsImportRoutes(app: Router) {
     'Make': 'make',
     'Source Type': 'sourceType',
     'Supplier': 'supplier',
-    'Make or Buy': 'make_or_buy'    // Added to support the make_or_buy column
+    'Make or Buy': 'make_or_buy',   // Added to support the make_or_buy column
+    'Drawing No': 'drawingNo',      // Added to support the drawing_no column
+    'Drawing Number': 'drawingNo'   // Alternative column name for drawing_no
   };
 
   // Define the fields that are required
@@ -203,6 +205,7 @@ export function setupProjectItemsImportRoutes(app: Router) {
               specification: rawItemData.specification || null,
               uom: rawItemData.uom || 'Nos',
               makeOrBuy: makeOrBuy,
+              drawingNo: rawItemData.drawingNo || null,
               supplier: rawItemData.supplier || null,
               notes: rawItemData.notes || null,
               standardCost: rawItemData.standardCost || null
