@@ -50,6 +50,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up project items import routes
   setupProjectItemsImportRoutes(app);
+  
+  // Master Items Management Routes
+  app.get("/api/master-items", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const items = await storage.getAllMasterItems();
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching master items:", error);
+      res.status(500).json({ 
+        error: 'Failed to fetch master items',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.get("/api/master-items/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const itemId = parseInt(req.params.id);
+      const item = await storage.getMasterItem(itemId);
+      
+      if (!item) {
+        return res.status(404).json({ error: 'Master item not found' });
+      }
+      
+      res.json(item);
+    } catch (error) {
+      console.error(`Error fetching master item ${req.params.id}:`, error);
+      res.status(500).json({ 
+        error: 'Failed to fetch master item',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.post("/api/master-items", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Check if the user has permission to create master items
+      if (!canManage(req.user!.role, 'Manager')) {
+        return res.status(403).json({ error: 'Not authorized to create master items' });
+      }
+      
+      // Check if item code already exists
+      const existingItem = await storage.getMasterItemByCode(req.body.itemCode);
+      if (existingItem) {
+        return res.status(400).json({ error: 'Item code already exists' });
+      }
+      
+      const newItem = await storage.createMasterItem({
+        ...req.body,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      res.status(201).json(newItem);
+    } catch (error) {
+      console.error("Error creating master item:", error);
+      res.status(500).json({ 
+        error: 'Failed to create master item',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.put("/api/master-items/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Check if the user has permission to update master items
+      if (!canManage(req.user!.role, 'Manager')) {
+        return res.status(403).json({ error: 'Not authorized to update master items' });
+      }
+      
+      const itemId = parseInt(req.params.id);
+      
+      // Check if the item exists
+      const existingItem = await storage.getMasterItem(itemId);
+      if (!existingItem) {
+        return res.status(404).json({ error: 'Master item not found' });
+      }
+      
+      // If item code is being changed, check if the new code already exists
+      if (req.body.itemCode && req.body.itemCode !== existingItem.itemCode) {
+        const itemWithSameCode = await storage.getMasterItemByCode(req.body.itemCode);
+        if (itemWithSameCode && itemWithSameCode.id !== itemId) {
+          return res.status(400).json({ error: 'Item code already exists' });
+        }
+      }
+      
+      const updatedItem = await storage.updateMasterItem(itemId, {
+        ...req.body,
+        updatedAt: new Date()
+      });
+      
+      res.json(updatedItem);
+    } catch (error) {
+      console.error(`Error updating master item ${req.params.id}:`, error);
+      res.status(500).json({ 
+        error: 'Failed to update master item',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.delete("/api/master-items/:id", async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.id);
+      
+      // Check if the user has permission to delete master items
+      if (!canManage(req.user!.role, 'Senior Manager')) {
+        return res.status(403).json({ error: 'Not authorized to delete master items' });
+      }
+      
+      // Check if the item exists
+      const existingItem = await storage.getMasterItem(itemId);
+      if (!existingItem) {
+        return res.status(404).json({ error: 'Master item not found' });
+      }
+      
+      // Check if the item is used in any project
+      const projectItems = await storage.getProjectItemsByMasterId(itemId);
+      if (projectItems && projectItems.length > 0) {
+        return res.status(400).json({ 
+          error: 'Cannot delete master item with associated project items',
+          details: `Item is used in ${projectItems.length} project(s)`
+        });
+      }
+      
+      await storage.deleteMasterItem(itemId);
+      res.status(204).send();
+    } catch (error) {
+      console.error(`Error deleting master item ${req.params.id}:`, error);
+      res.status(500).json({ 
+        error: 'Failed to delete master item',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
 
   // Logout endpoint with proper error handling
   app.post("/api/logout", (req, res) => {
