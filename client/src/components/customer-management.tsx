@@ -396,38 +396,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                <FormField
-                  control={form.control}
-                  name="billToAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Bill To Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter billing address" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <FormField
-                  control={form.control}
-                  name="shipToAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ship To Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter shipping address" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -573,38 +541,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                <FormField
-                  control={form.control}
-                  name="billToAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Bill To Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter billing address" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <FormField
-                  control={form.control}
-                  name="shipToAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ship To Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter shipping address" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -683,15 +619,17 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               Are you sure you want to delete this customer? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          {customerToDelete && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Warning</AlertTitle>
-              <AlertDescription>
-                You are about to delete customer "{customerToDelete.bpName}" with BP Code "{customerToDelete.bpCode}".
-              </AlertDescription>
-            </Alert>
-          )}
+          <div className="py-4">
+            {customerToDelete && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Warning</AlertTitle>
+                <AlertDescription>
+                  You are about to delete {customerToDelete.bpName} ({customerToDelete.bpCode}).
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
           <DialogFooter>
             <Button
               type="button"
@@ -700,8 +638,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             >
               Cancel
             </Button>
-            <Button
-              variant="destructive"
+            <Button 
+              variant="destructive" 
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
             >
