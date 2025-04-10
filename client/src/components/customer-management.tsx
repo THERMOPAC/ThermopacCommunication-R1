@@ -48,6 +48,7 @@ import {
   Search,
   X,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -62,12 +63,10 @@ import {
 const customerSchema = z.object({
   bpCode: z.string().min(1, "BP Code is required").max(50),
   bpName: z.string().min(1, "BP Name is required").max(100),
-  contactPerson: z.string().optional(),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  billToAddress: z.string().optional(),
-  shipToAddress: z.string().optional(),
-  continent: z.string().optional(),
-  countryName: z.string().optional(),
+  contactPerson: z.string().optional().nullable(),
+  email: z.string().email("Invalid email address").optional().nullable(),
+  continent: z.string().optional().nullable(),
+  countryName: z.string().optional().nullable(),
 });
 
 type CustomerFormValues = z.infer<typeof customerSchema>;
@@ -90,8 +89,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       bpName: "",
       contactPerson: "",
       email: "",
-      billToAddress: "",
-      shipToAddress: "",
       continent: "",
       countryName: "",
     },
@@ -204,8 +201,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
       bpName: customer.bpName,
       contactPerson: customer.contactPerson || "",
       email: customer.email || "",
-      billToAddress: customer.billToAddress || "",
-      shipToAddress: customer.shipToAddress || "",
       continent: customer.continent || "",
       countryName: customer.countryName || "",
     });
@@ -248,8 +243,6 @@ export default function CustomerManagement({ customers }: { customers: Customer[
               bpName: "",
               contactPerson: "",
               email: "",
-              billToAddress: "",
-              shipToAddress: "",
               continent: "",
               countryName: "",
             });
