@@ -375,7 +375,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       setIsEditItemOpen(false);
       toast({
         title: "Item updated",
-        description: "Project item has been successfully updated.",
+        description: "Project item quantity has been successfully updated.",
       });
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/items`] });
