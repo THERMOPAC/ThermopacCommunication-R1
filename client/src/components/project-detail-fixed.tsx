@@ -122,6 +122,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [isItemsImportOpen, setIsItemsImportOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
+  const [isEditItemOpen, setIsEditItemOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
   
   // Enhanced debugging for project ID handling
   console.log("Project ID from prop:", id);
@@ -317,6 +320,60 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     onError: (error) => {
       toast({
         title: "Error updating project",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Mutation for updating a project item
+  const updateProjectItemMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number, data: any }) => {
+      const res = await apiRequest("PUT", `/api/project-items/${id}`, data);
+      if (!res.ok) {
+        throw new Error("Failed to update project item");
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      setIsEditItemOpen(false);
+      toast({
+        title: "Item updated",
+        description: "Project item has been successfully updated.",
+      });
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/items`] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error updating project item",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Mutation for deleting a project item
+  const deleteProjectItemMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/project-items/${id}`);
+      if (!res.ok) {
+        throw new Error("Failed to delete project item");
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      setIsDeleteConfirmOpen(false);
+      toast({
+        title: "Item deleted",
+        description: "Project item has been successfully deleted.",
+      });
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/items`] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error deleting project item",
         description: error.message,
         variant: "destructive",
       });
