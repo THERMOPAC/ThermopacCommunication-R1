@@ -76,22 +76,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(sql`${projectItemsTable.itemId} IS NOT NULL`);
       const projectItemCount = projectItems.length;
       
+      // Track if we're using an existing placeholder
+      let usingExistingPlaceholder = false;
+      
       // Begin a transaction to ensure data integrity
       await db.transaction(async (tx) => {
         console.log(`Found ${projectItemCount} project items referencing master items`);
         
         if (projectItemCount > 0) {
           // Check if placeholder already exists
-          const existingPlaceholder = await tx.select()
+          const existingPlaceholders = await tx.select()
             .from(masterItemsTable)
             .where(eq(masterItemsTable.itemCode, "PLACEHOLDER-RESET-REFERENCE"))
             .limit(1);
             
           let placeholderItem;
           
-          if (existingPlaceholder.length > 0) {
-            console.log("Using existing placeholder item with ID:", existingPlaceholder[0].id);
-            placeholderItem = existingPlaceholder;
+          if (existingPlaceholders.length > 0) {
+            console.log("Using existing placeholder item with ID:", existingPlaceholders[0].id);
+            placeholderItem = existingPlaceholders;
+            // Update the outer scope variable
+            usingExistingPlaceholder = true;
           } else {
             // Create a placeholder master item to preserve referential integrity
             placeholderItem = await tx.insert(masterItemsTable)
@@ -146,7 +151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).json({ 
         message: 'Master items table reset successfully', 
         details: projectItemCount > 0 
-          ? `Placeholder master item and updated ${projectItemCount} project item references.` 
+          ? `${usingExistingPlaceholder ? 'Used existing' : 'Created new'} placeholder master item and updated ${projectItemCount} project item references.` 
           : 'No project item references needed to be updated.'
       });
     } catch (error) {
