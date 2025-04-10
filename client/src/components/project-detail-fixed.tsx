@@ -1693,7 +1693,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       <TableHead>Make/Buy</TableHead>
                       <TableHead>Drawing No</TableHead>
                       <TableHead>Created At</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1724,11 +1724,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
                           <TableCell>{formatDate(item.createdAt)}</TableCell>
                           <TableCell>
-                            <div className="flex justify-end space-x-2">
+                            <div className="flex items-center justify-center space-x-2">
                               <Button
-                                variant="outline"
+                                variant="default"
                                 size="sm"
                                 type="button"
+                                className="bg-blue-500 hover:bg-blue-600 text-white"
                                 onClick={(e) => {
                                   e.preventDefault(); // Prevent any default behavior
                                   e.stopPropagation(); // Stop event bubbling
@@ -1746,13 +1747,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                   setIsEditItemOpen(true);
                                 }}
                               >
-                                <Edit className="h-4 w-4 mr-1" /> Edit
+                                Edit
                               </Button>
                               <Button
-                                variant="outline"
+                                variant="destructive"
                                 size="sm"
                                 type="button"
-                                className="text-red-500 hover:text-red-600"
                                 onClick={(e) => {
                                   e.preventDefault(); // Prevent any default behavior
                                   e.stopPropagation(); // Stop event bubbling
@@ -1762,7 +1762,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                   setIsDeleteConfirmOpen(true);
                                 }}
                               >
-                                <Trash2 className="h-4 w-4 mr-1" /> Delete
+                                Delete
                               </Button>
                             </div>
                           </TableCell>
