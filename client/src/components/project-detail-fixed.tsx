@@ -741,7 +741,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       
       {/* Edit Project Dialog */}
       <Dialog open={isEditProjectOpen} onOpenChange={setIsEditProjectOpen}>
-        <DialogContent className="sm:max-w-[900px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-screen-xl w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Project Details</DialogTitle>
             <DialogDescription>

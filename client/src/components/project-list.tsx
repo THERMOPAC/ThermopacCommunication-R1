@@ -357,7 +357,7 @@ export default function ProjectList() {
             <DialogTrigger asChild>
               <Button><Plus className="mr-2 h-4 w-4" /> New Project</Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[900px] max-h-[85vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-screen-xl w-full max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Project</DialogTitle>
                 <DialogDescription>
