@@ -49,6 +49,7 @@ import {
   X,
   AlertCircle,
   Loader2,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -58,6 +59,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import CustomerImport from "./customer-import";
 
 // Create a schema for customer validation
 const customerSchema = z.object({
