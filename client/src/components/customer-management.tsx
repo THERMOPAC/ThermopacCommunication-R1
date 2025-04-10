@@ -59,7 +59,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import CustomerImport from "./customer-import";
 
 // Create a schema for customer validation
 const customerSchema = z.object({
@@ -81,6 +80,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
@@ -245,24 +245,33 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             </Button>
           )}
         </div>
-        <Button
-          onClick={() => {
-            form.reset({
-              bpCode: "",
-              bpName: "",
-              contactPerson: "",
-              email: "",
-              billToAddress: "",
-              shipToAddress: "",
-              continent: "",
-              countryName: "",
-            });
-            setIsCreateDialogOpen(true);
-          }}
-        >
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add Customer
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setIsImportDialogOpen(true)}
+          >
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Import Customers
+          </Button>
+          <Button
+            onClick={() => {
+              form.reset({
+                bpCode: "",
+                bpName: "",
+                contactPerson: "",
+                email: "",
+                billToAddress: "",
+                shipToAddress: "",
+                continent: "",
+                countryName: "",
+              });
+              setIsCreateDialogOpen(true);
+            }}
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add Customer
+          </Button>
+        </div>
       </div>
 
       {/* Customers Table */}
@@ -726,6 +735,11 @@ export default function CustomerManagement({ customers }: { customers: Customer[
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Customer Import Dialog */}
+      <CustomerImport 
+        open={isImportDialogOpen} 
+        onOpenChange={setIsImportDialogOpen} 
+      />
     </div>
   );
 }
