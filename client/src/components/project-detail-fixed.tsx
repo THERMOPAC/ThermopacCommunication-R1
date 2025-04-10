@@ -1727,13 +1727,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           <TableCell>{item.masterItem?.makeOrBuy || "N/A"}</TableCell>
                           <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
                           <TableCell>{formatDate(item.createdAt)}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-row items-center justify-center gap-3">
+                          <TableCell className="text-center">
+                            <div className="flex flex-col items-center justify-center gap-2">
                               <Button
                                 variant="default"
                                 size="sm"
                                 type="button"
-                                className="bg-blue-500 hover:bg-blue-600 text-white w-20"
+                                className="bg-blue-500 hover:bg-blue-600 text-white w-24"
                                 onClick={(e) => {
                                   e.preventDefault(); // Prevent any default behavior
                                   e.stopPropagation(); // Stop event bubbling
@@ -1757,7 +1757,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 variant="destructive"
                                 size="sm"
                                 type="button"
-                                className="w-20"
+                                className="w-24"
                                 onClick={(e) => {
                                   e.preventDefault(); // Prevent any default behavior
                                   e.stopPropagation(); // Stop event bubbling
