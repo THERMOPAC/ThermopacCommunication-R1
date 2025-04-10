@@ -128,7 +128,7 @@ export function setupCustomerImportRoutes(app: Router) {
           console.error('Error processing row:', error);
           results.skipped++;
           const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          results.errors.push(`Error processing row: ${JSON.stringify(row)}. Note: Bill_To_Address and Ship_To_Address are not stored in the database. Error: ${errorMsg}`);
+          results.errors.push(`Error processing row: ${JSON.stringify(row)}. Error: ${errorMsg}`);
         }
       }
 

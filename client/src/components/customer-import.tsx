@@ -104,7 +104,7 @@ const CustomerImport: React.FC<CustomerImportProps> = ({ open, onOpenChange }) =
         <DialogHeader>
           <DialogTitle>Import Customers</DialogTitle>
           <DialogDescription>
-            Upload an Excel file containing customer data. The file must have these required columns:
+            Upload an Excel file containing customer data. The file must have these columns:
             <ul className="list-disc ml-5 mt-2 text-sm space-y-1">
               <li><strong>BP Code</strong> - Unique business partner code (required)</li>
               <li><strong>BP Name</strong> - Business partner name (required)</li>
@@ -114,7 +114,12 @@ const CustomerImport: React.FC<CustomerImportProps> = ({ open, onOpenChange }) =
               <li><strong>Country Name</strong> - Country of operation</li>
             </ul>
             <div className="mt-2 p-2 bg-amber-50 text-amber-800 text-xs rounded border border-amber-200">
-              <strong>Note:</strong> Columns like <code>Bill_To_Address</code> and <code>Ship_To_Address</code> will be ignored as they are not supported in the current database schema.
+              <strong>Important:</strong> The following fields might appear in your Excel files but are not supported in the current database schema and will be ignored:
+              <ul className="list-disc ml-5 mt-1">
+                <li><code>Bill_To_Address</code></li>
+                <li><code>Ship_To_Address</code></li>
+              </ul>
+              These fields are not available in the customer form because they don't exist in the database schema.
             </div>
           </DialogDescription>
         </DialogHeader>
