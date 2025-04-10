@@ -6,7 +6,7 @@ import { insertTaskSchema, insertUserSchema, insertRecurringPatternSchema, inser
 import { canManage, roleHierarchy } from "@shared/roles";
 import { scrypt, timingSafeEqual, randomBytes } from "crypto";
 import { promisify } from "util";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { setupGmailRoutes } from "./gmail-routes";
 import { setupGoogleAuth } from "./google-auth";
 import { setupInternalMessagesRoutes } from "./internal-messages-routes";
@@ -14,6 +14,8 @@ import { setupProjectRoutes } from "./project-routes";
 import { setupCustomerImportRoutes } from "./customer-import";
 import { setupProjectItemsImportRoutes } from "./project-items-import";
 import { hashPassword as updatePasswordHash } from "./update-password";
+import { db } from "./db";
+import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
 
 const scryptAsync = promisify(scrypt);
 
@@ -50,6 +52,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up project items import routes
   setupProjectItemsImportRoutes(app);
+  
+  // Database Maintenance Routes
+  app.post("/api/db-maintenance/reset-master-items", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Only allow Superuser to perform this operation
+      if (req.user!.role !== "Superuser") {
+        return res.status(403).json({ error: 'Only Superuser can perform this operation' });
+      }
+      
+      // Check if there are any project items referencing master items
+      const projectItems = await db.select().from(projectItemsTable).where(db.sql`item_id IS NOT NULL`);
+      
+      if (projectItems.length > 0) {
+        return res.status(400).json({
+          error: 'Cannot reset master items table',
+          details: `There are ${projectItems.length} project items that reference master items. Please remove these references first.`
+        });
+      }
+      
+      // Delete all master items
+      await db.delete(masterItemsTable);
+      
+      // Reset the auto-increment counter
+      await db.execute(db.sql`ALTER SEQUENCE master_items_id_seq RESTART WITH 1`);
+      
+      res.status(200).json({ message: 'Master items table reset successfully' });
+    } catch (error) {
+      console.error("Error resetting master items table:", error);
+      res.status(500).json({ 
+        error: 'Failed to reset master items table',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
   
   // Master Items Management Routes
   app.get("/api/master-items", async (req, res) => {

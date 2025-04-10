@@ -62,7 +62,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { Pencil, Trash2, Plus, RotateCcw } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
@@ -114,6 +114,7 @@ const ItemMasterManagement: React.FC = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<MasterItem | null>(null);
   const [deleteDialogItem, setDeleteDialogItem] = useState<MasterItem | null>(null);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -238,6 +239,33 @@ const ItemMasterManagement: React.FC = () => {
     },
   });
   
+  // Handle database reset
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/db-maintenance/reset-master-items');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.details || 'Failed to reset master items table');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/master-items'] });
+      toast({
+        title: "Success",
+        description: "Master items table has been reset successfully",
+      });
+      setIsResetDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Set form values when editing an item
   useEffect(() => {
     if (currentItem && isEditDialogOpen) {
@@ -284,6 +312,7 @@ const ItemMasterManagement: React.FC = () => {
   const canCreate = user && canManageContent(user.role, 'Manager');
   const canEdit = user && canManageContent(user.role, 'Manager');
   const canDelete = user && canManageContent(user.role, 'Senior Manager');
+  const canReset = user && user.role === 'Superuser';
   
   if (error) {
     return <div className="p-4 text-red-500">Error loading master items: {(error as Error).message}</div>;
