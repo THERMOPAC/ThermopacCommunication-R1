@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
 import ProjectDetail from "@/components/project-detail-fixed";
-import { useLocation } from "wouter";
-import { Loader2 } from "lucide-react";
+import { useLocation, Link } from "wouter";
+import { ChevronLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ProjectDetailPageProps {
   id?: string;
@@ -41,6 +42,20 @@ export default function ProjectDetailPage({ id, params }: ProjectDetailPageProps
 
   return (
     <div className="container mx-auto py-6">
+      <div className="mb-6 flex flex-wrap gap-2">
+        <Button variant="outline" asChild>
+          <Link href="/" className="flex items-center gap-2">
+            <ChevronLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/projects" className="flex items-center gap-2">
+            <ChevronLeft className="h-4 w-4" />
+            Back to Projects
+          </Link>
+        </Button>
+      </div>
       <ProjectDetail id={projectId} />
     </div>
   );
