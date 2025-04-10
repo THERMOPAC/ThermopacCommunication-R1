@@ -560,20 +560,26 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           <DialogHeader>
             <DialogTitle>Edit Project Item</DialogTitle>
             <DialogDescription>
-              Update the project item details below
+              Update the project item quantity below. Item details are managed through the Item Master.
             </DialogDescription>
           </DialogHeader>
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3 text-sm text-blue-800">
+            <p className="flex items-center gap-1">
+              <Info className="h-4 w-4" /> Master item fields like Item Code, Description, UOM, Make/Buy, and Drawing No are read-only. 
+              Only the quantity can be modified here. To edit item details, please use the Item Master section.
+            </p>
+          </div>
           <Form {...itemForm}>
             <form onSubmit={itemForm.handleSubmit((data) => {
               if (!selectedItem) return;
               
+              // Only update the quantity, as other fields are on the master item
+              // and should not be directly updated through the project item
               const itemData = {
-                ...data,
-                // Ensure quantity is a number
                 quantity: Number(data.quantity)
               };
               
-              console.log("Submitting item update with data:", itemData);
+              console.log("Submitting project item update with data:", itemData);
               updateProjectItemMutation.mutate({ 
                 id: selectedItem.id, 
                 data: itemData 
@@ -586,9 +592,16 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <FormItem>
                     <FormLabel>Item Code</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter item code" {...field} />
+                      <Input 
+                        placeholder="Enter item code" 
+                        {...field} 
+                        disabled 
+                        className="bg-muted cursor-not-allowed" 
+                      />
                     </FormControl>
-                    <FormMessage />
+                    <FormDescription>
+                      Item code cannot be modified here
+                    </FormDescription>
                   </FormItem>
                 )}
               />
@@ -599,9 +612,16 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter item description" {...field} />
+                      <Input 
+                        placeholder="Enter item description" 
+                        {...field} 
+                        disabled 
+                        className="bg-muted cursor-not-allowed" 
+                      />
                     </FormControl>
-                    <FormMessage />
+                    <FormDescription>
+                      Description cannot be modified here
+                    </FormDescription>
                   </FormItem>
                 )}
               />
@@ -637,9 +657,16 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     <FormItem>
                       <FormLabel>UOM</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter unit of measure" {...field} />
+                        <Input 
+                          placeholder="Enter unit of measure" 
+                          {...field} 
+                          disabled 
+                          className="bg-muted cursor-not-allowed" 
+                        />
                       </FormControl>
-                      <FormMessage />
+                      <FormDescription>
+                        UOM cannot be modified here
+                      </FormDescription>
                     </FormItem>
                   )}
                 />
@@ -655,9 +682,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       <Select 
                         onValueChange={field.onChange} 
                         defaultValue={field.value}
+                        disabled
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="bg-muted cursor-not-allowed">
                             <SelectValue placeholder="Select make or buy" />
                           </SelectTrigger>
                         </FormControl>
@@ -666,7 +694,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           <SelectItem value="Buy">Buy</SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormMessage />
+                      <FormDescription>
+                        Make/Buy cannot be modified here
+                      </FormDescription>
                     </FormItem>
                   )}
                 />
@@ -678,9 +708,16 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     <FormItem>
                       <FormLabel>Drawing No</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter drawing number" {...field} />
+                        <Input 
+                          placeholder="Enter drawing number" 
+                          {...field} 
+                          disabled 
+                          className="bg-muted cursor-not-allowed" 
+                        />
                       </FormControl>
-                      <FormMessage />
+                      <FormDescription>
+                        Drawing No cannot be modified here
+                      </FormDescription>
                     </FormItem>
                   )}
                 />
