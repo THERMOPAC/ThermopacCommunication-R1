@@ -169,8 +169,8 @@ export function setupProjectRoutes(app: express.Express) {
           name: phaseNames[i],
           description: `${phaseNames[i]} phase for project ${project.name}`,
           order: i + 1, // Using order instead of phaseNumber
-          startDate: phaseStartDate.toISOString().split('T')[0],
-          targetEndDate: phaseEndDate.toISOString().split('T')[0],
+          startDate: phaseStartDate,
+          targetEndDate: phaseEndDate,
           status: 'pending',
           phaseLeadId: userId
         });
@@ -660,7 +660,7 @@ export function setupProjectRoutes(app: express.Express) {
       const approvalData = insertPhaseApprovalSchema.parse({
         ...req.body,
         phaseId,
-        requestedAt: new Date().toISOString()
+        requestedAt: new Date()
       });
       
       const approval = await storage.createPhaseApproval(approvalData);
@@ -690,7 +690,7 @@ export function setupProjectRoutes(app: express.Express) {
       // Update approval data
       const updateData = {
         ...req.body,
-        respondedAt: req.body.status !== 'pending' ? new Date().toISOString() : undefined
+        respondedAt: req.body.status !== 'pending' ? new Date() : undefined
       };
       
       const updatedApproval = await storage.updatePhaseApproval(approvalId, updateData);
@@ -704,7 +704,7 @@ export function setupProjectRoutes(app: express.Express) {
         if (allApproved && phase) {
           await storage.updateProjectPhase(phase.id, {
             status: 'completed',
-            actualEndDate: new Date().toISOString().split('T')[0]
+            actualEndDate: new Date()
           });
         }
       }
@@ -762,7 +762,7 @@ export function setupProjectRoutes(app: express.Express) {
         ...req.body,
         projectId,
         uploadedBy: userId,
-        uploadedAt: new Date().toISOString()
+        uploadedAt: new Date()
       });
       
       const document = await storage.createProjectDocument(documentData);
@@ -882,7 +882,7 @@ export function setupProjectRoutes(app: express.Express) {
         ...req.body,
         projectId,
         projectCode: project.code,
-        createdAt: new Date().toISOString(),
+        createdAt: new Date(),
         createdBy: userId,
       });
       
@@ -976,7 +976,7 @@ export function setupProjectRoutes(app: express.Express) {
             // Use the effective values which handle both camelCase and snake_case
             makeOrBuy: effectiveMakeOrBuy,
             drawingNo: effectiveDrawingNo,
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date()
           };
           
           console.log(`Explicitly setting make_or_buy: ${makeOrBuy} and drawing_no: ${drawingNo}`);
@@ -1112,8 +1112,8 @@ export function setupProjectRoutes(app: express.Express) {
       
       const customerData = insertCustomerSchema.parse({
         ...req.body,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
       
       // Check if BP code already exists
