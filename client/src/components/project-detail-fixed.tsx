@@ -567,7 +567,18 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto">
       {/* Edit Item Dialog */}
-      <Dialog open={isEditItemOpen} onOpenChange={setIsEditItemOpen}>
+      <Dialog 
+        open={isEditItemOpen} 
+        onOpenChange={(open) => {
+          // Only close the dialog when the user explicitly clicks cancel,
+          // not when the form is auto-submitted
+          if (!open) {
+            setIsEditItemOpen(false);
+          } else {
+            setIsEditItemOpen(true);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Edit Project Item</DialogTitle>
@@ -751,7 +762,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       </Dialog>
       
       {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+      <Dialog 
+        open={isDeleteConfirmOpen} 
+        onOpenChange={(open) => {
+          // Only update state if dialog is closing via cancel button or opening, not during submission
+          setIsDeleteConfirmOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Delete Project Item</DialogTitle>
@@ -793,7 +810,14 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       </Dialog>
       
       {/* Edit Project Dialog */}
-      <Dialog open={isEditProjectOpen} onOpenChange={setIsEditProjectOpen}>
+      <Dialog 
+        open={isEditProjectOpen} 
+        onOpenChange={(open) => {
+          // Only update state if the dialog is being opened
+          // or if it's being closed via the cancel button, not auto-submission
+          setIsEditProjectOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-screen-xl w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Project Details</DialogTitle>
@@ -1084,7 +1108,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                       variant="ghost"
                                       size="sm"
                                       className="text-blue-600"
-                                      onClick={() => {
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        console.log("Edit item clicked for item:", item);
                                         setSelectedItem(item);
                                         itemForm.reset({
                                           itemCode: item.masterItem?.itemCode || "",
