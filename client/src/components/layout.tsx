@@ -31,7 +31,9 @@ export default function Layout({ children }: LayoutProps) {
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
 
   // Check if we're on any project-related page
-  const isOnProjectsPage = location.startsWith('/project');
+  const isOnProjectsPage = location.startsWith('/project') || 
+                         location === '/customers' || 
+                         location === '/item-master';
   
   // If we're on a project page, make sure the menu is open
   if (isOnProjectsPage && !isProjectMenuOpen) {

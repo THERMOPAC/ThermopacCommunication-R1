@@ -70,6 +70,8 @@ function Router() {
       <ProtectedRoute path="/recurring-tasks" component={RecurringTasksPage} />
       <ProtectedRoute path="/projects" component={ProjectsPage} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />
+      <ProtectedRoute path="/customers" component={Dashboard} />
+      <ProtectedRoute path="/item-master" component={Dashboard} />
       <SuperuserRoute path="/users" component={Dashboard} />
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <Route component={NotFound} />
