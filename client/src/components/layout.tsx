@@ -49,7 +49,9 @@ export default function Layout({ children }: LayoutProps) {
       isOpen: isProjectMenuOpen,
       toggle: () => setIsProjectMenuOpen(!isProjectMenuOpen),
       children: [
-        { icon: Briefcase, label: "Projects", href: "/projects" }
+        { icon: Briefcase, label: "Projects", href: "/projects" },
+        { icon: Users, label: "Customers", href: "/customers" },
+        { icon: TrendingUp, label: "Item Master", href: "/item-master" }
       ]
     },
     { icon: Users, label: "Team", href: "/team" },
