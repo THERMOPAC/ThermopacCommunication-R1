@@ -552,6 +552,177 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
   return (
     <div className="space-y-6">
+      {/* Edit Item Dialog */}
+      <Dialog open={isEditItemOpen} onOpenChange={setIsEditItemOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Project Item</DialogTitle>
+            <DialogDescription>
+              Update the project item details below
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...itemForm}>
+            <form onSubmit={itemForm.handleSubmit((data) => {
+              if (!selectedItem) return;
+              
+              const itemData = {
+                ...data,
+                // Ensure quantity is a number
+                quantity: Number(data.quantity)
+              };
+              
+              updateProjectItemMutation.mutate({ 
+                id: selectedItem.id, 
+                data: itemData 
+              });
+            })} className="space-y-4">
+              <FormField
+                control={itemForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter item description" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={itemForm.control}
+                  name="quantity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quantity</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="Enter quantity" 
+                          {...field}
+                          onChange={(e) => {
+                            const value = e.target.value ? parseInt(e.target.value) : 1;
+                            field.onChange(value);
+                          }}
+                          value={field.value?.toString() || '1'}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={itemForm.control}
+                  name="uom"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>UOM</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter unit of measure" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={itemForm.control}
+                  name="makeOrBuy"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Make/Buy</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select make or buy" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Make">Make</SelectItem>
+                          <SelectItem value="Buy">Buy</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={itemForm.control}
+                  name="drawingNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Drawing No</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter drawing number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <DialogFooter>
+                <Button type="submit" disabled={updateProjectItemMutation.isPending}>
+                  {updateProjectItemMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete Project Item</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this item? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedItem && (
+            <div className="py-4">
+              <div className="grid grid-cols-2 mb-4">
+                <div className="font-semibold">Item Code:</div>
+                <div>{selectedItem.itemCode}</div>
+              </div>
+              <div className="grid grid-cols-2 mb-4">
+                <div className="font-semibold">Description:</div>
+                <div>{selectedItem.description}</div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => selectedItem && deleteProjectItemMutation.mutate(selectedItem.id)}
+              disabled={deleteProjectItemMutation.isPending}
+            >
+              {deleteProjectItemMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       {/* Edit Project Dialog */}
       <Dialog open={isEditProjectOpen} onOpenChange={setIsEditProjectOpen}>
         <DialogContent className="sm:max-w-[900px] max-h-[85vh] overflow-y-auto">
