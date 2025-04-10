@@ -241,7 +241,7 @@ export function setupProjectRoutes(app: express.Express) {
       }
       
       // Add updated timestamp as ISO string
-      updateData.updatedAt = new Date().toISOString();
+      updateData.updatedAt = new Date();
       
       console.log("Final clean update data:", updateData);
       
@@ -346,7 +346,7 @@ export function setupProjectRoutes(app: express.Express) {
       // Update phase data
       const updateData = {
         ...req.body,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       };
       
       const updatedPhase = await storage.updateProjectPhase(phaseId, updateData);
@@ -558,7 +558,7 @@ export function setupProjectRoutes(app: express.Express) {
       // Update deliverable data
       const updateData = {
         ...req.body,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       };
       
       const updatedDeliverable = await storage.updateDeliverable(deliverableId, updateData);
@@ -995,7 +995,7 @@ export function setupProjectRoutes(app: express.Express) {
       const projectItemUpdateData = {
         quantity,
         ...otherData,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       };
       
       console.log(`Updating project item ${itemId} with data:`, projectItemUpdateData);
@@ -1158,7 +1158,7 @@ export function setupProjectRoutes(app: express.Express) {
       // Update customer data
       const updateData = {
         ...req.body,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       };
       
       const updatedCustomer = await storage.updateCustomer(customerId, updateData);

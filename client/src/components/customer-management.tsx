@@ -183,6 +183,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
 
   const onSubmitEdit = (data: CustomerFormValues) => {
     if (editingCustomer) {
+      // Don't need to manually set updatedAt as the server will handle it
       updateMutation.mutate({ id: editingCustomer.id, data });
     }
   };
