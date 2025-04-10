@@ -22,6 +22,7 @@ const CustomerImport: React.FC<CustomerImportProps> = ({ open, onOpenChange }) =
     imported?: number;
     skipped?: number;
     errors?: string[];
+    supportedFields?: string;
   } | null>(null);
 
   const importMutation = useMutation({
@@ -42,7 +43,10 @@ const CustomerImport: React.FC<CustomerImportProps> = ({ open, onOpenChange }) =
       return await response.json();
     },
     onSuccess: (data) => {
-      setImportResults(data.results);
+      setImportResults({
+        ...data.results,
+        supportedFields: data.supportedFields
+      });
       toast({
         title: "Import Successful",
         description: `Successfully imported ${data.results.imported} customer records.`,
@@ -100,7 +104,18 @@ const CustomerImport: React.FC<CustomerImportProps> = ({ open, onOpenChange }) =
         <DialogHeader>
           <DialogTitle>Import Customers</DialogTitle>
           <DialogDescription>
-            Upload an Excel file containing customer data. The file should have columns for BP Code, BP Name, Contact Person, Email, Continent, and Country.
+            Upload an Excel file containing customer data. The file must have these required columns:
+            <ul className="list-disc ml-5 mt-2 text-sm space-y-1">
+              <li><strong>BP Code</strong> - Unique business partner code (required)</li>
+              <li><strong>BP Name</strong> - Business partner name (required)</li>
+              <li><strong>Contact Person</strong> - Primary contact name</li> 
+              <li><strong>E-Mail</strong> - Contact email address</li>
+              <li><strong>Continent</strong> - Geographic location</li>
+              <li><strong>Country Name</strong> - Country of operation</li>
+            </ul>
+            <div className="mt-2 p-2 bg-amber-50 text-amber-800 text-xs rounded border border-amber-200">
+              <strong>Note:</strong> Columns like <code>Bill_To_Address</code> and <code>Ship_To_Address</code> will be ignored as they are not supported in the current database schema.
+            </div>
           </DialogDescription>
         </DialogHeader>
 

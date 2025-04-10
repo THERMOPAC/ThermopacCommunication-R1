@@ -110,27 +110,36 @@ export function setupCustomerImportRoutes(app: Router) {
           }
 
           // Create new customer
+          // Note: We're only using fields that exist in the database schema
+          // Bill_To_Address and Ship_To_Address are in the Excel file but not in our database schema
           await storage.createCustomer({
             bpCode: row['BP Code'],
-            bpName: row['BP Name'], // Change name to bpName to match schema
+            bpName: row['BP Name'],
             contactPerson: row['Contact Person'] || null,
-            email: row['E-Mail'] || null, // Updated to match Excel column name
+            email: row['E-Mail'] || null,
             continent: row['Continent'] || null,
-            countryName: row['Country Name'] || null, // Updated to match schema field name
+            countryName: row['Country Name'] || null,
+            createdAt: new Date(),
+            updatedAt: new Date()
           });
 
           results.imported++;
         } catch (error) {
           console.error('Error processing row:', error);
           results.skipped++;
-          results.errors.push(`Error processing row: ${JSON.stringify(row)}`);
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          results.errors.push(`Error processing row: ${JSON.stringify(row)}. Note: Bill_To_Address and Ship_To_Address are not stored in the database. Error: ${errorMsg}`);
         }
       }
 
+      // Add helpful message about supported columns
+      const supportedFields = "BP Code, BP Name, Contact Person, E-Mail, Continent, Country Name";
+      
       // Return results
       return res.status(200).json({
         message: "Import completed successfully",
-        results
+        results,
+        supportedFields
       });
     } catch (error) {
       console.error('Error importing customers:', error);
