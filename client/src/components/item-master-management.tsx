@@ -327,11 +327,22 @@ const ItemMasterManagement: React.FC = () => {
               <CardTitle>Item Master</CardTitle>
               <CardDescription>Manage master items in the system</CardDescription>
             </div>
-            {canCreate && (
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Create Item
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {canReset && (
+                <Button 
+                  variant="outline" 
+                  className="border-red-500 text-red-500 hover:bg-red-50 hover:text-red-600"
+                  onClick={() => setIsResetDialogOpen(true)}
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" /> Reset Database
+                </Button>
+              )}
+              {canCreate && (
+                <Button onClick={() => setIsCreateDialogOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> Create Item
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -839,6 +850,54 @@ const ItemMasterManagement: React.FC = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Reset Database Dialog */}
+      <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">Database Reset Confirmation</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p className="font-medium text-gray-700">
+                You are about to perform a critical operation that will:
+              </p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Delete <span className="font-semibold">ALL</span> master items from the database</li>
+                <li>Reset the auto-increment counter</li>
+              </ul>
+              <p className="font-medium text-red-500">
+                This action cannot be undone. If any master items are currently referenced by project items, 
+                this operation will fail.
+              </p>
+              <p>
+                Type <span className="font-mono bg-gray-100 px-2 py-1 rounded">RESET</span> below to confirm:
+              </p>
+              <input 
+                type="text" 
+                className="border-2 border-gray-300 p-2 w-full mt-2 rounded-md"
+                placeholder="Type RESET to confirm"
+                onChange={(e) => {
+                  const isConfirmed = e.target.value === 'RESET';
+                  const resetButton = document.getElementById('reset-confirm-button');
+                  if (resetButton) {
+                    resetButton.disabled = !isConfirmed;
+                  }
+                }}
+              />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              id="reset-confirm-button"
+              onClick={() => resetMutation.mutate()}
+              className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={true}
+            >
+              {resetMutation.isPending ? 'Resetting...' : 'Reset Database'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
