@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import CustomerImport from "./customer-import";
 import {
   Card,
   CardContent,
