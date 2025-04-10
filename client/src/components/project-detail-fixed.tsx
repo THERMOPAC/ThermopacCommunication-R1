@@ -1722,11 +1722,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           <TableCell>{item.masterItem?.makeOrBuy || "N/A"}</TableCell>
                           <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
                           <TableCell>{formatDate(item.createdAt)}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
+                          <TableCell>
+                            <div className="flex justify-end space-x-2">
                               <Button
-                                variant="ghost"
-                                size="icon"
+                                variant="outline"
+                                size="sm"
                                 type="button"
                                 onClick={(e) => {
                                   e.preventDefault(); // Prevent any default behavior
@@ -1745,12 +1745,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                   setIsEditItemOpen(true);
                                 }}
                               >
-                                <Edit className="h-4 w-4" />
+                                <Edit className="h-4 w-4 mr-1" /> Edit
                               </Button>
                               <Button
-                                variant="ghost"
-                                size="icon"
+                                variant="outline"
+                                size="sm"
                                 type="button"
+                                className="text-red-500 hover:text-red-600"
                                 onClick={(e) => {
                                   e.preventDefault(); // Prevent any default behavior
                                   e.stopPropagation(); // Stop event bubbling
@@ -1760,7 +1761,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                   setIsDeleteConfirmOpen(true);
                                 }}
                               >
-                                <XCircle className="h-4 w-4 text-red-500" />
+                                <Trash2 className="h-4 w-4 mr-1" /> Delete
                               </Button>
                             </div>
                           </TableCell>
