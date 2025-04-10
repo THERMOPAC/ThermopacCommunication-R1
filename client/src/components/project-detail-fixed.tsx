@@ -573,6 +573,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 quantity: Number(data.quantity)
               };
               
+              console.log("Submitting item update with data:", itemData);
               updateProjectItemMutation.mutate({ 
                 id: selectedItem.id, 
                 data: itemData 

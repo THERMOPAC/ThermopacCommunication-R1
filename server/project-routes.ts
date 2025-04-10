@@ -912,15 +912,54 @@ export function setupProjectRoutes(app: express.Express) {
       if (!userMember && !canManage(req.user!.role, 'Manager')) {
         return res.status(403).json({ error: 'Not authorized to update this project item' });
       }
+
+      const { itemCode, description, quantity, uom, makeOrBuy, drawingNo, ...otherData } = req.body;
       
-      // Update item data
-      const updateData = {
-        ...req.body,
+      // If itemCode is provided, we need to update the master item
+      if (itemCode) {
+        try {
+          // First, get the master item associated with this project item
+          const masterItem = await storage.getMasterItem(item.itemId);
+          
+          if (!masterItem) {
+            return res.status(404).json({ error: 'Associated master item not found' });
+          }
+          
+          // Check if the new itemCode already exists (but isn't this item)
+          if (itemCode !== masterItem.itemCode) {
+            const existingItem = await storage.getMasterItemByCode(itemCode);
+            if (existingItem && existingItem.id !== masterItem.id) {
+              return res.status(400).json({ error: 'Item code already exists for another item' });
+            }
+          }
+          
+          // Update the master item with new data
+          await storage.updateMasterItem(masterItem.id, {
+            itemCode,
+            description,
+            uom,
+            makeOrBuy,
+            drawingNo,
+            updatedAt: new Date().toISOString()
+          });
+        } catch (error) {
+          console.error(`Error updating master item for project item ${itemId}:`, error);
+          return res.status(400).json({ error: 'Failed to update master item', details: error.message });
+        }
+      }
+      
+      // Now update the project item with remaining data
+      const projectItemUpdateData = {
+        quantity,
+        ...otherData,
         updatedAt: new Date().toISOString()
       };
       
-      const updatedItem = await storage.updateProjectItem(itemId, updateData);
-      res.json(updatedItem);
+      const updatedItem = await storage.updateProjectItem(itemId, projectItemUpdateData);
+      
+      // Return the full updated item with master item data
+      const fullUpdatedItem = await storage.getProjectItem(itemId);
+      res.json(fullUpdatedItem);
     } catch (error) {
       console.error(`Error updating project item ${req.params.id}:`, error);
       res.status(400).json({ error: 'Failed to update project item', details: error.message });
