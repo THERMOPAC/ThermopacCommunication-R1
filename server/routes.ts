@@ -74,29 +74,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Begin a transaction to ensure data integrity
       await db.transaction(async (tx) => {
-        console.log(`Nullifying ${projectItemCount} project item references to master items`);
+        console.log(`Found ${projectItemCount} project items referencing master items`);
         
-        // Nullify references from project items to master items
         if (projectItemCount > 0) {
+          // Create a placeholder master item to preserve referential integrity
+          const placeholderItem = await tx.insert(masterItemsTable)
+            .values({
+              itemCode: "PLACEHOLDER-RESET-REFERENCE",
+              description: "Placeholder reference for reset master items",
+              uom: "EA",
+              make_or_buy: "N/A",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              drawing_no: "N/A",
+              notes: "This is a placeholder item created during database reset. This item replaces references to deleted master items."
+            })
+            .returning();
+          
+          console.log(`Created placeholder master item with ID ${placeholderItem[0].id}`);
+          
+          // Update all project items to reference the placeholder
           await tx.update(projectItemsTable)
-            .set({ itemId: null })
+            .set({ itemId: placeholderItem[0].id })
             .where(sql`${projectItemsTable.itemId} IS NOT NULL`);
+          
+          console.log(`Updated ${projectItemCount} project items to reference placeholder item`);
+          
+          // Delete all master items except the placeholder
+          console.log("Deleting all other master items");
+          await tx.delete(masterItemsTable)
+            .where(sql`${masterItemsTable.id} != ${placeholderItem[0].id}`);
+        } else {
+          // No project items using master items, safe to delete all
+          console.log("Deleting all master items");
+          await tx.delete(masterItemsTable);
         }
         
-        // Delete all master items
-        console.log("Deleting all master items");
-        await tx.delete(masterItemsTable);
-        
-        // Reset the auto-increment counter
+        // Reset the auto-increment counter to start after the placeholder
         console.log("Resetting auto-increment counter");
-        await tx.execute(sql`ALTER SEQUENCE master_items_id_seq RESTART WITH 1`);
+        if (projectItemCount > 0) {
+          await tx.execute(sql`ALTER SEQUENCE master_items_id_seq RESTART WITH 2`);
+        } else {
+          await tx.execute(sql`ALTER SEQUENCE master_items_id_seq RESTART WITH 1`);
+        }
       });
       
       res.status(200).json({ 
         message: 'Master items table reset successfully', 
         details: projectItemCount > 0 
-          ? `Nullified ${projectItemCount} project item references to master items.` 
-          : 'No project item references needed to be nullified.'
+          ? `Created a placeholder master item and updated ${projectItemCount} project item references.` 
+          : 'No project item references needed to be updated.'
       });
     } catch (error) {
       console.error("Error resetting master items table:", error);
