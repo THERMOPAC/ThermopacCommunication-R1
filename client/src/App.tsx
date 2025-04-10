@@ -15,6 +15,7 @@ import MessagesPage from "@/pages/messages-page";
 import ProjectsPage from "@/pages/projects-page";
 import ProjectDetailPage from "@/pages/project-detail-page";
 import CustomersPage from "@/pages/customers-page";
+import ItemMasterPage from "@/pages/item-master-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
@@ -72,7 +73,7 @@ function Router() {
       <ProtectedRoute path="/projects" component={ProjectsPage} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />
       <ProtectedRoute path="/customers" component={CustomersPage} />
-      <ProtectedRoute path="/item-master" component={Dashboard} />
+      <ProtectedRoute path="/item-master" component={ItemMasterPage} />
       <SuperuserRoute path="/users" component={Dashboard} />
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <Route component={NotFound} />

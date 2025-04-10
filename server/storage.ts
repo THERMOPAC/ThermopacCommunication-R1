@@ -2322,6 +2322,35 @@ export class DatabaseStorage implements IStorage {
       } as MasterItem;
     }
   }
+  
+  async deleteMasterItem(id: number): Promise<void> {
+    console.log(`Deleting master item with ID: ${id}`);
+    try {
+      await db
+        .delete(masterItemsTable)
+        .where(eq(masterItemsTable.id, id));
+      console.log(`Deleted master item with ID: ${id}`);
+    } catch (error) {
+      console.error("Error deleting master item:", error);
+      throw new Error(`Failed to delete master item: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+  
+  async getProjectItemsByMasterId(masterId: number): Promise<ProjectItem[]> {
+    console.log(`Getting project items with master item ID: ${masterId}`);
+    try {
+      const items = await db
+        .select()
+        .from(projectItemsTable)
+        .where(eq(projectItemsTable.itemId, masterId));
+      
+      console.log(`Found ${items.length} project items with master item ID: ${masterId}`);
+      return items as ProjectItem[];
+    } catch (error) {
+      console.error("Error fetching project items by master ID:", error);
+      return [];
+    }
+  }
 
   // Project Items CRUD methods
   async createProjectItem(item: InsertProjectItem): Promise<ProjectItem> {
