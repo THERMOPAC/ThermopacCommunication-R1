@@ -13,6 +13,7 @@ import { setupInternalMessagesRoutes } from "./internal-messages-routes";
 import { setupProjectRoutes } from "./project-routes";
 import { setupCustomerImportRoutes } from "./customer-import";
 import { setupProjectItemsImportRoutes } from "./project-items-import";
+import { setupMasterItemsImportRoutes } from "./master-items-import";
 import { hashPassword as updatePasswordHash } from "./update-password";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
@@ -52,6 +53,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up project items import routes
   setupProjectItemsImportRoutes(app);
+  
+  // Set up master items import routes
+  setupMasterItemsImportRoutes(app);
   
   // Database Maintenance Routes
   app.post("/api/db-maintenance/reset-master-items", async (req, res) => {
