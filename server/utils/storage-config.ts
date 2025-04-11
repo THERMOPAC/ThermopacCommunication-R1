@@ -8,7 +8,7 @@ import { Storage } from '@google-cloud/storage';
  */
 
 // Get bucket name from environment variable
-export const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac-project-files';
+export const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage';
 
 // Function to create storage client
 function createStorageClient() {
