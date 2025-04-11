@@ -52,6 +52,7 @@ interface DirectoryItem {
   createdBy: number;
   createdAt: string;
   isPublic: boolean;
+  isTemplate?: boolean;
 }
 
 interface UploadUrlRequest {
@@ -67,6 +68,15 @@ interface UploadUrlResponse {
   signedUrl: string;
   storagePath: string;
   expiresAt: string;
+}
+
+interface DirectoryTemplate {
+  id: number;
+  department: string;
+  subDirectory: string | null;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const departments = [
@@ -93,6 +103,7 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
   const [isUploadFileOpen, setIsUploadFileOpen] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
   // Get directory structure for this project
   const { data: directories, isLoading: directoriesLoading } = useQuery({
@@ -107,6 +118,22 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
       } catch (error) {
         console.error("Error fetching directories:", error);
         throw new Error('Failed to fetch directory structure');
+      }
+    },
+  });
+
+  // Get available directory templates
+  const { data: templates, isLoading: templatesLoading } = useQuery({
+    queryKey: ['/api/storage/templates'],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest('GET', '/api/storage/templates');
+        const data = await response.json();
+        console.log("Templates data:", data);
+        return data as Record<string, DirectoryTemplate[]>;
+      } catch (error) {
+        console.error("Error fetching templates:", error);
+        throw new Error('Failed to fetch directory templates');
       }
     },
   });

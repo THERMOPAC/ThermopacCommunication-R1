@@ -31,6 +31,36 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
  */
 export function setupFileStorageRoutes(app: Router) {
   /**
+   * Get all available directory templates
+   * Used by the frontend to show available templates when creating directories
+   */
+  app.get('/api/storage/templates', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const templates = await db
+        .select()
+        .from(directoryTemplates)
+        .orderBy(directoryTemplates.department, directoryTemplates.subDirectory);
+      
+      // Group templates by department for easier frontend handling
+      const templatesByDepartment = templates.reduce((acc: any, template) => {
+        if (!acc[template.department]) {
+          acc[template.department] = [];
+        }
+        
+        if (template.subDirectory) {
+          acc[template.department].push(template);
+        }
+        
+        return acc;
+      }, {});
+      
+      res.json(templatesByDepartment);
+    } catch (error) {
+      console.error('Error fetching directory templates:', error);
+      res.status(500).json({ error: 'Failed to fetch directory templates' });
+    }
+  });
+  /**
    * Get project directory structure
    * Returns the directory tree for a project based on financial year and project code
    * Combines standard templates with project-specific custom directories
