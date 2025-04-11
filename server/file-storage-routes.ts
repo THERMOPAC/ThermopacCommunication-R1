@@ -192,19 +192,10 @@ export function setupFileStorageRoutes(app: Router) {
       
       // Only create the physical directory for custom directories not already in templates
       if (!isTemplateDirectory) {
-        // Check if we're in development mode
-        const isDevelopment = process.env.NODE_ENV !== 'production';
-        
-        let success = true;
-        
-        if (!isDevelopment) {
-          // Only attempt to create the physical directory in production
-          success = await gcsStorage.ensureDirectoryStructure(fullPath);
-          if (!success) {
-            return res.status(500).json({ error: 'Failed to create directory in GCS' });
-          }
-        } else {
-          console.log('Using mock directory creation for development');
+        // Always create the physical directory in GCS
+        const success = await gcsStorage.ensureDirectoryStructure(fullPath);
+        if (!success) {
+          return res.status(500).json({ error: 'Failed to create directory in GCS' });
         }
       }
       
