@@ -465,8 +465,13 @@ export function setupFileStorageRoutes(app: Router) {
       // Ensure the physical directory exists in GCS
       await gcsStorage.ensureDirectoryStructure(dirPath);
       
+      // Import storage module
+      const storageModule = await import('./utils/storage-config');
+      console.log(`File upload: Using bucket name: ${storageModule.bucketName}`);
+      
       // Create the file in GCS
-      const bucket = await import('./utils/storage-config').then(module => module.default.bucket(module.bucketName));
+      const bucket = storageModule.default.bucket(storageModule.bucketName);
+      console.log(`File upload: Created bucket object for ${storageModule.bucketName}`);
       const file = bucket.file(storagePath);
       
       // Create a write stream to upload the file

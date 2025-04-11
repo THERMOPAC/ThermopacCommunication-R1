@@ -61,8 +61,11 @@ class GcsStorage {
    */
   async ensureDirectoryStructure(dirPath: string): Promise<boolean> {
     try {
+      console.log(`Ensuring directory structure for path: ${dirPath}`);
+      console.log(`Using bucket name: ${bucketName}`);
       const bucket = storage.bucket(bucketName);
       const keepFilePath = path.join(dirPath, '.keep');
+      console.log(`Creating .keep file at: ${keepFilePath}`);
       const file = bucket.file(keepFilePath);
       
       const [exists] = await file.exists();

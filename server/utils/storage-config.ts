@@ -7,8 +7,19 @@ import { Storage } from '@google-cloud/storage';
  * 2. A bucket name
  */
 
-// Get bucket name from environment variable
-export const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage';
+// Get bucket name from environment variable and fix common issues
+let configuredBucketName = process.env.GOOGLE_CLOUD_BUCKET;
+if (configuredBucketName) {
+  // Trim spaces and fix common typos
+  configuredBucketName = configuredBucketName.trim();
+  if (configuredBucketName === 'thermopac_sorage') {
+    configuredBucketName = 'thermopac_storage';
+  }
+}
+
+// Use the corrected bucket name or default to thermopac_storage
+export const bucketName = configuredBucketName || 'thermopac_storage';
+console.log(`Using GCS bucket name: ${bucketName}`);
 
 // Function to create storage client
 function createStorageClient() {
