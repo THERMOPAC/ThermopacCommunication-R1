@@ -3,7 +3,7 @@ import multer from 'multer';
 import { gcsStorage } from './utils/gcs-storage';
 import { db } from './db';
 import { gcsDirectories, projectDocuments, directoryTemplates } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, like } from 'drizzle-orm';
 import path from 'path';
 
 // We'll use the standard Request type from Express
@@ -248,9 +248,23 @@ export function setupFileStorageRoutes(app: Router) {
       
       if (isDevelopment) {
         console.log('Using mock file listing for development');
-        // In development, we'll return an empty array of files
-        // This allows the UI to still function without real GCS connection
-        return res.status(200).json([]);
+        // In development mode, fetch files from the database with matching storage_path
+        const documents = await db
+          .select()
+          .from(projectDocuments)
+          .where(like(projectDocuments.storagePath, `${path}%`));
+        
+        // Convert database documents to file listing format
+        const files = documents.map(doc => ({
+          name: doc.name,
+          fullPath: doc.storagePath,
+          size: doc.size || 0,
+          contentType: doc.format || 'application/octet-stream',
+          updated: doc.uploadedAt,
+          downloadUrl: doc.storageUrl
+        }));
+        
+        return res.status(200).json(files);
       }
       
       // In production, use the real GCS implementation
