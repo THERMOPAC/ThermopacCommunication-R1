@@ -705,33 +705,20 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
               <div className="space-y-2">
                 <p className="text-sm mb-2">Click the button below to select a file</p>
                 <div className="space-y-2">
-                  <Button
-                    type="button"
-                    className="w-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Find the hidden input and trigger a click
-                      const fileInput = document.getElementById('hidden-file-input');
-                      if (fileInput) {
-                        fileInput.click();
-                      }
-                    }}
-                  >
-                    <UploadIcon className="mr-2 h-4 w-4" />
-                    Choose File
-                  </Button>
-                  
-                  <input
-                    id="hidden-file-input"
-                    type="file"
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        setFileToUpload(e.target.files[0]);
-                        console.log("File selected:", e.target.files[0].name);
-                      }
-                    }}
-                  />
+                  {/* Simple file input directly visible */}
+                  <div className="border p-4 rounded-md">
+                    <input 
+                      type="file"
+                      className="block w-full cursor-pointer"
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        if (e.target.files && e.target.files.length > 0) {
+                          setFileToUpload(e.target.files[0]);
+                          console.log("File selected:", e.target.files[0].name);
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
                 
                 {fileToUpload && (
