@@ -268,7 +268,11 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
   });
 
   // Handle department selection
-  const handleDepartmentSelect = (department: string) => {
+  const handleDepartmentSelect = (department: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setCurrentDepartment(department);
     setCurrentSubDirectory('');
     setCurrentPath(`${financialYear}/${projectCode}/${department}`);
@@ -399,7 +403,7 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
               <Button 
                 variant={currentDepartment === dept.id ? "default" : "outline"} 
                 className="w-full justify-start" 
-                onClick={() => handleDepartmentSelect(dept.id)}
+                onClick={(e) => handleDepartmentSelect(dept.id, e)}
               >
                 <FolderIcon className="h-4 w-4 mr-2" />
                 {dept.name}
