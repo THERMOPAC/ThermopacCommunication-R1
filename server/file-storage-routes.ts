@@ -243,6 +243,14 @@ export function setupFileStorageRoutes(app: Router) {
         console.log(`Modified path to include prefix: ${fullPath}`);
       }
       
+      // Add more detailed logging
+      const pathParts = fullPath.split('/');
+      console.log(`Path components: ${JSON.stringify(pathParts)}`);
+      
+      // Ensure path doesn't have double slashes (common when combining paths)
+      fullPath = fullPath.replace(/\/+/g, '/');
+      console.log(`Normalized path (removed double slashes): ${fullPath}`);
+      
       // Use the real GCS implementation
       const files = await gcsStorage.listFiles(fullPath);
       console.log(`Found ${files.length} files in ${fullPath}`);

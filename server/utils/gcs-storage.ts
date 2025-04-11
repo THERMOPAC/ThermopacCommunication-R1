@@ -31,9 +31,11 @@ class GcsStorage {
       financialYear: financialYear.replace(/[^\w-]/g, ''),
       projectCode: projectCode.replace(/[^\w-]/g, ''),
       department: department.replace(/[^\w-]/g, ''),
-      subDirectory: subDirectory ? subDirectory.replace(/[^\w-]/g, '') : '',
+      subDirectory: subDirectory ? subDirectory.replace(/[^\w\s.-/]/g, '') : '', // Allow slashes in subdirectory
       fileName: fileName.replace(/[^\w\s.-]/g, '')
     };
+
+    console.log(`Building storage path: FY: ${sanitized.financialYear}, Project: ${sanitized.projectCode}, Dept: ${sanitized.department}, SubDir: ${sanitized.subDirectory}, File: ${sanitized.fileName}`);
 
     // Build path components with THERMOPAC_PROJECTS as the root folder
     const pathComponents = [
@@ -45,7 +47,17 @@ class GcsStorage {
 
     // Add subdirectory if provided
     if (sanitized.subDirectory) {
-      pathComponents.push(sanitized.subDirectory);
+      // Handle subdirectory paths - they might contain slashes
+      if (sanitized.subDirectory.includes('/')) {
+        // Split by slash and add each part to the path components
+        sanitized.subDirectory.split('/').forEach(part => {
+          if (part.trim()) {
+            pathComponents.push(part.trim());
+          }
+        });
+      } else {
+        pathComponents.push(sanitized.subDirectory);
+      }
     }
 
     // Add filename
@@ -97,9 +109,13 @@ class GcsStorage {
       const normalizedPath = directoryPath.endsWith('/') ? directoryPath : `${directoryPath}/`;
       console.log(`GCS: Normalized path: ${normalizedPath}`);
       
+      // Remove any double slashes
+      const cleanPath = normalizedPath.replace(/\/+/g, '/');
+      console.log(`GCS: Cleaned path to remove double slashes: ${cleanPath}`);
+      
       const bucket = storage.bucket(bucketName);
       const options = {
-        prefix: normalizedPath,
+        prefix: cleanPath,
         delimiter: '/'
       };
       

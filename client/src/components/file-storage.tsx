@@ -395,6 +395,8 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
                       className="w-full justify-start text-sm" 
                       onClick={(e) => {
                         stopEventPropagation(e);
+                        console.log(`Selecting subdirectory: ${dir.subDirectory}`);
+                        console.log(`Setting path to: ${dir.fullPath}`);
                         setCurrentSubDirectory(dir.subDirectory || '');
                         setCurrentPath(dir.fullPath);
                       }}
