@@ -1125,7 +1125,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               
               {/* Tabs for Project Details, Stages, Logistics, Attachments */}
               <Tabs defaultValue="project-details" className="w-full mt-6">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="project-details" className="flex items-center gap-1">
                     <ClipboardList className="h-4 w-4" /> Project Details
                   </TabsTrigger>
@@ -1137,6 +1137,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   </TabsTrigger>
                   <TabsTrigger value="attachments" className="flex items-center gap-1">
                     <Paperclip className="h-4 w-4" /> Attachments
+                  </TabsTrigger>
+                  <TabsTrigger value="files" className="flex items-center gap-1">
+                    <FileText className="h-4 w-4" /> File Storage
                   </TabsTrigger>
                 </TabsList>
                 
