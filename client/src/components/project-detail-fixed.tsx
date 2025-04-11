@@ -1420,6 +1420,18 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     </div>
                   </div>
                 </TabsContent>
+                
+                <TabsContent value="files" className="space-y-4 mt-4">
+                  <div className="border rounded-md h-[600px]">
+                    {project && (
+                      <FileStorage 
+                        projectId={parseInt(projectId)}
+                        projectCode={project.code}
+                        financialYear={project.financialYear}
+                      />
+                    )}
+                  </div>
+                </TabsContent>
               </Tabs>
               
               {/* Add Project Items Import Dialog inside the Edit Project dialog */}
