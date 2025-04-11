@@ -1428,7 +1428,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       <FileStorage 
                         projectId={parseInt(projectId)}
                         projectCode={project.code}
-                        financialYear={project.financialYear}
+                        financialYear={project.financialYear || project.financial_year}
                       />
                     )}
                   </div>
@@ -1989,7 +1989,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <FileStorage 
                     projectId={parseInt(id)}
                     projectCode={project.code}
-                    financialYear={project.financial_year}
+                    financialYear={project.financialYear || project.financial_year}
                   />
                 )}
               </CardContent>
