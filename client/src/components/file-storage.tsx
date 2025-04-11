@@ -79,6 +79,11 @@ const departments = [
 ];
 
 export default function FileStorage({ projectId, projectCode, financialYear }: FileStorageProps) {
+  // Prevent any events in this component from propagating to parent elements
+  const stopEventPropagation = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
   const [currentPath, setCurrentPath] = useState<string>('');
   const [currentDepartment, setCurrentDepartment] = useState<string>('');
   const [currentSubDirectory, setCurrentSubDirectory] = useState<string>('');
@@ -279,7 +284,11 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
   };
 
   // Handle breadcrumb navigation
-  const handleBreadcrumbClick = (path: string) => {
+  const handleBreadcrumbClick = (path: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     setCurrentPath(path);
   };
 
@@ -416,7 +425,8 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
                       key={dir.id} 
                       variant="ghost" 
                       className="w-full justify-start text-sm" 
-                      onClick={() => {
+                      onClick={(e) => {
+                        stopEventPropagation(e);
                         setCurrentSubDirectory(dir.subDirectory || '');
                         setCurrentPath(dir.fullPath);
                       }}
@@ -435,13 +445,16 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" onClick={stopEventPropagation}>
       <div className="flex justify-between items-center p-4 border-b">
         <h2 className="text-xl font-bold">Project Files: {projectCode}</h2>
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => setIsCreateDirectoryOpen(true)}
+            onClick={(e) => {
+              stopEventPropagation(e);
+              setIsCreateDirectoryOpen(true);
+            }}
             disabled={!currentDepartment}
           >
             <FolderPlusIcon className="h-4 w-4 mr-2" />
@@ -449,7 +462,10 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
           </Button>
           <Button
             variant="default"
-            onClick={() => setIsUploadFileOpen(true)}
+            onClick={(e) => {
+              stopEventPropagation(e);
+              setIsUploadFileOpen(true);
+            }}
             disabled={!currentDepartment}
           >
             <UploadIcon className="h-4 w-4 mr-2" />
@@ -464,7 +480,10 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink onClick={() => setCurrentPath('')}>Home</BreadcrumbLink>
+                <BreadcrumbLink onClick={(e) => {
+                  stopEventPropagation(e);
+                  setCurrentPath('');
+                }}>Home</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               
@@ -478,7 +497,10 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
                       {index === array.length - 1 ? (
                         <span>{segment}</span>
                       ) : (
-                        <BreadcrumbLink onClick={() => handleBreadcrumbClick(path)}>
+                        <BreadcrumbLink onClick={(e) => {
+                          stopEventPropagation(e);
+                          handleBreadcrumbClick(path, e);
+                        }}>
                           {segment}
                         </BreadcrumbLink>
                       )}
@@ -511,8 +533,11 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
       </div>
       
       {/* Create directory dialog */}
-      <Dialog open={isCreateDirectoryOpen} onOpenChange={setIsCreateDirectoryOpen}>
-        <DialogContent>
+      <Dialog open={isCreateDirectoryOpen} onOpenChange={(open) => {
+        // Stop event propagation when opening/closing dialogs
+        setIsCreateDirectoryOpen(open);
+      }}>
+        <DialogContent onClick={stopEventPropagation}>
           <DialogHeader>
             <DialogTitle>Create New Directory</DialogTitle>
           </DialogHeader>
@@ -551,8 +576,11 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
       </Dialog>
       
       {/* Upload file dialog */}
-      <Dialog open={isUploadFileOpen} onOpenChange={setIsUploadFileOpen}>
-        <DialogContent>
+      <Dialog open={isUploadFileOpen} onOpenChange={(open) => {
+        // Stop event propagation when opening/closing dialogs
+        setIsUploadFileOpen(open);
+      }}>
+        <DialogContent onClick={stopEventPropagation}>
           <DialogHeader>
             <DialogTitle>Upload File</DialogTitle>
           </DialogHeader>
