@@ -422,75 +422,113 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             <FolderPlusIcon className="h-4 w-4 mr-2" />
             New Directory
           </Button>
-          {/* Direct HTML form approach without any fancy wrappers */}
-          <form 
-            action="/api/storage/upload" 
-            method="post" 
-            encType="multipart/form-data" 
-            className="inline-flex items-center space-x-2"
-            onSubmit={(e) => {
-              if (!currentDepartment) {
-                e.preventDefault();
-                toast({
-                  title: "Error",
-                  description: "Please select a department first",
-                  variant: "destructive"
-                });
-                return false;
-              }
-              
-              const fileInput = e.currentTarget.querySelector('input[type="file"]') as HTMLInputElement;
-              if (!fileInput?.files?.length) {
-                e.preventDefault();
-                toast({
-                  title: "Error",
-                  description: "Please select a file to upload",
-                  variant: "destructive"
-                });
-                return false;
-              }
-              
-              toast({
-                title: "Upload started",
-                description: "Your file is being uploaded...",
-              });
-              
-              // After form submits, refresh file list
-              setTimeout(() => {
-                refetchFiles();
-                toast({
-                  title: "Upload complete",
-                  description: "File has been uploaded successfully",
-                });
-              }, 2000);
-              
-              return true;
-            }}
-          >
-            <input type="hidden" name="financialYear" value={financialYear} />
-            <input type="hidden" name="projectCode" value={projectCode} />
-            <input type="hidden" name="projectId" value={projectId.toString()} />
-            <input type="hidden" name="department" value={currentDepartment || ''} />
-            {currentSubDirectory && <input type="hidden" name="subDirectory" value={currentSubDirectory} />}
-            <input type="hidden" name="isPublic" value="false" />
-            <input type="hidden" name="type" value="document" />
+          {/* Super simple file upload link with a fallback button */}
+          <div className="inline-flex items-center space-x-2">
+            <div className="relative">
+              <a 
+                href="#" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (!currentDepartment) {
+                    toast({
+                      title: "Error",
+                      description: "Please select a department first",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  
+                  // Create a completely independent file input programmatically
+                  const fileInput = document.createElement('input');
+                  fileInput.type = 'file';
+                  
+                  // Listen for file selection
+                  fileInput.addEventListener('change', async () => {
+                    if (fileInput.files && fileInput.files.length > 0) {
+                      const file = fileInput.files[0];
+                      
+                      toast({
+                        title: "Upload started",
+                        description: `Uploading ${file.name}...`,
+                      });
+                      
+                      // Create form data
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      formData.append('financialYear', financialYear);
+                      formData.append('projectCode', projectCode);
+                      formData.append('projectId', projectId.toString());
+                      formData.append('department', currentDepartment || '');
+                      formData.append('isPublic', 'false');
+                      formData.append('type', 'document');
+                      
+                      if (currentSubDirectory) {
+                        formData.append('subDirectory', currentSubDirectory);
+                      }
+                      
+                      try {
+                        // Send the file using fetch API
+                        const response = await fetch('/api/storage/upload', {
+                          method: 'POST',
+                          body: formData
+                        });
+                        
+                        if (response.ok) {
+                          toast({
+                            title: "Upload complete",
+                            description: `File ${file.name} uploaded successfully!`,
+                          });
+                          
+                          // Refresh the file list
+                          refetchFiles();
+                        } else {
+                          toast({
+                            title: "Upload failed",
+                            description: "Server returned an error",
+                            variant: "destructive"
+                          });
+                        }
+                      } catch (error) {
+                        console.error("Upload error:", error);
+                        toast({
+                          title: "Upload failed",
+                          description: "Network error",
+                          variant: "destructive"
+                        });
+                      }
+                    }
+                  });
+                  
+                  // Trigger file selection dialog
+                  fileInput.click();
+                }}
+                className={`inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 ${!currentDepartment ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <UploadIcon className="h-4 w-4 mr-2" />
+                Upload File
+              </a>
+            </div>
             
-            {/* Visible file input */}
-            <input 
-              type="file" 
-              name="file"
-              disabled={!currentDepartment}
-              className={`text-sm ${!currentDepartment ? 'opacity-50 cursor-not-allowed' : ''}`}
-            />
-            
-            <Button 
-              type="submit"
-              disabled={!currentDepartment}
-            >
-              <UploadIcon className="h-4 w-4 mr-2" />
-              Upload
-            </Button>
-          </form>
+            {/* FALLBACK: Pure HTML form approach (only shown if JavaScript fails) */}
+            <noscript>
+              <form 
+                action="/api/storage/upload" 
+                method="post" 
+                encType="multipart/form-data" 
+                className="inline-flex items-center space-x-2"
+              >
+                <input type="hidden" name="financialYear" value={financialYear} />
+                <input type="hidden" name="projectCode" value={projectCode} />
+                <input type="hidden" name="projectId" value={projectId.toString()} />
+                <input type="hidden" name="department" value={currentDepartment || ''} />
+                {currentSubDirectory && <input type="hidden" name="subDirectory" value={currentSubDirectory} />}
+                <input type="hidden" name="isPublic" value="false" />
+                <input type="hidden" name="type" value="document" />
+                <input type="file" name="file" />
+                <button type="submit">Upload (No JS Fallback)</button>
+              </form>
+            </noscript>
+          </div>
         </div>
       </div>
       
