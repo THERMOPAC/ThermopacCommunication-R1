@@ -688,6 +688,10 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
       <Dialog open={isUploadFileOpen} onOpenChange={(open) => {
         // Stop event propagation when opening/closing dialogs
         setIsUploadFileOpen(open);
+        if (!open) {
+          setFileToUpload(null);
+          setUploadProgress(0);
+        }
       }}>
         <DialogContent onClick={stopEventPropagation}>
           <DialogHeader>
@@ -706,21 +710,44 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
               </div>
             )}
             
-            <div className="space-y-2">
-              <Label htmlFor="file">File</Label>
-              <div className="flex flex-col gap-2">
-                <label htmlFor="file-upload" className="cursor-pointer bg-secondary hover:bg-secondary/80 text-secondary-foreground p-2 rounded-md text-center">
-                  Click to select a file
-                </label>
+            <div className="space-y-4">
+              <Label htmlFor="file">Select a File to Upload</Label>
+              <div className="flex flex-col gap-4">
+                <Button 
+                  variant="outline" 
+                  className="h-20 border-dashed border-2 w-full flex flex-col items-center justify-center"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Find and click the hidden file input
+                    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+                    if (fileInput) fileInput.click();
+                  }}
+                >
+                  <UploadIcon className="h-8 w-8 mb-2 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Click here to select a file</span>
+                </Button>
+                
                 <input
                   id="file-upload"
-                  className="hidden"
                   type="file"
-                  onChange={(e) => setFileToUpload(e.target.files?.[0] || null)}
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setFileToUpload(e.target.files[0]);
+                    }
+                  }}
                 />
+                
                 {fileToUpload && (
-                  <div className="text-sm text-muted-foreground mt-1">
-                    Selected: {fileToUpload.name} ({formatFileSize(fileToUpload.size)})
+                  <div className="p-3 border rounded-md bg-secondary/20">
+                    <div className="font-medium flex items-center">
+                      <FileIcon className="h-4 w-4 mr-2" />
+                      {fileToUpload.name}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {formatFileSize(fileToUpload.size)}
+                    </div>
                   </div>
                 )}
               </div>
