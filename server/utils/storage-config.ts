@@ -10,12 +10,37 @@ import { Storage } from '@google-cloud/storage';
 // Get bucket name from environment variable
 export const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac-project-files';
 
-// Create a Storage client
-// Google Cloud will auto-detect credentials from the environment
-// or from a service account key file if specified
-const storage = new Storage({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
-});
+// Function to create storage client
+function createStorageClient() {
+  try {
+    // Check if we have explicit credentials in the environment
+    if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+      // Parse the credentials from the environment variable
+      const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
+      
+      // Create a Storage client with explicit credentials
+      return new Storage({
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+        credentials: credentials
+      });
+    } else {
+      // If no explicit credentials, use default client (works in Google Cloud environments)
+      console.log('No explicit GCS credentials found, using default authentication');
+      return new Storage({
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
+      });
+    }
+  } catch (error) {
+    console.error('Error creating GCS client:', error);
+    // Return a storage instance anyway, but it will likely fail on operations
+    return new Storage({
+      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
+    });
+  }
+}
+
+// Create the storage client
+const storage = createStorageClient();
 
 // Export the configured storage instance
 export default storage;
