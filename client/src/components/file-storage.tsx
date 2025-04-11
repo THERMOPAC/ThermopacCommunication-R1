@@ -98,11 +98,16 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
   const { data: directories, isLoading: directoriesLoading } = useQuery({
     queryKey: ['/api/storage/directories', financialYear, projectCode],
     queryFn: async () => {
-      const response = await fetch(`/api/storage/directories/${financialYear}/${projectCode}`);
-      if (!response.ok) {
+      try {
+        const response = await apiRequest('GET', `/api/storage/directories/${financialYear}/${projectCode}`);
+        console.log("Directory API response:", response);
+        const data = await response.json();
+        console.log("Directory data:", data);
+        return data as DirectoryItem[];
+      } catch (error) {
+        console.error("Error fetching directories:", error);
         throw new Error('Failed to fetch directory structure');
       }
-      return response.json() as Promise<DirectoryItem[]>;
     },
   });
 
@@ -112,11 +117,16 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
     queryFn: async () => {
       if (!currentPath) return [] as FileItem[];
       
-      const response = await fetch(`/api/storage/files?path=${encodeURIComponent(currentPath)}`);
-      if (!response.ok) {
+      try {
+        const response = await apiRequest('GET', `/api/storage/files?path=${encodeURIComponent(currentPath)}`);
+        console.log("Files API response:", response);
+        const data = await response.json();
+        console.log("Files data:", data);
+        return data as FileItem[];
+      } catch (error) {
+        console.error("Error fetching files:", error);
         throw new Error('Failed to fetch files');
       }
-      return response.json() as Promise<FileItem[]>;
     },
     enabled: !!currentPath, // Only run this query if currentPath is not empty
   });
@@ -184,27 +194,36 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
       }
       
       // Step 3: Create a document record in our database
-      const formData = new FormData();
-      formData.append('projectId', projectId.toString());
-      formData.append('file', file);
-      formData.append('financialYear', financialYear);
-      formData.append('projectCode', projectCode);
-      formData.append('department', currentDepartment);
-      
-      if (currentSubDirectory) {
-        formData.append('subDirectory', currentSubDirectory);
+      try {
+        const formData = new FormData();
+        formData.append('projectId', projectId.toString());
+        formData.append('file', file);
+        formData.append('financialYear', financialYear);
+        formData.append('projectCode', projectCode);
+        formData.append('department', currentDepartment);
+        
+        if (currentSubDirectory) {
+          formData.append('subDirectory', currentSubDirectory);
+        }
+        
+        // We need to use fetch directly here because apiRequest doesn't support FormData
+        const response = await fetch('/api/storage/upload', {
+          method: 'POST',
+          credentials: 'include', // Important for auth cookies
+          body: formData,
+        });
+        
+        console.log("Upload document response:", response);
+        
+        if (!response.ok) {
+          throw new Error('Failed to create document record');
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error("Error creating document record:", error);
+        throw new Error('Failed to create document record: ' + error.message);
       }
-      
-      const documentResponse = await fetch('/api/storage/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!documentResponse.ok) {
-        throw new Error('Failed to create document record');
-      }
-      
-      return documentResponse.json();
     },
     onSuccess: () => {
       toast({
@@ -253,11 +272,15 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
   // Generate download URL mutation
   const generateDownloadUrlMutation = useMutation({
     mutationFn: async (filePath: string) => {
-      const response = await fetch(`/api/storage/download-url?filePath=${encodeURIComponent(filePath)}`);
-      if (!response.ok) {
+      try {
+        const response = await apiRequest('GET', `/api/storage/download-url?filePath=${encodeURIComponent(filePath)}`);
+        console.log("Download URL API response:", response);
+        const data = await response.json();
+        return data as { downloadUrl: string };
+      } catch (error) {
+        console.error("Error generating download URL:", error);
         throw new Error('Failed to generate download URL');
       }
-      return response.json() as Promise<{ downloadUrl: string }>;
     },
     onSuccess: (data) => {
       // Open the download URL in a new tab
