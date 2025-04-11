@@ -3,6 +3,7 @@ import { FolderIcon, FileIcon, DownloadIcon, TrashIcon, FolderPlusIcon, UploadIc
 import { 
   Dialog, 
   DialogContent, 
+  DialogDescription,
   DialogHeader, 
   DialogTitle, 
   DialogTrigger,
@@ -249,7 +250,7 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
         return await response.json();
       } catch (error) {
         console.error("Error creating document record:", error);
-        throw new Error('Failed to create document record: ' + error.message);
+        throw new Error('Failed to create document record: ' + (error instanceof Error ? error.message : String(error)));
       }
     },
     onSuccess: () => {
@@ -589,10 +590,18 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
       <Dialog open={isCreateDirectoryOpen} onOpenChange={(open) => {
         // Stop event propagation when opening/closing dialogs
         setIsCreateDirectoryOpen(open);
+        if (!open) {
+          // Reset state when closing the dialog
+          setSelectedTemplate(null);
+          setNewDirectoryName('');
+        }
       }}>
-        <DialogContent onClick={stopEventPropagation}>
+        <DialogContent onClick={stopEventPropagation} className="max-w-md">
           <DialogHeader>
             <DialogTitle>Create New Directory</DialogTitle>
+            <DialogDescription>
+              Create a new directory or select from available templates
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -607,21 +616,68 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
               </div>
             )}
             
+            {/* Template selection section */}
+            {templates && currentDepartment && templates[currentDepartment]?.length > 0 && (
+              <div className="space-y-2">
+                <Label>Available Templates</Label>
+                <div className="border rounded-md p-2 max-h-48 overflow-y-auto">
+                  <div className="space-y-1">
+                    {templates[currentDepartment].map((template) => (
+                      <Button
+                        key={template.id}
+                        type="button"
+                        variant={selectedTemplate === template.subDirectory ? "default" : "ghost"}
+                        className="w-full justify-start text-sm"
+                        onClick={() => {
+                          setSelectedTemplate(template.subDirectory);
+                          if (template.subDirectory) {
+                            setNewDirectoryName(template.subDirectory);
+                          }
+                        }}
+                      >
+                        <FolderIcon className="h-3 w-3 mr-2" />
+                        {template.subDirectory || 'Root directory'}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Using a template will create a standard directory structure following company guidelines.
+                </p>
+              </div>
+            )}
+            
             <div className="space-y-2">
-              <Label htmlFor="directory-name">Directory Name</Label>
+              <Label htmlFor="directory-name">
+                {selectedTemplate ? 'Using Template:' : 'Directory Name:'}
+              </Label>
               <Input
                 id="directory-name"
                 value={newDirectoryName}
-                onChange={(e) => setNewDirectoryName(e.target.value)}
+                onChange={(e) => {
+                  setNewDirectoryName(e.target.value);
+                  // If changing the name manually, deselect template
+                  if (selectedTemplate && e.target.value !== selectedTemplate) {
+                    setSelectedTemplate(null);
+                  }
+                }}
                 placeholder="Enter directory name"
               />
+              {selectedTemplate && (
+                <p className="text-xs text-muted-foreground">
+                  This standardized directory follows company guidelines and will be properly tracked.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button onClick={handleCreateDirectory} disabled={createDirectoryMutation.isPending}>
+            <Button 
+              onClick={handleCreateDirectory} 
+              disabled={createDirectoryMutation.isPending || !newDirectoryName.trim()}
+            >
               {createDirectoryMutation.isPending ? 'Creating...' : 'Create Directory'}
             </Button>
           </DialogFooter>
