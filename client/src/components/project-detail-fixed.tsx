@@ -84,7 +84,8 @@ import {
   Upload,
   Info,
   Trash2,
-  MoreVertical
+  MoreVertical,
+  FolderPlus
 } from "lucide-react";
 import {
   DropdownMenu,
