@@ -4,6 +4,7 @@ import { useParams, useLocation } from "wouter";
 import { format } from 'date-fns';
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
+import FileStorage from "@/components/file-storage";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { 
   Form,
