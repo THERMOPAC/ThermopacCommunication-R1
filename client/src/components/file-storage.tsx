@@ -713,28 +713,15 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             <div className="space-y-4">
               <Label htmlFor="file">Select a File to Upload</Label>
               <div className="flex flex-col gap-4">
-                <Button 
-                  variant="outline" 
-                  className="h-20 border-dashed border-2 w-full flex flex-col items-center justify-center"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Find and click the hidden file input
-                    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-                    if (fileInput) fileInput.click();
-                  }}
-                >
-                  <UploadIcon className="h-8 w-8 mb-2 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Click here to select a file</span>
-                </Button>
-                
+                {/* Direct file input with no styling tricks */}
                 <input
                   id="file-upload"
-                  type="file"
-                  className="hidden"
+                  type="file" 
+                  className="w-full p-2 border rounded-md"
                   onChange={(e) => {
                     if (e.target.files && e.target.files.length > 0) {
                       setFileToUpload(e.target.files[0]);
+                      console.log("File selected:", e.target.files[0].name);
                     }
                   }}
                 />
