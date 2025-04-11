@@ -6,6 +6,9 @@ import { gcsDirectories, projectDocuments } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import path from 'path';
 
+// We'll use the standard Request type from Express
+// which will be augmented by multer to include the file property
+
 // Configure multer for memory storage (we're not saving files to disk)
 const storage = multer.memoryStorage();
 const upload = multer({ 
@@ -324,7 +327,7 @@ export function setupFileStorageRoutes(app: Router) {
                 type: type || 'document',
                 url: downloadUrl || '',
                 uploadedBy: req.user?.id as number,
-                size: req.file.size,
+                size: req.file?.size || 0,
                 format: path.extname(fileName).replace('.', ''),
                 isPublic: isPublic === 'true',
                 storagePath,
