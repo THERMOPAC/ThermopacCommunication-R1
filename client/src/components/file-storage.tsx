@@ -501,18 +501,37 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             <FolderPlusIcon className="h-4 w-4 mr-2" />
             New Directory
           </Button>
-          {/* Dialog-based upload */}
-          <Button
-            variant="default"
-            onClick={(e) => {
-              stopEventPropagation(e);
-              setIsUploadFileOpen(true);
-            }}
-            disabled={!currentDepartment}
-          >
-            <UploadIcon className="h-4 w-4 mr-2" />
-            Upload File
-          </Button>
+          {/* Direct form upload */}
+          <form action="/api/storage/upload" method="post" encType="multipart/form-data" className="inline-block">
+            <input type="hidden" name="financialYear" value={financialYear} />
+            <input type="hidden" name="projectCode" value={projectCode} />
+            <input type="hidden" name="projectId" value={projectId.toString()} />
+            <input type="hidden" name="department" value={currentDepartment || ''} />
+            {currentSubDirectory && (
+              <input type="hidden" name="subDirectory" value={currentSubDirectory} />
+            )}
+            <input type="hidden" name="isPublic" value="false" />
+            <input type="hidden" name="type" value="document" />
+            <input 
+              type="file" 
+              name="file" 
+              id="file-upload-direct" 
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files?.length) {
+                  e.target.form?.submit();
+                }
+              }}
+              disabled={!currentDepartment}
+            />
+            <label 
+              htmlFor="file-upload-direct"
+              className={`h-9 px-4 py-2 bg-primary text-primary-foreground inline-flex items-center gap-1 rounded-md text-sm ${!currentDepartment ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <UploadIcon className="h-4 w-4 mr-2" />
+              Upload File
+            </label>
+          </form>
         </div>
       </div>
       
@@ -672,109 +691,7 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
         </DialogContent>
       </Dialog>
       
-      {/* Upload file dialog */}
-      <Dialog open={isUploadFileOpen} onOpenChange={(open) => {
-        // Stop event propagation when opening/closing dialogs
-        setIsUploadFileOpen(open);
-        if (!open) {
-          setFileToUpload(null);
-          setUploadProgress(0);
-        }
-      }}>
-        <DialogContent onClick={stopEventPropagation}>
-          <DialogHeader>
-            <DialogTitle>Upload File</DialogTitle>
-          </DialogHeader>
-          
-          <form 
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (fileToUpload) {
-                uploadFileMutation.mutate(fileToUpload);
-              }
-            }}
-            className="space-y-4 py-4"
-            encType="multipart/form-data"
-          >
-            <div className="space-y-2">
-              <Label htmlFor="upload-department">Department</Label>
-              <div className="font-medium">{currentDepartment || 'No department selected'}</div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="upload-path">Storage Path</Label>
-              <div className="font-medium bg-secondary/20 p-2 rounded-md text-sm break-all">
-                THERMOPAC_PROJECTS/{financialYear}/{projectCode}/{currentDepartment}
-                {currentSubDirectory ? `/${currentSubDirectory}` : ''}
-                {fileToUpload ? `/${fileToUpload.name}` : ''}
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <Label htmlFor="file-upload">Select a File to Upload</Label>
-              <div className="space-y-2">
-                <p className="text-sm mb-2">Click the button below to browse for a file</p>
-                <div className="space-y-4">
-                  <input 
-                    type="file" 
-                    id="file-upload"
-                    name="file"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        setFileToUpload(e.target.files[0]);
-                        console.log("File selected:", e.target.files[0].name);
-                      }
-                    }}
-                    className="block w-full text-sm text-slate-500
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-md file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-primary file:text-primary-foreground
-                      hover:file:bg-primary/90"
-                  />
-                  
-                  {fileToUpload && (
-                    <div className="p-3 border rounded-md bg-secondary/20 mt-2">
-                      <div className="font-medium flex items-center">
-                        <FileIcon className="h-4 w-4 mr-2" />
-                        {fileToUpload.name}
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {formatFileSize(fileToUpload.size)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {uploadProgress > 0 && (
-              <div className="w-full bg-secondary rounded-full h-2.5">
-                <div 
-                  className="bg-primary h-2.5 rounded-full" 
-                  style={{ width: `${uploadProgress}%` }}
-                ></div>
-              </div>
-            )}
-            
-            <div className="flex justify-end gap-2 pt-4">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsUploadFileOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={!fileToUpload || uploadFileMutation.isPending}
-              >
-                {uploadFileMutation.isPending ? 'Uploading...' : 'Upload File'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* We've replaced the upload dialog with direct form upload */}
       
       {/* File details dialog */}
       <Dialog open={!!selectedFile} onOpenChange={(open) => {
