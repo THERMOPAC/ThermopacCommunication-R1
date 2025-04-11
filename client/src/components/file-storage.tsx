@@ -685,7 +685,17 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
           <DialogHeader>
             <DialogTitle>Upload File</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (fileToUpload) {
+                uploadFileMutation.mutate(fileToUpload);
+              }
+            }}
+            className="space-y-4 py-4"
+            encType="multipart/form-data"
+          >
             <div className="space-y-2">
               <Label htmlFor="upload-department">Department</Label>
               <div className="font-medium">{currentDepartment || 'No department selected'}</div>
@@ -701,37 +711,40 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             </div>
             
             <div className="space-y-4">
-              <Label>Select a File to Upload</Label>
+              <Label htmlFor="file-upload">Select a File to Upload</Label>
               <div className="space-y-2">
-                <p className="text-sm mb-2">Click the button below to select a file</p>
-                <div className="space-y-2">
-                  {/* Simple file input directly visible */}
-                  <div className="border p-4 rounded-md">
-                    <input 
-                      type="file"
-                      className="block w-full cursor-pointer"
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        if (e.target.files && e.target.files.length > 0) {
-                          setFileToUpload(e.target.files[0]);
-                          console.log("File selected:", e.target.files[0].name);
-                        }
-                      }}
-                    />
-                  </div>
+                <p className="text-sm mb-2">Click the button below to browse for a file</p>
+                <div className="space-y-4">
+                  <input 
+                    type="file" 
+                    id="file-upload"
+                    name="file"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        setFileToUpload(e.target.files[0]);
+                        console.log("File selected:", e.target.files[0].name);
+                      }
+                    }}
+                    className="block w-full text-sm text-slate-500
+                      file:mr-4 file:py-2 file:px-4
+                      file:rounded-md file:border-0
+                      file:text-sm file:font-semibold
+                      file:bg-primary file:text-primary-foreground
+                      hover:file:bg-primary/90"
+                  />
+                  
+                  {fileToUpload && (
+                    <div className="p-3 border rounded-md bg-secondary/20 mt-2">
+                      <div className="font-medium flex items-center">
+                        <FileIcon className="h-4 w-4 mr-2" />
+                        {fileToUpload.name}
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {formatFileSize(fileToUpload.size)}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                
-                {fileToUpload && (
-                  <div className="p-3 border rounded-md bg-secondary/20 mt-4">
-                    <div className="font-medium flex items-center">
-                      <FileIcon className="h-4 w-4 mr-2" />
-                      {fileToUpload.name}
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      {formatFileSize(fileToUpload.size)}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
             
@@ -743,18 +756,23 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
                 ></div>
               </div>
             )}
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button 
-              onClick={handleFileUpload} 
-              disabled={!fileToUpload || uploadFileMutation.isPending}
-            >
-              {uploadFileMutation.isPending ? 'Uploading...' : 'Upload File'}
-            </Button>
-          </DialogFooter>
+            
+            <div className="flex justify-end gap-2 pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsUploadFileOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={!fileToUpload || uploadFileMutation.isPending}
+              >
+                {uploadFileMutation.isPending ? 'Uploading...' : 'Upload File'}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
       
