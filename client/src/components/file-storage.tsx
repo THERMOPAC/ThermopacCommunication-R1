@@ -708,11 +708,22 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             
             <div className="space-y-2">
               <Label htmlFor="file">File</Label>
-              <Input
-                id="file"
-                type="file"
-                onChange={(e) => setFileToUpload(e.target.files?.[0] || null)}
-              />
+              <div className="flex flex-col gap-2">
+                <label htmlFor="file-upload" className="cursor-pointer bg-secondary hover:bg-secondary/80 text-secondary-foreground p-2 rounded-md text-center">
+                  Click to select a file
+                </label>
+                <input
+                  id="file-upload"
+                  className="hidden"
+                  type="file"
+                  onChange={(e) => setFileToUpload(e.target.files?.[0] || null)}
+                />
+                {fileToUpload && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Selected: {fileToUpload.name} ({formatFileSize(fileToUpload.size)})
+                  </div>
+                )}
+              </div>
             </div>
             
             {uploadProgress > 0 && (
