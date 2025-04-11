@@ -243,31 +243,7 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'Path parameter is required' });
       }
       
-      // Check if we're in development mode
-      const isDevelopment = process.env.NODE_ENV !== 'production';
-      
-      if (isDevelopment) {
-        console.log('Using mock file listing for development');
-        // In development mode, fetch files from the database with matching storage_path
-        const documents = await db
-          .select()
-          .from(projectDocuments)
-          .where(like(projectDocuments.storagePath, `${path}%`));
-        
-        // Convert database documents to file listing format
-        const files = documents.map(doc => ({
-          name: doc.name,
-          fullPath: doc.storagePath,
-          size: doc.size || 0,
-          contentType: doc.format || 'application/octet-stream',
-          updated: doc.uploadedAt,
-          downloadUrl: doc.storageUrl
-        }));
-        
-        return res.status(200).json(files);
-      }
-      
-      // In production, use the real GCS implementation
+      // Use the real GCS implementation
       const files = await gcsStorage.listFiles(path as string);
       res.status(200).json(files);
     } catch (error) {
@@ -295,10 +271,7 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'Missing required parameters' });
       }
       
-      // Check if we're in development mode
-      const isDevelopment = process.env.NODE_ENV !== 'production';
-      
-      // Create storage path regardless of mode
+      // Create storage path
       const storagePath = gcsStorage.buildStoragePath({
         financialYear,
         projectCode,
@@ -308,17 +281,7 @@ export function setupFileStorageRoutes(app: Router) {
         contentType
       });
       
-      if (isDevelopment) {
-        console.log('Using mock upload URL for development');
-        // Return a mock signed URL in development mode
-        return res.json({
-          signedUrl: `http://localhost:3000/mock-upload?path=${encodeURIComponent(storagePath)}`,
-          storagePath: storagePath,
-          expiresAt: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
-        });
-      }
-      
-      // In production, generate a real signed URL
+      // Generate a real signed URL
       const signedUrl = await gcsStorage.generateUploadSignedUrl({
         financialYear,
         projectCode,
@@ -355,18 +318,6 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'File path is required' });
       }
       
-      // Check if we're in development mode
-      const isDevelopment = process.env.NODE_ENV !== 'production';
-      
-      if (isDevelopment) {
-        console.log('Using mock download URL for development');
-        // Return a mock download URL
-        return res.status(200).json({ 
-          downloadUrl: `http://localhost:3000/mock-download?path=${encodeURIComponent(filePath as string)}`,
-          expiresAt: new Date(Date.now() + (parseInt(expirationMinutes as string) || 15) * 60 * 1000)
-        });
-      }
-      
       // Generate a signed URL for downloading the file
       const signedUrl = await gcsStorage.generateDownloadSignedUrl({
         filePath: filePath as string,
@@ -398,19 +349,8 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'File path is required' });
       }
       
-      // Check if we're in development mode
-      const isDevelopment = process.env.NODE_ENV !== 'production';
-      
-      let success = false;
-      
-      if (isDevelopment) {
-        console.log('Using mock file deletion for development');
-        // In development mode, we'll pretend the file was deleted successfully
-        success = true;
-      } else {
-        // In production, use the real GCS implementation
-        success = await gcsStorage.deleteFile(filePath);
-      }
+      // Use the real GCS implementation
+      const success = await gcsStorage.deleteFile(filePath);
       
       if (!success) {
         return res.status(404).json({ error: 'File not found or deletion failed' });
