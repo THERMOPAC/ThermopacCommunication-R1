@@ -703,23 +703,37 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             <div className="space-y-4">
               <Label>Select a File to Upload</Label>
               <div className="space-y-2">
-                <p className="text-sm mb-2">Click below to select a file</p>
-                <div className="flex items-center gap-4">
-                  <div className="border p-4 rounded-md">
-                    <input
-                      type="file"
-                      accept="*/*"
-                      className="block cursor-pointer"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files.length > 0) {
-                          setFileToUpload(e.target.files[0]);
-                          console.log("File selected:", e.target.files[0].name);
-                        }
-                      }}
-                    />
-                  </div>
+                <p className="text-sm mb-2">Click the button below to select a file</p>
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Find the hidden input and trigger a click
+                      const fileInput = document.getElementById('hidden-file-input');
+                      if (fileInput) {
+                        fileInput.click();
+                      }
+                    }}
+                  >
+                    <UploadIcon className="mr-2 h-4 w-4" />
+                    Choose File
+                  </Button>
+                  
+                  <input
+                    id="hidden-file-input"
+                    type="file"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        setFileToUpload(e.target.files[0]);
+                        console.log("File selected:", e.target.files[0].name);
+                      }
+                    }}
+                  />
                 </div>
-              
+                
                 {fileToUpload && (
                   <div className="p-3 border rounded-md bg-secondary/20 mt-4">
                     <div className="font-medium flex items-center">
