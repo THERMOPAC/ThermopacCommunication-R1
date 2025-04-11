@@ -701,20 +701,35 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             </div>
             
             <div className="space-y-4">
-              <Label htmlFor="file">Select a File to Upload</Label>
+              <Label htmlFor="file-upload">Select a File to Upload</Label>
               <div className="flex flex-col gap-4">
-                {/* Direct file input with no styling tricks */}
-                <input
-                  id="file-upload"
-                  type="file" 
-                  className="w-full p-2 border rounded-md"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      setFileToUpload(e.target.files[0]);
-                      console.log("File selected:", e.target.files[0].name);
-                    }
-                  }}
-                />
+                {/* File input with Button styling for better click handling */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      // Programmatically click the hidden file input
+                      document.getElementById('file-upload-hidden')?.click();
+                    }}
+                  >
+                    Choose File
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {fileToUpload ? fileToUpload.name : 'No file chosen'}
+                  </span>
+                  <input
+                    id="file-upload-hidden"
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        setFileToUpload(e.target.files[0]);
+                        console.log("File selected:", e.target.files[0].name);
+                      }
+                    }}
+                  />
+                </div>
                 
                 {fileToUpload && (
                   <div className="p-3 border rounded-md bg-secondary/20">
