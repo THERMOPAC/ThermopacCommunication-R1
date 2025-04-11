@@ -1423,7 +1423,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 </TabsContent>
                 
                 <TabsContent value="files" className="space-y-4 mt-4">
-                  <div className="border rounded-md h-[600px]">
+                  <div className="border rounded-md h-[600px]" onClick={(e) => {
+                    // Prevent form submission when interacting with file storage
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }}>
                     {project && (
                       <FileStorage 
                         projectId={parseInt(projectId)}
