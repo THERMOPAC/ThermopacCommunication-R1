@@ -195,56 +195,43 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
         throw new Error('Please select a department');
       }
       
-      // Step 1: Generate a signed URL for the upload
-      const uploadUrlRequest: UploadUrlRequest = {
-        financialYear,
-        projectCode,
-        department: currentDepartment,
-        subDirectory: currentSubDirectory || undefined,
-        fileName: file.name,
-        contentType: file.type,
-      };
+      console.log("Starting file upload for:", file.name);
+      console.log("To path:", `THERMOPAC_PROJECTS/${financialYear}/${projectCode}/${currentDepartment}${currentSubDirectory ? '/' + currentSubDirectory : ''}`);
       
-      const urlResponse = await apiRequest('POST', '/api/storage/upload-url', uploadUrlRequest);
-      const urlData = await urlResponse.json() as UploadUrlResponse;
-      
-      // Step 2: Upload the file directly to GCS using the signed URL
-      const uploadResponse = await fetch(urlData.signedUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type,
-        },
-        body: file,
-      });
-      
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file to storage');
-      }
-      
-      // Step 3: Create a document record in our database
       try {
+        // For development mode, use direct server upload to avoid CORS issues
+        // Skip the signed URL step entirely and use our server as a proxy
         const formData = new FormData();
         formData.append('projectId', projectId.toString());
         formData.append('file', file);
         formData.append('financialYear', financialYear);
         formData.append('projectCode', projectCode);
         formData.append('department', currentDepartment);
+        formData.append('type', 'document');
+        formData.append('isPublic', 'false');
         
         if (currentSubDirectory) {
           formData.append('subDirectory', currentSubDirectory);
         }
         
-        // We need to use fetch directly here because apiRequest doesn't support FormData
+        // Add a description field (optional)
+        const description = `Uploaded via ${currentDepartment}${currentSubDirectory ? '/' + currentSubDirectory : ''}`;
+        formData.append('description', description);
+        
+        console.log("Using direct server upload endpoint");
+        
+        // Use direct server upload endpoint that handles both storage and database updates
         const response = await fetch('/api/storage/upload', {
           method: 'POST',
           credentials: 'include', // Important for auth cookies
           body: formData,
         });
         
-        console.log("Upload document response:", response);
+        console.log("Upload response status:", response.status);
         
         if (!response.ok) {
-          throw new Error('Failed to create document record');
+          console.error("Upload failed with status:", response.status);
+          throw new Error(`Failed to upload file: ${response.status} ${response.statusText}`);
         }
         
         return await response.json();
@@ -514,45 +501,8 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             <FolderPlusIcon className="h-4 w-4 mr-2" />
             New Directory
           </Button>
-          {/* Direct file upload form - no dialog */}
-          <div className="flex items-center gap-2">
-            <input
-              type="file"
-              id="direct-file-upload"
-              className="text-sm p-1 border rounded max-w-[200px]"
-              onChange={(e) => {
-                console.log("Direct file selected:", e.target.files?.[0]?.name);
-                setFileToUpload(e.target.files?.[0] || null);
-              }}
-              disabled={!currentDepartment}
-              onClick={(e) => e.stopPropagation()}
-            />
-            <Button
-              variant="default"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (fileToUpload) {
-                  handleFileUpload();
-                } else {
-                  console.log("No file selected");
-                  toast({
-                    title: "No file selected",
-                    description: "Please select a file to upload",
-                    variant: "destructive",
-                  });
-                }
-              }}
-              disabled={!currentDepartment || !fileToUpload || uploadFileMutation.isPending}
-            >
-              <UploadIcon className="h-4 w-4 mr-2" />
-              {uploadFileMutation.isPending ? 'Uploading...' : 'Upload'}
-            </Button>
-          </div>
-          
-          {/* Dialog-based upload (hidden) */}
+          {/* Dialog-based upload */}
           <Button
-            className="hidden"
             variant="default"
             onClick={(e) => {
               stopEventPropagation(e);
@@ -561,7 +511,7 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             disabled={!currentDepartment}
           >
             <UploadIcon className="h-4 w-4 mr-2" />
-            Upload Dialog
+            Upload File
           </Button>
         </div>
       </div>
@@ -741,12 +691,14 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
               <div className="font-medium">{currentDepartment || 'No department selected'}</div>
             </div>
             
-            {currentSubDirectory && (
-              <div className="space-y-2">
-                <Label htmlFor="upload-path">Current Path</Label>
-                <div className="font-medium">{currentSubDirectory}</div>
+            <div className="space-y-2">
+              <Label htmlFor="upload-path">Storage Path</Label>
+              <div className="font-medium bg-secondary/20 p-2 rounded-md text-sm break-all">
+                THERMOPAC_PROJECTS/{financialYear}/{projectCode}/{currentDepartment}
+                {currentSubDirectory ? `/${currentSubDirectory}` : ''}
+                {fileToUpload ? `/${fileToUpload.name}` : ''}
               </div>
-            )}
+            </div>
             
             <div className="space-y-4">
               <Label htmlFor="file">Select a File to Upload</Label>
