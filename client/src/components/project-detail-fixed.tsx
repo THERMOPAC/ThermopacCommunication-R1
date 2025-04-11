@@ -1543,6 +1543,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             <TabsTrigger value="team">Team</TabsTrigger>
             <TabsTrigger value="tasks">Tasks</TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="files">Files</TabsTrigger>
           </TabsList>
           
           <TabsContent value="overview" className="space-y-4">
@@ -1964,6 +1965,32 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     )}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="files" className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Project Files</h2>
+              <div className="space-x-2">
+                <Button variant="outline">
+                  <FolderPlus className="mr-1 h-4 w-4" /> New Directory
+                </Button>
+                <Button>
+                  <Upload className="mr-1 h-4 w-4" /> Upload File
+                </Button>
+              </div>
+            </div>
+            
+            <Card className="border rounded-md h-[600px]">
+              <CardContent className="p-0">
+                {project && (
+                  <FileStorage 
+                    projectId={parseInt(id)}
+                    projectCode={project.code}
+                    financialYear={project.financial_year}
+                  />
+                )}
               </CardContent>
             </Card>
           </TabsContent>
