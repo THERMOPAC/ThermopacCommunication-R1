@@ -91,13 +91,26 @@ class GcsStorage {
    */
   async listFiles(directoryPath: string): Promise<any[]> {
     try {
+      console.log(`GCS: Listing files in directory: ${directoryPath}`);
+      
+      // Make sure directory path always ends with a slash
+      const normalizedPath = directoryPath.endsWith('/') ? directoryPath : `${directoryPath}/`;
+      console.log(`GCS: Normalized path: ${normalizedPath}`);
+      
       const bucket = storage.bucket(bucketName);
       const options = {
-        prefix: directoryPath.endsWith('/') ? directoryPath : `${directoryPath}/`,
+        prefix: normalizedPath,
         delimiter: '/'
       };
       
+      console.log(`GCS: Getting files with prefix: ${options.prefix}`);
       const [response] = await bucket.getFiles(options);
+      console.log(`GCS: Found ${response.length} files in bucket`);
+      
+      // Log each file for debugging
+      response.forEach(file => {
+        console.log(`GCS: Found file: ${file.name}`);
+      });
       
       // Filter out ".keep" files and parse metadata
       const files = response
@@ -111,6 +124,7 @@ class GcsStorage {
           created: file.metadata.timeCreated
         }));
       
+      console.log(`GCS: Returning ${files.length} files (excluding .keep files)`);
       return files;
     } catch (error) {
       console.error('Error listing files:', error);

@@ -234,8 +234,18 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'Path parameter is required' });
       }
       
+      console.log(`Listing files in path: ${path}`);
+      
+      // Check if path needs THERMOPAC_PROJECTS prefix
+      let fullPath = path as string;
+      if (!fullPath.startsWith('THERMOPAC_PROJECTS/')) {
+        fullPath = `THERMOPAC_PROJECTS/${fullPath}`;
+        console.log(`Modified path to include prefix: ${fullPath}`);
+      }
+      
       // Use the real GCS implementation
-      const files = await gcsStorage.listFiles(path as string);
+      const files = await gcsStorage.listFiles(fullPath);
+      console.log(`Found ${files.length} files in ${fullPath}`);
       res.status(200).json(files);
     } catch (error) {
       console.error('Error listing files:', error);
@@ -388,6 +398,9 @@ export function setupFileStorageRoutes(app: Router) {
       
       // Calculate the storage path
       const fileName = req.file.originalname;
+      console.log(`File upload: Processing file ${fileName}`);
+      console.log(`File upload: Parameters - FY: ${financialYear}, Project: ${projectCode}, Dept: ${department}, SubDir: ${subDirectory || 'none'}`);
+      
       const storagePath = gcsStorage.buildStoragePath({
         financialYear,
         projectCode,
@@ -396,6 +409,8 @@ export function setupFileStorageRoutes(app: Router) {
         fileName,
         contentType: req.file.mimetype
       });
+      
+      console.log(`File upload: Generated storage path: ${storagePath}`);
       
       // Ensure the directory structure exists in GCS
       const dirPath = path.dirname(storagePath);

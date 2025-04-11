@@ -142,11 +142,13 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
     queryFn: async () => {
       if (!currentPath) return [] as FileItem[];
       
+      console.log(`Fetching files for path: ${currentPath}`);
+      
       try {
         const response = await apiRequest('GET', `/api/storage/files?path=${encodeURIComponent(currentPath)}`);
-        console.log("Files API response:", response);
+        console.log(`Files API response status: ${response.status}`);
         const data = await response.json();
-        console.log("Files data:", data);
+        console.log(`Files data: ${JSON.stringify(data)}`);
         return data as FileItem[];
       } catch (error) {
         console.error("Error fetching files:", error);
@@ -242,9 +244,13 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
       e.preventDefault();
       e.stopPropagation();
     }
+    console.log(`Selecting department: ${department}`);
     setCurrentDepartment(department);
     setCurrentSubDirectory('');
-    setCurrentPath(`${financialYear}/${projectCode}/${department}`);
+    
+    const newPath = `${financialYear}/${projectCode}/${department}`;
+    console.log(`Setting current path to: ${newPath}`);
+    setCurrentPath(newPath);
   };
 
   // Handle breadcrumb navigation
