@@ -701,35 +701,39 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             </div>
             
             <div className="space-y-4">
-              <Label htmlFor="file-upload">Select a File to Upload</Label>
+              <Label>Select a File to Upload</Label>
               <div className="flex flex-col gap-4">
-                {/* File input with Button styling for better click handling */}
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      // Programmatically click the hidden file input
-                      document.getElementById('file-upload-hidden')?.click();
-                    }}
-                  >
-                    Choose File
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    {fileToUpload ? fileToUpload.name : 'No file chosen'}
-                  </span>
-                  <input
-                    id="file-upload-hidden"
-                    type="file"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        setFileToUpload(e.target.files[0]);
-                        console.log("File selected:", e.target.files[0].name);
-                      }
-                    }}
-                  />
-                </div>
+                {/* Extra simple and accessible file input */}
+                <form className="p-4 border rounded-md" onSubmit={(e) => e.preventDefault()}>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button" 
+                      variant="default"
+                      className="w-full"
+                      asChild
+                    >
+                      <label htmlFor="file-upload" className="cursor-pointer flex items-center justify-center">
+                        <UploadIcon className="h-4 w-4 mr-2" />
+                        Browse...
+                        <input
+                          id="file-upload"
+                          name="file"
+                          type="file"
+                          className="sr-only"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              setFileToUpload(e.target.files[0]);
+                              console.log("File selected:", e.target.files[0].name);
+                            }
+                          }}
+                        />
+                      </label>
+                    </Button>
+                    <p className="text-sm text-center text-muted-foreground mt-2">
+                      {fileToUpload ? fileToUpload.name : 'No file selected'}
+                    </p>
+                  </div>
+                </form>
                 
                 {fileToUpload && (
                   <div className="p-3 border rounded-md bg-secondary/20">
