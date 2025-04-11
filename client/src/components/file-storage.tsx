@@ -514,7 +514,45 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             <FolderPlusIcon className="h-4 w-4 mr-2" />
             New Directory
           </Button>
+          {/* Direct file upload form - no dialog */}
+          <div className="flex items-center gap-2">
+            <input
+              type="file"
+              id="direct-file-upload"
+              className="text-sm p-1 border rounded max-w-[200px]"
+              onChange={(e) => {
+                console.log("Direct file selected:", e.target.files?.[0]?.name);
+                setFileToUpload(e.target.files?.[0] || null);
+              }}
+              disabled={!currentDepartment}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <Button
+              variant="default"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (fileToUpload) {
+                  handleFileUpload();
+                } else {
+                  console.log("No file selected");
+                  toast({
+                    title: "No file selected",
+                    description: "Please select a file to upload",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              disabled={!currentDepartment || !fileToUpload || uploadFileMutation.isPending}
+            >
+              <UploadIcon className="h-4 w-4 mr-2" />
+              {uploadFileMutation.isPending ? 'Uploading...' : 'Upload'}
+            </Button>
+          </div>
+          
+          {/* Dialog-based upload (hidden) */}
           <Button
+            className="hidden"
             variant="default"
             onClick={(e) => {
               stopEventPropagation(e);
@@ -523,7 +561,7 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             disabled={!currentDepartment}
           >
             <UploadIcon className="h-4 w-4 mr-2" />
-            Upload File
+            Upload Dialog
           </Button>
         </div>
       </div>
