@@ -209,24 +209,32 @@ export class GCSStorage {
       // Ensure the path ends with a slash for directory listing
       const normPath = parentPath.endsWith('/') ? parentPath : `${parentPath}/`;
       
-      // List all files with the prefix
-      const [files] = await this.bucket!.getFiles({ prefix: normPath, delimiter: '/' });
+      // For the GCS API, we need to use a simpler implementation that works with the typings
+      // We'll manually check the response and extract directories
       
-      // Get the common prefixes (directories)
-      const [response] = await this.bucket!.getFiles({
+      // First, get all the files at this prefix but with a delimiter to identify "directories"
+      const options = {
         prefix: normPath,
-        delimiter: '/',
-        autoPaginate: false
-      });
+        delimiter: '/'
+      };
       
-      const prefixes = response.apiResponse?.prefixes || [];
+      // We need to use 'any' here because the GCS typings for this response are not accurate
+      // This is a workaround for TypeScript but works with the actual GCS API
+      const response: any = await this.bucket!.getFiles(options);
+
+      // The API response contains the directories in the prefixes field
+      let directories: string[] = [];
       
-      // Extract just the directory names
-      return prefixes.map(prefix => {
-        // Remove the parent path and trailing slash
-        const dirName = prefix.replace(normPath, '');
-        return dirName.replace(/\/$/, ''); // Remove trailing slash
-      });
+      // Check if the response includes prefixes (this is implementation specific to GCS)
+      if (response && response.length > 2 && response[2] && Array.isArray(response[2].prefixes)) {
+        directories = response[2].prefixes.map((prefix: string) => {
+          // Remove the parent path and trailing slash to get just the directory name
+          const dirName = prefix.replace(normPath, '');
+          return dirName.replace(/\/$/, ''); 
+        });
+      }
+      
+      return directories;
     } catch (error) {
       console.error('Failed to list directories:', error);
       return [];

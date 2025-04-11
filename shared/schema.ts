@@ -541,6 +541,30 @@ export const projectDocuments = pgTable('project_documents', {
   format: text('format'), // pdf, docx, xlsx, etc.
   isPublic: boolean('is_public').default(false), // whether client can see this document
   tags: text('tags').array(),
+  
+  // GCS Storage details
+  storagePath: text('storage_path'), // The GCS path where the file is stored
+  storageUrl: text('storage_url'), // The generated signed URL (for temporary access)
+  storageUrlExpiry: timestamp('storage_url_expiry'), // When the signed URL expires
+});
+
+// Google Cloud Storage file directory structure
+export const gcsDirectories = pgTable('gcs_directories', {
+  id: serial('id').primaryKey(),
+  
+  // Directory structure
+  financialYear: text('financial_year').notNull(), // e.g., "2526"
+  projectCode: text('project_code').notNull(), // e.g., "2526-1"
+  department: text('department').notNull(), // e.g., "Sales", "Design", "Purchase"
+  subDirectory: text('sub_directory'), // e.g., "1_Pre_Order_Communication"
+  
+  // Full path in GCS
+  fullPath: text('full_path').notNull().unique(),
+  
+  // Access control
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  isPublic: boolean('is_public').default(false),
 });
 
 // Project items table for storing up to 50 items per project
@@ -654,6 +678,19 @@ export const insertProjectDocumentSchema = createInsertSchema(projectDocuments, 
   tags: z.array(z.string()).optional(),
   type: z.enum(['contract', 'specification', 'drawing', 'report', 'invoice']),
   version: z.string().default('1.0'),
+  storagePath: z.string().optional(),
+  storageUrl: z.string().optional(),
+  storageUrlExpiry: z.date().optional(),
+});
+
+// GCS directories insert schema
+export const insertGcsDirectorySchema = createInsertSchema(gcsDirectories, {
+  financialYear: z.string().min(4),
+  projectCode: z.string().min(1),
+  department: z.string().min(1),
+  subDirectory: z.string().optional(),
+  fullPath: z.string().min(1),
+  isPublic: z.boolean().default(false),
 });
 
 // Project item insert schema
@@ -694,3 +731,7 @@ export type InsertProjectDocument = z.infer<typeof insertProjectDocumentSchema>;
 
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+
+// GCS directory types
+export type GcsDirectory = typeof gcsDirectories.$inferSelect;
+export type InsertGcsDirectory = z.infer<typeof insertGcsDirectorySchema>;
