@@ -548,14 +548,28 @@ export const projectDocuments = pgTable('project_documents', {
   storageUrlExpiry: timestamp('storage_url_expiry'), // When the signed URL expires
 });
 
-// Google Cloud Storage file directory structure
+// Directory Templates for standard directory structure
+export const directoryTemplates = pgTable('directory_templates', {
+  id: serial('id').primaryKey(),
+  
+  // Template structure
+  department: text('department').notNull(), // e.g., "design", "procurement", "manufacturing", "quality"
+  subDirectory: text('sub_directory'), // e.g., "1_BEDD", "2_P_ID", can be null for root directories
+  
+  // Access control
+  isPublic: boolean('is_public').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Google Cloud Storage file directory structure for custom directories and file tracking
 export const gcsDirectories = pgTable('gcs_directories', {
   id: serial('id').primaryKey(),
   
   // Directory structure
   financialYear: text('financial_year').notNull(), // e.g., "2526"
   projectCode: text('project_code').notNull(), // e.g., "2526-1"
-  department: text('department').notNull(), // e.g., "Sales", "Design", "Purchase"
+  department: text('department').notNull(), // e.g., "design", "procurement", "manufacturing", "quality"
   subDirectory: text('sub_directory'), // e.g., "1_Pre_Order_Communication"
   
   // Full path in GCS
@@ -564,6 +578,7 @@ export const gcsDirectories = pgTable('gcs_directories', {
   // Access control
   createdBy: integer('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
   isPublic: boolean('is_public').default(false),
 });
 
@@ -732,6 +747,17 @@ export type InsertProjectDocument = z.infer<typeof insertProjectDocumentSchema>;
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 
+// Add DirectoryTemplate insert schema
+export const insertDirectoryTemplateSchema = createInsertSchema(directoryTemplates, {
+  department: z.string().min(1),
+  subDirectory: z.string().optional(),
+  isPublic: z.boolean().default(false),
+});
+
 // GCS directory types
 export type GcsDirectory = typeof gcsDirectories.$inferSelect;
 export type InsertGcsDirectory = z.infer<typeof insertGcsDirectorySchema>;
+
+// Directory template types
+export type DirectoryTemplate = typeof directoryTemplates.$inferSelect;
+export type InsertDirectoryTemplate = z.infer<typeof insertDirectoryTemplateSchema>;
