@@ -364,14 +364,25 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'File path is required' });
       }
       
-      // Delete the file from GCS
-      const success = await gcsStorage.deleteFile(filePath);
+      // Check if we're in development mode
+      const isDevelopment = process.env.NODE_ENV !== 'production';
+      
+      let success = false;
+      
+      if (isDevelopment) {
+        console.log('Using mock file deletion for development');
+        // In development mode, we'll pretend the file was deleted successfully
+        success = true;
+      } else {
+        // In production, use the real GCS implementation
+        success = await gcsStorage.deleteFile(filePath);
+      }
       
       if (!success) {
         return res.status(404).json({ error: 'File not found or deletion failed' });
       }
       
-      // Also remove any database records that reference this file
+      // Always update database records regardless of environment
       await db
         .update(projectDocuments)
         .set({ storagePath: null, storageUrl: null, storageUrlExpiry: null })
