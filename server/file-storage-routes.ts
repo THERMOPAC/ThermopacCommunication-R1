@@ -49,6 +49,9 @@ export function setupFileStorageRoutes(app: Router) {
           )
         );
       
+      console.log(`Found ${directories.length} directories for ${financialYear}/${projectCode}`);
+      console.log(`Directory data:`, JSON.stringify(directories.slice(0, 3)));
+      
       res.status(200).json(directories);
     } catch (error) {
       console.error('Error fetching directories:', error);

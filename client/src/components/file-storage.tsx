@@ -389,13 +389,16 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
       return <div className="p-4 text-center text-muted-foreground">No directories found for this project</div>;
     }
     
+    console.log("Directory data in client:", directories);
+    
     // Group directories by department
     const directoryByDepartment = directories.reduce<Record<string, DirectoryItem[]>>((acc, dir) => {
       if (!acc[dir.department]) {
         acc[dir.department] = [];
       }
       
-      if (dir.subDirectory) {
+      // Include all subdirectories (even if the field is empty, as we'll filter later)
+      if (dir.subDirectory !== null) {
         acc[dir.department].push(dir);
       }
       
