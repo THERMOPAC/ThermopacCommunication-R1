@@ -2,7 +2,7 @@ import express, { Request, Response, Router } from 'express';
 import multer from 'multer';
 import { gcsStorage } from './utils/gcs-storage';
 import { db } from './db';
-import { gcsDirectories, projectDocuments } from '@shared/schema';
+import { gcsDirectories, projectDocuments, directoryTemplates } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import path from 'path';
 
@@ -33,13 +33,19 @@ export function setupFileStorageRoutes(app: Router) {
   /**
    * Get project directory structure
    * Returns the directory tree for a project based on financial year and project code
+   * Combines standard templates with project-specific custom directories
    */
   app.get('/api/storage/directories/:financialYear/:projectCode', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const { financialYear, projectCode } = req.params;
       
-      // Get all directories for this project from the database
-      const directories = await db
+      // 1. Get standard directory templates from directory_templates table
+      const templates = await db
+        .select()
+        .from(directoryTemplates);
+      
+      // 2. Get custom directories specific to this project from gcs_directories table
+      const customDirectories = await db
         .select()
         .from(gcsDirectories)
         .where(
@@ -49,10 +55,60 @@ export function setupFileStorageRoutes(app: Router) {
           )
         );
       
-      console.log(`Found ${directories.length} directories for ${financialYear}/${projectCode}`);
-      console.log(`Directory data:`, JSON.stringify(directories.slice(0, 3)));
+      console.log(`Found ${templates.length} directory templates and ${customDirectories.length} custom directories`);
       
-      res.status(200).json(directories);
+      // 3. Create a combined directory list with both template-based and custom directories
+      const combinedDirectories = [];
+      
+      // Add template-based directories with the project-specific path
+      for (const template of templates) {
+        // Build the virtual GCS path for this template in the project context
+        let fullPath = path.join(financialYear, projectCode, template.department);
+        if (template.subDirectory) {
+          fullPath = path.join(fullPath, template.subDirectory);
+        }
+        fullPath = fullPath.replace(/\\/g, '/'); // Normalize path separators
+        
+        // Check if an actual custom directory exists for this path
+        const customExists = customDirectories.some(dir => dir.fullPath === fullPath);
+        
+        // If a custom directory already exists, skip the template version
+        if (!customExists) {
+          combinedDirectories.push({
+            id: 0, // Virtual ID for templates that don't exist in GCS yet
+            financialYear,
+            projectCode,
+            department: template.department,
+            subDirectory: template.subDirectory,
+            fullPath,
+            createdBy: req.user?.id || 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            isPublic: template.isPublic,
+            isTemplate: true // Mark as template-based
+          });
+        }
+      }
+      
+      // Add all custom directories (they take precedence over templates)
+      combinedDirectories.push(...customDirectories.map(dir => ({
+        ...dir,
+        isTemplate: false // Mark as custom/actual directory
+      })));
+      
+      // Sort directories by department and then by subDirectory for consistent display
+      combinedDirectories.sort((a, b) => {
+        if (a.department !== b.department) {
+          return a.department.localeCompare(b.department);
+        }
+        // If subdirectory is null, it should come before any named subdirectory
+        if (!a.subDirectory && b.subDirectory) return -1;
+        if (a.subDirectory && !b.subDirectory) return 1;
+        if (!a.subDirectory && !b.subDirectory) return 0;
+        return a.subDirectory!.localeCompare(b.subDirectory!);
+      });
+      
+      res.status(200).json(combinedDirectories);
     } catch (error) {
       console.error('Error fetching directories:', error);
       res.status(500).json({ error: 'Failed to fetch directory structure' });
@@ -62,6 +118,7 @@ export function setupFileStorageRoutes(app: Router) {
   /**
    * Create a new directory in GCS
    * Creates a directory in the specified path
+   * Only creates physical directories for custom paths not in templates
    */
   app.post('/api/storage/directories', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
@@ -78,12 +135,6 @@ export function setupFileStorageRoutes(app: Router) {
       }
       fullPath = fullPath.replace(/\\/g, '/'); // Normalize path separators
       
-      // Ensure the directory exists in GCS by creating a placeholder
-      const success = await gcsStorage.ensureDirectoryStructure(fullPath);
-      if (!success) {
-        return res.status(500).json({ error: 'Failed to create directory in GCS' });
-      }
-      
       // Check if this directory already exists in our database
       const existingDir = await db
         .select()
@@ -94,7 +145,32 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(200).json(existingDir[0]);
       }
       
-      // Store the directory in our database
+      // Check if this path matches a template (department + subdirectory)
+      const templates = await db
+        .select()
+        .from(directoryTemplates)
+        .where(
+          and(
+            eq(directoryTemplates.department, department),
+            subDirectory 
+              ? eq(directoryTemplates.subDirectory, subDirectory) 
+              : eq(directoryTemplates.subDirectory, null as any)
+          )
+        );
+      
+      const isTemplateDirectory = templates.length > 0;
+      
+      // Only create the physical directory for custom directories not already in templates
+      if (!isTemplateDirectory) {
+        // Ensure the directory exists in GCS by creating a placeholder
+        const success = await gcsStorage.ensureDirectoryStructure(fullPath);
+        if (!success) {
+          return res.status(500).json({ error: 'Failed to create directory in GCS' });
+        }
+      }
+      
+      // For template directories, we still record the project-specific instance in the database,
+      // but we don't need to create the actual GCS directory yet (will be created on first file upload)
       const [newDirectory] = await db
         .insert(gcsDirectories)
         .values({
@@ -104,7 +180,8 @@ export function setupFileStorageRoutes(app: Router) {
           subDirectory,
           fullPath,
           createdBy: req.user?.id || 0, // Default to 0 if user id is not available
-          isPublic: false
+          isPublic: isTemplateDirectory ? templates[0].isPublic : false,
+          updatedAt: new Date()
         })
         .returning();
       
@@ -289,8 +366,68 @@ export function setupFileStorageRoutes(app: Router) {
         contentType: req.file.mimetype
       });
       
-      // Ensure the directory structure exists
+      // Ensure the directory structure exists in GCS
       const dirPath = path.dirname(storagePath);
+      
+      // First, check for an existing directory record in the database
+      const dirComponents = dirPath.split('/');
+      if (dirComponents.length >= 3) {
+        const financialYear = dirComponents[0];
+        const projectCode = dirComponents[1];
+        const department = dirComponents[2];
+        let subDirectory = null;
+        
+        if (dirComponents.length > 3) {
+          subDirectory = dirComponents.slice(3).join('/');
+        }
+        
+        // Look for an existing directory
+        const existingDirs = await db
+          .select()
+          .from(gcsDirectories)
+          .where(
+            and(
+              eq(gcsDirectories.financialYear, financialYear),
+              eq(gcsDirectories.projectCode, projectCode),
+              eq(gcsDirectories.department, department),
+              subDirectory ? eq(gcsDirectories.subDirectory, subDirectory) : eq(gcsDirectories.subDirectory, null as any)
+            )
+          );
+        
+        // If no directory record exists, create one (which happens if we're uploading to a template directory)
+        if (existingDirs.length === 0) {
+          console.log(`Creating directory record for ${dirPath}`);
+          
+          // Check if it matches a template
+          const templates = await db
+            .select()
+            .from(directoryTemplates)
+            .where(
+              and(
+                eq(directoryTemplates.department, department),
+                subDirectory 
+                  ? eq(directoryTemplates.subDirectory, subDirectory) 
+                  : eq(directoryTemplates.subDirectory, null as any)
+              )
+            );
+          
+          // Create the directory record
+          await db
+            .insert(gcsDirectories)
+            .values({
+              financialYear,
+              projectCode,
+              department,
+              subDirectory,
+              fullPath: dirPath,
+              createdBy: req.user?.id || 0,
+              isPublic: templates.length > 0 ? templates[0].isPublic : false,
+              updatedAt: new Date()
+            });
+        }
+      }
+      
+      // Now ensure the physical directory exists in GCS
       await gcsStorage.ensureDirectoryStructure(dirPath);
       
       // Create the file in GCS
