@@ -529,134 +529,69 @@ export function setupFileStorageRoutes(app: Router) {
         }
       }
       
-      // Check if we're in development mode
-      const isDevelopment = process.env.NODE_ENV !== 'production';
-      
       let document;
       
-      if (isDevelopment) {
-        console.log('Using mock file upload flow for development');
-        
-        // In development, we'll store the file information in the database 
-        // but we won't actually upload to GCS
-        const mockDownloadUrl = `http://localhost:3000/mock-download?path=${encodeURIComponent(storagePath)}`;
-        
-        // Create a document record in the database
-        [document] = await db
-          .insert(projectDocuments)
-          .values({
-            projectId: parseInt(projectId),
-            phaseId: phaseId ? parseInt(phaseId) : undefined,
-            name: fileName,
-            description: description || '',
-            type: type || 'document',
-            url: mockDownloadUrl,
-            uploadedBy: req.user?.id as number,
-            size: req.file?.size || 0,
-            format: path.extname(fileName).replace('.', ''),
-            isPublic: isPublic === 'true',
-            storagePath,
-            storageUrl: mockDownloadUrl,
-            storageUrlExpiry: new Date(Date.now() + 60 * 60 * 1000) // 1 hour
-          })
-          .returning();
-      } else {
-        // In production, use the real GCS implementation
-        
-        // Only create the physical directory in production
-        if (!isDevelopment) {
-          // Ensure the physical directory exists in GCS
-          await gcsStorage.ensureDirectoryStructure(dirPath);
-        } else {
-          console.log('Skipping physical directory creation in development mode');
+      // Ensure the physical directory exists in GCS
+      await gcsStorage.ensureDirectoryStructure(dirPath);
+      
+      // Create the file in GCS
+      const bucket = await import('./utils/storage-config').then(module => module.default.bucket(module.bucketName));
+      const file = bucket.file(storagePath);
+      
+      // Create a write stream to upload the file
+      const stream = file.createWriteStream({
+        metadata: {
+          contentType: req.file.mimetype
         }
+      });
+      
+      // Handle stream errors
+      const streamError = new Promise((resolve, reject) => {
+        stream.on('error', (error) => {
+          console.error('Stream error:', error);
+          reject(error);
+        });
         
-        // Check again if we're in development mode
-        if (isDevelopment) {
-          console.log('Bypassing GCS upload in development mode');
-          
-          // Create a document record in the database with mock URL
-          const mockDownloadUrl = `http://localhost:3000/mock-download?path=${encodeURIComponent(storagePath)}`;
-          
-          [document] = await db
-            .insert(projectDocuments)
-            .values({
-              projectId: parseInt(projectId),
-              phaseId: phaseId ? parseInt(phaseId) : undefined,
-              name: fileName,
-              description: description || '',
-              type: type || 'document',
-              url: mockDownloadUrl,
-              uploadedBy: req.user?.id as number,
-              size: req.file?.size || 0,
-              format: path.extname(fileName).replace('.', ''),
-              isPublic: isPublic === 'true',
-              storagePath,
-              storageUrl: mockDownloadUrl,
-              storageUrlExpiry: new Date(Date.now() + 60 * 60 * 1000) // 1 hour
-            })
-            .returning();
-        } else {
-          // In production, create the file in GCS
-          const bucket = await import('./utils/storage-config').then(module => module.default.bucket(module.bucketName));
-          const file = bucket.file(storagePath);
-          
-          // Create a write stream to upload the file
-          const stream = file.createWriteStream({
-            metadata: {
-              contentType: req.file.mimetype
-            }
-          });
-          
-          // Handle stream errors
-          const streamError = new Promise((resolve, reject) => {
-            stream.on('error', (error) => {
-              console.error('Stream error:', error);
-              reject(error);
+        stream.on('finish', async () => {
+          try {
+            // Generate a temporary download URL
+            const downloadUrl = await gcsStorage.generateDownloadSignedUrl({
+              filePath: storagePath,
+              expirationMinutes: 60 // 1 hour
             });
             
-            stream.on('finish', async () => {
-              try {
-                // Generate a temporary download URL
-                const downloadUrl = await gcsStorage.generateDownloadSignedUrl({
-                  filePath: storagePath,
-                  expirationMinutes: 60 // 1 hour
-                });
-                
-                // Create a document record in the database
-                const [doc] = await db
-                  .insert(projectDocuments)
-                  .values({
-                    projectId: parseInt(projectId),
-                    phaseId: phaseId ? parseInt(phaseId) : undefined,
-                    name: fileName,
-                    description: description || '',
-                    type: type || 'document',
-                    url: downloadUrl || '',
-                    uploadedBy: req.user?.id as number,
-                    size: req.file?.size || 0,
-                    format: path.extname(fileName).replace('.', ''),
-                    isPublic: isPublic === 'true',
-                    storagePath,
-                    storageUrl: downloadUrl || null,
-                    storageUrlExpiry: downloadUrl ? new Date(Date.now() + 60 * 60 * 1000) : null // 1 hour
-                  })
-                  .returning();
-                
-                resolve(doc);
-              } catch (error) {
-                reject(error);
-              }
-            });
-          });
-          
-          // Write the file to GCS
-          stream.end(req.file.buffer);
-          
-          // Wait for the upload to complete
-          document = await streamError;
-        }
-      }
+            // Create a document record in the database
+            const [doc] = await db
+              .insert(projectDocuments)
+              .values({
+                projectId: parseInt(projectId),
+                phaseId: phaseId ? parseInt(phaseId) : undefined,
+                name: fileName,
+                description: description || '',
+                type: type || 'document',
+                url: downloadUrl || '',
+                uploadedBy: req.user?.id as number,
+                size: req.file?.size || 0,
+                format: path.extname(fileName).replace('.', ''),
+                isPublic: isPublic === 'true',
+                storagePath,
+                storageUrl: downloadUrl || null,
+                storageUrlExpiry: downloadUrl ? new Date(Date.now() + 60 * 60 * 1000) : null // 1 hour
+              })
+              .returning();
+            
+            resolve(doc);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      });
+      
+      // Write the file to GCS
+      stream.end(req.file.buffer);
+      
+      // Wait for the upload to complete
+      document = await streamError;
       
       res.status(201).json(document);
     } catch (error) {

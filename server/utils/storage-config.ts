@@ -10,21 +10,11 @@ import { Storage } from '@google-cloud/storage';
 // Get bucket name from environment variable
 export const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac-project-files';
 
-// Determine if we're in development mode
-const isDevelopment = process.env.NODE_ENV !== 'production';
-
-// In development mode, create a mock storage instance
-if (isDevelopment) {
-  console.log('Using mock GCS implementation for development');
-}
-
 // Create a Storage client
 // Google Cloud will auto-detect credentials from the environment
 // or from a service account key file if specified
 const storage = new Storage({
-  // For local development, we'll use a mock implementation
-  // In production, this should be provided through environment variables
-  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || 'mock-project-id'
+  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
 });
 
 // Export the configured storage instance
