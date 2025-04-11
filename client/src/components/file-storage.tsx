@@ -422,82 +422,75 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             <FolderPlusIcon className="h-4 w-4 mr-2" />
             New Directory
           </Button>
-          {/* Label-wrapped file input approach */}
-          <label className={`${!currentDepartment ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-            <Button
-              disabled={!currentDepartment}
-              type="button"
-              onClick={(e) => e.preventDefault()} // Prevent button click, label will handle file input click
-            >
-              <UploadIcon className="h-4 w-4 mr-2" />
-              Upload File
-            </Button>
-
+          {/* Direct HTML form approach without any fancy wrappers */}
+          <form 
+            action="/api/storage/upload" 
+            method="post" 
+            encType="multipart/form-data" 
+            className="inline-flex items-center space-x-2"
+            onSubmit={(e) => {
+              if (!currentDepartment) {
+                e.preventDefault();
+                toast({
+                  title: "Error",
+                  description: "Please select a department first",
+                  variant: "destructive"
+                });
+                return false;
+              }
+              
+              const fileInput = e.currentTarget.querySelector('input[type="file"]') as HTMLInputElement;
+              if (!fileInput?.files?.length) {
+                e.preventDefault();
+                toast({
+                  title: "Error",
+                  description: "Please select a file to upload",
+                  variant: "destructive"
+                });
+                return false;
+              }
+              
+              toast({
+                title: "Upload started",
+                description: "Your file is being uploaded...",
+              });
+              
+              // After form submits, refresh file list
+              setTimeout(() => {
+                refetchFiles();
+                toast({
+                  title: "Upload complete",
+                  description: "File has been uploaded successfully",
+                });
+              }, 2000);
+              
+              return true;
+            }}
+          >
+            <input type="hidden" name="financialYear" value={financialYear} />
+            <input type="hidden" name="projectCode" value={projectCode} />
+            <input type="hidden" name="projectId" value={projectId.toString()} />
+            <input type="hidden" name="department" value={currentDepartment || ''} />
+            {currentSubDirectory && <input type="hidden" name="subDirectory" value={currentSubDirectory} />}
+            <input type="hidden" name="isPublic" value="false" />
+            <input type="hidden" name="type" value="document" />
+            
+            {/* Visible file input */}
             <input 
               type="file" 
-              className="hidden"
+              name="file"
               disabled={!currentDepartment}
-              onChange={(e) => {
-                if (e.target.files?.length) {
-                  const file = e.target.files[0];
-                  const fileName = file.name;
-                  
-                  toast({
-                    title: "Upload started",
-                    description: "Your file is being uploaded...",
-                  });
-                  
-                  // Create FormData manually
-                  const formData = new FormData();
-                  formData.append('file', file);
-                  formData.append('financialYear', financialYear);
-                  formData.append('projectCode', projectCode);
-                  formData.append('projectId', projectId.toString());
-                  formData.append('department', currentDepartment || '');
-                  formData.append('isPublic', 'false');
-                  formData.append('type', 'document');
-                  
-                  if (currentSubDirectory) {
-                    formData.append('subDirectory', currentSubDirectory);
-                  }
-                  
-                  // Send fetch request
-                  fetch('/api/storage/upload', {
-                    method: 'POST',
-                    body: formData,
-                    credentials: 'include'
-                  })
-                  .then(response => {
-                    if (response.ok) {
-                      // Success
-                      setTimeout(() => {
-                        refetchFiles();
-                        toast({
-                          title: "Upload complete",
-                          description: `File "${fileName}" has been uploaded successfully`,
-                        });
-                      }, 1500);
-                    } else {
-                      // Error
-                      toast({
-                        title: "Upload failed",
-                        description: "There was a problem uploading your file",
-                        variant: "destructive"
-                      });
-                    }
-                  })
-                  .catch(error => {
-                    console.error("Upload error:", error);
-                    toast({
-                      title: "Upload failed",
-                      description: error.message,
-                      variant: "destructive"
-                    });
-                  });
-                }
-              }}
+              className={`text-sm ${!currentDepartment ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
-          </label>
+            
+            <Button 
+              type="submit"
+              disabled={!currentDepartment}
+            >
+              <UploadIcon className="h-4 w-4 mr-2" />
+              Upload
+            </Button>
+          </form>
         </div>
       </div>
       
