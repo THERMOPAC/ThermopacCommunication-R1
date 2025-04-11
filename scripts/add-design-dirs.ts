@@ -17,7 +17,7 @@ const additionalDesignSubdirectories = [
 // Function to create directory in database
 async function createDirectory(financialYear: string, projectCode: string, subDirectory: string) {
   try {
-    const department = 'Design';
+    const department = 'design'; // Must be lowercase to match existing database records
     const basePath = `${financialYear}/${projectCode}/${department}`;
     const fullPath = `${basePath}/${subDirectory}`;
     
