@@ -14,8 +14,8 @@ if (configuredBucketName) {
   configuredBucketName = configuredBucketName.trim();
 }
 
-// Use the bucket name from environment or default to thermopac_sorage
-export const bucketName = configuredBucketName || 'thermopac_sorage';
+// Use the bucket name from environment or default to thermopac_storage
+export const bucketName = configuredBucketName || 'thermopac_storage';
 console.log(`Using GCS bucket name: ${bucketName}`);
 
 // Function to create storage client
