@@ -630,8 +630,11 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
       </Dialog>
       
       {/* File details dialog */}
-      <Dialog open={!!selectedFile} onOpenChange={(open) => !open && setSelectedFile(null)}>
-        <DialogContent>
+      <Dialog open={!!selectedFile} onOpenChange={(open) => {
+        // Stop event propagation when opening/closing dialogs
+        if (!open) setSelectedFile(null);
+      }}>
+        <DialogContent onClick={stopEventPropagation}>
           <DialogHeader>
             <DialogTitle>File Details</DialogTitle>
           </DialogHeader>

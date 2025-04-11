@@ -1988,7 +1988,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             </div>
             
             <Card className="border rounded-md h-[600px]">
-              <CardContent className="p-0">
+              <CardContent className="p-0" onClick={(e) => {
+                // Prevent form submission when interacting with file storage
+                e.stopPropagation();
+                e.preventDefault();
+              }}>
                 {project && (
                   <FileStorage 
                     projectId={parseInt(id)}
