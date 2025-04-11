@@ -35,8 +35,9 @@ class GcsStorage {
       fileName: fileName.replace(/[^\w\s.-]/g, '')
     };
 
-    // Build path components
+    // Build path components with THERMOPAC_PROJECTS as the root folder
     const pathComponents = [
+      'THERMOPAC_PROJECTS',
       sanitized.financialYear,
       sanitized.projectCode,
       sanitized.department

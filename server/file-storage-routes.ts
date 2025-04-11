@@ -158,8 +158,8 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'Missing required parameters' });
       }
       
-      // Build the full path
-      let fullPath = path.join(financialYear, projectCode, department);
+      // Build the full path with THERMOPAC_PROJECTS prefix
+      let fullPath = path.join('THERMOPAC_PROJECTS', financialYear, projectCode, department);
       if (subDirectory) {
         fullPath = path.join(fullPath, subDirectory);
       }
@@ -457,14 +457,16 @@ export function setupFileStorageRoutes(app: Router) {
       
       // First, check for an existing directory record in the database
       const dirComponents = dirPath.split('/');
-      if (dirComponents.length >= 3) {
-        const financialYear = dirComponents[0];
-        const projectCode = dirComponents[1];
-        const department = dirComponents[2];
+      
+      // Skip the "THERMOPAC_PROJECTS" prefix if it exists
+      if (dirComponents.length >= 4 && dirComponents[0] === 'THERMOPAC_PROJECTS') {
+        const financialYear = dirComponents[1];
+        const projectCode = dirComponents[2];
+        const department = dirComponents[3];
         let subDirectory = null;
         
-        if (dirComponents.length > 3) {
-          subDirectory = dirComponents.slice(3).join('/');
+        if (dirComponents.length > 4) {
+          subDirectory = dirComponents.slice(4).join('/');
         }
         
         // Look for an existing directory
