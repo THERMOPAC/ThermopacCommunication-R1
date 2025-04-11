@@ -98,11 +98,8 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
   const [currentPath, setCurrentPath] = useState<string>('');
   const [currentDepartment, setCurrentDepartment] = useState<string>('');
   const [currentSubDirectory, setCurrentSubDirectory] = useState<string>('');
-  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
   const [newDirectoryName, setNewDirectoryName] = useState<string>('');
   const [isCreateDirectoryOpen, setIsCreateDirectoryOpen] = useState<boolean>(false);
-  const [isUploadFileOpen, setIsUploadFileOpen] = useState<boolean>(false);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
@@ -188,78 +185,7 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
     },
   });
 
-  // Upload file mutation
-  const uploadFileMutation = useMutation({
-    mutationFn: async (file: File) => {
-      if (!currentDepartment) {
-        throw new Error('Please select a department');
-      }
-      
-      console.log("Starting file upload for:", file.name);
-      console.log("To path:", `THERMOPAC_PROJECTS/${financialYear}/${projectCode}/${currentDepartment}${currentSubDirectory ? '/' + currentSubDirectory : ''}`);
-      
-      try {
-        // For development mode, use direct server upload to avoid CORS issues
-        // Skip the signed URL step entirely and use our server as a proxy
-        const formData = new FormData();
-        formData.append('projectId', projectId.toString());
-        formData.append('file', file);
-        formData.append('financialYear', financialYear);
-        formData.append('projectCode', projectCode);
-        formData.append('department', currentDepartment);
-        formData.append('type', 'document');
-        formData.append('isPublic', 'false');
-        
-        if (currentSubDirectory) {
-          formData.append('subDirectory', currentSubDirectory);
-        }
-        
-        // Add a description field (optional)
-        const description = `Uploaded via ${currentDepartment}${currentSubDirectory ? '/' + currentSubDirectory : ''}`;
-        formData.append('description', description);
-        
-        console.log("Using direct server upload endpoint");
-        
-        // Use direct server upload endpoint that handles both storage and database updates
-        const response = await fetch('/api/storage/upload', {
-          method: 'POST',
-          credentials: 'include', // Important for auth cookies
-          body: formData,
-        });
-        
-        console.log("Upload response status:", response.status);
-        
-        if (!response.ok) {
-          console.error("Upload failed with status:", response.status);
-          throw new Error(`Failed to upload file: ${response.status} ${response.statusText}`);
-        }
-        
-        return await response.json();
-      } catch (error) {
-        console.error("Error creating document record:", error);
-        throw new Error('Failed to create document record: ' + (error instanceof Error ? error.message : String(error)));
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: 'File uploaded',
-        description: 'File has been uploaded successfully',
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/storage/files', currentPath] });
-      setIsUploadFileOpen(false);
-      setFileToUpload(null);
-      setUploadProgress(0);
-      refetchFiles();
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Failed to upload file',
-        description: error.message,
-        variant: 'destructive',
-      });
-      setUploadProgress(0);
-    },
-  });
+  // We're using direct form upload instead of the mutation approach
 
   // Delete file mutation
   const deleteFileMutation = useMutation({
@@ -330,12 +256,7 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
     setCurrentPath(path);
   };
 
-  // Handle file upload
-  const handleFileUpload = () => {
-    if (fileToUpload) {
-      uploadFileMutation.mutate(fileToUpload);
-    }
-  };
+  // We've replaced the handleFileUpload function with direct form submission
 
   // Handle create directory
   const handleCreateDirectory = () => {
@@ -502,7 +423,19 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             New Directory
           </Button>
           {/* Direct form upload */}
-          <form action="/api/storage/upload" method="post" encType="multipart/form-data" className="inline-block">
+          <form 
+            action="/api/storage/upload" 
+            method="post" 
+            encType="multipart/form-data" 
+            className="inline-block"
+            target="upload-response-frame"
+            onSubmit={() => {
+              toast({
+                title: "Upload started",
+                description: "Your file is being uploaded...",
+              });
+            }}
+          >
             <input type="hidden" name="financialYear" value={financialYear} />
             <input type="hidden" name="projectCode" value={projectCode} />
             <input type="hidden" name="projectId" value={projectId.toString()} />
@@ -519,7 +452,17 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
               className="hidden"
               onChange={(e) => {
                 if (e.target.files?.length) {
+                  const fileName = e.target.files[0].name;
                   e.target.form?.submit();
+                  
+                  // Refresh the file list after a short delay to show the new file
+                  setTimeout(() => {
+                    refetchFiles();
+                    toast({
+                      title: "Upload complete",
+                      description: `File "${fileName}" has been uploaded successfully`,
+                    });
+                  }, 1500);
                 }
               }}
               disabled={!currentDepartment}
@@ -531,6 +474,7 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
               <UploadIcon className="h-4 w-4 mr-2" />
               Upload File
             </label>
+            <iframe name="upload-response-frame" className="hidden"></iframe>
           </form>
         </div>
       </div>
