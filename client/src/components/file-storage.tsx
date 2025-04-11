@@ -701,19 +701,48 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
             </div>
             
             <div className="space-y-4">
-              <Label htmlFor="native-file-upload">Select a File to Upload</Label>
+              <Label>Select a File to Upload</Label>
               <div className="flex flex-col gap-4">
-                {/* Plain old native file input */}
-                <input
-                  id="native-file-upload"
-                  type="file"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      setFileToUpload(e.target.files[0]);
-                      console.log("File selected:", e.target.files[0].name);
-                    }
-                  }}
-                />
+                <div className="border p-2 rounded-md bg-muted/20">
+                  <iframe
+                    id="file-upload-iframe"
+                    name="file-upload-iframe"
+                    className="hidden"
+                    onLoad={() => {
+                      try {
+                        // Don't do anything on initial load
+                        console.log("iframe loaded");
+                      } catch (error) {
+                        console.error("Error in iframe onload:", error);
+                      }
+                    }}
+                  />
+                  <form
+                    target="file-upload-iframe"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      return false;
+                    }}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="text-sm text-center mb-2">
+                        Click the button below to select a file
+                      </p>
+                      <input
+                        type="file"
+                        id="file-input"
+                        name="file"
+                        className="w-full"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            setFileToUpload(e.target.files[0]);
+                            console.log("File selected:", e.target.files[0].name);
+                          }
+                        }}
+                      />
+                    </div>
+                  </form>
+                </div>
                 
                 {fileToUpload && (
                   <div className="p-3 border rounded-md bg-secondary/20">
