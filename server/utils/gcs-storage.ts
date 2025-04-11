@@ -1,6 +1,7 @@
 import { Storage, GetSignedUrlConfig, Bucket } from '@google-cloud/storage';
 import storage, { bucketName } from './storage-config';
 import path from 'path';
+import { GcsApiResponse } from './gcs-types';
 
 /**
  * Google Cloud Storage utility for project files management
