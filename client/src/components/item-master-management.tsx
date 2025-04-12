@@ -62,7 +62,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Pencil, Trash2, Plus, Package, FileUp } from 'lucide-react';
+import { 
+  ClipboardList, 
+  File as FileIcon, 
+  FileUp, 
+  FolderOpen,
+  Pencil, 
+  Plus, 
+  Package, 
+  Search, 
+  Trash2 
+} from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
