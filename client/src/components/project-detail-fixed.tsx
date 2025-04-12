@@ -1187,21 +1187,22 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
-                                      console.log("Edit item clicked for item:", item);
-                                      setSelectedItem(item);
-                                      itemForm.reset({
-                                        itemCode: item.masterItem?.itemCode || "",
-                                        description: item.masterItem?.description || "",
-                                        quantity: item.quantity || 1,
-                                        uom: item.masterItem?.uom || "",
-                                        makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
-                                        drawingNo: item.masterItem?.drawingNo || "",
-                                        status: item.status || "Not Started",
-                                      });
-                                      setIsEditItemOpen(true);
+                                      console.log("Navigate to master item:", item);
+                                      if (item.masterItem?.id) {
+                                        // Store the master item ID in sessionStorage
+                                        sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
+                                        // Navigate to Item Master page
+                                        navigate("/item-master");
+                                      } else {
+                                        toast({
+                                          title: "Error",
+                                          description: "Could not find master item information",
+                                          variant: "destructive",
+                                        });
+                                      }
                                     }}
                                     className="h-6 w-6 p-0"
-                                    title="Edit this item"
+                                    title="Edit in Master Items"
                                   >
                                     <ArrowRight className="h-4 w-4 text-amber-500" />
                                   </Button>
@@ -1930,20 +1931,22 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                setSelectedItem(item);
-                                itemForm.reset({
-                                  itemCode: item.masterItem?.itemCode || "",
-                                  description: item.masterItem?.description || "",
-                                  quantity: item.quantity || 1,
-                                  uom: item.masterItem?.uom || "",
-                                  makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
-                                  drawingNo: item.masterItem?.drawingNo || "",
-                                  status: item.status || "Not Started",
-                                });
-                                setIsEditItemOpen(true);
+                                console.log("Navigate to master item:", item);
+                                if (item.masterItem?.id) {
+                                  // Store the master item ID in sessionStorage
+                                  sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
+                                  // Navigate to Item Master page
+                                  navigate("/item-master");
+                                } else {
+                                  toast({
+                                    title: "Error",
+                                    description: "Could not find master item information",
+                                    variant: "destructive",
+                                  });
+                                }
                               }}
                               className="h-6 w-6 p-0"
-                              title="Edit this item"
+                              title="Edit in Master Items"
                             >
                               <ArrowRight className="h-4 w-4 text-amber-500" />
                             </Button>

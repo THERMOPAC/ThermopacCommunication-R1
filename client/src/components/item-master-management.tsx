@@ -241,6 +241,20 @@ const ItemMasterManagement: React.FC = () => {
   
 
   
+  // Check for editMasterItemId in sessionStorage and open edit dialog
+  useEffect(() => {
+    const editItemId = sessionStorage.getItem('editMasterItemId');
+    if (editItemId && items) {
+      const itemToEdit = items.find(item => item.id === parseInt(editItemId));
+      if (itemToEdit) {
+        setCurrentItem(itemToEdit);
+        setIsEditDialogOpen(true);
+        // Clear the session storage so it doesn't reopen on refresh
+        sessionStorage.removeItem('editMasterItemId');
+      }
+    }
+  }, [items]);
+
   // Set form values when editing an item
   useEffect(() => {
     if (currentItem && isEditDialogOpen) {
