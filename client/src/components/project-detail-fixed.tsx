@@ -1864,6 +1864,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 <Table className="min-w-full">
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[4%]"></TableHead>
                       <TableHead className="w-[12%]">Item Code</TableHead>
                       <TableHead className="w-[15%]">Description</TableHead>
                       <TableHead className="w-[6%]">Quantity</TableHead>
@@ -1878,13 +1879,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <TableBody>
                     {isLoadingItems ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-4">
+                        <TableCell colSpan={10} className="text-center py-4">
                           <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                         </TableCell>
                       </TableRow>
                     ) : projectItems?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-4">
+                        <TableCell colSpan={10} className="text-center py-4">
                           <div className="flex flex-col items-center justify-center text-muted-foreground">
                             <Boxes className="h-10 w-10 mb-2" />
                             <p>No project items yet</p>
@@ -1895,6 +1896,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     ) : (
                       projectItems?.map((item) => (
                         <TableRow key={item.id}>
+                          <TableCell className="w-6">
+                            <ArrowRight className="h-4 w-4 text-amber-500" />
+                          </TableCell>
                           <TableCell className="truncate max-w-0">{item.masterItem?.itemCode || "N/A"}</TableCell>
                           <TableCell className="truncate max-w-0">
                             <div className="truncate" title={item.masterItem?.description || "N/A"}>
