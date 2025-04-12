@@ -1181,7 +1181,30 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             projectItems.map((item) => (
                               <TableRow key={item.id}>
                                 <TableCell className="w-6">
-                                  <ArrowRight className="h-4 w-4 text-amber-500" />
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      console.log("Edit item clicked for item:", item);
+                                      setSelectedItem(item);
+                                      itemForm.reset({
+                                        itemCode: item.masterItem?.itemCode || "",
+                                        description: item.masterItem?.description || "",
+                                        quantity: item.quantity || 1,
+                                        uom: item.masterItem?.uom || "",
+                                        makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
+                                        drawingNo: item.masterItem?.drawingNo || "",
+                                        status: item.status || "Not Started",
+                                      });
+                                      setIsEditItemOpen(true);
+                                    }}
+                                    className="h-6 w-6 p-0"
+                                    title="Edit this item"
+                                  >
+                                    <ArrowRight className="h-4 w-4 text-amber-500" />
+                                  </Button>
                                 </TableCell>
                                 <TableCell>{item.masterItem?.itemCode || "N/A"}</TableCell>
                                 <TableCell>{item.masterItem?.description || "N/A"}</TableCell>
@@ -1901,7 +1924,29 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       projectItems?.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="w-6">
-                            <ArrowRight className="h-4 w-4 text-amber-500" />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSelectedItem(item);
+                                itemForm.reset({
+                                  itemCode: item.masterItem?.itemCode || "",
+                                  description: item.masterItem?.description || "",
+                                  quantity: item.quantity || 1,
+                                  uom: item.masterItem?.uom || "",
+                                  makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
+                                  drawingNo: item.masterItem?.drawingNo || "",
+                                  status: item.status || "Not Started",
+                                });
+                                setIsEditItemOpen(true);
+                              }}
+                              className="h-6 w-6 p-0"
+                              title="Edit this item"
+                            >
+                              <ArrowRight className="h-4 w-4 text-amber-500" />
+                            </Button>
                           </TableCell>
                           <TableCell className="truncate max-w-0">{item.masterItem?.itemCode || "N/A"}</TableCell>
                           <TableCell className="truncate max-w-0">
