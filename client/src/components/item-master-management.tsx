@@ -68,6 +68,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { canManageContent } from '@/lib/permissions';
 import MasterItemsImport from './master-items-import';
+import { ItemComponentsImport } from './item-components-import';
 
 // Define the MasterItem type based on your schema
 interface MasterItem {
@@ -883,27 +884,20 @@ const ItemMasterManagement: React.FC = () => {
                   </Table>
                 </div>
                 
-                <Card className="bg-muted/50">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <FileUp className="h-4 w-4 text-muted-foreground" />
-                      <h4 className="text-sm font-medium">Import Components</h4>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      Import sub-assembly components from an Excel file
-                    </p>
-                    <div className="flex items-center">
-                      <Input 
-                        type="file" 
-                        accept=".xlsx,.xls" 
-                        className="text-xs w-auto flex-1 mr-2" 
-                      />
-                      <Button size="sm" variant="outline">
-                        Import
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                {currentItem && (
+                  <ItemComponentsImport 
+                    parentItemId={currentItem.id} 
+                    parentItemCode={currentItem.itemCode}
+                    onImportComplete={() => {
+                      // Refresh the components data after import
+                      // We'll add the API call to fetch components in the future
+                      toast({
+                        title: "Components imported",
+                        description: "The component list has been updated successfully.",
+                      });
+                    }}
+                  />
+                )}
                 
                 <div className="flex justify-end mt-6">
                   <Button

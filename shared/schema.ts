@@ -738,6 +738,23 @@ export type InsertDeliverable = z.infer<typeof insertDeliverableSchema>;
 export type ProjectTask = typeof projectTasks.$inferSelect;
 export type InsertProjectTask = z.infer<typeof insertProjectTaskSchema>;
 
+// Item components for sub-assemblies
+export const itemComponents = pgTable('item_components', {
+  id: serial('id').primaryKey(),
+  parentItemId: integer('parent_item_id').notNull().references(() => masterItems.id),
+  componentItemId: integer('component_item_id').notNull().references(() => masterItems.id),
+  quantity: decimal('quantity').notNull().default('1'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Create insert schema for item components
+export const insertItemComponentSchema = createInsertSchema(itemComponents);
+
+// Types for item components
+export type ItemComponent = typeof itemComponents.$inferSelect;
+export type InsertItemComponent = z.infer<typeof insertItemComponentSchema>;
+
 export type PhaseApproval = typeof phaseApprovals.$inferSelect;
 export type InsertPhaseApproval = z.infer<typeof insertPhaseApprovalSchema>;
 
