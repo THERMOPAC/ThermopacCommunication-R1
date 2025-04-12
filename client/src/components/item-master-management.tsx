@@ -626,7 +626,7 @@ const ItemMasterManagement: React.FC = () => {
             setActiveTab("details");
           }
         }}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="sm:max-w-[95%]">
           <DialogHeader>
             <DialogTitle>Edit Master Item</DialogTitle>
             <DialogDescription>
@@ -639,9 +639,12 @@ const ItemMasterManagement: React.FC = () => {
             onValueChange={setActiveTab} 
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsList className="grid w-full grid-cols-5 mb-4">
               <TabsTrigger value="details">Item Details</TabsTrigger>
               <TabsTrigger value="components">Sub-Assembly Components</TabsTrigger>
+              <TabsTrigger value="drawings">Drawing Management</TabsTrigger>
+              <TabsTrigger value="ecr">ECR & ECN Management</TabsTrigger>
+              <TabsTrigger value="files">File Storage</TabsTrigger>
             </TabsList>
             
             <TabsContent value="details">
@@ -942,6 +945,162 @@ const ItemMasterManagement: React.FC = () => {
                     }}
                   />
                 )}
+                
+                <div className="flex justify-end mt-6">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setCurrentItem(null);
+                      setActiveTab("details");
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="drawings">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Drawing Management</h3>
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-1" /> Upload Drawing
+                  </Button>
+                </div>
+                
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Drawing No.</TableHead>
+                        <TableHead>Revision</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Upload Date</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-6">
+                          <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
+                            <FileIcon className="h-8 w-8 mb-2" />
+                            <p>No drawings uploaded yet</p>
+                            <p className="text-xs mt-1">Upload drawings using the Upload Drawing button</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                <div className="flex justify-end mt-6">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setCurrentItem(null);
+                      setActiveTab("details");
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="ecr">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">ECR & ECN Management</h3>
+                  <div className="space-x-2">
+                    <Button size="sm" variant="outline">
+                      <Plus className="h-4 w-4 mr-1" /> Create ECR
+                    </Button>
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-1" /> Create ECN
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Doc No.</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-6">
+                          <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
+                            <ClipboardList className="h-8 w-8 mb-2" />
+                            <p>No ECR/ECN documents yet</p>
+                            <p className="text-xs mt-1">Use the buttons above to create ECR or ECN documents</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                <div className="flex justify-end mt-6">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setCurrentItem(null);
+                      setActiveTab("details");
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="files">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">File Storage</h3>
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-1" /> Upload File
+                  </Button>
+                </div>
+                
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>File Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Size</TableHead>
+                        <TableHead>Upload Date</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-6">
+                          <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
+                            <FolderOpen className="h-8 w-8 mb-2" />
+                            <p>No files uploaded yet</p>
+                            <p className="text-xs mt-1">Upload files using the Upload File button</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
                 
                 <div className="flex justify-end mt-6">
                   <Button
