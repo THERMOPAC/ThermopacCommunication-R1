@@ -115,6 +115,7 @@ const ItemMasterManagement: React.FC = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<MasterItem | null>(null);
   const [deleteDialogItem, setDeleteDialogItem] = useState<MasterItem | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("details");
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -248,6 +249,7 @@ const ItemMasterManagement: React.FC = () => {
       const itemToEdit = items.find(item => item.id === parseInt(editItemId));
       if (itemToEdit) {
         setCurrentItem(itemToEdit);
+        setActiveTab("details");
         setIsEditDialogOpen(true);
         // Clear the session storage so it doesn't reopen on refresh
         sessionStorage.removeItem('editMasterItemId');
@@ -284,6 +286,7 @@ const ItemMasterManagement: React.FC = () => {
   
   const handleEdit = (item: MasterItem) => {
     setCurrentItem(item);
+    setActiveTab("details");
     setIsEditDialogOpen(true);
   };
   
@@ -600,7 +603,14 @@ const ItemMasterManagement: React.FC = () => {
       </Dialog>
       
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog 
+        open={isEditDialogOpen} 
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) {
+            setActiveTab("details");
+          }
+        }}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Edit Master Item</DialogTitle>
@@ -609,8 +619,12 @@ const ItemMasterManagement: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <Tabs defaultValue="details">
-            <TabsList className="grid grid-cols-2 mb-4">
+          <Tabs 
+            value={activeTab} 
+            onValueChange={setActiveTab} 
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="details">Item Details</TabsTrigger>
               <TabsTrigger value="components">Sub-Assembly Components</TabsTrigger>
             </TabsList>
@@ -819,6 +833,7 @@ const ItemMasterManagement: React.FC = () => {
                       onClick={() => {
                         setIsEditDialogOpen(false);
                         setCurrentItem(null);
+                        setActiveTab("details");
                       }}
                     >
                       Cancel
@@ -889,6 +904,20 @@ const ItemMasterManagement: React.FC = () => {
                     </div>
                   </CardContent>
                 </Card>
+                
+                <div className="flex justify-end mt-6">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setCurrentItem(null);
+                      setActiveTab("details");
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
