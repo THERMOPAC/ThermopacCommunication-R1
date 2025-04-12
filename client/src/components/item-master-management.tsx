@@ -62,7 +62,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { Pencil, Trash2, Plus, Package, FileUp } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
@@ -609,206 +609,289 @@ const ItemMasterManagement: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onSubmitEdit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={editForm.control}
-                  name="itemCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Item Code*</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter item code" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          <Tabs defaultValue="details">
+            <TabsList className="grid grid-cols-2 mb-4">
+              <TabsTrigger value="details">Item Details</TabsTrigger>
+              <TabsTrigger value="components">Sub-Assembly Components</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="details">
+              <Form {...editForm}>
+                <form onSubmit={editForm.handleSubmit(onSubmitEdit)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={editForm.control}
+                      name="itemCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Item Code*</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter item code" 
+                              {...field} 
+                              readOnly 
+                              disabled
+                              className="bg-muted"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="uom"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Unit of Measurement*</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select UOM" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Nos">Nos</SelectItem>
+                              <SelectItem value="Kg">Kg</SelectItem>
+                              <SelectItem value="Meter">Meter</SelectItem>
+                              <SelectItem value="Liter">Liter</SelectItem>
+                              <SelectItem value="Set">Set</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Description*</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter item description" 
+                              {...field}
+                              readOnly 
+                              disabled
+                              className="bg-muted"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="specification"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Specification</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Enter specifications"
+                              {...field}
+                              value={field.value || ''}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="makeOrBuy"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Make/Buy</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value || ''}
+                            disabled
+                          >
+                            <FormControl>
+                              <SelectTrigger className="bg-muted">
+                                <SelectValue placeholder="Select Make/Buy" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Make">Make</SelectItem>
+                              <SelectItem value="Buy">Buy</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="drawingNo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Drawing No.</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter drawing number"
+                              {...field}
+                              value={field.value || ''}
+                              readOnly 
+                              disabled
+                              className="bg-muted"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="standardCost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Standard Cost</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="Enter standard cost"
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                field.onChange(value ? parseFloat(value) : null);
+                              }}
+                              value={field.value === null ? '' : field.value}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="supplier"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Supplier</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter supplier name"
+                              {...field}
+                              value={field.value || ''}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Notes</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Additional notes"
+                              {...field}
+                              value={field.value || ''}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditDialogOpen(false);
+                        setCurrentItem(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={updateMutation.isPending}
+                    >
+                      {updateMutation.isPending ? 'Updating...' : 'Update Item'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </TabsContent>
+            
+            <TabsContent value="components">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Sub-Assembly Components</h3>
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-1" /> Add Component
+                  </Button>
+                </div>
                 
-                <FormField
-                  control={editForm.control}
-                  name="uom"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Unit of Measurement*</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select UOM" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Nos">Nos</SelectItem>
-                          <SelectItem value="Kg">Kg</SelectItem>
-                          <SelectItem value="Meter">Meter</SelectItem>
-                          <SelectItem value="Liter">Liter</SelectItem>
-                          <SelectItem value="Set">Set</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Component Item Code</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>UOM</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-6">
+                          <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
+                            <Package className="h-8 w-8 mb-2" />
+                            <p>No components added yet</p>
+                            <p className="text-xs mt-1">Add components to this assembly by clicking the "Add Component" button</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
                 
-                <FormField
-                  control={editForm.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Description*</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter item description" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={editForm.control}
-                  name="specification"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Specification</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Enter specifications"
-                          {...field}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={editForm.control}
-                  name="makeOrBuy"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Make/Buy</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value || ''}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Make/Buy" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Make">Make</SelectItem>
-                          <SelectItem value="Buy">Buy</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={editForm.control}
-                  name="drawingNo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Drawing No.</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Enter drawing number"
-                          {...field}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={editForm.control}
-                  name="standardCost"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Standard Cost</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="Enter standard cost"
-                          {...field}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            field.onChange(value ? parseFloat(value) : null);
-                          }}
-                          value={field.value === null ? '' : field.value}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={editForm.control}
-                  name="supplier"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Supplier</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Enter supplier name"
-                          {...field}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={editForm.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Notes</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Additional notes"
-                          {...field}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <Card className="bg-muted/50">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <FileUp className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="text-sm font-medium">Import Components</h4>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Import sub-assembly components from an Excel file
+                    </p>
+                    <div className="flex items-center">
+                      <Input 
+                        type="file" 
+                        accept=".xlsx,.xls" 
+                        className="text-xs w-auto flex-1 mr-2" 
+                      />
+                      <Button size="sm" variant="outline">
+                        Import
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-              
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIsEditDialogOpen(false);
-                    setCurrentItem(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateMutation.isPending}
-                >
-                  {updateMutation.isPending ? 'Updating...' : 'Update Item'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
       
