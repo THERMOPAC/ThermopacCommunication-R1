@@ -74,7 +74,7 @@ export function ItemComponentsImport({
       });
 
       // Send POST request to import API
-      const response = await apiRequest('POST', '/api/master-items/components/import-excel', formData, true);
+      const response = await apiRequest('POST', '/api/master-items/components/import-excel', formData);
       const data = await response.json();
 
       if (!response.ok) {
@@ -118,7 +118,7 @@ export function ItemComponentsImport({
         )}
 
         {results && (
-          <Alert className="mb-4" variant={results.errors.length > 0 ? "warning" : "default"}>
+          <Alert className="mb-4" variant={results.errors.length > 0 ? "destructive" : "default"}>
             <CheckCircle className="h-4 w-4" />
             <AlertTitle>Import Completed</AlertTitle>
             <AlertDescription>
