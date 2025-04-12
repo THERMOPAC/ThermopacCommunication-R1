@@ -79,6 +79,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { canManageContent } from '@/lib/permissions';
 import MasterItemsImport from './master-items-import';
 import { ItemComponentsImport } from './item-components-import';
+import ItemFileStorage from './item-file-storage';
 
 // Define the MasterItem type based on your schema
 interface MasterItem {
@@ -1080,37 +1081,12 @@ const ItemMasterManagement: React.FC = () => {
             
             <TabsContent value="files">
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">File Storage</h3>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-1" /> Upload File
-                  </Button>
-                </div>
-                
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>File Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Size</TableHead>
-                        <TableHead>Upload Date</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-6">
-                          <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
-                            <FolderOpen className="h-8 w-8 mb-2" />
-                            <p>No files uploaded yet</p>
-                            <p className="text-xs mt-1">Upload files using the Upload File button</p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
+                {currentItem && (
+                  <ItemFileStorage 
+                    itemId={currentItem.id}
+                    itemCode={currentItem.itemCode}
+                  />
+                )}
                 
                 <div className="flex justify-end mt-6">
                   <Button
