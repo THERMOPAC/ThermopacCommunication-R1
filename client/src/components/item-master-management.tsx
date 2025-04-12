@@ -118,6 +118,20 @@ const ItemMasterManagement: React.FC = () => {
   const [deleteDialogItem, setDeleteDialogItem] = useState<MasterItem | null>(null);
   const [activeTab, setActiveTab] = useState<string>("details");
   
+  // Query for item components when viewing the components tab
+  const itemComponentsQuery = useQuery({
+    queryKey: ['item-components', currentItem?.id],
+    queryFn: async () => {
+      if (!currentItem) return [];
+      const response = await fetch(`/api/master-items/${currentItem.id}/components`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch components');
+      }
+      return response.json();
+    },
+    enabled: !!currentItem && activeTab === 'components',
+  });
+  
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -871,15 +885,45 @@ const ItemMasterManagement: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-6">
-                          <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
-                            <Package className="h-8 w-8 mb-2" />
-                            <p>No components added yet</p>
-                            <p className="text-xs mt-1">Add components to this assembly by clicking the "Add Component" button</p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                      {itemComponentsQuery.isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-4">
+                            <div className="flex justify-center">
+                              <div className="animate-spin h-6 w-6 border-t-2 border-b-2 border-primary rounded-full"></div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : itemComponentsQuery.error ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-red-500">
+                            Error loading components: {(itemComponentsQuery.error as Error).message}
+                          </TableCell>
+                        </TableRow>
+                      ) : itemComponentsQuery.data && itemComponentsQuery.data.length > 0 ? (
+                        itemComponentsQuery.data.map((component: any) => (
+                          <TableRow key={component.id}>
+                            <TableCell>{component.componentItemCode}</TableCell>
+                            <TableCell>{component.componentDescription}</TableCell>
+                            <TableCell>{component.quantity}</TableCell>
+                            <TableCell>{component.componentUom}</TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="sm">
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-6">
+                            <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
+                              <Package className="h-8 w-8 mb-2" />
+                              <p>No components added yet</p>
+                              <p className="text-xs mt-1">Add components to this assembly by importing from Excel</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>

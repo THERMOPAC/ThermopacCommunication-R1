@@ -148,11 +148,11 @@ export function setupItemComponentsImportRoutes(app: Router) {
             // Insert new component
             await db.insert(itemComponents)
               .values({
-                parent_item_id: parentItemId,
-                component_item_id: componentItem.id,
+                parentItemId: parentItemId,
+                componentItemId: componentItem.id,
                 quantity: quantity.toString(),
-                created_at: new Date(),
-                updated_at: new Date()
+                createdAt: new Date(),
+                updatedAt: new Date()
               });
 
             console.log(`Added component ${itemCode} to parent ${parentItemCode}`);
