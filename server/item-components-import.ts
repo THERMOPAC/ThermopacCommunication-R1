@@ -138,7 +138,7 @@ export function setupItemComponentsImportRoutes(app: Router) {
             // Update the quantity if the component already exists
             await db.update(itemComponents)
               .set({
-                quantity: parseFloat(quantity.toString()),
+                quantity: quantity.toString(),
                 updatedAt: new Date()
               })
               .where(eq(itemComponents.id, existingComponents[0].id));
@@ -148,11 +148,11 @@ export function setupItemComponentsImportRoutes(app: Router) {
             // Insert new component
             await db.insert(itemComponents)
               .values({
-                parentItemId: parentItemId,
-                componentItemId: componentItem.id,
-                quantity: parseFloat(quantity.toString()),
-                createdAt: new Date(),
-                updatedAt: new Date()
+                parent_item_id: parentItemId,
+                component_item_id: componentItem.id,
+                quantity: quantity.toString(),
+                created_at: new Date(),
+                updated_at: new Date()
               });
 
             console.log(`Added component ${itemCode} to parent ${parentItemCode}`);

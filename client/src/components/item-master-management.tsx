@@ -890,7 +890,7 @@ const ItemMasterManagement: React.FC = () => {
                     parentItemCode={currentItem.itemCode}
                     onImportComplete={() => {
                       // Refresh the components data after import
-                      // We'll add the API call to fetch components in the future
+                      itemComponentsQuery.refetch();
                       toast({
                         title: "Components imported",
                         description: "The component list has been updated successfully.",
