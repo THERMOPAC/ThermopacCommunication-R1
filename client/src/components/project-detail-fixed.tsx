@@ -897,7 +897,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           setIsEditProjectOpen(open);
         }}
       >
-        <DialogContent className="sm:max-w-screen-xl w-full max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[90vw] md:max-w-[80vw] w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Project Details</DialogTitle>
             <DialogDescription>
@@ -1165,6 +1165,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead className="w-[4%]"></TableHead>
                             <TableHead>Item Code</TableHead>
                             <TableHead>Description</TableHead>
                             <TableHead>Quantity</TableHead>
@@ -1179,6 +1180,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           {projectItems && projectItems.length > 0 ? (
                             projectItems.map((item) => (
                               <TableRow key={item.id}>
+                                <TableCell className="w-6">
+                                  <ArrowRight className="h-4 w-4 text-amber-500" />
+                                </TableCell>
                                 <TableCell>{item.masterItem?.itemCode || "N/A"}</TableCell>
                                 <TableCell>{item.masterItem?.description || "N/A"}</TableCell>
                                 <TableCell>{item.quantity}</TableCell>
@@ -1255,7 +1259,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             ))
                           ) : (
                             <TableRow>
-                              <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
+                              <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
                                 No project items found. Use the Import button to add items.
                               </TableCell>
                             </TableRow>
