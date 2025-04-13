@@ -406,13 +406,13 @@ export function setupDispatchRoutes(app: Router) {
       const documentId = parseInt(req.params.id);
       
       // Get the document
-      const document = await db.query.dispatchDocuments.findFirst({
-        where: eq(dispatchDocuments.id, documentId)
-      });
+      const documentResult = await db.select().from(dispatchDocuments).where(eq(dispatchDocuments.id, documentId)).limit(1);
       
-      if (!document) {
+      if (!documentResult || documentResult.length === 0) {
         return res.status(404).json({ error: 'Document not found' });
       }
+      
+      const document = documentResult[0];
       
       // Check if the URL is still valid
       const now = new Date();
@@ -461,13 +461,13 @@ export function setupDispatchRoutes(app: Router) {
       const documentId = parseInt(req.params.id);
       
       // Get the document
-      const document = await db.query.dispatchDocuments.findFirst({
-        where: eq(dispatchDocuments.id, documentId)
-      });
+      const documentResult = await db.select().from(dispatchDocuments).where(eq(dispatchDocuments.id, documentId)).limit(1);
       
-      if (!document) {
+      if (!documentResult || documentResult.length === 0) {
         return res.status(404).json({ error: 'Document not found' });
       }
+      
+      const document = documentResult[0];
       
       // Delete from GCS
       if (document.storage_path) {
