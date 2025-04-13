@@ -56,24 +56,30 @@ export function setupDispatchRoutes(app: Router) {
       const dispatchId = parseInt(req.params.id);
       
       // Get the dispatch record
-      const dispatchRecord = await db.query.dispatchRecords.findFirst({
-        where: eq(dispatchRecords.id, dispatchId),
-        with: {
-          project: true,
-          items: {
-            with: {
-              item: true
-            }
-          },
-          documents: true
-        }
-      });
+      const dispatchRecordResult = await db.select().from(dispatchRecords).where(eq(dispatchRecords.id, dispatchId)).limit(1);
       
-      if (!dispatchRecord) {
+      if (!dispatchRecordResult || dispatchRecordResult.length === 0) {
         return res.status(404).json({ error: 'Dispatch record not found' });
       }
       
-      res.json(dispatchRecord);
+      const dispatchRecord = dispatchRecordResult[0];
+      
+      // Get related items separately
+      const items = await db.select().from(dispatchItems)
+        .where(eq(dispatchItems.dispatch_id, dispatchId));
+        
+      // Get related documents
+      const documents = await db.select().from(dispatchDocuments)
+        .where(eq(dispatchDocuments.dispatch_id, dispatchId));
+      
+      // Combine the data
+      const result = {
+        ...dispatchRecord,
+        items,
+        documents
+      };
+      
+      res.json(result);
     } catch (error) {
       console.error('Error fetching dispatch record:', error);
       res.status(500).json({ error: 'Failed to fetch dispatch record' });
@@ -348,18 +354,21 @@ export function setupDispatchRoutes(app: Router) {
       const fileName = req.file.originalname;
       const fileBuffer = req.file.buffer;
       
+      // Get dispatch number and ensure it exists
+      const dispatchNumber = dispatch[0].dispatch_number;
+      
       // Create the file path in GCS
-      const filePath = `THERMOPAC_PROJECTS/${project.financial_year}/${project.code}/Dispatch/${dispatch.dispatch_number}/${document_type}_${fileName}`;
+      const filePath = `THERMOPAC_PROJECTS/${project.financialYear}/${project.code}/Dispatch/${dispatchNumber}/${document_type}_${fileName}`;
       
       // Create or ensure the directory structure exists
-      await gcsStorage.ensureDirectoryStructure(`THERMOPAC_PROJECTS/${project.financial_year}/${project.code}/Dispatch/${dispatch.dispatch_number}`);
+      await gcsStorage.ensureDirectoryStructure(`THERMOPAC_PROJECTS/${project.financialYear}/${project.code}/Dispatch/${dispatchNumber}`);
       
       // Generate upload signed URL
       const uploadUrl = await gcsStorage.generateUploadSignedUrl({
-        financialYear: project.financial_year,
+        financialYear: project.financialYear,
         projectCode: project.code,
         department: 'Dispatch',
-        subDirectory: dispatch.dispatch_number.toString(),
+        subDirectory: dispatchNumber,
         fileName: `${document_type}_${fileName}`,
         contentType: req.file.mimetype
       });
@@ -412,6 +421,11 @@ export function setupDispatchRoutes(app: Router) {
       }
       
       // Generate a new signed URL
+      // Make sure storage_path is not null
+      if (!document.storage_path) {
+        return res.status(404).json({ error: 'Document path not found' });
+      }
+      
       const downloadUrl = await gcsStorage.generateDownloadSignedUrl({
         filePath: document.storage_path
       });
