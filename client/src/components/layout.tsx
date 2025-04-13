@@ -20,7 +20,8 @@ import {
   ChevronRight,
   Factory,
   BadgeCheck,
-  Truck
+  Truck,
+  HeartPulse
 } from "lucide-react";
 import { useState } from "react";
 
@@ -101,6 +102,7 @@ export default function Layout({ children }: LayoutProps) {
     },
     { icon: Briefcase, label: "Project Commissioning", href: "/project-commissioning" },
     { icon: Truck, label: "Dispatch & Shipping", href: "/dispatch-shipping" },
+    { icon: HeartPulse, label: "After-Sales", href: "/after-sales" },
     { icon: Users, label: "Team", href: "/team" },
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
