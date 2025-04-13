@@ -224,11 +224,16 @@ router.put('/service-activities/:id', async (req, res) => {
     const { id } = req.params;
     const data = insertServiceActivitySchema.parse(req.body);
     
+    // Convert dates to string format before update
+    const valuesToUpdate = {
+      ...data,
+      scheduled_date: data.scheduled_date ? new Date(data.scheduled_date).toISOString() : undefined,
+      actual_date: data.actual_date ? new Date(data.actual_date).toISOString() : undefined,
+      updated_at: new Date().toISOString()
+    };
+    
     const [updatedActivity] = await db.update(serviceActivities)
-      .set({
-        ...data,
-        updated_at: new Date()
-      })
+      .set(valuesToUpdate)
       .where(eq(serviceActivities.id, parseInt(id)))
       .returning();
     
@@ -264,12 +269,16 @@ router.post('/service-activities/:activityId/parts', async (req, res) => {
       return res.status(404).json({ message: 'Service activity not found' });
     }
     
+    // Convert unit_price to string and format dates
+    const valuesToInsert = {
+      ...data,
+      unit_price: data.unit_price !== null ? String(data.unit_price) : null,
+      service_activity_id: parseInt(activityId),
+      created_at: new Date().toISOString()
+    };
+    
     const [newPart] = await db.insert(serviceParts)
-      .values({
-        ...data,
-        service_activity_id: parseInt(activityId),
-        created_at: new Date()
-      })
+      .values(valuesToInsert)
       .returning();
     
     res.status(201).json(newPart);
@@ -288,10 +297,14 @@ router.put('/service-parts/:id', async (req, res) => {
     const { id } = req.params;
     const data = insertServicePartSchema.parse(req.body);
     
+    // Convert unit_price to string
+    const valuesToUpdate = {
+      ...data,
+      unit_price: data.unit_price !== null ? String(data.unit_price) : null
+    };
+    
     const [updatedPart] = await db.update(serviceParts)
-      .set({
-        ...data
-      })
+      .set(valuesToUpdate)
       .where(eq(serviceParts.id, parseInt(id)))
       .returning();
     
@@ -725,12 +738,12 @@ router.get('/dashboard', async (req, res) => {
     const topCustomersByRequests = await db
       .select({
         customer_id: serviceRequests.customer_id,
-        customer_name: customers.bp_name,
+        customer_name: customers.bpName,
         request_count: sql<number>`count(*)`,
       })
       .from(serviceRequests)
       .innerJoin(customers, eq(serviceRequests.customer_id, customers.id))
-      .groupBy(serviceRequests.customer_id, customers.bp_name)
+      .groupBy(serviceRequests.customer_id, customers.bpName)
       .orderBy(sql`count(*)`)
       .limit(5);
     

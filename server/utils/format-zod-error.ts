@@ -1,10 +1,18 @@
 import { ZodError } from 'zod';
 
-// Format Zod validation errors into a more user-friendly object
+/**
+ * Formats a ZodError into a more user-friendly structure
+ * 
+ * @param error The ZodError instance
+ * @returns An object with field names as keys and error messages as values
+ */
 export function formatZodError(error: ZodError) {
-  return error.errors.reduce((acc, curr) => {
-    const path = curr.path.join('.');
-    acc[path] = curr.message;
-    return acc;
-  }, {} as Record<string, string>);
+  const formattedErrors: Record<string, string> = {};
+  
+  error.errors.forEach((err) => {
+    const path = err.path.join('.');
+    formattedErrors[path || 'general'] = err.message;
+  });
+  
+  return formattedErrors;
 }
