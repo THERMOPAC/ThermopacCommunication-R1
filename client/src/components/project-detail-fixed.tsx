@@ -433,7 +433,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   // Update project item status
   const updateProjectItemStatusMutation = useMutation({
     mutationFn: async ({ itemId, status }: { itemId: number, status: string }) => {
-      const res = await apiRequest("PATCH", `/api/project-items/${itemId}`, { status });
+      const res = await apiRequest("PUT", `/api/project-items/${itemId}`, { status });
       if (!res.ok) {
         throw new Error("Failed to update item status");
       }
