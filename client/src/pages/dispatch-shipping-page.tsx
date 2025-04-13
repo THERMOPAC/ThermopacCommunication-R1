@@ -593,11 +593,12 @@ export default function DispatchShippingPage() {
               <div>
                 <h4 className="font-medium text-sm text-muted-foreground">Status</h4>
                 <Badge
-                  variant={
-                    selectedDispatch.delivery_status === "Delivered" ? "success" :
-                    selectedDispatch.delivery_status === "In Transit" ? "warning" :
-                    "outline"
+                  className={
+                    selectedDispatch.delivery_status === "Delivered" ? "bg-green-500 text-white" :
+                    selectedDispatch.delivery_status === "In Transit" ? "bg-yellow-500 text-white" :
+                    ""
                   }
+                  variant={selectedDispatch.delivery_status === "Pending" ? "outline" : "default"}
                 >
                   {selectedDispatch.delivery_status}
                 </Badge>
@@ -998,11 +999,14 @@ export default function DispatchShippingPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {transporters && transporters.map((transporter: Transporter) => (
-                            <SelectItem key={transporter.id} value={transporter.id.toString()}>
-                              {transporter.name}
-                            </SelectItem>
-                          ))}
+                          {transporters && Array.isArray(transporters) ? 
+                            transporters.map((transporter: Transporter) => (
+                              <SelectItem key={transporter.id} value={transporter.id.toString()}>
+                                {transporter.name}
+                              </SelectItem>
+                            )) : 
+                            <SelectItem value="">No transporters available</SelectItem>
+                          }
                         </SelectContent>
                       </Select>
                       <FormMessage />

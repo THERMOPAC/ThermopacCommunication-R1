@@ -476,8 +476,8 @@ export function setupDispatchRoutes(app: Router) {
   app.get('/api/transporters', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const transporters = await db.query.transporters.findMany({
-        where: eq(db.schema.transporters.is_active, true),
-        orderBy: db.schema.transporters.name
+        where: eq(transporters.is_active, true),
+        orderBy: transporters.name
       });
       
       res.json(transporters);
@@ -499,7 +499,7 @@ export function setupDispatchRoutes(app: Router) {
       const { name, contact_person, email, phone, address, gst_number } = req.body;
       
       // Create the transporter
-      const [newTransporter] = await db.insert(db.schema.transporters).values({
+      const [newTransporter] = await db.insert(transporters).values({
         name,
         contact_person,
         email,
