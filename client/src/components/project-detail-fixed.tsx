@@ -1906,13 +1906,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <TableBody>
                     {isLoadingItems ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-4">
+                        <TableCell colSpan={9} className="text-center py-4">
                           <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                         </TableCell>
                       </TableRow>
                     ) : projectItems?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-4">
+                        <TableCell colSpan={9} className="text-center py-4">
                           <div className="flex flex-col items-center justify-center text-muted-foreground">
                             <Boxes className="h-10 w-10 mb-2" />
                             <p>No project items yet</p>
@@ -1979,7 +1979,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell>{formatDate(item.createdAt)}</TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center space-x-2">
                               <Button
