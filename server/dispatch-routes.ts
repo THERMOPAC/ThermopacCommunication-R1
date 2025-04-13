@@ -370,7 +370,7 @@ export function setupDispatchRoutes(app: Router) {
       };
       
       // Add the document to the database
-      const [newDocument] = await db.insert(db.schema.dispatch_documents).values({
+      const [newDocument] = await db.insert(dispatchDocuments).values({
         dispatch_id: dispatchId,
         document_type,
         document_name: fileName,
@@ -396,8 +396,8 @@ export function setupDispatchRoutes(app: Router) {
       const documentId = parseInt(req.params.id);
       
       // Get the document
-      const document = await db.query.dispatch_documents.findFirst({
-        where: eq(db.schema.dispatch_documents.id, documentId)
+      const document = await db.query.dispatchDocuments.findFirst({
+        where: eq(dispatchDocuments.id, documentId)
       });
       
       if (!document) {
@@ -420,12 +420,12 @@ export function setupDispatchRoutes(app: Router) {
       }
       
       // Update the document with the new URL and expiry
-      await db.update(db.schema.dispatch_documents)
+      await db.update(dispatchDocuments)
         .set({
           storage_url: downloadUrl,
           storage_url_expiry: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes expiry
         })
-        .where(eq(db.schema.dispatch_documents.id, documentId));
+        .where(eq(dispatchDocuments.id, documentId));
       
       res.json({ url: downloadUrl });
     } catch (error) {
@@ -446,8 +446,8 @@ export function setupDispatchRoutes(app: Router) {
       const documentId = parseInt(req.params.id);
       
       // Get the document
-      const document = await db.query.dispatch_documents.findFirst({
-        where: eq(db.schema.dispatch_documents.id, documentId)
+      const document = await db.query.dispatchDocuments.findFirst({
+        where: eq(dispatchDocuments.id, documentId)
       });
       
       if (!document) {
@@ -460,8 +460,8 @@ export function setupDispatchRoutes(app: Router) {
       }
       
       // Delete from database
-      await db.delete(db.schema.dispatch_documents)
-        .where(eq(db.schema.dispatch_documents.id, documentId));
+      await db.delete(dispatchDocuments)
+        .where(eq(dispatchDocuments.id, documentId));
       
       res.status(204).send();
     } catch (error) {
