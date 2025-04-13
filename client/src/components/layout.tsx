@@ -31,20 +31,34 @@ export default function Layout({ children }: LayoutProps) {
   const { user } = useAuth();
   const [location] = useLocation();
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
+  const [isProductionMenuOpen, setIsProductionMenuOpen] = useState(false);
+  const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
 
   // Check if we're on any project-related page
   const isOnProjectsPage = location.startsWith('/project') || 
                          location === '/customers' || 
                          location === '/item-master';
   
-  // If we're on a project page, make sure the menu is open
+  // Check if we're on any production-related page
+  const isOnProductionPage = location === '/production-planning' ||
+                           location === '/shop-floor';
+                           
+  // Check if we're on any quality-related page
+  const isOnQualityPage = location === '/inspections' ||
+                        location === '/quality-reports';
+  
+  // Auto-open menus based on current page
   if (isOnProjectsPage && !isProjectMenuOpen) {
     setIsProjectMenuOpen(true);
   }
-
-  // State for the newly added menus
-  const [isProductionMenuOpen, setIsProductionMenuOpen] = useState(false);
-  const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
+  
+  if (isOnProductionPage && !isProductionMenuOpen) {
+    setIsProductionMenuOpen(true);
+  }
+  
+  if (isOnQualityPage && !isQualityMenuOpen) {
+    setIsQualityMenuOpen(true);
+  }
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
