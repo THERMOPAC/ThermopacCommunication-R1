@@ -198,6 +198,69 @@ export const insertUserAchievementSchema = createInsertSchema(userAchievements);
 
 export const insertProductivityMetricSchema = createInsertSchema(productivityMetrics);
 
+// Dispatch & Shipping tables
+export const dispatchRecords = pgTable('dispatch_records', {
+  id: serial('id').primaryKey(),
+  project_id: integer('project_id').references(() => projects.id).notNull(),
+  dispatch_number: text('dispatch_number').notNull(),
+  dispatch_date: timestamp('dispatch_date').notNull(),
+  transporter_name: text('transporter_name'),
+  transporter_contact: text('transporter_contact'),
+  vehicle_number: text('vehicle_number'),
+  gate_pass_number: text('gate_pass_number'),
+  delivery_status: text('delivery_status').notNull().default('Pending'),
+  estimated_delivery_date: timestamp('estimated_delivery_date'),
+  actual_delivery_date: timestamp('actual_delivery_date'),
+  notes: text('notes'),
+  created_by: integer('created_by').references(() => users.id).notNull(),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const dispatchItems = pgTable('dispatch_items', {
+  id: serial('id').primaryKey(),
+  dispatch_id: integer('dispatch_id').references(() => dispatchRecords.id).notNull(),
+  item_id: integer('item_id').references(() => masterItems.id).notNull(),
+  quantity: text('quantity').notNull(),
+  unit: text('unit').notNull(),
+  quality_approved: boolean('quality_approved').notNull().default(false),
+  quality_approval_date: timestamp('quality_approval_date'),
+  quality_approved_by: integer('quality_approved_by').references(() => users.id),
+  notes: text('notes'),
+});
+
+export const dispatchDocuments = pgTable('dispatch_documents', {
+  id: serial('id').primaryKey(),
+  dispatch_id: integer('dispatch_id').references(() => dispatchRecords.id).notNull(),
+  document_type: text('document_type').notNull(),
+  document_name: text('document_name').notNull(),
+  document_path: text('document_path').notNull(),
+  uploaded_by: integer('uploaded_by').references(() => users.id).notNull(),
+  uploaded_at: timestamp('uploaded_at').defaultNow().notNull(),
+  storage_path: text('storage_path'),
+  storage_url: text('storage_url'),
+  storage_url_expiry: timestamp('storage_url_expiry'),
+});
+
+export const transporters = pgTable('transporters', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  contact_person: text('contact_person'),
+  email: text('email'),
+  phone: text('phone'),
+  address: text('address'),
+  gst_number: text('gst_number'),
+  is_active: boolean('is_active').notNull().default(true),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Insert schemas for Dispatch & Shipping
+export const insertDispatchRecordSchema = createInsertSchema(dispatchRecords);
+export const insertDispatchItemSchema = createInsertSchema(dispatchItems);
+export const insertDispatchDocumentSchema = createInsertSchema(dispatchDocuments);
+export const insertTransporterSchema = createInsertSchema(transporters);
+
 // Insert schema for recurring tasks
 export const insertRecurringTaskSchema = createInsertSchema(recurringTasks).extend({
   priority: z.enum(['Low', 'Medium', 'High']),

@@ -1,10 +1,14 @@
 /**
  * This script adds the new tables for Dispatch & Shipping module
  */
-import { Pool } from '@neondatabase/serverless';
+import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import ws from 'ws';
+
+// Configure WebSocket for Neon database
+neonConfig.webSocketConstructor = ws;
 
 async function addDispatchShippingTables() {
   console.log('Starting to add Dispatch & Shipping tables...');

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from './db';
 import multer from 'multer';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
-import { getGcsStorage } from './utils/gcs-storage';
+import { gcsStorage } from './utils/gcs-storage';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
@@ -343,14 +343,30 @@ export function setupDispatchRoutes(app: Router) {
       const project = dispatch.project;
       
       // Upload to GCS
-      const gcsStorage = getGcsStorage();
       const fileName = req.file.originalname;
       const fileBuffer = req.file.buffer;
       
       // Create the file path in GCS
       const filePath = `THERMOPAC_PROJECTS/${project.financial_year}/${project.code}/Dispatch/${dispatch.dispatch_number}/${document_type}_${fileName}`;
       
-      const uploadResult = await gcsStorage.uploadFile(filePath, fileBuffer, req.file.mimetype);
+      // Create or ensure the directory structure exists
+      await gcsStorage.ensureDirectoryStructure(`THERMOPAC_PROJECTS/${project.financial_year}/${project.code}/Dispatch/${dispatch.dispatch_number}`);
+      
+      // Generate upload signed URL
+      const uploadUrl = await gcsStorage.generateUploadSignedUrl({
+        financialYear: project.financial_year,
+        projectCode: project.code,
+        department: 'Dispatch',
+        subDirectory: dispatch.dispatch_number.toString(),
+        fileName: `${document_type}_${fileName}`,
+        contentType: req.file.mimetype
+      });
+      
+      const uploadResult = {
+        path: filePath,
+        url: uploadUrl,
+        expiryTime: Date.now() + 15 * 60 * 1000 // 15 minutes expiry
+      };
       
       // Add the document to the database
       const [newDocument] = await db.insert(db.schema.dispatch_documents).values({
@@ -394,18 +410,23 @@ export function setupDispatchRoutes(app: Router) {
       }
       
       // Generate a new signed URL
-      const gcsStorage = getGcsStorage();
-      const downloadUrl = await gcsStorage.getSignedUrl(document.storage_path);
+      const downloadUrl = await gcsStorage.generateDownloadSignedUrl({
+        filePath: document.storage_path
+      });
+      
+      if (!downloadUrl) {
+        return res.status(404).json({ error: 'Could not generate download URL for file' });
+      }
       
       // Update the document with the new URL and expiry
       await db.update(db.schema.dispatch_documents)
         .set({
-          storage_url: downloadUrl.url,
-          storage_url_expiry: downloadUrl.expiryTime ? new Date(downloadUrl.expiryTime) : null
+          storage_url: downloadUrl,
+          storage_url_expiry: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes expiry
         })
         .where(eq(db.schema.dispatch_documents.id, documentId));
       
-      res.json({ url: downloadUrl.url });
+      res.json({ url: downloadUrl });
     } catch (error) {
       console.error('Error getting download URL:', error);
       res.status(500).json({ error: 'Failed to get download URL' });
@@ -434,7 +455,6 @@ export function setupDispatchRoutes(app: Router) {
       
       // Delete from GCS
       if (document.storage_path) {
-        const gcsStorage = getGcsStorage();
         await gcsStorage.deleteFile(document.storage_path);
       }
       
