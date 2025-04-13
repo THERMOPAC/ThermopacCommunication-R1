@@ -3,7 +3,7 @@ import { db } from './db';
 import multer from 'multer';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
 import { gcsStorage } from './utils/gcs-storage';
-import { dispatchRecords, dispatchItems, dispatchDocuments, transporters, masterItems } from '@shared/schema';
+import { dispatchRecords, dispatchItems, dispatchDocuments, transporters, masterItems, projects } from '@shared/schema';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
@@ -28,20 +28,24 @@ export function setupDispatchRoutes(app: Router) {
       const projectId = parseInt(req.params.projectId);
       
       // Get all dispatch records for the project
-      const dispatchList = await db.query.dispatchRecords.findMany({
-        where: eq(dispatchRecords.project_id, projectId),
-        orderBy: [desc(dispatchRecords.dispatch_date)],
-        with: {
-          project: true,
-          items: {
-            with: {
-              item: true
-            }
-          }
-        }
-      });
+      const dispatchList = await db.select().from(dispatchRecords)
+        .where(eq(dispatchRecords.project_id, projectId))
+        .orderBy(desc(dispatchRecords.dispatch_date));
+        
+      // For each dispatch record, load related items
+      const enhancedDispatchList = await Promise.all(dispatchList.map(async (dispatch) => {
+        // Get items for this dispatch
+        const items = await db.select().from(dispatchItems)
+          .where(eq(dispatchItems.dispatch_id, dispatch.id));
+          
+        // Return dispatch with items
+        return {
+          ...dispatch,
+          items
+        };
+      }));
       
-      res.json(dispatchList);
+      res.json(enhancedDispatchList);
     } catch (error) {
       console.error('Error fetching dispatch records:', error);
       res.status(500).json({ error: 'Failed to fetch dispatch records' });
@@ -236,9 +240,8 @@ export function setupDispatchRoutes(app: Router) {
       const { item_id, quantity, unit, notes } = req.body;
       
       // Verify the item exists
-      const item = await db.query.masterItems.findFirst({
-        where: eq(masterItems.id, item_id)
-      });
+      const itemResult = await db.select().from(masterItems).where(eq(masterItems.id, item_id)).limit(1);
+      const item = itemResult && itemResult.length > 0 ? itemResult[0] : null;
       
       if (!item) {
         return res.status(404).json({ error: 'Item not found' });
