@@ -761,6 +761,334 @@ export type InsertPhaseApproval = z.infer<typeof insertPhaseApprovalSchema>;
 export type ProjectDocument = typeof projectDocuments.$inferSelect;
 export type InsertProjectDocument = z.infer<typeof insertProjectDocumentSchema>;
 
+// ==================== PRODUCTION MANAGEMENT MODULE ====================
+
+// Work Orders table
+export const workOrders = pgTable('work_orders', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectCode: text('project_code').notNull(),
+  workOrderNumber: text('work_order_number').notNull().unique(),
+  title: text('title').notNull(),
+  description: text('description'),
+  status: text('status').notNull().default('planned'), // planned, in_progress, on_hold, completed, cancelled
+  priority: text('priority').notNull().default('Medium'), // Low, Medium, High
+  
+  // Dates and scheduling
+  plannedStartDate: timestamp('planned_start_date').notNull(),
+  plannedEndDate: timestamp('planned_end_date').notNull(),
+  actualStartDate: timestamp('actual_start_date'),
+  actualEndDate: timestamp('actual_end_date'),
+  
+  // Production details
+  productionLine: text('production_line'),
+  batchNumber: text('batch_number'),
+  quantity: integer('quantity').notNull().default(1),
+  
+  // Resources and costs
+  estimatedHours: integer('estimated_hours'),
+  actualHours: integer('actual_hours'),
+  estimatedCost: decimal('estimated_cost', { precision: 12, scale: 2 }),
+  actualCost: decimal('actual_cost', { precision: 12, scale: 2 }),
+  
+  // Ownership and creation details
+  supervisorId: integer('supervisor_id').notNull().references(() => users.id),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Work Order Items table (linking work orders to project items)
+export const workOrderItems = pgTable('work_order_items', {
+  id: serial('id').primaryKey(),
+  workOrderId: integer('work_order_id').notNull().references(() => workOrders.id, { onDelete: 'cascade' }),
+  projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+  
+  // Production details for this specific item
+  status: text('status').notNull().default('pending'), // pending, in_progress, complete
+  sequenceNumber: integer('sequence_number').notNull(), // order of production
+  notes: text('notes'),
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Resource Assignments table (tracking who's working on what)
+export const resourceAssignments = pgTable('resource_assignments', {
+  id: serial('id').primaryKey(),
+  workOrderId: integer('work_order_id').notNull().references(() => workOrders.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id),
+  
+  // Assignment details
+  role: text('role').notNull(), // operator, inspector, supervisor, helper
+  startDate: timestamp('start_date').notNull(),
+  endDate: timestamp('end_date'),
+  hoursAllocated: decimal('hours_allocated', { precision: 8, scale: 2 }),
+  hoursSpent: decimal('hours_spent', { precision: 8, scale: 2 }).default('0'),
+  
+  // Status
+  status: text('status').notNull().default('assigned'), // assigned, in_progress, completed, reassigned
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Production Records table (daily production entry)
+export const productionRecords = pgTable('production_records', {
+  id: serial('id').primaryKey(),
+  workOrderId: integer('work_order_id').notNull().references(() => workOrders.id, { onDelete: 'cascade' }),
+  workOrderItemId: integer('work_order_item_id').references(() => workOrderItems.id, { onDelete: 'cascade' }),
+  
+  // Production metrics
+  date: date('date').notNull(),
+  shift: text('shift').notNull(), // morning, afternoon, night
+  quantityProduced: integer('quantity_produced').notNull(),
+  quantityRejected: integer('quantity_rejected').notNull().default(0),
+  hoursWorked: decimal('hours_worked', { precision: 8, scale: 2 }).notNull(),
+  
+  // Quality and issues
+  issuesEncountered: text('issues_encountered'),
+  
+  // Ownership
+  recordedBy: integer('recorded_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Material Consumption table
+export const materialConsumption = pgTable('material_consumption', {
+  id: serial('id').primaryKey(),
+  workOrderId: integer('work_order_id').notNull().references(() => workOrders.id, { onDelete: 'cascade' }),
+  componentItemId: integer('component_item_id').notNull().references(() => masterItems.id),
+  
+  // Consumption details
+  quantityRequired: decimal('quantity_required', { precision: 10, scale: 2 }).notNull(),
+  quantityConsumed: decimal('quantity_consumed', { precision: 10, scale: 2 }).notNull().default('0'),
+  
+  // Tracking and status
+  status: text('status').notNull().default('allocated'), // allocated, partially_consumed, fully_consumed
+  recordedBy: integer('recorded_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Machine Allocation table
+export const machineAllocations = pgTable('machine_allocations', {
+  id: serial('id').primaryKey(),
+  workOrderId: integer('work_order_id').notNull().references(() => workOrders.id, { onDelete: 'cascade' }),
+  
+  // Machine details
+  machineName: text('machine_name').notNull(),
+  machineCode: text('machine_code'),
+  
+  // Allocation details
+  startTime: timestamp('start_time').notNull(),
+  endTime: timestamp('end_time'),
+  setupTimeMinutes: integer('setup_time_minutes').notNull().default(0),
+  downtimeMinutes: integer('downtime_minutes').notNull().default(0),
+  
+  // Status and tracking
+  status: text('status').notNull().default('scheduled'), // scheduled, active, completed, maintenance
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// ==================== QUALITY MANAGEMENT MODULE ====================
+
+// Inspection Reports table
+export const inspectionReports = pgTable('inspection_reports', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectCode: text('project_code').notNull(),
+  workOrderId: integer('work_order_id').references(() => workOrders.id, { onDelete: 'set null' }),
+  
+  // Report identification
+  reportNumber: text('report_number').notNull().unique(),
+  reportType: text('report_type').notNull(), // incoming, in-process, final, customer
+  title: text('title').notNull(),
+  
+  // Inspection details
+  inspectionDate: timestamp('inspection_date').notNull(),
+  location: text('location').notNull(),
+  inspectorId: integer('inspector_id').notNull().references(() => users.id),
+  
+  // Results
+  status: text('status').notNull().default('pending'), // pending, passed, failed, conditionally_passed
+  findings: text('findings'),
+  recommendations: text('recommendations'),
+  
+  // Related items
+  projectItemId: integer('project_item_id').references(() => projectItems.id, { onDelete: 'set null' }),
+  batchNumber: text('batch_number'),
+  quantityInspected: integer('quantity_inspected').notNull(),
+  quantityAccepted: integer('quantity_accepted').notNull().default(0),
+  quantityRejected: integer('quantity_rejected').notNull().default(0),
+  
+  // Document references
+  referenceDocuments: text('reference_documents').array(),
+  
+  // Approvals
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedDate: timestamp('approved_date'),
+  
+  // Tracking
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Non-Conformance Reports (NCRs) table
+export const nonConformanceReports = pgTable('non_conformance_reports', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectCode: text('project_code').notNull(),
+  inspectionReportId: integer('inspection_report_id').references(() => inspectionReports.id, { onDelete: 'set null' }),
+  
+  // NCR identification
+  ncrNumber: text('ncr_number').notNull().unique(),
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  
+  // Classification
+  severity: text('severity').notNull(), // critical, major, minor
+  category: text('category').notNull(), // dimensional, material, workmanship, documentation, other
+  
+  // Details
+  identifiedDate: timestamp('identified_date').notNull(),
+  identifiedBy: integer('identified_by').notNull().references(() => users.id),
+  location: text('location'),
+  
+  // Related items
+  projectItemId: integer('project_item_id').references(() => projectItems.id, { onDelete: 'set null' }),
+  workOrderId: integer('work_order_id').references(() => workOrders.id, { onDelete: 'set null' }),
+  batchNumber: text('batch_number'),
+  quantityAffected: integer('quantity_affected').notNull(),
+  
+  // Resolution
+  status: text('status').notNull().default('open'), // open, in_review, corrective_action, closed, waived
+  disposition: text('disposition'), // rework, repair, use_as_is, scrap, return_to_vendor
+  rootCause: text('root_cause'),
+  correctiveAction: text('corrective_action'),
+  preventiveAction: text('preventive_action'),
+  
+  // Approvals
+  reviewedBy: integer('reviewed_by').references(() => users.id),
+  reviewedDate: timestamp('reviewed_date'),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedDate: timestamp('approved_date'),
+  closedBy: integer('closed_by').references(() => users.id),
+  closedDate: timestamp('closed_date'),
+  
+  // Tracking
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Quality Checklists table
+export const qualityChecklists = pgTable('quality_checklists', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectCode: text('project_code').notNull(),
+  
+  // Checklist identification
+  checklistNumber: text('checklist_number').notNull().unique(),
+  title: text('title').notNull(),
+  description: text('description'),
+  
+  // Scope and applicability
+  checklistType: text('checklist_type').notNull(), // incoming, in-process, final, customer
+  applicableItems: text('applicable_items').array(), // Array of item codes this checklist applies to
+  
+  // Version control
+  version: text('version').notNull().default('1.0'),
+  status: text('status').notNull().default('draft'), // draft, active, deprecated
+  
+  // Ownership
+  preparedBy: integer('prepared_by').notNull().references(() => users.id),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvalDate: timestamp('approval_date'),
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Checklist Items table (individual checks within a checklist)
+export const checklistItems = pgTable('checklist_items', {
+  id: serial('id').primaryKey(),
+  checklistId: integer('checklist_id').notNull().references(() => qualityChecklists.id, { onDelete: 'cascade' }),
+  
+  // Check details
+  sequenceNumber: integer('sequence_number').notNull(),
+  description: text('description').notNull(),
+  requirement: text('requirement').notNull(),
+  acceptanceCriteria: text('acceptance_criteria').notNull(),
+  inspectionMethod: text('inspection_method').notNull(), // visual, measurement, test, documentation
+  
+  // Configuration
+  isCritical: boolean('is_critical').notNull().default(false),
+  requiresEvidence: boolean('requires_evidence').notNull().default(false),
+  referenceDocument: text('reference_document'),
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Checklist Executions table (instances of completed checklists)
+export const checklistExecutions = pgTable('checklist_executions', {
+  id: serial('id').primaryKey(),
+  checklistId: integer('checklist_id').notNull().references(() => qualityChecklists.id, { onDelete: 'cascade' }),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectCode: text('project_code').notNull(),
+  workOrderId: integer('work_order_id').references(() => workOrders.id, { onDelete: 'set null' }),
+  
+  // Execution details
+  executionDate: timestamp('execution_date').notNull(),
+  executedBy: integer('executed_by').notNull().references(() => users.id),
+  
+  // Results
+  status: text('status').notNull().default('in_progress'), // in_progress, completed, failed
+  overallResult: text('overall_result'), // pass, fail, conditional_pass
+  comments: text('comments'),
+  
+  // Related info
+  batchNumber: text('batch_number'),
+  referenceDocuments: text('reference_documents').array(),
+  
+  // Approvals
+  verifiedBy: integer('verified_by').references(() => users.id),
+  verifiedDate: timestamp('verified_date'),
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Checklist Item Results table (results for individual checks in an execution)
+export const checklistItemResults = pgTable('checklist_item_results', {
+  id: serial('id').primaryKey(),
+  executionId: integer('execution_id').notNull().references(() => checklistExecutions.id, { onDelete: 'cascade' }),
+  checklistItemId: integer('checklist_item_id').notNull().references(() => checklistItems.id, { onDelete: 'cascade' }),
+  
+  // Result details
+  result: text('result').notNull(), // pass, fail, n/a
+  measuredValue: text('measured_value'),
+  observation: text('observation'),
+  
+  // Evidence
+  evidenceFilePath: text('evidence_file_path'),
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 
@@ -778,3 +1106,165 @@ export type InsertGcsDirectory = z.infer<typeof insertGcsDirectorySchema>;
 // Directory template types
 export type DirectoryTemplate = typeof directoryTemplates.$inferSelect;
 export type InsertDirectoryTemplate = z.infer<typeof insertDirectoryTemplateSchema>;
+
+// ==================== PRODUCTION MANAGEMENT TYPES ====================
+export const insertWorkOrderSchema = createInsertSchema(workOrders, {
+  projectId: z.number().positive(),
+  projectCode: z.string().min(1),
+  workOrderNumber: z.string().min(1),
+  title: z.string().min(1),
+  plannedStartDate: z.date().or(z.string()),
+  plannedEndDate: z.date().or(z.string()),
+  supervisorId: z.number().positive(),
+  quantity: z.number().positive().optional(),
+});
+
+export const insertWorkOrderItemSchema = createInsertSchema(workOrderItems, {
+  workOrderId: z.number().positive(),
+  projectItemId: z.number().positive(),
+  quantity: z.number().positive(),
+  sequenceNumber: z.number().positive(),
+  status: z.string().optional(),
+});
+
+export const insertResourceAssignmentSchema = createInsertSchema(resourceAssignments, {
+  workOrderId: z.number().positive(),
+  userId: z.number().positive(),
+  role: z.string().min(1),
+  startDate: z.date().or(z.string()),
+  endDate: z.date().or(z.string()).optional(),
+  hoursAllocated: z.number().optional(),
+});
+
+export const insertProductionRecordSchema = createInsertSchema(productionRecords, {
+  workOrderId: z.number().positive(),
+  workOrderItemId: z.number().optional(),
+  date: z.date().or(z.string()),
+  shift: z.string().min(1),
+  quantityProduced: z.number().positive(),
+  quantityRejected: z.number().optional(),
+  hoursWorked: z.number().positive(),
+  recordedBy: z.number().positive(),
+});
+
+export const insertMaterialConsumptionSchema = createInsertSchema(materialConsumption, {
+  workOrderId: z.number().positive(),
+  componentItemId: z.number().positive(),
+  quantityRequired: z.number().positive(),
+  quantityConsumed: z.number().optional(),
+  recordedBy: z.number().positive(),
+});
+
+export const insertMachineAllocationSchema = createInsertSchema(machineAllocations, {
+  workOrderId: z.number().positive(),
+  machineName: z.string().min(1),
+  machineCode: z.string().optional(),
+  startTime: z.date().or(z.string()),
+  endTime: z.date().or(z.string()).optional(),
+  setupTimeMinutes: z.number().optional(),
+  downtimeMinutes: z.number().optional(),
+});
+
+// Production Management types
+export type WorkOrder = typeof workOrders.$inferSelect;
+export type InsertWorkOrder = z.infer<typeof insertWorkOrderSchema>;
+
+export type WorkOrderItem = typeof workOrderItems.$inferSelect;
+export type InsertWorkOrderItem = z.infer<typeof insertWorkOrderItemSchema>;
+
+export type ResourceAssignment = typeof resourceAssignments.$inferSelect;
+export type InsertResourceAssignment = z.infer<typeof insertResourceAssignmentSchema>;
+
+export type ProductionRecord = typeof productionRecords.$inferSelect;
+export type InsertProductionRecord = z.infer<typeof insertProductionRecordSchema>;
+
+export type MaterialConsumption = typeof materialConsumption.$inferSelect;
+export type InsertMaterialConsumption = z.infer<typeof insertMaterialConsumptionSchema>;
+
+export type MachineAllocation = typeof machineAllocations.$inferSelect;
+export type InsertMachineAllocation = z.infer<typeof insertMachineAllocationSchema>;
+
+// ==================== QUALITY MANAGEMENT TYPES ====================
+export const insertInspectionReportSchema = createInsertSchema(inspectionReports, {
+  projectId: z.number().positive(),
+  projectCode: z.string().min(1),
+  workOrderId: z.number().positive().optional(),
+  reportNumber: z.string().min(1),
+  reportType: z.string().min(1),
+  title: z.string().min(1),
+  inspectionDate: z.date().or(z.string()),
+  location: z.string().min(1),
+  inspectorId: z.number().positive(),
+  quantityInspected: z.number().positive(),
+  status: z.string().optional(),
+});
+
+export const insertNonConformanceReportSchema = createInsertSchema(nonConformanceReports, {
+  projectId: z.number().positive(),
+  projectCode: z.string().min(1),
+  inspectionReportId: z.number().positive().optional(),
+  ncrNumber: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  severity: z.string().min(1),
+  category: z.string().min(1),
+  identifiedDate: z.date().or(z.string()),
+  identifiedBy: z.number().positive(),
+  quantityAffected: z.number().positive(),
+});
+
+export const insertQualityChecklistSchema = createInsertSchema(qualityChecklists, {
+  projectId: z.number().positive(),
+  projectCode: z.string().min(1),
+  checklistNumber: z.string().min(1),
+  title: z.string().min(1),
+  checklistType: z.string().min(1),
+  preparedBy: z.number().positive(),
+});
+
+export const insertChecklistItemSchema = createInsertSchema(checklistItems, {
+  checklistId: z.number().positive(),
+  sequenceNumber: z.number().positive(),
+  description: z.string().min(1),
+  requirement: z.string().min(1),
+  acceptanceCriteria: z.string().min(1),
+  inspectionMethod: z.string().min(1),
+  isCritical: z.boolean().optional(),
+  requiresEvidence: z.boolean().optional(),
+});
+
+export const insertChecklistExecutionSchema = createInsertSchema(checklistExecutions, {
+  checklistId: z.number().positive(),
+  projectId: z.number().positive(),
+  projectCode: z.string().min(1),
+  workOrderId: z.number().positive().optional(),
+  executionDate: z.date().or(z.string()),
+  executedBy: z.number().positive(),
+});
+
+export const insertChecklistItemResultSchema = createInsertSchema(checklistItemResults, {
+  executionId: z.number().positive(),
+  checklistItemId: z.number().positive(),
+  result: z.string().min(1),
+  measuredValue: z.string().optional(),
+  observation: z.string().optional(),
+});
+
+// Quality Management types
+export type InspectionReport = typeof inspectionReports.$inferSelect;
+export type InsertInspectionReport = z.infer<typeof insertInspectionReportSchema>;
+
+export type NonConformanceReport = typeof nonConformanceReports.$inferSelect;
+export type InsertNonConformanceReport = z.infer<typeof insertNonConformanceReportSchema>;
+
+export type QualityChecklist = typeof qualityChecklists.$inferSelect;
+export type InsertQualityChecklist = z.infer<typeof insertQualityChecklistSchema>;
+
+export type ChecklistItem = typeof checklistItems.$inferSelect;
+export type InsertChecklistItem = z.infer<typeof insertChecklistItemSchema>;
+
+export type ChecklistExecution = typeof checklistExecutions.$inferSelect;
+export type InsertChecklistExecution = z.infer<typeof insertChecklistExecutionSchema>;
+
+export type ChecklistItemResult = typeof checklistItemResults.$inferSelect;
+export type InsertChecklistItemResult = z.infer<typeof insertChecklistItemResultSchema>;
