@@ -2,6 +2,7 @@ import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decima
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
+import { relations } from "drizzle-orm";
 
 // Define the base user schema structure first
 const userSchema = {
@@ -1344,3 +1345,18 @@ export type InsertDispatchDocument = z.infer<typeof insertDispatchDocumentSchema
 
 export type Transporter = typeof transporters.$inferSelect;
 export type InsertTransporter = z.infer<typeof insertTransporterSchema>;
+
+// Define relations between tables
+export const dispatchRecordsRelations = relations(dispatchRecords, ({ one }) => ({
+  project: one(projects, {
+    fields: [dispatchRecords.project_id],
+    references: [projects.id],
+  }),
+}));
+
+export const dispatchItemsRelations = relations(dispatchItems, ({ one }) => ({
+  dispatchRecord: one(dispatchRecords, {
+    fields: [dispatchItems.dispatch_id],
+    references: [dispatchRecords.id],
+  }),
+}));

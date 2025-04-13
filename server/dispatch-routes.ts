@@ -329,19 +329,20 @@ export function setupDispatchRoutes(app: Router) {
       }
       
       // Verify the dispatch record exists
-      const dispatch = await db.query.dispatchRecords.findFirst({
-        where: eq(dispatchRecords.id, dispatchId),
-        with: {
-          project: true
-        }
-      });
+      const dispatch = await db.select().from(dispatchRecords).where(eq(dispatchRecords.id, dispatchId)).limit(1);
       
-      if (!dispatch) {
+      if (!dispatch || dispatch.length === 0) {
         return res.status(404).json({ error: 'Dispatch record not found' });
       }
       
-      // Get the financial year and project code
-      const project = dispatch.project;
+      // Get the project details
+      const projectResult = await db.select().from(projects).where(eq(projects.id, dispatch[0].project_id)).limit(1);
+      
+      if (!projectResult || projectResult.length === 0) {
+        return res.status(404).json({ error: 'Project not found for this dispatch record' });
+      }
+      
+      const project = projectResult[0];
       
       // Upload to GCS
       const fileName = req.file.originalname;
