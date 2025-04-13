@@ -20,6 +20,7 @@ import ProductionPlanningPage from "@/pages/production-planning-page";
 import ShopFloorPage from "@/pages/shop-floor-page";
 import InspectionsPage from "@/pages/inspections-page";
 import QualityReportsPage from "@/pages/quality-reports-page";
+import ProjectCommissioningPage from "@/pages/project-commissioning-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
@@ -82,6 +83,7 @@ function Router() {
       <ProtectedRoute path="/shop-floor" component={ShopFloorPage} />
       <ProtectedRoute path="/inspections" component={InspectionsPage} />
       <ProtectedRoute path="/quality-reports" component={QualityReportsPage} />
+      <ProtectedRoute path="/project-commissioning" component={ProjectCommissioningPage} />
       <SuperuserRoute path="/users" component={Dashboard} />
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <Route component={NotFound} />

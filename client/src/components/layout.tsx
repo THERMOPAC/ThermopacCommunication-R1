@@ -45,7 +45,8 @@ export default function Layout({ children }: LayoutProps) {
                            
   // Check if we're on any quality-related page
   const isOnQualityPage = location === '/inspections' ||
-                        location === '/quality-reports';
+                        location === '/quality-reports' ||
+                        location === '/project-commissioning';
   
   // Auto-open menus based on current page
   if (isOnProjectsPage && !isProjectMenuOpen) {
@@ -95,7 +96,8 @@ export default function Layout({ children }: LayoutProps) {
       toggle: () => setIsQualityMenuOpen(!isQualityMenuOpen),
       children: [
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
-        { icon: Award, label: "Quality Reports", href: "/quality-reports" }
+        { icon: Award, label: "Quality Reports", href: "/quality-reports" },
+        { icon: Briefcase, label: "Project Commissioning", href: "/project-commissioning" }
       ]
     },
     { icon: Users, label: "Team", href: "/team" },
