@@ -19,6 +19,7 @@ import { setupItemComponentsImportRoutes } from "./item-components-import";
 import { setupProductionRoutes } from "./production-routes";
 import { setupQualityRoutes } from "./quality-routes";
 import { setupDispatchRoutes } from "./dispatch-routes";
+import { default as afterSalesRoutes } from "./after-sales-routes";
 import { hashPassword as updatePasswordHash } from "./update-password";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
@@ -76,6 +77,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up dispatch and shipping routes
   setupDispatchRoutes(app);
+  
+  // Set up after-sales module routes
+  app.use('/api/after-sales', afterSalesRoutes);
   
   // Database Maintenance Routes
   app.post("/api/db-maintenance/reset-master-items", async (req, res) => {
