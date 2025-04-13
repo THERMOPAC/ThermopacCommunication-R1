@@ -17,7 +17,9 @@ import {
   Briefcase,
   FolderKanban,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Factory,
+  BadgeCheck
 } from "lucide-react";
 import { useState } from "react";
 
@@ -40,6 +42,10 @@ export default function Layout({ children }: LayoutProps) {
     setIsProjectMenuOpen(true);
   }
 
+  // State for the newly added menus
+  const [isProductionMenuOpen, setIsProductionMenuOpen] = useState(false);
+  const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
+
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
@@ -54,6 +60,28 @@ export default function Layout({ children }: LayoutProps) {
         { icon: Briefcase, label: "Projects", href: "/projects" },
         { icon: Users, label: "Customers", href: "/customers" },
         { icon: TrendingUp, label: "Item Master", href: "/item-master" }
+      ]
+    },
+    { 
+      icon: Factory, 
+      label: "Production Management", 
+      isSubmenu: true,
+      isOpen: isProductionMenuOpen,
+      toggle: () => setIsProductionMenuOpen(!isProductionMenuOpen),
+      children: [
+        { icon: TrendingUp, label: "Production Planning", href: "/production-planning" },
+        { icon: Briefcase, label: "Shop Floor", href: "/shop-floor" }
+      ]
+    },
+    { 
+      icon: BadgeCheck, 
+      label: "Quality Management", 
+      isSubmenu: true,
+      isOpen: isQualityMenuOpen,
+      toggle: () => setIsQualityMenuOpen(!isQualityMenuOpen),
+      children: [
+        { icon: CheckSquare, label: "Inspections", href: "/inspections" },
+        { icon: Award, label: "Quality Reports", href: "/quality-reports" }
       ]
     },
     { icon: Users, label: "Team", href: "/team" },
