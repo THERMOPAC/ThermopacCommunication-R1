@@ -1,8 +1,15 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
 import { relations } from "drizzle-orm";
+
+// Helper function to convert string dates to Date objects
+const dateStringToDate = (dateStr: string | undefined | null) => {
+  if (!dateStr) return undefined;
+  const date = new Date(dateStr);
+  return isNaN(date.getTime()) ? undefined : date;
+};
 
 // Define the base user schema structure first
 const userSchema = {
@@ -1346,6 +1353,196 @@ export type InsertDispatchDocument = z.infer<typeof insertDispatchDocumentSchema
 export type Transporter = typeof transporters.$inferSelect;
 export type InsertTransporter = z.infer<typeof insertTransporterSchema>;
 
+// After-Sales Module Types
+export const serviceRequests = pgTable('service_requests', {
+  id: serial('id').primaryKey(),
+  customer_id: integer('customer_id').notNull().references(() => customers.id),
+  project_id: integer('project_id').references(() => projects.id),
+  request_type: text('request_type').notNull(),
+  subject: text('subject').notNull(),
+  description: text('description'),
+  priority: text('priority').notNull().default('Medium'),
+  status: text('status').notNull().default('New'),
+  created_by: integer('created_by').notNull().references(() => users.id),
+  assigned_to: integer('assigned_to').references(() => users.id),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+});
+
+export const serviceActivities = pgTable('service_activities', {
+  id: serial('id').primaryKey(),
+  service_request_id: integer('service_request_id').notNull().references(() => serviceRequests.id),
+  activity_type: text('activity_type').notNull(),
+  scheduled_date: date('scheduled_date'),
+  actual_date: date('actual_date'),
+  description: text('description'),
+  outcome: text('outcome'),
+  status: text('status').notNull().default('Scheduled'),
+  performed_by: integer('performed_by').references(() => users.id),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+});
+
+export const serviceParts = pgTable('service_parts', {
+  id: serial('id').primaryKey(),
+  service_activity_id: integer('service_activity_id').notNull().references(() => serviceActivities.id),
+  item_id: integer('item_id').notNull().references(() => masterItems.id),
+  quantity: integer('quantity').notNull(),
+  unit_price: decimal('unit_price', { precision: 10, scale: 2 }),
+  is_billable: boolean('is_billable').notNull().default(true),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+});
+
+export const customerFollowups = pgTable('customer_followups', {
+  id: serial('id').primaryKey(),
+  customer_id: integer('customer_id').notNull().references(() => customers.id),
+  followup_type: text('followup_type').notNull(),
+  subject: text('subject').notNull(),
+  description: text('description'),
+  scheduled_date: date('scheduled_date').notNull(),
+  completed_date: date('completed_date'),
+  outcome: text('outcome'),
+  status: text('status').notNull().default('Scheduled'),
+  created_by: integer('created_by').notNull().references(() => users.id),
+  assigned_to: integer('assigned_to').notNull().references(() => users.id),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+});
+
+export const businessOpportunities = pgTable('business_opportunities', {
+  id: serial('id').primaryKey(),
+  customer_id: integer('customer_id').notNull().references(() => customers.id),
+  opportunity_name: text('opportunity_name').notNull(),
+  description: text('description'),
+  estimated_value: decimal('estimated_value', { precision: 12, scale: 2 }),
+  probability: integer('probability').notNull().default(0),
+  status: text('status').notNull().default('New'),
+  expected_close_date: date('expected_close_date'),
+  actual_close_date: date('actual_close_date'),
+  outcome: text('outcome'),
+  created_by: integer('created_by').notNull().references(() => users.id),
+  assigned_to: integer('assigned_to').notNull().references(() => users.id),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+});
+
+export const serviceContracts = pgTable('service_contracts', {
+  id: serial('id').primaryKey(),
+  customer_id: integer('customer_id').notNull().references(() => customers.id),
+  project_id: integer('project_id').references(() => projects.id),
+  contract_number: text('contract_number').notNull().unique(),
+  description: text('description'),
+  start_date: date('start_date').notNull(),
+  end_date: date('end_date').notNull(),
+  contract_value: decimal('contract_value', { precision: 12, scale: 2 }).notNull(),
+  status: text('status').notNull().default('Active'),
+  created_by: integer('created_by').notNull().references(() => users.id),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+});
+
+export const contractServices = pgTable('contract_services', {
+  id: serial('id').primaryKey(),
+  contract_id: integer('contract_id').notNull().references(() => serviceContracts.id),
+  service_type: text('service_type').notNull(),
+  frequency: text('frequency'),
+  description: text('description'),
+  quantity: integer('quantity').notNull(),
+  unit_price: decimal('unit_price', { precision: 10, scale: 2 }).notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+});
+
+export const contractDeliveries = pgTable('contract_deliveries', {
+  id: serial('id').primaryKey(),
+  contract_id: integer('contract_id').notNull().references(() => serviceContracts.id),
+  service_id: integer('service_id').notNull().references(() => contractServices.id),
+  scheduled_date: date('scheduled_date').notNull(),
+  actual_date: date('actual_date'),
+  status: text('status').notNull().default('Scheduled'),
+  notes: text('notes'),
+  performed_by: integer('performed_by').references(() => users.id),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+});
+
+// After-Sales Module Schema Definitions
+export const insertServiceRequestSchema = createInsertSchema(serviceRequests, {
+  description: z.string().optional(),
+  assigned_to: z.number().optional()
+});
+
+export const insertServiceActivitySchema = createInsertSchema(serviceActivities, {
+  description: z.string().optional(),
+  outcome: z.string().optional(),
+  scheduled_date: z.string().optional().transform(dateStringToDate),
+  actual_date: z.string().optional().transform(dateStringToDate),
+  performed_by: z.number().optional()
+});
+
+export const insertServicePartSchema = createInsertSchema(serviceParts, {
+  unit_price: z.string().optional().transform((val) => val ? parseFloat(val) : null)
+});
+
+export const insertCustomerFollowupSchema = createInsertSchema(customerFollowups, {
+  description: z.string().optional(),
+  outcome: z.string().optional(),
+  scheduled_date: z.string().transform(dateStringToDate),
+  completed_date: z.string().optional().transform(dateStringToDate)
+});
+
+export const insertBusinessOpportunitySchema = createInsertSchema(businessOpportunities, {
+  description: z.string().optional(),
+  estimated_value: z.string().optional().transform((val) => val ? parseFloat(val) : null),
+  expected_close_date: z.string().optional().transform(dateStringToDate),
+  actual_close_date: z.string().optional().transform(dateStringToDate),
+  outcome: z.string().optional()
+});
+
+export const insertServiceContractSchema = createInsertSchema(serviceContracts, {
+  description: z.string().optional(),
+  start_date: z.string().transform(dateStringToDate),
+  end_date: z.string().transform(dateStringToDate),
+  contract_value: z.string().transform((val) => parseFloat(val))
+});
+
+export const insertContractServiceSchema = createInsertSchema(contractServices, {
+  description: z.string().optional(),
+  frequency: z.string().optional(),
+  unit_price: z.string().transform((val) => parseFloat(val))
+});
+
+export const insertContractDeliverySchema = createInsertSchema(contractDeliveries, {
+  notes: z.string().optional(),
+  scheduled_date: z.string().transform(dateStringToDate),
+  actual_date: z.string().optional().transform(dateStringToDate),
+  performed_by: z.number().optional()
+});
+
+// After-Sales Module Type Definitions
+export type ServiceRequest = typeof serviceRequests.$inferSelect;
+export type InsertServiceRequest = z.infer<typeof insertServiceRequestSchema>;
+
+export type ServiceActivity = typeof serviceActivities.$inferSelect;
+export type InsertServiceActivity = z.infer<typeof insertServiceActivitySchema>;
+
+export type ServicePart = typeof serviceParts.$inferSelect;
+export type InsertServicePart = z.infer<typeof insertServicePartSchema>;
+
+export type CustomerFollowup = typeof customerFollowups.$inferSelect;
+export type InsertCustomerFollowup = z.infer<typeof insertCustomerFollowupSchema>;
+
+export type BusinessOpportunity = typeof businessOpportunities.$inferSelect;
+export type InsertBusinessOpportunity = z.infer<typeof insertBusinessOpportunitySchema>;
+
+export type ServiceContract = typeof serviceContracts.$inferSelect;
+export type InsertServiceContract = z.infer<typeof insertServiceContractSchema>;
+
+export type ContractService = typeof contractServices.$inferSelect;
+export type InsertContractService = z.infer<typeof insertContractServiceSchema>;
+
+export type ContractDelivery = typeof contractDeliveries.$inferSelect;
+export type InsertContractDelivery = z.infer<typeof insertContractDeliverySchema>;
+
 // Define relations between tables
 export const dispatchRecordsRelations = relations(dispatchRecords, ({ one }) => ({
   project: one(projects, {
@@ -1358,5 +1555,118 @@ export const dispatchItemsRelations = relations(dispatchItems, ({ one }) => ({
   dispatchRecord: one(dispatchRecords, {
     fields: [dispatchItems.dispatch_id],
     references: [dispatchRecords.id],
+  }),
+}));
+
+// After-Sales Module Relations
+export const serviceRequestsRelations = relations(serviceRequests, ({ one, many }) => ({
+  customer: one(customers, {
+    fields: [serviceRequests.customer_id],
+    references: [customers.id],
+  }),
+  project: one(projects, {
+    fields: [serviceRequests.project_id],
+    references: [projects.id],
+  }),
+  createdBy: one(users, {
+    fields: [serviceRequests.created_by],
+    references: [users.id],
+  }),
+  assignedTo: one(users, {
+    fields: [serviceRequests.assigned_to],
+    references: [users.id],
+  }),
+  activities: many(serviceActivities),
+}));
+
+export const serviceActivitiesRelations = relations(serviceActivities, ({ one, many }) => ({
+  serviceRequest: one(serviceRequests, {
+    fields: [serviceActivities.service_request_id],
+    references: [serviceRequests.id],
+  }),
+  performedBy: one(users, {
+    fields: [serviceActivities.performed_by],
+    references: [users.id],
+  }),
+  parts: many(serviceParts),
+}));
+
+export const servicePartsRelations = relations(serviceParts, ({ one }) => ({
+  activity: one(serviceActivities, {
+    fields: [serviceParts.service_activity_id],
+    references: [serviceActivities.id],
+  }),
+  item: one(masterItems, {
+    fields: [serviceParts.item_id],
+    references: [masterItems.id],
+  }),
+}));
+
+export const customerFollowupsRelations = relations(customerFollowups, ({ one }) => ({
+  customer: one(customers, {
+    fields: [customerFollowups.customer_id],
+    references: [customers.id],
+  }),
+  createdBy: one(users, {
+    fields: [customerFollowups.created_by],
+    references: [users.id],
+  }),
+  assignedTo: one(users, {
+    fields: [customerFollowups.assigned_to],
+    references: [users.id],
+  }),
+}));
+
+export const businessOpportunitiesRelations = relations(businessOpportunities, ({ one }) => ({
+  customer: one(customers, {
+    fields: [businessOpportunities.customer_id],
+    references: [customers.id],
+  }),
+  createdBy: one(users, {
+    fields: [businessOpportunities.created_by],
+    references: [users.id],
+  }),
+  assignedTo: one(users, {
+    fields: [businessOpportunities.assigned_to],
+    references: [users.id],
+  }),
+}));
+
+export const serviceContractsRelations = relations(serviceContracts, ({ one, many }) => ({
+  customer: one(customers, {
+    fields: [serviceContracts.customer_id],
+    references: [customers.id],
+  }),
+  project: one(projects, {
+    fields: [serviceContracts.project_id],
+    references: [projects.id],
+  }),
+  createdBy: one(users, {
+    fields: [serviceContracts.created_by],
+    references: [users.id],
+  }),
+  services: many(contractServices),
+  deliveries: many(contractDeliveries),
+}));
+
+export const contractServicesRelations = relations(contractServices, ({ one }) => ({
+  contract: one(serviceContracts, {
+    fields: [contractServices.contract_id],
+    references: [serviceContracts.id],
+  }),
+}));
+
+export const contractDeliveriesRelations = relations(contractDeliveries, ({ one }) => ({
+  contract: one(serviceContracts, {
+    fields: [contractDeliveries.contract_id],
+    references: [serviceContracts.id],
+  }),
+  service: one(contractServices, {
+    fields: [contractDeliveries.service_id],
+    references: [contractServices.id],
+  }),
+  performedBy: one(users, {
+    fields: [contractDeliveries.performed_by],
+    references: [users.id],
   }),
 }));
