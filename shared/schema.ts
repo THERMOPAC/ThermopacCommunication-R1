@@ -1331,3 +1331,16 @@ export type InsertChecklistExecution = z.infer<typeof insertChecklistExecutionSc
 
 export type ChecklistItemResult = typeof checklistItemResults.$inferSelect;
 export type InsertChecklistItemResult = z.infer<typeof insertChecklistItemResultSchema>;
+
+// Dispatch & Shipping types
+export type DispatchRecord = typeof dispatchRecords.$inferSelect;
+export type InsertDispatchRecord = z.infer<typeof insertDispatchRecordSchema>;
+
+export type DispatchItem = typeof dispatchItems.$inferSelect;
+export type InsertDispatchItem = z.infer<typeof insertDispatchItemSchema>;
+
+export type DispatchDocument = typeof dispatchDocuments.$inferSelect;
+export type InsertDispatchDocument = z.infer<typeof insertDispatchDocumentSchema>;
+
+export type Transporter = typeof transporters.$inferSelect;
+export type InsertTransporter = z.infer<typeof insertTransporterSchema>;

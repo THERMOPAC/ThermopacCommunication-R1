@@ -3,6 +3,7 @@ import { db } from './db';
 import multer from 'multer';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
 import { gcsStorage } from './utils/gcs-storage';
+import { dispatchRecords, dispatchItems, dispatchDocuments, transporters, masterItems } from '@shared/schema';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
@@ -27,9 +28,9 @@ export function setupDispatchRoutes(app: Router) {
       const projectId = parseInt(req.params.projectId);
       
       // Get all dispatch records for the project
-      const dispatchRecords = await db.query.dispatch_records.findMany({
-        where: eq(db.schema.dispatch_records.project_id, projectId),
-        orderBy: [desc(db.schema.dispatch_records.dispatch_date)],
+      const dispatchList = await db.query.dispatchRecords.findMany({
+        where: eq(dispatchRecords.project_id, projectId),
+        orderBy: [desc(dispatchRecords.dispatch_date)],
         with: {
           project: true,
           items: {
@@ -40,7 +41,7 @@ export function setupDispatchRoutes(app: Router) {
         }
       });
       
-      res.json(dispatchRecords);
+      res.json(dispatchList);
     } catch (error) {
       console.error('Error fetching dispatch records:', error);
       res.status(500).json({ error: 'Failed to fetch dispatch records' });
@@ -55,8 +56,8 @@ export function setupDispatchRoutes(app: Router) {
       const dispatchId = parseInt(req.params.id);
       
       // Get the dispatch record
-      const dispatchRecord = await db.query.dispatch_records.findFirst({
-        where: eq(db.schema.dispatch_records.id, dispatchId),
+      const dispatchRecord = await db.query.dispatchRecords.findFirst({
+        where: eq(dispatchRecords.id, dispatchId),
         with: {
           project: true,
           items: {
@@ -112,7 +113,7 @@ export function setupDispatchRoutes(app: Router) {
       }
       
       // Create the dispatch record
-      const [newDispatch] = await db.insert(db.schema.dispatch_records).values({
+      const [newDispatch] = await db.insert(dispatchRecords).values({
         project_id,
         dispatch_number,
         dispatch_date: new Date(dispatch_date),
@@ -139,7 +140,7 @@ export function setupDispatchRoutes(app: Router) {
           notes: item.notes
         }));
         
-        await db.insert(db.schema.dispatch_items).values(dispatchItems);
+        await db.insert(dispatchItems).values(dispatchItems);
       }
       
       res.status(201).json(newDispatch);
@@ -170,7 +171,7 @@ export function setupDispatchRoutes(app: Router) {
       } = req.body;
       
       // Update the dispatch record
-      const [updatedDispatch] = await db.update(db.schema.dispatch_records)
+      const [updatedDispatch] = await db.update(dispatchRecords)
         .set({
           transporter_name,
           transporter_contact,
