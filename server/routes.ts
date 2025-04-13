@@ -16,6 +16,8 @@ import { setupProjectItemsImportRoutes } from "./project-items-import";
 import { setupMasterItemsImportRoutes } from "./master-items-import";
 import { setupFileStorageRoutes } from "./file-storage-routes";
 import { setupItemComponentsImportRoutes } from "./item-components-import";
+import { setupProductionRoutes } from "./production-routes";
+import { setupQualityRoutes } from "./quality-routes";
 import { hashPassword as updatePasswordHash } from "./update-password";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
@@ -64,6 +66,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up item components import routes
   setupItemComponentsImportRoutes(app);
+  
+  // Set up production management routes
+  setupProductionRoutes(app);
+  
+  // Set up quality management routes
+  setupQualityRoutes(app);
   
   // Database Maintenance Routes
   app.post("/api/db-maintenance/reset-master-items", async (req, res) => {
