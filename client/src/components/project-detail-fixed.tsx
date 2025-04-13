@@ -161,6 +161,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   
+  // State for status update confirmation
+  const [isStatusUpdateConfirmOpen, setIsStatusUpdateConfirmOpen] = useState(false);
+  const [statusUpdateDetails, setStatusUpdateDetails] = useState<{itemId: number, status: string, oldStatus: string, itemCode: string} | null>(null);
+  
   // Enhanced debugging for project ID handling
   console.log("Project ID from prop:", id);
   console.log("Project ID type:", typeof id);
@@ -458,7 +462,23 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   
   // Helper function to update project item status
   const updateProjectItemStatus = (itemId: number, status: string) => {
-    updateProjectItemStatusMutation.mutate({ itemId, status });
+    // Find the item to get its current status and item code
+    const item = projectItems?.find(item => item.id === itemId);
+    if (item) {
+      // Only show confirmation if status is changing
+      if (item.status !== status) {
+        setStatusUpdateDetails({
+          itemId,
+          status,
+          oldStatus: item.status || 'Not Started',
+          itemCode: item.masterItem?.itemCode || `Item #${itemId}`
+        });
+        setIsStatusUpdateConfirmOpen(true);
+      }
+    } else {
+      // If we can't find the item for some reason, just update directly
+      updateProjectItemStatusMutation.mutate({ itemId, status });
+    }
   };
 
   function formatDate(dateString) {
@@ -840,6 +860,70 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         </DialogContent>
       </Dialog>
       
+      {/* Status Update Confirmation Dialog */}
+      <Dialog
+        open={isStatusUpdateConfirmOpen}
+        onOpenChange={(open) => setIsStatusUpdateConfirmOpen(open)}
+      >
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Status Change</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to change the status of this item?
+            </DialogDescription>
+          </DialogHeader>
+          
+          {statusUpdateDetails && (
+            <div className="py-4">
+              <div className="grid grid-cols-2 mb-4">
+                <div className="font-semibold">Item Code:</div>
+                <div>{statusUpdateDetails.itemCode}</div>
+              </div>
+              <div className="grid grid-cols-2 mb-4">
+                <div className="font-semibold">Current Status:</div>
+                <div>
+                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">
+                    {statusUpdateDetails.oldStatus}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 mb-4">
+                <div className="font-semibold">New Status:</div>
+                <div>
+                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+                    {statusUpdateDetails.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsStatusUpdateConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (statusUpdateDetails) {
+                  updateProjectItemStatusMutation.mutate({
+                    itemId: statusUpdateDetails.itemId,
+                    status: statusUpdateDetails.status
+                  });
+                  setIsStatusUpdateConfirmOpen(false);
+                }
+              }}
+              disabled={updateProjectItemStatusMutation.isPending}
+            >
+              {updateProjectItemStatusMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm Change
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <Dialog 
         open={isDeleteConfirmOpen} 
