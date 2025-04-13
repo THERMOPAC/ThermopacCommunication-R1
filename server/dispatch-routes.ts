@@ -181,7 +181,7 @@ export function setupDispatchRoutes(app: Router) {
           actual_delivery_date: actual_delivery_date ? new Date(actual_delivery_date) : undefined,
           notes
         })
-        .where(eq(db.schema.dispatch_records.id, dispatchId))
+        .where(eq(dispatchRecords.id, dispatchId))
         .returning();
       
       if (!updatedDispatch) {
@@ -207,8 +207,8 @@ export function setupDispatchRoutes(app: Router) {
       const dispatchId = parseInt(req.params.id);
       
       // Delete the dispatch record
-      await db.delete(db.schema.dispatch_records)
-        .where(eq(db.schema.dispatch_records.id, dispatchId));
+      await db.delete(dispatchRecords)
+        .where(eq(dispatchRecords.id, dispatchId));
       
       res.status(204).send();
     } catch (error) {
@@ -230,8 +230,8 @@ export function setupDispatchRoutes(app: Router) {
       const { item_id, quantity, unit, notes } = req.body;
       
       // Verify the item exists
-      const item = await db.query.master_items.findFirst({
-        where: eq(db.schema.master_items.id, item_id)
+      const item = await db.query.masterItems.findFirst({
+        where: eq(masterItems.id, item_id)
       });
       
       if (!item) {
@@ -239,7 +239,7 @@ export function setupDispatchRoutes(app: Router) {
       }
       
       // Add the item to the dispatch
-      const [newItem] = await db.insert(db.schema.dispatch_items).values({
+      const [newItem] = await db.insert(dispatchItems).values({
         dispatch_id: dispatchId,
         item_id,
         quantity,
@@ -270,13 +270,13 @@ export function setupDispatchRoutes(app: Router) {
       const { quantity, unit, notes } = req.body;
       
       // Update the dispatch item
-      const [updatedItem] = await db.update(db.schema.dispatch_items)
+      const [updatedItem] = await db.update(dispatchItems)
         .set({
           quantity,
           unit,
           notes
         })
-        .where(eq(db.schema.dispatch_items.id, itemId))
+        .where(eq(dispatchItems.id, itemId))
         .returning();
       
       if (!updatedItem) {
@@ -302,8 +302,8 @@ export function setupDispatchRoutes(app: Router) {
       const itemId = parseInt(req.params.id);
       
       // Delete the dispatch item
-      await db.delete(db.schema.dispatch_items)
-        .where(eq(db.schema.dispatch_items.id, itemId));
+      await db.delete(dispatchItems)
+        .where(eq(dispatchItems.id, itemId));
       
       res.status(204).send();
     } catch (error) {
@@ -329,8 +329,8 @@ export function setupDispatchRoutes(app: Router) {
       }
       
       // Verify the dispatch record exists
-      const dispatch = await db.query.dispatch_records.findFirst({
-        where: eq(db.schema.dispatch_records.id, dispatchId),
+      const dispatch = await db.query.dispatchRecords.findFirst({
+        where: eq(dispatchRecords.id, dispatchId),
         with: {
           project: true
         }
