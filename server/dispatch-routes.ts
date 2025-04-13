@@ -475,12 +475,9 @@ export function setupDispatchRoutes(app: Router) {
    */
   app.get('/api/transporters', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const transporters = await db.query.transporters.findMany({
-        where: eq(transporters.is_active, true),
-        orderBy: transporters.name
-      });
+      const transporterList = await db.select().from(transporters).where(eq(transporters.is_active, true)).orderBy(transporters.name);
       
-      res.json(transporters);
+      res.json(transporterList);
     } catch (error) {
       console.error('Error fetching transporters:', error);
       res.status(500).json({ error: 'Failed to fetch transporters' });
