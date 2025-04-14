@@ -1114,8 +1114,8 @@ const ItemMasterManagement: React.FC = () => {
                                 if (component) {
                                   setSelectedDrawingItem({
                                     id: component.id,
-                                    code: component.itemCode,
-                                    drawingNo: component.drawingNo
+                                    code: component.componentItemCode || component.itemCode,
+                                    drawingNo: component.componentDrawingNo || component.drawingNo
                                   });
                                 }
                               }
@@ -1138,7 +1138,7 @@ const ItemMasterManagement: React.FC = () => {
                                     <SelectLabel>Sub-Assembly Components</SelectLabel>
                                     {itemComponentsQuery.data.map((component: any) => (
                                       <SelectItem key={component.id} value={component.id.toString()}>
-                                        {component.itemCode}
+                                        {component.componentItemCode || component.itemCode}
                                       </SelectItem>
                                     ))}
                                   </SelectGroup>
