@@ -53,6 +53,7 @@ import {
   SelectValue,
   SelectSeparator,
   SelectLabel,
+  SelectGroup,
 } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -1111,18 +1112,23 @@ const ItemMasterManagement: React.FC = () => {
                               <SelectValue placeholder="Select the item for this drawing" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="parent">
-                                {currentItem?.itemCode} (Parent Item)
-                              </SelectItem>
+                              <SelectGroup>
+                                <SelectLabel>Parent Item</SelectLabel>
+                                <SelectItem value="parent">
+                                  {currentItem?.itemCode} (Parent Item)
+                                </SelectItem>
+                              </SelectGroup>
                               {itemComponentsQuery.data && itemComponentsQuery.data.length > 0 && (
                                 <>
                                   <SelectSeparator />
-                                  <SelectLabel>Sub-Assembly Components</SelectLabel>
-                                  {itemComponentsQuery.data.map((component: any) => (
-                                    <SelectItem key={component.id} value={component.id.toString()}>
-                                      {component.itemCode}
-                                    </SelectItem>
-                                  ))}
+                                  <SelectGroup>
+                                    <SelectLabel>Sub-Assembly Components</SelectLabel>
+                                    {itemComponentsQuery.data.map((component: any) => (
+                                      <SelectItem key={component.id} value={component.id.toString()}>
+                                        {component.itemCode}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
                                 </>
                               )}
                             </SelectContent>
