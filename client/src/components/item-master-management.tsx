@@ -1477,6 +1477,21 @@ const ItemMasterManagement: React.FC = () => {
                                 });
                                 
                                 if (!response.ok) {
+                                  // Try to parse the error details from the response
+                                  const errorData = await response.json().catch(() => ({}));
+                                  
+                                  if (errorData.error) {
+                                    // Handle specific error cases like duplicate drawing revisions
+                                    if (response.status === 409 && errorData.suggestedRevision !== undefined) {
+                                      // Update the revision field with the suggested revision
+                                      setDrawingRevision(errorData.suggestedRevision.toString());
+                                      
+                                      // Show a helpful error message
+                                      throw new Error(`${errorData.error} Please use revision ${errorData.suggestedRevision}.`);
+                                    } else {
+                                      throw new Error(errorData.error);
+                                    }
+                                  }
                                   throw new Error(`Upload failed with status: ${response.status}`);
                                 }
                                 
