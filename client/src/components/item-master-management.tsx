@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -1585,7 +1586,7 @@ const ItemMasterManagement: React.FC = () => {
                                 
                                 // Invalidate the drawings query to refresh the list
                                 queryClient.invalidateQueries({ 
-                                  queryKey: ['item-drawings', currentItem?.id, currentItem?.drawingNo] 
+                                  queryKey: ['item-drawings', currentItem?.id, currentItem?.drawingNo, itemComponentsQuery.data] 
                                 });
                                 
                                 // Reset the form
@@ -1629,6 +1630,7 @@ const ItemMasterManagement: React.FC = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Drawing No.</TableHead>
+                        <TableHead>Type</TableHead>
                         <TableHead>Revision</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead>Upload Date</TableHead>
@@ -1638,7 +1640,7 @@ const ItemMasterManagement: React.FC = () => {
                     <TableBody>
                       {itemDrawingsQuery.isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-6">
+                          <TableCell colSpan={6} className="text-center py-6">
                             <div className="flex flex-col items-center justify-center">
                               <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-primary rounded-full mb-2"></div>
                               <p className="text-sm text-muted-foreground">Loading drawings...</p>
@@ -1647,7 +1649,7 @@ const ItemMasterManagement: React.FC = () => {
                         </TableRow>
                       ) : itemDrawingsQuery.error ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-6">
+                          <TableCell colSpan={6} className="text-center py-6">
                             <div className="flex flex-col items-center justify-center text-sm text-destructive">
                               <AlertTriangle className="h-8 w-8 mb-2" />
                               <p>Error loading drawings: {(itemDrawingsQuery.error as Error).message}</p>
@@ -1656,43 +1658,70 @@ const ItemMasterManagement: React.FC = () => {
                         </TableRow>
                       ) : itemDrawingsQuery.data && itemDrawingsQuery.data.length > 0 ? (
                         // Render drawings if we have data
-                        itemDrawingsQuery.data.map((drawing: any, index: number) => (
-                          <TableRow key={`${drawing.path}-${index}`}>
-                            <TableCell>{drawing.drawingNo}</TableCell>
-                            <TableCell>{drawing.revision || 'N/A'}</TableCell>
-                            <TableCell>{drawing.name}</TableCell>
-                            <TableCell>{drawing.uploadDate}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    // Download drawing using its path
-                                    fetch(`/api/storage/download-url?filePath=${encodeURIComponent(drawing.path)}`)
-                                      .then(response => response.json())
-                                      .then(data => {
-                                        window.open(data.downloadUrl, '_blank');
-                                      })
-                                      .catch(error => {
-                                        toast({
-                                          title: "Error",
-                                          description: "Failed to download drawing",
-                                          variant: "destructive",
+                        itemDrawingsQuery.data.map((drawing: any, index: number) => {
+                          // Get component info if this is a component drawing
+                          const isComponent = drawing.isComponent;
+                          const componentInfo = drawing.componentInfo;
+                          
+                          return (
+                            <TableRow 
+                              key={`${drawing.path}-${index}`}
+                              className={isComponent ? "bg-muted/30" : ""}
+                            >
+                              <TableCell>
+                                {drawing.drawingNo}
+                                {isComponent && componentInfo && (
+                                  <span className="text-xs text-muted-foreground block">
+                                    Component: {componentInfo.componentItemCode || componentInfo.itemCode}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {isComponent ? (
+                                  <Badge variant="outline" className="bg-primary/10">
+                                    Component
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-primary/20">
+                                    Parent
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>{drawing.revision || 'N/A'}</TableCell>
+                              <TableCell>{drawing.name}</TableCell>
+                              <TableCell>{drawing.uploadDate}</TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      // Download drawing using its path
+                                      fetch(`/api/storage/download-url?filePath=${encodeURIComponent(drawing.path)}`)
+                                        .then(response => response.json())
+                                        .then(data => {
+                                          window.open(data.downloadUrl, '_blank');
+                                        })
+                                        .catch(error => {
+                                          toast({
+                                            title: "Error",
+                                            description: "Failed to download drawing",
+                                            variant: "destructive",
+                                          });
                                         });
-                                      });
-                                  }}
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
+                                    }}
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       ) : (
                         // Show message when no drawings are found
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-6">
+                          <TableCell colSpan={6} className="text-center py-6">
                             <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
                               <FileIcon className="h-8 w-8 mb-2" />
                               <p>No drawings uploaded yet</p>
