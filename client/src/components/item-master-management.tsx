@@ -72,7 +72,8 @@ import {
   Plus, 
   Package, 
   Search, 
-  Trash2 
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -130,6 +131,7 @@ const ItemMasterManagement: React.FC = () => {
   const [currentItem, setCurrentItem] = useState<MasterItem | null>(null);
   const [deleteDialogItem, setDeleteDialogItem] = useState<MasterItem | null>(null);
   const [activeTab, setActiveTab] = useState<string>("details");
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
   
   // Query for item components when viewing the components tab
   const itemComponentsQuery = useQuery({
@@ -268,6 +270,36 @@ const ItemMasterManagement: React.FC = () => {
     },
   });
   
+  // Handle delete component
+  const deleteComponentMutation = useMutation({
+    mutationFn: async (componentId: number) => {
+      const response = await apiRequest('DELETE', `/api/item-components/${componentId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete component');
+      }
+      return true;
+    },
+    onSuccess: () => {
+      if (currentItem) {
+        queryClient.invalidateQueries({ queryKey: ['item-components', currentItem.id] });
+      }
+      toast({
+        title: "Success",
+        description: "Component deleted successfully",
+      });
+      setIsDeleting(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      setIsDeleting(null);
+    },
+  });
+  
 
   
   // Check for editMasterItemId in sessionStorage and open edit dialog
@@ -326,6 +358,11 @@ const ItemMasterManagement: React.FC = () => {
     if (deleteDialogItem) {
       deleteMutation.mutate(deleteDialogItem.id);
     }
+  };
+  
+  const handleDeleteComponent = (componentId: number) => {
+    setIsDeleting(componentId);
+    deleteComponentMutation.mutate(componentId);
   };
   
   // Check user permissions
