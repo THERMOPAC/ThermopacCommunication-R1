@@ -1244,7 +1244,7 @@ const ItemMasterManagement: React.FC = () => {
                       
                       // Auto-populate the revision field with the next revision number
                       const drawingNo = newSelectedItem.drawingNo || newSelectedItem.code;
-                      const latestRev = latestRevisions[drawingNo] || 0;
+                      const latestRev = latestRevisions[drawingNo] || -1; // Start from -1 so first revision is 0
                       const nextRev = (latestRev + 1).toString();
                       console.log(`Auto-populating revision on dialog open for ${drawingNo}: Latest revision = ${latestRev}, Next revision = ${nextRev}`);
                       setDrawingRevision(nextRev);
@@ -1281,7 +1281,7 @@ const ItemMasterManagement: React.FC = () => {
                                 
                                 // Auto-populate the revision field with the next revision number
                                 const drawingNo = newSelectedItem.drawingNo || newSelectedItem.code;
-                                const latestRev = latestRevisions[drawingNo] || 0;
+                                const latestRev = latestRevisions[drawingNo] || -1; // Start from -1 so first revision is 0
                                 const nextRev = (latestRev + 1).toString();
                                 console.log(`Auto-populating revision for ${drawingNo}: Latest revision = ${latestRev}, Next revision = ${nextRev}`);
                                 setDrawingRevision(nextRev);
@@ -1298,7 +1298,7 @@ const ItemMasterManagement: React.FC = () => {
                                   
                                   // Auto-populate the revision field with the next revision number
                                   const drawingNo = newSelectedItem.drawingNo || newSelectedItem.code;
-                                  const latestRev = latestRevisions[drawingNo] || 0;
+                                  const latestRev = latestRevisions[drawingNo] || -1; // Start from -1 so first revision is 0
                                   const nextRev = (latestRev + 1).toString();
                                   console.log(`Auto-populating revision for component ${drawingNo}: Latest revision = ${latestRev}, Next revision = ${nextRev}`);
                                   setDrawingRevision(nextRev);
@@ -1379,7 +1379,7 @@ const ItemMasterManagement: React.FC = () => {
                           <div className="bg-muted p-3 rounded-md mt-2">
                             <h4 className="text-sm font-medium mb-1">Storage Path:</h4>
                             <p className="text-xs text-muted-foreground break-all">
-                              THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}_R{drawingRevision || '1'}.{drawingFile.name.split('.').pop()}
+                              THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}_R{drawingRevision || '0'}.{drawingFile.name.split('.').pop()}
                             </p>
                             <p className="text-xs text-blue-500 mt-1">
                               (Using the standard path format for drawings)
@@ -1423,8 +1423,8 @@ const ItemMasterManagement: React.FC = () => {
                             const fileExtension = originalFileName.split('.').pop() || 'pdf';
                             
                             // Create a new file with the correct naming pattern: "Drawing No_RX.pdf"
-                            // Always include revision in the filename, using 1 as default if not provided
-                            const revisionNumber = drawingRevision || '1';
+                            // Always include revision in the filename, using 0 as default if not provided
+                            const revisionNumber = drawingRevision || '0';
                             const newFileName = `${drawingNo}_R${revisionNumber}.${fileExtension}`;
                             console.log("Uploading file with name:", newFileName);
                             // Create a new file object with the correct name pattern
