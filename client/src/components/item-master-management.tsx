@@ -274,7 +274,7 @@ const ItemMasterManagement: React.FC = () => {
   useEffect(() => {
     const editItemId = sessionStorage.getItem('editMasterItemId');
     if (editItemId && items) {
-      const itemToEdit = items.find(item => item.id === parseInt(editItemId));
+      const itemToEdit = items.find((item: any) => item.id === parseInt(editItemId));
       if (itemToEdit) {
         setCurrentItem(itemToEdit);
         setActiveTab("details");
@@ -599,7 +599,7 @@ const ItemMasterManagement: React.FC = () => {
                       <FormLabel>Notes</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Additional notes"
+                          placeholder="Enter notes or comments"
                           {...field}
                           value={field.value || ''}
                         />
@@ -759,10 +759,9 @@ const ItemMasterManagement: React.FC = () => {
                           <Select
                             onValueChange={field.onChange}
                             defaultValue={field.value || ''}
-                            disabled
                           >
                             <FormControl>
-                              <SelectTrigger className="bg-muted">
+                              <SelectTrigger>
                                 <SelectValue placeholder="Select Make/Buy" />
                               </SelectTrigger>
                             </FormControl>
@@ -787,9 +786,6 @@ const ItemMasterManagement: React.FC = () => {
                               placeholder="Enter drawing number"
                               {...field}
                               value={field.value || ''}
-                              readOnly 
-                              disabled
-                              className="bg-muted"
                             />
                           </FormControl>
                           <FormMessage />
@@ -846,7 +842,7 @@ const ItemMasterManagement: React.FC = () => {
                           <FormLabel>Notes</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Additional notes"
+                              placeholder="Enter notes or comments"
                               {...field}
                               value={field.value || ''}
                             />
@@ -977,7 +973,23 @@ const ItemMasterManagement: React.FC = () => {
                   />
                 )}
                 
-                <div className="flex justify-end mt-6">
+                <div className="flex justify-between mt-6">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/')}
+                    >
+                      Back to Dashboard
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/projects')}
+                    >
+                      Back to Projects
+                    </Button>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
@@ -1027,7 +1039,23 @@ const ItemMasterManagement: React.FC = () => {
                   </Table>
                 </div>
                 
-                <div className="flex justify-end mt-6">
+                <div className="flex justify-between mt-6">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/')}
+                    >
+                      Back to Dashboard
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/projects')}
+                    >
+                      Back to Projects
+                    </Button>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
@@ -1083,7 +1111,23 @@ const ItemMasterManagement: React.FC = () => {
                   </Table>
                 </div>
                 
-                <div className="flex justify-end mt-6">
+                <div className="flex justify-between mt-6">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/')}
+                    >
+                      Back to Dashboard
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/projects')}
+                    >
+                      Back to Projects
+                    </Button>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
@@ -1108,7 +1152,23 @@ const ItemMasterManagement: React.FC = () => {
                   />
                 )}
                 
-                <div className="flex justify-end mt-6">
+                <div className="flex justify-between mt-6">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/')}
+                    >
+                      Back to Dashboard
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/projects')}
+                    >
+                      Back to Projects
+                    </Button>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
