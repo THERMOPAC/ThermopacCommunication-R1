@@ -147,9 +147,13 @@ class GcsStorage {
       let directories: string[] = [];
       if (!recursive) {
         try {
+          // The apiResponse type doesn't include prefixes in the TypeScript definitions
+          // but the Google Cloud Storage API does return prefixes when using delimiter
           const [, apiResponse] = await bucket.getFiles(options);
-          if (apiResponse && apiResponse.prefixes) {
-            directories = apiResponse.prefixes as string[];
+          // We need to cast apiResponse to any to access the prefixes property
+          const anyResponse = apiResponse as any;
+          if (anyResponse && anyResponse.prefixes) {
+            directories = anyResponse.prefixes as string[];
             console.log(`GCS: Found directories: ${JSON.stringify(directories)}`);
           }
         } catch (err) {

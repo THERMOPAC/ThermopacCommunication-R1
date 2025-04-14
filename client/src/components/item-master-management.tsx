@@ -166,89 +166,132 @@ const ItemMasterManagement: React.FC = () => {
     queryFn: async () => {
       if (!currentItem?.drawingNo) return [];
       
-      // Try multiple potential paths based on observed GCS structure
-      const possiblePaths = [
-        // Path 1: Direct path (our original approach)
-        `THERMOPAC_INVENTORY/${currentItem.drawingNo}`,
-        // Path 2: With 'drawings' folder and revision folders (based on screenshot)
-        `THERMOPAC_INVENTORY/${currentItem.drawingNo}/drawings`,
-        // Path 3: Just the drawing number without root folder
-        `${currentItem.drawingNo}`,
-        // Path 4: With drawings subfolder
-        `${currentItem.drawingNo}/drawings`
-      ];
+      console.log(`Fetching drawings for drawing number: ${currentItem.drawingNo}`);
       
-      let allFiles: any[] = [];
+      // Main path with drawing number
+      const mainPath = `THERMOPAC_INVENTORY/${currentItem.drawingNo}`;
       
-      // Try each path and collect all files
-      for (const path of possiblePaths) {
-        console.log(`Searching for drawings at path: ${path}`);
-        try {
-          const response = await fetch(`/api/storage/files?path=${encodeURIComponent(path)}`);
+      try {
+        // Use recursive search with the enhanced API
+        const response = await fetch(`/api/storage/files?path=${encodeURIComponent(mainPath)}&recursive=true`);
+        
+        if (response.ok) {
+          const filesFound = await response.json();
+          console.log(`Found ${filesFound.length} files in drawing directory (recursive search)`);
           
-          if (response.ok) {
-            const filesFound = await response.json();
-            console.log(`Found ${filesFound.length} drawings at path: ${path}`);
-            
-            if (filesFound.length > 0) {
-              allFiles.push(...filesFound);
-              // Also check for revision subdirectories if they exist
-              for (const file of filesFound) {
-                // If it's a directory with an 'R' prefix (like R1, R2, R3 for revisions)
-                if (file.name?.startsWith('R') && !file.contentType) {
-                  console.log(`Found potential revision folder: ${file.name} in ${path}`);
-                  const revisionPath = `${path}/${file.name}`;
-                  try {
-                    const revResponse = await fetch(`/api/storage/files?path=${encodeURIComponent(revisionPath)}`);
-                    if (revResponse.ok) {
-                      const revFiles = await revResponse.json();
-                      console.log(`Found ${revFiles.length} drawing files in revision folder: ${revisionPath}`);
-                      allFiles.push(...revFiles);
-                    }
-                  } catch (error) {
-                    console.error(`Error checking revision path ${revisionPath}:`, error);
+          // Filter to include only actual files (not directories)
+          const drawingFiles = filesFound.filter((file: any) => 
+            !file.isDirectory && 
+            file.name && 
+            !file.name.endsWith('.keep') && 
+            file.contentType
+          );
+          
+          console.log(`After filtering, found ${drawingFiles.length} actual drawing files`);
+          
+          if (drawingFiles.length > 0) {
+            // Process and return the files we found
+            return drawingFiles.map((file: any) => {
+              // Extract revision information
+              let revision = '';
+              
+              // Check if revision is in the filename
+              if (file.name && file.name.includes('_REV_')) {
+                revision = file.name.split('_REV_')[1].split('.')[0];
+              } 
+              // Check if the file is in a revision folder (e.g., R3)
+              else if (file.path && file.path.includes('/R')) {
+                const parts = file.path.split('/');
+                for (const part of parts) {
+                  if (part.startsWith('R') && /^R\d+$/.test(part)) {
+                    revision = part.substring(1); // Remove the R prefix
+                    break;
                   }
                 }
               }
-            }
+              
+              return {
+                ...file,
+                drawingNo: currentItem.drawingNo,
+                revision: revision || 'N/A',
+                uploadDate: new Date(file.created || file.updated || Date.now()).toLocaleString()
+              };
+            });
           }
-        } catch (error) {
-          console.error(`Error checking path ${path}:`, error);
         }
+        
+        // If main path search didn't yield results, try alternative paths
+        console.log("Trying alternative paths for drawings");
+        
+        const altPaths = [
+          `${currentItem.drawingNo}`, // Try without THERMOPAC_INVENTORY prefix
+          `THERMOPAC_INVENTORY/${currentItem.drawingNo}/drawings`, // With drawings subfolder
+          `THERMOPAC_INVENTORY/${currentItem.drawingNo}/drawing` // Singular form
+        ];
+        
+        // Try each alternative path
+        for (const path of altPaths) {
+          try {
+            console.log(`Trying alternative path: ${path}`);
+            const altResponse = await fetch(`/api/storage/files?path=${encodeURIComponent(path)}&recursive=true`);
+            
+            if (altResponse.ok) {
+              const altFilesFound = await altResponse.json();
+              console.log(`Found ${altFilesFound.length} files in alternative path ${path}`);
+              
+              // Filter to include only actual files
+              const drawingFiles = altFilesFound.filter((file: any) => 
+                !file.isDirectory && 
+                file.name && 
+                !file.name.endsWith('.keep') && 
+                file.contentType
+              );
+              
+              if (drawingFiles.length > 0) {
+                console.log(`After filtering, found ${drawingFiles.length} drawing files in alt path`);
+                
+                // Process and return the files we found
+                return drawingFiles.map((file: any) => {
+                  // Extract revision information
+                  let revision = '';
+                  
+                  // Check if revision is in the filename
+                  if (file.name && file.name.includes('_REV_')) {
+                    revision = file.name.split('_REV_')[1].split('.')[0];
+                  } 
+                  // Check if the file is in a revision folder (e.g., R3)
+                  else if (file.path && file.path.includes('/R')) {
+                    const parts = file.path.split('/');
+                    for (const part of parts) {
+                      if (part.startsWith('R') && /^R\d+$/.test(part)) {
+                        revision = part.substring(1); // Remove the R prefix
+                        break;
+                      }
+                    }
+                  }
+                  
+                  return {
+                    ...file,
+                    drawingNo: currentItem.drawingNo,
+                    revision: revision || 'N/A',
+                    uploadDate: new Date(file.created || file.updated || Date.now()).toLocaleString()
+                  };
+                });
+              }
+            }
+          } catch (error) {
+            console.error(`Error with alternative path ${path}:`, error);
+          }
+        }
+        
+        // If we still found nothing, return empty array
+        return [];
+      } catch (error) {
+        console.error(`Error fetching drawings:`, error);
+        return [];
       }
-      
-      // Filter out duplicate files based on path
-      const uniqueFiles = Array.from(new Map(allFiles.map(file => [file.path, file])).values());
-      console.log(`Found ${uniqueFiles.length} unique drawing files total`);
-      
-      return uniqueFiles.map((file: any) => {
-        // Try to extract revision information from different sources
-        let revision = '';
-        
-        // Check if revision is in the filename with our format
-        if (file.name.includes('_REV_')) {
-          revision = file.name.split('_REV_')[1].split('.')[0];
-        } 
-        // Check if the file is in a revision folder (e.g., R3)
-        else if (file.path.includes('/R')) {
-          const parts = file.path.split('/');
-          for (const part of parts) {
-            if (part.startsWith('R') && /^R\d+$/.test(part)) {
-              revision = part;
-              break;
-            }
-          }
-        }
-        
-        return {
-          ...file,
-          drawingNo: currentItem.drawingNo,
-          revision: revision || 'N/A',
-          uploadDate: new Date(file.created || file.updated || Date.now()).toLocaleString()
-        };
-      });
     },
-    enabled: !!currentItem?.drawingNo && activeTab === 'drawings',
+    enabled: !!currentItem?.drawingNo && activeTab === 'drawings'
   });
   
   const form = useForm<FormValues>({
