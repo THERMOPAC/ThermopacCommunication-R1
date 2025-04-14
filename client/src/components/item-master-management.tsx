@@ -169,7 +169,7 @@ const ItemMasterManagement: React.FC = () => {
       console.log(`Fetching drawings for drawing number: ${currentItem.drawingNo}`);
       
       // Exact path based on the specified pattern
-      const exactPath = `THERMOPAC_INVENTORY/${currentItem.drawingNo}`;
+      const exactPath = `THERMOPAC_INVENTORY/${currentItem.drawingNo}/drawings`;
       
       try {
         // Use recursive search to find all files in the drawing's folder
@@ -242,8 +242,9 @@ const ItemMasterManagement: React.FC = () => {
         // If the exact path pattern didn't work, try alternative paths
         console.log("Exact pattern not found. Trying alternative path patterns...");
         
-        // Try looking for any drawing-like files in the folder
-        const looseResponse = await fetch(`/api/storage/files?path=${encodeURIComponent(exactPath)}&recursive=true`);
+        // Try looking for any drawing-like files in the root inventory folder
+        const rootPath = `THERMOPAC_INVENTORY/${currentItem.drawingNo}`;
+        const looseResponse = await fetch(`/api/storage/files?path=${encodeURIComponent(rootPath)}&recursive=true`);
         
         if (looseResponse.ok) {
           const allLooseFiles = await looseResponse.json();
@@ -1342,7 +1343,7 @@ const ItemMasterManagement: React.FC = () => {
                           <div className="bg-muted p-3 rounded-md mt-2">
                             <h4 className="text-sm font-medium mb-1">Storage Path:</h4>
                             <p className="text-xs text-muted-foreground break-all">
-                              THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}_R{drawingRevision || '1'}.{drawingFile.name.split('.').pop()}
+                              THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/drawings/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}_R{drawingRevision || '1'}.{drawingFile.name.split('.').pop()}
                             </p>
                             <p className="text-xs text-blue-500 mt-1">
                               (Using the standard path format for drawings)
@@ -1399,7 +1400,7 @@ const ItemMasterManagement: React.FC = () => {
                             // Add the required parameters for file-storage-routes.ts upload endpoint
                             formData.append('financialYear', 'THERMOPAC_INVENTORY'); // Using a fixed value for inventory items
                             formData.append('projectCode', drawingNo); // Using drawing number as project code
-                            formData.append('department', ''); // Use empty department to prevent duplicate path
+                            formData.append('department', 'drawings'); // Using standard 'drawings' department
                             formData.append('subDirectory', ''); // Empty string instead of null
                             formData.append('projectId', '3'); // Using valid project ID from database
                             formData.append('description', drawingDescription || `Drawing for ${drawingNo}`);
