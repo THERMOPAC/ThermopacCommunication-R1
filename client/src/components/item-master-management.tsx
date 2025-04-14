@@ -296,12 +296,18 @@ const ItemMasterManagement: React.FC = () => {
         // Find the highest revision for each drawing number
         const highestRevision = processedFiles[0].revisionNumber; // We've already sorted
         
+        console.log(`Found drawings for ${drawingNo} - highest revision is ${highestRevision}`);
+        
         // Update our tracking state with the highest revision we found
         if (highestRevision > 0) {
-          setLatestRevisions(prev => ({
-            ...prev,
-            [drawingNo]: highestRevision
-          }));
+          setLatestRevisions(prev => {
+            const newState = {
+              ...prev,
+              [drawingNo]: highestRevision
+            };
+            console.log('Updated latestRevisions:', newState);
+            return newState;
+          });
         }
       }
       
@@ -1257,20 +1263,36 @@ const ItemMasterManagement: React.FC = () => {
                             onValueChange={(value) => {
                               if (value === 'parent') {
                                 // Parent item selected
-                                setSelectedDrawingItem({
+                                const newSelectedItem = {
                                   id: currentItem!.id,
                                   code: currentItem!.itemCode,
                                   drawingNo: currentItem!.drawingNo
-                                });
+                                };
+                                setSelectedDrawingItem(newSelectedItem);
+                                
+                                // Auto-populate the revision field with the next revision number
+                                const drawingNo = newSelectedItem.drawingNo || newSelectedItem.code;
+                                const latestRev = latestRevisions[drawingNo] || 0;
+                                const nextRev = (latestRev + 1).toString();
+                                console.log(`Auto-populating revision for ${drawingNo}: Latest revision = ${latestRev}, Next revision = ${nextRev}`);
+                                setDrawingRevision(nextRev);
                               } else if (value) {
                                 // Component item selected
                                 const component = itemComponentsQuery.data?.find((c: any) => c.id === parseInt(value));
                                 if (component) {
-                                  setSelectedDrawingItem({
+                                  const newSelectedItem = {
                                     id: component.id,
                                     code: component.componentItemCode || component.itemCode,
                                     drawingNo: component.componentDrawingNo || component.drawingNo
-                                  });
+                                  };
+                                  setSelectedDrawingItem(newSelectedItem);
+                                  
+                                  // Auto-populate the revision field with the next revision number
+                                  const drawingNo = newSelectedItem.drawingNo || newSelectedItem.code;
+                                  const latestRev = latestRevisions[drawingNo] || 0;
+                                  const nextRev = (latestRev + 1).toString();
+                                  console.log(`Auto-populating revision for component ${drawingNo}: Latest revision = ${latestRev}, Next revision = ${nextRev}`);
+                                  setDrawingRevision(nextRev);
                                 }
                               }
                             }}
@@ -1432,6 +1454,24 @@ const ItemMasterManagement: React.FC = () => {
                                   title: 'Success',
                                   description: 'Drawing uploaded successfully',
                                 });
+                                
+                                // Update our tracking of latest revisions
+                                if (selectedDrawingItem) {
+                                  const drawingNo = selectedDrawingItem.drawingNo || selectedDrawingItem.code;
+                                  const currentRevNum = parseInt(revisionNumber, 10);
+                                  
+                                  // Update our tracking state if this is a higher revision
+                                  setLatestRevisions(prev => {
+                                    const prevRev = prev[drawingNo] || 0;
+                                    if (currentRevNum > prevRev) {
+                                      return {
+                                        ...prev,
+                                        [drawingNo]: currentRevNum
+                                      };
+                                    }
+                                    return prev;
+                                  });
+                                }
                                 
                                 // Invalidate the drawings query to refresh the list
                                 queryClient.invalidateQueries({ 
