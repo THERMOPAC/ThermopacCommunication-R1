@@ -162,44 +162,58 @@ const ItemMasterManagement: React.FC = () => {
     enabled: !!currentItem && (activeTab === 'components' || activeTab === 'drawings'),
   });
   
-  // Query to fetch drawings for the current item
+  // Query to fetch drawings for the current item and its components
   const itemDrawingsQuery = useQuery({
-    queryKey: ['item-drawings', currentItem?.id, currentItem?.drawingNo],
+    queryKey: ['item-drawings', currentItem?.id, currentItem?.drawingNo, itemComponentsQuery.data],
     queryFn: async () => {
-      if (!currentItem?.drawingNo) return [];
+      if (!currentItem) return [];
       
-      console.log(`Fetching drawings for drawing number: ${currentItem.drawingNo}`);
+      // Build a list of drawing numbers to search for
+      let drawingNumbers: string[] = [];
       
-      // Check for drawings in multiple possible locations
-      const searchPaths = [
-        // Standard path based on our planned structure
-        `THERMOPAC_INVENTORY/${currentItem.drawingNo}`,
-        // Alternative path - the root inventory folder
-        `THERMOPAC_INVENTORY`
-      ];
+      // Add the parent item's drawing number if it exists
+      if (currentItem.drawingNo) {
+        drawingNumbers.push(currentItem.drawingNo);
+      }
       
-      let allFoundFiles: any[] = [];
-      
-      // Try each search path to find our drawings
-      for (const searchPath of searchPaths) {
-        try {
-          console.log(`Searching in path: ${searchPath}`);
-          
-          // Use recursive search to find all files in the drawing's folder
-          const response = await fetch(`/api/storage/files?path=${encodeURIComponent(searchPath)}&recursive=true`);
-          
-          if (response.ok) {
-            const pathFiles = await response.json();
-            console.log(`Found ${pathFiles.length} total files in ${searchPath}`);
-            
-            if (pathFiles.length > 0) {
-              allFoundFiles = [...allFoundFiles, ...pathFiles];
+      // Add component drawing numbers if they exist
+      if (itemComponentsQuery.data && itemComponentsQuery.data.length > 0) {
+        for (const component of itemComponentsQuery.data) {
+          if (component.drawingNo || component.componentDrawingNo) {
+            const componentDrawingNo = component.componentDrawingNo || component.drawingNo;
+            if (componentDrawingNo && !drawingNumbers.includes(componentDrawingNo)) {
+              drawingNumbers.push(componentDrawingNo);
             }
           }
-        } catch (error) {
-          console.error(`Error searching in path ${searchPath}:`, error);
-          // Continue trying other paths
         }
+      }
+      
+      if (drawingNumbers.length === 0) {
+        return [];
+      }
+      
+      console.log(`Fetching drawings for numbers: ${drawingNumbers.join(', ')}`);
+      
+      // Search path
+      const searchPath = 'THERMOPAC_INVENTORY';
+      let allFoundFiles: any[] = [];
+      
+      try {
+        console.log(`Searching in path: ${searchPath}`);
+        
+        // Use recursive search to find all files
+        const response = await fetch(`/api/storage/files?path=${encodeURIComponent(searchPath)}&recursive=true`);
+        
+        if (response.ok) {
+          const pathFiles = await response.json();
+          console.log(`Found ${pathFiles.length} total files in ${searchPath}`);
+          
+          if (pathFiles.length > 0) {
+            allFoundFiles = [...pathFiles];
+          }
+        }
+      } catch (error) {
+        console.error(`Error searching in path ${searchPath}:`, error);
       }
       
       console.log(`Found ${allFoundFiles.length} total files across all search paths`);
@@ -208,8 +222,7 @@ const ItemMasterManagement: React.FC = () => {
         return [];
       }
       
-      // Filter to show only drawing files related to this item
-      const drawingNo = currentItem.drawingNo;
+      // Filter to show only drawing files related to our drawing numbers
       const drawingFiles = allFoundFiles.filter((file: any) => {
         // Skip directories
         if (file.isDirectory) return false;
@@ -230,22 +243,30 @@ const ItemMasterManagement: React.FC = () => {
         
         if (!isPdfOrDrawing) return false;
         
-        // Look for drawing number in the path/name
-        return (
-          fullPath.includes(`/${drawingNo}/`) || 
-          fullPath.includes(`/${drawingNo}_`) ||
-          fullPath.includes(drawingNo) // Simpler check to catch more possibilities
-        );
+        // Check if any of our drawing numbers are in the path
+        for (const drawingNo of drawingNumbers) {
+          if (
+            fullPath.includes(`/${drawingNo}/`) || 
+            fullPath.includes(`/${drawingNo}_`) ||
+            fullPath.includes(drawingNo) // Simpler check to catch more possibilities
+          ) {
+            return true;
+          }
+        }
+        
+        return false;
       });
       
-      console.log(`Found ${drawingFiles.length} drawing files for ${drawingNo}`);
+      console.log(`Found ${drawingFiles.length} drawing files for all drawing numbers`);
       
       if (drawingFiles.length === 0) {
         return [];
       }
       
-      // Extract file information and revision numbers
-      const processedFiles = drawingFiles.map((file: any) => {
+      // Process the files and extract information
+      const processedFilesMap = new Map(); // Use a Map to avoid duplicates
+      
+      drawingFiles.forEach((file: any) => {
         // Get path and filename components
         const fullPath = file.path || file.name || '';
         const pathParts = fullPath.split('/');
@@ -254,6 +275,23 @@ const ItemMasterManagement: React.FC = () => {
         // Initialize with default values
         let revision = 'N/A';
         let fileDescription = fileName;
+        let matchedDrawingNo: string | null = null;
+        
+        // Find which drawing number this file belongs to
+        for (const drawingNo of drawingNumbers) {
+          if (
+            fullPath.includes(`/${drawingNo}/`) || 
+            fullPath.includes(`/${drawingNo}_`) ||
+            fullPath.includes(drawingNo)
+          ) {
+            matchedDrawingNo = drawingNo;
+            break;
+          }
+        }
+        
+        if (!matchedDrawingNo) {
+          return; // Skip if we can't determine the drawing number
+        }
         
         // Extract revision from filename using various patterns
         const revPatterns = [
@@ -276,46 +314,71 @@ const ItemMasterManagement: React.FC = () => {
           fileDescription = file.description;
         }
         
-        return {
-          ...file,
-          drawingNo: drawingNo,
-          revision: revision,
-          name: fileDescription,
-          revisionNumber: revision !== 'N/A' ? parseInt(revision, 10) : -1,
-          uploadDate: new Date(file.created || file.updated || Date.now()).toLocaleString()
-        };
+        const revisionNumber = revision !== 'N/A' ? parseInt(revision, 10) : -1;
+        
+        // Create a unique key for this file
+        const fileKey = `${matchedDrawingNo}_${revisionNumber}`;
+        
+        // Only add it if this is a new file or if it has a higher revision than what we already have
+        if (!processedFilesMap.has(fileKey) || processedFilesMap.get(fileKey).revisionNumber < revisionNumber) {
+          processedFilesMap.set(fileKey, {
+            ...file,
+            drawingNo: matchedDrawingNo,
+            revision: revision,
+            name: fileDescription,
+            revisionNumber: revisionNumber,
+            uploadDate: new Date(file.created || file.updated || Date.now()).toLocaleString(),
+            // Store component information if this is a component drawing
+            isComponent: matchedDrawingNo !== currentItem.drawingNo,
+            componentInfo: matchedDrawingNo !== currentItem.drawingNo ? 
+              itemComponentsQuery.data?.find((c: any) => 
+                (c.drawingNo === matchedDrawingNo || c.componentDrawingNo === matchedDrawingNo)
+              ) : null
+          });
+        }
       });
       
-      // Sort files by revision number (highest first) to show latest revisions at the top
+      // Convert the Map to an array
+      const processedFiles = Array.from(processedFilesMap.values());
+      
+      // Sort first by drawing number, then by revision (highest first)
       processedFiles.sort((a: any, b: any) => {
+        // First sort by drawing number
+        if (a.drawingNo !== b.drawingNo) {
+          // Put parent drawings first
+          if (a.drawingNo === currentItem.drawingNo) return -1;
+          if (b.drawingNo === currentItem.drawingNo) return 1;
+          // Then alphabetically by drawing number
+          return a.drawingNo.localeCompare(b.drawingNo);
+        }
+        // Then sort by revision number (highest first)
         return b.revisionNumber - a.revisionNumber;
       });
       
-      // Update the latestRevisions state with the highest revision numbers
-      if (processedFiles.length > 0) {
-        // Find the highest revision for each drawing number
-        const highestRevision = processedFiles[0].revisionNumber; // We've already sorted
-        
-        console.log(`Found drawings for ${drawingNo} - highest revision is ${highestRevision}`);
-        
-        // Update our tracking state with the highest revision we found
-        if (highestRevision > 0) {
-          setLatestRevisions(prev => {
-            const newState = {
-              ...prev,
-              [drawingNo]: highestRevision
-            };
-            console.log('Updated latestRevisions:', newState);
-            return newState;
-          });
+      // Update the latestRevisions state
+      const highestRevisions: Record<string, number> = {};
+      
+      processedFiles.forEach((file: any) => {
+        const { drawingNo, revisionNumber } = file;
+        if (revisionNumber > 0 && (!highestRevisions[drawingNo] || highestRevisions[drawingNo] < revisionNumber)) {
+          highestRevisions[drawingNo] = revisionNumber;
         }
+      });
+      
+      // Update our tracking state with the highest revisions we found
+      if (Object.keys(highestRevisions).length > 0) {
+        setLatestRevisions(prev => {
+          const newState = { ...prev, ...highestRevisions };
+          console.log('Updated latestRevisions:', newState);
+          return newState;
+        });
       }
       
       console.log('Processed drawing files:', processedFiles);
       
       return processedFiles;
     },
-    enabled: !!currentItem?.drawingNo && activeTab === 'drawings'
+    enabled: !!currentItem && activeTab === 'drawings' && !itemComponentsQuery.isLoading
   });
   
   const form = useForm<FormValues>({
