@@ -168,119 +168,131 @@ const ItemMasterManagement: React.FC = () => {
       
       console.log(`Fetching drawings for drawing number: ${currentItem.drawingNo}`);
       
-      // Main path with drawing number
-      const mainPath = `THERMOPAC_INVENTORY/${currentItem.drawingNo}`;
+      // Exact path based on the specified pattern
+      const exactPath = `THERMOPAC_INVENTORY/${currentItem.drawingNo}`;
       
       try {
-        // Use recursive search with the enhanced API
-        const response = await fetch(`/api/storage/files?path=${encodeURIComponent(mainPath)}&recursive=true`);
+        // Use recursive search to find all files in the drawing's folder
+        const response = await fetch(`/api/storage/files?path=${encodeURIComponent(exactPath)}&recursive=true`);
         
         if (response.ok) {
-          const filesFound = await response.json();
-          console.log(`Found ${filesFound.length} files in drawing directory (recursive search)`);
+          const allFiles = await response.json();
+          console.log(`Found ${allFiles.length} total files in ${exactPath}`);
           
-          // Filter to include only actual files (not directories)
-          const drawingFiles = filesFound.filter((file: any) => 
-            !file.isDirectory && 
-            file.name && 
-            !file.name.endsWith('.keep') && 
-            file.contentType
-          );
+          // Filter to actual drawing files based on the naming pattern
+          const drawingFiles = allFiles.filter((file: any) => {
+            // Make sure it's a file, not a directory
+            if (file.isDirectory || !file.contentType) {
+              return false;
+            }
+            
+            // Check if the file matches the expected pattern (DrawingNo_R*.pdf)
+            const fileName = file.name || '';
+            const drawingNoBase = currentItem.drawingNo;
+            
+            // Pattern match for DrawingNo_R*.extension
+            return (
+              fileName.startsWith(drawingNoBase + '_R') || 
+              fileName.includes('/' + drawingNoBase + '_R')
+            );
+          });
           
-          console.log(`After filtering, found ${drawingFiles.length} actual drawing files`);
+          console.log(`Found ${drawingFiles.length} drawing files matching pattern ${currentItem.drawingNo}_R*.pdf`);
           
           if (drawingFiles.length > 0) {
-            // Process and return the files we found
-            return drawingFiles.map((file: any) => {
-              // Extract revision information
-              let revision = '';
+            // Extract revision information from filenames
+            const processedFiles = drawingFiles.map((file: any) => {
+              // Extract revision number from the filename (DrawingNo_R1.pdf -> 1)
+              const fileName = file.name;
+              let revision = 'N/A';
               
-              // Check if revision is in the filename
-              if (file.name && file.name.includes('_REV_')) {
-                revision = file.name.split('_REV_')[1].split('.')[0];
-              } 
-              // Check if the file is in a revision folder (e.g., R3)
-              else if (file.path && file.path.includes('/R')) {
-                const parts = file.path.split('/');
-                for (const part of parts) {
-                  if (part.startsWith('R') && /^R\d+$/.test(part)) {
-                    revision = part.substring(1); // Remove the R prefix
-                    break;
-                  }
+              // Look for _R followed by digits in the filename
+              const revMatch = fileName.match(/_R(\d+)/);
+              if (revMatch && revMatch[1]) {
+                revision = revMatch[1];
+              }
+              
+              return {
+                ...file,
+                drawingNo: currentItem.drawingNo,
+                revision: revision,
+                revisionNumber: revision !== 'N/A' ? parseInt(revision, 10) : -1,
+                uploadDate: new Date(file.created || file.updated || Date.now()).toLocaleString()
+              };
+            });
+            
+            // Group files by drawing number to find the latest revision of each
+            const drawingGroups = new Map();
+            processedFiles.forEach((file: any) => {
+              const drawingNo = file.drawingNo;
+              
+              // Only keep track of the highest revision for each drawing number
+              if (!drawingGroups.has(drawingNo) || file.revisionNumber > drawingGroups.get(drawingNo).revisionNumber) {
+                drawingGroups.set(drawingNo, file);
+              }
+            });
+            
+            // Return only the latest revision of each drawing
+            const latestDrawings = Array.from(drawingGroups.values());
+            console.log(`Returning ${latestDrawings.length} latest revision drawings`);
+            return latestDrawings;
+          }
+        }
+        
+        // If the exact path pattern didn't work, try alternative paths
+        console.log("Exact pattern not found. Trying alternative path patterns...");
+        
+        // Try looking for any drawing-like files in the folder
+        const looseResponse = await fetch(`/api/storage/files?path=${encodeURIComponent(exactPath)}&recursive=true`);
+        
+        if (looseResponse.ok) {
+          const allLooseFiles = await looseResponse.json();
+          console.log(`Found ${allLooseFiles.length} files for loose matching`);
+          
+          // Filter to PDF/drawing files
+          const pdfFiles = allLooseFiles.filter((file: any) => {
+            return (
+              !file.isDirectory && 
+              file.contentType &&
+              (file.contentType.includes('pdf') || 
+              file.contentType.includes('image') ||
+              file.contentType.includes('dwg') ||
+              file.name.toLowerCase().endsWith('.pdf') ||
+              file.name.toLowerCase().endsWith('.dwg'))
+            );
+          });
+          
+          console.log(`Found ${pdfFiles.length} PDF/drawing files in loose search`);
+          
+          if (pdfFiles.length > 0) {
+            // Process and return what we found
+            return pdfFiles.map((file: any) => {
+              // Try to extract revision information
+              let revision = 'N/A';
+              
+              // Check for revision pattern in name
+              const revPatterns = [
+                /_R(\d+)/, // DrawingNo_R1.pdf
+                /Rev\.?(\d+)/i, // Rev1 or Rev.1
+                /Revision[_\s-]?(\d+)/i, // Revision 1
+                /V(\d+)/ // V1
+              ];
+              
+              for (const pattern of revPatterns) {
+                const match = file.name.match(pattern);
+                if (match && match[1]) {
+                  revision = match[1];
+                  break;
                 }
               }
               
               return {
                 ...file,
                 drawingNo: currentItem.drawingNo,
-                revision: revision || 'N/A',
+                revision: revision,
                 uploadDate: new Date(file.created || file.updated || Date.now()).toLocaleString()
               };
             });
-          }
-        }
-        
-        // If main path search didn't yield results, try alternative paths
-        console.log("Trying alternative paths for drawings");
-        
-        const altPaths = [
-          `${currentItem.drawingNo}`, // Try without THERMOPAC_INVENTORY prefix
-          `THERMOPAC_INVENTORY/${currentItem.drawingNo}/drawings`, // With drawings subfolder
-          `THERMOPAC_INVENTORY/${currentItem.drawingNo}/drawing` // Singular form
-        ];
-        
-        // Try each alternative path
-        for (const path of altPaths) {
-          try {
-            console.log(`Trying alternative path: ${path}`);
-            const altResponse = await fetch(`/api/storage/files?path=${encodeURIComponent(path)}&recursive=true`);
-            
-            if (altResponse.ok) {
-              const altFilesFound = await altResponse.json();
-              console.log(`Found ${altFilesFound.length} files in alternative path ${path}`);
-              
-              // Filter to include only actual files
-              const drawingFiles = altFilesFound.filter((file: any) => 
-                !file.isDirectory && 
-                file.name && 
-                !file.name.endsWith('.keep') && 
-                file.contentType
-              );
-              
-              if (drawingFiles.length > 0) {
-                console.log(`After filtering, found ${drawingFiles.length} drawing files in alt path`);
-                
-                // Process and return the files we found
-                return drawingFiles.map((file: any) => {
-                  // Extract revision information
-                  let revision = '';
-                  
-                  // Check if revision is in the filename
-                  if (file.name && file.name.includes('_REV_')) {
-                    revision = file.name.split('_REV_')[1].split('.')[0];
-                  } 
-                  // Check if the file is in a revision folder (e.g., R3)
-                  else if (file.path && file.path.includes('/R')) {
-                    const parts = file.path.split('/');
-                    for (const part of parts) {
-                      if (part.startsWith('R') && /^R\d+$/.test(part)) {
-                        revision = part.substring(1); // Remove the R prefix
-                        break;
-                      }
-                    }
-                  }
-                  
-                  return {
-                    ...file,
-                    drawingNo: currentItem.drawingNo,
-                    revision: revision || 'N/A',
-                    uploadDate: new Date(file.created || file.updated || Date.now()).toLocaleString()
-                  };
-                });
-              }
-            }
-          } catch (error) {
-            console.error(`Error with alternative path ${path}:`, error);
           }
         }
         
@@ -1330,7 +1342,7 @@ const ItemMasterManagement: React.FC = () => {
                           <div className="bg-muted p-3 rounded-md mt-2">
                             <h4 className="text-sm font-medium mb-1">Storage Path:</h4>
                             <p className="text-xs text-muted-foreground break-all">
-                              THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}.{drawingFile.name.split('.').pop()}
+                              THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}_R{drawingRevision || '1'}.{drawingFile.name.split('.').pop()}
                             </p>
                           </div>
                         )}
@@ -1370,10 +1382,10 @@ const ItemMasterManagement: React.FC = () => {
                             const originalFileName = drawingFile.name;
                             const fileExtension = originalFileName.split('.').pop() || 'pdf';
                             
-                            // Create a new file with the correct naming pattern: "Drawing No_REV_X.pdf"
-                            // Include revision in the filename if provided
-                            const revisionPart = drawingRevision ? `_REV_${drawingRevision}` : '';
-                            const newFileName = `${drawingNo}${revisionPart}.${fileExtension}`;
+                            // Create a new file with the correct naming pattern: "Drawing No_RX.pdf"
+                            // Always include revision in the filename, using 1 as default if not provided
+                            const revisionNumber = drawingRevision || '1';
+                            const newFileName = `${drawingNo}_R${revisionNumber}.${fileExtension}`;
                             console.log("Uploading file with name:", newFileName);
                             const newFile = new File([drawingFile], newFileName, { type: drawingFile.type });
                             
