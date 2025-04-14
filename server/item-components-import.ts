@@ -160,6 +160,10 @@ export function setupItemComponentsImportRoutes(app: Router) {
           let itemCode: string | undefined;
           let quantity: number = 1;
           
+          // Main variables for extracted data
+          let makeOrBuy = null;
+          let drawingNo = null;
+          
           // Extract data based on format
           if (useHeaderMapping) {
             // Use mapped headers
@@ -170,6 +174,10 @@ export function setupItemComponentsImportRoutes(app: Router) {
                 } else if (fieldName === 'quantity') {
                   const numValue = parseFloat(row[colLetter]);
                   quantity = isNaN(numValue) ? 1 : numValue;
+                } else if (fieldName === 'makeOrBuy') {
+                  makeOrBuy = row[colLetter].toString().trim();
+                } else if (fieldName === 'drawingNo') {
+                  drawingNo = row[colLetter].toString().trim();
                 }
               }
             }
@@ -188,6 +196,22 @@ export function setupItemComponentsImportRoutes(app: Router) {
               if (row[possibleName] !== undefined) {
                 const numValue = parseFloat(row[possibleName]);
                 quantity = isNaN(numValue) ? 1 : numValue;
+                break;
+              }
+            }
+            
+            // Check for Make/Buy under various possible column names
+            for (const possibleName of ['Make/Buy', 'MakeOrBuy', 'Make or Buy']) {
+              if (row[possibleName] !== undefined) {
+                makeOrBuy = row[possibleName].toString().trim();
+                break;
+              }
+            }
+            
+            // Check for Drawing No under various possible column names
+            for (const possibleName of ['Drawing No', 'DrawingNo', 'Drawing Number']) {
+              if (row[possibleName] !== undefined) {
+                drawingNo = row[possibleName].toString().trim();
                 break;
               }
             }
@@ -217,8 +241,6 @@ export function setupItemComponentsImportRoutes(app: Router) {
             try {
               // Get description and other fields from the Excel if available
               let description = '';
-              let makeOrBuy = null;
-              let drawingNo = null;
               let uom = 'Nos'; // Default UOM
               
               if (useHeaderMapping) {
@@ -318,6 +340,23 @@ export function setupItemComponentsImportRoutes(app: Router) {
                 updatedAt: new Date()
               })
               .where(eq(itemComponents.id, existingComponents[0].id));
+            
+            // Check if we should also update the master item's Make/Buy and Drawing No fields
+            if (makeOrBuy || drawingNo) {
+              // Get updated values from Excel if available
+              const updateValues: any = {};
+              if (makeOrBuy) updateValues.makeOrBuy = makeOrBuy;
+              if (drawingNo) updateValues.drawingNo = drawingNo;
+              
+              // Update master item with Make/Buy and Drawing No values
+              if (Object.keys(updateValues).length > 0) {
+                await db.update(masterItems)
+                  .set(updateValues)
+                  .where(eq(masterItems.id, componentItem.id));
+                
+                console.log(`Updated master item properties for ${itemCode}: ${JSON.stringify(updateValues)}`);
+              }
+            }
 
             console.log(`Updated component ${itemCode} for parent ${parentItemCode}`);
           } else {
