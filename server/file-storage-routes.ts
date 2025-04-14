@@ -468,12 +468,40 @@ export function setupFileStorageRoutes(app: Router) {
         const [, drawingNo, revisionStr] = revisionMatch;
         const revisionNum = parseInt(revisionStr, 10);
         
-        // Check if a file with this exact revision already exists in GCS
+        // Check if this is a master item drawing by looking up the drawingNo in the database
         try {
-          const existingFiles = await gcsStorage.listFiles({
-            directory: `${financialYear}/${projectCode}`,
-            recursive: true 
-          });
+          const masterItems = await db
+            .select()
+            .from(schema.masterItems)
+            .where(eq(schema.masterItems.drawingNo, drawingNo));
+          
+          // If this is a master item, check the latest revision
+          if (masterItems.length > 0) {
+            const masterItem = masterItems[0];
+            const latestRevision = masterItem.latestRevision || 0;
+            
+            // If the upload revision is the same as the latest, throw an error
+            if (revisionNum === latestRevision) {
+              return res.status(409).json({ 
+                error: `Drawing with revision ${revisionNum} already exists. Please use revision ${latestRevision + 1} or higher.`,
+                suggestedRevision: latestRevision + 1,
+                existingRevision: latestRevision
+              });
+            }
+            
+            // If the upload revision is higher, we'll update the master item later
+          }
+        } catch (err) {
+          console.error('Error checking master item:', err);
+          // Continue with the upload even if the check fails
+        }
+        
+        // Double-check with GCS to make sure no file with this revision exists
+        try {
+          const existingFiles = await gcsStorage.listFiles(
+            `${financialYear}/${projectCode}`,
+            true
+          );
           
           const existingRevisions = existingFiles.filter(file => {
             // Only check files with the same drawing number pattern
@@ -637,6 +665,43 @@ export function setupFileStorageRoutes(app: Router) {
               filePath: storagePath,
               expirationMinutes: 60 // 1 hour
             });
+            
+            // Update the master item's latest revision if this is a drawing file
+            const revisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/);
+            if (revisionMatch && department === 'drawings') {
+              const [, drawingNo, revisionStr] = revisionMatch;
+              const revisionNum = parseInt(revisionStr, 10);
+              
+              try {
+                // Find the master item by drawing number
+                const masterItems = await db
+                  .select()
+                  .from(schema.masterItems)
+                  .where(eq(schema.masterItems.drawingNo, drawingNo));
+                
+                // If we found a matching master item, update its latestRevision if this revision is higher
+                if (masterItems.length > 0) {
+                  const masterItem = masterItems[0];
+                  const currentLatestRevision = masterItem.latestRevision || 0;
+                  
+                  // Only update if the new revision is higher
+                  if (revisionNum > currentLatestRevision) {
+                    console.log(`Updating master item ${masterItem.id} latest revision from ${currentLatestRevision} to ${revisionNum}`);
+                    
+                    await db
+                      .update(schema.masterItems)
+                      .set({
+                        latestRevision: revisionNum,
+                        updatedAt: new Date()
+                      })
+                      .where(eq(schema.masterItems.id, masterItem.id));
+                  }
+                }
+              } catch (error) {
+                console.error('Error updating master item revision:', error);
+                // Don't fail the upload if this update fails
+              }
+            }
             
             // Create a document record in the database
             try {

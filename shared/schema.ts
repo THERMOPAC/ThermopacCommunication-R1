@@ -666,6 +666,9 @@ export const masterItems = pgTable('master_items', {
   makeOrBuy: text('make_or_buy'), // Whether this item is made in-house or purchased
   drawingNo: text('drawing_no'), // Drawing Number reference
   
+  // Drawing revision tracking
+  latestRevision: integer('latest_revision').default(0), // Track the latest drawing revision
+  
   // Additional details
   standardCost: decimal('standard_cost', { precision: 12, scale: 2 }),
   supplier: text('supplier'),
