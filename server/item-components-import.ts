@@ -433,4 +433,45 @@ export function setupItemComponentsImportRoutes(app: Router) {
       });
     }
   });
+  
+  /**
+   * Delete a component from a master item
+   */
+  app.delete('/api/item-components/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const componentId = parseInt(req.params.id);
+      
+      if (isNaN(componentId)) {
+        return res.status(400).json({ error: 'Invalid component ID' });
+      }
+      
+      // Check if the user has permission to delete components
+      if (!canManage(req.user!.role)) {
+        return res.status(403).json({ error: 'Not authorized to delete components' });
+      }
+      
+      // Check if the component exists
+      const existingComponent = await db.select()
+        .from(itemComponents)
+        .where(eq(itemComponents.id, componentId))
+        .limit(1);
+        
+      if (existingComponent.length === 0) {
+        return res.status(404).json({ error: 'Component not found' });
+      }
+      
+      // Delete the component
+      await db.delete(itemComponents)
+        .where(eq(itemComponents.id, componentId));
+      
+      console.log(`Deleted component with ID: ${componentId}`);
+      res.status(204).send();
+    } catch (error) {
+      console.error(`Error deleting component ${req.params.id}:`, error);
+      res.status(500).json({ 
+        error: 'Failed to delete component',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
 }

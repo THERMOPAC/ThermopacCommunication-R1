@@ -941,8 +941,17 @@ const ItemMasterManagement: React.FC = () => {
                             <TableCell>{component.componentMakeOrBuy || '-'}</TableCell>
                             <TableCell>{component.componentDrawingNo || '-'}</TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="sm">
-                                <Trash2 className="h-4 w-4 text-red-500" />
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleDeleteComponent(component.id)}
+                                disabled={isDeleting === component.id}
+                              >
+                                {isDeleting === component.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin text-red-500" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                )}
                               </Button>
                             </TableCell>
                           </TableRow>
