@@ -104,11 +104,11 @@ class GcsStorage {
 
   /**
    * List files in a directory
-   * Returns all files in the specified path, excluding ".keep" files
+   * Returns all files in the specified path, including files in subdirectories if recursive is true
    */
-  async listFiles(directoryPath: string): Promise<any[]> {
+  async listFiles(directoryPath: string, recursive: boolean = false): Promise<any[]> {
     try {
-      console.log(`GCS: Listing files in directory: ${directoryPath}`);
+      console.log(`GCS: Listing files in directory: ${directoryPath} (recursive: ${recursive})`);
       
       // First check if this is a THERMOPAC_INVENTORY path
       // THERMOPAC_INVENTORY should be at the ROOT, not inside THERMOPAC_PROJECTS
@@ -127,34 +127,84 @@ class GcsStorage {
       console.log(`GCS: Cleaned path to remove double slashes: ${cleanPath}`);
       
       const bucket = storage.bucket(bucketName);
-      const options = {
-        prefix: cleanPath,
-        delimiter: '/'
+      const options: any = {
+        prefix: cleanPath
       };
       
+      // Only use delimiter for non-recursive listing (to get "directories")
+      if (!recursive) {
+        options.delimiter = '/';
+      }
+      
+      let allFiles: any[] = [];
+      
+      // Get files in the current directory
       console.log(`GCS: Getting files with prefix: ${options.prefix}`);
-      const [response] = await bucket.getFiles(options);
-      console.log(`GCS: Found ${response.length} files in bucket`);
+      const [files] = await bucket.getFiles(options);
+      console.log(`GCS: Found ${files.length} files in bucket with prefix ${cleanPath}`);
       
-      // Log each file for debugging
-      response.forEach(file => {
-        console.log(`GCS: Found file: ${file.name}`);
-      });
+      // Check for prefixes/directories if non-recursive mode
+      let directories: string[] = [];
+      if (!recursive) {
+        try {
+          const [, apiResponse] = await bucket.getFiles(options);
+          if (apiResponse && apiResponse.prefixes) {
+            directories = apiResponse.prefixes as string[];
+            console.log(`GCS: Found directories: ${JSON.stringify(directories)}`);
+          }
+        } catch (err) {
+          console.warn('Error getting prefixes (subdirectories):', err);
+        }
+      }
       
-      // Filter out ".keep" files and parse metadata
-      const files = response
-        .filter(file => !file.name.endsWith('/.keep'))
+      // Process files
+      const processedFiles = files
+        .filter(file => 
+          // Exclude .keep files
+          !file.name.endsWith('/.keep') && 
+          // Exclude directories (files that end with /)
+          !file.name.endsWith('/') &&
+          // Exclude the directory itself 
+          file.name !== cleanPath
+        )
         .map(file => ({
           name: path.basename(file.name),
           path: file.name,
           size: file.metadata.size,
           contentType: file.metadata.contentType,
           updated: file.metadata.updated,
-          created: file.metadata.timeCreated
+          created: file.metadata.timeCreated,
+          isDirectory: false
         }));
       
-      console.log(`GCS: Returning ${files.length} files (excluding .keep files)`);
-      return files;
+      allFiles.push(...processedFiles);
+      
+      // Add directory entries (for non-recursive mode)
+      const directoryEntries = directories.map(dir => {
+        const dirName = dir.replace(cleanPath, '').replace(/\/$/, '');
+        return {
+          name: dirName,
+          path: dir,
+          isDirectory: true,
+          contentType: null
+        };
+      });
+      
+      allFiles.push(...directoryEntries);
+      
+      // If recursive and we found directories, recursively list their contents
+      if (recursive && directories.length > 0) {
+        const subDirPromises = directories.map(dir => this.listFiles(dir, true));
+        const subDirResults = await Promise.all(subDirPromises);
+        
+        for (const subDirFiles of subDirResults) {
+          allFiles.push(...subDirFiles);
+        }
+      }
+      
+      console.log(`GCS: Returning ${allFiles.length} total items`);
+      
+      return allFiles;
     } catch (error) {
       console.error('Error listing files:', error);
       return [];

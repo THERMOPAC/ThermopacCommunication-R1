@@ -228,17 +228,31 @@ export function setupFileStorageRoutes(app: Router) {
    */
   app.get('/api/storage/files', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { path } = req.query;
+      const { path, recursive } = req.query;
       
       if (!path) {
         return res.status(400).json({ error: 'Path parameter is required' });
       }
       
-      console.log(`Listing files in path: ${path}`);
+      // Parse the recursive parameter (default to false)
+      const isRecursive = recursive === 'true' || recursive === '1';
+      
+      console.log(`Listing files in path: ${path} (recursive: ${isRecursive})`);
+      
+      // Determine if this is a drawing-related path - drawings often have a specific structure
+      // Look for patterns that might indicate a drawing directory
+      const pathStr = path as string;
+      const isDrawingPath = 
+        pathStr.includes('drawings') || 
+        (pathStr.includes('THERMOPAC_INVENTORY') && /\d+/.test(pathStr)) ||
+        /^4\d{3}/.test(pathStr); // Starts with 4 followed by 3+ digits (drawing numbers pattern)
+      
+      if (isDrawingPath) {
+        console.log(`This appears to be a drawing-related path: ${pathStr}, will search recursively`);
+      }
       
       // Determine if this is a THERMOPAC_INVENTORY or THERMOPAC_PROJECTS path
-      let fullPath = path as string;
-      const pathStr = path as string;
+      let fullPath = pathStr;
       
       // Don't add THERMOPAC_PROJECTS prefix if it's already a THERMOPAC_INVENTORY path
       if (pathStr.startsWith('THERMOPAC_INVENTORY/')) {
@@ -259,9 +273,40 @@ export function setupFileStorageRoutes(app: Router) {
       fullPath = fullPath.replace(/\/+/g, '/');
       console.log(`Normalized path (removed double slashes): ${fullPath}`);
       
-      // Use the real GCS implementation
-      const files = await gcsStorage.listFiles(fullPath);
+      // Use the real GCS implementation - use recursive mode for drawing paths or when explicitly requested
+      const files = await gcsStorage.listFiles(fullPath, isRecursive || isDrawingPath);
       console.log(`Found ${files.length} files in ${fullPath}`);
+      
+      // For drawing paths, if no files found with explicit path, try searching the parent directory
+      if (isDrawingPath && files.length === 0 && fullPath.includes('/')) {
+        // Go up one level in the path hierarchy
+        const parentPath = fullPath.split('/').slice(0, -1).join('/');
+        console.log(`No files found. Trying parent directory: ${parentPath}`);
+        
+        const parentFiles = await gcsStorage.listFiles(parentPath, true);
+        console.log(`Found ${parentFiles.length} files in parent directory`);
+        
+        // Only return files that are related to the requested drawing path
+        // This filters the results to include only relevant files
+        const filteredFiles = parentFiles.filter(file => {
+          const fileName = file.name || '';
+          const filePath = file.path || '';
+          
+          // Extract drawing number from path
+          const drawingMatch = fullPath.match(/\d{10,}/);
+          if (drawingMatch) {
+            const drawingNo = drawingMatch[0];
+            return filePath.includes(drawingNo);
+          }
+          return false;
+        });
+        
+        if (filteredFiles.length > 0) {
+          console.log(`Returning ${filteredFiles.length} relevant files from parent directory`);
+          return res.status(200).json(filteredFiles);
+        }
+      }
+      
       res.status(200).json(files);
     } catch (error) {
       console.error('Error listing files:', error);
