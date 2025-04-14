@@ -142,6 +142,7 @@ const ItemMasterManagement: React.FC = () => {
   const [drawingFile, setDrawingFile] = useState<File | null>(null);
   const [isUploadingDrawing, setIsUploadingDrawing] = useState(false);
   const [selectedDrawingItem, setSelectedDrawingItem] = useState<{ id: number, code: string, drawingNo?: string | null } | null>(null);
+  const [isDrawingDialogOpen, setIsDrawingDialogOpen] = useState(false);
   
   // Query for item components when viewing the components tab
   const itemComponentsQuery = useQuery({
@@ -1069,7 +1070,17 @@ const ItemMasterManagement: React.FC = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Drawing Management</h3>
-                  <Dialog>
+                  <Dialog open={isDrawingDialogOpen} onOpenChange={(open) => {
+                    setIsDrawingDialogOpen(open);
+                    // When opening the dialog, initialize with the parent item selected
+                    if (open && currentItem) {
+                      setSelectedDrawingItem({
+                        id: currentItem.id,
+                        code: currentItem.itemCode,
+                        drawingNo: currentItem.drawingNo
+                      });
+                    }
+                  }}>
                     <DialogTrigger asChild>
                       <Button size="sm">
                         <Plus className="h-4 w-4 mr-1" /> Upload Drawing
@@ -1248,9 +1259,9 @@ const ItemMasterManagement: React.FC = () => {
                                 setDrawingFile(null);
                                 setDrawingRevision('');
                                 setDrawingDescription('');
+                                setSelectedDrawingItem(null);
                                 // Close the dialog
-                                const dialogCloseButton = document.querySelector('[data-state="open"] button[type="button"]') as HTMLButtonElement;
-                                if (dialogCloseButton) dialogCloseButton.click();
+                                setIsDrawingDialogOpen(false);
                               })
                               .catch(error => {
                                 toast({
