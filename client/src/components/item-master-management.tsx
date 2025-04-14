@@ -1190,11 +1190,11 @@ const ItemMasterManagement: React.FC = () => {
                           </p>
                         </div>
                         
-                        {selectedDrawingItem && (
+                        {selectedDrawingItem && drawingFile && (
                           <div className="bg-muted p-3 rounded-md mt-2">
                             <h4 className="text-sm font-medium mb-1">Storage Path:</h4>
                             <p className="text-xs text-muted-foreground break-all">
-                              THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}.pdf
+                              THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/drawings/{drawingRevision || 'latest'}/{drawingFile.name}
                             </p>
                           </div>
                         )}
@@ -1227,20 +1227,26 @@ const ItemMasterManagement: React.FC = () => {
                             // Here we'll upload the drawing
                             setIsUploadingDrawing(true);
                             
+                            // Create FormData with the required parameters for /api/storage/upload
                             const formData = new FormData();
                             formData.append('file', drawingFile);
-                            formData.append('revision', drawingRevision);
-                            formData.append('description', drawingDescription);
+                            
+                            // Use the drawing filename
+                            const originalFileName = drawingFile.name;
+                            const fileExtension = originalFileName.split('.').pop() || 'pdf';
                             
                             // Use the selected item information instead of current item
                             const drawingNo = selectedDrawingItem.drawingNo || selectedDrawingItem.code;
-                            formData.append('drawingNumber', drawingNo);
-                            formData.append('itemId', selectedDrawingItem.id.toString());
-                            formData.append('itemCode', selectedDrawingItem.code);
                             
-                            // Use drawing number in path if available, otherwise use item code
-                            const path = `drawings/${drawingNo}`;
-                            formData.append('path', path);
+                            // Add the required parameters for file-storage-routes.ts upload endpoint
+                            formData.append('financialYear', 'THERMOPAC_INVENTORY'); // Using a fixed value for inventory items
+                            formData.append('projectCode', drawingNo); // Using drawing number as project code
+                            formData.append('department', 'drawings'); // Department is drawings
+                            formData.append('subDirectory', drawingRevision || 'latest'); // Use revision as subdirectory
+                            formData.append('projectId', '0'); // Using 0 as a placeholder for non-project files
+                            formData.append('description', drawingDescription || `Drawing for ${drawingNo}`);
+                            formData.append('type', 'drawing');
+                            formData.append('isPublic', 'false');
                             
                             // Use apiRequest to call an upload endpoint
                             apiRequest('POST', '/api/storage/upload', formData)
