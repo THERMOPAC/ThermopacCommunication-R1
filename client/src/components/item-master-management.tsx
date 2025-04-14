@@ -1234,11 +1234,20 @@ const ItemMasterManagement: React.FC = () => {
                     setIsDrawingDialogOpen(open);
                     // When opening the dialog, initialize with the parent item selected
                     if (open && currentItem) {
-                      setSelectedDrawingItem({
+                      console.log('Current latestRevisions state when opening dialog:', latestRevisions);
+                      const newSelectedItem = {
                         id: currentItem.id,
                         code: currentItem.itemCode,
                         drawingNo: currentItem.drawingNo
-                      });
+                      };
+                      setSelectedDrawingItem(newSelectedItem);
+                      
+                      // Auto-populate the revision field with the next revision number
+                      const drawingNo = newSelectedItem.drawingNo || newSelectedItem.code;
+                      const latestRev = latestRevisions[drawingNo] || 0;
+                      const nextRev = (latestRev + 1).toString();
+                      console.log(`Auto-populating revision on dialog open for ${drawingNo}: Latest revision = ${latestRev}, Next revision = ${nextRev}`);
+                      setDrawingRevision(nextRev);
                     }
                   }}>
                     <DialogTrigger asChild>
