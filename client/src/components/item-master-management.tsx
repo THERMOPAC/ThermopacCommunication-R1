@@ -1338,15 +1338,71 @@ const ItemMasterManagement: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-6">
-                          <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
-                            <FileIcon className="h-8 w-8 mb-2" />
-                            <p>No drawings uploaded yet</p>
-                            <p className="text-xs mt-1">Upload drawings using the Upload Drawing button</p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                      {itemDrawingsQuery.isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-6">
+                            <div className="flex flex-col items-center justify-center">
+                              <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-primary rounded-full mb-2"></div>
+                              <p className="text-sm text-muted-foreground">Loading drawings...</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : itemDrawingsQuery.error ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-6">
+                            <div className="flex flex-col items-center justify-center text-sm text-destructive">
+                              <AlertTriangle className="h-8 w-8 mb-2" />
+                              <p>Error loading drawings: {(itemDrawingsQuery.error as Error).message}</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : itemDrawingsQuery.data && itemDrawingsQuery.data.length > 0 ? (
+                        // Render drawings if we have data
+                        itemDrawingsQuery.data.map((drawing: any, index: number) => (
+                          <TableRow key={`${drawing.path}-${index}`}>
+                            <TableCell>{drawing.drawingNo}</TableCell>
+                            <TableCell>{drawing.revision || 'N/A'}</TableCell>
+                            <TableCell>{drawing.name}</TableCell>
+                            <TableCell>{drawing.uploadDate}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    // Download drawing using its path
+                                    fetch(`/api/storage/download-url?filePath=${encodeURIComponent(drawing.path)}`)
+                                      .then(response => response.json())
+                                      .then(data => {
+                                        window.open(data.downloadUrl, '_blank');
+                                      })
+                                      .catch(error => {
+                                        toast({
+                                          title: "Error",
+                                          description: "Failed to download drawing",
+                                          variant: "destructive",
+                                        });
+                                      });
+                                  }}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        // Show message when no drawings are found
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-6">
+                            <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
+                              <FileIcon className="h-8 w-8 mb-2" />
+                              <p>No drawings uploaded yet</p>
+                              <p className="text-xs mt-1">Upload drawings using the Upload Drawing button</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>
