@@ -5,6 +5,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { useLocation } from 'wouter';
 import { 
   Card, 
   CardContent, 
@@ -122,6 +123,7 @@ const ItemMasterManagement: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
