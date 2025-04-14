@@ -101,7 +101,18 @@ const ItemFileStorage: React.FC<ItemFileStorageProps> = ({ itemId, itemCode }) =
       });
 
       if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file to storage');
+        // Try to parse error details from the response
+        const errorData = await uploadResponse.json().catch(() => ({}));
+        
+        if (errorData.error) {
+          // Handle specific error cases like duplicate drawing revisions
+          if (uploadResponse.status === 409 && errorData.suggestedRevision !== undefined) {
+            throw new Error(`${errorData.error} Please use revision ${errorData.suggestedRevision}.`);
+          } else {
+            throw new Error(errorData.error);
+          }
+        }
+        throw new Error(`Upload failed with status: ${uploadResponse.status}`);
       }
 
       return { success: true };
