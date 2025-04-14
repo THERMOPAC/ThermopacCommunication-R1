@@ -236,11 +236,19 @@ export function setupFileStorageRoutes(app: Router) {
       
       console.log(`Listing files in path: ${path}`);
       
-      // Check if path needs THERMOPAC_PROJECTS prefix
+      // Determine if this is a THERMOPAC_INVENTORY or THERMOPAC_PROJECTS path
       let fullPath = path as string;
-      if (!fullPath.startsWith('THERMOPAC_PROJECTS/')) {
-        fullPath = `THERMOPAC_PROJECTS/${fullPath}`;
-        console.log(`Modified path to include prefix: ${fullPath}`);
+      const pathStr = path as string;
+      
+      // Don't add THERMOPAC_PROJECTS prefix if it's already a THERMOPAC_INVENTORY path
+      if (pathStr.startsWith('THERMOPAC_INVENTORY/')) {
+        console.log(`Using inventory path directly: ${pathStr}`);
+        fullPath = pathStr;
+      } 
+      // Don't add prefix if it already has either THERMOPAC_PROJECTS or THERMOPAC_INVENTORY
+      else if (!pathStr.startsWith('THERMOPAC_PROJECTS/') && !pathStr.startsWith('THERMOPAC_INVENTORY/')) {
+        fullPath = `THERMOPAC_PROJECTS/${pathStr}`;
+        console.log(`Modified path to include projects prefix: ${fullPath}`);
       }
       
       // Add more detailed logging

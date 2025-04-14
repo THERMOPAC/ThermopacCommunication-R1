@@ -110,6 +110,14 @@ class GcsStorage {
     try {
       console.log(`GCS: Listing files in directory: ${directoryPath}`);
       
+      // First check if this is a THERMOPAC_INVENTORY path
+      // THERMOPAC_INVENTORY should be at the ROOT, not inside THERMOPAC_PROJECTS
+      if (directoryPath.includes('THERMOPAC_PROJECTS/THERMOPAC_INVENTORY')) {
+        // Remove the THERMOPAC_PROJECTS/ prefix from the path
+        directoryPath = directoryPath.replace('THERMOPAC_PROJECTS/', '');
+        console.log(`GCS: Corrected inventory path to: ${directoryPath}`);
+      }
+      
       // Make sure directory path always ends with a slash
       const normalizedPath = directoryPath.endsWith('/') ? directoryPath : `${directoryPath}/`;
       console.log(`GCS: Normalized path: ${normalizedPath}`);
