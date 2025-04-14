@@ -215,31 +215,67 @@ export function setupItemComponentsImportRoutes(app: Router) {
             console.log(`Creating new master item: ${itemCode}`);
             
             try {
-              // Get description from the Excel if available
+              // Get description and other fields from the Excel if available
               let description = '';
+              let makeOrBuy = null;
+              let drawingNo = null;
+              let uom = 'Nos'; // Default UOM
+              
               if (useHeaderMapping) {
                 for (const [colLetter, fieldName] of Object.entries(headers)) {
-                  if (fieldName === 'description' && row[colLetter]) {
-                    description = row[colLetter].toString().trim();
-                    break;
+                  if (row[colLetter] !== undefined) {
+                    if (fieldName === 'description') {
+                      description = row[colLetter].toString().trim();
+                    } else if (fieldName === 'makeOrBuy') {
+                      makeOrBuy = row[colLetter].toString().trim();
+                    } else if (fieldName === 'drawingNo') {
+                      drawingNo = row[colLetter].toString().trim();
+                    } else if (fieldName === 'uom') {
+                      uom = row[colLetter].toString().trim() || 'Nos';
+                    }
                   }
                 }
               } else {
-                // Check common description column names
+                // Check common column names
                 for (const descField of ['Description', 'Desc']) {
                   if (row[descField]) {
                     description = row[descField].toString().trim();
                     break;
                   }
                 }
+                
+                for (const mbField of ['Make/Buy', 'MakeOrBuy', 'Make or Buy']) {
+                  if (row[mbField]) {
+                    makeOrBuy = row[mbField].toString().trim();
+                    break;
+                  }
+                }
+                
+                for (const dnField of ['Drawing No', 'DrawingNo', 'Drawing Number']) {
+                  if (row[dnField]) {
+                    drawingNo = row[dnField].toString().trim();
+                    break;
+                  }
+                }
+                
+                for (const uomField of ['UOM', 'Unit', 'Unit of Measure']) {
+                  if (row[uomField]) {
+                    uom = row[uomField].toString().trim();
+                    break;
+                  }
+                }
               }
               
-              // Create minimal master item record
+              console.log(`Creating new master item with: Code=${itemCode}, Description=${description}, Make/Buy=${makeOrBuy}, Drawing No=${drawingNo}, UOM=${uom}`);
+              
+              // Create master item record with additional fields
               const [newItem] = await db.insert(masterItems)
                 .values({
                   itemCode: itemCode,
                   description: description || `Component ${itemCode}`,
-                  uom: 'Nos', // Default UOM
+                  uom: uom,
+                  makeOrBuy: makeOrBuy,
+                  drawingNo: drawingNo,
                   createdAt: new Date(),
                   updatedAt: new Date()
                 })
