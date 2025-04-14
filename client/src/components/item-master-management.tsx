@@ -51,6 +51,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectSeparator,
+  SelectLabel,
 } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -1094,7 +1096,7 @@ const ItemMasterManagement: React.FC = () => {
                                 });
                               } else if (value) {
                                 // Component item selected
-                                const component = itemComponentsQuery.data?.find(c => c.id === parseInt(value));
+                                const component = itemComponentsQuery.data?.find((c: any) => c.id === parseInt(value));
                                 if (component) {
                                   setSelectedDrawingItem({
                                     id: component.id,
@@ -1116,7 +1118,7 @@ const ItemMasterManagement: React.FC = () => {
                                 <>
                                   <SelectSeparator />
                                   <SelectLabel>Sub-Assembly Components</SelectLabel>
-                                  {itemComponentsQuery.data.map(component => (
+                                  {itemComponentsQuery.data.map((component: any) => (
                                     <SelectItem key={component.id} value={component.id.toString()}>
                                       {component.itemCode}
                                     </SelectItem>
@@ -1193,6 +1195,15 @@ const ItemMasterManagement: React.FC = () => {
                               });
                               return;
                             }
+                            
+                            if (!selectedDrawingItem) {
+                              toast({
+                                title: "Error",
+                                description: "Please select an item for this drawing",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
 
                             // Here we'll upload the drawing
                             setIsUploadingDrawing(true);
@@ -1201,12 +1212,15 @@ const ItemMasterManagement: React.FC = () => {
                             formData.append('file', drawingFile);
                             formData.append('revision', drawingRevision);
                             formData.append('description', drawingDescription);
-                            formData.append('drawingNumber', currentItem?.drawingNo || '');
-                            formData.append('itemId', currentItem?.id.toString() || '');
-                            formData.append('itemCode', currentItem?.itemCode || '');
                             
-                            // Use path similar to the FileStorage component
-                            const path = `drawings/${currentItem?.itemCode}`;
+                            // Use the selected item information instead of current item
+                            const drawingNo = selectedDrawingItem.drawingNo || selectedDrawingItem.code;
+                            formData.append('drawingNumber', drawingNo);
+                            formData.append('itemId', selectedDrawingItem.id.toString());
+                            formData.append('itemCode', selectedDrawingItem.code);
+                            
+                            // Use drawing number in path if available, otherwise use item code
+                            const path = `drawings/${drawingNo}`;
                             formData.append('path', path);
                             
                             // Use apiRequest to call an upload endpoint
