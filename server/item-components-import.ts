@@ -48,6 +48,12 @@ export function setupItemComponentsImportRoutes(app: Router) {
     'QTY': 'quantity',
     'Description': 'description',
     'UOM': 'uom',
+    'Make/Buy': 'makeOrBuy',
+    'MakeOrBuy': 'makeOrBuy',
+    'Make or Buy': 'makeOrBuy',
+    'Drawing No': 'drawingNo',
+    'DrawingNo': 'drawingNo',
+    'Drawing Number': 'drawingNo',
     // Additional variations
     'Item': 'itemCode',
     'Component Code': 'itemCode',

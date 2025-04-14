@@ -938,8 +938,8 @@ const ItemMasterManagement: React.FC = () => {
                             <TableCell>{component.componentDescription}</TableCell>
                             <TableCell>{component.quantity}</TableCell>
                             <TableCell>{component.componentUom}</TableCell>
-                            <TableCell>{component.makeOrBuy || '-'}</TableCell>
-                            <TableCell>{component.drawingNo || '-'}</TableCell>
+                            <TableCell>{component.componentMakeOrBuy || '-'}</TableCell>
+                            <TableCell>{component.componentDrawingNo || '-'}</TableCell>
                             <TableCell>
                               <Button variant="ghost" size="sm">
                                 <Trash2 className="h-4 w-4 text-red-500" />
