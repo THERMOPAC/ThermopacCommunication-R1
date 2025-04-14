@@ -265,13 +265,18 @@ const ItemMasterManagement: React.FC = () => {
       }
       
       // Process the files and extract information
-      const processedFilesMap = new Map(); // Use a Map to avoid duplicates
+      const drawingNoRevisions = new Map(); // Track highest revision for each drawing number
+      const processedFilesByDrawingNo = new Map(); // Group files by drawing number
       
+      // First pass: find highest revision for each drawing number
       drawingFiles.forEach((file: any) => {
         // Get path and filename components
         const fullPath = file.path || file.name || '';
         const pathParts = fullPath.split('/');
         const fileName = pathParts[pathParts.length - 1] || '';
+        
+        // Skip directories
+        if (file.isDirectory) return;
         
         // Initialize with default values
         let revision = 'N/A';
@@ -317,30 +322,42 @@ const ItemMasterManagement: React.FC = () => {
         
         const revisionNumber = revision !== 'N/A' ? parseInt(revision, 10) : -1;
         
-        // Create a unique key for this file
-        const fileKey = `${matchedDrawingNo}_${revisionNumber}`;
+        // Check for component info
+        const isComponent = matchedDrawingNo !== currentItem.drawingNo;
+        const componentInfo = isComponent ? 
+          itemComponentsQuery.data?.find((c: any) => 
+            (c.drawingNo === matchedDrawingNo || c.componentDrawingNo === matchedDrawingNo)
+          ) : null;
         
-        // Only add it if this is a new file or if it has a higher revision than what we already have
-        if (!processedFilesMap.has(fileKey) || processedFilesMap.get(fileKey).revisionNumber < revisionNumber) {
-          processedFilesMap.set(fileKey, {
+        // Create an identifier for the file that includes component information
+        // This ensures we get the latest revision for each component separately
+        const componentIdentifier = isComponent && componentInfo ? 
+          `${matchedDrawingNo}_${componentInfo.componentItemCode || componentInfo.itemCode}` : 
+          matchedDrawingNo;
+          
+        // Get the current highest revision for this drawing/component
+        const currentHighestRev = drawingNoRevisions.get(componentIdentifier) || -1;
+        
+        // Update if this revision is higher
+        if (revisionNumber > currentHighestRev) {
+          drawingNoRevisions.set(componentIdentifier, revisionNumber);
+          
+          // Store the processed file data
+          processedFilesByDrawingNo.set(componentIdentifier, {
             ...file,
             drawingNo: matchedDrawingNo,
             revision: revision,
             name: fileDescription,
             revisionNumber: revisionNumber,
             uploadDate: new Date(file.created || file.updated || Date.now()).toLocaleString(),
-            // Store component information if this is a component drawing
-            isComponent: matchedDrawingNo !== currentItem.drawingNo,
-            componentInfo: matchedDrawingNo !== currentItem.drawingNo ? 
-              itemComponentsQuery.data?.find((c: any) => 
-                (c.drawingNo === matchedDrawingNo || c.componentDrawingNo === matchedDrawingNo)
-              ) : null
+            isComponent,
+            componentInfo
           });
         }
       });
       
-      // Convert the Map to an array
-      const processedFiles = Array.from(processedFilesMap.values());
+      // Convert the Map to an array, taking only the highest revision of each
+      const processedFiles = Array.from(processedFilesByDrawingNo.values());
       
       // Sort first by drawing number, then by revision (highest first)
       processedFiles.sort((a: any, b: any) => {
