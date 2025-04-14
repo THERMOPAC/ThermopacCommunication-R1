@@ -166,8 +166,13 @@ const ItemMasterManagement: React.FC = () => {
     queryFn: async () => {
       if (!currentItem?.drawingNo) return [];
       
-      // Build the path based on our THERMOPAC_INVENTORY structure
+      // Build the path based on our THERMOPAC_INVENTORY structure, which is a ROOT folder
+      // NOT nested inside THERMOPAC_PROJECTS
       const storagePath = `THERMOPAC_INVENTORY/${currentItem.drawingNo}`;
+      
+      // Add console log to debug the path
+      console.log("Searching for drawings at path:", storagePath);
+      
       const response = await fetch(`/api/storage/files?path=${encodeURIComponent(storagePath)}`);
       
       if (!response.ok) {
@@ -176,11 +181,25 @@ const ItemMasterManagement: React.FC = () => {
       
       const files = await response.json();
       console.log("Found drawings:", files);
+      
+      // If files is empty, try as a secondary path option - try without THERMOPAC_INVENTORY prefix
+      if (files.length === 0) {
+        console.log("No files found at primary path, trying secondary path...");
+        const secondaryPath = currentItem.drawingNo;
+        const secondaryResponse = await fetch(`/api/storage/files?path=${encodeURIComponent(secondaryPath)}`);
+        
+        if (secondaryResponse.ok) {
+          const secondaryFiles = await secondaryResponse.json();
+          console.log("Found drawings in secondary path:", secondaryFiles);
+          files.push(...secondaryFiles);
+        }
+      }
+      
       return files.map((file: any) => ({
         ...file,
         drawingNo: currentItem.drawingNo,
         revision: file.name.includes('_REV_') ? file.name.split('_REV_')[1].split('.')[0] : '',
-        uploadDate: new Date(file.created || file.updated).toLocaleString()
+        uploadDate: new Date(file.created || file.updated || Date.now()).toLocaleString()
       }));
     },
     enabled: !!currentItem?.drawingNo && activeTab === 'drawings',
@@ -1262,8 +1281,11 @@ const ItemMasterManagement: React.FC = () => {
                             const originalFileName = drawingFile.name;
                             const fileExtension = originalFileName.split('.').pop() || 'pdf';
                             
-                            // Create a new file with the correct naming pattern: "Drawing No.pdf"
-                            const newFileName = `${drawingNo}.${fileExtension}`;
+                            // Create a new file with the correct naming pattern: "Drawing No_REV_X.pdf"
+                            // Include revision in the filename if provided
+                            const revisionPart = drawingRevision ? `_REV_${drawingRevision}` : '';
+                            const newFileName = `${drawingNo}${revisionPart}.${fileExtension}`;
+                            console.log("Uploading file with name:", newFileName);
                             const newFile = new File([drawingFile], newFileName, { type: drawingFile.type });
                             
                             // Create FormData with the required parameters for /api/storage/upload
@@ -1288,16 +1310,25 @@ const ItemMasterManagement: React.FC = () => {
                                 }
                                 return response.json();
                               })
-                              .then(() => {
+                              .then((data) => {
+                                console.log("Upload response:", data);
+                                
                                 toast({
                                   title: "Success",
                                   description: "Drawing uploaded successfully",
                                 });
+                                
+                                // Invalidate the drawings query to refresh the list
+                                queryClient.invalidateQueries({ 
+                                  queryKey: ['item-drawings', currentItem?.id, currentItem?.drawingNo] 
+                                });
+                                
                                 // Reset the form
                                 setDrawingFile(null);
                                 setDrawingRevision('');
                                 setDrawingDescription('');
                                 setSelectedDrawingItem(null);
+                                
                                 // Close the dialog
                                 setIsDrawingDialogOpen(false);
                               })
