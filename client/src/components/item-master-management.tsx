@@ -138,6 +138,7 @@ const ItemMasterManagement: React.FC = () => {
   const [drawingDescription, setDrawingDescription] = useState('');
   const [drawingFile, setDrawingFile] = useState<File | null>(null);
   const [isUploadingDrawing, setIsUploadingDrawing] = useState(false);
+  const [selectedDrawingItem, setSelectedDrawingItem] = useState<{ id: number, code: string, drawingNo?: string | null } | null>(null);
   
   // Query for item components when viewing the components tab
   const itemComponentsQuery = useQuery({
@@ -1080,6 +1081,52 @@ const ItemMasterManagement: React.FC = () => {
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
+                          <Label htmlFor="drawing-item">Select Item</Label>
+                          <Select
+                            value={selectedDrawingItem ? `${selectedDrawingItem.id}` : ''}
+                            onValueChange={(value) => {
+                              if (value === 'parent') {
+                                // Parent item selected
+                                setSelectedDrawingItem({
+                                  id: currentItem!.id,
+                                  code: currentItem!.itemCode,
+                                  drawingNo: currentItem!.drawingNo
+                                });
+                              } else if (value) {
+                                // Component item selected
+                                const component = itemComponentsQuery.data?.find(c => c.id === parseInt(value));
+                                if (component) {
+                                  setSelectedDrawingItem({
+                                    id: component.id,
+                                    code: component.itemCode,
+                                    drawingNo: component.drawingNo
+                                  });
+                                }
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select the item for this drawing" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="parent">
+                                {currentItem?.itemCode} (Parent Item)
+                              </SelectItem>
+                              {itemComponentsQuery.data && itemComponentsQuery.data.length > 0 && (
+                                <>
+                                  <SelectSeparator />
+                                  <SelectLabel>Sub-Assembly Components</SelectLabel>
+                                  {itemComponentsQuery.data.map(component => (
+                                    <SelectItem key={component.id} value={component.id.toString()}>
+                                      {component.itemCode}
+                                    </SelectItem>
+                                  ))}
+                                </>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
                           <Label htmlFor="drawing-revision">Revision</Label>
                           <Input
                             id="drawing-revision"
@@ -1121,6 +1168,15 @@ const ItemMasterManagement: React.FC = () => {
                             Accepted formats: PDF, DWG, DXF, DWF
                           </p>
                         </div>
+                        
+                        {selectedDrawingItem && (
+                          <div className="bg-muted p-3 rounded-md mt-2">
+                            <h4 className="text-sm font-medium mb-1">Storage Path:</h4>
+                            <p className="text-xs text-muted-foreground break-all">
+                              THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}.pdf
+                            </p>
+                          </div>
+                        )}
                       </div>
                       <DialogFooter>
                         <DialogClose asChild>
