@@ -1085,6 +1085,8 @@ const ItemMasterManagement: React.FC = () => {
                             id="drawing-revision"
                             placeholder="e.g. A, B, 1.0, 2.0"
                             className="col-span-3"
+                            value={drawingRevision}
+                            onChange={(e) => setDrawingRevision(e.target.value)}
                           />
                         </div>
                         <div className="grid gap-2">
@@ -1093,6 +1095,8 @@ const ItemMasterManagement: React.FC = () => {
                             id="drawing-description"
                             placeholder="Brief description of this drawing version"
                             className="col-span-3"
+                            value={drawingDescription}
+                            onChange={(e) => setDrawingDescription(e.target.value)}
                           />
                         </div>
                         <div className="grid gap-2">
@@ -1102,7 +1106,17 @@ const ItemMasterManagement: React.FC = () => {
                             type="file"
                             accept=".pdf,.dwg,.dxf,.dwf"
                             className="col-span-3"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files.length > 0) {
+                                setDrawingFile(e.target.files[0]);
+                              }
+                            }}
                           />
+                          {drawingFile && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Selected file: {drawingFile.name}
+                            </p>
+                          )}
                           <p className="text-xs text-muted-foreground">
                             Accepted formats: PDF, DWG, DXF, DWF
                           </p>
