@@ -202,13 +202,54 @@ export function setupItemComponentsImportRoutes(app: Router) {
             .where(eq(masterItems.itemCode, itemCode))
             .limit(1);
 
+          let componentItem;
+          
           if (componentItems.length === 0) {
-            results.errors.push(`Row ${i + 1}: Item with code ${itemCode} not found`);
-            results.skipped++;
-            continue;
+            // Item doesn't exist - create a new master item similar to project items import
+            console.log(`Creating new master item: ${itemCode}`);
+            
+            try {
+              // Get description from the Excel if available
+              let description = '';
+              if (useHeaderMapping) {
+                for (const [colLetter, fieldName] of Object.entries(headers)) {
+                  if (fieldName === 'description' && row[colLetter]) {
+                    description = row[colLetter].toString().trim();
+                    break;
+                  }
+                }
+              } else {
+                // Check common description column names
+                for (const descField of ['Description', 'Desc']) {
+                  if (row[descField]) {
+                    description = row[descField].toString().trim();
+                    break;
+                  }
+                }
+              }
+              
+              // Create minimal master item record
+              const [newItem] = await db.insert(masterItems)
+                .values({
+                  itemCode: itemCode,
+                  description: description || `Component ${itemCode}`,
+                  uom: 'Nos', // Default UOM
+                  createdAt: new Date(),
+                  updatedAt: new Date()
+                })
+                .returning();
+              
+              componentItem = newItem;
+              console.log(`Created new master item with ID: ${componentItem.id}`);
+            } catch (err) {
+              console.error(`Failed to create master item ${itemCode}:`, err);
+              results.errors.push(`Row ${i + 1}: Failed to create master item for ${itemCode}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+              results.skipped++;
+              continue;
+            }
+          } else {
+            componentItem = componentItems[0];
           }
-
-          const componentItem = componentItems[0];
 
           // Skip if trying to add parent as its own component (prevent circular references)
           if (componentItem.id === parentItemId) {
