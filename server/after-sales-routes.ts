@@ -27,7 +27,7 @@ import { ZodError } from 'zod';
 import { formatZodError } from './utils/format-zod-error';
 import { gcsStorage } from './utils/gcs-storage';
 import multer from 'multer';
-import { authenticateUser } from './middlewares/auth';
+import { authenticateUser } from '../server/middlewares/auth';
 
 const upload = multer({ storage: multer.memoryStorage() });
 const router = Router();
