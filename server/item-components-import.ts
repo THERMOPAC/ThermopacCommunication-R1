@@ -39,6 +39,27 @@ export function setupItemComponentsImportRoutes(app: Router) {
     user?: any;
   }
 
+  // Map Excel column names to component item fields (including variations of names)
+  const columnMap: Record<string, string> = {
+    // Standard column names
+    'Item Code': 'itemCode',
+    'ItemCode': 'itemCode',
+    'Quantity': 'quantity',
+    'QTY': 'quantity',
+    'Description': 'description',
+    'UOM': 'uom',
+    // Additional variations
+    'Item': 'itemCode',
+    'Component Code': 'itemCode',
+    'Component': 'itemCode',
+    'Part Number': 'itemCode',
+    'Qty': 'quantity',
+    'Desc': 'description'
+  };
+  
+  // Define required fields
+  const requiredFields = ['itemCode', 'quantity'];
+
   app.post('/api/master-items/components/import-excel', ensureAuthenticated, upload.single('file'), async (req: MulterRequest, res: Response) => {
     try {
       // Check role-based permissions
@@ -69,11 +90,20 @@ export function setupItemComponentsImportRoutes(app: Router) {
         return res.status(404).json({ error: 'Parent item not found' });
       }
 
-      // Process Excel file
+      // Process Excel file - support both formats (header-based and non-header-based)
       const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const data = xlsx.utils.sheet_to_json(worksheet);
+      
+      // First try to read as JSON with headers
+      let data = xlsx.utils.sheet_to_json(worksheet);
+      let useHeaderMapping = false;
+      
+      // If no data found, try reading with column letters as headers
+      if (data.length === 0) {
+        data = xlsx.utils.sheet_to_json(worksheet, { header: 'A' });
+        useHeaderMapping = true;
+      }
 
       console.log(`Processing ${data.length} rows from Excel for parent item ${parentItemCode}`);
 
@@ -83,25 +113,88 @@ export function setupItemComponentsImportRoutes(app: Router) {
 
       // Track import results
       const results = {
-        totalRecords: data.length,
+        totalRecords: data.length - (useHeaderMapping ? 1 : 0), // Subtract header row when using header mapping
         imported: 0,
         skipped: 0,
         errors: [] as string[]
       };
 
-      // Process each row
-      for (const row of data) {
-        try {
-          // Validate row data
-          const rowObj = row as Record<string, any>;
-          const itemCode = rowObj.ItemCode || rowObj['Item Code'];
-          const quantity = rowObj.Quantity || rowObj.QTY || 1;
+      // If using header mapping, extract and map headers from first row
+      let headers: Record<string, string> = {};
+      if (useHeaderMapping) {
+        const headerRow: any = data[0];
+        
+        Object.keys(headerRow).forEach((colLetter) => {
+          const columnName = headerRow[colLetter]?.toString();
+          if (columnName && columnMap[columnName]) {
+            headers[colLetter] = columnMap[columnName];
+          }
+        });
+        
+        // Check if required fields are present
+        const missingFields = requiredFields.filter(field => 
+          !Object.values(headers).includes(field)
+        );
+        
+        if (missingFields.length > 0) {
+          return res.status(400).json({ 
+            error: `Missing required columns: ${missingFields.join(', ')}`,
+            requiredColumns: Object.keys(columnMap)
+              .filter(col => requiredFields.includes(columnMap[col]))
+              .join(', ')
+          });
+        }
+      }
 
+      // Process each row
+      const startIndex = useHeaderMapping ? 1 : 0; // Skip header row if using header mapping
+      for (let i = startIndex; i < data.length; i++) {
+        try {
+          const row = data[i] as Record<string, any>;
+          let itemCode: string | undefined;
+          let quantity: number = 1;
+          
+          // Extract data based on format
+          if (useHeaderMapping) {
+            // Use mapped headers
+            for (const [colLetter, fieldName] of Object.entries(headers)) {
+              if (row[colLetter] !== undefined) {
+                if (fieldName === 'itemCode') {
+                  itemCode = row[colLetter].toString().trim();
+                } else if (fieldName === 'quantity') {
+                  const numValue = parseFloat(row[colLetter]);
+                  quantity = isNaN(numValue) ? 1 : numValue;
+                }
+              }
+            }
+          } else {
+            // Direct column names in the Excel
+            // Check for itemCode under various possible column names
+            for (const possibleName of ['ItemCode', 'Item Code', 'Item', 'Component Code', 'Component', 'Part Number']) {
+              if (row[possibleName] !== undefined) {
+                itemCode = row[possibleName].toString().trim();
+                break;
+              }
+            }
+            
+            // Check for quantity under various possible column names
+            for (const possibleName of ['Quantity', 'QTY', 'Qty']) {
+              if (row[possibleName] !== undefined) {
+                const numValue = parseFloat(row[possibleName]);
+                quantity = isNaN(numValue) ? 1 : numValue;
+                break;
+              }
+            }
+          }
+
+          // Skip empty rows or rows without item code
           if (!itemCode) {
-            results.errors.push(`Row missing Item Code`);
+            results.errors.push(`Row ${i + 1}: Missing Item Code`);
             results.skipped++;
             continue;
           }
+          
+          console.log(`Processing item code: ${itemCode} with quantity: ${quantity}`);
 
           // Find the component item by code
           const componentItems = await db.select()
@@ -110,7 +203,7 @@ export function setupItemComponentsImportRoutes(app: Router) {
             .limit(1);
 
           if (componentItems.length === 0) {
-            results.errors.push(`Item with code ${itemCode} not found`);
+            results.errors.push(`Row ${i + 1}: Item with code ${itemCode} not found`);
             results.skipped++;
             continue;
           }
@@ -119,7 +212,7 @@ export function setupItemComponentsImportRoutes(app: Router) {
 
           // Skip if trying to add parent as its own component (prevent circular references)
           if (componentItem.id === parentItemId) {
-            results.errors.push(`Cannot add item ${itemCode} as a component of itself`);
+            results.errors.push(`Row ${i + 1}: Cannot add item ${itemCode} as a component of itself`);
             results.skipped++;
             continue;
           }
@@ -161,7 +254,7 @@ export function setupItemComponentsImportRoutes(app: Router) {
           results.imported++;
         } catch (err) {
           console.error('Error processing row:', err);
-          results.errors.push(`Error processing row: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          results.errors.push(`Row ${i + 1}: Error processing row: ${err instanceof Error ? err.message : 'Unknown error'}`);
           results.skipped++;
         }
       }
