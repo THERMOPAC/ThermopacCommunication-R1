@@ -1391,6 +1391,7 @@ const ItemMasterManagement: React.FC = () => {
                             const revisionNumber = drawingRevision || '1';
                             const newFileName = `${drawingNo}_R${revisionNumber}.${fileExtension}`;
                             console.log("Uploading file with name:", newFileName);
+                            // Create a new file object with the correct name pattern
                             const newFile = new File([drawingFile], newFileName, { type: drawingFile.type });
                             
                             // Create FormData with the required parameters for /api/storage/upload
@@ -1401,8 +1402,8 @@ const ItemMasterManagement: React.FC = () => {
                             formData.append('financialYear', 'THERMOPAC_INVENTORY'); // Using a fixed value for inventory items
                             formData.append('projectCode', drawingNo); // Using drawing number as project code
                             formData.append('department', 'drawings'); // Using standard 'drawings' department
-                            formData.append('subDirectory', ''); // Empty string instead of null
-                            formData.append('projectId', '3'); // Using valid project ID from database
+                            formData.append('subDirectory', ''); // Using empty string for proper path construction
+                            formData.append('projectId', '1'); // Using valid default project ID from database
                             formData.append('description', drawingDescription || `Drawing for ${drawingNo}`);
                             formData.append('type', 'drawing');
                             formData.append('isPublic', 'false');
