@@ -37,13 +37,18 @@ class GcsStorage {
 
     console.log(`Building storage path: FY: ${sanitized.financialYear}, Project: ${sanitized.projectCode}, Dept: ${sanitized.department}, SubDir: ${sanitized.subDirectory}, File: ${sanitized.fileName}`);
 
-    // Build path components with THERMOPAC_PROJECTS as the root folder
+    // Use THERMOPAC_INVENTORY as root for inventory items, and THERMOPAC_PROJECTS for projects
+    // We detect inventory items when financialYear is set to 'THERMOPAC_INVENTORY'
+    const isInventoryItem = sanitized.financialYear === 'THERMOPAC_INVENTORY';
+    
+    // Build path components based on item type
     const pathComponents = [
-      'THERMOPAC_PROJECTS',
-      sanitized.financialYear,
+      isInventoryItem ? 'THERMOPAC_INVENTORY' : 'THERMOPAC_PROJECTS',
+      // For inventory items, we don't need to duplicate 'THERMOPAC_INVENTORY' in the path
+      ...(isInventoryItem ? [] : [sanitized.financialYear]),
       sanitized.projectCode,
       sanitized.department
-    ];
+    ].filter(Boolean); // Filter out any empty strings
 
     // Add subdirectory if provided
     if (sanitized.subDirectory) {

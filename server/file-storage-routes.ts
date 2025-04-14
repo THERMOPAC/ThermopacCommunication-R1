@@ -426,15 +426,36 @@ export function setupFileStorageRoutes(app: Router) {
       // First, check for an existing directory record in the database
       const dirComponents = dirPath.split('/');
       
-      // Skip the "THERMOPAC_PROJECTS" prefix if it exists
-      if (dirComponents.length >= 4 && dirComponents[0] === 'THERMOPAC_PROJECTS') {
-        const financialYear = dirComponents[1];
-        const projectCode = dirComponents[2];
-        const department = dirComponents[3];
+      // Handle root folder prefix (THERMOPAC_PROJECTS or THERMOPAC_INVENTORY)
+      const validPrefixes = ['THERMOPAC_PROJECTS', 'THERMOPAC_INVENTORY'];
+      if (dirComponents.length >= 3 && validPrefixes.includes(dirComponents[0])) {
+        const isInventory = dirComponents[0] === 'THERMOPAC_INVENTORY';
+        
+        // For inventory items, the structure is different
+        // THERMOPAC_INVENTORY/drawingNo/department/... vs THERMOPAC_PROJECTS/financialYear/projectCode/department/...
+        let financialYear, projectCode, department;
         let subDirectory = null;
         
-        if (dirComponents.length > 4) {
-          subDirectory = dirComponents.slice(4).join('/');
+        if (isInventory) {
+          // For inventory items, we use THERMOPAC_INVENTORY as financialYear
+          financialYear = 'THERMOPAC_INVENTORY';
+          projectCode = dirComponents[1];
+          department = dirComponents[2];
+          
+          // Subdirectory is anything beyond the 3rd level for inventory items
+          if (dirComponents.length > 3) {
+            subDirectory = dirComponents.slice(3).join('/');
+          }
+        } else {
+          // For projects, keep the original structure
+          financialYear = dirComponents[1];
+          projectCode = dirComponents[2];
+          department = dirComponents[3];
+          
+          // Subdirectory is anything beyond the 4th level for projects
+          if (dirComponents.length > 4) {
+            subDirectory = dirComponents.slice(4).join('/');
+          }
         }
         
         // Look for an existing directory
