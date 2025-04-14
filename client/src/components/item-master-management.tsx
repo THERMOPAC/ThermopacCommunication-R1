@@ -1194,7 +1194,7 @@ const ItemMasterManagement: React.FC = () => {
                           <div className="bg-muted p-3 rounded-md mt-2">
                             <h4 className="text-sm font-medium mb-1">Storage Path:</h4>
                             <p className="text-xs text-muted-foreground break-all">
-                              THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/drawings/{drawingRevision || 'latest'}/{drawingFile.name}
+                              THERMOPAC_PROJECTS/THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/drawings/{drawingRevision || 'latest'}/{drawingFile.name}
                             </p>
                           </div>
                         )}
@@ -1243,7 +1243,7 @@ const ItemMasterManagement: React.FC = () => {
                             formData.append('projectCode', drawingNo); // Using drawing number as project code
                             formData.append('department', 'drawings'); // Department is drawings
                             formData.append('subDirectory', drawingRevision || 'latest'); // Use revision as subdirectory
-                            formData.append('projectId', '0'); // Using 0 as a placeholder for non-project files
+                            formData.append('projectId', '3'); // Using valid project ID from database
                             formData.append('description', drawingDescription || `Drawing for ${drawingNo}`);
                             formData.append('type', 'drawing');
                             formData.append('isPublic', 'false');
