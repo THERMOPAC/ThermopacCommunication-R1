@@ -203,7 +203,15 @@ export function setupItemComponentsImportRoutes(app: Router) {
             // Check for Make/Buy under various possible column names
             for (const possibleName of ['Make/Buy', 'MakeOrBuy', 'Make or Buy']) {
               if (row[possibleName] !== undefined) {
-                makeOrBuy = row[possibleName].toString().trim();
+                // Normalize Make/Buy values
+                let mbValue = row[possibleName].toString().trim();
+                if (mbValue.toLowerCase() === 'make' || mbValue.toLowerCase() === 'm') {
+                  makeOrBuy = 'Make';
+                } else if (mbValue.toLowerCase() === 'buy' || mbValue.toLowerCase() === 'b') {
+                  makeOrBuy = 'Buy';
+                } else {
+                  makeOrBuy = mbValue; // Keep original if not a recognized value
+                }
                 break;
               }
             }
@@ -249,7 +257,15 @@ export function setupItemComponentsImportRoutes(app: Router) {
                     if (fieldName === 'description') {
                       description = row[colLetter].toString().trim();
                     } else if (fieldName === 'makeOrBuy') {
-                      makeOrBuy = row[colLetter].toString().trim();
+                      // Normalize Make/Buy values
+                      let mbValue = row[colLetter].toString().trim();
+                      if (mbValue.toLowerCase() === 'make' || mbValue.toLowerCase() === 'm') {
+                        makeOrBuy = 'Make';
+                      } else if (mbValue.toLowerCase() === 'buy' || mbValue.toLowerCase() === 'b') {
+                        makeOrBuy = 'Buy';
+                      } else {
+                        makeOrBuy = mbValue; // Keep original if not a recognized value
+                      }
                     } else if (fieldName === 'drawingNo') {
                       drawingNo = row[colLetter].toString().trim();
                     } else if (fieldName === 'uom') {
@@ -268,7 +284,16 @@ export function setupItemComponentsImportRoutes(app: Router) {
                 
                 for (const mbField of ['Make/Buy', 'MakeOrBuy', 'Make or Buy']) {
                   if (row[mbField]) {
-                    makeOrBuy = row[mbField].toString().trim();
+                    // Normalize Make/Buy values
+                    let mbValue = row[mbField].toString().trim();
+                    // Check if value is valid and normalize to "Make" or "Buy"
+                    if (mbValue.toLowerCase() === 'make' || mbValue.toLowerCase() === 'm') {
+                      makeOrBuy = 'Make';
+                    } else if (mbValue.toLowerCase() === 'buy' || mbValue.toLowerCase() === 'b') {
+                      makeOrBuy = 'Buy';
+                    } else {
+                      makeOrBuy = mbValue; // Keep original if not a recognized value
+                    }
                     break;
                   }
                 }
@@ -345,8 +370,16 @@ export function setupItemComponentsImportRoutes(app: Router) {
             if (makeOrBuy || drawingNo) {
               // Get updated values from Excel if available
               const updateValues: any = {};
-              if (makeOrBuy) updateValues.makeOrBuy = makeOrBuy;
-              if (drawingNo) updateValues.drawingNo = drawingNo;
+              // Only update if the value is different from what's already in the database
+              if (makeOrBuy && makeOrBuy !== componentItem.makeOrBuy) {
+                updateValues.makeOrBuy = makeOrBuy;
+                console.log(`Updating Make/Buy from '${componentItem.makeOrBuy || 'null'}' to '${makeOrBuy}'`);
+              }
+              
+              if (drawingNo && drawingNo !== componentItem.drawingNo) {
+                updateValues.drawingNo = drawingNo;
+                console.log(`Updating Drawing No from '${componentItem.drawingNo || 'null'}' to '${drawingNo}'`);
+              }
               
               // Update master item with Make/Buy and Drawing No values
               if (Object.keys(updateValues).length > 0) {
