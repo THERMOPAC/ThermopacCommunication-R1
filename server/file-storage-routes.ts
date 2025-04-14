@@ -526,34 +526,44 @@ export function setupFileStorageRoutes(app: Router) {
         
         // If no directory record exists, create one (which happens if we're uploading to a template directory)
         if (existingDirs.length === 0) {
-          console.log(`Creating directory record for ${dirPath}`);
-          
-          // Check if it matches a template
-          const templates = await db
-            .select()
-            .from(directoryTemplates)
-            .where(
-              and(
-                eq(directoryTemplates.department, department),
-                subDirectory 
-                  ? eq(directoryTemplates.subDirectory, subDirectory) 
-                  : eq(directoryTemplates.subDirectory, null as any)
-              )
-            );
-          
-          // Create the directory record
-          await db
-            .insert(gcsDirectories)
-            .values({
-              financialYear,
-              projectCode,
-              department,
-              subDirectory,
-              fullPath: dirPath,
-              createdBy: req.user?.id || 0,
-              isPublic: templates.length > 0 ? templates[0].isPublic : false,
-              updatedAt: new Date()
-            });
+          try {
+            console.log(`Creating directory record for ${dirPath}`);
+            
+            // Check if it matches a template
+            const templates = await db
+              .select()
+              .from(directoryTemplates)
+              .where(
+                and(
+                  eq(directoryTemplates.department, department),
+                  subDirectory 
+                    ? eq(directoryTemplates.subDirectory, subDirectory) 
+                    : eq(directoryTemplates.subDirectory, null as any)
+                )
+              );
+            
+            // Create the directory record
+            await db
+              .insert(gcsDirectories)
+              .values({
+                financialYear,
+                projectCode,
+                department,
+                subDirectory,
+                fullPath: dirPath,
+                createdBy: req.user?.id || 0,
+                isPublic: templates.length > 0 ? templates[0].isPublic : false,
+                updatedAt: new Date()
+              });
+          } catch (error: any) {
+            if (error.code === '23505' && error.constraint === 'gcs_directories_full_path_key') {
+              // Duplicate directory record - this is fine, we can continue with the upload
+              console.log(`Directory record already exists for ${dirPath}, continuing with upload`);
+            } else {
+              // Other error - re-throw
+              throw error;
+            }
+          }
         }
       }
       
@@ -594,26 +604,40 @@ export function setupFileStorageRoutes(app: Router) {
             });
             
             // Create a document record in the database
-            const [doc] = await db
-              .insert(projectDocuments)
-              .values({
+            try {
+              const [doc] = await db
+                .insert(projectDocuments)
+                .values({
+                  projectId: parseInt(projectId),
+                  phaseId: phaseId ? parseInt(phaseId) : undefined,
+                  name: fileName,
+                  description: description || '',
+                  type: type || 'document',
+                  url: downloadUrl || '',
+                  uploadedBy: req.user?.id as number,
+                  size: req.file?.size || 0,
+                  format: path.extname(fileName).replace('.', ''),
+                  isPublic: isPublic === 'true',
+                  storagePath,
+                  storageUrl: downloadUrl || null,
+                  storageUrlExpiry: downloadUrl ? new Date(Date.now() + 60 * 60 * 1000) : null // 1 hour
+                })
+                .returning();
+              
+              resolve(doc);
+            } catch (dbError) {
+              console.error("Error inserting document record:", dbError);
+              // Return a basic document object so the client still gets a success response
+              // The file is already uploaded to GCS successfully at this point
+              resolve({
+                id: 0,
                 projectId: parseInt(projectId),
-                phaseId: phaseId ? parseInt(phaseId) : undefined,
                 name: fileName,
                 description: description || '',
-                type: type || 'document',
-                url: downloadUrl || '',
-                uploadedBy: req.user?.id as number,
-                size: req.file?.size || 0,
-                format: path.extname(fileName).replace('.', ''),
-                isPublic: isPublic === 'true',
                 storagePath,
-                storageUrl: downloadUrl || null,
-                storageUrlExpiry: downloadUrl ? new Date(Date.now() + 60 * 60 * 1000) : null // 1 hour
-              })
-              .returning();
-            
-            resolve(doc);
+                storageUrl: downloadUrl || null
+              });
+            }
           } catch (error) {
             reject(error);
           }

@@ -1401,7 +1401,7 @@ const ItemMasterManagement: React.FC = () => {
                             // Add the required parameters for file-storage-routes.ts upload endpoint
                             formData.append('financialYear', 'THERMOPAC_INVENTORY'); // Using a fixed value for inventory items
                             formData.append('projectCode', drawingNo); // Using drawing number as project code
-                            formData.append('department', 'drawings'); // Required parameter - department must be specified
+                            formData.append('department', ''); // Empty department to avoid extra subdirectory in path
                             formData.append('subDirectory', ''); // Using empty string for proper path construction
                             formData.append('projectId', '3'); // Using valid project ID from database
                             formData.append('description', drawingDescription || `Drawing for ${drawingNo}`);

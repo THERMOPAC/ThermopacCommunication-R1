@@ -46,9 +46,13 @@ class GcsStorage {
       isInventoryItem ? 'THERMOPAC_INVENTORY' : 'THERMOPAC_PROJECTS',
       // For inventory items, we don't need to duplicate 'THERMOPAC_INVENTORY' in the path
       ...(isInventoryItem ? [] : [sanitized.financialYear]),
-      sanitized.projectCode,
-      sanitized.department
+      sanitized.projectCode
     ].filter(Boolean); // Filter out any empty strings
+    
+    // Only add department if it's not empty (for drawings, we want to omit this)
+    if (sanitized.department) {
+      pathComponents.push(sanitized.department);
+    }
 
     // Add subdirectory if provided
     if (sanitized.subDirectory) {
