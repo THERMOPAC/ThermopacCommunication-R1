@@ -2,7 +2,8 @@ import express, { Request, Response, Router } from 'express';
 import multer from 'multer';
 import { gcsStorage } from './utils/gcs-storage';
 import { db } from './db';
-import { gcsDirectories, projectDocuments, directoryTemplates } from '@shared/schema';
+import * as schema from '@shared/schema';
+import { gcsDirectories, projectDocuments, directoryTemplates, masterItems } from '@shared/schema';
 import { eq, and, like } from 'drizzle-orm';
 import path from 'path';
 
@@ -470,14 +471,14 @@ export function setupFileStorageRoutes(app: Router) {
         
         // Check if this is a master item drawing by looking up the drawingNo in the database
         try {
-          const masterItems = await db
+          const foundItems = await db
             .select()
-            .from(schema.masterItems)
-            .where(eq(schema.masterItems.drawingNo, drawingNo));
+            .from(masterItems)
+            .where(eq(masterItems.drawingNo, drawingNo));
           
           // If this is a master item, check the latest revision
-          if (masterItems.length > 0) {
-            const masterItem = masterItems[0];
+          if (foundItems && foundItems.length > 0) {
+            const masterItem = foundItems[0];
             const latestRevision = masterItem.latestRevision || 0;
             
             // If the upload revision is the same as the latest, throw an error
@@ -674,14 +675,14 @@ export function setupFileStorageRoutes(app: Router) {
               
               try {
                 // Find the master item by drawing number
-                const masterItems = await db
+                const masterItemsList = await db
                   .select()
-                  .from(schema.masterItems)
-                  .where(eq(schema.masterItems.drawingNo, drawingNo));
+                  .from(masterItems)
+                  .where(eq(masterItems.drawingNo, drawingNo));
                 
                 // If we found a matching master item, update its latestRevision if this revision is higher
-                if (masterItems.length > 0) {
-                  const masterItem = masterItems[0];
+                if (masterItemsList && masterItemsList.length > 0) {
+                  const masterItem = masterItemsList[0];
                   const currentLatestRevision = masterItem.latestRevision || 0;
                   
                   // Only update if the new revision is higher
@@ -689,12 +690,12 @@ export function setupFileStorageRoutes(app: Router) {
                     console.log(`Updating master item ${masterItem.id} latest revision from ${currentLatestRevision} to ${revisionNum}`);
                     
                     await db
-                      .update(schema.masterItems)
+                      .update(masterItems)
                       .set({
                         latestRevision: revisionNum,
                         updatedAt: new Date()
                       })
-                      .where(eq(schema.masterItems.id, masterItem.id));
+                      .where(eq(masterItems.id, masterItem.id));
                   }
                 }
               } catch (error) {
