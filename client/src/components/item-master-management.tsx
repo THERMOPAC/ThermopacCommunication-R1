@@ -857,24 +857,42 @@ const ItemMasterManagement: React.FC = () => {
                     />
                   </div>
                   
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setIsEditDialogOpen(false);
-                        setCurrentItem(null);
-                        setActiveTab("details");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={updateMutation.isPending}
-                    >
-                      {updateMutation.isPending ? 'Updating...' : 'Update Item'}
-                    </Button>
+                  <DialogFooter className="flex justify-between">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => navigate('/')}
+                      >
+                        Back to Dashboard
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => navigate('/projects')}
+                      >
+                        Back to Projects
+                      </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsEditDialogOpen(false);
+                          setCurrentItem(null);
+                          setActiveTab("details");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={updateMutation.isPending}
+                      >
+                        {updateMutation.isPending ? 'Updating...' : 'Update Item'}
+                      </Button>
+                    </div>
                   </DialogFooter>
                 </form>
               </Form>
