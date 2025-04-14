@@ -1394,49 +1394,38 @@ const ItemMasterManagement: React.FC = () => {
                             // Create a new file object with the correct name pattern
                             const newFile = new File([drawingFile], newFileName, { type: drawingFile.type });
                             
-                            // Try a different approach - use direct Upload URL instead of server upload
-                            // First construct the path where we want to store the file
-                            const storagePath = `THERMOPAC_INVENTORY/${drawingNo}/${drawingNo}_${drawingRevision || 'R1'}.pdf`;
-                            console.log(`Using storage path: ${storagePath}`);
+                            // Create FormData with the required parameters for /api/storage/upload
+                            const formData = new FormData();
+                            formData.append('file', newFile);
                             
-                            // Instead of using the full /api/storage/upload endpoint, let's use a simpler approach
-                            // By getting a signed URL for direct upload and then using that
-                            fetch(`/api/storage/upload-url?filePath=${encodeURIComponent(storagePath)}&contentType=${encodeURIComponent(newFile.type)}`)
-                              .then(response => {
-                                if (!response.ok) {
-                                  throw new Error('Failed to get upload URL');
-                                }
-                                return response.json();
-                              })
-                              .then(data => {
-                                // Now we have a signed URL for direct upload
-                                if (!data.uploadUrl) {
-                                  throw new Error('Invalid upload URL received');
-                                }
-                                
-                                console.log('Got signed upload URL, uploading file directly...');
-                                
-                                // Upload the file directly using the signed URL
-                                return fetch(data.uploadUrl, {
-                                  method: 'PUT',
-                                  headers: {
-                                    'Content-Type': newFile.type
-                                  },
-                                  body: newFile
+                            // Add the required parameters for file-storage-routes.ts upload endpoint
+                            formData.append('financialYear', 'THERMOPAC_INVENTORY'); // Using a fixed value for inventory items
+                            formData.append('projectCode', drawingNo); // Using drawing number as project code
+                            formData.append('department', 'drawings'); // Required parameter - cannot be empty
+                            formData.append('subDirectory', ''); // Using empty string for proper path construction
+                            formData.append('projectId', '3'); // Using valid project ID from database
+                            formData.append('description', drawingDescription || `Drawing for ${drawingNo}`);
+                            formData.append('type', 'drawing');
+                            formData.append('isPublic', 'false');
+                            
+                            // Use fetch API with async/await pattern in an IIFE
+                            (async () => {
+                              try {
+                                console.log('Uploading drawing with fetch...');
+                                const response = await fetch('/api/storage/upload', {
+                                  method: 'POST',
+                                  body: formData
                                 });
-                              })
-                              .then(response => {
+                                
                                 if (!response.ok) {
-                                  throw new Error('Failed to upload drawing');
+                                  throw new Error(`Upload failed with status: ${response.status}`);
                                 }
-                                return response.json();
-                              })
-                              .then((data) => {
-                                console.log("Upload response:", data);
+                                
+                                console.log('Upload successful');
                                 
                                 toast({
-                                  title: "Success",
-                                  description: "Drawing uploaded successfully",
+                                  title: 'Success',
+                                  description: 'Drawing uploaded successfully',
                                 });
                                 
                                 // Invalidate the drawings query to refresh the list
@@ -1452,17 +1441,17 @@ const ItemMasterManagement: React.FC = () => {
                                 
                                 // Close the dialog
                                 setIsDrawingDialogOpen(false);
-                              })
-                              .catch(error => {
+                              } catch (error) {
+                                console.error('Upload error:', error);
                                 toast({
-                                  title: "Error",
-                                  description: error.message,
-                                  variant: "destructive",
+                                  title: 'Error',
+                                  description: error instanceof Error ? error.message : 'Failed to upload drawing',
+                                  variant: 'destructive',
                                 });
-                              })
-                              .finally(() => {
+                              } finally {
                                 setIsUploadingDrawing(false);
-                              });
+                              }
+                            })();
                           }}
                           disabled={isUploadingDrawing}
                         >
