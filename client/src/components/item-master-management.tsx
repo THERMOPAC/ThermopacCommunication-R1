@@ -1194,7 +1194,7 @@ const ItemMasterManagement: React.FC = () => {
                           <div className="bg-muted p-3 rounded-md mt-2">
                             <h4 className="text-sm font-medium mb-1">Storage Path:</h4>
                             <p className="text-xs text-muted-foreground break-all">
-                              THERMOPAC_PROJECTS/THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/drawings/{drawingRevision || 'latest'}/{drawingFile.name}
+                              THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}.{drawingFile.name.split('.').pop()}
                             </p>
                           </div>
                         )}
@@ -1227,22 +1227,26 @@ const ItemMasterManagement: React.FC = () => {
                             // Here we'll upload the drawing
                             setIsUploadingDrawing(true);
                             
-                            // Create FormData with the required parameters for /api/storage/upload
-                            const formData = new FormData();
-                            formData.append('file', drawingFile);
+                            // Use the selected item information instead of current item
+                            const drawingNo = selectedDrawingItem.drawingNo || selectedDrawingItem.code;
                             
-                            // Use the drawing filename
+                            // Get the file extension
                             const originalFileName = drawingFile.name;
                             const fileExtension = originalFileName.split('.').pop() || 'pdf';
                             
-                            // Use the selected item information instead of current item
-                            const drawingNo = selectedDrawingItem.drawingNo || selectedDrawingItem.code;
+                            // Create a new file with the correct naming pattern: "Drawing No.pdf"
+                            const newFileName = `${drawingNo}.${fileExtension}`;
+                            const newFile = new File([drawingFile], newFileName, { type: drawingFile.type });
+                            
+                            // Create FormData with the required parameters for /api/storage/upload
+                            const formData = new FormData();
+                            formData.append('file', newFile);
                             
                             // Add the required parameters for file-storage-routes.ts upload endpoint
                             formData.append('financialYear', 'THERMOPAC_INVENTORY'); // Using a fixed value for inventory items
                             formData.append('projectCode', drawingNo); // Using drawing number as project code
-                            formData.append('department', 'drawings'); // Department is drawings
-                            formData.append('subDirectory', drawingRevision || 'latest'); // Use revision as subdirectory
+                            formData.append('department', drawingNo); // Using drawing number as department
+                            formData.append('subDirectory', ''); // Empty string instead of null
                             formData.append('projectId', '3'); // Using valid project ID from database
                             formData.append('description', drawingDescription || `Drawing for ${drawingNo}`);
                             formData.append('type', 'drawing');
