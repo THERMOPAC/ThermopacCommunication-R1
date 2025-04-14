@@ -158,6 +158,32 @@ const ItemMasterManagement: React.FC = () => {
     enabled: !!currentItem && (activeTab === 'components' || activeTab === 'drawings'),
   });
   
+  // Query to fetch drawings for the current item
+  const itemDrawingsQuery = useQuery({
+    queryKey: ['item-drawings', currentItem?.id, currentItem?.drawingNo],
+    queryFn: async () => {
+      if (!currentItem?.drawingNo) return [];
+      
+      // Build the path based on our THERMOPAC_INVENTORY structure
+      const storagePath = `THERMOPAC_INVENTORY/${currentItem.drawingNo}`;
+      const response = await fetch(`/api/storage/files?path=${encodeURIComponent(storagePath)}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch drawings');
+      }
+      
+      const files = await response.json();
+      console.log("Found drawings:", files);
+      return files.map((file: any) => ({
+        ...file,
+        drawingNo: currentItem.drawingNo,
+        revision: file.name.includes('_REV_') ? file.name.split('_REV_')[1].split('.')[0] : '',
+        uploadDate: new Date(file.created || file.updated).toLocaleString()
+      }));
+    },
+    enabled: !!currentItem?.drawingNo && activeTab === 'drawings',
+  });
+  
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
