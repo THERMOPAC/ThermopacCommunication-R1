@@ -67,7 +67,9 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { 
+  AlertTriangle,
   ClipboardList, 
+  Download,
   File as FileIcon, 
   FileUp, 
   FolderOpen,
