@@ -1344,6 +1344,9 @@ const ItemMasterManagement: React.FC = () => {
                             <p className="text-xs text-muted-foreground break-all">
                               THERMOPAC_INVENTORY/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}/{selectedDrawingItem.drawingNo || selectedDrawingItem.code}_R{drawingRevision || '1'}.{drawingFile.name.split('.').pop()}
                             </p>
+                            <p className="text-xs text-blue-500 mt-1">
+                              (Using the standard path format for drawings)
+                            </p>
                           </div>
                         )}
                       </div>
@@ -1396,7 +1399,7 @@ const ItemMasterManagement: React.FC = () => {
                             // Add the required parameters for file-storage-routes.ts upload endpoint
                             formData.append('financialYear', 'THERMOPAC_INVENTORY'); // Using a fixed value for inventory items
                             formData.append('projectCode', drawingNo); // Using drawing number as project code
-                            formData.append('department', drawingNo); // Using drawing number as department
+                            formData.append('department', ''); // Use empty department to prevent duplicate path
                             formData.append('subDirectory', ''); // Empty string instead of null
                             formData.append('projectId', '3'); // Using valid project ID from database
                             formData.append('description', drawingDescription || `Drawing for ${drawingNo}`);
