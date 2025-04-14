@@ -154,7 +154,7 @@ const ItemMasterManagement: React.FC = () => {
       }
       return response.json();
     },
-    enabled: !!currentItem && activeTab === 'components',
+    enabled: !!currentItem && (activeTab === 'components' || activeTab === 'drawings'),
   });
   
   const form = useForm<FormValues>({
@@ -1086,7 +1086,9 @@ const ItemMasterManagement: React.FC = () => {
                         <div className="grid gap-2">
                           <Label htmlFor="drawing-item">Select Item</Label>
                           <Select
-                            value={selectedDrawingItem ? `${selectedDrawingItem.id}` : ''}
+                            value={selectedDrawingItem ? 
+                              selectedDrawingItem.id === currentItem?.id ? 'parent' : `${selectedDrawingItem.id}` 
+                              : ''}
                             onValueChange={(value) => {
                               if (value === 'parent') {
                                 // Parent item selected
