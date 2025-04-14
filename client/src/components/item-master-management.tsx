@@ -133,6 +133,12 @@ const ItemMasterManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("details");
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
   
+  // Drawing upload state
+  const [drawingRevision, setDrawingRevision] = useState('');
+  const [drawingDescription, setDrawingDescription] = useState('');
+  const [drawingFile, setDrawingFile] = useState<File | null>(null);
+  const [isUploadingDrawing, setIsUploadingDrawing] = useState(false);
+  
   // Query for item components when viewing the components tab
   const itemComponentsQuery = useQuery({
     queryKey: ['item-components', currentItem?.id],
@@ -1059,9 +1065,126 @@ const ItemMasterManagement: React.FC = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Drawing Management</h3>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-1" /> Upload Drawing
-                  </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <Plus className="h-4 w-4 mr-1" /> Upload Drawing
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Upload Drawing</DialogTitle>
+                        <DialogDescription>
+                          Upload a drawing file for {currentItem?.itemCode}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="drawing-revision">Revision</Label>
+                          <Input
+                            id="drawing-revision"
+                            placeholder="e.g. A, B, 1.0, 2.0"
+                            className="col-span-3"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="drawing-description">Description</Label>
+                          <Input
+                            id="drawing-description"
+                            placeholder="Brief description of this drawing version"
+                            className="col-span-3"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="drawing-file">Drawing File</Label>
+                          <Input
+                            id="drawing-file"
+                            type="file"
+                            accept=".pdf,.dwg,.dxf,.dwf"
+                            className="col-span-3"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Accepted formats: PDF, DWG, DXF, DWF
+                          </p>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button variant="outline">Cancel</Button>
+                        </DialogClose>
+                        <Button 
+                          type="button" 
+                          onClick={() => {
+                            if (!drawingFile) {
+                              toast({
+                                title: "Error",
+                                description: "Please select a file to upload",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+
+                            // Here we'll upload the drawing
+                            setIsUploadingDrawing(true);
+                            
+                            const formData = new FormData();
+                            formData.append('file', drawingFile);
+                            formData.append('revision', drawingRevision);
+                            formData.append('description', drawingDescription);
+                            formData.append('drawingNumber', currentItem?.drawingNo || '');
+                            formData.append('itemId', currentItem?.id.toString() || '');
+                            formData.append('itemCode', currentItem?.itemCode || '');
+                            
+                            // Use path similar to the FileStorage component
+                            const path = `drawings/${currentItem?.itemCode}`;
+                            formData.append('path', path);
+                            
+                            // Use apiRequest to call an upload endpoint
+                            apiRequest('POST', '/api/storage/upload', formData)
+                              .then(response => {
+                                if (!response.ok) {
+                                  throw new Error('Failed to upload drawing');
+                                }
+                                return response.json();
+                              })
+                              .then(() => {
+                                toast({
+                                  title: "Success",
+                                  description: "Drawing uploaded successfully",
+                                });
+                                // Reset the form
+                                setDrawingFile(null);
+                                setDrawingRevision('');
+                                setDrawingDescription('');
+                                // Close the dialog
+                                const dialogCloseButton = document.querySelector('[data-state="open"] button[type="button"]') as HTMLButtonElement;
+                                if (dialogCloseButton) dialogCloseButton.click();
+                              })
+                              .catch(error => {
+                                toast({
+                                  title: "Error",
+                                  description: error.message,
+                                  variant: "destructive",
+                                });
+                              })
+                              .finally(() => {
+                                setIsUploadingDrawing(false);
+                              });
+                          }}
+                          disabled={isUploadingDrawing}
+                        >
+                          {isUploadingDrawing ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            "Upload Drawing"
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
                 
                 <div className="rounded-md border">
