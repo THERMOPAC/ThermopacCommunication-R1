@@ -1411,12 +1411,35 @@ const ItemMasterManagement: React.FC = () => {
                               });
                               return;
                             }
+                            
+                            // Check for duplicate revisions
+                            const drawingNo = selectedDrawingItem.drawingNo || selectedDrawingItem.code;
+                            const currentRevNum = parseInt(drawingRevision || "0", 10);
+                            
+                            // Check if this exact revision already exists in the list of drawings
+                            const isDuplicateRevision = itemDrawingsQuery.data && itemDrawingsQuery.data.some((drawing: any) => {
+                              // Only check drawings with the same drawing number
+                              if (drawing.drawingNo === drawingNo) {
+                                const drawingRev = drawing.revision !== undefined ? parseInt(drawing.revision, 10) : 0;
+                                return drawingRev === currentRevNum;
+                              }
+                              return false;
+                            });
+                            
+                            if (isDuplicateRevision) {
+                              toast({
+                                title: "Error",
+                                description: `Revision ${currentRevNum} already exists for this drawing. Please use a different revision number.`,
+                                variant: "destructive",
+                              });
+                              return;
+                            }
 
                             // Here we'll upload the drawing
                             setIsUploadingDrawing(true);
                             
                             // Use the selected item information instead of current item
-                            const drawingNo = selectedDrawingItem.drawingNo || selectedDrawingItem.code;
+                            // drawingNo already declared above
                             
                             // Get the file extension
                             const originalFileName = drawingFile.name;
@@ -1466,7 +1489,7 @@ const ItemMasterManagement: React.FC = () => {
                                 
                                 // Update our tracking of latest revisions
                                 if (selectedDrawingItem) {
-                                  const drawingNo = selectedDrawingItem.drawingNo || selectedDrawingItem.code;
+                                  // Use drawingNo variable already declared above
                                   const currentRevNum = parseInt(revisionNumber, 10);
                                   
                                   // Update our tracking state if this is a higher revision

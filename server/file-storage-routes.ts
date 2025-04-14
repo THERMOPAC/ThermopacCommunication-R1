@@ -462,6 +462,41 @@ export function setupFileStorageRoutes(app: Router) {
       console.log(`File upload: Processing file ${fileName}`);
       console.log(`File upload: Parameters - FY: ${financialYear}, Project: ${projectCode}, Dept: ${department}, SubDir: ${subDirectory || 'none'}`);
       
+      // Check for drawing revision pattern in filename (e.g., 4823002002001000_R0.PDF)
+      const revisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/);
+      if (revisionMatch && department === 'drawings') {
+        const [, drawingNo, revisionStr] = revisionMatch;
+        const revisionNum = parseInt(revisionStr, 10);
+        
+        // Check if a file with this exact revision already exists in GCS
+        try {
+          const existingFiles = await gcsStorage.listFiles({
+            directory: `${financialYear}/${projectCode}`,
+            recursive: true 
+          });
+          
+          const existingRevisions = existingFiles.filter(file => {
+            // Only check files with the same drawing number pattern
+            const fileRevMatch = file.name.match(/(.+)_R(\d+)\.(.+)/);
+            if (fileRevMatch) {
+              const [, fileDrawingNo, fileRevStr] = fileRevMatch;
+              return fileDrawingNo === drawingNo && parseInt(fileRevStr, 10) === revisionNum;
+            }
+            return false;
+          });
+          
+          if (existingRevisions.length > 0) {
+            return res.status(409).json({ 
+              error: `Drawing with revision ${revisionNum} already exists. Please use a higher revision number.`,
+              existingFile: existingRevisions[0].name
+            });
+          }
+        } catch (err) {
+          console.error('Error checking for existing revisions:', err);
+          // Continue with the upload even if the check fails
+        }
+      }
+      
       const storagePath = gcsStorage.buildStoragePath({
         financialYear,
         projectCode,
