@@ -911,13 +911,15 @@ const ItemMasterManagement: React.FC = () => {
                         <TableHead>Description</TableHead>
                         <TableHead>Quantity</TableHead>
                         <TableHead>UOM</TableHead>
+                        <TableHead>Make/Buy</TableHead>
+                        <TableHead>Drawing No.</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {itemComponentsQuery.isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-4">
+                          <TableCell colSpan={7} className="text-center py-4">
                             <div className="flex justify-center">
                               <div className="animate-spin h-6 w-6 border-t-2 border-b-2 border-primary rounded-full"></div>
                             </div>
@@ -925,7 +927,7 @@ const ItemMasterManagement: React.FC = () => {
                         </TableRow>
                       ) : itemComponentsQuery.error ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-red-500">
+                          <TableCell colSpan={7} className="text-center text-red-500">
                             Error loading components: {(itemComponentsQuery.error as Error).message}
                           </TableCell>
                         </TableRow>
@@ -936,6 +938,8 @@ const ItemMasterManagement: React.FC = () => {
                             <TableCell>{component.componentDescription}</TableCell>
                             <TableCell>{component.quantity}</TableCell>
                             <TableCell>{component.componentUom}</TableCell>
+                            <TableCell>{component.makeOrBuy || '-'}</TableCell>
+                            <TableCell>{component.drawingNo || '-'}</TableCell>
                             <TableCell>
                               <Button variant="ghost" size="sm">
                                 <Trash2 className="h-4 w-4 text-red-500" />
@@ -945,7 +949,7 @@ const ItemMasterManagement: React.FC = () => {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-6">
+                          <TableCell colSpan={7} className="text-center py-6">
                             <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
                               <Package className="h-8 w-8 mb-2" />
                               <p>No components added yet</p>
