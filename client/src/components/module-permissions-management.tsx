@@ -198,14 +198,14 @@ const ModulePermissionsManagement: React.FC = () => {
                 <div className="flex-1">
                   <Label htmlFor="module-select">Filter by Module</Label>
                   <Select 
-                    value={selectedModule || ""} 
-                    onValueChange={(value) => setSelectedModule(value || null)}
+                    value={selectedModule || "all_modules"} 
+                    onValueChange={(value) => setSelectedModule(value === "all_modules" ? null : value)}
                   >
                     <SelectTrigger id="module-select">
                       <SelectValue placeholder="All modules" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All modules</SelectItem>
+                      <SelectItem value="all_modules">All modules</SelectItem>
                       {modules?.map((module: string) => (
                         <SelectItem key={module} value={module}>
                           {module}
@@ -224,7 +224,7 @@ const ModulePermissionsManagement: React.FC = () => {
                     </div>
                   ) : (
                     modules
-                      ?.filter((module: string) => !selectedModule || module === selectedModule)
+                      ?.filter((module: string) => !selectedModule || selectedModule === "all_modules" || module === selectedModule)
                       .map((module: string) => {
                         const permission = userPermissions?.[module];
                         if (!permission) return null;
@@ -345,7 +345,7 @@ const ModulePermissionsManagement: React.FC = () => {
                       
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {modules
-                          ?.filter((module: string) => !selectedModule || module === selectedModule)
+                          ?.filter((module: string) => !selectedModule || selectedModule === "all_modules" || module === selectedModule)
                           .map((module: string) => {
                             const permission = rolePermissions?.find(
                               (p: RolePermission) => p.moduleName === module && p.role === role
