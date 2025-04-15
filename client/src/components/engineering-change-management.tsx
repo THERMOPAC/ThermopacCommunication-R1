@@ -1022,7 +1022,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
                     <h4 className="font-semibold text-sm text-muted-foreground">Related ECR</h4>
                     <p>
                       {(() => {
-                        const relatedEcr = ecrs.find(ecr => ecr.id === selectedEcn.ecr_id);
+                        const relatedEcr = ecrs.find((ecr: any) => ecr.id === selectedEcn.ecr_id);
                         return relatedEcr ? relatedEcr.document_number : 'Unknown';
                       })()}
                     </p>

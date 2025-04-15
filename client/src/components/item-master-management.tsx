@@ -1271,14 +1271,26 @@ const ItemMasterManagement: React.FC = () => {
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                className="text-amber-500 hover:text-amber-600"
-                                onClick={() => {
+                                className="text-amber-500 hover:text-amber-600 font-bold border border-amber-500"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  
+                                  // Add debug log
+                                  console.log("Golden arrow clicked for component:", component);
+                                  
                                   // Store the component's master item ID in sessionStorage
                                   if (component.componentItemId) {
+                                    console.log("Setting componentItemId in sessionStorage:", component.componentItemId);
+                                    
+                                    // Store ID and navigate
                                     sessionStorage.setItem('editMasterItemId', component.componentItemId.toString());
-                                    // Navigate to Item Master page with the component ID
-                                    navigate("/item-master");
+                                    
+                                    // Use window.location for navigation instead of wouter's navigate
+                                    // This ensures a full page reload which helps with the session storage handling
+                                    window.location.href = "/item-master";
                                   } else {
+                                    console.error("Component item ID not found:", component);
                                     toast({
                                       title: "Error",
                                       description: "Could not find master item information for this component",
