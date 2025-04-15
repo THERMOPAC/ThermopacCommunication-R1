@@ -133,13 +133,14 @@ const editProjectSchema = z.object({
   description: z.string().min(1, "Project description is required"),
   status: z.enum(["planning", "active", "on_hold", "completed", "canceled"]),
   priority: z.enum(["High", "Medium", "Low"]),
-  customerId: z.number().optional().nullable(),
+  customerId: z.number().min(1, "Customer is required"),
   startDate: z.string().min(1, "Start date is required"),
   targetEndDate: z.string().min(1, "Target end date is required"),
   budget: z.number().optional(),
-  // These fields are for display only (readonly in the edit form)
+  // Project code is read-only, but required for the form
   code: z.string().optional(),
-  financialYear: z.string().optional(),
+  // Financial year is now required
+  financialYear: z.string().min(1, "Financial year is required"),
   // Additional fields for logistics tab
   shippingAddress: z.string().optional(),
   deliveryMethod: z.enum(["standard", "express", "pickup"]).optional(),
@@ -1083,10 +1084,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 name="customerId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Customer</FormLabel>
+                    <FormLabel>Customer <span className="text-red-500">*</span></FormLabel>
                     <Select 
                       onValueChange={(value) => field.onChange(value && value !== "none" ? parseInt(value) : null)} 
                       defaultValue={field.value?.toString() || "none"}
+                      value={field.value?.toString() || "none"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -1094,7 +1096,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="none">No Customer</SelectItem>
+                        <SelectItem value="none">Select a customer</SelectItem>
                         {customers?.map((customer) => (
                           <SelectItem key={customer.id} value={customer.id.toString()}>
                             {customer.bpName}
@@ -1113,11 +1115,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   name="startDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Start Date</FormLabel>
+                      <FormLabel>Start Date <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <Input 
                           type="date" 
                           {...field} 
+                          required
                         />
                       </FormControl>
                       <FormMessage />
@@ -1130,11 +1133,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   name="targetEndDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Target End Date</FormLabel>
+                      <FormLabel>Target End Date <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
                         <Input 
                           type="date" 
                           {...field} 
+                          required
                         />
                       </FormControl>
                       <FormMessage />
@@ -1188,23 +1192,33 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 )}
               />
 
-              {/* Financial Year - Read Only */}
+              {/* Financial Year - Now Editable */}
               <FormField
                 control={form.control}
                 name="financialYear"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Financial Year</FormLabel>
+                    <FormLabel>Financial Year <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input 
-                        {...field} 
-                        disabled 
-                        className="bg-muted cursor-not-allowed"
-                      />
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select financial year" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="2023-2024">2023-2024</SelectItem>
+                          <SelectItem value="2024-2025">2024-2025</SelectItem>
+                          <SelectItem value="2025-2026">2025-2026</SelectItem>
+                          <SelectItem value="2026-2027">2026-2027</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </FormControl>
-                    <FormDescription>
-                      Financial year cannot be modified
-                    </FormDescription>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
