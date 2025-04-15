@@ -2017,6 +2017,135 @@ export class DatabaseStorage implements IStorage {
     return member;
   }
 
+  // Project Key Stages
+  async getProjectKeyStages(projectId: number): Promise<any[]> {
+    console.log(`Getting key stages for project ${projectId}`);
+    try {
+      const query = `SELECT * FROM "project_key_stages" WHERE "project_id" = $1 ORDER BY "stage_number"`;
+      const { rows } = await pool.query(query, [projectId]);
+      
+      console.log(`Found ${rows.length} key stages for project ${projectId}`);
+      return rows;
+    } catch (error) {
+      console.error(`Error getting key stages for project ${projectId}:`, error);
+      return [];
+    }
+  }
+  
+  async getProjectKeyStage(id: number): Promise<any | undefined> {
+    console.log(`Getting key stage with ID: ${id}`);
+    try {
+      const query = `SELECT * FROM "project_key_stages" WHERE "id" = $1`;
+      const { rows } = await pool.query(query, [id]);
+      
+      return rows[0] || undefined;
+    } catch (error) {
+      console.error(`Error getting key stage ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async createProjectKeyStage(keyStage: any): Promise<any> {
+    console.log(`Creating new project key stage:`, keyStage);
+    try {
+      const { projectId, stageNumber, stageName, isCompleted, completedBy, completedDate } = keyStage;
+      
+      const query = `
+        INSERT INTO "project_key_stages" 
+        ("project_id", "stage_number", "stage_name", "is_completed", "completed_by", "completed_date", "created_at", "updated_at") 
+        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) 
+        RETURNING *
+      `;
+      
+      const values = [
+        projectId, 
+        stageNumber, 
+        stageName, 
+        isCompleted || false, 
+        completedBy || null, 
+        completedDate || null
+      ];
+      
+      const { rows } = await pool.query(query, values);
+      
+      console.log(`Created project key stage:`, rows[0]);
+      return rows[0];
+    } catch (error) {
+      console.error(`Error creating project key stage:`, error);
+      throw error;
+    }
+  }
+  
+  async updateProjectKeyStage(id: number, updates: any): Promise<any | undefined> {
+    console.log(`Updating key stage ${id} with data:`, updates);
+    try {
+      // Build the SET clause dynamically based on provided updates
+      const setClause = Object.entries(updates)
+        .map(([key, _], index) => {
+          // Convert camelCase to snake_case for database columns
+          const columnName = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+          return `"${columnName}" = $${index + 2}`;
+        })
+        .join(', ');
+      
+      // Add updated_at to the SET clause
+      const query = `
+        UPDATE "project_key_stages" 
+        SET ${setClause}, "updated_at" = NOW() 
+        WHERE "id" = $1 
+        RETURNING *
+      `;
+      
+      // Collect all values
+      const values = [id, ...Object.values(updates)];
+      
+      const { rows } = await pool.query(query, values);
+      
+      console.log(`Updated key stage:`, rows[0]);
+      return rows[0] || undefined;
+    } catch (error) {
+      console.error(`Error updating key stage ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async setKeyStageCompleted(id: number, completedBy: number, isCompleted: boolean = true): Promise<any | undefined> {
+    console.log(`Marking key stage ${id} as ${isCompleted ? 'completed' : 'incomplete'} by user ${completedBy}`);
+    try {
+      const completedDate = isCompleted ? new Date() : null;
+      
+      const query = `
+        UPDATE "project_key_stages" 
+        SET "is_completed" = $2, "completed_by" = $3, "completed_date" = $4, "updated_at" = NOW() 
+        WHERE "id" = $1 
+        RETURNING *
+      `;
+      
+      const values = [id, isCompleted, isCompleted ? completedBy : null, completedDate];
+      
+      const { rows } = await pool.query(query, values);
+      
+      console.log(`Updated key stage completion status:`, rows[0]);
+      return rows[0] || undefined;
+    } catch (error) {
+      console.error(`Error updating key stage ${id} completion status:`, error);
+      return undefined;
+    }
+  }
+  
+  async deleteProjectKeyStage(id: number): Promise<void> {
+    console.log(`Deleting key stage ${id}`);
+    try {
+      const query = `DELETE FROM "project_key_stages" WHERE "id" = $1`;
+      await pool.query(query, [id]);
+      
+      console.log(`Deleted key stage ${id}`);
+    } catch (error) {
+      console.error(`Error deleting key stage ${id}:`, error);
+      throw error;
+    }
+  }
+
   // Deliverables
   async createDeliverable(deliverable: InsertDeliverable): Promise<Deliverable> {
     console.log(`Creating new deliverable:`, deliverable);
