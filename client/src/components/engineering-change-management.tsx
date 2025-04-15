@@ -288,7 +288,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
       formData.append('documentType', docType);
       
       const url = type === 'ecr' ? `/api/ecr/${id}/documents` : `/api/ecn/${id}/documents`;
-      const res = await apiRequest('POST', url, formData, false);
+      const res = await apiRequest('POST', url, formData, true);
       return await res.json();
     },
     onSuccess: (_, variables) => {

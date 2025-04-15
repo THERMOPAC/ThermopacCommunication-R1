@@ -1788,8 +1788,8 @@ const ItemMasterManagement: React.FC = () => {
               <div className="space-y-4">
                 {/* Import and use the dedicated EngineeringChangeManagement component */}
                 <EngineeringChangeManagement 
-                  itemId={selectedItem?.id || 0} 
-                  users={users} 
+                  itemId={currentItem?.id || 0} 
+                  users={items?.map((item: any) => ({id: item.id, username: item.itemCode})) || []} 
                   onBack={() => {
                     // Handle back button click
                     setIsEditDialogOpen(false);
