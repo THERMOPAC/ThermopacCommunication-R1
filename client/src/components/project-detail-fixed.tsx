@@ -1506,20 +1506,22 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                             {stage.stage_name}
                                           </label>
                                           {stage.is_completed && (
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <span className="ml-auto">
-                                                  <Badge variant="outline" className="bg-green-50 text-green-800">
-                                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                                    Completed
-                                                  </Badge>
-                                                </span>
-                                              </TooltipTrigger>
-                                              <TooltipContent>
-                                                {stage.completed_by_name ? `Completed by ${stage.completed_by_name}` : 'Completed'} 
-                                                {stage.completed_date ? ` on ${new Date(stage.completed_date).toLocaleDateString()}` : ''}
-                                              </TooltipContent>
-                                            </Tooltip>
+                                            <TooltipProvider>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <span className="ml-auto">
+                                                    <Badge variant="outline" className="bg-green-50 text-green-800">
+                                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                                      Completed
+                                                    </Badge>
+                                                  </span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                  {stage.completed_by_name ? `Completed by ${stage.completed_by_name}` : 'Completed'} 
+                                                  {stage.completed_date ? ` on ${new Date(stage.completed_date).toLocaleDateString()}` : ''}
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            </TooltipProvider>
                                           )}
                                         </div>
                                       ))}
