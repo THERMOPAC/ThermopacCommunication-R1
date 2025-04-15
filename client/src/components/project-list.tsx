@@ -355,7 +355,13 @@ export default function ProjectList() {
           
           <Dialog 
             open={isNewProjectDialogOpen} 
-            onOpenChange={setIsNewProjectDialogOpen}
+            onOpenChange={(open) => {
+              // Initialize form when dialog opens
+              if (open) {
+                initializeProjectForm();
+              }
+              setIsNewProjectDialogOpen(open);
+            }}
           >
             <DialogContent className="sm:max-w-screen-xl w-full max-h-[90vh] overflow-y-auto">
               <DialogHeader>
@@ -484,28 +490,10 @@ export default function ProjectList() {
                             <FormControl>
                               <div className="flex items-center space-x-2">
                                 <Input 
-                                  placeholder="FY23-24" 
+                                  placeholder="Auto-generated" 
                                   {...field}
-                                  onChange={async (e) => {
-                                    field.onChange(e);
-                                    
-                                    // Update project code with sequential number
-                                    const financialYear = e.target.value;
-                                    
-                                    if (financialYear.length >= 5) { // Make sure it's a valid financial year
-                                      try {
-                                        const nextCode = await getNextProjectCode(financialYear);
-                                        form.setValue("code", nextCode);
-                                      } catch (error) {
-                                        console.error("Error getting next project code:", error);
-                                        // Fallback in case of errors
-                                        const yearCode = convertFinancialYearToCode(financialYear);
-                                        if (yearCode) {
-                                          form.setValue("code", `${yearCode}-1`);
-                                        }
-                                      }
-                                    }
-                                  }} 
+                                  readOnly
+                                  className="bg-muted cursor-not-allowed"
                                 />
                                 <Button 
                                   type="button" 
@@ -532,6 +520,9 @@ export default function ProjectList() {
                               </div>
                             </FormControl>
                             <FormMessage />
+                            <div className="text-xs text-muted-foreground">
+                              Current financial year (auto-generated)
+                            </div>
                           </FormItem>
                         )}
                       />
