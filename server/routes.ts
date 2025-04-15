@@ -19,6 +19,7 @@ import { setupItemComponentsImportRoutes } from "./item-components-import";
 import { setupProductionRoutes } from "./production-routes";
 import { setupQualityRoutes } from "./quality-routes";
 import { setupDispatchRoutes } from "./dispatch-routes";
+import { setupEngineeringChangeRoutes } from "./engineering-change-routes";
 import { default as afterSalesRoutes } from "./after-sales-routes";
 import { hashPassword as updatePasswordHash } from "./update-password";
 import { db } from "./db";
@@ -77,6 +78,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up dispatch and shipping routes
   setupDispatchRoutes(app);
+  
+  // Set up engineering change routes
+  setupEngineeringChangeRoutes(app);
   
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);

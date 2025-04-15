@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import EngineeringChangeManagement from './engineering-change-management';
 import {
   Dialog,
   DialogContent,
@@ -1785,44 +1786,18 @@ const ItemMasterManagement: React.FC = () => {
             
             <TabsContent value="ecr">
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">ECR & ECN Management</h3>
-                  <div className="space-x-2">
-                    <Button size="sm" variant="outline">
-                      <Plus className="h-4 w-4 mr-1" /> Create ECR
-                    </Button>
-                    <Button size="sm">
-                      <Plus className="h-4 w-4 mr-1" /> Create ECN
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Doc No.</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-6">
-                          <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
-                            <ClipboardList className="h-8 w-8 mb-2" />
-                            <p>No ECR/ECN documents yet</p>
-                            <p className="text-xs mt-1">Use the buttons above to create ECR or ECN documents</p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-                
+                {/* Import and use the dedicated EngineeringChangeManagement component */}
+                <EngineeringChangeManagement 
+                  itemId={selectedItem?.id || 0} 
+                  users={users} 
+                  onBack={() => {
+                    // Handle back button click
+                    setIsEditDialogOpen(false);
+                    setCurrentItem(null);
+                    setActiveTab("details");
+                  }}
+                />
+
                 <div className="flex justify-between mt-6">
                   <div className="flex gap-2">
                     <Button

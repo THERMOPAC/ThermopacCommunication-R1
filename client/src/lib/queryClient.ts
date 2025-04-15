@@ -11,6 +11,7 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  skipErrorThrow: boolean = false
 ): Promise<Response> {
   // For FormData, don't set Content-Type header (browser will set it with boundary)
   // and don't stringify the data
@@ -23,7 +24,9 @@ export async function apiRequest(
     credentials: "include",
   });
 
-  await throwIfResNotOk(res);
+  if (!skipErrorThrow) {
+    await throwIfResNotOk(res);
+  }
   return res;
 }
 
