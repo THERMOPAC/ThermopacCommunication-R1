@@ -392,9 +392,17 @@ export default function ProjectList() {
                           <FormItem>
                             <FormLabel>Project Code</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter project code" {...field} />
+                              <Input 
+                                placeholder="Auto-generated" 
+                                {...field} 
+                                readOnly 
+                                className="bg-muted cursor-not-allowed"
+                              />
                             </FormControl>
                             <FormMessage />
+                            <div className="text-xs text-muted-foreground">
+                              Auto-generated based on financial year
+                            </div>
                           </FormItem>
                         )}
                       />
