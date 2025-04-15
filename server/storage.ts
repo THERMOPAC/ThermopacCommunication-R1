@@ -24,6 +24,7 @@ import type {
   Customer, InsertCustomer
 } from "@shared/schema";
 import { roleHierarchy, canManage } from "@shared/roles";
+import { checkModulePermission } from "./utils/permission-utils";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db, pool } from "./db";
@@ -1842,7 +1843,29 @@ export class DatabaseStorage implements IStorage {
   async getUserProjects(userId: number): Promise<Project[]> {
     console.log(`Getting projects for user ${userId}`);
     
-    // Get all projects where user is a member
+    // Get user info to check role
+    const user = await this.getUser(userId);
+    if (!user) {
+      console.log(`User ${userId} not found`);
+      return [];
+    }
+
+    // Check if user has view permission for Project Management module
+    const hasProjectPermission = await checkModulePermission(userId, 'Project Management', 'view');
+    
+    // If user is Superuser, General Manager, Senior Manager, or has project view permission, show all projects
+    if (['Superuser', 'General Manager', 'Senior Manager'].includes(user.role) || hasProjectPermission) {
+      console.log(`User ${userId} (${user.role}) has global project access`);
+      const allProjects = await db
+        .select()
+        .from(projectsTable)
+        .orderBy(desc(projectsTable.createdAt));
+      
+      console.log(`Found ${allProjects.length} total projects for user with role-based/module access`);
+      return allProjects as Project[];
+    }
+    
+    // Otherwise, only show projects where user is a member
     const projectMembers = await db
       .select()
       .from(projectMembersTable)
@@ -1860,9 +1883,10 @@ export class DatabaseStorage implements IStorage {
     const projects = await db
       .select()
       .from(projectsTable)
-      .where(inArray(projectsTable.id, projectIds));
+      .where(inArray(projectsTable.id, projectIds))
+      .orderBy(desc(projectsTable.createdAt));
     
-    console.log(`Found ${projects.length} projects for user ${userId}`);
+    console.log(`Found ${projects.length} projects for user ${userId} based on membership`);
     return projects as Project[];
   }
   
