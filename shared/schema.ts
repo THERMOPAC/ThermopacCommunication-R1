@@ -263,11 +263,68 @@ export const transporters = pgTable('transporters', {
   updated_at: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Engineering Change Request and Engineering Change Notice tables
+export const engineeringChangeRequests = pgTable('engineering_change_requests', {
+  id: serial('id').primaryKey(),
+  document_number: text('document_number').notNull(),
+  item_id: integer('item_id').references(() => masterItems.id).notNull(),
+  description: text('description').notNull(),
+  reason: text('reason').notNull(),
+  status: text('status').notNull().default('Draft'), // Draft, Submitted, Approved, Rejected
+  requested_by: integer('requested_by').references(() => users.id).notNull(),
+  requested_date: timestamp('requested_date').defaultNow().notNull(),
+  approved_by: integer('approved_by').references(() => users.id),
+  approved_date: timestamp('approved_date'),
+  notes: text('notes'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const engineeringChangeNotices = pgTable('engineering_change_notices', {
+  id: serial('id').primaryKey(),
+  document_number: text('document_number').notNull(),
+  ecr_id: integer('ecr_id').references(() => engineeringChangeRequests.id),
+  item_id: integer('item_id').references(() => masterItems.id).notNull(),
+  description: text('description').notNull(),
+  implementation_details: text('implementation_details').notNull(),
+  status: text('status').notNull().default('Draft'), // Draft, Issued, Implemented, Closed
+  issued_by: integer('issued_by').references(() => users.id).notNull(),
+  issued_date: timestamp('issued_date').defaultNow().notNull(),
+  implementation_date: timestamp('implementation_date'),
+  implemented_by: integer('implemented_by').references(() => users.id),
+  notes: text('notes'),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const changeDocuments = pgTable('change_documents', {
+  id: serial('id').primaryKey(),
+  ecr_id: integer('ecr_id').references(() => engineeringChangeRequests.id),
+  ecn_id: integer('ecn_id').references(() => engineeringChangeNotices.id),
+  document_type: text('document_type').notNull(), // Drawing, Specification, etc.
+  document_name: text('document_name').notNull(),
+  document_path: text('document_path').notNull(),
+  uploaded_by: integer('uploaded_by').references(() => users.id).notNull(),
+  uploaded_at: timestamp('uploaded_at').defaultNow().notNull(),
+  storage_path: text('storage_path'),
+  storage_url: text('storage_url'),
+  storage_url_expiry: timestamp('storage_url_expiry'),
+});
+
 // Insert schemas for Dispatch & Shipping
 export const insertDispatchRecordSchema = createInsertSchema(dispatchRecords);
 export const insertDispatchItemSchema = createInsertSchema(dispatchItems);
 export const insertDispatchDocumentSchema = createInsertSchema(dispatchDocuments);
 export const insertTransporterSchema = createInsertSchema(transporters);
+
+// Insert schemas for Engineering Change documents
+export const insertEcrSchema = createInsertSchema(engineeringChangeRequests).extend({
+  status: z.enum(['Draft', 'Submitted', 'Approved', 'Rejected']).default('Draft'),
+});
+export const insertEcnSchema = createInsertSchema(engineeringChangeNotices).extend({
+  status: z.enum(['Draft', 'Issued', 'Implemented', 'Closed']).default('Draft'),
+});
+export const insertChangeDocumentSchema = createInsertSchema(changeDocuments);
 
 // Insert schema for recurring tasks
 export const insertRecurringTaskSchema = createInsertSchema(recurringTasks).extend({
