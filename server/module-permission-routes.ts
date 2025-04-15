@@ -92,6 +92,18 @@ router.delete('/api/users/:userId/module-permissions/:moduleName', authenticateU
   }
 });
 
+// Get all of the current user's permissions
+router.get('/api/my-permissions', authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const permissions = await getUserModulePermissions(userId);
+    res.json(permissions);
+  } catch (error) {
+    console.error('Error getting user module permissions:', error);
+    res.status(500).json({ error: 'Failed to get user module permissions' });
+  }
+});
+
 // Check current user's permission for a module
 router.get('/api/my-permissions/:moduleName/:permission', authenticateUser, async (req, res) => {
   try {

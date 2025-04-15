@@ -132,7 +132,7 @@ export async function getUserModulePermissions(userId: number) {
   const allModules = await db.select().from(roleModulePermissions)
     .where(eq(roleModulePermissions.role, "General Manager")) // Using this to get a complete list of modules
     .then(perms => perms.map(p => p.moduleName))
-    .then(modules => [...new Set(modules)]) as Module[]; // Get unique modules
+    .then(modules => Array.from(new Set(modules))) as Module[]; // Get unique modules
   
   // Combine permissions
   const result: Record<Module, { 

@@ -25,7 +25,9 @@ import {
   Lock,
   Shield
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAllModulePermissions } from "@/hooks/use-module-permissions";
+import { Module } from "@shared/schema";
 
 type LayoutProps = {
   children: React.ReactNode;
@@ -37,6 +39,9 @@ export default function Layout({ children }: LayoutProps) {
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [isProductionMenuOpen, setIsProductionMenuOpen] = useState(false);
   const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
+
+  // Get all module permissions for the current user
+  const { data: modulePermissions, isLoading: isLoadingPermissions } = useAllModulePermissions();
 
   // Check if we're on any project-related page
   const isOnProjectsPage = location.startsWith('/project') || 
@@ -52,23 +57,36 @@ export default function Layout({ children }: LayoutProps) {
                         location === '/quality-reports';
   
   // Auto-open menus based on current page
-  if (isOnProjectsPage && !isProjectMenuOpen) {
-    setIsProjectMenuOpen(true);
-  }
-  
-  if (isOnProductionPage && !isProductionMenuOpen) {
-    setIsProductionMenuOpen(true);
-  }
-  
-  if (isOnQualityPage && !isQualityMenuOpen) {
-    setIsQualityMenuOpen(true);
-  }
+  useEffect(() => {
+    if (isOnProjectsPage && !isProjectMenuOpen) {
+      setIsProjectMenuOpen(true);
+    }
+    
+    if (isOnProductionPage && !isProductionMenuOpen) {
+      setIsProductionMenuOpen(true);
+    }
+    
+    if (isOnQualityPage && !isQualityMenuOpen) {
+      setIsQualityMenuOpen(true);
+    }
+  }, [isOnProjectsPage, isOnProductionPage, isOnQualityPage]);
+
+  // Helper function to check if a user has permission to view a module
+  const hasViewPermission = (moduleName: Module) => {
+    // If permissions are still loading or user is a Superuser, show everything
+    if (isLoadingPermissions || user?.role === "Superuser") {
+      return true;
+    }
+    
+    // Check if the user has view permission for this module
+    return modulePermissions?.[moduleName]?.canView === true;
+  };
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
-    { 
+    ...(hasViewPermission("Project Management") ? [{ 
       icon: FolderKanban, 
       label: "Project Management", 
       isSubmenu: true,
@@ -79,8 +97,8 @@ export default function Layout({ children }: LayoutProps) {
         { icon: Users, label: "Customers", href: "/customers" },
         { icon: TrendingUp, label: "Item Master", href: "/item-master" }
       ]
-    },
-    { 
+    }] : []),
+    ...(hasViewPermission("Production Management") ? [{ 
       icon: Factory, 
       label: "Production Management", 
       isSubmenu: true,
@@ -90,8 +108,8 @@ export default function Layout({ children }: LayoutProps) {
         { icon: TrendingUp, label: "Production Planning", href: "/production-planning" },
         { icon: Briefcase, label: "Shop Floor", href: "/shop-floor" }
       ]
-    },
-    { 
+    }] : []),
+    ...(hasViewPermission("Quality Management") ? [{ 
       icon: BadgeCheck, 
       label: "Quality Management", 
       isSubmenu: true,
@@ -101,17 +119,17 @@ export default function Layout({ children }: LayoutProps) {
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
         { icon: Award, label: "Quality Reports", href: "/quality-reports" }
       ]
-    },
-    { icon: Briefcase, label: "Project Commissioning", href: "/project-commissioning" },
-    { icon: Truck, label: "Dispatch & Shipping", href: "/dispatch-shipping" },
-    { icon: HeartPulse, label: "After-Sales", href: "/after-sales" },
+    }] : []),
+    ...(hasViewPermission("Project Commissioning") ? [{ icon: Briefcase, label: "Project Commissioning", href: "/project-commissioning" }] : []),
+    ...(hasViewPermission("Dispatch & Shipping") ? [{ icon: Truck, label: "Dispatch & Shipping", href: "/dispatch-shipping" }] : []),
+    ...(hasViewPermission("After-Sales") ? [{ icon: HeartPulse, label: "After-Sales", href: "/after-sales" }] : []),
     { icon: Users, label: "Team", href: "/team" },
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
     { icon: MessageSquare, label: "Messages", href: "/messages" },
     { icon: Mail, label: "Emails", href: "/emails" },
     { icon: UserIcon, label: "Profile", href: "/profile" },
-    ...(user?.role === "Superuser" ? [
+    ...(user?.role === "Superuser" || user?.role === "General Manager" ? [
       { icon: UserCog, label: "User Management", href: "/users" },
       { icon: Users, label: "Password Management", href: "/password-management" },
       { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
