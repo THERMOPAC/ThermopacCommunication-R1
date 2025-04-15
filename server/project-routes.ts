@@ -766,23 +766,63 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const stageId = parseInt(req.params.stageId);
       const userId = req.user!.id;
-      const { isCompleted } = req.body;
+      const { isCompleted, stageName, stageNumber } = req.body;
       
-      // Only allow updating completion status
-      if (isCompleted === undefined) {
-        return res.status(400).json({ error: 'Completion status is required' });
+      // Check if we're updating just completion status or other fields
+      if (isCompleted !== undefined && stageName === undefined && stageNumber === undefined) {
+        // Use dedicated method for setting completion status
+        const keyStage = await storage.setKeyStageCompleted(stageId, userId, isCompleted);
+        return res.json(keyStage);
       }
       
-      const keyStage = await storage.updateProjectKeyStage(stageId, {
-        isCompleted,
-        completedBy: isCompleted ? userId : null,
-        completedDate: isCompleted ? new Date() : null
-      });
+      // Create updates object with all provided fields
+      const updates: any = {};
+      if (isCompleted !== undefined) {
+        updates.isCompleted = isCompleted;
+        updates.completedBy = isCompleted ? userId : null;
+        updates.completedDate = isCompleted ? new Date() : null;
+      }
+      
+      if (stageName !== undefined) updates.stageName = stageName;
+      if (stageNumber !== undefined) updates.stageNumber = stageNumber;
+      
+      // Regular update for other fields
+      const keyStage = await storage.updateProjectKeyStage(stageId, updates);
       
       res.json(keyStage);
     } catch (error) {
       console.error(`Error updating key stage ${req.params.stageId}:`, error);
       res.status(500).json({ error: 'Failed to update project key stage' });
+    }
+  });
+  
+  // Dedicated endpoint for marking a key stage as completed
+  app.post('/api/projects/:projectId/key-stages/:stageId/complete', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const stageId = parseInt(req.params.stageId);
+      const userId = req.user!.id;
+      
+      const keyStage = await storage.setKeyStageCompleted(stageId, userId, true);
+      
+      res.json(keyStage);
+    } catch (error) {
+      console.error(`Error marking key stage ${req.params.stageId} as completed:`, error);
+      res.status(500).json({ error: 'Failed to mark project key stage as completed' });
+    }
+  });
+  
+  // Dedicated endpoint for marking a key stage as incomplete
+  app.post('/api/projects/:projectId/key-stages/:stageId/incomplete', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const stageId = parseInt(req.params.stageId);
+      const userId = req.user!.id;
+      
+      const keyStage = await storage.setKeyStageCompleted(stageId, userId, false);
+      
+      res.json(keyStage);
+    } catch (error) {
+      console.error(`Error marking key stage ${req.params.stageId} as incomplete:`, error);
+      res.status(500).json({ error: 'Failed to mark project key stage as incomplete' });
     }
   });
   

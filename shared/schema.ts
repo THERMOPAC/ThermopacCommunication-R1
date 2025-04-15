@@ -341,7 +341,18 @@ export const insertDispatchRecordSchema = createInsertSchema(dispatchRecords);
 export const insertDispatchItemSchema = createInsertSchema(dispatchItems);
 export const insertDispatchDocumentSchema = createInsertSchema(dispatchDocuments);
 export const insertTransporterSchema = createInsertSchema(transporters);
-export const insertProjectKeyStageSchema = createInsertSchema(projectKeyStages);
+export const insertProjectKeyStageSchema = createInsertSchema(projectKeyStages, {
+  stage_name: z.enum([
+    "BEDD", "BDD", "PEL", "PID", "LLD", "GA", "Assembly Drawing", "Foundation Drawing", 
+    "MTO", "Indent", "QAP", "Purchase Order", "Inspection Call", "Material Inward", 
+    "Material Acceptance", "Production Release", "Manufacturing In-Process Inspection", 
+    "FAIR", "Pre-Dispatch Inspection", "MDC", "TC", "WT", "LC", "Ship / Dispatch Product", 
+    "Site Inspection", "Commissioning", "Payment Collection"
+  ])
+}).extend({
+  // Add any other field validations or transformations here
+  completedDate: z.date().optional(),
+});
 
 // Insert schemas for Engineering Change documents
 export const insertEcrSchema = createInsertSchema(engineeringChangeRequests).extend({
@@ -957,6 +968,9 @@ export type InsertPhaseApproval = z.infer<typeof insertPhaseApprovalSchema>;
 
 export type ProjectDocument = typeof projectDocuments.$inferSelect;
 export type InsertProjectDocument = z.infer<typeof insertProjectDocumentSchema>;
+
+export type ProjectKeyStage = typeof projectKeyStages.$inferSelect;
+export type InsertProjectKeyStage = z.infer<typeof insertProjectKeyStageSchema>;
 
 // ==================== PRODUCTION MANAGEMENT MODULE ====================
 
