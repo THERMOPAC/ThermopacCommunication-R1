@@ -441,6 +441,8 @@ export function setupItemComponentsImportRoutes(app: Router) {
         id: itemComponents.id,
         parentItemId: itemComponents.parentItemId,
         componentItemId: itemComponents.componentItemId,
+        // Include componentItemId as masterItemId for the golden arrow navigation
+        masterItemId: itemComponents.componentItemId,
         quantity: itemComponents.quantity,
         componentItemCode: masterItems.itemCode,
         componentDescription: masterItems.description,

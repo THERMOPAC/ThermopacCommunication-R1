@@ -571,6 +571,46 @@ const ItemMasterManagement: React.FC = () => {
     }
   }, [items]);
 
+  // Check for component ID in session storage when component mounts
+  useEffect(() => {
+    const storedItemId = sessionStorage.getItem('editMasterItemId');
+    if (storedItemId) {
+      // Parse the ID from session storage
+      const itemId = parseInt(storedItemId);
+      
+      if (!isNaN(itemId)) {
+        // Fetch the master item details
+        const fetchItemDetails = async () => {
+          try {
+            const response = await apiRequest('GET', `/api/master-items/${itemId}`);
+            if (!response.ok) {
+              throw new Error('Failed to fetch item details');
+            }
+            
+            const itemData = await response.json();
+            // Set as current item and open edit dialog
+            setCurrentItem(itemData);
+            setIsEditDialogOpen(true);
+            
+            // Clear the session storage so it doesn't trigger again on refresh
+            sessionStorage.removeItem('editMasterItemId');
+          } catch (error) {
+            console.error('Error fetching item from sessionStorage ID:', error);
+            toast({
+              title: "Error",
+              description: "Failed to load the component's master item details",
+              variant: "destructive",
+            });
+            // Clear the session storage on error too
+            sessionStorage.removeItem('editMasterItemId');
+          }
+        };
+        
+        fetchItemDetails();
+      }
+    }
+  }, []); // Empty dependency array means this runs once on mount
+  
   // Set form values when editing an item
   useEffect(() => {
     if (currentItem && isEditDialogOpen) {
