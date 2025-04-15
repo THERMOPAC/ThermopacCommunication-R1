@@ -144,6 +144,18 @@ export default function ProjectList() {
   const [_, navigate] = useLocation();
   const { toast } = useToast();
 
+  // Check if user has permission to create projects
+  const { data: createPermission } = useQuery({
+    queryKey: ["/api/my-permissions", "Project Management", "create"],
+    queryFn: async () => {
+      const response = await fetch("/api/my-permissions/Project Management/create");
+      if (!response.ok) {
+        return { hasPermission: false };
+      }
+      return response.json();
+    }
+  });
+
   const { data: projects, isLoading, error } = useQuery({
     queryKey: ["/api/projects"],
     queryFn: async () => {
@@ -328,21 +340,23 @@ export default function ProjectList() {
             />
           </div>
           
+          {/* New Project Dialog */}
+          {createPermission?.hasPermission && (
+            <Button 
+              onClick={() => {
+                initializeProjectForm();
+                setCurrentItems([]);
+                setIsNewProjectDialogOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" /> New Project
+            </Button>
+          )}
+          
           <Dialog 
             open={isNewProjectDialogOpen} 
-            onOpenChange={(open) => {
-              if (open) {
-                // Initialize form when opening dialog
-                initializeProjectForm();
-                // Reset items
-                setCurrentItems([]);
-              }
-              setIsNewProjectDialogOpen(open);
-            }}
+            onOpenChange={setIsNewProjectDialogOpen}
           >
-            <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" /> New Project</Button>
-            </DialogTrigger>
             <DialogContent className="sm:max-w-screen-xl w-full max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Project</DialogTitle>

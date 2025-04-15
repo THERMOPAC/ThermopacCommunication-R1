@@ -13,6 +13,7 @@ import {
   insertMasterItemSchema
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
+import { checkModulePermission } from './utils/permission-utils';
 
 // Helper function to validate a user is authenticated
 function ensureAuthenticated(req: Request, res: Response, next: express.NextFunction) {
