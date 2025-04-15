@@ -249,6 +249,19 @@ export const dispatchItems = pgTable('dispatch_items', {
   notes: text('notes'),
 });
 
+// Project Key Stage Completion
+export const projectKeyStages = pgTable('project_key_stages', {
+  id: serial('id').primaryKey(),
+  project_id: integer('project_id').references(() => projects.id).notNull(),
+  stage_number: integer('stage_number').notNull(),
+  stage_name: text('stage_name').notNull(),
+  is_completed: boolean('is_completed').notNull().default(false),
+  completed_date: timestamp('completed_date'),
+  completed_by: integer('completed_by').references(() => users.id),
+  created_at: timestamp('created_at').defaultNow().notNull(),
+  updated_at: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export const dispatchDocuments = pgTable('dispatch_documents', {
   id: serial('id').primaryKey(),
   dispatch_id: integer('dispatch_id').references(() => dispatchRecords.id).notNull(),
@@ -328,6 +341,7 @@ export const insertDispatchRecordSchema = createInsertSchema(dispatchRecords);
 export const insertDispatchItemSchema = createInsertSchema(dispatchItems);
 export const insertDispatchDocumentSchema = createInsertSchema(dispatchDocuments);
 export const insertTransporterSchema = createInsertSchema(transporters);
+export const insertProjectKeyStageSchema = createInsertSchema(projectKeyStages);
 
 // Insert schemas for Engineering Change documents
 export const insertEcrSchema = createInsertSchema(engineeringChangeRequests).extend({
