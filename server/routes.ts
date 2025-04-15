@@ -21,6 +21,7 @@ import { setupQualityRoutes } from "./quality-routes";
 import { setupDispatchRoutes } from "./dispatch-routes";
 import { setupEngineeringChangeRoutes } from "./engineering-change-routes";
 import { default as afterSalesRoutes } from "./after-sales-routes";
+import { default as modulePermissionRoutes } from "./module-permission-routes";
 import { hashPassword as updatePasswordHash } from "./update-password";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
@@ -84,6 +85,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);
+  
+  // Set up module permissions routes
+  app.use(modulePermissionRoutes);
   
   // Database Maintenance Routes
   app.post("/api/db-maintenance/reset-master-items", async (req, res) => {

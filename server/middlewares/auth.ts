@@ -50,3 +50,22 @@ export function requireSuperuser(req: Request, res: Response, next: NextFunction
   
   next();
 }
+
+/**
+ * Middleware to check if a user has administrative permissions
+ * (Superuser, General Manager, or Senior Manager)
+ */
+export function isAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: 'Unauthorized - Please log in' });
+  }
+  
+  const adminRoles = ['Superuser', 'General Manager', 'Senior Manager'];
+  if (!adminRoles.includes(req.user?.role)) {
+    return res.status(403).json({ 
+      message: 'Forbidden - This action requires administrative privileges'
+    });
+  }
+  
+  next();
+}
