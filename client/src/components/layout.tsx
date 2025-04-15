@@ -21,7 +21,9 @@ import {
   Factory,
   BadgeCheck,
   Truck,
-  HeartPulse
+  HeartPulse,
+  Lock,
+  Shield
 } from "lucide-react";
 import { useState } from "react";
 
@@ -111,7 +113,8 @@ export default function Layout({ children }: LayoutProps) {
     { icon: UserIcon, label: "Profile", href: "/profile" },
     ...(user?.role === "Superuser" ? [
       { icon: UserCog, label: "User Management", href: "/users" },
-      { icon: Users, label: "Password Management", href: "/password-management" }
+      { icon: Users, label: "Password Management", href: "/password-management" },
+      { icon: Shield, label: "Module Permissions", href: "/module-permissions" }
     ] : [])
   ];
 
