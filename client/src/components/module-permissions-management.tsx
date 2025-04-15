@@ -188,7 +188,11 @@ const ModulePermissionsManagement: React.FC = () => {
                     <SelectContent>
                       {users?.map((user: User) => (
                         <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.username} - {user.role}
+                          {user.username} {user.role === 'Superuser' ? '(Superuser)' : 
+                           user.role === 'Manager' ? '(Manager)' : 
+                           user.role === 'Senior Manager' ? '(Senior Manager)' : 
+                           user.role === 'General Manager' ? '(General Manager)' : 
+                           user.role === 'Employee' ? '(Employee)' : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
