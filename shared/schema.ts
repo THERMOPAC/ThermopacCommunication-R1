@@ -4,6 +4,18 @@ import { z } from "zod";
 import { roles } from "./roles";
 import { relations } from "drizzle-orm";
 
+// Available system modules
+export const modules = [
+  "Project Management",
+  "Production Management", 
+  "Quality Management",
+  "Project Commissioning",
+  "Dispatch & Shipping",
+  "After-Sales"
+] as const;
+
+export type Module = typeof modules[number];
+
 // Helper function to convert string dates to Date objects
 const dateStringToDate = (dateStr: string | undefined | null) => {
   if (!dateStr) return undefined;
@@ -355,11 +367,51 @@ export const insertRecurringPatternSchema = createInsertSchema(recurringPatterns
   maxOccurrences: z.number().nullable().optional(),
 }).omit({ id: true });
 
+// Module permissions tables
+export const modulePermissions = pgTable('module_permissions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  moduleName: text('module_name', { enum: modules }).notNull(),
+  canView: boolean('can_view').default(false).notNull(),
+  canCreate: boolean('can_create').default(false).notNull(),
+  canEdit: boolean('can_edit').default(false).notNull(),
+  canDelete: boolean('can_delete').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Role-based default module permissions
+export const roleModulePermissions = pgTable('role_module_permissions', {
+  id: serial('id').primaryKey(),
+  role: text('role', { enum: roles }).notNull(),
+  moduleName: text('module_name', { enum: modules }).notNull(),
+  canView: boolean('can_view').default(false).notNull(),
+  canCreate: boolean('can_create').default(false).notNull(),
+  canEdit: boolean('can_edit').default(false).notNull(),
+  canDelete: boolean('can_delete').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Create insert schemas for the new tables
+export const insertModulePermissionSchema = createInsertSchema(modulePermissions, {
+  moduleName: z.enum(modules),
+});
+
+export const insertRoleModulePermissionSchema = createInsertSchema(roleModulePermissions, {
+  role: z.enum(roles),
+  moduleName: z.enum(modules),
+});
+
 // Define types for all tables
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type ModulePermission = typeof modulePermissions.$inferSelect;
+export type InsertModulePermission = z.infer<typeof insertModulePermissionSchema>;
+export type RoleModulePermission = typeof roleModulePermissions.$inferSelect;
+export type InsertRoleModulePermission = z.infer<typeof insertRoleModulePermissionSchema>;
 export type TaskHistory = typeof taskHistory.$inferSelect;
 export type InsertTaskHistory = z.infer<typeof insertTaskHistorySchema>;
 export type WorkflowRecommendation = typeof workflowRecommendations.$inferSelect;
