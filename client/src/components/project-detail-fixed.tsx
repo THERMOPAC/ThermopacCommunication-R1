@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Table, 
   TableHeader, 
@@ -224,16 +225,15 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   // Mutation for toggling key stage completion
   const toggleKeyStageCompletionMutation = useMutation({
     mutationFn: async ({ stageId, isCompleted }: { stageId: number, isCompleted: boolean }) => {
-      const response = await fetch(`/api/projects/key-stages/${stageId}`, {
-        method: 'PATCH',
+      const endpoint = isCompleted 
+        ? `/api/projects/${projectId}/key-stages/${stageId}/complete`
+        : `/api/projects/${projectId}/key-stages/${stageId}/incomplete`;
+        
+      const response = await fetch(endpoint, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          is_completed: isCompleted,
-          completed_by: isCompleted ? 'current_user' : null, // Server will replace this with the actual user
-          completed_date: isCompleted ? new Date().toISOString() : null
-        })
+        }
       });
       
       if (!response.ok) {
