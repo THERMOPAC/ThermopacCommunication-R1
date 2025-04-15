@@ -186,13 +186,53 @@ const ModulePermissionsManagement: React.FC = () => {
                       <SelectValue placeholder="Select a user" />
                     </SelectTrigger>
                     <SelectContent>
-                      {users?.map((user: User) => (
+                      {/* Superusers */}
+                      <SelectItem value="superusers_header" disabled className="font-semibold text-primary">
+                        Superusers
+                      </SelectItem>
+                      {users?.filter(user => user.role === 'Superuser').map((user: User) => (
                         <SelectItem key={user.id} value={user.id.toString()}>
-                          {user.username} {user.role === 'Superuser' ? '(Superuser)' : 
-                           user.role === 'Manager' ? '(Manager)' : 
-                           user.role === 'Senior Manager' ? '(Senior Manager)' : 
-                           user.role === 'General Manager' ? '(General Manager)' : 
-                           user.role === 'Employee' ? '(Employee)' : ''}
+                          {user.username}
+                        </SelectItem>
+                      ))}
+                      
+                      {/* General Managers */}
+                      <SelectItem value="general_managers_header" disabled className="font-semibold text-primary mt-2">
+                        General Managers
+                      </SelectItem>
+                      {users?.filter(user => user.role === 'General Manager').map((user: User) => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          {user.username}
+                        </SelectItem>
+                      ))}
+                      
+                      {/* Senior Managers */}
+                      <SelectItem value="senior_managers_header" disabled className="font-semibold text-primary mt-2">
+                        Senior Managers
+                      </SelectItem>
+                      {users?.filter(user => user.role === 'Senior Manager').map((user: User) => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          {user.username}
+                        </SelectItem>
+                      ))}
+                      
+                      {/* Managers */}
+                      <SelectItem value="managers_header" disabled className="font-semibold text-primary mt-2">
+                        Managers
+                      </SelectItem>
+                      {users?.filter(user => user.role === 'Manager').map((user: User) => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          {user.username}
+                        </SelectItem>
+                      ))}
+                      
+                      {/* Employees */}
+                      <SelectItem value="employees_header" disabled className="font-semibold text-primary mt-2">
+                        Employees
+                      </SelectItem>
+                      {users?.filter(user => user.role === 'Employee').map((user: User) => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          {user.username}
                         </SelectItem>
                       ))}
                     </SelectContent>
