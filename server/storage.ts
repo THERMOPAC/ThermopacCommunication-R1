@@ -52,7 +52,8 @@ import {
   phaseApprovals as phaseApprovalsTable,
   projectDocuments as projectDocumentsTable,
   masterItems as masterItemsTable,
-  projectItems as projectItemsTable
+  projectItems as projectItemsTable,
+  projectKeyStages
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 
@@ -88,6 +89,7 @@ export class DatabaseStorage implements IStorage {
   projectDocumentsTable = projectDocumentsTable;
   masterItemsTable = masterItemsTable;
   projectItemsTable = projectItemsTable;
+  projectKeyStagesTable = projectKeyStages;
 
   constructor() {
     if (!process.env.DATABASE_URL) {
@@ -2023,12 +2025,12 @@ export class DatabaseStorage implements IStorage {
     console.log(`Getting key stages for project ${projectId}`);
     try {
       const result = await db.select()
-        .from(projectKeyStages)
-        .where(eq(projectKeyStages.project_id, projectId))
-        .orderBy(projectKeyStages.stage_number);
+        .from(this.projectKeyStagesTable)
+        .where(eq(this.projectKeyStagesTable.project_id, projectId))
+        .orderBy(this.projectKeyStagesTable.stage_number);
       
       console.log(`Found ${result.length} key stages for project ${projectId}`);
-      return result;
+      return result as ProjectKeyStage[];
     } catch (error) {
       console.error(`Error getting key stages for project ${projectId}:`, error);
       return [];
@@ -2039,10 +2041,10 @@ export class DatabaseStorage implements IStorage {
     console.log(`Getting key stage with ID: ${id}`);
     try {
       const [result] = await db.select()
-        .from(projectKeyStages)
-        .where(eq(projectKeyStages.id, id));
+        .from(this.projectKeyStagesTable)
+        .where(eq(this.projectKeyStagesTable.id, id));
       
-      return result;
+      return result as ProjectKeyStage | undefined;
     } catch (error) {
       console.error(`Error getting key stage ${id}:`, error);
       return undefined;
@@ -2052,22 +2054,22 @@ export class DatabaseStorage implements IStorage {
   async createProjectKeyStage(data: InsertProjectKeyStage): Promise<ProjectKeyStage> {
     console.log(`Creating new project key stage:`, data);
     try {
-      // Convert projectId -> project_id for database insertion
-      const keyStageData = {
-        project_id: data.projectId,
-        stage_number: data.stageNumber,
-        stage_name: data.stageName,
-        is_completed: data.isCompleted || false,
-        completed_by: data.completedBy || null,
-        completed_date: data.completedDate || null
+      // Convert camelCase to snake_case for database fields
+      const stageData = {
+        project_id: data.project_id,
+        stage_number: data.stage_number,
+        stage_name: data.stage_name,
+        is_completed: data.is_completed || false,
+        completed_by: data.completed_by || null,
+        completed_date: data.completed_date || null
       };
       
-      const [result] = await db.insert(projectKeyStages)
-        .values(keyStageData)
+      const [result] = await db.insert(this.projectKeyStagesTable)
+        .values(stageData)
         .returning();
       
       console.log(`Created project key stage:`, result);
-      return result;
+      return result as ProjectKeyStage;
     } catch (error) {
       console.error(`Error creating project key stage:`, error);
       throw error;
@@ -2077,25 +2079,22 @@ export class DatabaseStorage implements IStorage {
   async updateProjectKeyStage(id: number, updates: Partial<ProjectKeyStage>): Promise<ProjectKeyStage | undefined> {
     console.log(`Updating key stage ${id} with data:`, updates);
     try {
-      // Convert camelCase field names to snake_case for database columns
-      const updateData: Record<string, any> = {};
+      // Map any camelCase property names to snake_case if they exist
+      const updateData: Record<string, any> = { updated_at: new Date() };
       
-      if (updates.stageNumber !== undefined) updateData.stage_number = updates.stageNumber;
-      if (updates.stageName !== undefined) updateData.stage_name = updates.stageName;
-      if (updates.isCompleted !== undefined) updateData.is_completed = updates.isCompleted;
-      if (updates.completedBy !== undefined) updateData.completed_by = updates.completedBy;
-      if (updates.completedDate !== undefined) updateData.completed_date = updates.completedDate;
+      if (updates.stage_number !== undefined) updateData.stage_number = updates.stage_number;
+      if (updates.stage_name !== undefined) updateData.stage_name = updates.stage_name;
+      if (updates.is_completed !== undefined) updateData.is_completed = updates.is_completed;
+      if (updates.completed_by !== undefined) updateData.completed_by = updates.completed_by;
+      if (updates.completed_date !== undefined) updateData.completed_date = updates.completed_date;
       
-      // Ensure updated_at is always updated
-      updateData.updated_at = new Date();
-      
-      const [result] = await db.update(projectKeyStages)
+      const [result] = await db.update(this.projectKeyStagesTable)
         .set(updateData)
-        .where(eq(projectKeyStages.id, id))
+        .where(eq(this.projectKeyStagesTable.id, id))
         .returning();
       
       console.log(`Updated key stage:`, result);
-      return result;
+      return result as ProjectKeyStage;
     } catch (error) {
       console.error(`Error updating key stage ${id}:`, error);
       return undefined;
@@ -2107,18 +2106,18 @@ export class DatabaseStorage implements IStorage {
     try {
       const completedDate = isCompleted ? new Date() : null;
       
-      const [result] = await db.update(projectKeyStages)
+      const [result] = await db.update(this.projectKeyStagesTable)
         .set({
           is_completed: isCompleted,
           completed_by: isCompleted ? completedBy : null,
           completed_date: completedDate,
           updated_at: new Date()
         })
-        .where(eq(projectKeyStages.id, id))
+        .where(eq(this.projectKeyStagesTable.id, id))
         .returning();
       
       console.log(`Updated key stage completion status:`, result);
-      return result;
+      return result as ProjectKeyStage;
     } catch (error) {
       console.error(`Error updating key stage ${id} completion status:`, error);
       return undefined;
@@ -2128,8 +2127,8 @@ export class DatabaseStorage implements IStorage {
   async deleteProjectKeyStage(id: number): Promise<void> {
     console.log(`Deleting key stage ${id}`);
     try {
-      await db.delete(projectKeyStages)
-        .where(eq(projectKeyStages.id, id));
+      await db.delete(this.projectKeyStagesTable)
+        .where(eq(this.projectKeyStagesTable.id, id));
       
       console.log(`Deleted key stage ${id}`);
     } catch (error) {
