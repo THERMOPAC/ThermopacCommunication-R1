@@ -9,9 +9,22 @@ async function createProjectKeyStagesTable() {
   console.log('Creating project_key_stages table...');
   
   try {
+    // Check if table already exists
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'project_key_stages'
+      );
+    `);
+    
+    if (tableExists.rows[0].exists) {
+      console.log('project_key_stages table already exists, dropping it first...');
+      await pool.query(`DROP TABLE IF EXISTS project_key_stages CASCADE;`);
+    }
+    
     // Create the project_key_stages table
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS project_key_stages (
+      CREATE TABLE project_key_stages (
         id SERIAL PRIMARY KEY,
         project_id INTEGER NOT NULL REFERENCES projects(id),
         stage_number INTEGER NOT NULL,
@@ -62,12 +75,12 @@ async function createProjectKeyStagesTable() {
       { stage_number: 21, stage_name: "Electrical Work Complete", phase: "Manufacturing", description: "All electrical connections have been completed" },
       { stage_number: 22, stage_name: "Manufacturing Complete", phase: "Manufacturing", description: "All manufacturing processes have been completed" },
       
-      // Quality Phase (stages 23-27)
-      { stage_number: 23, stage_name: "Factory Testing Started", phase: "Quality", description: "Factory Acceptance Testing has begun" },
-      { stage_number: 24, stage_name: "Factory Testing Complete", phase: "Quality", description: "Factory Acceptance Testing has been completed successfully" },
-      { stage_number: 25, stage_name: "Quality Documentation Complete", phase: "Quality", description: "All quality documentation has been finalized" },
-      { stage_number: 26, stage_name: "Equipment Packaged for Shipping", phase: "Quality", description: "Equipment has been properly packaged for shipping" },
-      { stage_number: 27, stage_name: "Final Inspection Complete", phase: "Quality", description: "Final inspection has been completed before shipping" }
+      // Shipping & Commissioning Phase (stages 23-27)
+      { stage_number: 23, stage_name: "Factory Testing Started", phase: "Shipping & Commissioning", description: "Factory Acceptance Testing has begun" },
+      { stage_number: 24, stage_name: "Factory Testing Complete", phase: "Shipping & Commissioning", description: "Factory Acceptance Testing has been completed successfully" },
+      { stage_number: 25, stage_name: "Quality Documentation Complete", phase: "Shipping & Commissioning", description: "All quality documentation has been finalized" },
+      { stage_number: 26, stage_name: "Equipment Packaged for Shipping", phase: "Shipping & Commissioning", description: "Equipment has been properly packaged for shipping" },
+      { stage_number: 27, stage_name: "Final Inspection Complete", phase: "Shipping & Commissioning", description: "Final inspection has been completed before shipping" }
     ];
     
     // Add the standard key stages to each project
@@ -75,14 +88,19 @@ async function createProjectKeyStagesTable() {
       console.log(`Adding key stages to project ${project.id}: ${project.name}`);
       
       for (const stage of standardKeyStages) {
-        await db.insert(projectKeyStages).values({
-          project_id: project.id,
-          stage_number: stage.stage_number,
-          stage_name: stage.stage_name,
-          phase: stage.phase,
-          description: stage.description,
-          is_completed: false
-        });
+        await pool.query(`
+          INSERT INTO project_key_stages 
+          (project_id, stage_number, stage_name, phase, description, is_completed)
+          VALUES 
+          ($1, $2, $3, $4, $5, $6)
+        `, [
+          project.id,
+          stage.stage_number,
+          stage.stage_name,
+          stage.phase,
+          stage.description,
+          false
+        ]);
       }
       
       console.log(`Added ${standardKeyStages.length} key stages to project ${project.id}`);

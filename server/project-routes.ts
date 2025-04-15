@@ -739,17 +739,19 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = req.user!.id;
-      const { stageNumber, stageName, isCompleted } = req.body;
+      const { stageNumber, stageName, phase, description, isCompleted } = req.body;
       
       // Validate request
-      if (stageNumber === undefined || stageName === undefined) {
-        return res.status(400).json({ error: 'Stage number and name are required' });
+      if (stageNumber === undefined || stageName === undefined || !phase) {
+        return res.status(400).json({ error: 'Stage number, name, and phase are required' });
       }
       
       const keyStage = await storage.createProjectKeyStage({
         project_id: projectId,
         stage_number: stageNumber,
         stage_name: stageName,
+        phase: phase,
+        description: description || null,
         is_completed: !!isCompleted,
         completed_by: isCompleted ? userId : null,
         completed_date: isCompleted ? new Date() : null
@@ -766,10 +768,14 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const stageId = parseInt(req.params.stageId);
       const userId = req.user!.id;
-      const { isCompleted, stageName, stageNumber } = req.body;
+      const { isCompleted, stageName, stageNumber, phase, description } = req.body;
       
       // Check if we're updating just completion status or other fields
-      if (isCompleted !== undefined && stageName === undefined && stageNumber === undefined) {
+      if (isCompleted !== undefined && 
+          stageName === undefined && 
+          stageNumber === undefined && 
+          phase === undefined && 
+          description === undefined) {
         // Use dedicated method for setting completion status
         const keyStage = await storage.setKeyStageCompleted(stageId, userId, isCompleted);
         return res.json(keyStage);
@@ -785,6 +791,8 @@ export function setupProjectRoutes(app: express.Express) {
       
       if (stageName !== undefined) updates.stage_name = stageName;
       if (stageNumber !== undefined) updates.stage_number = stageNumber;
+      if (phase !== undefined) updates.phase = phase;
+      if (description !== undefined) updates.description = description;
       
       // Regular update for other fields
       const keyStage = await storage.updateProjectKeyStage(stageId, updates);

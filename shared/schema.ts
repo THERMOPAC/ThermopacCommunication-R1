@@ -255,6 +255,8 @@ export const projectKeyStages = pgTable('project_key_stages', {
   project_id: integer('project_id').references(() => projects.id).notNull(),
   stage_number: integer('stage_number').notNull(),
   stage_name: text('stage_name').notNull(),
+  phase: text('phase').notNull(),
+  description: text('description'),
   is_completed: boolean('is_completed').notNull().default(false),
   completed_date: timestamp('completed_date'),
   completed_by: integer('completed_by').references(() => users.id),
@@ -342,16 +344,12 @@ export const insertDispatchItemSchema = createInsertSchema(dispatchItems);
 export const insertDispatchDocumentSchema = createInsertSchema(dispatchDocuments);
 export const insertTransporterSchema = createInsertSchema(transporters);
 export const insertProjectKeyStageSchema = createInsertSchema(projectKeyStages, {
-  stage_name: z.enum([
-    "BEDD", "BDD", "PEL", "PID", "LLD", "GA", "Assembly Drawing", "Foundation Drawing", 
-    "MTO", "Indent", "QAP", "Purchase Order", "Inspection Call", "Material Inward", 
-    "Material Acceptance", "Production Release", "Manufacturing In-Process Inspection", 
-    "FAIR", "Pre-Dispatch Inspection", "MDC", "TC", "WT", "LC", "Ship / Dispatch Product", 
-    "Site Inspection", "Commissioning", "Payment Collection"
-  ])
+  stage_name: z.string(),
+  phase: z.enum(["Design", "Procurement", "Manufacturing", "Shipping & Commissioning"])
 }).extend({
   // Add any other field validations or transformations here
   completedDate: z.date().optional(),
+  description: z.string().optional(),
 });
 
 // Insert schemas for Engineering Change documents
