@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
+import { checkModulePermission } from '../utils/permission-utils';
+import { Module } from '@shared/schema';
 
 /**
  * Middleware to check if a user is authenticated
@@ -68,4 +70,35 @@ export function isAdmin(req: Request, res: Response, next: NextFunction) {
   }
   
   next();
+}
+
+/**
+ * Middleware to check if a user has permission for a specific module action
+ * @param moduleName The module to check permission for
+ * @param permission The permission type (view, create, edit, delete)
+ */
+export function checkModulePermissionMiddleware(
+  moduleName: Module,
+  permission: 'view' | 'create' | 'edit' | 'delete'
+) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: 'Unauthorized - Please log in' });
+    }
+    
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(403).json({ message: 'Invalid user session' });
+    }
+    
+    const hasPermission = await checkModulePermission(userId, moduleName, permission);
+    
+    if (!hasPermission) {
+      return res.status(403).json({ 
+        message: `You do not have ${permission} permission for the ${moduleName} module`
+      });
+    }
+    
+    next();
+  };
 }

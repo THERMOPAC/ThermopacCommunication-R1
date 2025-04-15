@@ -73,8 +73,13 @@ export default function Layout({ children }: LayoutProps) {
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
-    // If permissions are still loading or user is a Superuser, show everything
-    if (isLoadingPermissions || user?.role === "Superuser") {
+    // If permissions are still loading, don't show anything yet
+    if (isLoadingPermissions) {
+      return false;
+    }
+    
+    // If user is a Superuser, they have access to everything
+    if (user?.role === "Superuser") {
       return true;
     }
     
