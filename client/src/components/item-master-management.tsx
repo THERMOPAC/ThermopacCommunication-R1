@@ -70,6 +70,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { 
   AlertTriangle,
+  ArrowUpRight,
   ClipboardList, 
   Download,
   File as FileIcon, 
@@ -1230,12 +1231,38 @@ const ItemMasterManagement: React.FC = () => {
                             <TableCell>{component.componentUom}</TableCell>
                             <TableCell>{component.componentMakeOrBuy || '-'}</TableCell>
                             <TableCell>{component.componentDrawingNo || '-'}</TableCell>
-                            <TableCell>
+                            <TableCell className="flex gap-2">
+                              {/* Golden arrow button to navigate to component master item */}
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="text-amber-500 hover:text-amber-600"
+                                onClick={() => {
+                                  // Store the component's master item ID in sessionStorage
+                                  if (component.masterItemId) {
+                                    sessionStorage.setItem('editMasterItemId', component.masterItemId.toString());
+                                    // Navigate to Item Master page with the component ID
+                                    navigate("/item-master");
+                                  } else {
+                                    toast({
+                                      title: "Error",
+                                      description: "Could not find master item information for this component",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }}
+                                title="Edit Component Master Item"
+                              >
+                                <ArrowUpRight className="h-4 w-4" />
+                              </Button>
+                              
+                              {/* Delete button */}
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
                                 onClick={() => handleDeleteComponent(component.id)}
                                 disabled={isDeleting === component.id}
+                                title="Delete Component"
                               >
                                 {isDeleting === component.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin text-red-500" />
