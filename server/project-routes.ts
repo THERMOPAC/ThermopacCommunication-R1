@@ -775,16 +775,16 @@ export function setupProjectRoutes(app: express.Express) {
         return res.json(keyStage);
       }
       
-      // Create updates object with all provided fields
+      // Create updates object with all provided fields using snake_case
       const updates: any = {};
       if (isCompleted !== undefined) {
-        updates.isCompleted = isCompleted;
-        updates.completedBy = isCompleted ? userId : null;
-        updates.completedDate = isCompleted ? new Date() : null;
+        updates.is_completed = isCompleted;
+        updates.completed_by = isCompleted ? userId : null;
+        updates.completed_date = isCompleted ? new Date() : null;
       }
       
-      if (stageName !== undefined) updates.stageName = stageName;
-      if (stageNumber !== undefined) updates.stageNumber = stageNumber;
+      if (stageName !== undefined) updates.stage_name = stageName;
+      if (stageNumber !== undefined) updates.stage_number = stageNumber;
       
       // Regular update for other fields
       const keyStage = await storage.updateProjectKeyStage(stageId, updates);
