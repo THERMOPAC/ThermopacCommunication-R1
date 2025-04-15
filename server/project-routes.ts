@@ -13,6 +13,7 @@ import {
   insertMasterItemSchema
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
+import { checkModulePermissionMiddleware } from './middlewares/auth';
 import { checkModulePermission } from './utils/permission-utils';
 
 // Helper function to validate a user is authenticated
@@ -132,15 +133,12 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects', 
+    ensureAuthenticated, 
+    checkModulePermissionMiddleware('Project Management', 'create'), 
+    async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
-      
-      // Check if user has create permission for Project Management module
-      const hasCreatePermission = await checkModulePermission(userId, 'Project Management', 'create');
-      if (!hasCreatePermission) {
-        return res.status(403).json({ error: 'You do not have permission to create projects' });
-      }
       
       const projectData = insertProjectSchema.parse({
         ...req.body,
