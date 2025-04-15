@@ -706,6 +706,32 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
+              <Label htmlFor="ecr-drawing">Drawing Number</Label>
+              <Select
+                value={ecrForm.drawing_number}
+                onValueChange={(value) => setEcrForm({ ...ecrForm, drawing_number: value })}
+              >
+                <SelectTrigger id="ecr-drawing">
+                  <SelectValue placeholder="Select a drawing number" />
+                </SelectTrigger>
+                <SelectContent>
+                  {drawingNumbers.length === 0 ? (
+                    <SelectItem value="" disabled>No drawing numbers available</SelectItem>
+                  ) : (
+                    <>
+                      <SelectItem value="">None</SelectItem>
+                      {drawingNumbers.map((drawing) => (
+                        <SelectItem key={drawing.id} value={drawing.drawingNo}>
+                          {drawing.drawingNo} - {drawing.itemCode}
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">Select a drawing number from parent or sub-assembly components</p>
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="ecr-description">Description</Label>
               <Textarea
                 id="ecr-description"
@@ -778,6 +804,32 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
                 </Select>
               </div>
             )}
+            <div className="grid gap-2">
+              <Label htmlFor="ecn-drawing">Drawing Number</Label>
+              <Select
+                value={ecnForm.drawing_number}
+                onValueChange={(value) => setEcnForm({ ...ecnForm, drawing_number: value })}
+              >
+                <SelectTrigger id="ecn-drawing">
+                  <SelectValue placeholder="Select a drawing number" />
+                </SelectTrigger>
+                <SelectContent>
+                  {drawingNumbers.length === 0 ? (
+                    <SelectItem value="" disabled>No drawing numbers available</SelectItem>
+                  ) : (
+                    <>
+                      <SelectItem value="">None</SelectItem>
+                      {drawingNumbers.map((drawing) => (
+                        <SelectItem key={drawing.id} value={drawing.drawingNo}>
+                          {drawing.drawingNo} - {drawing.itemCode}
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">Select a drawing number from parent or sub-assembly components</p>
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="ecn-description">Description</Label>
               <Textarea
@@ -968,7 +1020,12 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
                 {selectedEcn.ecr_id && (
                   <div>
                     <h4 className="font-semibold text-sm text-muted-foreground">Related ECR</h4>
-                    <p>{ecrs.find(ecr => ecr.id === selectedEcn.ecr_id)?.document_number || 'Unknown'}</p>
+                    <p>
+                      {(() => {
+                        const relatedEcr = ecrs.find(ecr => ecr.id === selectedEcn.ecr_id);
+                        return relatedEcr ? relatedEcr.document_number : 'Unknown';
+                      })()}
+                    </p>
                   </div>
                 )}
                 <div>
