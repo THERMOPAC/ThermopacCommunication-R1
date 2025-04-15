@@ -716,10 +716,10 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
                 </SelectTrigger>
                 <SelectContent>
                   {drawingNumbers.length === 0 ? (
-                    <SelectItem value="" disabled>No drawing numbers available</SelectItem>
+                    <SelectItem value="none" disabled>No drawing numbers available</SelectItem>
                   ) : (
                     <>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {drawingNumbers.map((drawing) => (
                         <SelectItem key={drawing.id} value={drawing.drawingNo}>
                           {drawing.drawingNo} - {drawing.itemCode}
@@ -794,7 +794,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
                     <SelectValue placeholder="Select an ECR" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {ecrs.map((ecr: ECR) => (
                       <SelectItem key={ecr.id} value={ecr.id.toString()}>
                         {ecr.document_number} - {ecr.description.slice(0, 30)}{ecr.description.length > 30 ? '...' : ''}
@@ -815,10 +815,10 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
                 </SelectTrigger>
                 <SelectContent>
                   {drawingNumbers.length === 0 ? (
-                    <SelectItem value="" disabled>No drawing numbers available</SelectItem>
+                    <SelectItem value="none" disabled>No drawing numbers available</SelectItem>
                   ) : (
                     <>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {drawingNumbers.map((drawing) => (
                         <SelectItem key={drawing.id} value={drawing.drawingNo}>
                           {drawing.drawingNo} - {drawing.itemCode}
