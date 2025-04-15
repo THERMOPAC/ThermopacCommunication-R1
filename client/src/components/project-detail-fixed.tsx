@@ -208,6 +208,58 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     },
   });
   
+  // Query for fetching project key stages
+  const keyStagesQuery = useQuery({
+    queryKey: [`/api/projects/${projectId}/key-stages`],
+    queryFn: async () => {
+      const response = await fetch(`/api/projects/${projectId}/key-stages`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch project key stages");
+      }
+      return await response.json();
+    },
+    enabled: !!projectId
+  });
+
+  // Mutation for toggling key stage completion
+  const toggleKeyStageCompletionMutation = useMutation({
+    mutationFn: async ({ stageId, isCompleted }: { stageId: number, isCompleted: boolean }) => {
+      const response = await fetch(`/api/projects/key-stages/${stageId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          is_completed: isCompleted,
+          completed_by: isCompleted ? 'current_user' : null, // Server will replace this with the actual user
+          completed_date: isCompleted ? new Date().toISOString() : null
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to update key stage completion status");
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      // Refresh the key stages data
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/key-stages`] });
+      
+      toast({
+        title: "Stage updated",
+        description: "The project stage has been updated successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to update stage",
+        description: error.message || "An error occurred while updating the stage.",
+        variant: "destructive"
+      });
+    }
+  });
+  
   // Add a visible message if there are issues with the ID
   useEffect(() => {
     console.log("Project Detail Component mounted with ID:", projectId);
@@ -1393,55 +1445,94 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 </TabsContent>
                 
                 <TabsContent value="project-stages" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="border rounded-md p-4">
-                      <h3 className="text-sm font-medium mb-3">Design Phase</h3>
-                      <p className="text-xs text-muted-foreground mb-2">Configure design phase details</p>
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-xs">
-                          <span>Status</span>
-                          <Badge variant="outline" className="bg-blue-50 text-blue-800">Planning</Badge>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-xl">Project Key Stages</CardTitle>
+                      <CardDescription>
+                        Track and update key project stages by checking them off as they are completed.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {keyStagesQuery.isLoading ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
-                        <Progress value={0} className="h-1" />
-                      </div>
-                    </div>
-                    
-                    <div className="border rounded-md p-4">
-                      <h3 className="text-sm font-medium mb-3">Procurement Phase</h3>
-                      <p className="text-xs text-muted-foreground mb-2">Configure procurement phase details</p>
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-xs">
-                          <span>Status</span>
-                          <Badge variant="outline" className="bg-gray-50 text-gray-800">Not Started</Badge>
+                      ) : keyStagesQuery.isError ? (
+                        <div className="p-4 border rounded-lg bg-red-50 text-red-800">
+                          <p className="font-medium">Error loading project key stages</p>
+                          <p className="text-sm mt-1">Please refresh the page and try again.</p>
                         </div>
-                        <Progress value={0} className="h-1" />
-                      </div>
-                    </div>
-                    
-                    <div className="border rounded-md p-4">
-                      <h3 className="text-sm font-medium mb-3">Manufacturing Phase</h3>
-                      <p className="text-xs text-muted-foreground mb-2">Configure manufacturing phase details</p>
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-xs">
-                          <span>Status</span>
-                          <Badge variant="outline" className="bg-gray-50 text-gray-800">Not Started</Badge>
+                      ) : keyStagesQuery.data && keyStagesQuery.data.length === 0 ? (
+                        <div className="p-4 border rounded-lg bg-yellow-50 text-yellow-800">
+                          <p className="font-medium">No key stages defined</p>
+                          <p className="text-sm mt-1">Project key stages need to be set up.</p>
                         </div>
-                        <Progress value={0} className="h-1" />
-                      </div>
-                    </div>
-                    
-                    <div className="border rounded-md p-4">
-                      <h3 className="text-sm font-medium mb-3">Quality Phase</h3>
-                      <p className="text-xs text-muted-foreground mb-2">Configure quality phase details</p>
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-xs">
-                          <span>Status</span>
-                          <Badge variant="outline" className="bg-gray-50 text-gray-800">Not Started</Badge>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {/* Group stages by design, procurement, manufacturing, quality phases */}
+                            {[
+                              { title: "Design Phase", stages: keyStagesQuery.data?.filter(stage => [1, 2, 3, 4, 5, 6, 7, 8].includes(stage.stage_number)) || [] },
+                              { title: "Procurement Phase", stages: keyStagesQuery.data?.filter(stage => [9, 10, 11, 12, 13, 14, 15].includes(stage.stage_number)) || [] },
+                              { title: "Manufacturing Phase", stages: keyStagesQuery.data?.filter(stage => [16, 17, 18, 19, 20, 21, 22].includes(stage.stage_number)) || [] },
+                              { title: "Shipping & Commissioning", stages: keyStagesQuery.data?.filter(stage => [23, 24, 25, 26, 27].includes(stage.stage_number)) || [] },
+                            ].map((group, groupIndex) => (
+                              <Card key={groupIndex} className="overflow-hidden">
+                                <CardHeader className="bg-muted/50 p-4">
+                                  <CardTitle className="text-sm font-medium">{group.title}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4">
+                                  {group.stages.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">No stages defined</p>
+                                  ) : (
+                                    <div className="space-y-3">
+                                      {group.stages.map((stage) => (
+                                        <div key={stage.id} className="flex items-center space-x-2">
+                                          <Checkbox 
+                                            id={`stage-${stage.id}`}
+                                            checked={stage.is_completed}
+                                            onCheckedChange={(checked) => {
+                                              const isChecked = !!checked;
+                                              toggleKeyStageCompletionMutation.mutate({
+                                                stageId: stage.id, 
+                                                isCompleted: isChecked
+                                              });
+                                            }}
+                                          />
+                                          <label 
+                                            htmlFor={`stage-${stage.id}`}
+                                            className={`text-sm ${stage.is_completed ? 'line-through text-muted-foreground' : ''}`}
+                                          >
+                                            {stage.stage_name}
+                                          </label>
+                                          {stage.is_completed && (
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <span className="ml-auto">
+                                                  <Badge variant="outline" className="bg-green-50 text-green-800">
+                                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                                    Completed
+                                                  </Badge>
+                                                </span>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                {stage.completed_by_name ? `Completed by ${stage.completed_by_name}` : 'Completed'} 
+                                                {stage.completed_date ? ` on ${new Date(stage.completed_date).toLocaleDateString()}` : ''}
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
                         </div>
-                        <Progress value={0} className="h-1" />
-                      </div>
-                    </div>
-                  </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </TabsContent>
                 
                 <TabsContent value="logistics" className="space-y-4 mt-4">
