@@ -747,12 +747,12 @@ export function setupProjectRoutes(app: express.Express) {
       }
       
       const keyStage = await storage.createProjectKeyStage({
-        projectId,
-        stageNumber,
-        stageName,
-        isCompleted: !!isCompleted,
-        completedBy: isCompleted ? userId : undefined,
-        completedDate: isCompleted ? new Date() : undefined
+        project_id: projectId,
+        stage_number: stageNumber,
+        stage_name: stageName,
+        is_completed: !!isCompleted,
+        completed_by: isCompleted ? userId : null,
+        completed_date: isCompleted ? new Date() : null
       });
       
       res.status(201).json(keyStage);
