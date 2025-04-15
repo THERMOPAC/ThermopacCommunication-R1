@@ -94,7 +94,8 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
   const [ecrForm, setEcrForm] = useState({
     description: '',
     reason: '',
-    notes: ''
+    notes: '',
+    drawing_number: ''
   });
   
   // Form data for ECN creation/editing
@@ -103,8 +104,12 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
     implementation_details: '',
     ecr_id: undefined as number | undefined,
     implementation_date: '',
-    notes: ''
+    notes: '',
+    drawing_number: ''
   });
+  
+  // State for available drawing numbers (parent and components)
+  const [drawingNumbers, setDrawingNumbers] = useState<{id: number, drawingNo: string, itemCode: string}[]>([]);
 
   // Fetch ECRs
   const { 
@@ -144,7 +149,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/ecr/item', itemId] });
       setCreateEcrDialogOpen(false);
-      setEcrForm({ description: '', reason: '', notes: '' });
+      setEcrForm({ description: '', reason: '', notes: '', drawing_number: '' });
       toast({
         title: "ECR Created",
         description: "Engineering Change Request has been created successfully.",
@@ -176,7 +181,8 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
         implementation_details: '',
         ecr_id: undefined,
         implementation_date: '',
-        notes: ''
+        notes: '',
+        drawing_number: ''
       });
       toast({
         title: "ECN Created",
@@ -430,6 +436,41 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
       deleteEcnMutation.mutate(id);
     }
   };
+  
+  // Fetch drawing numbers for parent item and components
+  useEffect(() => {
+    const fetchDrawingNumbers = async () => {
+      try {
+        // Fetch parent item details
+        const itemRes = await apiRequest('GET', `/api/master-items/${itemId}`);
+        const item = await itemRes.json();
+        
+        // Fetch components
+        const componentsRes = await apiRequest('GET', `/api/master-items/${itemId}/components`);
+        const components = await componentsRes.json();
+        
+        // Combine parent and component drawing numbers
+        const allDrawings = [
+          ...(item.drawingNo ? [{ id: item.id, drawingNo: item.drawingNo, itemCode: item.itemCode }] : []),
+          ...components
+            .filter((comp: any) => comp.drawingNo)
+            .map((comp: any) => ({ 
+              id: comp.id, 
+              drawingNo: comp.drawingNo, 
+              itemCode: comp.itemCode 
+            }))
+        ];
+        
+        setDrawingNumbers(allDrawings);
+      } catch (error) {
+        console.error('Error fetching drawing numbers:', error);
+      }
+    };
+    
+    if (itemId) {
+      fetchDrawingNumbers();
+    }
+  }, [itemId]);
 
   return (
     <div className="space-y-4">
