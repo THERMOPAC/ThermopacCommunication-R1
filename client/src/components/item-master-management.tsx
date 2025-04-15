@@ -1238,6 +1238,7 @@ const ItemMasterManagement: React.FC = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead></TableHead>
                         <TableHead>Component Item Code</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead>Quantity</TableHead>
@@ -1250,7 +1251,7 @@ const ItemMasterManagement: React.FC = () => {
                     <TableBody>
                       {itemComponentsQuery.isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4">
+                          <TableCell colSpan={8} className="text-center py-4">
                             <div className="flex justify-center">
                               <div className="animate-spin h-6 w-6 border-t-2 border-b-2 border-primary rounded-full"></div>
                             </div>
@@ -1258,20 +1259,14 @@ const ItemMasterManagement: React.FC = () => {
                         </TableRow>
                       ) : itemComponentsQuery.error ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-red-500">
+                          <TableCell colSpan={8} className="text-center text-red-500">
                             Error loading components: {(itemComponentsQuery.error as Error).message}
                           </TableCell>
                         </TableRow>
                       ) : itemComponentsQuery.data && itemComponentsQuery.data.length > 0 ? (
                         itemComponentsQuery.data.map((component: any) => (
                           <TableRow key={component.id}>
-                            <TableCell>{component.componentItemCode}</TableCell>
-                            <TableCell>{component.componentDescription}</TableCell>
-                            <TableCell>{component.quantity}</TableCell>
-                            <TableCell>{component.componentUom}</TableCell>
-                            <TableCell>{component.componentMakeOrBuy || '-'}</TableCell>
-                            <TableCell>{component.componentDrawingNo || '-'}</TableCell>
-                            <TableCell className="flex gap-2">
+                            <TableCell className="w-12">
                               {/* Golden arrow button to navigate to component master item */}
                               <Button 
                                 variant="ghost" 
@@ -1279,8 +1274,8 @@ const ItemMasterManagement: React.FC = () => {
                                 className="text-amber-500 hover:text-amber-600"
                                 onClick={() => {
                                   // Store the component's master item ID in sessionStorage
-                                  if (component.masterItemId) {
-                                    sessionStorage.setItem('editMasterItemId', component.masterItemId.toString());
+                                  if (component.componentItemId) {
+                                    sessionStorage.setItem('editMasterItemId', component.componentItemId.toString());
                                     // Navigate to Item Master page with the component ID
                                     navigate("/item-master");
                                   } else {
@@ -1295,7 +1290,14 @@ const ItemMasterManagement: React.FC = () => {
                               >
                                 <ArrowUpRight className="h-4 w-4" />
                               </Button>
-                              
+                            </TableCell>
+                            <TableCell>{component.componentItemCode}</TableCell>
+                            <TableCell>{component.componentDescription}</TableCell>
+                            <TableCell>{component.quantity}</TableCell>
+                            <TableCell>{component.componentUom}</TableCell>
+                            <TableCell>{component.componentMakeOrBuy || '-'}</TableCell>
+                            <TableCell>{component.componentDrawingNo || '-'}</TableCell>
+                            <TableCell>
                               {/* Delete button */}
                               <Button 
                                 variant="ghost" 
@@ -1315,7 +1317,7 @@ const ItemMasterManagement: React.FC = () => {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-6">
+                          <TableCell colSpan={8} className="text-center py-6">
                             <div className="flex flex-col items-center justify-center text-sm text-muted-foreground">
                               <Package className="h-8 w-8 mb-2" />
                               <p>No components added yet</p>
