@@ -10,7 +10,18 @@ export async function checkModulePermission(
   moduleName: Module,
   permission: 'view' | 'create' | 'edit' | 'delete'
 ): Promise<boolean> {
-  // First, check user-specific permissions
+  // Get the user to check their role
+  const userResults = await db.select().from(users).where(eq(users.id, userId));
+  const user = userResults.length > 0 ? userResults[0] : null;
+  
+  if (!user) return false;
+  
+  // Superusers have full access to all modules
+  if (user.role === 'Superuser') {
+    return true;
+  }
+  
+  // For other users, check user-specific permissions first
   const userPermissions = await db.select()
     .from(modulePermissions)
     .where(and(
@@ -31,11 +42,6 @@ export async function checkModulePermission(
   }
 
   // Otherwise, fall back to role-based permissions
-  const userResults = await db.select().from(users).where(eq(users.id, userId));
-  const user = userResults.length > 0 ? userResults[0] : null;
-  
-  if (!user) return false;
-
   const rolePerms = await db.select()
     .from(roleModulePermissions)
     .where(and(
@@ -122,10 +128,11 @@ export async function getUserModulePermissions(userId: number) {
   
   if (!user) return {};
   
-  // Get role-based permissions
-  const rolePerms = await db.select()
-    .from(roleModulePermissions)
-    .where(eq(roleModulePermissions.role, user.role));
+  // Get all available modules
+  const allModules = await db.select().from(roleModulePermissions)
+    .where(eq(roleModulePermissions.role, "General Manager")) // Using this to get a complete list of modules
+    .then(perms => perms.map(p => p.moduleName))
+    .then(modules => [...new Set(modules)]) as Module[]; // Get unique modules
   
   // Combine permissions
   const result: Record<Module, { 
@@ -135,6 +142,26 @@ export async function getUserModulePermissions(userId: number) {
     canDelete: boolean;
     isCustom: boolean; 
   }> = {} as any;
+  
+  // Check if user is a Superuser - they get full access to all modules
+  if (user.role === 'Superuser') {
+    allModules.forEach(moduleName => {
+      result[moduleName] = {
+        canView: true,
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+        isCustom: false
+      };
+    });
+    
+    return result;
+  }
+  
+  // For other users, get role-based permissions
+  const rolePerms = await db.select()
+    .from(roleModulePermissions)
+    .where(eq(roleModulePermissions.role, user.role));
   
   // Start with role permissions as defaults
   rolePerms.forEach(rolePerm => {
