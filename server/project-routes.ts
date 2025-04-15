@@ -723,6 +723,69 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
+  // Project Key Stages Routes
+  app.get('/api/projects/:projectId/key-stages', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const keyStages = await storage.getProjectKeyStages(projectId);
+      res.json(keyStages);
+    } catch (error) {
+      console.error(`Error fetching key stages for project ${req.params.projectId}:`, error);
+      res.status(500).json({ error: 'Failed to fetch project key stages' });
+    }
+  });
+  
+  app.post('/api/projects/:projectId/key-stages', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = req.user!.id;
+      const { stageNumber, stageName, isCompleted } = req.body;
+      
+      // Validate request
+      if (stageNumber === undefined || stageName === undefined) {
+        return res.status(400).json({ error: 'Stage number and name are required' });
+      }
+      
+      const keyStage = await storage.createProjectKeyStage({
+        projectId,
+        stageNumber,
+        stageName,
+        isCompleted: !!isCompleted,
+        completedBy: isCompleted ? userId : undefined,
+        completedDate: isCompleted ? new Date() : undefined
+      });
+      
+      res.status(201).json(keyStage);
+    } catch (error) {
+      console.error(`Error creating key stage for project ${req.params.projectId}:`, error);
+      res.status(500).json({ error: 'Failed to create project key stage' });
+    }
+  });
+  
+  app.patch('/api/projects/:projectId/key-stages/:stageId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const stageId = parseInt(req.params.stageId);
+      const userId = req.user!.id;
+      const { isCompleted } = req.body;
+      
+      // Only allow updating completion status
+      if (isCompleted === undefined) {
+        return res.status(400).json({ error: 'Completion status is required' });
+      }
+      
+      const keyStage = await storage.updateProjectKeyStage(stageId, {
+        isCompleted,
+        completedBy: isCompleted ? userId : null,
+        completedDate: isCompleted ? new Date() : null
+      });
+      
+      res.json(keyStage);
+    } catch (error) {
+      console.error(`Error updating key stage ${req.params.stageId}:`, error);
+      res.status(500).json({ error: 'Failed to update project key stage' });
+    }
+  });
+  
   // Project Documents Routes
   app.get('/api/projects/:projectId/documents', ensureAuthenticated, async (req: Request, res: Response) => {
     try {

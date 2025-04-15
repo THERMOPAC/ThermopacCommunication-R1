@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Dialog, 
   DialogContent, 
@@ -908,6 +909,211 @@ export default function ProjectList() {
                             </div>
                           </div>
                           <p className="text-xs text-muted-foreground">These phases will be created automatically upon project creation.</p>
+                        </div>
+                        
+                        {/* Project Key Stage Completion */}
+                        <div className="space-y-4 border rounded-md p-4">
+                          <h3 className="text-sm font-medium mb-2">Project Key Stage Completion</h3>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Check the boxes below to confirm completion of each project key stage.
+                          </p>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              {/* First column of key stages */}
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-01" />
+                                <Label htmlFor="stage-01" className="text-xs font-normal">
+                                  01. BEDD (Basis of Engineering and Design Data)
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-02" />
+                                <Label htmlFor="stage-02" className="text-xs font-normal">
+                                  02. Tie-in points list
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-03" />
+                                <Label htmlFor="stage-03" className="text-xs font-normal">
+                                  03. Documents deliverable list
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-04" />
+                                <Label htmlFor="stage-04" className="text-xs font-normal">
+                                  04. Define roles and responsibilities of Project Manager, Team, Employees and Others
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-05" />
+                                <Label htmlFor="stage-05" className="text-xs font-normal">
+                                  05. Hold a kickoff meeting
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-06" />
+                                <Label htmlFor="stage-06" className="text-xs font-normal">
+                                  06. Develop a Scope Statement problem & key areas
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-07" />
+                                <Label htmlFor="stage-07" className="text-xs font-normal">
+                                  07. Analyze project quality and risks
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-08" />
+                                <Label htmlFor="stage-08" className="text-xs font-normal">
+                                  08. Describing and accepting milestones with team and partners
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-09" />
+                                <Label htmlFor="stage-09" className="text-xs font-normal">
+                                  09. Create baseline management plans
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-10" />
+                                <Label htmlFor="stage-10" className="text-xs font-normal">
+                                  10. Develop the staffing plan
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-11" />
+                                <Label htmlFor="stage-11" className="text-xs font-normal">
+                                  11. Communicate! Important aspect of the project plan is the Communications Plan
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-12" />
+                                <Label htmlFor="stage-12" className="text-xs font-normal">
+                                  12. Decide deliverable items up to packing list
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-13" />
+                                <Label htmlFor="stage-13" className="text-xs font-normal">
+                                  13. Create Items and Barcode for each Item
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-14" />
+                                <Label htmlFor="stage-14" className="text-xs font-normal">
+                                  14. Create Sales / Production BOM for each Sale and Production Item
+                                </Label>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              {/* Second column of key stages */}
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-15" />
+                                <Label htmlFor="stage-15" className="text-xs font-normal">
+                                  15. Create P&ID, SLD & Layouts for the project
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-16" />
+                                <Label htmlFor="stage-16" className="text-xs font-normal">
+                                  16. Brought out Instrument and equipment data sheet approval
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-17" />
+                                <Label htmlFor="stage-17" className="text-xs font-normal">
+                                  17. QAP and Drawing Approval
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-18" />
+                                <Label htmlFor="stage-18" className="text-xs font-normal">
+                                  18. Run procurement wizard to create draft PO and Production orders
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-19" />
+                                <Label htmlFor="stage-19" className="text-xs font-normal">
+                                  19. Release PO and Production orders and confirm the acceptance delivery dates Stakeholders
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-20" />
+                                <Label htmlFor="stage-20" className="text-xs font-normal">
+                                  20. Monitor the performance Purchase and Production on weekly basis
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-21" />
+                                <Label htmlFor="stage-21" className="text-xs font-normal">
+                                  21. Gap analysis report and remedy action plan weekly basis
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-22" />
+                                <Label htmlFor="stage-22" className="text-xs font-normal">
+                                  22. Testing of equipment and acceptance by third party or Customer
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-23" />
+                                <Label htmlFor="stage-23" className="text-xs font-normal">
+                                  23. Creation DDR
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-24" />
+                                <Label htmlFor="stage-24" className="text-xs font-normal">
+                                  24. Planning of shipment to execution of dispatch
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-25" />
+                                <Label htmlFor="stage-25" className="text-xs font-normal">
+                                  25. Invoicing to realization of funds
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-26" />
+                                <Label htmlFor="stage-26" className="text-xs font-normal">
+                                  26. Recovery of retention
+                                </Label>
+                              </div>
+                              
+                              <div className="flex items-start space-x-2">
+                                <Checkbox id="stage-27" />
+                                <Label htmlFor="stage-27" className="text-xs font-normal">
+                                  27. Payment Collection
+                                </Label>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </TabsContent>
                       
