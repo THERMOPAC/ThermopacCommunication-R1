@@ -134,6 +134,13 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/projects', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
+      
+      // Check if user has create permission for Project Management module
+      const hasCreatePermission = await checkModulePermission(userId, 'Project Management', 'create');
+      if (!hasCreatePermission) {
+        return res.status(403).json({ error: 'You do not have permission to create projects' });
+      }
+      
       const projectData = insertProjectSchema.parse({
         ...req.body,
         createdBy: userId,
