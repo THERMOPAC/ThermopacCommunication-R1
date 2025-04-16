@@ -21,7 +21,7 @@ export function setupDrawingsEndpoint(app: Router) {
         return res.status(400).json({ error: 'Drawing number is required' });
       }
       
-      console.log(`[DRAWING-SIMPLE] Looking for drawings with number: ${drawingNo}`);
+      console.log(`[DRAWING-NEW] Looking for drawings with number: ${drawingNo}`);
             
       // Import storage module directly 
       const storageModule = await import('./utils/storage-config');
@@ -30,10 +30,21 @@ export function setupDrawingsEndpoint(app: Router) {
       const bucket = storage.bucket(bucketName);
       
       // Get all files in the bucket
-      console.log(`[DRAWING-SIMPLE] Getting all files from bucket: ${bucketName}`);
+      console.log(`[DRAWING-NEW] Getting all files from bucket: ${bucketName}`);
       const [allFiles] = await bucket.getFiles();
       
-      console.log(`[DRAWING-SIMPLE] Found ${allFiles.length} total files in bucket`);
+      // Get all PDF files in the bucket for logging
+      const pdfFiles = allFiles.filter(file => 
+        file.name.toLowerCase().endsWith('.pdf'));
+      
+      console.log(`[DRAWING-NEW] Found ${allFiles.length} total files in bucket`);
+      console.log(`[DRAWING-NEW] Found ${pdfFiles.length} total PDF files in bucket`);
+      
+      // Log a sample of PDF files to understand the path structure
+      console.log(`[DRAWING-NEW] First ${Math.min(5, pdfFiles.length)} PDF files in bucket:`);
+      pdfFiles.slice(0, 5).forEach(file => {
+        console.log(`[DRAWING-NEW] PDF File: ${file.name}`);
+      });
       
       // Filter to only include relevant drawing files
       // Using multiple matching strategies, any of which can succeed
@@ -67,13 +78,13 @@ export function setupDrawingsEndpoint(app: Router) {
         
         // Log matches to help with debugging
         if (fileMatch || revMatch || pathMatch || looseMatch) {
-          console.log(`[DRAWING-SIMPLE] MATCH! ${file.name}: fileMatch=${fileMatch}, revMatch=${revMatch}, pathMatch=${pathMatch}, looseMatch=${looseMatch}`);
+          console.log(`[DRAWING-NEW] MATCH! ${file.name}: fileMatch=${fileMatch}, revMatch=${revMatch}, pathMatch=${pathMatch}, looseMatch=${looseMatch}`);
         }
         
         return fileMatch || revMatch || pathMatch || looseMatch;
       });
       
-      console.log(`[DRAWING-SIMPLE] Found ${matchingFiles.length} matching drawing files for ${drawingNo}`);
+      console.log(`[DRAWING-NEW] Found ${matchingFiles.length} matching drawing files for ${drawingNo}`);
       
       // Map the files to a standard format with enhanced drawing metadata
       const processedFiles = matchingFiles.map(file => {
@@ -112,7 +123,7 @@ export function setupDrawingsEndpoint(app: Router) {
       // If no matching files found, try an ultra-aggressive approach
       // Returns a few PDF files regardless of matching, as a last resort
       if (processedFiles.length === 0) {
-        console.log(`[DRAWING-SIMPLE] No exact matches found, trying ULTRA-AGGRESSIVE mode as last resort`);
+        console.log(`[DRAWING-NEW] No exact matches found, trying ULTRA-AGGRESSIVE mode as last resort`);
         
         // Get all PDF files in the bucket
         const allPdfFiles = allFiles.filter(file => 
@@ -120,7 +131,7 @@ export function setupDrawingsEndpoint(app: Router) {
         );
         
         if (allPdfFiles.length > 0) {
-          console.log(`[DRAWING-SIMPLE] ULTRA-AGGRESSIVE: Returning up to 5 PDF files from bucket`);
+          console.log(`[DRAWING-NEW] ULTRA-AGGRESSIVE: Returning up to 5 PDF files from bucket`);
           
           // Return up to 5 PDF files as a desperate measure
           const aggressiveFiles = allPdfFiles.slice(0, 5).map(file => {
@@ -149,7 +160,7 @@ export function setupDrawingsEndpoint(app: Router) {
       
       return res.status(200).json(processedFiles);
     } catch (error) {
-      console.error('[DRAWING-SIMPLE] Error finding drawings:', error);
+      console.error('[DRAWING-NEW] Error finding drawings:', error);
       res.status(500).json({ error: 'Failed to find drawings' });
     }
   });
