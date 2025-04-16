@@ -272,7 +272,10 @@ const ItemMasterManagement: React.FC = () => {
         for (const drawingNo of drawingNumbers) {
           if (
             fullPath.includes(`/${drawingNo}/`) || 
+            fullPath.includes(`/drawings/${drawingNo}/`) ||  // Check with drawings folder
+            fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/drawings/`) ||  // Check with full path
             fullPath.includes(`/${drawingNo}_`) ||
+            fullPath.includes(`/drawings/${drawingNo}_`) ||  // Check with drawings folder
             fullPath.includes(drawingNo) // Simpler check to catch more possibilities
           ) {
             console.log(`Match found: Drawing ${drawingNo} in file: ${fullPath}`);
