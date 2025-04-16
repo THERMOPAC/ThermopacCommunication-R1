@@ -49,9 +49,9 @@ class GcsStorage {
       sanitized.projectCode
     ].filter(Boolean); // Filter out any empty strings
     
-    // Only add department if it's not empty AND not 'drawings' 
-    // For drawings module, we don't want an extra folder in the path
-    if (sanitized.department && sanitized.department !== 'drawings') {
+    // Add department to the path (including 'drawings')
+    // We previously skipped 'drawings' folder but this was causing search issues
+    if (sanitized.department) {
       pathComponents.push(sanitized.department);
     }
 
