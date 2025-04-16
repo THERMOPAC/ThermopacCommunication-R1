@@ -10,8 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import ProfilePage from "@/pages/profile-page";
 import LeaderboardPage from "@/pages/leaderboard-page";
 import RecurringTasksPage from "@/pages/recurring-tasks-page";
-import EmailsPage from "@/pages/emails-page";
-import MessagesPage from "@/pages/messages-page";
+import CommunicationPage from "@/pages/communication-page";
 import ProjectsPage from "@/pages/projects-page";
 import ProjectDetailPage from "@/pages/project-detail-page";
 import CustomersPage from "@/pages/customers-page";
@@ -73,8 +72,9 @@ function Router() {
       <ProtectedRoute path="/tasks" component={Dashboard} />
       <ProtectedRoute path="/team" component={Dashboard} />
       <ProtectedRoute path="/recommendations" component={Dashboard} />
-      <ProtectedRoute path="/messages" component={MessagesPage} />
-      <ProtectedRoute path="/emails" component={EmailsPage} />
+      <ProtectedRoute path="/messages" component={CommunicationPage} />
+      <ProtectedRoute path="/emails" component={CommunicationPage} />
+      <ProtectedRoute path="/communication" component={CommunicationPage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/leaderboard" component={LeaderboardPage} />
       <ProtectedRoute path="/recurring-tasks" component={RecurringTasksPage} />

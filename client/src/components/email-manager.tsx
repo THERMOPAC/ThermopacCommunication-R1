@@ -94,31 +94,51 @@ const EmailManager: React.FC = () => {
 
   // Query to fetch emails
   const { data: emails, isLoading, error, refetch } = useQuery({
-    queryKey: ['/api/emails', selectedFolder, searchQuery],
+    queryKey: ['/api/gmail/messages', selectedFolder, searchQuery],
     queryFn: async () => {
+      // For Gmail, we need to map our folders to the appropriate filters
+      let isRead;
+      if (selectedFolder === 'inbox') {
+        isRead = false; // Show unread by default in inbox
+      }
+      
       const response = await apiRequest('GET', 
-        `/api/emails?folder=${selectedFolder}${searchQuery ? `&query=${encodeURIComponent(searchQuery)}` : ''}`
+        `/api/gmail/messages?${selectedFolder === 'starred' ? 'isImportant=true' : ''}${
+          isRead !== undefined ? `&isRead=${isRead}` : ''
+        }${searchQuery ? `&subject=${encodeURIComponent(searchQuery)}` : ''}`
       );
       return response.json();
-    }
+    },
+    // Check for Gmail connection status first
+    enabled: activeTab === 'emails'
+  });
+
+  // Query to check Gmail connection status
+  const { data: gmailStatus } = useQuery({
+    queryKey: ['/api/gmail/status'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/gmail/status');
+      return response.json();
+    },
+    enabled: activeTab === 'emails'
   });
 
   // Query to fetch internal messages
   const { data: messages, isLoading: messagesLoading } = useQuery({
-    queryKey: ['/api/messages', searchQuery],
+    queryKey: ['/api/internal-messages', searchQuery],
     queryFn: async () => {
       const response = await apiRequest('GET', 
-        `/api/messages${searchQuery ? `?query=${encodeURIComponent(searchQuery)}` : ''}`
+        `/api/internal-messages${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`
       );
       return response.json();
     },
     enabled: activeTab === 'messages'
   });
 
-  // Mutation for sending email
+  // Mutation for sending email via Gmail
   const sendEmailMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const response = await fetch('/api/emails/send', {
+      const response = await fetch('/api/gmail/send', {
         method: 'POST',
         body: formData,
         credentials: 'include'
@@ -138,7 +158,7 @@ const EmailManager: React.FC = () => {
       });
       setShowComposeDialog(false);
       resetComposeForm();
-      queryClient.invalidateQueries({ queryKey: ['/api/emails'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/gmail/messages'] });
     },
     onError: (error: Error) => {
       toast({
@@ -149,10 +169,33 @@ const EmailManager: React.FC = () => {
     }
   });
 
+  // Mutation for connecting to Gmail if not already connected
+  const connectGmailMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('GET', '/api/gmail/auth-url');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Open the Gmail authorization URL in a new tab
+      window.open(data.url, '_blank');
+      toast({
+        title: 'Gmail Authorization',
+        description: 'Please authorize the application in the new tab and then return here.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to Connect Gmail',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
   // Mutation for sending internal message
   const sendMessageMutation = useMutation({
     mutationFn: async (data: {recipientId: number, subject: string, content: string}) => {
-      const response = await apiRequest('POST', '/api/messages', data);
+      const response = await apiRequest('POST', '/api/internal-messages', data);
       return response.json();
     },
     onSuccess: () => {
@@ -162,7 +205,7 @@ const EmailManager: React.FC = () => {
       });
       setShowComposeDialog(false);
       resetComposeForm();
-      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/internal-messages'] });
     },
     onError: (error: Error) => {
       toast({
@@ -176,22 +219,22 @@ const EmailManager: React.FC = () => {
   // Mutation for marking email as read
   const markAsReadMutation = useMutation({
     mutationFn: async (emailId: string) => {
-      const response = await apiRequest('PATCH', `/api/emails/${emailId}/read`);
+      const response = await apiRequest('PATCH', `/api/gmail/messages/${emailId}/read`, { isRead: true });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/emails'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/gmail/messages'] });
     }
   });
 
   // Mutation for starring/unstarring email
   const toggleStarMutation = useMutation({
     mutationFn: async ({ emailId, starred }: { emailId: string, starred: boolean }) => {
-      const response = await apiRequest('PATCH', `/api/emails/${emailId}/star`, { starred });
+      const response = await apiRequest('PATCH', `/api/gmail/messages/${emailId}/important`, { isImportant: starred });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/emails'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/gmail/messages'] });
     }
   });
 
@@ -448,6 +491,27 @@ const EmailManager: React.FC = () => {
                   ) : error ? (
                     <div className="flex items-center justify-center h-full text-destructive">
                       An error occurred while loading emails.
+                    </div>
+                  ) : gmailStatus && !gmailStatus.connected ? (
+                    <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                      <Mail className="h-16 w-16 mb-4 text-muted-foreground" />
+                      <h3 className="text-xl font-medium mb-2">Connect to Gmail</h3>
+                      <p className="text-muted-foreground mb-4 max-w-md">
+                        To access your emails, you need to connect your Gmail account. 
+                        This will allow you to read and send emails directly from this application.
+                      </p>
+                      <Button 
+                        onClick={() => connectGmailMutation.mutate()}
+                        disabled={connectGmailMutation.isPending}
+                        className="flex items-center gap-2"
+                      >
+                        {connectGmailMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Mail className="h-4 w-4" />
+                        )}
+                        Connect Gmail
+                      </Button>
                     </div>
                   ) : emails?.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full p-8 text-center text-muted-foreground">
