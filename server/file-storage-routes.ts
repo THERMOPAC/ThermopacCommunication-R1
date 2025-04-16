@@ -724,7 +724,8 @@ export function setupFileStorageRoutes(app: Router) {
           // Look for any file with the drawing number in it - ignoring path structure completely
           const matchingFiles = files.filter(file => {
             const filePath = file.name;
-            const fileName = path.basename(filePath);
+            const fileNameParts = filePath.split('/');
+            const fileName = fileNameParts[fileNameParts.length - 1] || '';
             
             // Check for drawing file extensions first
             const isDrawingFile = 
