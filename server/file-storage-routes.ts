@@ -342,11 +342,21 @@ export function setupFileStorageRoutes(app: Router) {
         const storage = storageModule.default;
         const bucket = storage.bucket(bucketName);
         
+        console.log(`[DRAWING-DEBUG] Bucket name confirmed as: ${bucketName}`);
+        console.log(`[DRAWING-DEBUG] Looking for files with exact prefix: ${directPath}`);
+
         // Try to list files in the exact known path first
         const [directFiles] = await bucket.getFiles({ 
-          prefix: directPath,
-          autoPaginate: false
+          prefix: directPath
         });
+        
+        // Also try to list ALL files to debug what's in the bucket
+        console.log(`[DRAWING-DEBUG] DIRECT PATH search attempting to list all files in bucket to find exact paths`);
+        const [allBucketFiles] = await bucket.getFiles();
+        
+        console.log(`[DRAWING-DEBUG] Total files in bucket: ${allBucketFiles.length}`);
+        const sampleAllFiles = allBucketFiles.slice(0, Math.min(20, allBucketFiles.length));
+        console.log(`[DRAWING-DEBUG] Sample of all files in bucket:`, sampleAllFiles.map(f => f.name));
         
         console.log(`[DRAWING-DEBUG] DIRECT PATH returned ${directFiles.length} files`);
         
