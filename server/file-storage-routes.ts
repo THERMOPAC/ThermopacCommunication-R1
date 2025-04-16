@@ -742,20 +742,29 @@ export function setupFileStorageRoutes(app: Router) {
               return false;
             }
             
+            // Log all drawing files found to help debugging
+            console.log(`[DRAWING-ALL-DEBUG] Drawing file found: ${filePath}`);
+            
             // Different pattern matching approaches
             const exactMatch = 
-              fileName === `${drawingNo}.pdf` || 
-              fileName === `${drawingNo}.dwg` || 
-              fileName === `${drawingNo}.dxf`;
+              fileName.toLowerCase() === `${drawingNo.toString().toLowerCase()}.pdf` || 
+              fileName.toLowerCase() === `${drawingNo.toString().toLowerCase()}.dwg` || 
+              fileName.toLowerCase() === `${drawingNo.toString().toLowerCase()}.dxf`;
             
-            const revisionMatch = fileName.startsWith(`${drawingNo}_R`);
+            const revisionMatch = fileName.toLowerCase().startsWith(`${drawingNo.toString().toLowerCase()}_r`);
             
-            const pathMatch = filePath.includes(`/${drawingNo}/`);
+            const pathMatch = filePath.toLowerCase().includes(`/${drawingNo.toString().toLowerCase()}/`);
             
             // More aggressive search - any occurrence of the drawing number in the path
-            const looseMatch = filePath.includes(drawingNo);
+            const looseMatch = filePath.toLowerCase().includes(drawingNo.toString().toLowerCase());
             
-            const isMatch = exactMatch || revisionMatch || pathMatch || looseMatch;
+            // Extremely aggressive - just return any PDF files for testing
+            const superLooseMatch = true; // Always match for now, to see what files exist
+            
+            console.log(`[DRAWING-MATCH-DEBUG] File: ${fileName}, DrawingNo: ${drawingNo}`);
+            console.log(`[DRAWING-MATCH-DEBUG] exactMatch: ${exactMatch}, revisionMatch: ${revisionMatch}, pathMatch: ${pathMatch}, looseMatch: ${looseMatch}, superLooseMatch: ${superLooseMatch}`);
+            
+            const isMatch = exactMatch || revisionMatch || pathMatch || looseMatch || superLooseMatch;
             
             if (isMatch) {
               console.log(`[DRAWING-DEBUG] Found match: ${filePath} for ${drawingNo}`);
@@ -938,10 +947,15 @@ export function setupFileStorageRoutes(app: Router) {
       console.log(`File upload: Parameters - FY: ${financialYear}, Project: ${projectCode}, Dept: ${department}, SubDir: ${subDirectory || 'none'}`);
       
       // Check for drawing revision pattern in filename (e.g., 4823002002001000_R0.PDF)
-      const revisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/);
-      if (revisionMatch && department === 'drawings') {
-        const [, drawingNo, revisionStr] = revisionMatch;
+      const revisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/i); // Make case-insensitive
+      if (revisionMatch && (department === 'drawings' || department === 'drawing')) {
+        // Make the drawingNo uniform (trim whitespace, ensure consistent case)
+        const rawDrawingNo = revisionMatch[1];
+        const drawingNo = rawDrawingNo.trim();
+        const revisionStr = revisionMatch[2];
         const revisionNum = parseInt(revisionStr, 10);
+        
+        console.log(`Drawing upload detected: Drawing No: ${drawingNo}, Revision: ${revisionNum}`);
         
         // Check if this is a master item drawing by looking up the drawingNo in the database
         try {
@@ -979,11 +993,13 @@ export function setupFileStorageRoutes(app: Router) {
           );
           
           const existingRevisions = existingFiles.filter(file => {
-            // Only check files with the same drawing number pattern
-            const fileRevMatch = file.name.match(/(.+)_R(\d+)\.(.+)/);
+            // Only check files with the same drawing number pattern - case insensitive
+            const fileRevMatch = file.name.match(/(.+)_R(\d+)\.(.+)/i);
             if (fileRevMatch) {
-              const [, fileDrawingNo, fileRevStr] = fileRevMatch;
-              return fileDrawingNo === drawingNo && parseInt(fileRevStr, 10) === revisionNum;
+              const fileDrawingNo = fileRevMatch[1].trim().toLowerCase();
+              const fileRevStr = fileRevMatch[2];
+              console.log(`Checking existing file: ${file.name}, Drawing: ${fileDrawingNo}, Revision: ${fileRevStr}`);
+              return fileDrawingNo === drawingNo.toLowerCase() && parseInt(fileRevStr, 10) === revisionNum;
             }
             return false;
           });
@@ -1012,7 +1028,9 @@ export function setupFileStorageRoutes(app: Router) {
       console.log(`File upload: Generated storage path: ${storagePath}`);
       
       // Ensure the directory structure exists in GCS
-      const dirPath = path.dirname(storagePath);
+      const pathParts = storagePath.split('/');
+      pathParts.pop(); // Remove the file name
+      const dirPath = pathParts.join('/');
       
       // First, check for an existing directory record in the database
       const dirComponents = dirPath.split('/');
@@ -1142,8 +1160,8 @@ export function setupFileStorageRoutes(app: Router) {
             });
             
             // Update the master item's latest revision if this is a drawing file
-            const revisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/);
-            if (revisionMatch && department === 'drawings') {
+            const revisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/i); // Make case-insensitive
+            if (revisionMatch && (department === 'drawings' || department === 'drawing')) {
               const [, drawingNo, revisionStr] = revisionMatch;
               const revisionNum = parseInt(revisionStr, 10);
               
@@ -1191,7 +1209,7 @@ export function setupFileStorageRoutes(app: Router) {
                   url: downloadUrl || '',
                   uploadedBy: req.user?.id as number,
                   size: req.file?.size || 0,
-                  format: path.extname(fileName).replace('.', ''),
+                  format: fileName.includes('.') ? fileName.split('.').pop() || '' : '',
                   isPublic: isPublic === 'true',
                   storagePath,
                   storageUrl: downloadUrl || null,
