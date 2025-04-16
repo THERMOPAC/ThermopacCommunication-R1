@@ -232,7 +232,14 @@ const ItemMasterManagement: React.FC = () => {
                 const sampleFiles = drawingFiles.slice(0, Math.min(3, drawingFiles.length));
                 console.log('[CLIENT-DRAWING-DEBUG] Sample files from server:', sampleFiles);
                 
-                allFoundFiles = [...allFoundFiles, ...drawingFiles];
+                // Mark these files with the current drawing number to ensure proper matching
+                const enhancedFiles = drawingFiles.map((file: any) => ({
+                  ...file,
+                  matchedDrawingNo: drawingNo,
+                  drawingNo: file.drawingNo || drawingNo,
+                }));
+                
+                allFoundFiles = [...allFoundFiles, ...enhancedFiles];
                 continue; // Skip the general file search for this drawing number
               }
             } else {
@@ -359,44 +366,57 @@ const ItemMasterManagement: React.FC = () => {
         let fileDescription = fileName;
         let matchedDrawingNo: string | null = null;
         
-        // Find which drawing number this file belongs to
-        for (const drawingNo of drawingNumbers) {
-          // More comprehensive matching to handle various path structures
-          if (
-            fullPath.includes(`/${drawingNo}/`) || 
-            fullPath.includes(`/drawings/${drawingNo}/`) ||
-            fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/`) ||
-            fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/drawings/`) ||
-            fullPath.includes(`/${drawingNo}_`) ||
-            fullPath.includes(`/drawings/${drawingNo}_`) ||
-            // More direct filename matching
-            fullPath.includes(`${drawingNo}_R`) ||
-            // Looser matching as fallback
-            fullPath.includes(drawingNo)
-          ) {
-            console.log(`Drawing match found for ${drawingNo} in path: ${fullPath}`);
-            matchedDrawingNo = drawingNo;
-            break;
+        // If the file already has a matchedDrawingNo from the enhanced API, use it directly
+        if (file.matchedDrawingNo) {
+          console.log(`Using pre-assigned drawing number: ${file.matchedDrawingNo} for file: ${fullPath}`);
+          matchedDrawingNo = file.matchedDrawingNo;
+        } else {
+          // Otherwise find which drawing number this file belongs to
+          for (const drawingNo of drawingNumbers) {
+            // More comprehensive matching to handle various path structures
+            if (
+              fullPath.includes(`/${drawingNo}/`) || 
+              fullPath.includes(`/drawings/${drawingNo}/`) ||
+              fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/`) ||
+              fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/drawings/`) ||
+              fullPath.includes(`/${drawingNo}_`) ||
+              fullPath.includes(`/drawings/${drawingNo}_`) ||
+              // More direct filename matching
+              fullPath.includes(`${drawingNo}_R`) ||
+              // Looser matching as fallback
+              fullPath.includes(drawingNo)
+            ) {
+              console.log(`Drawing match found for ${drawingNo} in path: ${fullPath}`);
+              matchedDrawingNo = drawingNo;
+              break;
+            }
           }
         }
         
         if (!matchedDrawingNo) {
+          console.log(`Could not determine drawing number for file: ${fullPath}`);
           return; // Skip if we can't determine the drawing number
         }
         
-        // Extract revision from filename using various patterns
-        const revPatterns = [
-          /_R(\d+)/, // DrawingNo_R1.pdf
-          /Rev\.?(\d+)/i, // Rev1 or Rev.1
-          /Revision[_\s-]?(\d+)/i, // Revision 1
-          /V(\d+)/ // V1
-        ];
-        
-        for (const pattern of revPatterns) {
-          const match = fileName.match(pattern);
-          if (match && match[1]) {
-            revision = match[1];
-            break;
+        // Use revision from API if available
+        if (file.revision && file.revision !== 'N/A') {
+          console.log(`Using pre-assigned revision: ${file.revision} for file: ${fullPath}`);
+          revision = file.revision;
+        } else {
+          // Extract revision from filename using various patterns
+          const revPatterns = [
+            /_R(\d+)/, // DrawingNo_R1.pdf
+            /Rev\.?(\d+)/i, // Rev1 or Rev.1
+            /Revision[_\s-]?(\d+)/i, // Revision 1
+            /V(\d+)/ // V1
+          ];
+          
+          for (const pattern of revPatterns) {
+            const match = fileName.match(pattern);
+            if (match && match[1]) {
+              revision = match[1];
+              break;
+            }
           }
         }
         
