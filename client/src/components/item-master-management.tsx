@@ -273,9 +273,13 @@ const ItemMasterManagement: React.FC = () => {
           if (
             fullPath.includes(`/${drawingNo}/`) || 
             fullPath.includes(`/drawings/${drawingNo}/`) ||  // Check with drawings folder
+            fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/`) ||  // Check with inventory path
             fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/drawings/`) ||  // Check with full path
             fullPath.includes(`/${drawingNo}_`) ||
             fullPath.includes(`/drawings/${drawingNo}_`) ||  // Check with drawings folder
+            // More direct filename matching
+            fullPath.includes(`${drawingNo}_R`) ||
+            // Looser matching as fallback
             fullPath.includes(drawingNo) // Simpler check to catch more possibilities
           ) {
             console.log(`Match found: Drawing ${drawingNo} in file: ${fullPath}`);
@@ -313,11 +317,20 @@ const ItemMasterManagement: React.FC = () => {
         
         // Find which drawing number this file belongs to
         for (const drawingNo of drawingNumbers) {
+          // More comprehensive matching to handle various path structures
           if (
             fullPath.includes(`/${drawingNo}/`) || 
+            fullPath.includes(`/drawings/${drawingNo}/`) ||
+            fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/`) ||
+            fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/drawings/`) ||
             fullPath.includes(`/${drawingNo}_`) ||
+            fullPath.includes(`/drawings/${drawingNo}_`) ||
+            // More direct filename matching
+            fullPath.includes(`${drawingNo}_R`) ||
+            // Looser matching as fallback
             fullPath.includes(drawingNo)
           ) {
+            console.log(`Drawing match found for ${drawingNo} in path: ${fullPath}`);
             matchedDrawingNo = drawingNo;
             break;
           }
