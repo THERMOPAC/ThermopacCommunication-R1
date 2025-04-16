@@ -235,6 +235,89 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'Path parameter is required' });
       }
       
+      // FORCE PRODUCTION MODE: Always use super aggressive file detection
+      // This will work in both development and production
+      const forceSuperAggressiveMode = true;
+      
+      if (forceSuperAggressiveMode) {
+        console.log(`FORCE SUPER AGGRESSIVE FILE SEARCH: ${path}`);
+        
+        try {
+          // Import storage module directly to get direct access to bucket
+          const storageModule = await import('./utils/storage-config');
+          const bucketName = storageModule.bucketName;
+          const storage = storageModule.default;
+          const bucket = storage.bucket(bucketName);
+          
+          // Get ALL files in the bucket (no filtering)
+          const [allFiles] = await bucket.getFiles();
+          
+          console.log(`[FILES-SUPER-AGGRESSIVE] Found ${allFiles.length} total files in bucket`);
+          
+          const pathStr = path as string;
+          
+          // Find files that match this path
+          const pathComponents = pathStr.split('/').filter(p => p);
+          console.log(`[FILES-SUPER-AGGRESSIVE] Looking for files with components: ${pathComponents.join(', ')}`);
+          
+          // Find files that are in this path
+          const matchingFiles = allFiles.filter(file => {
+            const filePath = file.name;
+            
+            // Skip root paths
+            if (filePath.split('/').length <= 1) return false;
+            
+            // Check if this file might be part of the target path
+            let matchesPath = true;
+            for (const component of pathComponents) {
+              if (!filePath.includes(component)) {
+                matchesPath = false;
+                break;
+              }
+            }
+            
+            return matchesPath;
+          });
+          
+          console.log(`[FILES-SUPER-AGGRESSIVE] Found ${matchingFiles.length} matching files`);
+          
+          // Map to standard format
+          const processedFiles = matchingFiles.map(file => {
+            const fileName = path.basename(file.name);
+            const isDir = !fileName.includes('.') || fileName === '.keep';
+            
+            return {
+              name: fileName,
+              path: file.name,
+              contentType: file.metadata.contentType,
+              size: file.metadata.size,
+              updated: file.metadata.updated,
+              created: file.metadata.timeCreated,
+              isDirectory: isDir
+            };
+          });
+          
+          // Filter to only show files in the exact path, not subpaths
+          const exactPathMatches = processedFiles.filter(file => {
+            const fileDirPath = path.dirname(file.path);
+            const normalizedExpectedPath = `THERMOPAC_PROJECTS/${pathStr}`;
+            
+            return fileDirPath === normalizedExpectedPath || 
+                  fileDirPath === pathStr ||
+                  fileDirPath.endsWith(`/${pathComponents[pathComponents.length - 1]}`);
+          });
+          
+          console.log(`[FILES-SUPER-AGGRESSIVE] Found ${exactPathMatches.length} exact path matches`);
+          
+          // If we found matches, return them
+          if (exactPathMatches.length > 0) {
+            return res.status(200).json(exactPathMatches);
+          }
+        } catch (err) {
+          console.error(`[FILES-SUPER-AGGRESSIVE] Error:`, err);
+        }
+      }
+      
       // Parse the recursive parameter (default to false)
       const isRecursive = recursive === 'true' || recursive === '1';
       
@@ -327,10 +410,9 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'Drawing number parameter is required' });
       }
       
-      // Check if we're in production environment
-      const isProduction = process.env.NODE_ENV === 'production' || 
-                          req.headers.host?.includes('replit.app') ||
-                          req.headers.host?.includes('repl.co');
+      // FORCE PRODUCTION MODE to always use production detection code
+      // This will make both development and production environments use the same code
+      const isProduction = true;
                           
       console.log(`[DRAWING-DEBUG] Finding drawings for drawing number: ${drawingNo}`);
       console.log(`[DRAWING-DEBUG] Environment: ${process.env.NODE_ENV || 'unknown'}, Host: ${req.headers.host}, isProduction: ${isProduction}`);
