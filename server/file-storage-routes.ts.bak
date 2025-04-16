@@ -412,10 +412,6 @@ export function setupFileStorageRoutes(app: Router) {
    * New endpoint specifically for finding drawings by drawing number
    * COMPLETELY REWRITTEN WITH A SIMPLE BRUTE FORCE APPROACH
    */
-  /**
-   * Simple endpoint for finding drawings by drawing number
-   * Uses a direct approach scanning all files in the bucket
-   */
   app.get('/api/storage/drawings', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const drawingNo = req.query.drawingNo as string;
@@ -560,9 +556,8 @@ export function setupFileStorageRoutes(app: Router) {
       res.status(500).json({ error: 'Failed to find drawings' });
     }
   });
-  
-  /**
-   * Generate upload URL for a file
+            
+            // Log all drawing files found to help debugging
             console.log(`[DRAWING-ALL-DEBUG] Drawing file found: ${filePath}`);
             
             // Different pattern matching approaches
