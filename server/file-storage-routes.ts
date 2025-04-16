@@ -327,8 +327,83 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'Drawing number parameter is required' });
       }
       
+      // Check if we're in production environment
+      const isProduction = process.env.NODE_ENV === 'production' || 
+                          req.headers.host?.includes('replit.app') ||
+                          req.headers.host?.includes('repl.co');
+                          
       console.log(`[DRAWING-DEBUG] Finding drawings for drawing number: ${drawingNo}`);
-      console.log(`[DRAWING-DEBUG] Environment: ${process.env.NODE_ENV || 'unknown'}`);
+      console.log(`[DRAWING-DEBUG] Environment: ${process.env.NODE_ENV || 'unknown'}, Host: ${req.headers.host}, isProduction: ${isProduction}`);
+      
+      // PRODUCTION ONLY: If we're in production, use special super aggressive bucket scanning
+      if (isProduction) {
+        console.log(`[DRAWING-DEBUG] PRODUCTION MODE ACTIVATED - Using special file handling for production`);
+        
+        try {
+          // Import storage module directly to get direct access to bucket
+          const storageModule = await import('./utils/storage-config');
+          const bucketName = storageModule.bucketName;
+          const storage = storageModule.default;
+          const bucket = storage.bucket(bucketName);
+          
+          console.log(`[DRAWING-DEBUG] PRODUCTION - Scanning entire bucket for ${drawingNo}`);
+          
+          // Get ALL files in the bucket with no filtering
+          const [allFiles] = await bucket.getFiles();
+          
+          console.log(`[DRAWING-DEBUG] PRODUCTION - Found ${allFiles.length} total files in bucket`);
+          
+          // Show a sample of all files in bucket for debugging
+          const sampleAllFiles = allFiles.slice(0, Math.min(20, allFiles.length));
+          console.log(`[DRAWING-DEBUG] PRODUCTION - Sample of all files:`, 
+                     sampleAllFiles.map(f => f.name));
+          
+          // Filter for matching drawing files using very loose matching
+          const matchingFiles = allFiles
+            .filter(file => {
+              const fileName = path.basename(file.name);
+              const filePath = file.name;
+              
+              // Skip directories, empty files, and hidden files
+              if (fileName.startsWith('.') || !fileName.includes('.')) {
+                return false;
+              }
+              
+              // Check for drawing file extensions first
+              if (!fileName.toLowerCase().endsWith('.pdf') && 
+                  !fileName.toLowerCase().endsWith('.dwg') && 
+                  !fileName.toLowerCase().endsWith('.dxf')) {
+                return false;
+              }
+              
+              // Super loose matching - if the drawing number appears anywhere in the path
+              const isMatch = filePath.includes(drawingNo);
+              
+              if (isMatch) {
+                console.log(`[DRAWING-DEBUG] PRODUCTION - MATCH FOUND: ${file.name}`);
+              }
+              
+              return isMatch;
+            })
+            .map(file => ({
+              name: path.basename(file.name),
+              path: file.name,
+              contentType: file.metadata.contentType || 'application/octet-stream',
+              size: file.metadata.size,
+              updated: file.metadata.updated,
+              created: file.metadata.timeCreated,
+              isDirectory: false
+            }));
+            
+          console.log(`[DRAWING-DEBUG] PRODUCTION - Found ${matchingFiles.length} drawings for ${drawingNo}`);
+          
+          if (matchingFiles.length > 0) {
+            return res.status(200).json(matchingFiles);
+          }
+        } catch (err) {
+          console.error(`[DRAWING-DEBUG] PRODUCTION special mode error:`, err);
+        }
+      }
       
       // DIRECT PATH: Based on the screenshot, we know exactly where the files are in production
       // This is the most reliable way to find them
