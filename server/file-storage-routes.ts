@@ -330,6 +330,46 @@ export function setupFileStorageRoutes(app: Router) {
       console.log(`[DRAWING-DEBUG] Finding drawings for drawing number: ${drawingNo}`);
       console.log(`[DRAWING-DEBUG] Environment: ${process.env.NODE_ENV || 'unknown'}`);
       
+      // DIRECT PATH: Based on the screenshot, we know exactly where the files are in production
+      // This is the most reliable way to find them
+      const directPath = `THERMOPAC_INVENTORY/${drawingNo}`;
+      console.log(`[DRAWING-DEBUG] Trying DIRECT PATH for production: ${directPath}`);
+      
+      try {
+        // Import storage module directly
+        const storageModule = await import('./utils/storage-config');
+        const bucketName = storageModule.bucketName;
+        const storage = storageModule.default;
+        const bucket = storage.bucket(bucketName);
+        
+        // Try to list files in the exact known path first
+        const [directFiles] = await bucket.getFiles({ 
+          prefix: directPath,
+          autoPaginate: false
+        });
+        
+        console.log(`[DRAWING-DEBUG] DIRECT PATH returned ${directFiles.length} files`);
+        
+        if (directFiles.length > 0) {
+          // Map the files to our standard format
+          const processedFiles = directFiles.map(file => ({
+            name: path.basename(file.name),
+            path: file.name,
+            contentType: file.metadata.contentType,
+            size: file.metadata.size,
+            updated: file.metadata.updated,
+            created: file.metadata.timeCreated,
+            isDirectory: false
+          }));
+          
+          console.log(`[DRAWING-DEBUG] SUCCESS using DIRECT PATH - returning ${processedFiles.length} files`);
+          return res.status(200).json(processedFiles);
+        }
+      } catch (err) {
+        console.error(`[DRAWING-DEBUG] Error searching with DIRECT PATH:`, err);
+        // Continue with the other approaches
+      }
+      
       // Search in standard inventory location - try all possible inventory paths
       const inventoryPaths = [
         'THERMOPAC_INVENTORY',
