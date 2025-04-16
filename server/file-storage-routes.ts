@@ -389,8 +389,37 @@ export function setupFileStorageRoutes(app: Router) {
         console.log(`[DRAWING-DEBUG] DIRECT PATH returned ${directFiles.length} files`);
         
         if (directFiles.length > 0) {
-          // Map the files to our standard format
-          const processedFiles = directFiles.map(file => ({
+          // Filter out non-drawing files first (like .keep files)
+          const drawingFiles = directFiles.filter(file => {
+            const fileName = path.basename(file.name);
+            
+            // Skip hidden files and non-drawing files
+            if (fileName.startsWith('.') || 
+                !(fileName.toLowerCase().endsWith('.pdf') || 
+                  fileName.toLowerCase().endsWith('.dwg') || 
+                  fileName.toLowerCase().endsWith('.dxf') ||
+                  (file.metadata.contentType && (
+                    file.metadata.contentType.includes('pdf') || 
+                    file.metadata.contentType.includes('image') || 
+                    file.metadata.contentType.includes('drawing')
+                  ))
+                )) {
+              console.log(`[DRAWING-DEBUG] Skipping non-drawing file: ${file.name}`);
+              return false;
+            }
+            
+            // Make sure the filename contains the drawing number
+            // This ensures we're returning relevant files
+            if (!fileName.includes(drawingNo)) {
+              console.log(`[DRAWING-DEBUG] Skipping unrelated file: ${fileName} - doesn't contain ${drawingNo}`);
+              return false;
+            }
+            
+            return true;
+          });
+          
+          // Map the filtered files to our standard format
+          const processedFiles = drawingFiles.map(file => ({
             name: path.basename(file.name),
             path: file.name,
             contentType: file.metadata.contentType,
@@ -400,8 +429,14 @@ export function setupFileStorageRoutes(app: Router) {
             isDirectory: false
           }));
           
-          console.log(`[DRAWING-DEBUG] SUCCESS using DIRECT PATH - returning ${processedFiles.length} files`);
-          return res.status(200).json(processedFiles);
+          console.log(`[DRAWING-DEBUG] SUCCESS using DIRECT PATH - returning ${processedFiles.length} files (filtered from ${directFiles.length} total files)`);
+          
+          if (processedFiles.length > 0) {
+            return res.status(200).json(processedFiles);
+          }
+          
+          // If we filtered all files, fall through to other methods
+          console.log(`[DRAWING-DEBUG] All files were filtered out, continuing with other search methods`);
         }
       } catch (err) {
         console.error(`[DRAWING-DEBUG] Error searching with DIRECT PATH:`, err);
