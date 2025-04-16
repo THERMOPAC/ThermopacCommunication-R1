@@ -177,21 +177,31 @@ const ItemMasterManagement: React.FC = () => {
       // Add the parent item's drawing number if it exists
       if (currentItem.drawingNo) {
         drawingNumbers.push(currentItem.drawingNo);
+        console.log(`Added parent item drawing number: ${currentItem.drawingNo}`);
+      } else {
+        console.log(`Parent item has no drawing number. Using item code: ${currentItem.itemCode}`);
+        // If no drawing number, use the item code as a fallback
+        drawingNumbers.push(currentItem.itemCode);
       }
       
       // Add component drawing numbers if they exist
       if (itemComponentsQuery.data && itemComponentsQuery.data.length > 0) {
+        console.log(`Found ${itemComponentsQuery.data.length} components to check for drawings`);
         for (const component of itemComponentsQuery.data) {
           if (component.drawingNo || component.componentDrawingNo) {
             const componentDrawingNo = component.componentDrawingNo || component.drawingNo;
             if (componentDrawingNo && !drawingNumbers.includes(componentDrawingNo)) {
               drawingNumbers.push(componentDrawingNo);
+              console.log(`Added component drawing number: ${componentDrawingNo}`);
             }
+          } else {
+            console.log(`Component ${component.componentItemCode || component.itemCode} has no drawing number.`);
           }
         }
       }
       
       if (drawingNumbers.length === 0) {
+        console.log('No drawing numbers found to search for');
         return [];
       }
       
@@ -222,8 +232,17 @@ const ItemMasterManagement: React.FC = () => {
       console.log(`Found ${allFoundFiles.length} total files across all search paths`);
       
       if (allFoundFiles.length === 0) {
+        console.log('No files found in storage - returning empty array');
         return [];
       }
+      
+      // Log the first few files to understand the structure
+      console.log('Sample of files found:', allFoundFiles.slice(0, 3).map(file => ({
+        path: file.path,
+        name: file.name,
+        isDirectory: file.isDirectory,
+        contentType: file.contentType
+      })));
       
       // Filter to show only drawing files related to our drawing numbers
       const drawingFiles = allFoundFiles.filter((file: any) => {
@@ -244,7 +263,10 @@ const ItemMasterManagement: React.FC = () => {
           fullPath.toLowerCase().endsWith('.dwg') ||
           fullPath.toLowerCase().endsWith('.dxf');
         
-        if (!isPdfOrDrawing) return false;
+        if (!isPdfOrDrawing) {
+          // console.log(`Skipping non-drawing file: ${fullPath}`);
+          return false;
+        }
         
         // Check if any of our drawing numbers are in the path
         for (const drawingNo of drawingNumbers) {
@@ -253,6 +275,7 @@ const ItemMasterManagement: React.FC = () => {
             fullPath.includes(`/${drawingNo}_`) ||
             fullPath.includes(drawingNo) // Simpler check to catch more possibilities
           ) {
+            console.log(`Match found: Drawing ${drawingNo} in file: ${fullPath}`);
             return true;
           }
         }
