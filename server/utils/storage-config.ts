@@ -9,7 +9,7 @@ import { Storage } from '@google-cloud/storage';
 
 // Always use the correct bucket name "thermopac_storage" as shown in the Google Cloud Console
 // This overrides any incorrect environment variables
-export const bucketName = 'thermopac_storage';
+export const bucketName = 'thermopac_storage'; // Make sure lowercase
 console.log(`Using GCS bucket name: ${bucketName}`);
 
 // Function to create storage client

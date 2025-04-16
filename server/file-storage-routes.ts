@@ -332,7 +332,16 @@ export function setupFileStorageRoutes(app: Router) {
       
       // DIRECT PATH: Based on the screenshot, we know exactly where the files are in production
       // This is the most reliable way to find them
+      // First try the exact path from the screenshot, without trailing slash
       const directPath = `THERMOPAC_INVENTORY/${drawingNo}`;
+      // But also try various case variations to handle potential case sensitivity issues
+      const directPaths = [
+        `THERMOPAC_INVENTORY/${drawingNo}`,
+        `THERMOPAC_INVENTORY/${drawingNo}/`,
+        `thermopac_inventory/${drawingNo}`,
+        `thermopac_inventory/${drawingNo}/`,
+        `${drawingNo}`, // Try a really simple path too
+      ];
       console.log(`[DRAWING-DEBUG] Trying DIRECT PATH for production: ${directPath}`);
       
       try {
@@ -345,10 +354,29 @@ export function setupFileStorageRoutes(app: Router) {
         console.log(`[DRAWING-DEBUG] Bucket name confirmed as: ${bucketName}`);
         console.log(`[DRAWING-DEBUG] Looking for files with exact prefix: ${directPath}`);
 
-        // Try to list files in the exact known path first
-        const [directFiles] = await bucket.getFiles({ 
-          prefix: directPath
-        });
+        // Try all the possible path variations
+        console.log(`[DRAWING-DEBUG] Trying multiple path variations to find drawings`);
+        
+        let directFiles: any[] = [];
+        
+        // Try each path variation
+        for (const pathVariation of directPaths) {
+          console.log(`[DRAWING-DEBUG] Trying path variation: ${pathVariation}`);
+          
+          try {
+            const [files] = await bucket.getFiles({ 
+              prefix: pathVariation
+            });
+            
+            if (files && files.length > 0) {
+              console.log(`[DRAWING-DEBUG] Found ${files.length} files with path: ${pathVariation}`);
+              directFiles = files;
+              break; // Stop once we find a working path
+            }
+          } catch (innerErr) {
+            console.error(`[DRAWING-DEBUG] Error with path variation ${pathVariation}:`, innerErr);
+          }
+        }
         
         // Also try to list ALL files to debug what's in the bucket
         console.log(`[DRAWING-DEBUG] DIRECT PATH search attempting to list all files in bucket to find exact paths`);
