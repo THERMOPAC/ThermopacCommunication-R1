@@ -283,12 +283,15 @@ export function setupFileStorageRoutes(app: Router) {
           
           // Map to standard format
           const processedFiles = matchingFiles.map(file => {
-            const fileName = path.basename(file.name);
+            // Fix the path issue - ensure we're using the right path module
+            const filePath = file.name;
+            const fileNameParts = filePath.split('/');
+            const fileName = fileNameParts[fileNameParts.length - 1] || '';
             const isDir = !fileName.includes('.') || fileName === '.keep';
             
             return {
               name: fileName,
-              path: file.name,
+              path: filePath,
               contentType: file.metadata.contentType,
               size: file.metadata.size,
               updated: file.metadata.updated,
@@ -299,12 +302,15 @@ export function setupFileStorageRoutes(app: Router) {
           
           // Filter to only show files in the exact path, not subpaths
           const exactPathMatches = processedFiles.filter(file => {
-            const fileDirPath = path.dirname(file.path);
+            // Extract directory path manually instead of using path.dirname
+            const filePath = file.path;
+            const lastSlashIndex = filePath.lastIndexOf('/');
+            const fileDirPath = lastSlashIndex !== -1 ? filePath.substring(0, lastSlashIndex) : '';
             const normalizedExpectedPath = `THERMOPAC_PROJECTS/${pathStr}`;
             
             return fileDirPath === normalizedExpectedPath || 
                   fileDirPath === pathStr ||
-                  fileDirPath.endsWith(`/${pathComponents[pathComponents.length - 1]}`);
+                  (pathComponents.length > 0 && fileDirPath.endsWith(`/${pathComponents[pathComponents.length - 1]}`));
           });
           
           console.log(`[FILES-SUPER-AGGRESSIVE] Found ${exactPathMatches.length} exact path matches`);
@@ -443,8 +449,9 @@ export function setupFileStorageRoutes(app: Router) {
           // Filter for matching drawing files using very loose matching
           const matchingFiles = allFiles
             .filter(file => {
-              const fileName = path.basename(file.name);
               const filePath = file.name;
+              const fileNameParts = filePath.split('/');
+              const fileName = fileNameParts[fileNameParts.length - 1] || '';
               
               // Skip directories, empty files, and hidden files
               if (fileName.startsWith('.') || !fileName.includes('.')) {
@@ -468,7 +475,7 @@ export function setupFileStorageRoutes(app: Router) {
               return isMatch;
             })
             .map(file => ({
-              name: path.basename(file.name),
+              name: file.name.split('/').pop() || '',
               path: file.name,
               contentType: file.metadata.contentType || 'application/octet-stream',
               size: file.metadata.size,
@@ -548,7 +555,9 @@ export function setupFileStorageRoutes(app: Router) {
         if (directFiles.length > 0) {
           // Filter out non-drawing files first (like .keep files)
           const drawingFiles = directFiles.filter(file => {
-            const fileName = path.basename(file.name);
+            const filePath = file.name;
+            const fileNameParts = filePath.split('/');
+            const fileName = fileNameParts[fileNameParts.length - 1] || '';
             
             // Skip hidden files and non-drawing files
             if (fileName.startsWith('.') || 
@@ -577,7 +586,7 @@ export function setupFileStorageRoutes(app: Router) {
           
           // Map the filtered files to our standard format
           const processedFiles = drawingFiles.map(file => ({
-            name: path.basename(file.name),
+            name: file.name.split("/").pop() || "",
             path: file.name,
             contentType: file.metadata.contentType,
             size: file.metadata.size,
@@ -753,7 +762,7 @@ export function setupFileStorageRoutes(app: Router) {
             
             return isMatch;
           }).map(file => ({
-            name: path.basename(file.name),
+            name: file.name.split("/").pop() || "",
             path: file.name,
             contentType: file.metadata.contentType,
             size: file.metadata.size,
