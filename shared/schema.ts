@@ -4,6 +4,9 @@ import { z } from "zod";
 import { roles } from "./roles";
 import { relations } from "drizzle-orm";
 
+// Re-export email/message schema
+export * from "./schema-email";
+
 // Available system modules
 export const modules = [
   "Project Management",
