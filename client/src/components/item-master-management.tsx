@@ -171,6 +171,10 @@ const ItemMasterManagement: React.FC = () => {
     queryFn: async () => {
       if (!currentItem) return [];
       
+      console.log(`[DRAWING-DEBUG] Fetching drawings for item ID: ${currentItem.id}`);
+      console.log(`[DRAWING-DEBUG] Item drawing number: ${currentItem.drawingNo}`);
+      console.log(`[DRAWING-DEBUG] Item code: ${currentItem.itemCode}`);
+      
       // Build a list of drawing numbers to search for
       let drawingNumbers: string[] = [];
       
@@ -1861,6 +1865,7 @@ const ItemMasterManagement: React.FC = () => {
                       ) : itemDrawingsQuery.data && itemDrawingsQuery.data.length > 0 ? (
                         // Render drawings if we have data
                         itemDrawingsQuery.data.map((drawing: any, index: number) => {
+                          console.log(`[DRAWING-RENDER-DEBUG] Rendering drawing [${index}]:`, drawing);
                           // Get component info if this is a component drawing
                           const isComponent = drawing.isComponent;
                           const componentInfo = drawing.componentInfo;
