@@ -327,34 +327,136 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'Drawing number parameter is required' });
       }
       
-      console.log(`Finding drawings for drawing number: ${drawingNo}`);
+      console.log(`[DRAWING-DEBUG] Finding drawings for drawing number: ${drawingNo}`);
+      console.log(`[DRAWING-DEBUG] Environment: ${process.env.NODE_ENV || 'unknown'}`);
       
-      // Search in standard inventory location
-      const inventoryPath = 'THERMOPAC_INVENTORY';
-      console.log(`Searching in inventory path: ${inventoryPath}`);
+      // Search in standard inventory location - try all possible inventory paths
+      const inventoryPaths = [
+        'THERMOPAC_INVENTORY',
+        'THERMOPAC_PROJECTS/THERMOPAC_INVENTORY',
+        'thermopac_inventory',
+        'thermopac_projects/thermopac_inventory'
+      ];
       
-      // Get all files in inventory with recursive search
-      const files = await gcsStorage.listFiles(inventoryPath, true);
+      let allFiles: any[] = [];
+      
+      // Try each inventory path
+      for (const inventoryPath of inventoryPaths) {
+        console.log(`[DRAWING-DEBUG] Searching in inventory path: ${inventoryPath}`);
+        
+        try {
+          // Get all files in inventory with recursive search
+          const files = await gcsStorage.listFiles(inventoryPath, true);
+          console.log(`[DRAWING-DEBUG] Path ${inventoryPath} returned ${files.length} files`);
+          
+          // Log out info for first few files to see what paths look like
+          if (files.length > 0) {
+            const sampleFiles = files.slice(0, Math.min(3, files.length));
+            console.log(`[DRAWING-DEBUG] Sample files from ${inventoryPath}:`, 
+              sampleFiles.map((f: any) => ({ path: f.path, name: f.name }))
+            );
+            
+            // Add to our collection
+            allFiles = [...allFiles, ...files];
+          }
+        } catch (err) {
+          console.error(`[DRAWING-DEBUG] Error searching in ${inventoryPath}:`, err);
+          // Continue with other paths
+        }
+      }
+      
+      console.log(`[DRAWING-DEBUG] Found ${allFiles.length} total files across all inventory paths`);
       
       // Filter files to only include drawings for this drawing number
-      const drawingFiles = files.filter(file => {
+      const drawingFiles = allFiles.filter(file => {
         if (file.isDirectory) return false;
         
         const filePath = file.path || '';
+        const fileName = file.name || '';
+        
+        // First check if the file has a drawing-related extension
+        const isDrawingFile = 
+          filePath.toLowerCase().endsWith('.pdf') ||
+          filePath.toLowerCase().endsWith('.dwg') ||
+          filePath.toLowerCase().endsWith('.dxf') ||
+          (file.contentType && (
+            file.contentType.includes('pdf') || 
+            file.contentType.includes('image') || 
+            file.contentType.includes('dwg')
+          ));
+          
+        if (!isDrawingFile) {
+          return false;
+        }
+        
         // Various path patterns to check
-        return (
+        const patternMatch = (
           filePath.includes(`/${drawingNo}/`) || 
           filePath.includes(`/drawings/${drawingNo}/`) || 
-          filePath.includes(`${inventoryPath}/${drawingNo}/`) || 
-          filePath.includes(`${inventoryPath}/${drawingNo}/drawings/`) || 
+          filePath.includes(`THERMOPAC_INVENTORY/${drawingNo}/`) || 
+          filePath.includes(`THERMOPAC_INVENTORY/${drawingNo}/drawings/`) || 
           filePath.includes(`/${drawingNo}_`) || 
           filePath.includes(`/drawings/${drawingNo}_`) || 
           filePath.includes(`${drawingNo}_R`) ||
+          // Direct filename match
+          fileName === `${drawingNo}.pdf` ||
+          fileName === `${drawingNo}.dwg` ||
+          fileName === `${drawingNo}.dxf` ||
+          fileName.startsWith(`${drawingNo}_`) ||
+          // Looser matching as fallback
           filePath.includes(drawingNo)
         );
+        
+        if (patternMatch) {
+          console.log(`[DRAWING-DEBUG] Match found: Drawing ${drawingNo} in file: ${filePath}`);
+        }
+        
+        return patternMatch;
       });
       
-      console.log(`Found ${drawingFiles.length} drawing files for ${drawingNo}`);
+      console.log(`[DRAWING-DEBUG] Found ${drawingFiles.length} drawing files for ${drawingNo}`);
+      
+      // If we found no files with the normal search, try a more aggressive approach
+      if (drawingFiles.length === 0) {
+        console.log(`[DRAWING-DEBUG] No drawings found with standard search, trying aggressive search`);
+        
+        // Direct GCS bucket search without normalized paths
+        try {
+          // Import storage module directly
+          const storageModule = await import('./utils/storage-config');
+          const bucketName = storageModule.bucketName;
+          const storage = storageModule.default;
+          
+          console.log(`[DRAWING-DEBUG] Direct bucket search in: ${bucketName}`);
+          
+          const bucket = storage.bucket(bucketName);
+          const [files] = await bucket.getFiles();
+          
+          console.log(`[DRAWING-DEBUG] Direct bucket search found ${files.length} total files`);
+          
+          // Look for any file with the drawing number in it
+          const matchingFiles = files.filter(file => {
+            const filePath = file.name;
+            return filePath.includes(drawingNo);
+          }).map(file => ({
+            name: path.basename(file.name),
+            path: file.name,
+            contentType: file.metadata.contentType,
+            size: file.metadata.size,
+            updated: file.metadata.updated,
+            created: file.metadata.timeCreated,
+            isDirectory: false
+          }));
+          
+          console.log(`[DRAWING-DEBUG] Direct bucket search found ${matchingFiles.length} matching files for ${drawingNo}`);
+          
+          if (matchingFiles.length > 0) {
+            return res.status(200).json(matchingFiles);
+          }
+        } catch (err) {
+          console.error(`[DRAWING-DEBUG] Error with direct bucket search:`, err);
+        }
+      }
       
       return res.status(200).json(drawingFiles);
     } catch (error) {

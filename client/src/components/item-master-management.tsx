@@ -218,16 +218,34 @@ const ItemMasterManagement: React.FC = () => {
         // First try our dedicated drawings API endpoint (more reliable)
         for (const drawingNo of drawingNumbers) {
           console.log(`Using dedicated drawings API endpoint for: ${drawingNo}`);
-          const drawingResponse = await fetch(`/api/storage/drawings?drawingNo=${encodeURIComponent(drawingNo)}`);
-          
-          if (drawingResponse.ok) {
-            const drawingFiles = await drawingResponse.json();
-            console.log(`Found ${drawingFiles.length} drawing files for ${drawingNo} using dedicated API`);
+          try {
+            console.log(`[CLIENT-DRAWING-DEBUG] Calling dedicated endpoint for ${drawingNo}`);
+            const drawingResponse = await fetch(`/api/storage/drawings?drawingNo=${encodeURIComponent(drawingNo)}`);
             
-            if (drawingFiles.length > 0) {
-              allFoundFiles = [...allFoundFiles, ...drawingFiles];
-              continue; // Skip the general file search for this drawing number
+            if (drawingResponse.ok) {
+              const drawingFiles = await drawingResponse.json();
+              console.log(`[CLIENT-DRAWING-DEBUG] Server returned ${drawingFiles.length} drawing files for ${drawingNo}`);
+              console.log(`Found ${drawingFiles.length} drawing files for ${drawingNo} using dedicated API`);
+              
+              if (drawingFiles.length > 0) {
+                // Log sample of what server sent back
+                const sampleFiles = drawingFiles.slice(0, Math.min(3, drawingFiles.length));
+                console.log('[CLIENT-DRAWING-DEBUG] Sample files from server:', sampleFiles);
+                
+                allFoundFiles = [...allFoundFiles, ...drawingFiles];
+                continue; // Skip the general file search for this drawing number
+              }
+            } else {
+              console.error(`[CLIENT-DRAWING-DEBUG] Drawing API error: ${drawingResponse.status} ${drawingResponse.statusText}`);
+              try {
+                const errorData = await drawingResponse.text();
+                console.error(`[CLIENT-DRAWING-DEBUG] Error response: ${errorData}`);
+              } catch (e) {
+                console.error('[CLIENT-DRAWING-DEBUG] Could not read error response');
+              }
             }
+          } catch (err) {
+            console.error(`[CLIENT-DRAWING-DEBUG] Error calling drawings API: ${err}`);
           }
           
           // Fallback to general file search if dedicated endpoint returns no files
