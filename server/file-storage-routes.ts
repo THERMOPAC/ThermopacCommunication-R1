@@ -428,16 +428,60 @@ export function setupFileStorageRoutes(app: Router) {
           const storage = storageModule.default;
           
           console.log(`[DRAWING-DEBUG] Direct bucket search in: ${bucketName}`);
+          console.log(`[DRAWING-DEBUG] Environment: ${process.env.NODE_ENV || 'unknown'}`);
           
+          // List ALL files in the bucket without any prefix filtering
           const bucket = storage.bucket(bucketName);
           const [files] = await bucket.getFiles();
           
           console.log(`[DRAWING-DEBUG] Direct bucket search found ${files.length} total files`);
           
-          // Look for any file with the drawing number in it
+          // For debugging, dump a sample of files so we can see what's in the bucket
+          const sampleFiles = files.slice(0, Math.min(10, files.length));
+          console.log(`[DRAWING-DEBUG] Sample of files in bucket:`, 
+            sampleFiles.map(f => ({ name: f.name, size: f.metadata.size }))
+          );
+          
+          // Look for any file with the drawing number in it - ignoring path structure completely
           const matchingFiles = files.filter(file => {
             const filePath = file.name;
-            return filePath.includes(drawingNo);
+            const fileName = path.basename(filePath);
+            
+            // Check for drawing file extensions first
+            const isDrawingFile = 
+              filePath.toLowerCase().endsWith('.pdf') ||
+              filePath.toLowerCase().endsWith('.dwg') ||
+              filePath.toLowerCase().endsWith('.dxf') ||
+              (file.metadata.contentType && (
+                file.metadata.contentType.includes('pdf') || 
+                file.metadata.contentType.includes('image') || 
+                file.metadata.contentType.includes('dwg')
+              ));
+              
+            if (!isDrawingFile) {
+              return false;
+            }
+            
+            // Different pattern matching approaches
+            const exactMatch = 
+              fileName === `${drawingNo}.pdf` || 
+              fileName === `${drawingNo}.dwg` || 
+              fileName === `${drawingNo}.dxf`;
+            
+            const revisionMatch = fileName.startsWith(`${drawingNo}_R`);
+            
+            const pathMatch = filePath.includes(`/${drawingNo}/`);
+            
+            // More aggressive search - any occurrence of the drawing number in the path
+            const looseMatch = filePath.includes(drawingNo);
+            
+            const isMatch = exactMatch || revisionMatch || pathMatch || looseMatch;
+            
+            if (isMatch) {
+              console.log(`[DRAWING-DEBUG] Found match: ${filePath} for ${drawingNo}`);
+            }
+            
+            return isMatch;
           }).map(file => ({
             name: path.basename(file.name),
             path: file.name,
