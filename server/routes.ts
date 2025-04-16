@@ -69,6 +69,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up file storage routes
   setupFileStorageRoutes(app);
   
+  // Set up drawings endpoint (separate from main file storage routes)
+  setupDrawingsEndpoint(app);
+  
   // Set up item components import routes
   setupItemComponentsImportRoutes(app);
   
