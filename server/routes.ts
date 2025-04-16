@@ -15,7 +15,6 @@ import { setupCustomerImportRoutes } from "./customer-import";
 import { setupProjectItemsImportRoutes } from "./project-items-import";
 import { setupMasterItemsImportRoutes } from "./master-items-import";
 import { setupFileStorageRoutes } from "./file-storage-routes";
-import { setupDrawingsEndpoint } from "./drawings-endpoint";
 import { setupItemComponentsImportRoutes } from "./item-components-import";
 import { setupProductionRoutes } from "./production-routes";
 import { setupQualityRoutes } from "./quality-routes";
@@ -68,9 +67,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up file storage routes
   setupFileStorageRoutes(app);
-  
-  // Set up drawings endpoint (separate from main file storage routes)
-  setupDrawingsEndpoint(app);
   
   // Set up item components import routes
   setupItemComponentsImportRoutes(app);

@@ -213,67 +213,16 @@ const ItemMasterManagement: React.FC = () => {
       
       try {
         console.log(`Searching in path: ${searchPath}`);
-        console.log(`Looking for drawing numbers: ${drawingNumbers.join(', ')}`);
         
-        // First try our dedicated drawings API endpoint (more reliable)
-        for (const drawingNo of drawingNumbers) {
-          console.log(`Using dedicated drawings API endpoint for: ${drawingNo}`);
-          try {
-            console.log(`[CLIENT-DRAWING-DEBUG] Calling dedicated endpoint for ${drawingNo}`);
-            const drawingResponse = await fetch(`/api/storage/drawings?drawingNo=${encodeURIComponent(drawingNo)}`);
-            
-            if (drawingResponse.ok) {
-              const drawingFiles = await drawingResponse.json();
-              console.log(`[CLIENT-DRAWING-DEBUG] Server returned ${drawingFiles.length} drawing files for ${drawingNo}`);
-              console.log(`Found ${drawingFiles.length} drawing files for ${drawingNo} using dedicated API`);
-              
-              if (drawingFiles.length > 0) {
-                // Log sample of what server sent back
-                const sampleFiles = drawingFiles.slice(0, Math.min(3, drawingFiles.length));
-                console.log('[CLIENT-DRAWING-DEBUG] Sample files from server:', sampleFiles);
-                
-                // Mark these files with the current drawing number to ensure proper matching
-                const enhancedFiles = drawingFiles.map((file: any) => ({
-                  ...file,
-                  matchedDrawingNo: drawingNo,
-                  drawingNo: file.drawingNo || drawingNo,
-                }));
-                
-                allFoundFiles = [...allFoundFiles, ...enhancedFiles];
-                continue; // Skip the general file search for this drawing number
-              }
-            } else {
-              console.error(`[CLIENT-DRAWING-DEBUG] Drawing API error: ${drawingResponse.status} ${drawingResponse.statusText}`);
-              try {
-                const errorData = await drawingResponse.text();
-                console.error(`[CLIENT-DRAWING-DEBUG] Error response: ${errorData}`);
-              } catch (e) {
-                console.error('[CLIENT-DRAWING-DEBUG] Could not read error response');
-              }
-            }
-          } catch (err) {
-            console.error(`[CLIENT-DRAWING-DEBUG] Error calling drawings API: ${err}`);
-          }
-          
-          // Fallback to general file search if dedicated endpoint returns no files
-          console.log(`Falling back to general file search for: ${drawingNo}`);
-        }
+        // Use recursive search to find all files
+        const response = await fetch(`/api/storage/files?path=${encodeURIComponent(searchPath)}&recursive=true`);
         
-        // Fallback to old recursive search method to ensure backward compatibility
-        if (allFoundFiles.length === 0) {
-          console.log(`No files found with dedicated endpoint, using general file search as fallback`);
-          const response = await fetch(`/api/storage/files?path=${encodeURIComponent(searchPath)}&recursive=true`);
+        if (response.ok) {
+          const pathFiles = await response.json();
+          console.log(`Found ${pathFiles.length} total files in ${searchPath}`);
           
-          if (response.ok) {
-            const pathFiles = await response.json();
-            console.log(`Found ${pathFiles.length} total files in ${searchPath}`);
-            
-            // Log first 3 files to see what paths look like in production
-            if (pathFiles.length > 0) {
-              const sampleFiles = pathFiles.slice(0, Math.min(3, pathFiles.length));
-              console.log('Sample files from API:', sampleFiles);
-              allFoundFiles = [...pathFiles];
-            }
+          if (pathFiles.length > 0) {
+            allFoundFiles = [...pathFiles];
           }
         }
       } catch (error) {
@@ -323,14 +272,7 @@ const ItemMasterManagement: React.FC = () => {
         for (const drawingNo of drawingNumbers) {
           if (
             fullPath.includes(`/${drawingNo}/`) || 
-            fullPath.includes(`/drawings/${drawingNo}/`) ||  // Check with drawings folder
-            fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/`) ||  // Check with inventory path
-            fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/drawings/`) ||  // Check with full path
             fullPath.includes(`/${drawingNo}_`) ||
-            fullPath.includes(`/drawings/${drawingNo}_`) ||  // Check with drawings folder
-            // More direct filename matching
-            fullPath.includes(`${drawingNo}_R`) ||
-            // Looser matching as fallback
             fullPath.includes(drawingNo) // Simpler check to catch more possibilities
           ) {
             console.log(`Match found: Drawing ${drawingNo} in file: ${fullPath}`);
@@ -366,57 +308,35 @@ const ItemMasterManagement: React.FC = () => {
         let fileDescription = fileName;
         let matchedDrawingNo: string | null = null;
         
-        // If the file already has a matchedDrawingNo from the enhanced API, use it directly
-        if (file.matchedDrawingNo) {
-          console.log(`Using pre-assigned drawing number: ${file.matchedDrawingNo} for file: ${fullPath}`);
-          matchedDrawingNo = file.matchedDrawingNo;
-        } else {
-          // Otherwise find which drawing number this file belongs to
-          for (const drawingNo of drawingNumbers) {
-            // More comprehensive matching to handle various path structures
-            if (
-              fullPath.includes(`/${drawingNo}/`) || 
-              fullPath.includes(`/drawings/${drawingNo}/`) ||
-              fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/`) ||
-              fullPath.includes(`THERMOPAC_INVENTORY/${drawingNo}/drawings/`) ||
-              fullPath.includes(`/${drawingNo}_`) ||
-              fullPath.includes(`/drawings/${drawingNo}_`) ||
-              // More direct filename matching
-              fullPath.includes(`${drawingNo}_R`) ||
-              // Looser matching as fallback
-              fullPath.includes(drawingNo)
-            ) {
-              console.log(`Drawing match found for ${drawingNo} in path: ${fullPath}`);
-              matchedDrawingNo = drawingNo;
-              break;
-            }
+        // Find which drawing number this file belongs to
+        for (const drawingNo of drawingNumbers) {
+          if (
+            fullPath.includes(`/${drawingNo}/`) || 
+            fullPath.includes(`/${drawingNo}_`) ||
+            fullPath.includes(drawingNo)
+          ) {
+            matchedDrawingNo = drawingNo;
+            break;
           }
         }
         
         if (!matchedDrawingNo) {
-          console.log(`Could not determine drawing number for file: ${fullPath}`);
           return; // Skip if we can't determine the drawing number
         }
         
-        // Use revision from API if available
-        if (file.revision && file.revision !== 'N/A') {
-          console.log(`Using pre-assigned revision: ${file.revision} for file: ${fullPath}`);
-          revision = file.revision;
-        } else {
-          // Extract revision from filename using various patterns
-          const revPatterns = [
-            /_R(\d+)/, // DrawingNo_R1.pdf
-            /Rev\.?(\d+)/i, // Rev1 or Rev.1
-            /Revision[_\s-]?(\d+)/i, // Revision 1
-            /V(\d+)/ // V1
-          ];
-          
-          for (const pattern of revPatterns) {
-            const match = fileName.match(pattern);
-            if (match && match[1]) {
-              revision = match[1];
-              break;
-            }
+        // Extract revision from filename using various patterns
+        const revPatterns = [
+          /_R(\d+)/, // DrawingNo_R1.pdf
+          /Rev\.?(\d+)/i, // Rev1 or Rev.1
+          /Revision[_\s-]?(\d+)/i, // Revision 1
+          /V(\d+)/ // V1
+        ];
+        
+        for (const pattern of revPatterns) {
+          const match = fileName.match(pattern);
+          if (match && match[1]) {
+            revision = match[1];
+            break;
           }
         }
         

@@ -235,95 +235,6 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'Path parameter is required' });
       }
       
-      // FORCE PRODUCTION MODE: Always use super aggressive file detection
-      // This will work in both development and production
-      const forceSuperAggressiveMode = true;
-      
-      if (forceSuperAggressiveMode) {
-        console.log(`FORCE SUPER AGGRESSIVE FILE SEARCH: ${path}`);
-        
-        try {
-          // Import storage module directly to get direct access to bucket
-          const storageModule = await import('./utils/storage-config');
-          const bucketName = storageModule.bucketName;
-          const storage = storageModule.default;
-          const bucket = storage.bucket(bucketName);
-          
-          // Get ALL files in the bucket (no filtering)
-          const [allFiles] = await bucket.getFiles();
-          
-          console.log(`[FILES-SUPER-AGGRESSIVE] Found ${allFiles.length} total files in bucket`);
-          
-          const pathStr = path as string;
-          
-          // Find files that match this path
-          const pathComponents = pathStr.split('/').filter(p => p);
-          console.log(`[FILES-SUPER-AGGRESSIVE] Looking for files with components: ${pathComponents.join(', ')}`);
-          
-          // Find files that are in this path
-          const matchingFiles = allFiles.filter(file => {
-            const filePath = file.name;
-            
-            // Skip root paths
-            if (filePath.split('/').length <= 1) return false;
-            
-            // Check if this file might be part of the target path
-            let matchesPath = true;
-            for (const component of pathComponents) {
-              if (!filePath.includes(component)) {
-                matchesPath = false;
-                break;
-              }
-            }
-            
-            return matchesPath;
-          });
-          
-          console.log(`[FILES-SUPER-AGGRESSIVE] Found ${matchingFiles.length} matching files`);
-          
-          // Map to standard format
-          const processedFiles = matchingFiles.map(file => {
-            // Fix the path issue - ensure we're using the right path module
-            const filePath = file.name;
-            const fileNameParts = filePath.split('/');
-            const fileName = fileNameParts[fileNameParts.length - 1] || '';
-            const isDir = !fileName.includes('.') || fileName === '.keep';
-            
-            return {
-              name: fileName,
-              path: filePath,
-              contentType: file.metadata.contentType,
-              size: file.metadata.size,
-              updated: file.metadata.updated,
-              created: file.metadata.timeCreated,
-              isDirectory: isDir
-            };
-          });
-          
-          // Filter to only show files in the exact path, not subpaths
-          const exactPathMatches = processedFiles.filter(file => {
-            // Extract directory path manually instead of using path.dirname
-            const filePath = file.path;
-            const lastSlashIndex = filePath.lastIndexOf('/');
-            const fileDirPath = lastSlashIndex !== -1 ? filePath.substring(0, lastSlashIndex) : '';
-            const normalizedExpectedPath = `THERMOPAC_PROJECTS/${pathStr}`;
-            
-            return fileDirPath === normalizedExpectedPath || 
-                  fileDirPath === pathStr ||
-                  (pathComponents.length > 0 && fileDirPath.endsWith(`/${pathComponents[pathComponents.length - 1]}`));
-          });
-          
-          console.log(`[FILES-SUPER-AGGRESSIVE] Found ${exactPathMatches.length} exact path matches`);
-          
-          // If we found matches, return them
-          if (exactPathMatches.length > 0) {
-            return res.status(200).json(exactPathMatches);
-          }
-        } catch (err) {
-          console.error(`[FILES-SUPER-AGGRESSIVE] Error:`, err);
-        }
-      }
-      
       // Parse the recursive parameter (default to false)
       const isRecursive = recursive === 'true' || recursive === '1';
       
@@ -401,220 +312,6 @@ export function setupFileStorageRoutes(app: Router) {
     } catch (error) {
       console.error('Error listing files:', error);
       res.status(500).json({ error: 'Failed to list files' });
-    }
-  });
-  
-  /**
-   * New endpoint specifically for finding drawings by drawing number
-   * More reliable than the general file search for drawings
-   */
-  /**
-   * New endpoint specifically for finding drawings by drawing number
-   * COMPLETELY REWRITTEN WITH A SIMPLE BRUTE FORCE APPROACH
-   */
-  /**
-   * Simple endpoint for finding drawings by drawing number
-   * Uses a direct approach scanning all files in the bucket
-   */
-  app.get('/api/storage/drawings', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const drawingNo = req.query.drawingNo as string;
-      
-      if (!drawingNo) {
-        return res.status(400).json({ error: 'Drawing number is required' });
-      }
-      
-      console.log(`---\n[DRAWING-NEW] Looking for drawings with number: ${drawingNo}\n---`);
-            
-      // Import storage module directly (simpler approach)
-      const storageModule = await import('./utils/storage-config');
-      const bucketName = storageModule.bucketName;
-      const storage = storageModule.default;
-      const bucket = storage.bucket(bucketName);
-      
-      // List ALL files in the bucket (brute force approach)
-      console.log(`[DRAWING-NEW] Getting all files from bucket: ${bucketName}`);
-      const [allFiles] = await bucket.getFiles();
-      
-      console.log(`[DRAWING-NEW] Found ${allFiles.length} total files in bucket`);
-      
-      // First get all PDF files regardless of path or name
-      const allPdfFiles = allFiles.filter(file => file.name.toLowerCase().endsWith('.pdf'));
-      console.log(`[DRAWING-NEW] Found ${allPdfFiles.length} total PDF files in bucket`);
-      
-      // Log the first few PDF files to help with debugging
-      if (allPdfFiles.length > 0) {
-        console.log(`[DRAWING-NEW] First ${Math.min(5, allPdfFiles.length)} PDF files in bucket:`);
-        allPdfFiles.slice(0, 5).forEach(file => {
-          console.log(`[DRAWING-NEW] PDF File: ${file.name}`);
-        });
-      }
-      
-      // Filter to only include files that might match our drawing number
-      // Using multiple matching strategies, any of which can succeed
-      const matchingFiles = allFiles.filter(file => {
-        const filePath = file.name;
-        const fileName = filePath.split('/').pop() || '';
-        
-        // Skip non-drawing files (not PDF, DWG, DXF)
-        if (!filePath.toLowerCase().endsWith('.pdf') && 
-            !filePath.toLowerCase().endsWith('.dwg') && 
-            !filePath.toLowerCase().endsWith('.dxf')) {
-          return false;
-        }
-        
-        // Check multiple matching patterns
-        const drawingNoLower = drawingNo.toString().toLowerCase();
-        
-        // 1. Direct filename match (e.g., "4906001001001000.pdf")
-        const fileMatch = fileName.toLowerCase() === `${drawingNoLower}.pdf` || 
-                          fileName.toLowerCase() === `${drawingNoLower}.dwg` || 
-                          fileName.toLowerCase() === `${drawingNoLower}.dxf`;
-        
-        // 2. Revision pattern match (e.g., "4906001001001000_R1.pdf")
-        const revMatch = fileName.toLowerCase().startsWith(`${drawingNoLower}_r`);
-        
-        // 3. Path contains drawing number (e.g., "/4906001001001000/")
-        const pathMatch = filePath.toLowerCase().includes(`/${drawingNoLower}/`);
-        
-        // 4. Looser matching (any occurrence of drawing number in path)
-        const looseMatch = filePath.toLowerCase().includes(drawingNoLower);
-        
-        // Log matches to help with debugging
-        if (fileMatch || revMatch || pathMatch || looseMatch) {
-          console.log(`[DRAWING-NEW] MATCH! ${file.name}: fileMatch=${fileMatch}, revMatch=${revMatch}, pathMatch=${pathMatch}, looseMatch=${looseMatch}`);
-        }
-        
-        return fileMatch || revMatch || pathMatch || looseMatch;
-      });
-      
-      console.log(`[DRAWING-NEW] Found ${matchingFiles.length} matching drawing files for ${drawingNo}`);
-      
-      // Process the matching files to return in a consistent format
-      const processedFiles = matchingFiles.map(file => {
-        const filePath = file.name;
-        const fileName = filePath.split('/').pop() || '';
-        
-        // Try to extract revision from filename (e.g., "4906001001001000_R1.pdf" -> "1")
-        let revision = 'N/A';
-        const revMatch = fileName.match(/_R(\d+)\.(?:pdf|dwg|dxf)$/i);
-        if (revMatch && revMatch[1]) {
-          revision = revMatch[1];
-        }
-        
-        // Determine file type from extension
-        const fileType = fileName.toLowerCase().endsWith('.pdf') ? 'PDF' : 
-                         fileName.toLowerCase().endsWith('.dwg') ? 'DWG' : 
-                         fileName.toLowerCase().endsWith('.dxf') ? 'DXF' : 'Unknown';
-        
-        return {
-          name: fileName,
-          path: filePath,
-          contentType: file.metadata.contentType || 'application/pdf',
-          size: file.metadata.size || 0,
-          updated: file.metadata.updated || new Date().toISOString(),
-          created: file.metadata.timeCreated || new Date().toISOString(),
-          drawingNo: drawingNo.toString(),
-          fileType: fileType,
-          revision: revision,
-          uploadDate: file.metadata.timeCreated || new Date().toISOString(),
-          description: `Drawing ${drawingNo}${revision !== 'N/A' ? ` - Rev ${revision}` : ''}`
-        };
-      });
-      
-      // If no matching files found, try an ultra-aggressive approach
-      // Returns a few PDF files regardless of matching, as a last resort
-      if (processedFiles.length === 0) {
-        console.log(`[DRAWING-NEW] No exact matches found, trying ULTRA-AGGRESSIVE mode as last resort`);
-        
-        if (allPdfFiles.length > 0) {
-          console.log(`[DRAWING-NEW] ULTRA-AGGRESSIVE: Returning up to 5 PDF files from bucket`);
-          
-          // Return up to 5 PDF files as a desperate measure
-          const aggressiveFiles = allPdfFiles.slice(0, 5).map(file => {
-            const filePath = file.name;
-            const fileName = filePath.split('/').pop() || '';
-            
-            return {
-              name: fileName,
-              path: filePath,
-              contentType: file.metadata.contentType || 'application/pdf',
-              size: file.metadata.size || 0,
-              updated: file.metadata.updated || new Date().toISOString(),
-              created: file.metadata.timeCreated || new Date().toISOString(),
-              drawingNo: drawingNo.toString(),
-              fileType: 'PDF',
-              revision: 'N/A',
-              uploadDate: file.metadata.timeCreated || new Date().toISOString(),
-              description: `Drawing file: ${fileName}`
-            };
-          });
-          
-          return res.status(200).json(aggressiveFiles);
-        }
-      }
-      
-      return res.status(200).json(processedFiles);
-    } catch (error) {
-      console.error('[DRAWING-NEW] Error finding drawings:', error);
-      res.status(500).json({ error: 'Failed to find drawings' });
-    }
-  });
-  
-  /**
-   * Generate upload URL for a file
-            console.log(`[DRAWING-ALL-DEBUG] Drawing file found: ${filePath}`);
-            
-            // Different pattern matching approaches
-            const exactMatch = 
-              fileName.toLowerCase() === `${drawingNo.toString().toLowerCase()}.pdf` || 
-              fileName.toLowerCase() === `${drawingNo.toString().toLowerCase()}.dwg` || 
-              fileName.toLowerCase() === `${drawingNo.toString().toLowerCase()}.dxf`;
-            
-            const revisionMatch = fileName.toLowerCase().startsWith(`${drawingNo.toString().toLowerCase()}_r`);
-            
-            const pathMatch = filePath.toLowerCase().includes(`/${drawingNo.toString().toLowerCase()}/`);
-            
-            // More aggressive search - any occurrence of the drawing number in the path
-            const looseMatch = filePath.toLowerCase().includes(drawingNo.toString().toLowerCase());
-            
-            // Extremely aggressive - just return any PDF files for testing
-            const superLooseMatch = true; // Always match for now, to see what files exist
-            
-            console.log(`[DRAWING-MATCH-DEBUG] File: ${fileName}, DrawingNo: ${drawingNo}`);
-            console.log(`[DRAWING-MATCH-DEBUG] exactMatch: ${exactMatch}, revisionMatch: ${revisionMatch}, pathMatch: ${pathMatch}, looseMatch: ${looseMatch}, superLooseMatch: ${superLooseMatch}`);
-            
-            const isMatch = exactMatch || revisionMatch || pathMatch || looseMatch || superLooseMatch;
-            
-            if (isMatch) {
-              console.log(`[DRAWING-DEBUG] Found match: ${filePath} for ${drawingNo}`);
-            }
-            
-            return isMatch;
-          }).map(file => ({
-            name: file.name.split("/").pop() || "",
-            path: file.name,
-            contentType: file.metadata.contentType,
-            size: file.metadata.size,
-            updated: file.metadata.updated,
-            created: file.metadata.timeCreated,
-            isDirectory: false
-          }));
-          
-          console.log(`[DRAWING-DEBUG] Direct bucket search found ${matchingFiles.length} matching files for ${drawingNo}`);
-          
-          if (matchingFiles.length > 0) {
-            return res.status(200).json(matchingFiles);
-          }
-        } catch (err) {
-          console.error(`[DRAWING-DEBUG] Error with direct bucket search:`, err);
-        }
-      }
-      
-      return res.status(200).json(drawingFiles);
-    } catch (error) {
-      console.error('Error finding drawings:', error);
-      res.status(500).json({ error: 'Failed to find drawings' });
     }
   });
 
@@ -767,15 +464,10 @@ export function setupFileStorageRoutes(app: Router) {
       console.log(`File upload: Parameters - FY: ${financialYear}, Project: ${projectCode}, Dept: ${department}, SubDir: ${subDirectory || 'none'}`);
       
       // Check for drawing revision pattern in filename (e.g., 4823002002001000_R0.PDF)
-      const revisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/i); // Make case-insensitive
-      if (revisionMatch && (department === 'drawings' || department === 'drawing')) {
-        // Make the drawingNo uniform (trim whitespace, ensure consistent case)
-        const rawDrawingNo = revisionMatch[1];
-        const drawingNo = rawDrawingNo.trim();
-        const revisionStr = revisionMatch[2];
+      const revisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/);
+      if (revisionMatch && department === 'drawings') {
+        const [, drawingNo, revisionStr] = revisionMatch;
         const revisionNum = parseInt(revisionStr, 10);
-        
-        console.log(`Drawing upload detected: Drawing No: ${drawingNo}, Revision: ${revisionNum}`);
         
         // Check if this is a master item drawing by looking up the drawingNo in the database
         try {
@@ -813,13 +505,11 @@ export function setupFileStorageRoutes(app: Router) {
           );
           
           const existingRevisions = existingFiles.filter(file => {
-            // Only check files with the same drawing number pattern - case insensitive
-            const fileRevMatch = file.name.match(/(.+)_R(\d+)\.(.+)/i);
+            // Only check files with the same drawing number pattern
+            const fileRevMatch = file.name.match(/(.+)_R(\d+)\.(.+)/);
             if (fileRevMatch) {
-              const fileDrawingNo = fileRevMatch[1].trim().toLowerCase();
-              const fileRevStr = fileRevMatch[2];
-              console.log(`Checking existing file: ${file.name}, Drawing: ${fileDrawingNo}, Revision: ${fileRevStr}`);
-              return fileDrawingNo === drawingNo.toLowerCase() && parseInt(fileRevStr, 10) === revisionNum;
+              const [, fileDrawingNo, fileRevStr] = fileRevMatch;
+              return fileDrawingNo === drawingNo && parseInt(fileRevStr, 10) === revisionNum;
             }
             return false;
           });
@@ -848,9 +538,7 @@ export function setupFileStorageRoutes(app: Router) {
       console.log(`File upload: Generated storage path: ${storagePath}`);
       
       // Ensure the directory structure exists in GCS
-      const pathParts = storagePath.split('/');
-      pathParts.pop(); // Remove the file name
-      const dirPath = pathParts.join('/');
+      const dirPath = path.dirname(storagePath);
       
       // First, check for an existing directory record in the database
       const dirComponents = dirPath.split('/');
@@ -980,8 +668,8 @@ export function setupFileStorageRoutes(app: Router) {
             });
             
             // Update the master item's latest revision if this is a drawing file
-            const revisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/i); // Make case-insensitive
-            if (revisionMatch && (department === 'drawings' || department === 'drawing')) {
+            const revisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/);
+            if (revisionMatch && department === 'drawings') {
               const [, drawingNo, revisionStr] = revisionMatch;
               const revisionNum = parseInt(revisionStr, 10);
               
@@ -1029,7 +717,7 @@ export function setupFileStorageRoutes(app: Router) {
                   url: downloadUrl || '',
                   uploadedBy: req.user?.id as number,
                   size: req.file?.size || 0,
-                  format: fileName.includes('.') ? fileName.split('.').pop() || '' : '',
+                  format: path.extname(fileName).replace('.', ''),
                   isPublic: isPublic === 'true',
                   storagePath,
                   storageUrl: downloadUrl || null,
