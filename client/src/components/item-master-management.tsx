@@ -213,16 +213,42 @@ const ItemMasterManagement: React.FC = () => {
       
       try {
         console.log(`Searching in path: ${searchPath}`);
+        console.log(`Looking for drawing numbers: ${drawingNumbers.join(', ')}`);
         
-        // Use recursive search to find all files
-        const response = await fetch(`/api/storage/files?path=${encodeURIComponent(searchPath)}&recursive=true`);
-        
-        if (response.ok) {
-          const pathFiles = await response.json();
-          console.log(`Found ${pathFiles.length} total files in ${searchPath}`);
+        // First try our dedicated drawings API endpoint (more reliable)
+        for (const drawingNo of drawingNumbers) {
+          console.log(`Using dedicated drawings API endpoint for: ${drawingNo}`);
+          const drawingResponse = await fetch(`/api/storage/drawings?drawingNo=${encodeURIComponent(drawingNo)}`);
           
-          if (pathFiles.length > 0) {
-            allFoundFiles = [...pathFiles];
+          if (drawingResponse.ok) {
+            const drawingFiles = await drawingResponse.json();
+            console.log(`Found ${drawingFiles.length} drawing files for ${drawingNo} using dedicated API`);
+            
+            if (drawingFiles.length > 0) {
+              allFoundFiles = [...allFoundFiles, ...drawingFiles];
+              continue; // Skip the general file search for this drawing number
+            }
+          }
+          
+          // Fallback to general file search if dedicated endpoint returns no files
+          console.log(`Falling back to general file search for: ${drawingNo}`);
+        }
+        
+        // Fallback to old recursive search method to ensure backward compatibility
+        if (allFoundFiles.length === 0) {
+          console.log(`No files found with dedicated endpoint, using general file search as fallback`);
+          const response = await fetch(`/api/storage/files?path=${encodeURIComponent(searchPath)}&recursive=true`);
+          
+          if (response.ok) {
+            const pathFiles = await response.json();
+            console.log(`Found ${pathFiles.length} total files in ${searchPath}`);
+            
+            // Log first 3 files to see what paths look like in production
+            if (pathFiles.length > 0) {
+              const sampleFiles = pathFiles.slice(0, Math.min(3, pathFiles.length));
+              console.log('Sample files from API:', sampleFiles);
+              allFoundFiles = [...pathFiles];
+            }
           }
         }
       } catch (error) {

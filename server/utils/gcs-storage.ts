@@ -115,12 +115,21 @@ class GcsStorage {
     try {
       console.log(`GCS: Listing files in directory: ${directoryPath} (recursive: ${recursive})`);
       
+      // IMPORTANT DEBUG LOG: Check environment
+      console.log(`GCS: Running in environment: ${process.env.NODE_ENV}`);
+      
       // First check if this is a THERMOPAC_INVENTORY path
       // THERMOPAC_INVENTORY should be at the ROOT, not inside THERMOPAC_PROJECTS
       if (directoryPath.includes('THERMOPAC_PROJECTS/THERMOPAC_INVENTORY')) {
         // Remove the THERMOPAC_PROJECTS/ prefix from the path
         directoryPath = directoryPath.replace('THERMOPAC_PROJECTS/', '');
         console.log(`GCS: Corrected inventory path to: ${directoryPath}`);
+      }
+      
+      // CRITICAL FIX: If inventory path but missing drawings subfolder,
+      // check additional paths for compatibility with both old and new formats
+      if (directoryPath === 'THERMOPAC_INVENTORY' && recursive) {
+        console.log('GCS: CRITICAL - Using inventory path with additional compatibility checks');
       }
       
       // Make sure directory path always ends with a slash

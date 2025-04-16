@@ -314,6 +314,54 @@ export function setupFileStorageRoutes(app: Router) {
       res.status(500).json({ error: 'Failed to list files' });
     }
   });
+  
+  /**
+   * New endpoint specifically for finding drawings by drawing number
+   * More reliable than the general file search for drawings
+   */
+  app.get('/api/storage/drawings', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const drawingNo = req.query.drawingNo as string;
+      
+      if (!drawingNo) {
+        return res.status(400).json({ error: 'Drawing number parameter is required' });
+      }
+      
+      console.log(`Finding drawings for drawing number: ${drawingNo}`);
+      
+      // Search in standard inventory location
+      const inventoryPath = 'THERMOPAC_INVENTORY';
+      console.log(`Searching in inventory path: ${inventoryPath}`);
+      
+      // Get all files in inventory with recursive search
+      const files = await gcsStorage.listFiles(inventoryPath, true);
+      
+      // Filter files to only include drawings for this drawing number
+      const drawingFiles = files.filter(file => {
+        if (file.isDirectory) return false;
+        
+        const filePath = file.path || '';
+        // Various path patterns to check
+        return (
+          filePath.includes(`/${drawingNo}/`) || 
+          filePath.includes(`/drawings/${drawingNo}/`) || 
+          filePath.includes(`${inventoryPath}/${drawingNo}/`) || 
+          filePath.includes(`${inventoryPath}/${drawingNo}/drawings/`) || 
+          filePath.includes(`/${drawingNo}_`) || 
+          filePath.includes(`/drawings/${drawingNo}_`) || 
+          filePath.includes(`${drawingNo}_R`) ||
+          filePath.includes(drawingNo)
+        );
+      });
+      
+      console.log(`Found ${drawingFiles.length} drawing files for ${drawingNo}`);
+      
+      return res.status(200).json(drawingFiles);
+    } catch (error) {
+      console.error('Error finding drawings:', error);
+      res.status(500).json({ error: 'Failed to find drawings' });
+    }
+  });
 
   /**
    * Generate upload URL for a file
