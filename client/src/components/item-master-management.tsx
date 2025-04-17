@@ -1574,7 +1574,22 @@ const ItemMasterManagement: React.FC = () => {
                                 
                                 // Auto-populate the revision field with the next revision number
                                 const drawingNo = newSelectedItem.drawingNo || newSelectedItem.code;
-                                const latestRev = latestRevisions[drawingNo] || -1; // Start from -1 so first revision is 0
+                                
+                                // Try to get the latest revision from various sources
+                                let latestRev = -1;
+                                
+                                // First check if the item has a latestRevision field directly
+                                if (currentItem?.latestRevision !== undefined && currentItem?.latestRevision !== null) {
+                                  latestRev = currentItem!.latestRevision;
+                                  console.log(`Using parent item latestRevision from database: ${latestRev}`);
+                                } else if (latestRevisions[drawingNo] !== undefined) {
+                                  // Fallback to the state object
+                                  latestRev = latestRevisions[drawingNo];
+                                  console.log(`Using latestRevision from state cache: ${latestRev}`);
+                                } else {
+                                  console.log('No revision information found, defaulting to -1');
+                                }
+                                
                                 const nextRev = (latestRev + 1).toString();
                                 console.log(`Auto-populating revision for ${drawingNo}: Latest revision = ${latestRev}, Next revision = ${nextRev}`);
                                 setDrawingRevision(nextRev);
@@ -1591,7 +1606,22 @@ const ItemMasterManagement: React.FC = () => {
                                   
                                   // Auto-populate the revision field with the next revision number
                                   const drawingNo = newSelectedItem.drawingNo || newSelectedItem.code;
-                                  const latestRev = latestRevisions[drawingNo] || -1; // Start from -1 so first revision is 0
+                                  
+                                  // For components, we need to find the component's latest revision
+                                  let latestRev = -1;
+                                  
+                                  // First check if the component has a latestRevision field
+                                  if (component.latestRevision !== undefined && component.latestRevision !== null) {
+                                    latestRev = component.latestRevision;
+                                    console.log(`Using component latestRevision from database: ${latestRev}`);
+                                  } else if (latestRevisions[drawingNo] !== undefined) {
+                                    // Fallback to the state object
+                                    latestRev = latestRevisions[drawingNo];
+                                    console.log(`Using component latestRevision from state cache: ${latestRev}`);
+                                  } else {
+                                    console.log('No component revision information found, defaulting to -1');
+                                  }
+                                  
                                   const nextRev = (latestRev + 1).toString();
                                   console.log(`Auto-populating revision for component ${drawingNo}: Latest revision = ${latestRev}, Next revision = ${nextRev}`);
                                   setDrawingRevision(nextRev);
