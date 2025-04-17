@@ -38,7 +38,7 @@ export async function checkGcsPermissions(): Promise<{
       bucket: bucketName || '(not set)',
       error: undefined as any,
       credentials: {
-        type: null,
+        type: null as CredentialsType,
         projectId: null,
         privateKeyId: null,
         clientEmail: null,
@@ -57,7 +57,7 @@ export async function checkGcsPermissions(): Promise<{
         if (!credentialsStr.startsWith('{')) {
           console.error('GOOGLE_CLOUD_CREDENTIALS does not appear to be in JSON format.');
           result.details.credentials = {
-            type: 'invalid-format',
+            type: 'invalid-format' as CredentialsType,
             projectId: null,
             privateKeyId: null,
             clientEmail: null,
@@ -86,7 +86,7 @@ export async function checkGcsPermissions(): Promise<{
         console.log('Credentials string length:', process.env.GOOGLE_CLOUD_CREDENTIALS.length);
         // Store the parsing error
         result.details.credentials = {
-          type: 'parse-error',
+          type: 'parse-error' as CredentialsType,
           projectId: null,
           privateKeyId: null,
           clientEmail: null,
@@ -96,7 +96,7 @@ export async function checkGcsPermissions(): Promise<{
     } else {
       console.log('No GOOGLE_CLOUD_CREDENTIALS found in environment');
       result.details.credentials = {
-        type: 'missing',
+        type: 'missing' as CredentialsType,
         projectId: null,
         privateKeyId: null,
         clientEmail: null,
