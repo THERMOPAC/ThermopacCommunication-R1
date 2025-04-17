@@ -418,151 +418,16 @@ class GcsStorage {
     expirationMinutes?: number;
   }): Promise<string | null> {
     try {
-      console.log(`GCS: Generating download URL for file: ${filePath}`);
       const bucket = storage.bucket(bucketName);
-      
-      // Check if this is a drawing path
-      const isDrawingPath = 
-        filePath.includes('drawings/') || 
-        filePath.match(/_R\d+\.\w+$/i) || // Check for revision pattern
-        (filePath.includes('THERMOPAC_INVENTORY') && /\d{10,}/.test(filePath)) ||
-        /4\d{3}/.test(filePath); // Drawing numbers often start with 4 followed by digits
-        
-      // For drawing paths, we might need to try multiple locations
-      if (isDrawingPath) {
-        console.log(`GCS: Detected drawing path, will try multiple locations: ${filePath}`);
-        
-        // First check if the file exists at the exact path
-        const file = bucket.file(filePath);
-        const [exists] = await file.exists();
-        
-        if (exists) {
-          console.log(`GCS: Drawing file exists at exact path: ${filePath}`);
-          // Create signed URL with specified expiration
-          const [url] = await file.getSignedUrl({
-            version: 'v4',
-            action: 'read',
-            expires: Date.now() + expirationMinutes * 60 * 1000
-          });
-          return url;
-        }
-        
-        // If file doesn't exist, try to extract drawing number and revision
-        console.log(`GCS: Drawing file not found at exact path, trying alternative paths`);
-        let drawingNumber = null;
-        let revision = null;
-        
-        // Try to extract drawing number and revision from filename
-        // Pattern: {drawingNo}_R{revision}.{extension}
-        const drawingRevMatch = path.basename(filePath).match(/^(.+?)_R(\d+)\.\w+$/i);
-        if (drawingRevMatch && drawingRevMatch[1] && drawingRevMatch[2]) {
-          drawingNumber = drawingRevMatch[1];
-          revision = drawingRevMatch[2];
-          console.log(`GCS: Extracted drawing number ${drawingNumber} and revision ${revision} from filename`);
-        } else {
-          // Try to extract just the drawing number from the path
-          const numMatch = filePath.match(/(\d{4,})/);
-          if (numMatch && numMatch[1]) {
-            drawingNumber = numMatch[1];
-            console.log(`GCS: Extracted drawing number ${drawingNumber} from path`);
-            
-            // Try to extract revision from filename if not already found
-            const revMatch = path.basename(filePath).match(/_R(\d+)/i);
-            if (revMatch && revMatch[1]) {
-              revision = revMatch[1];
-              console.log(`GCS: Extracted revision ${revision} from filename`);
-            }
-          }
-        }
-        
-        // If we found both drawing number and revision, try alternative paths
-        if (drawingNumber) {
-          // List of paths to try in order of most likely to least likely
-          const pathsToTry = [
-            // Main path format: THERMOPAC_INVENTORY/{drawingNo}/{drawingNo}_R{revision}.{extension}
-            `THERMOPAC_INVENTORY/${drawingNumber}/${path.basename(filePath)}`,
-            // Legacy/alternative formats
-            `THERMOPAC_INVENTORY/drawings/${drawingNumber}/${path.basename(filePath)}`,
-            `THERMOPAC_PROJECTS/drawings/${drawingNumber}/${path.basename(filePath)}`,
-            // If there is a mismatch between drawing number in path vs filename
-            `THERMOPAC_INVENTORY/${drawingNumber}/${drawingNumber}_R${revision || '1'}.pdf`
-          ];
-          
-          console.log(`GCS: Trying alternative drawing paths: ${pathsToTry.join(', ')}`);
-          
-          // Try each path
-          for (const pathToTry of pathsToTry) {
-            if (pathToTry !== filePath) { // Skip the original path we already checked
-              const alternativeFile = bucket.file(pathToTry);
-              const [alternativeExists] = await alternativeFile.exists();
-              
-              if (alternativeExists) {
-                console.log(`GCS: Found drawing at alternative path: ${pathToTry}`);
-                // Generate signed URL for the alternative file
-                const [url] = await alternativeFile.getSignedUrl({
-                  version: 'v4',
-                  action: 'read',
-                  expires: Date.now() + expirationMinutes * 60 * 1000
-                });
-                return url;
-              }
-            }
-          }
-          
-          // If all specific paths failed, try a broader search if we have a drawing number
-          console.log(`GCS: Specific paths failed, trying broader search for drawing ${drawingNumber}`);
-          // Use listFiles to find relevant drawing files
-          const [allFiles] = await bucket.getFiles({
-            prefix: '' // Empty prefix to search entire bucket
-          });
-          
-          // Filter to only include files related to this drawing number
-          const relevantFiles = allFiles.filter(file => {
-            const fileName = file.name;
-            // Check for drawing number in the path or filename
-            const hasDrawingNumber = fileName.includes(drawingNumber);
-            // Check for revision number in the filename if specified
-            const hasRevision = !revision || fileName.includes(`_R${revision}`);
-            return hasDrawingNumber && hasRevision &&
-                   !fileName.endsWith('/.keep') &&
-                   !fileName.endsWith('/');
-          });
-          
-          if (relevantFiles.length > 0) {
-            console.log(`GCS: Found ${relevantFiles.length} relevant drawing files in bucket-wide search`);
-            // Get URL for the first matching file
-            const firstMatch = relevantFiles[0];
-            const [url] = await firstMatch.getSignedUrl({
-              version: 'v4',
-              action: 'read',
-              expires: Date.now() + expirationMinutes * 60 * 1000
-            });
-            return url;
-          }
-        }
-        
-        console.log(`GCS: Could not find drawing file in any location for ${filePath}`);
-        return null;
-      }
-      
-      // For non-drawing files, use the standard path
       const file = bucket.file(filePath);
       
-      // Check if file exists
-      const [exists] = await file.exists();
-      if (!exists) {
-        console.log(`GCS: File does not exist at path: ${filePath}`);
-        return null;
-      }
-      
-      // Create signed URL with specified expiration
+      // Create signed URL with specified expiration (default 15 minutes)
       const [url] = await file.getSignedUrl({
         version: 'v4',
         action: 'read',
         expires: Date.now() + expirationMinutes * 60 * 1000
       });
       
-      console.log(`GCS: Successfully generated download URL for file: ${filePath}`);
       return url;
     } catch (error) {
       console.error('Error generating download URL:', error);
@@ -575,100 +440,26 @@ class GcsStorage {
    */
   async deleteFile(filePath: string): Promise<boolean> {
     try {
-      console.log(`GCS: Attempting to delete file: ${filePath}`);
       const bucket = storage.bucket(bucketName);
-      
-      // Check if this is a drawing path - similar logic to download URL generation
-      const isDrawingPath = 
-        filePath.includes('drawings/') || 
-        filePath.match(/_R\d+\.\w+$/i) || // Check for revision pattern
-        (filePath.includes('THERMOPAC_INVENTORY') && /\d{10,}/.test(filePath)) ||
-        /4\d{3}/.test(filePath);
-      
-      // For standard files, use direct deletion
-      if (!isDrawingPath) {
-        const file = bucket.file(filePath);
-        
-        // Check if file exists
-        const [exists] = await file.exists();
-        if (!exists) {
-          console.log(`GCS: File does not exist at path: ${filePath}`);
-          return false;
-        }
-        
-        // Delete the file
-        await file.delete();
-        console.log(`GCS: Successfully deleted file: ${filePath}`);
-        return true;
-      }
-      
-      // For drawing files, follow similar logic to our download URL method
-      console.log(`GCS: Detected drawing path, will try multiple locations: ${filePath}`);
-      
-      // First try the exact path
       const file = bucket.file(filePath);
+      
+      // Check if file exists
       const [exists] = await file.exists();
-      if (exists) {
-        await file.delete();
-        console.log(`GCS: Successfully deleted drawing at exact path: ${filePath}`);
-        return true;
+      if (!exists) {
+        console.warn(`File does not exist: ${filePath}`);
+        return false;
       }
       
-      // Try to extract drawing number and revision
-      let drawingNumber = null;
-      let revision = null;
+      // Delete the file
+      await file.delete();
       
-      // Try to extract drawing number and revision from filename
-      const drawingRevMatch = path.basename(filePath).match(/^(.+?)_R(\d+)\.\w+$/i);
-      if (drawingRevMatch && drawingRevMatch[1] && drawingRevMatch[2]) {
-        drawingNumber = drawingRevMatch[1];
-        revision = drawingRevMatch[2];
-      } else {
-        // Try to extract just the drawing number from the path
-        const numMatch = filePath.match(/(\d{4,})/);
-        if (numMatch && numMatch[1]) {
-          drawingNumber = numMatch[1];
-          
-          // Try to extract revision from filename if not already found
-          const revMatch = path.basename(filePath).match(/_R(\d+)/i);
-          if (revMatch && revMatch[1]) {
-            revision = revMatch[1];
-          }
-        }
-      }
-      
-      // If we extracted a drawing number, try alternative paths
-      if (drawingNumber) {
-        // List of paths to try in order of most likely to least likely
-        const pathsToTry = [
-          `THERMOPAC_INVENTORY/${drawingNumber}/${path.basename(filePath)}`,
-          `THERMOPAC_INVENTORY/drawings/${drawingNumber}/${path.basename(filePath)}`,
-          `THERMOPAC_PROJECTS/drawings/${drawingNumber}/${path.basename(filePath)}`
-        ];
-        
-        // Try each path
-        for (const pathToTry of pathsToTry) {
-          if (pathToTry !== filePath) { // Skip the original path we already checked
-            const alternativeFile = bucket.file(pathToTry);
-            const [alternativeExists] = await alternativeFile.exists();
-            
-            if (alternativeExists) {
-              await alternativeFile.delete();
-              console.log(`GCS: Successfully deleted drawing at alternative path: ${pathToTry}`);
-              return true;
-            }
-          }
-        }
-      }
-      
-      console.log(`GCS: Could not find drawing file to delete in any location for ${filePath}`);
-      return false;
+      return true;
     } catch (error) {
       console.error('Error deleting file:', error);
       return false;
     }
   }
-  
+
   /**
    * Direct upload function for better error handling and debugging
    * This is an alternative to using the signed URL approach and
@@ -705,148 +496,51 @@ class GcsStorage {
         console.log(`Direct upload: Bucket ${bucketName} exists and is accessible`);
       } catch (bucketError: any) {
         console.error(`Direct upload: Bucket check failed: ${bucketError.message}`);
-        throw new Error(`Failed to access bucket ${bucketName}: ${bucketError.message}`);
+        return { success: false, error: bucketError };
       }
       
-      const file = bucket.file(filePath);
-      
-      // Create directory if needed
-      const dirPath = path.dirname(filePath);
-      await this.ensureDirectoryStructure(dirPath);
-      
-      // Validate input
-      if (!buffer || buffer.length === 0) {
-        throw new Error('Upload buffer is empty or undefined');
-      }
-      
-      if (!contentType) {
-        console.warn('Content type not provided, using application/octet-stream');
-        contentType = 'application/octet-stream';
-      }
-      
-      // Upload with promise-based approach instead of streams
-      console.log(`Direct upload: Uploading ${buffer.length} bytes with content type ${contentType}`);
-      
-      // Use a retry mechanism for the file upload
-      const maxRetries = 3;
-      let attempt = 0;
-      let lastError = null;
-      
-      while (attempt < maxRetries) {
+      // Ensure directory structure exists
+      const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+      if (dirPath) {
         try {
-          // Use the Storage API's upload method with proper error handling
-          await file.save(buffer, {
-            contentType,
-            metadata: {
-              contentType,
-              cacheControl: 'private, max-age=0'
-            },
-            resumable: false // Use non-resumable upload for smaller files to avoid timeout issues
-          });
-          
-          // If we get here, the upload succeeded
-          console.log(`Direct upload: Upload complete on attempt ${attempt + 1}`);
-          break;
-        } catch (uploadError: any) {
-          lastError = uploadError;
-          attempt++;
-          
-          if (attempt < maxRetries) {
-            const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
-            console.log(`Direct upload: Attempt ${attempt} failed, retrying in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          } else {
-            console.error(`Direct upload: All ${maxRetries} attempts failed, giving up`);
-            throw uploadError;
-          }
+          await this.ensureDirectoryStructure(dirPath);
+        } catch (dirError) {
+          console.warn(`Direct upload: Warning - Failed to create directory structure: ${dirError}`);
+          // Continue with upload anyway as GCS doesn't require directories
         }
       }
       
-      console.log(`Direct upload: Upload complete, generating download URL`);
-      
-      // Generate a temporary download URL
-      const downloadUrl = await this.generateDownloadSignedUrl({
-        filePath,
-        expirationMinutes: 60 // 1 hour
+      // Upload the file
+      const file = bucket.file(filePath);
+      await file.save(buffer, {
+        contentType,
+        metadata: {
+          contentType,
+          cacheControl: 'public, max-age=31536000', // Cache for 1 year
+        },
       });
       
-      return { 
-        success: true, 
-        url: downloadUrl || undefined 
-      };
+      console.log('Direct upload: File uploaded successfully');
+      
+      // Generate a signed URL for immediate access
+      const [url] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+      });
+      
+      return { success: true, url };
     } catch (error: any) {
-      console.error('Direct upload error:', error);
-      
-      // Classify error for more intelligent retry decisions
-      const isNetworkError = error.message && (
-        error.message.includes('ECONNRESET') ||
-        error.message.includes('ETIMEDOUT') ||
-        error.message.includes('ENETUNREACH') ||
-        error.message.includes('ENOTFOUND') ||
-        error.message.includes('socket hang up') ||
-        error.message.includes('connection') ||
-        error.message.includes('network')
-      );
-      
-      const isRateLimitError = error.code === 429 || 
-        (error.message && (
-          error.message.includes('Too many requests') || 
-          error.message.includes('rate limit')
-        ));
-      
-      const isTimeoutError = error.message && (
-        error.message.includes('timeout') || 
-        error.message.includes('timed out')
-      );
-      
-      const isPermissionError = error.code === 403 || 
-        (error.message && (
-          error.message.includes('permission') || 
-          error.message.includes('access denied')
-        ));
-        
-      const isNotFoundError = error.code === 404 || 
-        (error.message && error.message.includes('not found'));
-      
-      const isAuthError = error.message && (
-        error.message.includes('authentication') || 
-        error.message.includes('credentials') || 
-        error.message.includes('auth')
-      );
-      
-      // Determine if this error is retriable
-      const shouldRetry = isNetworkError || isRateLimitError || isTimeoutError || 
-        // Server errors (5xx) are generally retriable
-        (error.code >= 500 && error.code < 600);
-      
-      // Calculate suggested retry delay based on error type
-      let retryDelay = 0;
-      if (shouldRetry) {
-        if (isRateLimitError) {
-          retryDelay = 10000; // 10 seconds for rate limits
-        } else if (isTimeoutError) {
-          retryDelay = 5000;  // 5 seconds for timeouts
-        } else if (isNetworkError) {
-          retryDelay = 3000;  // 3 seconds for network errors
-        } else {
-          retryDelay = 5000;  // 5 seconds default for other retriable errors
-        }
-      }
-      
-      // Build enhanced error details
+      // Compile detailed error information for debugging
       const errorDetails = {
-        message: error.message || 'Unknown error',
+        message: error.message,
         code: error.code,
         stack: error.stack,
-        details: JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
-        shouldRetry,
-        retryDelay,
-        errorType: isNetworkError ? 'network' : 
-                   isRateLimitError ? 'rate_limit' : 
-                   isTimeoutError ? 'timeout' : 
-                   isPermissionError ? 'permission' : 
-                   isNotFoundError ? 'not_found' :
-                   isAuthError ? 'authentication' : 'other'
+        path: filePath,
+        bucketName,
+        environment: process.env.NODE_ENV || 'development',
+        envBucketName: process.env.GOOGLE_CLOUD_BUCKET,
+        hasProjectId: !!process.env.GOOGLE_CLOUD_PROJECT_ID,
+        hasCredentials: !!process.env.GOOGLE_CLOUD_CREDENTIALS
       };
       
       // Log comprehensive error information
@@ -855,6 +549,153 @@ class GcsStorage {
       return { 
         success: false, 
         error: errorDetails
+      };
+    }
+  }
+
+  /**
+   * Enhanced upload function with better diagnostics for drawing uploads
+   * This is a specialized version for drawing uploads with detailed diagnostics
+   * to help troubleshoot environment-specific issues
+   */
+  async uploadFile(filePath: string, buffer: Buffer, contentType: string): Promise<{ 
+    successful: boolean; 
+    error?: any; 
+    url?: string;
+    path?: string;
+    bucketDetails?: any;
+    environment?: string;
+  }> {
+    console.log(`GCS: Starting upload to path: ${filePath}`);
+    console.log(`GCS: Environment: ${process.env.NODE_ENV || 'development'}`);
+    
+    try {
+      // Validate bucket name is properly configured
+      if (!bucketName) {
+        console.error('GCS bucket name is not configured');
+        return { 
+          successful: false, 
+          error: new Error('GCS bucket name is not configured. Please check GOOGLE_CLOUD_BUCKET environment variable.'),
+          environment: process.env.NODE_ENV,
+          bucketDetails: {
+            configuredName: bucketName,
+            envVar: process.env.GOOGLE_CLOUD_BUCKET || '(not set)'
+          }
+        };
+      }
+      
+      console.log(`GCS: Using bucket: ${bucketName}`);
+      
+      // Get bucket and file references
+      const bucket = storage.bucket(bucketName);
+      const file = bucket.file(filePath);
+      
+      // Check if the bucket exists and is accessible
+      try {
+        const [exists] = await bucket.exists();
+        if (!exists) {
+          console.error(`Bucket ${bucketName} does not exist or is not accessible`);
+          return { 
+            successful: false, 
+            error: new Error(`Bucket ${bucketName} does not exist or is not accessible`),
+            environment: process.env.NODE_ENV,
+            bucketDetails: {
+              name: bucketName,
+              exists: exists,
+              projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || '(not set)'
+            }
+          };
+        }
+        console.log(`GCS: Bucket ${bucketName} exists and is accessible`);
+      } catch (bucketError: any) {
+        console.error(`GCS: Bucket check failed: ${bucketError.message}`);
+        return {
+          successful: false,
+          error: bucketError,
+          environment: process.env.NODE_ENV,
+          bucketDetails: {
+            name: bucketName,
+            projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || '(not set)'
+          }
+        };
+      }
+      
+      // Ensure parent directory exists
+      const dirPath = filePath.substring(0, filePath.lastIndexOf('/'));
+      if (dirPath) {
+        console.log(`GCS: Ensuring directory structure exists: ${dirPath}`);
+        try {
+          await this.ensureDirectoryStructure(dirPath);
+        } catch (dirError) {
+          console.warn(`GCS: Warning - Failed to create directory structure: ${dirError}`);
+          // Continue with upload anyway, Google Storage doesn't require directories
+        }
+      }
+      
+      // Upload the file
+      console.log(`GCS: Uploading file to: ${filePath}`);
+      
+      try {
+        await file.save(buffer, {
+          contentType,
+          metadata: {
+            contentType,
+            cacheControl: 'public, max-age=31536000', // Cache for 1 year
+          },
+        });
+        
+        console.log('GCS: File uploaded successfully');
+        
+        // Generate a signed URL for immediate access
+        const [url] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+        });
+        
+        return { 
+          successful: true, 
+          url,
+          path: filePath,
+          environment: process.env.NODE_ENV,
+          bucketDetails: {
+            name: bucketName,
+            projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
+          }
+        };
+      } catch (uploadError: any) {
+        console.error(`GCS: Upload failed: ${uploadError.message}`);
+        console.error('GCS: Upload error stack:', uploadError.stack);
+        
+        // Handle specific error types
+        const errorData: any = {
+          message: uploadError.message,
+          code: uploadError.code,
+          stack: uploadError.stack
+        };
+        
+        return { 
+          successful: false, 
+          error: errorData,
+          path: filePath,
+          environment: process.env.NODE_ENV,
+          bucketDetails: {
+            name: bucketName,
+            configuredName: process.env.GOOGLE_CLOUD_BUCKET,
+            projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
+          }
+        };
+      }
+    } catch (error: any) {
+      console.error('GCS: Unexpected error during upload:', error);
+      return { 
+        successful: false, 
+        error,
+        environment: process.env.NODE_ENV,
+        bucketDetails: {
+          name: bucketName,
+          envVar: process.env.GOOGLE_CLOUD_BUCKET || '(not set)',
+          projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || '(not set)'
+        }
       };
     }
   }

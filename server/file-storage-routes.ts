@@ -698,37 +698,89 @@ export function setupFileStorageRoutes(app: Router) {
       
       console.log(`Processing upload for file: ${fileName}, size: ${req.file.size} bytes, type: ${req.file.mimetype}`);
       
-      // Use our new direct upload function instead of streams
-      const uploadResult = await gcsStorage.uploadFileDirectly({
-        filePath: storagePath,
-        buffer: req.file.buffer,
-        contentType: req.file.mimetype
-      });
+      // Upload with our enhanced upload function that has better error handling
+      console.log(`Uploading file to ${storagePath} using uploadFileWithDiagnostics method`);
       
-      if (!uploadResult.success) {
-        console.error('Direct upload failed:', JSON.stringify(uploadResult.error, null, 2));
+      // Import the enhanced upload function
+      const { uploadFileWithDiagnostics } = require('./utils/gcs-enhanced-upload');
+      
+      // Use the enhanced upload function for better diagnostics
+      const uploadResponse = await uploadFileWithDiagnostics(storagePath, req.file.buffer, req.file.mimetype);
+      
+      if (!uploadResponse.successful) {
+        console.error('File upload failed:', JSON.stringify({
+          error: uploadResponse.error,
+          path: uploadResponse.path,
+          environment: uploadResponse.environment,
+          bucketDetails: uploadResponse.bucketDetails
+        }, null, 2));
         
         // Import the bucketName from storage-config
         const { bucketName } = require('./utils/storage-config');
         
-        // Provide more specific error information based on the error type
-        if (uploadResult.error?.code === 403) {
-          throw new Error(`Permission denied uploading to ${storagePath}. Please verify GCS credentials and permissions.`);
-        } else if (uploadResult.error?.code === 404) {
-          throw new Error(`Bucket not found: ${bucketName}. Please verify the bucket name is correct.`);
-        } else if (uploadResult.error?.message?.includes('cannot be authenticated')) {
-          throw new Error('Google Cloud Storage authentication failed. Please check your credentials.');
-        } else if (uploadResult.error?.message?.includes('ECONNRESET') || 
-                  uploadResult.error?.message?.includes('ETIMEDOUT') ||
-                  uploadResult.error?.message?.includes('network error')) {
-          throw new Error('Network error while uploading file. Please try again.');
-        } else {
-          throw new Error(`Upload failed: ${uploadResult.error?.message || 'Unknown error'}`);
+        // Determine if this is a typo or misconfiguration in the bucket name
+        let suggestedFix = '';
+        if (uploadResponse.bucketDetails?.configuredName !== uploadResponse.bucketDetails?.envVar &&
+            uploadResponse.bucketDetails?.envVar?.includes('thermopac_s')) {
+          suggestedFix = ` The environment variable GOOGLE_CLOUD_BUCKET has a typo: "${uploadResponse.bucketDetails.envVar}". Using "${uploadResponse.bucketDetails.name}" instead.`;
         }
+        
+        // Prepare error message based on the error type
+        let errorMessage = 'Failed to upload file';
+        let errorDetails = '';
+        let errorSuggestion = '';
+        let shouldRetry = false;
+        
+        // Handle different error types
+        if (uploadResponse.error?.code === 403) {
+          errorMessage = 'Permission denied';
+          errorDetails = `Access denied when uploading to ${storagePath}.${suggestedFix}`;
+          errorSuggestion = 'Please verify GCS credentials and permissions.';
+          shouldRetry = false;
+        } else if (uploadResponse.error?.code === 404) {
+          errorMessage = 'Bucket not found';
+          errorDetails = `Bucket "${bucketName}" does not exist or is not accessible.${suggestedFix}`;
+          errorSuggestion = 'Please verify the bucket name is correct in the environment configuration.';
+          shouldRetry = false;
+        } else if (uploadResponse.error?.message?.includes('cannot be authenticated')) {
+          errorMessage = 'Authentication failed';
+          errorDetails = `GCS credentials could not be authenticated.${suggestedFix}`;
+          errorSuggestion = 'Please check your Google Cloud credentials.';
+          shouldRetry = false;
+        } else if (
+          uploadResponse.error?.message?.includes('ECONNRESET') || 
+          uploadResponse.error?.message?.includes('ETIMEDOUT') ||
+          uploadResponse.error?.message?.includes('network error') ||
+          uploadResponse.error?.message?.includes('timeout')
+        ) {
+          errorMessage = 'Network error';
+          errorDetails = `A network error occurred while uploading the file: ${uploadResponse.error.message}`;
+          errorSuggestion = 'This may be a temporary issue. Please try again.';
+          shouldRetry = true;
+        } else {
+          errorMessage = 'Upload failed';
+          errorDetails = uploadResponse.error?.message || 'Unknown error occurred during upload';
+          errorSuggestion = 'Please try again or contact support if the issue persists.';
+          shouldRetry = true;
+        }
+        
+        // Enhanced error response with detailed information
+        return res.status(500).json({
+          error: errorMessage,
+          details: errorDetails,
+          suggestion: errorSuggestion,
+          environment: process.env.NODE_ENV || 'development',
+          shouldRetry,
+          bucketInfo: suggestedFix ? { 
+            current: uploadResponse.bucketDetails?.envVar,
+            corrected: uploadResponse.bucketDetails?.name
+          } : undefined,
+          path: storagePath
+        });
       }
       
-      console.log('Direct upload successful, download URL:', uploadResult.url);
-      const downloadUrl = uploadResult.url;
+      console.log('Upload successful, download URL:', uploadResponse.url);
+      const downloadUrl = uploadResponse.url;
       
       // Update the master item's latest revision if this is a drawing file
       const fileRevisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/);
