@@ -1879,28 +1879,48 @@ const ItemMasterManagement: React.FC = () => {
                             (async () => {
                               try {
                                 console.log('Uploading drawing with fetch...');
+                                // Log the FormData contents for debugging
+                                for (const pair of formData.entries()) {
+                                  console.log(`FormData field: ${pair[0]}, value: ${typeof pair[1] === 'object' ? 'File: ' + (pair[1] as File).name : pair[1]}`);
+                                }
+                                
                                 const response = await fetch('/api/storage/upload', {
                                   method: 'POST',
                                   body: formData
                                 });
                                 
+                                // Log the full response for debugging
+                                console.log('Upload response status:', response.status, response.statusText);
+                                
                                 if (!response.ok) {
                                   // Try to parse the error details from the response
-                                  const errorData = await response.json().catch(() => ({}));
+                                  const errorText = await response.text();
+                                  console.error('Upload error response text:', errorText);
                                   
-                                  if (errorData.error) {
+                                  let errorData = {};
+                                  try {
+                                    // Try to parse as JSON if possible
+                                    errorData = JSON.parse(errorText);
+                                    console.log('Parsed error data:', errorData);
+                                  } catch (parseError) {
+                                    console.log('Error is not in JSON format:', parseError);
+                                  }
+                                  
+                                  if (errorData && (errorData as any).error) {
                                     // Handle specific error cases like duplicate drawing revisions
-                                    if (response.status === 409 && errorData.suggestedRevision !== undefined) {
+                                    if (response.status === 409 && (errorData as any).suggestedRevision !== undefined) {
                                       // Update the revision field with the suggested revision
-                                      setDrawingRevision(errorData.suggestedRevision.toString());
+                                      setDrawingRevision((errorData as any).suggestedRevision.toString());
                                       
                                       // Show a helpful error message
-                                      throw new Error(`${errorData.error} Please use revision ${errorData.suggestedRevision}.`);
+                                      throw new Error(`${(errorData as any).error} Please use revision ${(errorData as any).suggestedRevision}.`);
                                     } else {
-                                      throw new Error(errorData.error);
+                                      throw new Error((errorData as any).error);
                                     }
                                   }
-                                  throw new Error(`Upload failed with status: ${response.status}`);
+                                  
+                                  // Generic error with more details
+                                  throw new Error(`Upload failed with status: ${response.status} ${response.statusText}. ${errorText.substring(0, 100)}...`);
                                 }
                                 
                                 console.log('Upload successful');
