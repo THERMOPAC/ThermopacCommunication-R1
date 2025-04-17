@@ -69,127 +69,235 @@ const ItemFileStorage: React.FC<ItemFileStorageProps> = ({ itemId, itemCode }) =
   const [uploadRetryCount, setUploadRetryCount] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryTimeout, setRetryTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [lastUploadError, setLastUploadError] = useState<{error: string, shouldRetry: boolean, retryDelay?: number} | null>(null);
+  const [lastUploadError, setLastUploadError] = useState<{
+    error: string,
+    details?: string, 
+    suggestion?: string,
+    errorType?: string,
+    shouldRetry: boolean, 
+    retryDelay?: number
+  } | null>(null);
   
   // Maximum retry attempts
   const MAX_RETRIES = 3;
 
-  // Mutation to upload a file
+  // Enhanced file upload utility function with improved retry and error handling
+  const uploadWithRetry = async (file: File, attempt: number = 0): Promise<any> => {
+    console.log(`Uploading file (attempt ${attempt + 1}): ${file.name} (${formatFileSize(file.size)}) to ${currentPath}`);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('path', currentPath);
+      
+      // Log detailed information about what we're uploading for better debugging
+      console.log(`Upload details:
+        - File: ${file.name} (${file.size} bytes, ${file.type})
+        - Path: ${currentPath}
+        - Attempt: ${attempt + 1} of ${MAX_RETRIES + 1}
+      `);
+      
+      // Use server-side upload endpoint for more robust error handling
+      const response = await fetch('/api/storage/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      // Parse response even if it's an error
+      let data;
+      let errorMessage;
+      
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        // If we can't parse JSON, try to get text
+        const text = await response.text();
+        errorMessage = `Failed to parse server response: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`;
+        
+        // Create a structured error object anyway
+        throw {
+          message: errorMessage,
+          status: response.status,
+          shouldRetry: response.status >= 500 || response.status === 429,
+          retryDelay: 5000,
+          errorType: 'parse_error'
+        };
+      }
+      
+      if (!response.ok) {
+        // Extract error details from server response
+        const errorDetails = data.error || {};
+        
+        // Use server-provided error message or construct one
+        errorMessage = typeof errorDetails === 'string' 
+          ? errorDetails 
+          : errorDetails.message || data.errorMessage || 'Unknown server error';
+            
+        // Create enhanced error object with retry information from server
+        const error: any = new Error(errorMessage);
+        
+        // Pass along all the server information for intelligent retry decisions
+        error.status = response.status;
+        error.shouldRetry = data.shouldRetry !== undefined 
+          ? data.shouldRetry 
+          : (response.status >= 500 || response.status === 429);
+        error.retryDelay = data.retryDelay;
+        error.details = data.details;
+        error.errorType = data.errorType;
+        error.suggestion = data.suggestion;
+        
+        // Special case for file revision conflicts
+        if (response.status === 409 && data.suggestedRevision !== undefined) {
+          error.message = `${errorMessage} Please use revision ${data.suggestedRevision}.`;
+          error.shouldRetry = false; // Don't retry version conflicts
+        }
+        
+        console.error('Upload error response:', data);
+        throw error;
+      }
+      
+      return data;
+    } catch (error: any) {
+      console.error(`Upload attempt ${attempt + 1} failed:`, error);
+      
+      // Ensure the error object has all the retry information we need
+      if (typeof error === 'string') {
+        error = new Error(error);
+      }
+      
+      // Attempt to classify errors based on message if server didn't provide retry info
+      if (error.shouldRetry === undefined) {
+        const isNetworkError = error.message && (
+          error.message.includes('network') || 
+          error.message.includes('connection') ||
+          error.message.includes('ECONNRESET') ||
+          error.message.includes('Failed to fetch') ||
+          error.message.includes('socket')
+        );
+        
+        const isServerError = error.status && error.status >= 500;
+        const isRateLimitError = error.status === 429;
+        
+        error.shouldRetry = isNetworkError || isServerError || isRateLimitError;
+        
+        // Set default retry delay based on error type if not provided by server
+        if (error.shouldRetry && error.retryDelay === undefined) {
+          if (isRateLimitError) {
+            error.retryDelay = 8000; // Longer delay for rate limiting
+          } else if (isNetworkError) {
+            error.retryDelay = 2000; // Shorter delay for network issues
+          } else {
+            error.retryDelay = 5000; // Default delay
+          }
+        }
+      }
+      
+      // Update UI state with error information
+      setLastUploadError({
+        error: error.message,
+        details: error.details,
+        suggestion: error.suggestion,
+        shouldRetry: error.shouldRetry,
+        retryDelay: error.retryDelay,
+        errorType: error.errorType
+      });
+      
+      // Rethrow the error for the mutation's error handler
+      throw error;
+    }
+  };
+
+  // Mutation to upload a file with automatic retries
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('path', currentPath);
-        
-        console.log(`Uploading file ${file.name} (${formatFileSize(file.size)}) to ${currentPath}`);
-        console.log(`Attempt #${uploadRetryCount + 1} of ${MAX_RETRIES + 1}`);
-
-        // Use server-side upload endpoint for more robust error handling
-        // This sends the file directly to our server, which then uploads to GCS
-        const directUploadResponse = await fetch('/api/storage/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!directUploadResponse.ok) {
-          // Try to parse error details from the response
-          let errorMessage = 'Upload failed';
-          let shouldRetry = false;
-          let retryDelay = 5000; // Default 5s delay
-          
-          try {
-            const errorData = await directUploadResponse.json();
-            errorMessage = errorData.error || 'Upload failed';
-            // Check if the server suggests we should retry this upload
-            shouldRetry = errorData.shouldRetry === true;
-            if (errorData.retryDelay) {
-              retryDelay = errorData.retryDelay;
-            }
+      let lastError = null;
+      
+      // Try up to MAX_RETRIES + 1 times (initial attempt + retries)
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          // If this is a retry attempt, setup UI and delay
+          if (attempt > 0) {
+            setIsRetrying(true);
+            setUploadRetryCount(attempt);
             
-            // Save the error info for potential retry
-            setLastUploadError({
-              error: errorMessage,
-              shouldRetry,
-              retryDelay
-            });
+            // Calculate delay - either from server suggestion or exponential backoff
+            const retryDelay = lastError?.retryDelay || Math.min(Math.pow(2, attempt) * 1000, 10000);
             
-            // Specific error cases 
-            if (directUploadResponse.status === 409 && errorData.suggestedRevision !== undefined) {
-              throw new Error(`${errorData.error} Please use revision ${errorData.suggestedRevision}.`);
-            }
-          } catch (parseError) {
-            // If we couldn't parse the JSON response
-            errorMessage = `Upload failed with status: ${directUploadResponse.status}`;
-            shouldRetry = directUploadResponse.status >= 500 || directUploadResponse.status === 429;
-            setLastUploadError({
-              error: errorMessage,
-              shouldRetry,
-              retryDelay
+            console.log(`Retrying upload in ${retryDelay}ms (attempt ${attempt + 1} of ${MAX_RETRIES + 1})`);
+            
+            // Wait before retry using a promise instead of setTimeout
+            await new Promise(resolve => {
+              const timeout = setTimeout(resolve, retryDelay);
+              setRetryTimeout(timeout);
             });
           }
           
-          throw new Error(errorMessage);
+          // Attempt upload
+          return await uploadWithRetry(file, attempt);
+        } catch (error: any) {
+          lastError = error;
+          
+          // If we should retry and haven't exhausted retries
+          if (error.shouldRetry && attempt < MAX_RETRIES) {
+            console.log(`Error is retriable, will try again (${attempt + 1}/${MAX_RETRIES})`);
+            // Continue to next iteration (will retry after delay)
+            continue;
+          }
+          
+          // If we shouldn't retry or have exhausted retries, throw the error
+          throw error;
         }
-
-        // Reset retry counter on success
-        setUploadRetryCount(0);
-        setLastUploadError(null);
-        
-        return { success: true };
-      } catch (error) {
-        // Log the error for debugging
-        console.error('Upload error:', error);
-        throw error;
+      }
+      
+      // If we've tried MAX_RETRIES times and still failed, throw the last error
+      if (lastError) {
+        throw lastError;
       }
     },
     onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "File uploaded successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ['item-files', currentPath] });
-      setUploadFile(null);
-      setIsUploadDialogOpen(false);
-      
-      // Clear any retry state
+      // Reset all state
+      setIsRetrying(false);
+      setUploadRetryCount(0);
+      setLastUploadError(null);
       if (retryTimeout) {
         clearTimeout(retryTimeout);
         setRetryTimeout(null);
       }
-      setIsRetrying(false);
-      setUploadRetryCount(0);
+      
+      // Close dialog and refresh
+      setIsUploadDialogOpen(false);
+      setUploadFile(null);
+      queryClient.invalidateQueries({ queryKey: ['item-files', currentPath] });
+      
+      toast({
+        title: "Success",
+        description: "File uploaded successfully",
+      });
     },
     onError: (error: Error) => {
-      // Only show toast notification if we're not going to auto-retry
+      // Reset retry state
+      setIsRetrying(false);
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+        setRetryTimeout(null);
+      }
+      
+      // Format error details with any suggested solution
+      const errorDetails = (error as any).suggestion 
+        ? `${error.message}. ${(error as any).suggestion}`
+        : error.message;
+        
+      // Show toast only if we're not retrying anymore
       if (!lastUploadError?.shouldRetry || uploadRetryCount >= MAX_RETRIES) {
         toast({
           title: "Upload Failed",
-          description: error.message,
+          description: errorDetails,
           variant: "destructive",
         });
         
-        // Reset retry state if we've hit the max retries
-        setIsRetrying(false);
+        // Reset retry count if we're done with retries
         setUploadRetryCount(0);
-      } else {
-        // Auto-retry logic for retriable errors
-        const delay = lastUploadError?.retryDelay || 5000;
-        toast({
-          title: "Upload Error - Retrying",
-          description: `${error.message}. Retrying in ${delay/1000}s...`,
-          variant: "destructive",
-        });
-        
-        setIsRetrying(true);
-        const timeout = setTimeout(() => {
-          if (uploadFile) {
-            setUploadRetryCount(prev => prev + 1);
-            uploadMutation.mutate(uploadFile);
-          }
-        }, delay);
-        
-        setRetryTimeout(timeout);
       }
     }
   });
@@ -512,15 +620,46 @@ const ItemFileStorage: React.FC<ItemFileStorageProps> = ({ itemId, itemCode }) =
               </div>
             )}
             
-            {/* Error information with retry status */}
+            {/* Enhanced error information with retry status and details */}
             {lastUploadError && !uploadMutation.isPending && (
-              <div className="mt-2 p-3 bg-destructive/10 text-destructive rounded-md">
-                <p className="text-sm font-medium">Upload failed</p>
+              <div className="mt-2 p-3 bg-destructive/10 text-destructive rounded-md space-y-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Upload failed</p>
+                  {lastUploadError.errorType && (
+                    <Badge variant="outline" className="text-[10px] h-5">
+                      {lastUploadError.errorType.replace('_', ' ')}
+                    </Badge>
+                  )}
+                </div>
+                
                 <p className="text-xs">{lastUploadError.error}</p>
+                
+                {lastUploadError.details && (
+                  <details className="text-xs mt-1">
+                    <summary className="cursor-pointer">Technical details</summary>
+                    <p className="mt-1 whitespace-pre-wrap text-[10px] font-mono bg-destructive/5 p-1 rounded">
+                      {typeof lastUploadError.details === 'string' 
+                        ? lastUploadError.details.substring(0, 500) 
+                        : JSON.stringify(lastUploadError.details, null, 2).substring(0, 500)}
+                    </p>
+                  </details>
+                )}
+                
+                {lastUploadError.suggestion && (
+                  <div className="text-xs mt-1 border-l-2 border-yellow-400 pl-2">
+                    <p className="font-medium">Suggestion:</p>
+                    <p>{lastUploadError.suggestion}</p>
+                  </div>
+                )}
+                
                 {lastUploadError.shouldRetry && uploadRetryCount < MAX_RETRIES && (
-                  <p className="text-xs mt-1">
-                    The system will automatically retry shortly.
-                  </p>
+                  <div className="bg-primary/10 text-primary mt-2 rounded-sm p-2 text-xs">
+                    <p className="flex items-center">
+                      <RefreshCcwIcon className="h-3 w-3 mr-1" />
+                      The system will automatically retry upload
+                      {lastUploadError.retryDelay ? ` in ${lastUploadError.retryDelay/1000}s` : ' shortly'}.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
