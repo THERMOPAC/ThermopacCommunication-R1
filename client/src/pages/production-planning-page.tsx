@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { 
   Select,
@@ -83,6 +84,7 @@ export default function ProductionPlanningPage() {
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
+  const [isGeneratingWorkOrders, setIsGeneratingWorkOrders] = useState(false);
 
   // Fetch projects for dropdown
   const { data: projects, isLoading: isLoadingProjects } = useQuery({
@@ -97,6 +99,34 @@ export default function ProductionPlanningPage() {
   } = useQuery({
     queryKey: ['/api/production/work-orders/project', selectedProject],
     enabled: !!selectedProject,
+  });
+  
+  // Mutation for generating work orders for a project
+  const generateWorkOrdersMutation = useMutation({
+    mutationFn: async (projectId: number) => {
+      const response = await apiRequest(
+        'POST', 
+        `/api/production/work-orders/generate-for-project/${projectId}`
+      );
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Work Orders Generated",
+        description: `Successfully created ${data.items?.length || 0} work order items for ${data.workOrder?.title || 'project'}`,
+      });
+      // Refresh the work orders list
+      refetchWorkOrders();
+      setIsGeneratingWorkOrders(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error Generating Work Orders",
+        description: error.message || "There was an error generating work orders for this project.",
+        variant: "destructive",
+      });
+      setIsGeneratingWorkOrders(false);
+    }
   });
 
   // Form for creating new work order
@@ -190,23 +220,46 @@ export default function ProductionPlanningPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="mb-6">
-              <Label htmlFor="project-filter">Select Project</Label>
-              <Select 
-                onValueChange={(value) => setSelectedProject(parseInt(value))}
-                disabled={isLoadingProjects}
-              >
-                <SelectTrigger className="w-full md:w-[300px]">
-                  <SelectValue placeholder="Select a project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects?.map((project: any) => (
-                    <SelectItem key={project.id} value={project.id.toString()}>
-                      {project.code}: {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <Label htmlFor="project-filter">Select Project</Label>
+                <Select 
+                  onValueChange={(value) => setSelectedProject(parseInt(value))}
+                  disabled={isLoadingProjects}
+                >
+                  <SelectTrigger className="w-full md:w-[300px]">
+                    <SelectValue placeholder="Select a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects?.map((project: any) => (
+                      <SelectItem key={project.id} value={project.id.toString()}>
+                        {project.code}: {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {selectedProject && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsGeneratingWorkOrders(true);
+                    generateWorkOrdersMutation.mutate(selectedProject);
+                  }}
+                  disabled={isGeneratingWorkOrders || generateWorkOrdersMutation.isPending}
+                  className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700"
+                >
+                  {isGeneratingWorkOrders || generateWorkOrdersMutation.isPending ? (
+                    <>
+                      <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
+                      Generating...
+                    </>
+                  ) : (
+                    <>Create Work Orders for Project</>
+                  )}
+                </Button>
+              )}
             </div>
 
             {!selectedProject ? (
