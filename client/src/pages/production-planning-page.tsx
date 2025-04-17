@@ -752,48 +752,124 @@ export default function ProductionPlanningPage() {
           {previewData ? (
             <div className="space-y-4">
               <div className="border rounded-md p-4 bg-muted/30">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm text-muted-foreground">Project</Label>
                     <p className="font-medium">{previewData.project?.name || previewData.project?.code}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground">Work Order Number</Label>
-                    <p className="font-medium">{previewData.workOrderNumber}</p>
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">Total Items</Label>
                     <p className="font-medium">{previewData.itemCount || 0}</p>
                   </div>
                 </div>
+                
+                {previewData.willCreateSeparateOrders && (
+                  <div className="mt-4 p-2 bg-amber-50 border border-amber-200 rounded-md text-amber-800">
+                    <AlertTriangle className="h-4 w-4 inline-block mr-2" />
+                    <span className="text-sm">This will create separate work orders for parent and child items.</span>
+                  </div>
+                )}
               </div>
               
-              {previewData.items && previewData.items.length > 0 ? (
-                <div className="max-h-96 overflow-y-auto">
-                  <Table className="w-full border">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[5%]">#</TableHead>
-                        <TableHead className="w-[20%]">Item Code</TableHead>
-                        <TableHead className="w-[50%]">Description</TableHead>
-                        <TableHead className="w-[15%]">Quantity</TableHead>
-                        <TableHead className="w-[10%]">Unit</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {previewData.items.map((item: any) => (
-                        <TableRow key={item.sequenceNumber}>
-                          <TableCell>{item.sequenceNumber}</TableCell>
-                          <TableCell className="font-medium">{item.itemCode}</TableCell>
-                          <TableCell className="break-words">{item.description}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>{item.unit}</TableCell>
+              {previewData.parentItemCount > 0 && (
+                <div className="border rounded-md p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="bg-blue-100 p-1 rounded-md">
+                      <ClipboardList className="h-4 w-4 text-blue-800" />
+                    </div>
+                    <h3 className="text-lg font-medium">Parent Items Work Order</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Work Order Number</Label>
+                      <p className="font-medium">{previewData.parentWorkOrderNumber}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Item Count</Label>
+                      <p className="font-medium">{previewData.parentItemCount || 0}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="max-h-48 overflow-y-auto">
+                    <Table className="w-full border">
+                      <TableHeader>
+                        <TableRow className="bg-blue-50">
+                          <TableHead className="w-[5%]">#</TableHead>
+                          <TableHead className="w-[20%]">Item Code</TableHead>
+                          <TableHead className="w-[50%]">Description</TableHead>
+                          <TableHead className="w-[15%]">Quantity</TableHead>
+                          <TableHead className="w-[10%]">Unit</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {previewData.items
+                          .filter((item: any) => item.itemType === 'Parent')
+                          .map((item: any) => (
+                            <TableRow key={`parent-${item.sequenceNumber}`}>
+                              <TableCell>{item.sequenceNumber}</TableCell>
+                              <TableCell className="font-medium">{item.itemCode}</TableCell>
+                              <TableCell className="break-words">{item.description}</TableCell>
+                              <TableCell>{item.quantity}</TableCell>
+                              <TableCell>{item.unit}</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
-              ) : (
+              )}
+              
+              {previewData.childItemCount > 0 && (
+                <div className="border rounded-md p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="bg-purple-100 p-1 rounded-md">
+                      <ClipboardList className="h-4 w-4 text-purple-800" />
+                    </div>
+                    <h3 className="text-lg font-medium">Child Components Work Order</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Work Order Number</Label>
+                      <p className="font-medium">{previewData.childWorkOrderNumber}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Item Count</Label>
+                      <p className="font-medium">{previewData.childItemCount || 0}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="max-h-48 overflow-y-auto">
+                    <Table className="w-full border">
+                      <TableHeader>
+                        <TableRow className="bg-purple-50">
+                          <TableHead className="w-[5%]">#</TableHead>
+                          <TableHead className="w-[15%]">Item Code</TableHead>
+                          <TableHead className="w-[40%]">Description</TableHead>
+                          <TableHead className="w-[15%]">Parent Item</TableHead>
+                          <TableHead className="w-[15%]">Quantity</TableHead>
+                          <TableHead className="w-[10%]">Unit</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {previewData.items
+                          .filter((item: any) => item.itemType === 'Child')
+                          .map((item: any) => (
+                            <TableRow key={`child-${item.sequenceNumber}`}>
+                              <TableCell>{item.sequenceNumber}</TableCell>
+                              <TableCell className="font-medium">{item.itemCode}</TableCell>
+                              <TableCell className="break-words">{item.description}</TableCell>
+                              <TableCell>{item.parentItemCode}</TableCell>
+                              <TableCell>{item.quantity}</TableCell>
+                              <TableCell>{item.unit}</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+              
+              {previewData.items && previewData.items.length === 0 && (
                 <div className="p-4 border rounded border-dashed text-center">
                   <p className="text-muted-foreground">No items to display</p>
                 </div>

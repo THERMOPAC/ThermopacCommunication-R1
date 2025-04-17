@@ -114,20 +114,20 @@ export function setupProductionRoutes(app: Router) {
       });
       
       // Create lookup maps for parent-child relationships
-      const parentToChildMap = new Map();
-      const childToParentMap = new Map();
+      const parentToChildMap = new Map<number, number[]>();
+      const childToParentMap = new Map<number, number>();
       
       itemComponentRelationships.forEach(rel => {
         if (!parentToChildMap.has(rel.parentItemId)) {
           parentToChildMap.set(rel.parentItemId, []);
         }
-        parentToChildMap.get(rel.parentItemId).push(rel.componentItemId);
+        parentToChildMap.get(rel.parentItemId)!.push(rel.componentItemId);
         childToParentMap.set(rel.componentItemId, rel.parentItemId);
       });
       
       // Separate items into parent and child categories
-      const parentItems = [];
-      const childItems = [];
+      const parentItems: typeof makeItems = [];
+      const childItems: typeof makeItems = [];
       
       makeItems.forEach(item => {
         const masterItemId = item.itemId;
@@ -139,26 +139,37 @@ export function setupProductionRoutes(app: Router) {
       });
       
       // Create preview data for client
-      const mapItemsToPreview = (items, isParent) => {
+      type PreviewItem = {
+        sequenceNumber: number;
+        itemCode: string;
+        description: string;
+        quantity: number;
+        unit: string;
+        makeOrBuy: string;
+        itemType: 'Parent' | 'Child';
+        parentItemCode: string | null;
+      };
+      
+      const mapItemsToPreview = (items: typeof makeItems, isParent: boolean): PreviewItem[] => {
         return items.map((item, index) => {
           const masterItem = masterItemsMap.get(item.itemId);
           return {
             sequenceNumber: index + 1,
             itemCode: masterItem?.itemCode || 'Unknown',
             description: masterItem?.description || 'No description',
-            quantity: item.quantity,
+            quantity: Number(item.quantity),
             unit: masterItem?.unit || 'EA',
             makeOrBuy: 'Make',
             itemType: isParent ? 'Parent' : 'Child',
             parentItemCode: isParent ? null : (
-              masterItemsMap.get(childToParentMap.get(item.itemId))?.itemCode || 'Unknown'
+              masterItemsMap.get(childToParentMap.get(item.itemId)!)?.itemCode || 'Unknown'
             )
           };
         });
       };
       
-      const parentPreviewItems = mapItemsToPreview(parentItems, true);
-      const childPreviewItems = mapItemsToPreview(childItems, false);
+      const parentPreviewItems: PreviewItem[] = mapItemsToPreview(parentItems, true);
+      const childPreviewItems: PreviewItem[] = mapItemsToPreview(childItems, false);
       const allPreviewItems = [...parentPreviewItems, ...childPreviewItems];
       
       // Generate unique work order numbers
@@ -250,14 +261,14 @@ export function setupProductionRoutes(app: Router) {
       });
       
       // Create lookup maps for parent-child relationships
-      const parentToChildMap = new Map();
-      const childToParentMap = new Map();
+      const parentToChildMap = new Map<number, number[]>();
+      const childToParentMap = new Map<number, number>();
       
       itemComponentRelationships.forEach(rel => {
         if (!parentToChildMap.has(rel.parentItemId)) {
           parentToChildMap.set(rel.parentItemId, []);
         }
-        parentToChildMap.get(rel.parentItemId).push(rel.componentItemId);
+        parentToChildMap.get(rel.parentItemId)!.push(rel.componentItemId);
         childToParentMap.set(rel.componentItemId, rel.parentItemId);
       });
       
