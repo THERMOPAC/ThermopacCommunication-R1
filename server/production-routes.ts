@@ -3,7 +3,7 @@ import { db } from './db';
 import { insertWorkOrderSchema, workOrders, insertWorkOrderItemSchema, 
   workOrderItems, insertResourceAssignmentSchema, resourceAssignments,
   insertProductionRecordSchema, productionRecords, insertMaterialConsumptionSchema,
-  materialConsumption, insertMachineAllocationSchema, machineAllocations, projects, projectItems, masterItems } from '@shared/schema';
+  materialConsumption, insertMachineAllocationSchema, machineAllocations, projects, projectItems, masterItems, itemComponents } from '@shared/schema';
 import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 
 // Authentication middleware
@@ -192,10 +192,28 @@ export function setupProductionRoutes(app: Router) {
         masterItemsMap.set(item.id, item);
       });
       
-      // Group items by "makeOrBuy" status and handle parent-child relationships
+      // Group items by "makeOrBuy" status
       const makeItems = projectItemsList.filter(item => {
         const masterItem = masterItemsMap.get(item.itemId);
         return masterItem && masterItem.makeOrBuy === 'Make';
+      });
+      
+      // Identify parent-child relationships using item components table
+      // Get all component relationships for these items
+      const itemComponentRelationships = await db.query.itemComponents.findMany({
+        where: inArray(itemComponents.parentItemId, masterItemIds)
+      });
+      
+      // Create lookup maps for parent-child relationships
+      const parentToChildMap = new Map();
+      const childToParentMap = new Map();
+      
+      itemComponentRelationships.forEach(rel => {
+        if (!parentToChildMap.has(rel.parentItemId)) {
+          parentToChildMap.set(rel.parentItemId, []);
+        }
+        parentToChildMap.get(rel.parentItemId).push(rel.componentItemId);
+        childToParentMap.set(rel.componentItemId, rel.parentItemId);
       });
       
       if (makeItems.length === 0) {
@@ -246,61 +264,91 @@ export function setupProductionRoutes(app: Router) {
       // Generate a unique work order number
       const workOrderNumber = `WO-${project.code}-${Date.now().toString().substring(7)}`;
       
-      // Create the main work order
-      const [newWorkOrder] = await db.insert(workOrders).values({
-        projectId,
-        projectCode: project.code,
-        workOrderNumber,
-        title: `Production order for ${project.name}`,
-        description: `Auto-generated work order for project ${project.code}`,
-        status: 'planned',
-        priority: 'Medium',
-        plannedStartDate: today,
-        plannedEndDate: endDate,
-        quantity: 1,
-        supervisorId: req.user!.id,
-        createdBy: req.user!.id,
-        createdAt: today,
-        updatedAt: today
-      }).returning();
+      // Divide items into parent and child categories
+      const parentItems: typeof makeItems = [];
+      const childItems: typeof makeItems = [];
       
-      // Add all make items to the work order
-      let sequenceNumber = 1;
-      const workOrderItemsList = [];
-      
-      // Process all items directly without parent-child relationship
-      // We'll handle the proper item sequence with sequenceNumber
-      const allItems = [...makeItems];
-      
-      // Helper function to add an item to the work order
-      const addItemToWorkOrder = async (item: any) => {
-        const masterItem = masterItemsMap.get(item.itemId);
-        if (!masterItem) return null;
+      makeItems.forEach(item => {
+        const masterItemId = item.itemId;
         
-        const [newItem] = await db.insert(workOrderItems).values({
-          workOrderId: newWorkOrder.id,
-          projectItemId: item.id,
-          quantity: item.quantity,
-          status: 'pending',
-          sequenceNumber: sequenceNumber++,
-          notes: `Auto-generated from project item ${masterItem.description || masterItem.itemCode}`,
+        // If this item is a component (child) of another item
+        if (childToParentMap.has(masterItemId)) {
+          childItems.push(item);
+        } else {
+          // Otherwise it's a top-level item (parent)
+          parentItems.push(item);
+        }
+      });
+      
+      const createdWorkOrders: any[] = [];
+      const createdWorkOrderItems: any[] = [];
+      
+      // Helper function to create a work order
+      const createWorkOrder = async (items: typeof makeItems, isParent: boolean) => {
+        const suffix = isParent ? 'P' : 'C';
+        const specificWorkOrderNumber = `WO-${project.code}-${suffix}-${Date.now().toString().substring(7)}`;
+        const typeDescription = isParent ? 'Parent Items' : 'Child Components';
+        
+        // Create work order
+        const [newWorkOrder] = await db.insert(workOrders).values({
+          projectId,
+          projectCode: project.code,
+          workOrderNumber: specificWorkOrderNumber,
+          title: `${typeDescription} for ${project.name}`,
+          description: `Auto-generated ${typeDescription.toLowerCase()} work order for project ${project.code}`,
+          status: 'planned',
+          priority: 'Medium',
+          plannedStartDate: today,
+          plannedEndDate: endDate,
+          quantity: 1,
+          supervisorId: req.user!.id,
+          createdBy: req.user!.id,
           createdAt: today,
           updatedAt: today
         }).returning();
         
-        return newItem;
+        createdWorkOrders.push(newWorkOrder);
+        
+        // Add items to the work order
+        let sequenceNumber = 1;
+        
+        // Process all items for this work order
+        for (const item of items) {
+          const masterItem = masterItemsMap.get(item.itemId);
+          if (!masterItem) continue;
+          
+          // Add item to work order
+          const [newItem] = await db.insert(workOrderItems).values({
+            workOrderId: newWorkOrder.id,
+            projectItemId: item.id,
+            quantity: item.quantity,
+            status: 'pending',
+            sequenceNumber: sequenceNumber++,
+            notes: `Auto-generated from ${isParent ? 'parent' : 'child'} item ${masterItem.description || masterItem.itemCode}`,
+            createdAt: today,
+            updatedAt: today
+          }).returning();
+          
+          createdWorkOrderItems.push(newItem);
+        }
+        
+        return newWorkOrder;
       };
       
-      // Process all items
-      for (const item of allItems) {
-        const newItem = await addItemToWorkOrder(item);
-        if (newItem) workOrderItemsList.push(newItem);
+      // Create work orders for parent items
+      if (parentItems.length > 0) {
+        await createWorkOrder(parentItems, true);
+      }
+      
+      // Create work orders for child items
+      if (childItems.length > 0) {
+        await createWorkOrder(childItems, false);
       }
       
       res.status(201).json({
-        workOrder: newWorkOrder,
-        items: workOrderItemsList,
-        message: `Created work order with ${workOrderItemsList.length} items`
+        workOrders: createdWorkOrders,
+        items: createdWorkOrderItems,
+        message: `Created ${createdWorkOrders.length} work orders with ${createdWorkOrderItems.length} items`
       });
     } catch (error) {
       console.error('Error generating work orders for project:', error);
