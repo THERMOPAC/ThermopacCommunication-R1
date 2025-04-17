@@ -1,183 +1,157 @@
-import { Storage } from '@google-cloud/storage';
 import storage, { bucketName } from './storage-config';
 
-/**
- * Utility to check Google Cloud Storage permissions
- * This helps diagnose permission issues in production environments
- */
-type CredentialsType = 'service_account' | 'invalid-format' | 'parse-error' | 'missing' | string | null;
-
-export async function checkGcsPermissions(): Promise<{
-  success: boolean;
-  details: {
-    bucketExists: boolean;
-    canListFiles: boolean;
-    canWriteFiles: boolean;
-    canDeleteFiles: boolean;
-    error?: any;
-    environment: string;
-    bucket: string;
-    credentials: {
-      type: CredentialsType;
-      projectId: string | null;
-      privateKeyId: string | null;
-      clientEmail: string | null;
-      hasPrivateKey: boolean;
-    };
-  }
-}> {
-  console.log('Running comprehensive GCS permissions check...');
-  
-  const result = {
-    success: false,
-    details: {
-      bucketExists: false,
-      canListFiles: false,
-      canWriteFiles: false,
-      canDeleteFiles: false,
-      environment: process.env.NODE_ENV || 'development',
-      bucket: bucketName || '(not set)',
-      error: undefined as any,
-      credentials: {
-        type: null as CredentialsType,
-        projectId: null,
-        privateKeyId: null,
-        clientEmail: null,
-        hasPrivateKey: false
-      }
-    }
-  };
-  
+// Function to check if GCS permissions are set up correctly
+export async function checkGcsPermissions() {
   try {
-    // Check if credentials are properly set up
-    // Debug credential info
-    console.log('GCS Permissions Check - GOOGLE_CLOUD_CREDENTIALS exists:', !!process.env.GOOGLE_CLOUD_CREDENTIALS);
+    // Get environment name (development or production)
+    const environment = process.env.NODE_ENV || 'development';
+    
+    // Extract project and service account information
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || 'unknown';
+    let serviceAccount = 'unknown';
+    
+    // Try to extract service account from credentials if available
     if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
-      console.log('GCS Permissions Check - GOOGLE_CLOUD_CREDENTIALS length:', process.env.GOOGLE_CLOUD_CREDENTIALS.length);
-      console.log('GCS Permissions Check - First 20 chars:', process.env.GOOGLE_CLOUD_CREDENTIALS.substring(0, 20));
       try {
-        const credentialsStr = process.env.GOOGLE_CLOUD_CREDENTIALS.trim();
-        
-        // Add basic format validation
-        if (!credentialsStr.startsWith('{')) {
-          console.error('GOOGLE_CLOUD_CREDENTIALS does not appear to be in JSON format.');
-          result.details.credentials = {
-            type: 'invalid-format' as CredentialsType,
-            projectId: null,
-            privateKeyId: null,
-            clientEmail: null,
-            hasPrivateKey: false
-          };
-          throw new Error('Invalid credential format');
+        const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
+        if (credentials && credentials.client_email) {
+          serviceAccount = credentials.client_email;
         }
-        
-        const credentials = JSON.parse(credentialsStr);
-        result.details.credentials = {
-          type: credentials.type || null,
-          projectId: credentials.project_id || null,
-          privateKeyId: credentials.private_key_id || null,
-          clientEmail: credentials.client_email || null,
-          hasPrivateKey: !!credentials.private_key
-        };
-        
-        // Log detailed credential info for diagnostics
-        console.log('Credentials diagnostic info:');
-        console.log('- Type:', result.details.credentials.type);
-        console.log('- Project ID:', result.details.credentials.projectId ? '✓ Present' : '❌ Missing');
-        console.log('- Service Account:', result.details.credentials.clientEmail || 'Not set');
-        console.log('- Private Key:', result.details.credentials.hasPrivateKey ? '✓ Present' : '❌ Missing');
       } catch (e) {
-        console.error('Error parsing GCS credentials:', e);
-        console.log('Credentials string length:', process.env.GOOGLE_CLOUD_CREDENTIALS.length);
-        // Store the parsing error
-        result.details.credentials = {
-          type: 'parse-error' as CredentialsType,
-          projectId: null,
-          privateKeyId: null,
-          clientEmail: null,
-          hasPrivateKey: false
-        };
+        console.error('Failed to parse GOOGLE_CLOUD_CREDENTIALS to extract service account email');
       }
-    } else {
-      console.log('No GOOGLE_CLOUD_CREDENTIALS found in environment');
-      result.details.credentials = {
-        type: 'missing' as CredentialsType,
-        projectId: null,
-        privateKeyId: null,
-        clientEmail: null,
-        hasPrivateKey: false
-      };
     }
     
-    // Check if bucket exists
-    console.log(`Checking if bucket ${bucketName} exists...`);
-    
-    // Debug info on Storage object itself
-    console.log('Storage client info:', {
-      isStorageInstance: storage instanceof Storage,
-      hasCredentials: !!(storage as any)._options?.credentials,
-      projectId: (storage as any)._options?.projectId || '(not set)',
-      environment: process.env.NODE_ENV || 'development'
-    });
-    
-    const bucket = storage.bucket(bucketName);
-    
+    // Check if the bucket exists
+    let bucketExists = false;
     try {
-      const [exists] = await bucket.exists();
-      result.details.bucketExists = exists;
-      
-      if (!exists) {
-        console.error(`Bucket ${bucketName} does not exist or is not accessible`);
-        return result;
+      const [bucketResponse] = await storage.bucket(bucketName).exists();
+      bucketExists = bucketResponse;
+    } catch (error) {
+      console.error('Error checking if bucket exists:', error);
+    }
+    
+    // Check if we can list files in the bucket
+    let canListFiles = false;
+    try {
+      if (bucketExists) {
+        await storage.bucket(bucketName).getFiles({ maxResults: 1 });
+        canListFiles = true;
       }
-      
-      console.log(`Bucket ${bucketName} exists, checking permissions...`);
-      
-      // Test listing files
-      try {
-        const [files] = await bucket.getFiles({ maxResults: 1 });
-        result.details.canListFiles = true;
-        console.log('Successfully listed files in bucket');
-      } catch (e) {
-        console.error('Error listing files:', e);
-        result.details.error = e;
-      }
-      
-      // Test writing a file
-      try {
-        const testFile = bucket.file('_permission_test_file.txt');
-        await testFile.save('This is a test file to check write permissions', {
-          contentType: 'text/plain'
-        });
-        result.details.canWriteFiles = true;
-        console.log('Successfully wrote test file to bucket');
+    } catch (error) {
+      console.error('Error listing files in bucket:', error);
+    }
+    
+    // Check if we can upload files to the bucket
+    let canUploadFiles = false;
+    try {
+      if (bucketExists) {
+        const testFile = storage.bucket(bucketName).file('test-permissions.txt');
+        await testFile.save('test', { contentType: 'text/plain' });
+        canUploadFiles = true;
         
-        // Test deleting a file
+        // Clean up the test file
         try {
           await testFile.delete();
-          result.details.canDeleteFiles = true;
-          console.log('Successfully deleted test file from bucket');
-        } catch (e) {
-          console.error('Error deleting test file:', e);
+        } catch (deleteError) {
+          console.error('Error deleting test file:', deleteError);
         }
-      } catch (e) {
-        console.error('Error writing test file:', e);
       }
-      
-      // Overall success
-      result.success = result.details.bucketExists && 
-                      result.details.canListFiles && 
-                      result.details.canWriteFiles;
-                      
-      return result;
-    } catch (bucketError) {
-      console.error('Error checking bucket existence:', bucketError);
-      result.details.error = bucketError;
-      return result;
+    } catch (error) {
+      console.error('Error uploading file to bucket:', error);
     }
+    
+    // Check if we can download files from the bucket
+    let canDownloadFiles = false;
+    try {
+      if (bucketExists && canUploadFiles) {
+        // Upload another test file
+        const testFile = storage.bucket(bucketName).file('test-download.txt');
+        await testFile.save('download test', { contentType: 'text/plain' });
+        
+        // Try to download it
+        const [fileContent] = await testFile.download();
+        if (fileContent.toString() === 'download test') {
+          canDownloadFiles = true;
+        }
+        
+        // Clean up
+        try {
+          await testFile.delete();
+        } catch (deleteError) {
+          console.error('Error deleting test download file:', deleteError);
+        }
+      }
+    } catch (error) {
+      console.error('Error downloading file from bucket:', error);
+    }
+
+    // Determine if we have all the necessary permissions
+    const success = bucketExists && canListFiles && canUploadFiles && canDownloadFiles;
+    
+    // Build an array of error messages
+    const errors: string[] = [];
+    if (!bucketExists) {
+      errors.push(`The bucket "${bucketName}" does not exist or is not accessible with the current credentials.`);
+    }
+    if (bucketExists && !canListFiles) {
+      errors.push('Cannot list files in the bucket. The service account may be missing the Storage Object Viewer role.');
+    }
+    if (bucketExists && !canUploadFiles) {
+      errors.push('Cannot upload files to the bucket. The service account may be missing the Storage Object Creator role.');
+    }
+    if (bucketExists && canUploadFiles && !canDownloadFiles) {
+      errors.push('Cannot download files from the bucket. The service account may be missing proper download permissions.');
+    }
+    
+    // Check if environment variables are properly set
+    if (!process.env.GOOGLE_CLOUD_BUCKET) {
+      errors.push('GOOGLE_CLOUD_BUCKET environment variable is not set.');
+    }
+    if (!process.env.GOOGLE_CLOUD_PROJECT_ID) {
+      errors.push('GOOGLE_CLOUD_PROJECT_ID environment variable is not set.');
+    }
+    if (!process.env.GOOGLE_CLOUD_CREDENTIALS) {
+      errors.push('GOOGLE_CLOUD_CREDENTIALS environment variable is not set.');
+    }
+    
+    return {
+      success,
+      permissions: {
+        bucketExists,
+        canListFiles,
+        canUploadFiles,
+        canDownloadFiles
+      },
+      environment: {
+        bucketName,
+        projectId,
+        serviceAccount,
+        environment
+      },
+      errors: errors.length > 0 ? errors : undefined
+    };
   } catch (error) {
-    console.error('Unexpected error during GCS permissions check:', error);
-    result.details.error = error;
-    return result;
+    console.error('Error checking GCS permissions:', error);
+    
+    return {
+      success: false,
+      permissions: {
+        bucketExists: false,
+        canListFiles: false,
+        canUploadFiles: false,
+        canDownloadFiles: false
+      },
+      environment: {
+        bucketName: process.env.GOOGLE_CLOUD_BUCKET || 'unknown',
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || 'unknown',
+        serviceAccount: 'unknown',
+        environment: process.env.NODE_ENV || 'development'
+      },
+      errors: [
+        'Failed to initialize Google Cloud Storage client. Check your credential configuration.',
+        error instanceof Error ? error.message : String(error)
+      ]
+    };
   }
 }

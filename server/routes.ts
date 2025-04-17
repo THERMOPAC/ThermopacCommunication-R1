@@ -25,6 +25,7 @@ import { default as modulePermissionRoutes } from "./module-permission-routes";
 import { hashPassword as updatePasswordHash } from "./update-password";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
+import { checkGcsPermissions } from "./utils/gcs-permissions-check";
 
 const scryptAsync = promisify(scrypt);
 
