@@ -23,251 +23,250 @@ export function setupProductionRoutes(app: Router) {
   // ==================== WORK ORDERS ====================
   
   // Preview work orders for a project
-  app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      
-      // Check if project ID is valid
-      if (isNaN(projectId)) {
-        console.log('Invalid project ID in preview endpoint:', req.params.projectId);
-        return res.status(400).json({ error: 'Invalid project ID' });
-      }
-      
-      // Get project to ensure it exists
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
-      
-      // Get all items for the project
-      const projectItemsList = await db.query.projectItems.findMany({
-        where: eq(projectItems.projectId, projectId)
-      });
-      
-      if (projectItemsList.length === 0) {
-        return res.status(404).json({ error: 'No items found for this project' });
-      }
-      
-      // Get all master items details for the project items
-      const masterItemIds = projectItemsList.map(item => item.itemId);
-      const masterItemsData = await db.query.masterItems.findMany({
-        where: inArray(masterItems.id, masterItemIds)
-      });
-      
-      // Create a map of master item id to details for faster lookups
-      const masterItemsMap = new Map();
-      masterItemsData.forEach(item => {
-        masterItemsMap.set(item.id, item);
-      });
-      
-      // Group items by "makeOrBuy" status
-      let makeItems = projectItemsList.filter(item => {
-        const masterItem = masterItemsMap.get(item.itemId);
-        return masterItem && masterItem.makeOrBuy === 'Make';
-      });
-      
-      if (makeItems.length === 0) {
-        return res.status(400).json({ error: 'No "Make" items found for this project' });
-      }
-      
-      // Check for existing work orders for this project to avoid duplicates
-      const existingWorkOrders = await db.query.workOrders.findMany({
-        where: eq(workOrders.projectId, projectId)
-      });
-      
-      if (existingWorkOrders.length > 0) {
-        // Get all work order items for this project to check for duplicates
-        const existingWorkOrderIds = existingWorkOrders.map(wo => wo.id);
-        const existingWorkOrderItems = await db.query.workOrderItems.findMany({
-          where: inArray(workOrderItems.workOrderId, existingWorkOrderIds)
-        });
-        
-        // Create a set of project item IDs that already have work orders
-        const existingProjectItemIds = new Set(existingWorkOrderItems.map(item => item.projectItemId));
-        
-        // Filter out items that already have work orders
-        const filteredMakeItems = makeItems.filter(item => !existingProjectItemIds.has(item.id));
-        
-        if (filteredMakeItems.length === 0) {
-          return res.status(200).json({ 
-            project: {
-              id: project.id,
-              code: project.code,
-              name: project.name
-            },
-            itemCount: 0,
-            items: [],
-            message: 'All "Make" items already have work orders'
-          });
-        }
-        
-        // Update makeItems to only include items that don't already have work orders
-        makeItems = filteredMakeItems;
-      }
-      
-      // Get item components relationships for separation
-      const itemComponentRelationships = await db.query.itemComponents.findMany({
-        where: inArray(itemComponents.parentItemId, masterItemIds)
-      });
-      
-      // If we have components, also get their master item details
-      const componentItemIds = itemComponentRelationships.map(rel => rel.componentItemId);
-      if (componentItemIds.length > 0) {
-        const componentMasterItems = await db.query.masterItems.findMany({
-          where: inArray(masterItems.id, componentItemIds)
-        });
-        
-        // Add these to the master items map
-        componentMasterItems.forEach(item => {
-          if (!masterItemsMap.has(item.id)) {
-            masterItemsMap.set(item.id, item);
-          }
-        });
-      }
-      
-      // Create lookup maps for parent-child relationships
-      const parentToChildMap = new Map<number, number[]>();
-      const childToParentMap = new Map<number, number>();
-      
-      itemComponentRelationships.forEach(rel => {
-        if (!parentToChildMap.has(rel.parentItemId)) {
-          parentToChildMap.set(rel.parentItemId, []);
-        }
-        parentToChildMap.get(rel.parentItemId)!.push(rel.componentItemId);
-        childToParentMap.set(rel.componentItemId, rel.parentItemId);
-      });
-      
-      // Separate items into parent and child categories
-      const parentItems: typeof makeItems = [];
-      const childItems: typeof makeItems = [];
-      
-      // Track parent items that have components
-      const parentsWithComponents = new Set<number>();
-      
-      makeItems.forEach(item => {
-        const masterItemId = item.itemId;
-        if (childToParentMap.has(masterItemId)) {
-          childItems.push(item);
-        } else {
-          parentItems.push(item);
-          
-          // Check if this parent has components
-          if (parentToChildMap.has(masterItemId)) {
-            parentsWithComponents.add(masterItemId);
-          }
-        }
-      });
-      
-      // Now, for each parent with components, add virtual project items for component items
-      // that are not already included in the project
-      const virtualChildItems: typeof makeItems = [];
-      
-      parentsWithComponents.forEach(parentItemId => {
-        // Find the original project item for this parent
-        const parentProjectItem = makeItems.find(item => item.itemId === parentItemId);
-        if (!parentProjectItem) return;
-        
-        // Get all component items for this parent
-        const componentItemIds = parentToChildMap.get(parentItemId) || [];
-        
-        componentItemIds.forEach(componentItemId => {
-          // Check if this component already exists as a project item
-          const existingComponentItem = makeItems.find(item => item.itemId === componentItemId);
-          
-          if (!existingComponentItem) {
-            // If component is not already a project item, create a virtual one
-            const masterComponentItem = masterItemsMap.get(componentItemId);
-            if (masterComponentItem && masterComponentItem.makeOrBuy === 'Make') {
-              // Create a virtual project item for this component
-              // We use negative IDs for virtual items to avoid conflicts
-              virtualChildItems.push({
-                id: -componentItemId, // Use negative ID to indicate virtual item
-                projectId: parentProjectItem.projectId,
-                itemId: componentItemId,
-                quantity: 1, // Default to 1 for now, could be improved with BOM relationships
-                makeOrBuy: 'Make',
-                notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`
-              });
-            }
-          }
-        });
-      });
-      
-      // Add virtual items to child items
-      childItems.push(...virtualChildItems);
-      
-      // Create preview data for client
-      type PreviewItem = {
-        sequenceNumber: number;
-        itemCode: string;
-        description: string;
-        quantity: number;
-        unit: string;
-        makeOrBuy: string;
-        itemType: 'Parent' | 'Child';
-        parentItemCode: string | null;
-      };
-      
-      const mapItemsToPreview = (items: typeof makeItems, isParent: boolean): PreviewItem[] => {
-        return items.map((item, index) => {
-          const masterItem = masterItemsMap.get(item.itemId);
-          return {
-            sequenceNumber: index + 1,
-            itemCode: masterItem?.itemCode || 'Unknown',
-            description: masterItem?.description || 'No description',
-            quantity: Number(item.quantity),
-            unit: masterItem?.unit || 'EA',
-            makeOrBuy: 'Make',
-            itemType: isParent ? 'Parent' : 'Child',
-            parentItemCode: isParent ? null : (
-              masterItemsMap.get(childToParentMap.get(item.itemId)!)?.itemCode || 'Unknown'
-            )
-          };
-        });
-      };
-      
-      const parentPreviewItems: PreviewItem[] = mapItemsToPreview(parentItems, true);
-      const childPreviewItems: PreviewItem[] = mapItemsToPreview(childItems, false);
-      const allPreviewItems = [...parentPreviewItems, ...childPreviewItems];
-      
-      // Get the count of existing work orders for this project to determine the sequence number
-      const workOrderCount = await db.query.workOrders.findMany({
-        where: eq(workOrders.projectId, projectId),
-      });
-      
-      // Calculate the next sequential numbers
-      const nextParentSeqNumber = workOrderCount.length + 1;
-      const nextChildSeqNumber = workOrderCount.length + 2;
-      
-      // Generate unique work order numbers with sequential numbering using the format WO-[ProjectCode]-[SequentialNumber]
-      const parentWorkOrderNumber = `WO-${project.code}-${nextParentSeqNumber}`;
-      const childWorkOrderNumber = `WO-${project.code}-${nextChildSeqNumber}`;
-      
-      res.status(200).json({
-        project: {
-          id: project.id,
-          code: project.code,
-          name: project.name
-        },
-        parentWorkOrderNumber,
-        childWorkOrderNumber,
-        itemCount: makeItems.length,
-        parentItemCount: parentItems.length,
-        childItemCount: childItems.length,
-        items: allPreviewItems,
-        willCreateSeparateOrders: parentItems.length > 0 && childItems.length > 0
-      });
-    } catch (error) {
-      console.error('Error generating work orders preview:', error);
-      res.status(500).json({ error: 'Failed to generate work orders preview' });
-    }
-  });
-
-  // Generate work orders for all items in a project
   app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
+// Preview work orders for a project
+app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    
+    // Check if project ID is valid
+    if (isNaN(projectId)) {
+      console.log('Invalid project ID in preview endpoint:', req.params.projectId);
+      return res.status(400).json({ error: 'Invalid project ID' });
+    }
+    
+    // Get project to ensure it exists
+    const project = await db.query.projects.findFirst({
+      where: eq(projects.id, projectId)
+    });
+    
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
+    // Get all items for the project
+    const projectItemsList = await db.query.projectItems.findMany({
+      where: eq(projectItems.projectId, projectId)
+    });
+    
+    if (projectItemsList.length === 0) {
+      return res.status(404).json({ error: 'No items found for this project' });
+    }
+    
+    // Get all master items details for the project items
+    const masterItemIds = projectItemsList.map(item => item.itemId);
+    const masterItemsData = await db.query.masterItems.findMany({
+      where: inArray(masterItems.id, masterItemIds)
+    });
+    
+    // Create a map of master item id to details for faster lookups
+    const masterItemsMap = new Map();
+    masterItemsData.forEach(item => {
+      masterItemsMap.set(item.id, item);
+    });
+    
+    // Group items by "makeOrBuy" status
+    let makeItems = projectItemsList.filter(item => {
+      const masterItem = masterItemsMap.get(item.itemId);
+      return masterItem && masterItem.makeOrBuy === 'Make';
+    });
+    
+    if (makeItems.length === 0) {
+      return res.status(400).json({ error: 'No "Make" items found for this project' });
+    }
+    
+    // Check for existing work orders to avoid duplicates
+    const existingWorkOrders = await db.query.workOrders.findMany({
+      where: eq(workOrders.projectId, projectId)
+    });
+    
+    if (existingWorkOrders.length > 0) {
+      // Get all work order items for this project
+      const existingWorkOrderIds = existingWorkOrders.map(wo => wo.id);
+      const existingWorkOrderItems = await db.query.workOrderItems.findMany({
+        where: inArray(workOrderItems.workOrderId, existingWorkOrderIds)
+      });
+      
+      // Create a set of project item IDs that already have work orders
+      const existingProjectItemIds = new Set(existingWorkOrderItems.map(item => item.projectItemId));
+      
+      // Filter out items that already have work orders
+      const filteredMakeItems = makeItems.filter(item => !existingProjectItemIds.has(item.id));
+      
+      if (filteredMakeItems.length === 0) {
+        return res.status(200).json({ 
+          project: {
+            id: project.id,
+            code: project.code,
+            name: project.name
+          },
+          itemCount: 0,
+          items: [],
+          message: 'All "Make" items already have work orders'
+        });
+      }
+      
+      // Update makeItems to only include items that don't already have work orders
+      makeItems = filteredMakeItems;
+    }
+    
+    // Get item components relationships for separation
+    const itemComponentRelationships = await db.query.itemComponents.findMany({
+      where: inArray(itemComponents.parentItemId, masterItemIds)
+    });
+    
+    // If we have components, also get their master item details
+    const componentItemIds = itemComponentRelationships.map(rel => rel.componentItemId);
+    if (componentItemIds.length > 0) {
+      const componentMasterItems = await db.query.masterItems.findMany({
+        where: inArray(masterItems.id, componentItemIds)
+      });
+      
+      // Add these to the master items map
+      componentMasterItems.forEach(item => {
+        if (!masterItemsMap.has(item.id)) {
+          masterItemsMap.set(item.id, item);
+        }
+      });
+    }
+    
+    // Create lookup maps for parent-child relationships
+    const parentToChildMap = new Map<number, number[]>();
+    const childToParentMap = new Map<number, number>();
+    
+    itemComponentRelationships.forEach(rel => {
+      if (!parentToChildMap.has(rel.parentItemId)) {
+        parentToChildMap.set(rel.parentItemId, []);
+      }
+      parentToChildMap.get(rel.parentItemId)!.push(rel.componentItemId);
+      childToParentMap.set(rel.componentItemId, rel.parentItemId);
+    });
+    
+    // Separate items into parent and child categories
+    const parentItems: typeof makeItems = [];
+    const childItems: typeof makeItems = [];
+    
+    // Track parent items that have components
+    const parentsWithComponents = new Set<number>();
+    
+    makeItems.forEach(item => {
+      const masterItemId = item.itemId;
+      if (childToParentMap.has(masterItemId)) {
+        childItems.push(item);
+      } else {
+        parentItems.push(item);
+        
+        // Check if this parent has components
+        if (parentToChildMap.has(masterItemId)) {
+          parentsWithComponents.add(masterItemId);
+        }
+      }
+    });
+    
+    // Now, for each parent with components, add virtual project items for component items
+    // that are not already included in the project
+    const virtualChildItems: typeof makeItems = [];
+    
+    parentsWithComponents.forEach(parentItemId => {
+      // Find the original project item for this parent
+      const parentProjectItem = makeItems.find(item => item.itemId === parentItemId);
+      if (!parentProjectItem) return;
+      
+      // Get all component items for this parent
+      const componentItemIds = parentToChildMap.get(parentItemId) || [];
+      
+      componentItemIds.forEach(componentItemId => {
+        // Check if this component already exists as a project item
+        const existingComponentItem = makeItems.find(item => item.itemId === componentItemId);
+        
+        if (!existingComponentItem) {
+          // If component is not already a project item, create a virtual one
+          const masterComponentItem = masterItemsMap.get(componentItemId);
+          if (masterComponentItem && masterComponentItem.makeOrBuy === 'Make') {
+            // Create a virtual project item for this component
+            // We use negative IDs for virtual items to avoid conflicts
+            virtualChildItems.push({
+              id: -componentItemId, // Use negative ID to indicate virtual item
+              projectId: parentProjectItem.projectId,
+              itemId: componentItemId,
+              quantity: 1, // Default to 1 for now, could be improved with BOM relationships
+              makeOrBuy: 'Make',
+              notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`
+            });
+          }
+        }
+      });
+    });
+    
+    // Add virtual items to child items
+    childItems.push(...virtualChildItems);
+    
+    // Create preview data for client
+    type PreviewItem = {
+      sequenceNumber: number;
+      itemCode: string;
+      description: string;
+      quantity: number;
+      unit: string;
+      makeOrBuy: string;
+      itemType: 'Parent' | 'Child';
+      parentItemCode: string | null;
+    };
+    
+    const mapItemsToPreview = (items: typeof makeItems, isParent: boolean): PreviewItem[] => {
+      return items.map((item, index) => {
+        const masterItem = masterItemsMap.get(item.itemId);
+        return {
+          sequenceNumber: index + 1,
+          itemCode: masterItem?.itemCode || 'Unknown',
+          description: masterItem?.description || 'No description',
+          quantity: Number(item.quantity),
+          unit: masterItem?.unit || 'EA',
+          makeOrBuy: 'Make',
+          itemType: isParent ? 'Parent' : 'Child',
+          parentItemCode: isParent ? null : (
+            masterItemsMap.get(childToParentMap.get(item.itemId)!)?.itemCode || 'Unknown'
+          )
+        };
+      });
+    };
+    
+    const parentPreviewItems: PreviewItem[] = mapItemsToPreview(parentItems, true);
+    const childPreviewItems: PreviewItem[] = mapItemsToPreview(childItems, false);
+    const allPreviewItems = [...parentPreviewItems, ...childPreviewItems];
+    
+    // Get the count of existing work orders for this project to determine the sequence number
+    const workOrderCount = await db.query.workOrders.findMany({
+      where: eq(workOrders.projectId, projectId),
+    });
+    
+    // Calculate the next sequential numbers
+    const nextParentSeqNumber = workOrderCount.length + 1;
+    const nextChildSeqNumber = workOrderCount.length + 2;
+    
+    // Generate unique work order numbers with sequential numbering using the format WO-[ProjectCode]-[SequentialNumber]
+    const parentWorkOrderNumber = `WO-${project.code}-${nextParentSeqNumber}`;
+    const childWorkOrderNumber = `WO-${project.code}-${nextChildSeqNumber}`;
+    
+    res.status(200).json({
+      project: {
+        id: project.id,
+        code: project.code,
+        name: project.name
+      },
+      parentWorkOrderNumber,
+      childWorkOrderNumber,
+      itemCount: makeItems.length,
+      parentItemCount: parentItems.length,
+      childItemCount: childItems.length,
+      items: allPreviewItems,
+      willCreateSeparateOrders: parentItems.length > 0 && childItems.length > 0
+    });
+  } catch (error) {
+    console.error('Error generating work orders preview:', error);
+    res.status(500).json({ error: 'Failed to generate work orders preview' });
+  }
+});
     try {
       const projectId = parseInt(req.params.projectId);
       const { confirm } = req.body;
@@ -329,6 +328,21 @@ export function setupProductionRoutes(app: Router) {
       const itemComponentRelationships = await db.query.itemComponents.findMany({
         where: inArray(itemComponents.parentItemId, masterItemIds)
       });
+      
+      // If we have components, also get their master item details
+      const componentItemIds = itemComponentRelationships.map(rel => rel.componentItemId);
+      if (componentItemIds.length > 0) {
+        const componentMasterItems = await db.query.masterItems.findMany({
+          where: inArray(masterItems.id, componentItemIds)
+        });
+        
+        // Add these to the master items map
+        componentMasterItems.forEach(item => {
+          if (!masterItemsMap.has(item.id)) {
+            masterItemsMap.set(item.id, item);
+          }
+        });
+      }
       
       // Create lookup maps for parent-child relationships
       const parentToChildMap = new Map<number, number[]>();
@@ -395,6 +409,9 @@ export function setupProductionRoutes(app: Router) {
       const parentItems: typeof makeItems = [];
       const childItems: typeof makeItems = [];
       
+      // Track parent items that have components
+      const parentsWithComponents = new Set<number>();
+      
       makeItems.forEach(item => {
         const masterItemId = item.itemId;
         
@@ -404,8 +421,52 @@ export function setupProductionRoutes(app: Router) {
         } else {
           // Otherwise it's a top-level item (parent)
           parentItems.push(item);
+          
+          // Check if this parent has components
+          if (parentToChildMap.has(masterItemId)) {
+            parentsWithComponents.add(masterItemId);
+          }
         }
       });
+      
+      // Now, for each parent with components, add virtual project items for component items
+      // that are not already included in the project
+      const virtualChildItems: typeof makeItems = [];
+      
+      parentsWithComponents.forEach(parentItemId => {
+        // Find the original project item for this parent
+        const parentProjectItem = makeItems.find(item => item.itemId === parentItemId);
+        if (!parentProjectItem) return;
+        
+        // Get all component items for this parent
+        const componentItemIds = parentToChildMap.get(parentItemId) || [];
+        
+        componentItemIds.forEach(componentItemId => {
+          // Check if this component already exists as a project item
+          const existingComponentItem = makeItems.find(item => item.itemId === componentItemId);
+          
+          if (!existingComponentItem) {
+            // If component is not already a project item, create a virtual one
+            const masterComponentItem = masterItemsMap.get(componentItemId);
+            if (masterComponentItem && masterComponentItem.makeOrBuy === 'Make') {
+              // Create a virtual project item for this component
+              // We use special string IDs for virtual items to avoid type conflicts
+              // Converting the ID to a string with a special prefix
+              virtualChildItems.push({
+                id: `virtual-${componentItemId}`, // Use string ID for virtual items
+                projectId: parentProjectItem.projectId,
+                itemId: componentItemId,
+                quantity: 1, // Default to 1 for now, could be improved with BOM relationships
+                makeOrBuy: 'Make',
+                notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`
+              });
+            }
+          }
+        });
+      });
+      
+      // Add virtual items to child items
+      childItems.push(...virtualChildItems);
       
       const createdWorkOrders: any[] = [];
       const createdWorkOrderItems: any[] = [];
@@ -458,11 +519,13 @@ export function setupProductionRoutes(app: Router) {
           // Add item to work order
           const [newItem] = await db.insert(workOrderItems).values({
             workOrderId: newWorkOrder.id,
-            projectItemId: item.id,
+            projectItemId: item.id < 0 ? 0 : item.id, // Virtual items have negative IDs, convert to 0
             quantity: item.quantity,
             status: 'pending',
             sequenceNumber: sequenceNumber++,
-            notes: `Auto-generated from ${isParent ? 'parent' : 'child'} item ${masterItem.description || masterItem.itemCode}`,
+            notes: item.id < 0 
+              ? `Virtual component: ${masterItem.itemCode} - ${masterItem.description}`
+              : `Auto-generated from ${isParent ? 'parent' : 'child'} item ${masterItem.description || masterItem.itemCode}`,
             createdAt: today,
             updatedAt: today
           }).returning();
