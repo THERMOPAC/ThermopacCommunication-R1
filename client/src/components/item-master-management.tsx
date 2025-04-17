@@ -100,6 +100,7 @@ interface MasterItem {
   uom: string;
   makeOrBuy: string | null;
   drawingNo: string | null;
+  latestRevision?: number; // Add latest revision tracking for drawing uploads
   standardCost: number | null;
   supplier: string | null;
   notes: string | null;
@@ -1509,6 +1510,8 @@ const ItemMasterManagement: React.FC = () => {
                     // When opening the dialog, initialize with the parent item selected
                     if (open && currentItem) {
                       console.log('Current latestRevisions state when opening dialog:', latestRevisions);
+                      console.log('Current item latestRevision from database:', currentItem.latestRevision);
+                      
                       const newSelectedItem = {
                         id: currentItem.id,
                         code: currentItem.itemCode,
@@ -1518,7 +1521,23 @@ const ItemMasterManagement: React.FC = () => {
                       
                       // Auto-populate the revision field with the next revision number
                       const drawingNo = newSelectedItem.drawingNo || newSelectedItem.code;
-                      const latestRev = latestRevisions[drawingNo] || -1; // Start from -1 so first revision is 0
+                      
+                      // First try to use the latestRevision from the database (most reliable source)
+                      // Then fallback to the latestRevisions state object if needed
+                      let latestRev = -1;
+                      
+                      if (currentItem.latestRevision !== undefined && currentItem.latestRevision !== null) {
+                        // Use the database value if available
+                        latestRev = currentItem.latestRevision;
+                        console.log(`Using latestRevision from database: ${latestRev}`);
+                      } else if (latestRevisions[drawingNo] !== undefined) {
+                        // Fallback to the state object
+                        latestRev = latestRevisions[drawingNo];
+                        console.log(`Using latestRevision from state cache: ${latestRev}`);
+                      } else {
+                        console.log('No revision information found, defaulting to -1');
+                      }
+                      
                       const nextRev = (latestRev + 1).toString();
                       console.log(`Auto-populating revision on dialog open for ${drawingNo}: Latest revision = ${latestRev}, Next revision = ${nextRev}`);
                       setDrawingRevision(nextRev);
