@@ -2342,6 +2342,17 @@ const ItemMasterManagement: React.FC = () => {
                   </Table>
                 </div>
                 
+                {/* GCS Diagnostics Panel for troubleshooting file upload issues */}
+                {canManageContent(user?.role) && (
+                  <div className="mt-8 border-t pt-6">
+                    <h3 className="text-lg font-medium mb-4">Storage Diagnostics</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      If you're experiencing issues with drawing uploads, use this diagnostic tool to check Google Cloud Storage permissions and settings.
+                    </p>
+                    <GcsDiagnostics />
+                  </div>
+                )}
+                
                 <div className="flex justify-between mt-6">
                   <div className="flex gap-2">
                     <Button
