@@ -1,3 +1,4 @@
+import { Storage } from '@google-cloud/storage';
 import storage, { bucketName } from './storage-config';
 
 /**
@@ -110,6 +111,15 @@ export async function checkGcsPermissions(): Promise<{
     
     // Check if bucket exists
     console.log(`Checking if bucket ${bucketName} exists...`);
+    
+    // Debug info on Storage object itself
+    console.log('Storage client info:', {
+      isStorageInstance: storage instanceof Storage,
+      hasCredentials: !!(storage as any)._options?.credentials,
+      projectId: (storage as any)._options?.projectId || '(not set)',
+      environment: process.env.NODE_ENV || 'development'
+    });
+    
     const bucket = storage.bucket(bucketName);
     
     try {

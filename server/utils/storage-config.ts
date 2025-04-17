@@ -50,8 +50,14 @@ function createStorageClient() {
     // Check if we have explicit credentials in the environment
     if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
       try {
+        // Detect environment for troubleshooting
+        const nodeEnv = process.env.NODE_ENV || 'development';
+        console.log(`Environment: ${nodeEnv} - Creating GCS client with explicit credentials`);
+        
         // Parse the credentials from the environment variable
         const credentialsStr = process.env.GOOGLE_CLOUD_CREDENTIALS.trim();
+        console.log(`Credentials string length: ${credentialsStr.length}`);
+        console.log(`First 20 chars: ${credentialsStr.substring(0, 20)}...`);
         
         // Check if the credentials start with a curly brace (JSON format)
         if (!credentialsStr.startsWith('{')) {
@@ -60,9 +66,32 @@ function createStorageClient() {
           throw new Error('Invalid credentials format. Must be a JSON object.');
         }
         
-        const credentials = JSON.parse(credentialsStr);
+        // Attempt to parse the credentials
+        console.log('Attempting to parse Google Cloud credentials...');
+        let credentials;
+        try {
+          credentials = JSON.parse(credentialsStr);
+          console.log('✅ Successfully parsed credentials JSON');
+        } catch (error) {
+          const parseError = error as Error;
+          console.error('❌ Failed to parse credentials JSON:', parseError.message);
+          throw parseError;
+        }
         
         // Validate required fields in credentials
+        const validationResults = {
+          hasType: !!credentials.type,
+          hasProjectId: !!credentials.project_id,
+          hasClientEmail: !!credentials.client_email,
+          hasPrivateKey: !!credentials.private_key,
+        };
+        
+        console.log('Credential validation:', JSON.stringify(validationResults));
+        
+        if (!credentials.type || credentials.type !== 'service_account') {
+          console.warn(`⚠️ WARNING: Credentials type is ${credentials.type || 'missing'}, should be "service_account"`);
+        }
+        
         if (!credentials.project_id) {
           console.warn('⚠️ WARNING: Credentials missing project_id');
         }
