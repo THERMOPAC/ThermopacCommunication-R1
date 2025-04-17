@@ -217,9 +217,10 @@ export function setupProductionRoutes(app: Router) {
         const filteredMakeItems = makeItems.filter(item => !existingProjectItemIds.has(item.id));
         
         if (filteredMakeItems.length === 0) {
-          return res.status(400).json({ 
-            error: 'All applicable items already have work orders', 
-            message: 'Work orders already exist for all "Make" items in this project'
+          return res.status(200).json({ 
+            message: 'All applicable items already have work orders', 
+            itemCount: 0,
+            items: []
           });
         }
         

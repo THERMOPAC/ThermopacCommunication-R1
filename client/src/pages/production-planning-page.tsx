@@ -98,7 +98,19 @@ export default function ProductionPlanningPage() {
     isLoading: isLoadingWorkOrders,
     refetch: refetchWorkOrders
   } = useQuery<any[]>({
-    queryKey: ['/api/production/work-orders/project', selectedProject?.toString()],
+    queryKey: ['/api/production/work-orders/project', selectedProject],
+    queryFn: async ({ queryKey }) => {
+      // Extract the projectId from queryKey and ensure it's a valid number
+      const [_, projectId] = queryKey;
+      if (!projectId) return [];
+      
+      const response = await fetch(`/api/production/work-orders/project/${projectId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch work orders");
+      }
+      return response.json();
+    },
     enabled: !!selectedProject,
   });
   
