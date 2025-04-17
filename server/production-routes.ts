@@ -111,7 +111,9 @@ export function setupProductionRoutes(app: Router) {
       const projectId = parseInt(req.params.projectId);
       const { confirm } = req.body;
       
+      // Check if project ID is valid
       if (isNaN(projectId)) {
+        console.log('Invalid project ID in work order generation:', req.params.projectId);
         return res.status(400).json({ error: 'Invalid project ID' });
       }
       
@@ -128,6 +130,11 @@ export function setupProductionRoutes(app: Router) {
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
+      
+      // Check if there are already work orders for this project
+      const existingWorkOrders = await db.query.workOrders.findMany({
+        where: eq(workOrders.projectId, projectId)
+      });
       
       // Get all items for the project
       const projectItemsList = await db.query.projectItems.findMany({
@@ -150,7 +157,7 @@ export function setupProductionRoutes(app: Router) {
         masterItemsMap.set(item.id, item);
       });
       
-      // Group items by "makeOrBuy" status
+      // Group items by "makeOrBuy" status and handle parent-child relationships
       const makeItems = projectItemsList.filter(item => {
         const masterItem = masterItemsMap.get(item.itemId);
         return masterItem && masterItem.makeOrBuy === 'Make';
@@ -158,6 +165,32 @@ export function setupProductionRoutes(app: Router) {
       
       if (makeItems.length === 0) {
         return res.status(400).json({ error: 'No "Make" items found for this project' });
+      }
+      
+      // Check for existing work order items to avoid duplicates
+      if (existingWorkOrders.length > 0) {
+        // Get all work order items for this project
+        const existingWorkOrderIds = existingWorkOrders.map(wo => wo.id);
+        const existingWorkOrderItems = await db.query.workOrderItems.findMany({
+          where: inArray(workOrderItems.workOrderId, existingWorkOrderIds)
+        });
+        
+        // Create a set of project item IDs that already have work orders
+        const existingProjectItemIds = new Set(existingWorkOrderItems.map(item => item.projectItemId));
+        
+        // Filter out items that already have work orders
+        const filteredMakeItems = makeItems.filter(item => !existingProjectItemIds.has(item.id));
+        
+        if (filteredMakeItems.length === 0) {
+          return res.status(400).json({ 
+            error: 'All applicable items already have work orders', 
+            message: 'Work orders already exist for all "Make" items in this project'
+          });
+        }
+        
+        // Update makeItems to only include items that don't already have work orders
+        makeItems.length = 0;
+        makeItems.push(...filteredMakeItems);
       }
       
       // If not confirmed, just return the count
@@ -199,9 +232,14 @@ export function setupProductionRoutes(app: Router) {
       let sequenceNumber = 1;
       const workOrderItemsList = [];
       
-      for (const item of makeItems) {
+      // Process all items directly without parent-child relationship
+      // We'll handle the proper item sequence with sequenceNumber
+      const allItems = [...makeItems];
+      
+      // Helper function to add an item to the work order
+      const addItemToWorkOrder = async (item: any) => {
         const masterItem = masterItemsMap.get(item.itemId);
-        if (!masterItem) continue;
+        if (!masterItem) return null;
         
         const [newItem] = await db.insert(workOrderItems).values({
           workOrderId: newWorkOrder.id,
@@ -214,7 +252,13 @@ export function setupProductionRoutes(app: Router) {
           updatedAt: today
         }).returning();
         
-        workOrderItemsList.push(newItem);
+        return newItem;
+      };
+      
+      // Process all items
+      for (const item of allItems) {
+        const newItem = await addItemToWorkOrder(item);
+        if (newItem) workOrderItemsList.push(newItem);
       }
       
       res.status(201).json({
@@ -231,7 +275,14 @@ export function setupProductionRoutes(app: Router) {
   // Get all work orders for a project
   app.get('/api/production/work-orders/project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      // Validate projectId parameter
       const projectId = parseInt(req.params.projectId);
+      
+      // Check if project ID is valid
+      if (isNaN(projectId)) {
+        console.log('Invalid project ID in work orders fetch:', req.params.projectId);
+        return res.status(400).json({ error: 'Invalid project ID' });
+      }
       
       // Get project to ensure it exists
       const project = await db.query.projects.findFirst({
@@ -257,7 +308,14 @@ export function setupProductionRoutes(app: Router) {
   // Get specific work order by ID
   app.get('/api/production/work-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      // Validate work order ID parameter
       const workOrderId = parseInt(req.params.id);
+      
+      // Check if work order ID is valid
+      if (isNaN(workOrderId)) {
+        console.log('Invalid work order ID in work order fetch:', req.params.id);
+        return res.status(400).json({ error: 'Invalid work order ID' });
+      }
       
       const workOrder = await db.query.workOrders.findFirst({
         where: eq(workOrders.id, workOrderId)
