@@ -1,6 +1,7 @@
 import express, { Request, Response, Router } from 'express';
 import multer from 'multer';
 import { gcsStorage } from './utils/gcs-storage';
+import { bucketName } from './utils/storage-config';
 import { db } from './db';
 import * as schema from '@shared/schema';
 import { gcsDirectories, projectDocuments, directoryTemplates, masterItems } from '@shared/schema';
@@ -686,6 +687,17 @@ export function setupFileStorageRoutes(app: Router) {
       
       console.log('Using direct upload method instead of streams for more reliable uploads');
       
+      // Validate input
+      if (!req.file) {
+        throw new Error('No file provided for upload');
+      }
+      
+      if (!req.file.buffer || req.file.buffer.length === 0) {
+        throw new Error('File buffer is empty or undefined');
+      }
+      
+      console.log(`Processing upload for file: ${fileName}, size: ${req.file.size} bytes, type: ${req.file.mimetype}`);
+      
       // Use our new direct upload function instead of streams
       const uploadResult = await gcsStorage.uploadFileDirectly({
         filePath: storagePath,
@@ -694,8 +706,25 @@ export function setupFileStorageRoutes(app: Router) {
       });
       
       if (!uploadResult.success) {
-        console.error('Direct upload failed:', uploadResult.error);
-        throw new Error(`Upload failed: ${uploadResult.error?.message || 'Unknown error'}`);
+        console.error('Direct upload failed:', JSON.stringify(uploadResult.error, null, 2));
+        
+        // Import the bucketName from storage-config
+        const { bucketName } = require('./utils/storage-config');
+        
+        // Provide more specific error information based on the error type
+        if (uploadResult.error?.code === 403) {
+          throw new Error(`Permission denied uploading to ${storagePath}. Please verify GCS credentials and permissions.`);
+        } else if (uploadResult.error?.code === 404) {
+          throw new Error(`Bucket not found: ${bucketName}. Please verify the bucket name is correct.`);
+        } else if (uploadResult.error?.message?.includes('cannot be authenticated')) {
+          throw new Error('Google Cloud Storage authentication failed. Please check your credentials.');
+        } else if (uploadResult.error?.message?.includes('ECONNRESET') || 
+                  uploadResult.error?.message?.includes('ETIMEDOUT') ||
+                  uploadResult.error?.message?.includes('network error')) {
+          throw new Error('Network error while uploading file. Please try again.');
+        } else {
+          throw new Error(`Upload failed: ${uploadResult.error?.message || 'Unknown error'}`);
+        }
       }
       
       console.log('Direct upload successful, download URL:', uploadResult.url);
