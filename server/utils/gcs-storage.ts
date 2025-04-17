@@ -40,7 +40,27 @@ class GcsStorage {
     // Use THERMOPAC_INVENTORY as root for inventory items, and THERMOPAC_PROJECTS for projects
     // We detect inventory items when financialYear is set to 'THERMOPAC_INVENTORY'
     const isInventoryItem = sanitized.financialYear === 'THERMOPAC_INVENTORY';
+    const isDrawing = department === 'drawings' || fileName.match(/_R\d+\.\w+$/i); // Check for drawing revision pattern
     
+    // For drawing files, we want a specific structure: THERMOPAC_INVENTORY/{drawingNo}/{drawingNo}_R{revisionNumber}.{fileExtension}
+    if (isDrawing) {
+      console.log(`Detected drawing file: ${fileName}`);
+      // Extract drawing number from filename (e.g., 4823002002001000_R1.pdf -> 4823002002001000)
+      const drawingMatch = fileName.match(/^(.+?)_R\d+\.\w+$/i);
+      if (drawingMatch && drawingMatch[1]) {
+        const drawingNo = drawingMatch[1];
+        console.log(`Extracted drawing number from filename: ${drawingNo}`);
+        
+        // Always use THERMOPAC_INVENTORY for drawings
+        return `THERMOPAC_INVENTORY/${drawingNo}/${fileName}`;
+      }
+      
+      // If we can't extract from filename, use projectCode as drawing number
+      console.log(`Using projectCode as drawing number: ${sanitized.projectCode}`);
+      return `THERMOPAC_INVENTORY/${sanitized.projectCode}/${fileName}`;
+    }
+    
+    // For non-drawing files, use the standard path structure
     // Build path components based on item type
     const pathComponents = [
       isInventoryItem ? 'THERMOPAC_INVENTORY' : 'THERMOPAC_PROJECTS',
@@ -49,9 +69,8 @@ class GcsStorage {
       sanitized.projectCode
     ].filter(Boolean); // Filter out any empty strings
     
-    // Only add department if it's not 'drawings'
-    // For drawings, we want the structure THERMOPAC_INVENTORY/{drawingNo}/{drawingNo}_R{revisionNumber}.{fileExtension}
-    if (sanitized.department && sanitized.department !== 'drawings') {
+    // Add department for non-drawing files
+    if (sanitized.department) {
       pathComponents.push(sanitized.department);
     }
 
@@ -115,6 +134,35 @@ class GcsStorage {
     try {
       console.log(`GCS: Listing files in directory: ${directoryPath} (recursive: ${recursive})`);
       
+      // Determine if this is a drawing-related path - drawings have specific structures
+      const isDrawingPath = 
+        directoryPath.includes('drawings/') || 
+        directoryPath.includes('/drawings') ||
+        (directoryPath.includes('THERMOPAC_INVENTORY') && /\d{10,}/.test(directoryPath)) ||
+        /4\d{3}/.test(directoryPath) || // Starts with 4 followed by digits (drawing numbers pattern)
+        /\d{10,}/.test(directoryPath);  // Drawing number pattern (10+ digits)
+        
+      // Extract drawing number if this is a drawing path
+      let drawingNumber = null;
+      if (isDrawingPath) {
+        console.log(`GCS: Detected drawing path, will use enhanced search logic: ${directoryPath}`);
+        
+        // Extract drawing number using multiple patterns
+        // First try to find long drawing numbers (10+ digits)
+        const longDrawingMatch = directoryPath.match(/(\d{10,})/);
+        if (longDrawingMatch && longDrawingMatch[1]) {
+          drawingNumber = longDrawingMatch[1];
+          console.log(`GCS: Extracted long drawing number: ${drawingNumber} from path: ${directoryPath}`);
+        } else {
+          // Then try to find shorter drawing numbers (4-9 digits)
+          const shortDrawingMatch = directoryPath.match(/(\d{4,9})/);
+          if (shortDrawingMatch && shortDrawingMatch[1]) {
+            drawingNumber = shortDrawingMatch[1];
+            console.log(`GCS: Extracted short drawing number: ${drawingNumber} from path: ${directoryPath}`);
+          }
+        }
+      }
+      
       // First check if this is a THERMOPAC_INVENTORY path
       // THERMOPAC_INVENTORY should be at the ROOT, not inside THERMOPAC_PROJECTS
       if (directoryPath.includes('THERMOPAC_PROJECTS/THERMOPAC_INVENTORY')) {
@@ -143,10 +191,100 @@ class GcsStorage {
       
       let allFiles: any[] = [];
       
-      // Get files in the current directory
-      console.log(`GCS: Getting files with prefix: ${options.prefix}`);
-      const [files] = await bucket.getFiles(options);
-      console.log(`GCS: Found ${files.length} files in bucket with prefix ${cleanPath}`);
+      // For drawing paths, prepare backup search paths
+      const searchPaths = [cleanPath]; // Start with the original path
+      
+      if (isDrawingPath && drawingNumber) {
+        // Add alternative paths to search for drawings with this number
+        searchPaths.push(
+          `THERMOPAC_INVENTORY/${drawingNumber}/`,
+          `THERMOPAC_INVENTORY/drawings/${drawingNumber}/`,
+          `THERMOPAC_PROJECTS/drawings/${drawingNumber}/`
+        );
+        
+        // Check if the cleanPath already has a structure like THERMOPAC_INVENTORY/{drawingNo}/
+        // If not, also look in a direct folder for the drawing number
+        if (!cleanPath.match(/THERMOPAC_INVENTORY\/\d{4,}\/$/)) {
+          searchPaths.push(`${drawingNumber}/`);
+        }
+        
+        console.log(`GCS: Will search multiple paths for drawing ${drawingNumber}: ${searchPaths.join(', ')}`);
+      }
+      
+      // Get files in all applicable paths (for drawings, we'll search multiple locations)
+      let files: any[] = [];
+      let hasFoundDrawings = false;
+      
+      // Process each search path
+      for (const searchPath of searchPaths) {
+        // Skip paths we've already searched
+        if (searchPath === cleanPath && files.length > 0) continue;
+        
+        // For drawing paths, always search recursively
+        const pathOptions = { ...options, prefix: searchPath };
+        
+        try {
+          console.log(`GCS: Getting files with prefix: ${pathOptions.prefix}`);
+          const [pathFiles] = await bucket.getFiles(pathOptions);
+          console.log(`GCS: Found ${pathFiles.length} files in bucket with prefix ${searchPath}`);
+          
+          // Filter the files to only include drawing-related files if this is an alternative path
+          if (searchPath !== cleanPath && isDrawingPath && drawingNumber) {
+            // For alternative paths, only include files that match the drawing number
+            const relevantFiles = pathFiles.filter(file => {
+              const fileName = file.name;
+              return fileName.includes(drawingNumber) &&
+                     !fileName.endsWith('/.keep') &&
+                     !fileName.endsWith('/');
+            });
+            
+            if (relevantFiles.length > 0) {
+              console.log(`GCS: Found ${relevantFiles.length} relevant drawing files in alternative path: ${searchPath}`);
+              files.push(...relevantFiles);
+              hasFoundDrawings = true;
+            }
+          } else {
+            // For the primary path, include all files
+            files.push(...pathFiles);
+            
+            // If this is the main path and we found drawing files, mark success
+            if (searchPath === cleanPath && pathFiles.length > 0 && isDrawingPath) {
+              hasFoundDrawings = true;
+            }
+          }
+        } catch (err) {
+          console.warn(`GCS: Error searching path ${searchPath}:`, err);
+        }
+      }
+      
+      console.log(`GCS: Found ${files.length} total files across all search paths`);
+      
+      // If this is a drawing path and we haven't found any drawings yet, try a broader search
+      if (isDrawingPath && drawingNumber && !hasFoundDrawings && files.length === 0) {
+        console.log(`GCS: No drawings found in specific paths. Trying bucket-wide search for ${drawingNumber}`);
+        
+        try {
+          // Search the entire bucket for files containing the drawing number
+          const [allFiles] = await bucket.getFiles({
+            prefix: '' // Empty prefix to search entire bucket
+          });
+          
+          // Filter to only include files related to this drawing number
+          const relevantFiles = allFiles.filter(file => {
+            const fileName = file.name;
+            return fileName.includes(drawingNumber) &&
+                   !fileName.endsWith('/.keep') &&
+                   !fileName.endsWith('/');
+          });
+          
+          if (relevantFiles.length > 0) {
+            console.log(`GCS: Found ${relevantFiles.length} drawing files in bucket-wide search`);
+            files.push(...relevantFiles);
+          }
+        } catch (err) {
+          console.warn('GCS: Error during bucket-wide search:', err);
+        }
+      }
       
       // Check for prefixes/directories if non-recursive mode
       let directories: string[] = [];
@@ -279,12 +417,140 @@ class GcsStorage {
     expirationMinutes?: number;
   }): Promise<string | null> {
     try {
+      console.log(`GCS: Generating download URL for file: ${filePath}`);
       const bucket = storage.bucket(bucketName);
+      
+      // Check if this is a drawing path
+      const isDrawingPath = 
+        filePath.includes('drawings/') || 
+        filePath.match(/_R\d+\.\w+$/i) || // Check for revision pattern
+        (filePath.includes('THERMOPAC_INVENTORY') && /\d{10,}/.test(filePath)) ||
+        /4\d{3}/.test(filePath); // Drawing numbers often start with 4 followed by digits
+        
+      // For drawing paths, we might need to try multiple locations
+      if (isDrawingPath) {
+        console.log(`GCS: Detected drawing path, will try multiple locations: ${filePath}`);
+        
+        // First check if the file exists at the exact path
+        const file = bucket.file(filePath);
+        const [exists] = await file.exists();
+        
+        if (exists) {
+          console.log(`GCS: Drawing file exists at exact path: ${filePath}`);
+          // Create signed URL with specified expiration
+          const [url] = await file.getSignedUrl({
+            version: 'v4',
+            action: 'read',
+            expires: Date.now() + expirationMinutes * 60 * 1000
+          });
+          return url;
+        }
+        
+        // If file doesn't exist, try to extract drawing number and revision
+        console.log(`GCS: Drawing file not found at exact path, trying alternative paths`);
+        let drawingNumber = null;
+        let revision = null;
+        
+        // Try to extract drawing number and revision from filename
+        // Pattern: {drawingNo}_R{revision}.{extension}
+        const drawingRevMatch = path.basename(filePath).match(/^(.+?)_R(\d+)\.\w+$/i);
+        if (drawingRevMatch && drawingRevMatch[1] && drawingRevMatch[2]) {
+          drawingNumber = drawingRevMatch[1];
+          revision = drawingRevMatch[2];
+          console.log(`GCS: Extracted drawing number ${drawingNumber} and revision ${revision} from filename`);
+        } else {
+          // Try to extract just the drawing number from the path
+          const numMatch = filePath.match(/(\d{4,})/);
+          if (numMatch && numMatch[1]) {
+            drawingNumber = numMatch[1];
+            console.log(`GCS: Extracted drawing number ${drawingNumber} from path`);
+            
+            // Try to extract revision from filename if not already found
+            const revMatch = path.basename(filePath).match(/_R(\d+)/i);
+            if (revMatch && revMatch[1]) {
+              revision = revMatch[1];
+              console.log(`GCS: Extracted revision ${revision} from filename`);
+            }
+          }
+        }
+        
+        // If we found both drawing number and revision, try alternative paths
+        if (drawingNumber) {
+          // List of paths to try in order of most likely to least likely
+          const pathsToTry = [
+            // Main path format: THERMOPAC_INVENTORY/{drawingNo}/{drawingNo}_R{revision}.{extension}
+            `THERMOPAC_INVENTORY/${drawingNumber}/${path.basename(filePath)}`,
+            // Legacy/alternative formats
+            `THERMOPAC_INVENTORY/drawings/${drawingNumber}/${path.basename(filePath)}`,
+            `THERMOPAC_PROJECTS/drawings/${drawingNumber}/${path.basename(filePath)}`,
+            // If there is a mismatch between drawing number in path vs filename
+            `THERMOPAC_INVENTORY/${drawingNumber}/${drawingNumber}_R${revision || '1'}.pdf`
+          ];
+          
+          console.log(`GCS: Trying alternative drawing paths: ${pathsToTry.join(', ')}`);
+          
+          // Try each path
+          for (const pathToTry of pathsToTry) {
+            if (pathToTry !== filePath) { // Skip the original path we already checked
+              const alternativeFile = bucket.file(pathToTry);
+              const [alternativeExists] = await alternativeFile.exists();
+              
+              if (alternativeExists) {
+                console.log(`GCS: Found drawing at alternative path: ${pathToTry}`);
+                // Generate signed URL for the alternative file
+                const [url] = await alternativeFile.getSignedUrl({
+                  version: 'v4',
+                  action: 'read',
+                  expires: Date.now() + expirationMinutes * 60 * 1000
+                });
+                return url;
+              }
+            }
+          }
+          
+          // If all specific paths failed, try a broader search if we have a drawing number
+          console.log(`GCS: Specific paths failed, trying broader search for drawing ${drawingNumber}`);
+          // Use listFiles to find relevant drawing files
+          const [allFiles] = await bucket.getFiles({
+            prefix: '' // Empty prefix to search entire bucket
+          });
+          
+          // Filter to only include files related to this drawing number
+          const relevantFiles = allFiles.filter(file => {
+            const fileName = file.name;
+            // Check for drawing number in the path or filename
+            const hasDrawingNumber = fileName.includes(drawingNumber);
+            // Check for revision number in the filename if specified
+            const hasRevision = !revision || fileName.includes(`_R${revision}`);
+            return hasDrawingNumber && hasRevision &&
+                   !fileName.endsWith('/.keep') &&
+                   !fileName.endsWith('/');
+          });
+          
+          if (relevantFiles.length > 0) {
+            console.log(`GCS: Found ${relevantFiles.length} relevant drawing files in bucket-wide search`);
+            // Get URL for the first matching file
+            const firstMatch = relevantFiles[0];
+            const [url] = await firstMatch.getSignedUrl({
+              version: 'v4',
+              action: 'read',
+              expires: Date.now() + expirationMinutes * 60 * 1000
+            });
+            return url;
+          }
+        }
+        
+        console.log(`GCS: Could not find drawing file in any location for ${filePath}`);
+        return null;
+      }
+      
+      // For non-drawing files, use the standard path
       const file = bucket.file(filePath);
       
       // Check if file exists
       const [exists] = await file.exists();
       if (!exists) {
+        console.log(`GCS: File does not exist at path: ${filePath}`);
         return null;
       }
       
@@ -295,6 +561,7 @@ class GcsStorage {
         expires: Date.now() + expirationMinutes * 60 * 1000
       });
       
+      console.log(`GCS: Successfully generated download URL for file: ${filePath}`);
       return url;
     } catch (error) {
       console.error('Error generating download URL:', error);
@@ -307,19 +574,94 @@ class GcsStorage {
    */
   async deleteFile(filePath: string): Promise<boolean> {
     try {
+      console.log(`GCS: Attempting to delete file: ${filePath}`);
       const bucket = storage.bucket(bucketName);
-      const file = bucket.file(filePath);
       
-      // Check if file exists
-      const [exists] = await file.exists();
-      if (!exists) {
-        return false;
+      // Check if this is a drawing path - similar logic to download URL generation
+      const isDrawingPath = 
+        filePath.includes('drawings/') || 
+        filePath.match(/_R\d+\.\w+$/i) || // Check for revision pattern
+        (filePath.includes('THERMOPAC_INVENTORY') && /\d{10,}/.test(filePath)) ||
+        /4\d{3}/.test(filePath);
+      
+      // For standard files, use direct deletion
+      if (!isDrawingPath) {
+        const file = bucket.file(filePath);
+        
+        // Check if file exists
+        const [exists] = await file.exists();
+        if (!exists) {
+          console.log(`GCS: File does not exist at path: ${filePath}`);
+          return false;
+        }
+        
+        // Delete the file
+        await file.delete();
+        console.log(`GCS: Successfully deleted file: ${filePath}`);
+        return true;
       }
       
-      // Delete the file
-      await file.delete();
+      // For drawing files, follow similar logic to our download URL method
+      console.log(`GCS: Detected drawing path, will try multiple locations: ${filePath}`);
       
-      return true;
+      // First try the exact path
+      const file = bucket.file(filePath);
+      const [exists] = await file.exists();
+      if (exists) {
+        await file.delete();
+        console.log(`GCS: Successfully deleted drawing at exact path: ${filePath}`);
+        return true;
+      }
+      
+      // Try to extract drawing number and revision
+      let drawingNumber = null;
+      let revision = null;
+      
+      // Try to extract drawing number and revision from filename
+      const drawingRevMatch = path.basename(filePath).match(/^(.+?)_R(\d+)\.\w+$/i);
+      if (drawingRevMatch && drawingRevMatch[1] && drawingRevMatch[2]) {
+        drawingNumber = drawingRevMatch[1];
+        revision = drawingRevMatch[2];
+      } else {
+        // Try to extract just the drawing number from the path
+        const numMatch = filePath.match(/(\d{4,})/);
+        if (numMatch && numMatch[1]) {
+          drawingNumber = numMatch[1];
+          
+          // Try to extract revision from filename if not already found
+          const revMatch = path.basename(filePath).match(/_R(\d+)/i);
+          if (revMatch && revMatch[1]) {
+            revision = revMatch[1];
+          }
+        }
+      }
+      
+      // If we extracted a drawing number, try alternative paths
+      if (drawingNumber) {
+        // List of paths to try in order of most likely to least likely
+        const pathsToTry = [
+          `THERMOPAC_INVENTORY/${drawingNumber}/${path.basename(filePath)}`,
+          `THERMOPAC_INVENTORY/drawings/${drawingNumber}/${path.basename(filePath)}`,
+          `THERMOPAC_PROJECTS/drawings/${drawingNumber}/${path.basename(filePath)}`
+        ];
+        
+        // Try each path
+        for (const pathToTry of pathsToTry) {
+          if (pathToTry !== filePath) { // Skip the original path we already checked
+            const alternativeFile = bucket.file(pathToTry);
+            const [alternativeExists] = await alternativeFile.exists();
+            
+            if (alternativeExists) {
+              await alternativeFile.delete();
+              console.log(`GCS: Successfully deleted drawing at alternative path: ${pathToTry}`);
+              return true;
+            }
+          }
+        }
+      }
+      
+      console.log(`GCS: Could not find drawing file to delete in any location for ${filePath}`);
+      return false;
     } catch (error) {
       console.error('Error deleting file:', error);
       return false;
