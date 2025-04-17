@@ -841,6 +841,9 @@ export function setupFileStorageRoutes(app: Router) {
         }
       }
       
+      // Import the bucketName
+      const { bucketName } = require('./utils/storage-config');
+      
       // If we got here, we couldn't recover
       // Provide more specific error information based on error type
       if (error.code === 403) {
@@ -848,28 +851,59 @@ export function setupFileStorageRoutes(app: Router) {
         res.status(500).json({ 
           error: 'Permission denied while uploading file',
           details: 'The server does not have permission to write to the storage bucket',
-          suggestion: 'Please contact support to verify Google Cloud Storage permissions'
+          suggestion: 'Please contact support to verify Google Cloud Storage permissions',
+          shouldRetry: false  // No point retrying permission issues
         });
       } else if (error.code === 404) {
-        console.error('GCS bucket not found - check bucket name configuration');
+        console.error(`GCS bucket not found - check bucket name configuration. Current bucket: ${bucketName}`);
         res.status(500).json({ 
           error: 'Storage bucket not found',
-          details: 'The configured storage bucket does not exist or is not accessible',
-          suggestion: 'Please contact support to verify Google Cloud Storage configuration'
+          details: `The configured storage bucket "${bucketName}" does not exist or is not accessible`,
+          suggestion: 'Please contact support to verify Google Cloud Storage configuration',
+          shouldRetry: false  // No point retrying with wrong bucket name
         });
-      } else if (error.message && error.message.includes('ENOTFOUND')) {
-        console.error('DNS resolution failed - check network connectivity');
+      } else if (error.message && (
+          error.message.includes('ENOTFOUND') || 
+          error.message.includes('ENETUNREACH') || 
+          error.message.includes('ETIMEDOUT')
+      )) {
+        console.error('Network error during upload - may be transient');
         res.status(500).json({ 
           error: 'Cannot connect to storage service',
           details: 'Network connection to Google Cloud Storage failed',
-          suggestion: 'Please try again later or contact support if the issue persists'
+          suggestion: 'Please try again in a few moments',
+          shouldRetry: true,  // Network errors are often transient and should be retried
+          retryDelay: 3000    // Suggest retrying after 3 seconds
+        });
+      } else if (error.message && error.message.includes('Bucket')) {
+        console.error(`GCS bucket error: ${error.message}`);
+        res.status(500).json({ 
+          error: 'Storage bucket configuration error',
+          details: `Problem with storage bucket "${bucketName}": ${error.message}`,
+          suggestion: 'Please contact support to verify Google Cloud Storage configuration',
+          shouldRetry: false  // No point retrying bucket configuration issues
+        });
+      } else if (error.message && (
+          error.message.includes('credentials') || 
+          error.message.includes('authentication') || 
+          error.message.includes('auth')
+      )) {
+        console.error('GCS authentication error');
+        res.status(500).json({ 
+          error: 'Storage authentication error',
+          details: 'Failed to authenticate with Google Cloud Storage',
+          suggestion: 'Please contact support to verify Google Cloud Storage credentials',
+          shouldRetry: false  // No point retrying authentication issues
         });
       } else {
         // Generic error
+        console.error(`Generic upload error: ${error.message}`);
         res.status(500).json({ 
           error: 'Failed to upload file',
           errorCode: error.code,
-          errorMessage: error.message
+          errorMessage: error.message,
+          shouldRetry: true,  // Generic errors might be worth retrying
+          retryDelay: 5000    // Suggest retrying after 5 seconds for generic errors
         });
       }
     }

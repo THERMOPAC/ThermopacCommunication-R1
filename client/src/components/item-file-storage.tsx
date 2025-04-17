@@ -65,57 +65,83 @@ const ItemFileStorage: React.FC<ItemFileStorageProps> = ({ itemId, itemCode }) =
     }
   });
 
+  // State for managing upload retries
+  const [uploadRetryCount, setUploadRetryCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [retryTimeout, setRetryTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [lastUploadError, setLastUploadError] = useState<{error: string, shouldRetry: boolean, retryDelay?: number} | null>(null);
+  
+  // Maximum retry attempts
+  const MAX_RETRIES = 3;
+
   // Mutation to upload a file
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('path', currentPath);
-
-      // First, request an upload URL
-      const uploadUrlResponse = await apiRequest('POST', '/api/storage/upload-url', {
-        fileName: file.name,
-        contentType: file.type,
-        path: currentPath,
-      });
-
-      if (!uploadUrlResponse.ok) {
-        throw new Error('Failed to get upload URL');
-      }
-
-      const { url, fields } = await uploadUrlResponse.json();
-
-      // Create a new FormData for the actual upload
-      const uploadFormData = new FormData();
-      // Add the fields from the signed URL response
-      Object.entries(fields).forEach(([key, value]) => {
-        uploadFormData.append(key, value as string);
-      });
-      // Add the file as the last field
-      uploadFormData.append('file', file);
-
-      // Upload directly to Google Cloud Storage
-      const uploadResponse = await fetch(url, {
-        method: 'POST',
-        body: uploadFormData,
-      });
-
-      if (!uploadResponse.ok) {
-        // Try to parse error details from the response
-        const errorData = await uploadResponse.json().catch(() => ({}));
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('path', currentPath);
         
-        if (errorData.error) {
-          // Handle specific error cases like duplicate drawing revisions
-          if (uploadResponse.status === 409 && errorData.suggestedRevision !== undefined) {
-            throw new Error(`${errorData.error} Please use revision ${errorData.suggestedRevision}.`);
-          } else {
-            throw new Error(errorData.error);
-          }
-        }
-        throw new Error(`Upload failed with status: ${uploadResponse.status}`);
-      }
+        console.log(`Uploading file ${file.name} (${formatFileSize(file.size)}) to ${currentPath}`);
+        console.log(`Attempt #${uploadRetryCount + 1} of ${MAX_RETRIES + 1}`);
 
-      return { success: true };
+        // Use server-side upload endpoint for more robust error handling
+        // This sends the file directly to our server, which then uploads to GCS
+        const directUploadResponse = await fetch('/api/storage/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!directUploadResponse.ok) {
+          // Try to parse error details from the response
+          let errorMessage = 'Upload failed';
+          let shouldRetry = false;
+          let retryDelay = 5000; // Default 5s delay
+          
+          try {
+            const errorData = await directUploadResponse.json();
+            errorMessage = errorData.error || 'Upload failed';
+            // Check if the server suggests we should retry this upload
+            shouldRetry = errorData.shouldRetry === true;
+            if (errorData.retryDelay) {
+              retryDelay = errorData.retryDelay;
+            }
+            
+            // Save the error info for potential retry
+            setLastUploadError({
+              error: errorMessage,
+              shouldRetry,
+              retryDelay
+            });
+            
+            // Specific error cases 
+            if (directUploadResponse.status === 409 && errorData.suggestedRevision !== undefined) {
+              throw new Error(`${errorData.error} Please use revision ${errorData.suggestedRevision}.`);
+            }
+          } catch (parseError) {
+            // If we couldn't parse the JSON response
+            errorMessage = `Upload failed with status: ${directUploadResponse.status}`;
+            shouldRetry = directUploadResponse.status >= 500 || directUploadResponse.status === 429;
+            setLastUploadError({
+              error: errorMessage,
+              shouldRetry,
+              retryDelay
+            });
+          }
+          
+          throw new Error(errorMessage);
+        }
+
+        // Reset retry counter on success
+        setUploadRetryCount(0);
+        setLastUploadError(null);
+        
+        return { success: true };
+      } catch (error) {
+        // Log the error for debugging
+        console.error('Upload error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -125,13 +151,46 @@ const ItemFileStorage: React.FC<ItemFileStorageProps> = ({ itemId, itemCode }) =
       queryClient.invalidateQueries({ queryKey: ['item-files', currentPath] });
       setUploadFile(null);
       setIsUploadDialogOpen(false);
+      
+      // Clear any retry state
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+        setRetryTimeout(null);
+      }
+      setIsRetrying(false);
+      setUploadRetryCount(0);
     },
     onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Only show toast notification if we're not going to auto-retry
+      if (!lastUploadError?.shouldRetry || uploadRetryCount >= MAX_RETRIES) {
+        toast({
+          title: "Upload Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        
+        // Reset retry state if we've hit the max retries
+        setIsRetrying(false);
+        setUploadRetryCount(0);
+      } else {
+        // Auto-retry logic for retriable errors
+        const delay = lastUploadError?.retryDelay || 5000;
+        toast({
+          title: "Upload Error - Retrying",
+          description: `${error.message}. Retrying in ${delay/1000}s...`,
+          variant: "destructive",
+        });
+        
+        setIsRetrying(true);
+        const timeout = setTimeout(() => {
+          if (uploadFile) {
+            setUploadRetryCount(prev => prev + 1);
+            uploadMutation.mutate(uploadFile);
+          }
+        }, delay);
+        
+        setRetryTimeout(timeout);
+      }
     }
   });
 
@@ -219,6 +278,16 @@ const ItemFileStorage: React.FC<ItemFileStorageProps> = ({ itemId, itemCode }) =
   // Handle file upload
   const handleFileUpload = () => {
     if (uploadFile) {
+      // Clear any existing retry state when starting a fresh upload
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+        setRetryTimeout(null);
+      }
+      setIsRetrying(false);
+      setUploadRetryCount(0);
+      setLastUploadError(null);
+      
+      // Initialize the upload
       uploadMutation.mutate(uploadFile);
     }
   };
@@ -397,7 +466,12 @@ const ItemFileStorage: React.FC<ItemFileStorageProps> = ({ itemId, itemCode }) =
       </Card>
 
       {/* Upload Dialog */}
-      <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+      <Dialog open={isUploadDialogOpen} onOpenChange={(open) => {
+        // Only allow closing the dialog if we're not in the middle of an upload
+        if (!uploadMutation.isPending || !open) {
+          setIsUploadDialogOpen(open);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Upload File</DialogTitle>
@@ -413,18 +487,68 @@ const ItemFileStorage: React.FC<ItemFileStorageProps> = ({ itemId, itemCode }) =
                 id="file"
                 type="file"
                 onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                disabled={uploadMutation.isPending}
               />
             </div>
+            
+            {/* Upload status and retry information */}
+            {uploadMutation.isPending && (
+              <div className="mt-2 p-3 bg-muted rounded-md">
+                <div className="flex items-center">
+                  <div className="mr-3 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                  <div>
+                    <p className="text-sm font-medium">
+                      {isRetrying 
+                        ? `Retrying upload (Attempt ${uploadRetryCount + 1}/${MAX_RETRIES + 1})` 
+                        : 'Uploading file...'}
+                    </p>
+                    {uploadFile && (
+                      <p className="text-xs text-muted-foreground">
+                        {uploadFile.name} ({formatFileSize(uploadFile.size)})
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Error information with retry status */}
+            {lastUploadError && !uploadMutation.isPending && (
+              <div className="mt-2 p-3 bg-destructive/10 text-destructive rounded-md">
+                <p className="text-sm font-medium">Upload failed</p>
+                <p className="text-xs">{lastUploadError.error}</p>
+                {lastUploadError.shouldRetry && uploadRetryCount < MAX_RETRIES && (
+                  <p className="text-xs mt-1">
+                    The system will automatically retry shortly.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                // Clear any retry timeout when canceling
+                if (retryTimeout) {
+                  clearTimeout(retryTimeout);
+                  setRetryTimeout(null);
+                }
+                setIsRetrying(false);
+                setUploadRetryCount(0);
+                setIsUploadDialogOpen(false);
+              }}
+              disabled={uploadMutation.isPending && !isRetrying}
+            >
+              {uploadMutation.isPending && !isRetrying ? 'Please wait...' : 'Cancel'}
+            </Button>
             <Button 
               onClick={handleFileUpload} 
               disabled={!uploadFile || uploadMutation.isPending}
             >
-              {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
+              {uploadMutation.isPending 
+                ? (isRetrying ? 'Retrying...' : 'Uploading...') 
+                : 'Upload'}
             </Button>
           </DialogFooter>
         </DialogContent>
