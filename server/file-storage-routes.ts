@@ -2,6 +2,7 @@ import express, { Request, Response, Router } from 'express';
 import multer from 'multer';
 import { gcsStorage } from './utils/gcs-storage';
 import { bucketName } from './utils/storage-config';
+import { checkGcsPermissions } from './utils/gcs-permissions-check';
 import { db } from './db';
 import * as schema from '@shared/schema';
 import { gcsDirectories, projectDocuments, directoryTemplates, masterItems } from '@shared/schema';
@@ -1033,6 +1034,53 @@ export function setupFileStorageRoutes(app: Router) {
           });
         }
       }
+    }
+  });
+  
+  /**
+   * Diagnose GCS permissions issues
+   * This endpoint runs a comprehensive check of GCS permissions and configuration
+   * to help troubleshoot file upload issues in different environments
+   */
+  app.get('/api/storage/check-permissions', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      console.log('Running GCS permissions check...');
+      
+      // Check if the user has the necessary role to access this endpoint
+      if (req.user && (req.user as any).role !== 'Superuser') {
+        return res.status(403).json({ 
+          error: 'Access denied', 
+          message: 'Only Superusers can access this diagnostic endpoint' 
+        });
+      }
+      
+      const permissionsResult = await checkGcsPermissions();
+      
+      // Add additional environment information
+      const environmentInfo = {
+        nodeEnv: process.env.NODE_ENV || 'development',
+        googleBucketEnvVar: process.env.GOOGLE_CLOUD_BUCKET || '(not set)',
+        correctedBucketName: bucketName,
+        hasGoogleCredentials: !!process.env.GOOGLE_CLOUD_CREDENTIALS,
+        credentialsLength: process.env.GOOGLE_CLOUD_CREDENTIALS ? 
+          process.env.GOOGLE_CLOUD_CREDENTIALS.length : 0,
+        hostname: req.headers.host,
+        serverStartTime: new Date().toISOString()
+      };
+      
+      res.status(200).json({
+        success: permissionsResult.success,
+        permissions: permissionsResult.details,
+        environment: environmentInfo,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error('Error checking GCS permissions:', error);
+      res.status(500).json({ 
+        error: 'Failed to check GCS permissions',
+        message: error.message,
+        stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+      });
     }
   });
 
