@@ -1101,24 +1101,19 @@ export function setupFileStorageRoutes(app: Router) {
       // Check for credential issues
       if (!process.env.GOOGLE_CLOUD_CREDENTIALS) {
         suggestions.push('GOOGLE_CLOUD_CREDENTIALS environment variable is missing. Add service account credentials in JSON format.');
-      } else if (permissionsResult.details.credentials.type === 'parse-error' || 
-                permissionsResult.details.credentials.type === 'invalid-format') {
-        suggestions.push('GOOGLE_CLOUD_CREDENTIALS environment variable contains invalid JSON. Verify the format.');
-      } else if (!permissionsResult.details.credentials.clientEmail) {
-        suggestions.push('Service account email is missing from credentials. Verify the service account key JSON is complete.');
-      } else if (!permissionsResult.details.credentials.hasPrivateKey) {
-        suggestions.push('Private key is missing from credentials. Verify the service account key JSON is complete.');
+      } else if (!process.env.GOOGLE_CLOUD_PROJECT_ID) {
+        suggestions.push('GOOGLE_CLOUD_PROJECT_ID environment variable is missing.');
       }
       
       // Check for bucket issues
-      if (!permissionsResult.details.bucketExists) {
-        suggestions.push(`Bucket "${permissionsResult.details.bucket}" does not exist or the service account lacks access. Create the bucket or grant Storage Object Admin role.`);
+      if (!permissionsResult.permissions.bucketExists) {
+        suggestions.push(`Bucket "${permissionsResult.environment.bucketName}" does not exist or the service account lacks access. Create the bucket or grant Storage Object Admin role.`);
       } else {
-        if (!permissionsResult.details.canListFiles) {
+        if (!permissionsResult.permissions.canListFiles) {
           suggestions.push('Service account lacks permission to list files. Grant Storage Object Viewer role.');
         }
-        if (!permissionsResult.details.canWriteFiles) {
-          suggestions.push('Service account lacks permission to write files. Grant Storage Object Creator role.');
+        if (!permissionsResult.permissions.canUploadFiles) {
+          suggestions.push('Service account lacks permission to upload files. Grant Storage Object Creator role.');
         }
       }
       
@@ -1129,9 +1124,10 @@ export function setupFileStorageRoutes(app: Router) {
       
       res.status(200).json({
         success: permissionsResult.success,
-        permissions: permissionsResult.details,
-        environment: environmentInfo,
+        permissions: permissionsResult.permissions,
+        environment: permissionsResult.environment,
         suggestions: suggestions,
+        errors: permissionsResult.errors,
         timestamp: new Date().toISOString()
       });
     } catch (error: any) {

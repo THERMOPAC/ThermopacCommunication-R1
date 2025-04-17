@@ -134,7 +134,7 @@ export default function Layout({ children }: LayoutProps) {
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
     { icon: MessageSquare, label: "Messages", href: "/messages" },
     { icon: Mail, label: "Emails", href: "/emails" },
-    { icon: Settings, label: "Tools", href: "/tools" },
+    ...(user?.role === "Superuser" ? [{ icon: Settings, label: "Tools", href: "/tools" }] : []),
     { icon: UserIcon, label: "Profile", href: "/profile" },
     ...(user?.role === "Superuser" || user?.role === "General Manager" ? [
       { icon: UserCog, label: "User Management", href: "/users" },
