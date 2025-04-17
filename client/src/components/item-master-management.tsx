@@ -2343,7 +2343,7 @@ const ItemMasterManagement: React.FC = () => {
                 </div>
                 
                 {/* GCS Diagnostics Panel for troubleshooting file upload issues */}
-                {canManageContent(user?.role) && (
+                {canManageContent(user?.role, 'Superuser') && (
                   <div className="mt-8 border-t pt-6">
                     <h3 className="text-lg font-medium mb-4">Storage Diagnostics</h3>
                     <p className="text-sm text-muted-foreground mb-4">
