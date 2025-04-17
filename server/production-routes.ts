@@ -161,6 +161,44 @@ export function setupProductionRoutes(app: Router) {
         }
       });
       
+      // Now, for each parent with components, add virtual project items for component items
+      // that are not already included in the project
+      const virtualChildItems: typeof makeItems = [];
+      
+      parentsWithComponents.forEach(parentItemId => {
+        // Find the original project item for this parent
+        const parentProjectItem = makeItems.find(item => item.itemId === parentItemId);
+        if (!parentProjectItem) return;
+        
+        // Get all component items for this parent
+        const componentItemIds = parentToChildMap.get(parentItemId) || [];
+        
+        componentItemIds.forEach(componentItemId => {
+          // Check if this component already exists as a project item
+          const existingComponentItem = makeItems.find(item => item.itemId === componentItemId);
+          
+          if (!existingComponentItem) {
+            // If component is not already a project item, create a virtual one
+            const masterComponentItem = masterItemsMap.get(componentItemId);
+            if (masterComponentItem && masterComponentItem.makeOrBuy === 'Make') {
+              // Create a virtual project item for this component
+              // We use negative IDs for virtual items to avoid conflicts
+              virtualChildItems.push({
+                id: -componentItemId, // Use negative ID to indicate virtual item
+                projectId: parentProjectItem.projectId,
+                itemId: componentItemId,
+                quantity: 1, // Default to 1 for now, could be improved with BOM relationships
+                makeOrBuy: 'Make',
+                notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`
+              });
+            }
+          }
+        });
+      });
+      
+      // Add virtual items to child items
+      childItems.push(...virtualChildItems);
+      
       // Create preview data for client
       type PreviewItem = {
         sequenceNumber: number;
