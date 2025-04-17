@@ -1917,6 +1917,23 @@ const ItemMasterManagement: React.FC = () => {
                             formData.append('type', 'drawing');
                             formData.append('isPublic', 'false');
                             
+                            // Log the complete path that will be created for the drawing - helps debug Production vs Development issues
+                            console.log(`Drawing upload path structure: THERMOPAC_INVENTORY/${drawingNo}/${newFileName}`);
+                            console.log(`Environment: ${import.meta.env.MODE}`);
+                            console.log(`Upload parameters:`, {
+                                financialYear: 'THERMOPAC_INVENTORY',
+                                projectCode: drawingNo,
+                                department: '',
+                                subDirectory: '',
+                                projectId: '3',
+                                description: drawingDescription || `Drawing for ${drawingNo}`,
+                                type: 'drawing',
+                                isPublic: 'false',
+                                fileName: newFileName,
+                                fileSize: newFile.size,
+                                fileType: newFile.type
+                            });
+                            
                             // Use fetch API with async/await pattern in an IIFE
                             (async () => {
                               const maxRetries = 3; // Increase max retries
