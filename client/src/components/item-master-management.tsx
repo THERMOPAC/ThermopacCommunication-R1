@@ -1517,6 +1517,10 @@ const ItemMasterManagement: React.FC = () => {
                   <h3 className="text-lg font-medium">Drawing Management</h3>
                   <Dialog open={isDrawingDialogOpen} onOpenChange={(open) => {
                     setIsDrawingDialogOpen(open);
+                    
+                    // Clear any previous error state regardless of open/close
+                    setDrawingUploadError(null);
+                    
                     // When opening the dialog, initialize with the parent item selected
                     if (open && currentItem) {
                       console.log('Current latestRevisions state when opening dialog:', latestRevisions);
@@ -1569,6 +1573,35 @@ const ItemMasterManagement: React.FC = () => {
                           Upload a drawing file for {currentItem?.itemCode}
                         </DialogDescription>
                       </DialogHeader>
+                      {/* Display detailed error information if there's an error */}
+                      {drawingUploadError && (
+                        <div className="bg-destructive/10 border border-destructive text-destructive rounded-md px-4 py-3 mb-4">
+                          <div className="flex items-start">
+                            <AlertTriangle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-medium text-sm">{drawingUploadError.message}</h4>
+                              {drawingUploadError.details && (
+                                <p className="text-xs mt-1">{drawingUploadError.details}</p>
+                              )}
+                              {drawingUploadError.suggestion && (
+                                <p className="text-xs mt-2 font-medium">{drawingUploadError.suggestion}</p>
+                              )}
+                              {drawingUploadError.shouldRetry && (
+                                <p className="text-xs mt-2">The system will automatically retry the upload.</p>
+                              )}
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="mt-2 h-7 text-xs" 
+                                onClick={() => setDrawingUploadError(null)}
+                              >
+                                Dismiss
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
                           <Label htmlFor="drawing-item">Select Item</Label>
@@ -2102,9 +2135,63 @@ const ItemMasterManagement: React.FC = () => {
                                 setIsDrawingDialogOpen(false);
                               } catch (error) {
                                 console.error('Upload error:', error);
+                                
+                                // Classify the error and set detailed error state
+                                let errorMessage = 'Failed to upload drawing';
+                                let errorDetails = '';
+                                let errorType = 'unknown';
+                                let errorSuggestion = '';
+                                let shouldRetry = false;
+                                
+                                if (error instanceof Error) {
+                                  errorMessage = error.message;
+                                  
+                                  // Classify error type based on message content
+                                  if (error.message.includes('revision')) {
+                                    errorType = 'revision';
+                                    errorSuggestion = 'Please use the suggested revision number and try again.';
+                                  } else if (error.message.includes('permission') || error.message.includes('403')) {
+                                    errorType = 'permission';
+                                    errorSuggestion = 'You may not have permission to upload to this location. Contact your system administrator.';
+                                  } else if (error.message.includes('network') || error.message.includes('connection') || 
+                                             error.message.includes('timeout') || error.message.includes('ECONN')) {
+                                    errorType = 'network';
+                                    errorSuggestion = 'Check your internet connection and try again.';
+                                    shouldRetry = true;
+                                  } else if (error.message.includes('size') || error.message.includes('large')) {
+                                    errorType = 'filesize';
+                                    errorSuggestion = 'The file may be too large. Try compressing it or uploading a smaller file.';
+                                  } else if (error.message.includes('format') || error.message.includes('type')) {
+                                    errorType = 'format';
+                                    errorSuggestion = 'The file format may not be supported. Try uploading a PDF or DWG file.';
+                                  } else if (error.message.includes('storage') || error.message.includes('bucket')) {
+                                    errorType = 'storage';
+                                    errorDetails = 'There was an issue with the cloud storage service.';
+                                    errorSuggestion = 'Please try again later or contact support if the issue persists.';
+                                  }
+                                  
+                                  // Extract more details if available in nested error
+                                  if ((error as any).cause || (error as any).originalError) {
+                                    const nestedError = (error as any).cause || (error as any).originalError;
+                                    if (nestedError && nestedError.message) {
+                                      errorDetails = nestedError.message;
+                                    }
+                                  }
+                                }
+                                
+                                // Set the detailed error state
+                                setDrawingUploadError({
+                                  message: errorMessage,
+                                  details: errorDetails,
+                                  errorType: errorType,
+                                  suggestion: errorSuggestion,
+                                  shouldRetry: shouldRetry
+                                });
+                                
+                                // Still show toast for immediate feedback
                                 toast({
-                                  title: 'Error',
-                                  description: error instanceof Error ? error.message : 'Failed to upload drawing',
+                                  title: 'Upload Failed',
+                                  description: errorMessage,
                                   variant: 'destructive',
                                 });
                               } finally {
