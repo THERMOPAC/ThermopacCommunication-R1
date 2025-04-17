@@ -177,13 +177,13 @@ export function setupProductionRoutes(app: Router) {
         where: eq(workOrders.projectId, projectId),
       });
       
-      // Calculate the next sequential number for parent and child work orders
-      const nextParentSeqNumber = workOrderCount.filter(wo => wo.workOrderNumber.includes('-P-')).length + 1;
-      const nextChildSeqNumber = workOrderCount.filter(wo => wo.workOrderNumber.includes('-C-')).length + 1;
+      // Calculate the next sequential numbers
+      const nextParentSeqNumber = workOrderCount.length + 1;
+      const nextChildSeqNumber = workOrderCount.length + 2;
       
       // Generate unique work order numbers with sequential numbering
-      const parentWorkOrderNumber = `WO-${project.code}-P-${nextParentSeqNumber}`;
-      const childWorkOrderNumber = `WO-${project.code}-C-${nextChildSeqNumber}`;
+      const parentWorkOrderNumber = `WO-${project.code}-${nextParentSeqNumber}`;
+      const childWorkOrderNumber = `WO-${project.code}-${nextChildSeqNumber}`;
       
       res.status(200).json({
         project: {
@@ -354,15 +354,14 @@ export function setupProductionRoutes(app: Router) {
         where: eq(workOrders.projectId, projectId),
       });
       
-      // Calculate the next sequential number for parent and child work orders
-      const nextParentSeqNumber = workOrderCount.filter(wo => wo.workOrderNumber.includes('-P-')).length + 1;
-      const nextChildSeqNumber = workOrderCount.filter(wo => wo.workOrderNumber.includes('-C-')).length + 1;
+      // Calculate the next sequential numbers
+      const nextParentSeqNumber = workOrderCount.length + 1;
+      const nextChildSeqNumber = workOrderCount.length + 2;
       
       // Helper function to create a work order
       const createWorkOrder = async (items: typeof makeItems, isParent: boolean) => {
-        const suffix = isParent ? 'P' : 'C';
         const seqNumber = isParent ? nextParentSeqNumber : nextChildSeqNumber;
-        const specificWorkOrderNumber = `WO-${project.code}-${suffix}-${seqNumber}`;
+        const specificWorkOrderNumber = `WO-${project.code}-${seqNumber}`;
         const typeDescription = isParent ? 'Parent Items' : 'Child Components';
         
         // Create work order
