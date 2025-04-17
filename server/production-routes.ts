@@ -189,9 +189,9 @@ app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, a
               id: -componentItemId, // Use negative ID to indicate virtual item
               projectId: parentProjectItem.projectId,
               itemId: componentItemId,
-              quantity: '1', // Default to 1 for now, could be improved with BOM relationships
-              // Exclude makeOrBuy as it's not in the schema type
-              notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}` as string
+              quantity: 1, // Default to 1 for now, could be improved with BOM relationships
+              makeOrBuy: 'Make',
+              notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`
             });
           }
         }
@@ -455,9 +455,9 @@ app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, a
                 id: -(Math.abs(componentItemId)), // Use negative ID to mark as virtual
                 projectId: parentProjectItem.projectId,
                 itemId: componentItemId,
-                quantity: '1', // Default to 1 for now, could be improved with BOM relationships
-                // Exclude makeOrBuy as it's not in the schema type
-                notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}` as string
+                quantity: 1, // Default to 1 for now, could be improved with BOM relationships
+                makeOrBuy: 'Make' as const,
+                notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`
               });
             }
           }
