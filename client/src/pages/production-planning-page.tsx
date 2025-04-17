@@ -5,13 +5,12 @@ import {
   CardContent, 
   CardDescription, 
   CardHeader, 
-  CardTitle, 
-  CardFooter 
+  CardTitle
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { 
   Select,
@@ -171,9 +170,9 @@ export default function ProductionPlanningPage() {
       case "in_progress":
         return <Badge variant="secondary" className="flex items-center gap-1"><Hourglass className="h-3 w-3" /> In Progress</Badge>;
       case "on_hold":
-        return <Badge variant="warning" className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> On Hold</Badge>;
+        return <Badge variant="outline" className="flex items-center gap-1 bg-amber-100 text-amber-800"><AlertTriangle className="h-3 w-3" /> On Hold</Badge>;
       case "completed":
-        return <Badge variant="success" className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Completed</Badge>;
+        return <Badge variant="outline" className="flex items-center gap-1 bg-green-100 text-green-800"><CheckCircle2 className="h-3 w-3" /> Completed</Badge>;
       case "cancelled":
         return <Badge variant="destructive" className="flex items-center gap-1"><XCircle className="h-3 w-3" /> Cancelled</Badge>;
       default:
