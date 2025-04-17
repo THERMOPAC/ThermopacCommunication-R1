@@ -27,7 +27,9 @@ export function setupProductionRoutes(app: Router) {
     try {
       const projectId = parseInt(req.params.projectId);
       
+      // Check if project ID is valid
       if (isNaN(projectId)) {
+        console.log('Invalid project ID in preview endpoint:', req.params.projectId);
         return res.status(400).json({ error: 'Invalid project ID' });
       }
       

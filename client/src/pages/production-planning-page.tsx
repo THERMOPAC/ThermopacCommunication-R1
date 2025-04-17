@@ -98,7 +98,7 @@ export default function ProductionPlanningPage() {
     isLoading: isLoadingWorkOrders,
     refetch: refetchWorkOrders
   } = useQuery<any[]>({
-    queryKey: ['/api/production/work-orders/project', selectedProject],
+    queryKey: ['/api/production/work-orders/project', selectedProject?.toString()],
     enabled: !!selectedProject,
   });
   
@@ -108,7 +108,7 @@ export default function ProductionPlanningPage() {
     isLoading: isLoadingPreview,
     refetch: refetchPreview
   } = useQuery<any>({
-    queryKey: ['/api/production/work-orders/preview', selectedProject],
+    queryKey: ['/api/production/work-orders/preview', selectedProject?.toString()],
     enabled: false, // We'll trigger this manually
   });
   
