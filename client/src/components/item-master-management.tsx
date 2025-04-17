@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import GcsDiagnostics from './gcs-diagnostics';
 import EngineeringChangeManagement from './engineering-change-management';
 import {
   Dialog,
