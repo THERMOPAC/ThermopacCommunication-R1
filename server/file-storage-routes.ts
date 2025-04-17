@@ -457,6 +457,23 @@ export function setupFileStorageRoutes(app: Router) {
    */
   app.post('/api/storage/upload', ensureAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
     try {
+      // Add extensive debugging for production troubleshooting
+      console.log('🔍 File upload initiated by user:', req.user?.username || 'Unknown');
+      console.log('📁 File upload request body:', JSON.stringify(req.body, null, 2));
+      console.log('📄 File details:', req.file ? 
+        JSON.stringify({
+          filename: req.file.originalname,
+          size: req.file.size,
+          mimetype: req.file.mimetype
+        }, null, 2) : 'No file');
+      
+      // Check credentials for GCS
+      console.log('☁️ GCS credentials check:', {
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID ? 'Present' : 'Missing',
+        credentials: process.env.GOOGLE_CLOUD_CREDENTIALS ? 'Present' : 'Missing',
+        bucketName: process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage'
+      });
+      
       if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
       }
@@ -473,8 +490,20 @@ export function setupFileStorageRoutes(app: Router) {
         isPublic
       } = req.body;
       
-      if (!financialYear || !projectCode || !department || !projectId) {
-        return res.status(400).json({ error: 'Missing required parameters' });
+      // Add format validation and better error messages
+      const errors = [];
+      if (!financialYear) errors.push('financialYear is required');
+      if (!projectCode) errors.push('projectCode is required');
+      if (!department && department !== '') errors.push('department field is required (can be empty string)');
+      if (!projectId) errors.push('projectId is required');
+      
+      if (errors.length > 0) {
+        console.log('❌ File upload validation errors:', errors);
+        return res.status(400).json({ 
+          error: 'Missing required parameters', 
+          details: errors,
+          received: { financialYear, projectCode, department, projectId }
+        });
       }
       
       // Calculate the storage path
@@ -657,11 +686,12 @@ export function setupFileStorageRoutes(app: Router) {
       
       // Import storage module
       const storageModule = await import('./utils/storage-config');
-      console.log(`File upload: Using bucket name: ${storageModule.bucketName}`);
+      const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage';
+      console.log(`File upload: Using bucket name: ${bucketName}`);
       
       // Create the file in GCS
-      const bucket = storageModule.default.bucket(storageModule.bucketName);
-      console.log(`File upload: Created bucket object for ${storageModule.bucketName}`);
+      const bucket = storageModule.default.bucket(bucketName);
+      console.log(`File upload: Created bucket object for ${bucketName}`);
       const file = bucket.file(storagePath);
       
       // Create a write stream to upload the file
@@ -674,7 +704,14 @@ export function setupFileStorageRoutes(app: Router) {
       // Handle stream errors
       const streamError = new Promise((resolve, reject) => {
         stream.on('error', (error) => {
-          console.error('Stream error:', error);
+          console.error('Stream error during GCS upload:', error);
+          console.error('Error details:', {
+            message: error.message || 'Unknown error',
+            code: error.code,
+            stack: error.stack,
+            bucket: bucketName,
+            storagePath: storagePath,
+          });
           reject(error);
         });
         

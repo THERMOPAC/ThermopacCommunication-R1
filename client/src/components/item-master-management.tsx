@@ -1880,9 +1880,13 @@ const ItemMasterManagement: React.FC = () => {
                               try {
                                 console.log('Uploading drawing with fetch...');
                                 // Log the FormData contents for debugging
-                                for (const pair of formData.entries()) {
-                                  console.log(`FormData field: ${pair[0]}, value: ${typeof pair[1] === 'object' ? 'File: ' + (pair[1] as File).name : pair[1]}`);
-                                }
+                                console.log(`FormData contains file: ${formData.has('file')}`);
+                                console.log(`FormData financialYear: ${formData.get('financialYear')}`);
+                                console.log(`FormData projectCode: ${formData.get('projectCode')}`);
+                                console.log(`FormData department: ${formData.get('department')}`);
+                                console.log(`FormData description: ${formData.get('description')}`);
+                                console.log(`FormData type: ${formData.get('type')}`);
+                                console.log(`FormData projectId: ${formData.get('projectId')}`);
                                 
                                 const response = await fetch('/api/storage/upload', {
                                   method: 'POST',
