@@ -23,9 +23,7 @@ export function setupProductionRoutes(app: Router) {
   // ==================== WORK ORDERS ====================
   
   // Preview work orders for a project
-  app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
-// Preview work orders for a project
-app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const projectId = parseInt(req.params.projectId);
     
@@ -189,8 +187,7 @@ app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, a
               id: -componentItemId, // Use negative ID to indicate virtual item
               projectId: parentProjectItem.projectId,
               itemId: componentItemId,
-              quantity: 1, // Default to 1 for now, could be improved with BOM relationships
-              makeOrBuy: 'Make',
+              quantity: '1', // Default to 1 for now, could be improved with BOM relationships
               notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`
             });
           }
@@ -267,6 +264,9 @@ app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, a
     res.status(500).json({ error: 'Failed to generate work orders preview' });
   }
 });
+  
+  // Generate work orders for a project
+  app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const { confirm } = req.body;
@@ -455,8 +455,7 @@ app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, a
                 id: -(Math.abs(componentItemId)), // Use negative ID to mark as virtual
                 projectId: parentProjectItem.projectId,
                 itemId: componentItemId,
-                quantity: 1, // Default to 1 for now, could be improved with BOM relationships
-                makeOrBuy: 'Make' as const,
+                quantity: '1', // Default to 1 for now, could be improved with BOM relationships
                 notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`
               });
             }
