@@ -181,7 +181,7 @@ export function setupProductionRoutes(app: Router) {
       const nextParentSeqNumber = workOrderCount.length + 1;
       const nextChildSeqNumber = workOrderCount.length + 2;
       
-      // Generate unique work order numbers with sequential numbering
+      // Generate unique work order numbers with sequential numbering using the format WO-[ProjectCode]-[SequentialNumber]
       const parentWorkOrderNumber = `WO-${project.code}-${nextParentSeqNumber}`;
       const childWorkOrderNumber = `WO-${project.code}-${nextChildSeqNumber}`;
       
@@ -360,6 +360,8 @@ export function setupProductionRoutes(app: Router) {
       
       // Helper function to create a work order
       const createWorkOrder = async (items: typeof makeItems, isParent: boolean) => {
+        // For consistency across the application, always use the simple sequential number 
+        // regardless of whether it's parent or child items
         const seqNumber = isParent ? nextParentSeqNumber : nextChildSeqNumber;
         const specificWorkOrderNumber = `WO-${project.code}-${seqNumber}`;
         const typeDescription = isParent ? 'Parent Items' : 'Child Components';
