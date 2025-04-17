@@ -174,12 +174,14 @@ export default function ProductionPlanningPage() {
         throw new Error(errorData.error || "Failed to generate work orders");
       }
       
-      return await response.json();
+      const responseData = await response.json();
+      console.log("Work order generation response:", responseData);
+      return responseData;
     },
     onSuccess: (data) => {
       toast({
         title: "Work Orders Generated",
-        description: `Successfully created ${data.items?.length || 0} work order items for ${data.workOrders?.[0]?.title || 'project'}`,
+        description: data.message || `Successfully created work orders for the project`,
       });
       // Refresh the work orders list
       refetchWorkOrders();
@@ -893,6 +895,7 @@ export default function ProductionPlanningPage() {
               onClick={() => {
                 setIsGeneratingWorkOrders(true);
                 generateWorkOrdersMutation.mutate(selectedProject!);
+                // Dialog will be closed in onSuccess callback
               }}
               disabled={generateWorkOrdersMutation.isPending || !previewData}
               className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700"
