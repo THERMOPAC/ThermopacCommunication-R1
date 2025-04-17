@@ -90,6 +90,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up module permissions routes
   app.use(modulePermissionRoutes);
   
+  // GCS Storage Diagnostics Route - only accessible by Superusers
+  app.get("/api/gcs-permissions-check", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      // Only allow Superusers to run diagnostics
+      if (req.user!.role !== "Superuser") {
+        return res.status(403).json({ error: 'Only Superusers can access storage diagnostics' });
+      }
+      
+      const diagnosticResults = await checkGcsPermissions();
+      res.json(diagnosticResults);
+    } catch (error) {
+      console.error("Error checking GCS permissions:", error);
+      res.status(500).json({ 
+        error: 'Failed to check GCS permissions',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
   // Database Maintenance Routes
   app.post("/api/db-maintenance/reset-master-items", async (req, res) => {
     try {
