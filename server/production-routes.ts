@@ -108,21 +108,62 @@ export function setupProductionRoutes(app: Router) {
         makeItems = filteredMakeItems;
       }
       
-      // Create preview data for client
-      const previewItems = makeItems.map((item, index) => {
-        const masterItem = masterItemsMap.get(item.itemId);
-        return {
-          sequenceNumber: index + 1,
-          itemCode: masterItem?.itemCode || 'Unknown',
-          description: masterItem?.description || 'No description',
-          quantity: item.quantity,
-          unit: masterItem?.unit || 'EA',
-          makeOrBuy: 'Make'
-        };
+      // Get item components relationships for separation
+      const itemComponentRelationships = await db.query.itemComponents.findMany({
+        where: inArray(itemComponents.parentItemId, masterItemIds)
       });
       
-      // Generate a unique work order number
-      const workOrderNumber = `WO-${project.code}-${Date.now().toString().substring(7)}`;
+      // Create lookup maps for parent-child relationships
+      const parentToChildMap = new Map();
+      const childToParentMap = new Map();
+      
+      itemComponentRelationships.forEach(rel => {
+        if (!parentToChildMap.has(rel.parentItemId)) {
+          parentToChildMap.set(rel.parentItemId, []);
+        }
+        parentToChildMap.get(rel.parentItemId).push(rel.componentItemId);
+        childToParentMap.set(rel.componentItemId, rel.parentItemId);
+      });
+      
+      // Separate items into parent and child categories
+      const parentItems = [];
+      const childItems = [];
+      
+      makeItems.forEach(item => {
+        const masterItemId = item.itemId;
+        if (childToParentMap.has(masterItemId)) {
+          childItems.push(item);
+        } else {
+          parentItems.push(item);
+        }
+      });
+      
+      // Create preview data for client
+      const mapItemsToPreview = (items, isParent) => {
+        return items.map((item, index) => {
+          const masterItem = masterItemsMap.get(item.itemId);
+          return {
+            sequenceNumber: index + 1,
+            itemCode: masterItem?.itemCode || 'Unknown',
+            description: masterItem?.description || 'No description',
+            quantity: item.quantity,
+            unit: masterItem?.unit || 'EA',
+            makeOrBuy: 'Make',
+            itemType: isParent ? 'Parent' : 'Child',
+            parentItemCode: isParent ? null : (
+              masterItemsMap.get(childToParentMap.get(item.itemId))?.itemCode || 'Unknown'
+            )
+          };
+        });
+      };
+      
+      const parentPreviewItems = mapItemsToPreview(parentItems, true);
+      const childPreviewItems = mapItemsToPreview(childItems, false);
+      const allPreviewItems = [...parentPreviewItems, ...childPreviewItems];
+      
+      // Generate unique work order numbers
+      const parentWorkOrderNumber = `WO-${project.code}-P-${Date.now().toString().substring(7)}`;
+      const childWorkOrderNumber = `WO-${project.code}-C-${Date.now().toString().substring(9)}`;
       
       res.status(200).json({
         project: {
@@ -130,9 +171,13 @@ export function setupProductionRoutes(app: Router) {
           code: project.code,
           name: project.name
         },
-        workOrderNumber,
+        parentWorkOrderNumber,
+        childWorkOrderNumber,
         itemCount: makeItems.length,
-        items: previewItems
+        parentItemCount: parentItems.length,
+        childItemCount: childItems.length,
+        items: allPreviewItems,
+        willCreateSeparateOrders: parentItems.length > 0 && childItems.length > 0
       });
     } catch (error) {
       console.error('Error generating work orders preview:', error);
@@ -199,7 +244,7 @@ export function setupProductionRoutes(app: Router) {
       });
       
       // Identify parent-child relationships using item components table
-      // Get all component relationships for these items
+      // We already have masterItemIds from above, so we can use it directly
       const itemComponentRelationships = await db.query.itemComponents.findMany({
         where: inArray(itemComponents.parentItemId, masterItemIds)
       });
