@@ -1877,24 +1877,35 @@ const ItemMasterManagement: React.FC = () => {
                             
                             // Use fetch API with async/await pattern in an IIFE
                             (async () => {
-                              const maxRetries = 2;
+                              const maxRetries = 3; // Increase max retries
                               let lastError = null;
                               
-                              // Upload function with retry logic
+                              // Enhanced upload function with intelligent retry logic
                               const uploadWithRetry = async (attempt: number) => {
                                 try {
                                   if (attempt > 0) {
-                                    console.log(`Retry attempt ${attempt} of ${maxRetries}...`);
+                                    // Calculate exponential backoff delay
+                                    const delay = Math.min(Math.pow(2, attempt) * 1000, 10000); // Max 10 second delay
+                                    console.log(`Retry attempt ${attempt} of ${maxRetries}... (Waiting ${delay}ms)`);
+                                    
                                     toast({
                                       title: "Retrying upload",
                                       description: `Attempt ${attempt} of ${maxRetries}...`,
+                                      duration: 3000, // Show toast for 3 seconds
                                     });
-                                    // Add delay between retries
-                                    await new Promise(resolve => setTimeout(resolve, 1000));
+                                    
+                                    // Wait before retry with exponential backoff
+                                    await new Promise(resolve => setTimeout(resolve, delay));
                                   }
                                   
                                   console.log('Uploading drawing with fetch...');
-                                  // Log FormData for debugging
+                                  
+                                  // Enhanced FormData logging for debugging
+                                  if (formData.has('file')) {
+                                    const file = formData.get('file') as File;
+                                    console.log(`File name: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
+                                  }
+                                  
                                   console.log(`FormData contains file: ${formData.has('file')}`);
                                   console.log(`FormData financialYear: ${formData.get('financialYear')}`);
                                   console.log(`FormData projectCode: ${formData.get('projectCode')}`);
@@ -1903,6 +1914,7 @@ const ItemMasterManagement: React.FC = () => {
                                   console.log(`FormData type: ${formData.get('type')}`);
                                   console.log(`FormData projectId: ${formData.get('projectId')}`);
                                   
+                                  // Send the upload request
                                   const response = await fetch('/api/storage/upload', {
                                     method: 'POST',
                                     body: formData
@@ -1911,29 +1923,65 @@ const ItemMasterManagement: React.FC = () => {
                                   console.log('Upload response status:', response.status, response.statusText);
                                   
                                   if (!response.ok) {
-                                    // Try to parse error details
+                                    // Parse error response
                                     const errorText = await response.text();
                                     console.error('Upload error response text:', errorText);
                                     
                                     let errorData = {};
+                                    let shouldRetry = false;
+                                    let retryDelay = 0;
+                                    
                                     try {
+                                      // Try to parse as JSON
                                       errorData = JSON.parse(errorText);
                                       console.log('Parsed error data:', errorData);
+                                      
+                                      // Check if server explicitly tells us whether to retry
+                                      if ((errorData as any).shouldRetry !== undefined) {
+                                        shouldRetry = (errorData as any).shouldRetry;
+                                        console.log(`Server indicates shouldRetry: ${shouldRetry}`);
+                                      }
+                                      
+                                      // Use server-suggested retry delay if provided
+                                      if ((errorData as any).retryDelay !== undefined) {
+                                        retryDelay = (errorData as any).retryDelay;
+                                        console.log(`Server suggests retry delay: ${retryDelay}ms`);
+                                      }
                                     } catch (parseError) {
-                                      console.log('Error is not in JSON format:', parseError);
+                                      console.log('Error response is not in JSON format:', parseError);
                                     }
                                     
-                                    // Check if we should retry based on error type
-                                    const shouldRetry = 
-                                      response.status >= 500 || 
-                                      errorText.includes('ECONNRESET') || 
-                                      errorText.includes('timeout') || 
-                                      errorText.includes('network') || 
-                                      (errorData as any)?.error?.includes('Failed to upload');
+                                    // If server didn't explicitly specify retry behavior,
+                                    // determine it based on status code and error message
+                                    if ((errorData as any).shouldRetry === undefined) {
+                                      shouldRetry = 
+                                        response.status >= 500 || 
+                                        response.status === 429 ||
+                                        errorText.includes('ECONNRESET') || 
+                                        errorText.includes('ETIMEDOUT') ||
+                                        errorText.includes('timeout') || 
+                                        errorText.includes('network') || 
+                                        (errorData as any)?.error?.includes('Failed to upload');
+                                        
+                                      console.log(`Determined shouldRetry=${shouldRetry} based on response`);
+                                    }
+                                    
+                                    // For retriable errors, calculate retry delay if not specified by server
+                                    if (shouldRetry && retryDelay === 0) {
+                                      retryDelay = Math.min(Math.pow(2, attempt + 1) * 1000, 10000);
+                                      console.log(`Calculated retry delay: ${retryDelay}ms`);
+                                    }
                                     
                                     if (shouldRetry && attempt < maxRetries) {
-                                      // Return false to indicate retry needed
-                                      return { success: false, errorData, errorText, response, shouldRetry: true };
+                                      // Return object indicating retry needed with delay
+                                      return { 
+                                        success: false, 
+                                        errorData, 
+                                        errorText, 
+                                        response, 
+                                        shouldRetry: true,
+                                        retryDelay
+                                      };
                                     }
                                     
                                     // Handle specific error cases
@@ -1947,16 +1995,34 @@ const ItemMasterManagement: React.FC = () => {
                                       }
                                     }
                                     
-                                    // Generic error with details
-                                    throw new Error(`Upload failed with status: ${response.status} ${response.statusText}. ${errorText.substring(0, 100)}...`);
+                                    // Structured error message with server response details
+                                    const errorMessage = `Upload failed with status: ${response.status} ${response.statusText}.\n${errorText.substring(0, 150)}...`;
+                                    console.error(errorMessage);
+                                    throw new Error(errorMessage);
                                   }
                                   
-                                  // Success - return true
-                                  return { success: true };
+                                  // Success - return true with response data
+                                  let responseData = {};
+                                  try {
+                                    responseData = await response.json();
+                                  } catch (jsonError) {
+                                    console.log('No JSON in success response');
+                                  }
+                                  
+                                  return { 
+                                    success: true,
+                                    data: responseData
+                                  };
                                 } catch (error) {
                                   lastError = error;
+                                  console.error('Error in uploadWithRetry:', error);
+                                  
                                   // Return error result
-                                  return { success: false, error, shouldRetry: false };
+                                  return { 
+                                    success: false, 
+                                    error, 
+                                    shouldRetry: false 
+                                  };
                                 }
                               };
                               
@@ -1964,20 +2030,34 @@ const ItemMasterManagement: React.FC = () => {
                                 // Attempt initial upload
                                 let result = await uploadWithRetry(0);
                                 
-                                // Retry if needed
+                                // Retry if needed with proper delay
                                 let retryCount = 0;
                                 while (!result.success && result.shouldRetry && retryCount < maxRetries) {
+                                  const delay = result.retryDelay || Math.pow(2, retryCount + 1) * 1000;
+                                  
+                                  // Show toast with retry information
+                                  toast({
+                                    title: "Upload failed - Waiting to retry",
+                                    description: `Will retry in ${Math.round(delay/1000)}s (Attempt ${retryCount+1}/${maxRetries})`,
+                                    variant: "destructive",
+                                    duration: delay - 500, // Show until just before retry
+                                  });
+                                  
+                                  // Wait before retry
+                                  await new Promise(resolve => setTimeout(resolve, delay));
+                                  
+                                  // Execute retry
                                   retryCount++;
                                   result = await uploadWithRetry(retryCount);
                                 }
                                 
                                 // If we didn't succeed after all retries, throw the last error
                                 if (!result.success) {
-                                  throw lastError || new Error("Upload failed after retries");
+                                  throw lastError || new Error("Upload failed after all retry attempts");
                                 }
                                 
                                 // Success path
-                                console.log('Upload successful');
+                                console.log('Upload successful', result.data);
                                 
                                 toast({
                                   title: 'Success',
