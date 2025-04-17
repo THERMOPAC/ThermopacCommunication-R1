@@ -88,16 +88,16 @@ export default function ProductionPlanningPage() {
   const [previewData, setPreviewData] = useState<any>(null);
 
   // Fetch projects for dropdown
-  const { data: projects, isLoading: isLoadingProjects } = useQuery({
+  const { data: projects = [], isLoading: isLoadingProjects } = useQuery<any[]>({
     queryKey: ['/api/projects'],
   });
 
   // Fetch work orders based on selected project
   const { 
-    data: workOrders, 
+    data: workOrders = [], 
     isLoading: isLoadingWorkOrders,
     refetch: refetchWorkOrders
-  } = useQuery({
+  } = useQuery<any[]>({
     queryKey: ['/api/production/work-orders/project', selectedProject],
     enabled: !!selectedProject,
   });
@@ -107,7 +107,7 @@ export default function ProductionPlanningPage() {
     data: previewApiData, 
     isLoading: isLoadingPreview,
     refetch: refetchPreview
-  } = useQuery({
+  } = useQuery<any>({
     queryKey: ['/api/production/work-orders/preview', selectedProject],
     enabled: false, // We'll trigger this manually
   });
