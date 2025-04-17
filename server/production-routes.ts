@@ -22,10 +22,96 @@ function canManage(role: string): boolean {
 export function setupProductionRoutes(app: Router) {
   // ==================== WORK ORDERS ====================
   
+  // Preview work orders for a project
+  app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      
+      if (isNaN(projectId)) {
+        return res.status(400).json({ error: 'Invalid project ID' });
+      }
+      
+      // Get project to ensure it exists
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      
+      // Get all items for the project
+      const projectItemsList = await db.query.projectItems.findMany({
+        where: eq(projectItems.projectId, projectId)
+      });
+      
+      if (projectItemsList.length === 0) {
+        return res.status(404).json({ error: 'No items found for this project' });
+      }
+      
+      // Get all master items details for the project items
+      const masterItemIds = projectItemsList.map(item => item.itemId);
+      const masterItemsData = await db.query.masterItems.findMany({
+        where: inArray(masterItems.id, masterItemIds)
+      });
+      
+      // Create a map of master item id to details for faster lookups
+      const masterItemsMap = new Map();
+      masterItemsData.forEach(item => {
+        masterItemsMap.set(item.id, item);
+      });
+      
+      // Group items by "makeOrBuy" status
+      const makeItems = projectItemsList.filter(item => {
+        const masterItem = masterItemsMap.get(item.itemId);
+        return masterItem && masterItem.makeOrBuy === 'Make';
+      });
+      
+      if (makeItems.length === 0) {
+        return res.status(400).json({ error: 'No "Make" items found for this project' });
+      }
+      
+      // Create preview data for client
+      const previewItems = makeItems.map((item, index) => {
+        const masterItem = masterItemsMap.get(item.itemId);
+        return {
+          sequenceNumber: index + 1,
+          itemCode: masterItem?.itemCode || 'Unknown',
+          description: masterItem?.description || 'No description',
+          quantity: item.quantity,
+          unit: masterItem?.unit || 'EA',
+          makeOrBuy: 'Make'
+        };
+      });
+      
+      // Generate a unique work order number
+      const workOrderNumber = `WO-${project.code}-${Date.now().toString().substring(7)}`;
+      
+      res.status(200).json({
+        project: {
+          id: project.id,
+          code: project.code,
+          name: project.name
+        },
+        workOrderNumber,
+        itemCount: makeItems.length,
+        items: previewItems
+      });
+    } catch (error) {
+      console.error('Error generating work orders preview:', error);
+      res.status(500).json({ error: 'Failed to generate work orders preview' });
+    }
+  });
+
   // Generate work orders for all items in a project
   app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      const { confirm } = req.body;
+      
+      if (isNaN(projectId)) {
+        return res.status(400).json({ error: 'Invalid project ID' });
+      }
       
       // Verify user can manage production
       if (!canManage(req.user!.role)) {
@@ -68,6 +154,19 @@ export function setupProductionRoutes(app: Router) {
         return masterItem && masterItem.makeOrBuy === 'Make';
       });
       
+      if (makeItems.length === 0) {
+        return res.status(400).json({ error: 'No "Make" items found for this project' });
+      }
+      
+      // If not confirmed, just return the count
+      if (!confirm) {
+        return res.status(200).json({
+          requiresConfirmation: true,
+          message: 'Please confirm to generate work orders',
+          itemCount: makeItems.length
+        });
+      }
+      
       // Create work order date range
       const today = new Date();
       const endDate = new Date();
@@ -96,7 +195,7 @@ export function setupProductionRoutes(app: Router) {
       
       // Add all make items to the work order
       let sequenceNumber = 1;
-      const workOrderItems = [];
+      const workOrderItemsList = [];
       
       for (const item of makeItems) {
         const masterItem = masterItemsMap.get(item.itemId);
@@ -113,13 +212,13 @@ export function setupProductionRoutes(app: Router) {
           updatedAt: today
         }).returning();
         
-        workOrderItems.push(newItem);
+        workOrderItemsList.push(newItem);
       }
       
       res.status(201).json({
         workOrder: newWorkOrder,
-        items: workOrderItems,
-        message: `Created work order with ${workOrderItems.length} items`
+        items: workOrderItemsList,
+        message: `Created work order with ${workOrderItemsList.length} items`
       });
     } catch (error) {
       console.error('Error generating work orders for project:', error);
