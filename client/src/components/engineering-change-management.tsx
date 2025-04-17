@@ -108,6 +108,9 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
     drawing_number: ''
   });
   
+  // State for current item details
+  const [currentItem, setCurrentItem] = useState<{id: number, drawingNo?: string, itemCode: string} | null>(null);
+  
   // State for available drawing numbers (parent and components)
   const [drawingNumbers, setDrawingNumbers] = useState<{id: number, drawingNo: string, itemCode: string}[]>([]);
 
@@ -401,7 +404,13 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
       return;
     }
     
-    createEcnMutation.mutate(ecnForm);
+    // Automatically set the drawing number from the current item
+    const drawingNumber = currentItem?.drawingNo || currentItem?.itemCode || '';
+    
+    createEcnMutation.mutate({
+      ...ecnForm,
+      drawing_number: drawingNumber
+    });
   };
 
   // Handle document upload
@@ -450,6 +459,13 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
         // Fetch parent item details
         const itemRes = await apiRequest('GET', `/api/master-items/${itemId}`);
         const item = await itemRes.json();
+        
+        // Set current item
+        setCurrentItem({
+          id: item.id,
+          drawingNo: item.drawingNo,
+          itemCode: item.itemCode
+        });
         
         // Fetch components
         const componentsRes = await apiRequest('GET', `/api/master-items/${itemId}/components`);
@@ -793,29 +809,10 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
             )}
             <div className="grid gap-2">
               <Label htmlFor="ecn-drawing">Drawing Number</Label>
-              <Select
-                value={ecnForm.drawing_number}
-                onValueChange={(value) => setEcnForm({ ...ecnForm, drawing_number: value })}
-              >
-                <SelectTrigger id="ecn-drawing">
-                  <SelectValue placeholder="Select a drawing number" />
-                </SelectTrigger>
-                <SelectContent>
-                  {drawingNumbers.length === 0 ? (
-                    <SelectItem value="none" disabled>No drawing numbers available</SelectItem>
-                  ) : (
-                    <>
-                      <SelectItem value="none">None</SelectItem>
-                      {drawingNumbers.map((drawing) => (
-                        <SelectItem key={drawing.id} value={drawing.drawingNo}>
-                          {drawing.drawingNo} - {drawing.itemCode}
-                        </SelectItem>
-                      ))}
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-1">Select a drawing number from parent or sub-assembly components</p>
+              <div className="border rounded-md p-2 bg-muted text-sm">
+                {currentItem?.drawingNo ? `${currentItem.drawingNo} - ${currentItem.itemCode}` : `${currentItem?.itemCode || ''}`}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Drawing number is automatically set from the current item</p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="ecn-description">Description</Label>
