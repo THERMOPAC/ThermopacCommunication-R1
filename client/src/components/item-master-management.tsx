@@ -1510,7 +1510,7 @@ const ItemMasterManagement: React.FC = () => {
                     // When opening the dialog, initialize with the parent item selected
                     if (open && currentItem) {
                       console.log('Current latestRevisions state when opening dialog:', latestRevisions);
-                      console.log('Current item latestRevision from database:', currentItem.latestRevision);
+                      console.log('Current item from database:', currentItem);
                       
                       const newSelectedItem = {
                         id: currentItem.id,
@@ -1527,9 +1527,13 @@ const ItemMasterManagement: React.FC = () => {
                       let latestRev = -1;
                       
                       if (currentItem.latestRevision !== undefined && currentItem.latestRevision !== null) {
-                        // Use the database value if available
+                        // Use the database value if available (camelCase field)
                         latestRev = currentItem.latestRevision;
                         console.log(`Using latestRevision from database: ${latestRev}`);
+                      } else if (currentItem.latest_revision !== undefined && currentItem.latest_revision !== null) {
+                        // Use the database value if available (snake_case field)
+                        latestRev = currentItem.latest_revision;
+                        console.log(`Using latest_revision (snake_case) from database: ${latestRev}`);
                       } else if (latestRevisions[drawingNo] !== undefined) {
                         // Fallback to the state object
                         latestRev = latestRevisions[drawingNo];
@@ -1579,9 +1583,17 @@ const ItemMasterManagement: React.FC = () => {
                                 let latestRev = -1;
                                 
                                 // First check if the item has a latestRevision field directly
+                                // Production fix: log the parent item data to diagnose issues
+                                console.log('Parent item data in dropdown selection:', currentItem);
+                                
                                 if (currentItem?.latestRevision !== undefined && currentItem?.latestRevision !== null) {
+                                  // Use the database value if available (camelCase field)
                                   latestRev = currentItem!.latestRevision;
                                   console.log(`Using parent item latestRevision from database: ${latestRev}`);
+                                } else if ((currentItem as any)?.latest_revision !== undefined && (currentItem as any)?.latest_revision !== null) {
+                                  // Use the database value if available (snake_case field)
+                                  latestRev = (currentItem as any).latest_revision;
+                                  console.log(`Using parent item latest_revision (snake_case) from database: ${latestRev}`);
                                 } else if (latestRevisions[drawingNo] !== undefined) {
                                   // Fallback to the state object
                                   latestRev = latestRevisions[drawingNo];
@@ -1610,10 +1622,17 @@ const ItemMasterManagement: React.FC = () => {
                                   // For components, we need to find the component's latest revision
                                   let latestRev = -1;
                                   
+                                  // Production fix: log the component data to diagnose issues
+                                  console.log('Component data in dialog:', component);
+                                  
                                   // First check if the component has a latestRevision field
                                   if (component.latestRevision !== undefined && component.latestRevision !== null) {
                                     latestRev = component.latestRevision;
                                     console.log(`Using component latestRevision from database: ${latestRev}`);
+                                  } else if ((component as any).latest_revision !== undefined && (component as any).latest_revision !== null) {
+                                    // Try snake_case variation (sometimes data comes in this format in Production)
+                                    latestRev = (component as any).latest_revision;
+                                    console.log(`Using component latest_revision (snake_case) from database: ${latestRev}`);
                                   } else if (latestRevisions[drawingNo] !== undefined) {
                                     // Fallback to the state object
                                     latestRev = latestRevisions[drawingNo];
