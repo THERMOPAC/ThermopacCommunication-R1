@@ -270,9 +270,16 @@ const ItemMasterManagement: React.FC = () => {
         
         // Check if any of our drawing numbers are in the path
         for (const drawingNo of drawingNumbers) {
+          // Search for various possible path patterns to be more forgiving:
+          // 1. /{drawingNo}/ - Drawing number as a directory
+          // 2. /{drawingNo}_ - Drawing number followed by underscore (like in filename)
+          // 3. /drawings/{drawingNo}/ - With 'drawings' subfolder (old format)
+          // 4. Simply contains the drawing number (least specific, fallback)
           if (
             fullPath.includes(`/${drawingNo}/`) || 
             fullPath.includes(`/${drawingNo}_`) ||
+            fullPath.includes(`/drawings/${drawingNo}/`) || 
+            fullPath.includes(`/drawings/${drawingNo}_`) ||
             fullPath.includes(drawingNo) // Simpler check to catch more possibilities
           ) {
             console.log(`Match found: Drawing ${drawingNo} in file: ${fullPath}`);
@@ -310,9 +317,12 @@ const ItemMasterManagement: React.FC = () => {
         
         // Find which drawing number this file belongs to
         for (const drawingNo of drawingNumbers) {
+          // Use the same path patterns as in the filter function above
           if (
             fullPath.includes(`/${drawingNo}/`) || 
             fullPath.includes(`/${drawingNo}_`) ||
+            fullPath.includes(`/drawings/${drawingNo}/`) || 
+            fullPath.includes(`/drawings/${drawingNo}_`) ||
             fullPath.includes(drawingNo)
           ) {
             matchedDrawingNo = drawingNo;

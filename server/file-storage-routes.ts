@@ -246,7 +246,8 @@ export function setupFileStorageRoutes(app: Router) {
       const isDrawingPath = 
         pathStr.includes('drawings') || 
         (pathStr.includes('THERMOPAC_INVENTORY') && /\d+/.test(pathStr)) ||
-        /^4\d{3}/.test(pathStr); // Starts with 4 followed by 3+ digits (drawing numbers pattern)
+        /^4\d{3}/.test(pathStr) || // Starts with 4 followed by 3+ digits (drawing numbers pattern)
+        /^\d{10,}/.test(pathStr);  // Drawing number pattern (10+ digits)
       
       if (isDrawingPath) {
         console.log(`This appears to be a drawing-related path: ${pathStr}, will search recursively`);
@@ -293,10 +294,28 @@ export function setupFileStorageRoutes(app: Router) {
           const fileName = file.name || '';
           const filePath = file.path || '';
           
-          // Extract drawing number from path
+          // Extract drawing number from path using multiple patterns
+          // Check for direct drawing number pattern (10+ digits)
           const drawingMatch = fullPath.match(/\d{10,}/);
+          // Also check for directory structure patterns
+          const drawingDirMatch = fullPath.match(/\/([^\/]+)\/drawings\//);
+          // Also check for older patterns like /drawings/{drawingNo}/
+          const oldDrawingDirMatch = fullPath.match(/\/drawings\/([^\/]+)\//);
+          
           if (drawingMatch) {
+            // Direct drawing number match (e.g., 4823002002001000)
             const drawingNo = drawingMatch[0];
+            console.log(`Looking for drawing: ${drawingNo} in file: ${filePath}`);
+            return filePath.includes(drawingNo);
+          } else if (drawingDirMatch) {
+            // Drawing directory structure match (e.g., /4823002002001000/drawings/)
+            const drawingNo = drawingDirMatch[1];
+            console.log(`Looking for drawing directory: ${drawingNo} in file: ${filePath}`);
+            return filePath.includes(drawingNo);
+          } else if (oldDrawingDirMatch) {
+            // Old drawing directory structure match (e.g., /drawings/4823002002001000/)
+            const drawingNo = oldDrawingDirMatch[1];
+            console.log(`Looking for old drawing directory: ${drawingNo} in file: ${filePath}`);
             return filePath.includes(drawingNo);
           }
           return false;
