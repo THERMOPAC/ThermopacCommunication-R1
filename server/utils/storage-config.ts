@@ -20,20 +20,26 @@ export const bucketName = (() => {
     return correctBucketName;
   }
   
-  // If it matches exactly, use it
-  if (envBucketName === correctBucketName) {
+  // First trim any whitespace from the bucket name
+  const trimmedBucketName = envBucketName.trim();
+  
+  // If it matches exactly after trimming, use it
+  if (trimmedBucketName === correctBucketName) {
+    if (trimmedBucketName !== envBucketName) {
+      console.warn(`⚠️ WARNING: GOOGLE_CLOUD_BUCKET has extra whitespace: "${envBucketName}". Using trimmed version: "${trimmedBucketName}"`);
+    }
     return correctBucketName;
   }
   
   // Check for typos - if it contains "thermopac_s" but isn't exact
-  if (envBucketName.includes('thermopac_s') && envBucketName !== correctBucketName) {
-    console.warn(`⚠️ WARNING: Environment variable GOOGLE_CLOUD_BUCKET has a typo: "${envBucketName}". Using "${correctBucketName}" instead.`);
+  if (trimmedBucketName.includes('thermopac_s') && trimmedBucketName !== correctBucketName) {
+    console.warn(`⚠️ WARNING: Environment variable GOOGLE_CLOUD_BUCKET has a typo: "${trimmedBucketName}". Using "${correctBucketName}" instead.`);
     return correctBucketName;
   }
   
   // If it's completely different, log a warning but use what's provided
-  console.warn(`⚠️ WARNING: Using non-standard bucket name: "${envBucketName}". Expected: "${correctBucketName}"`);
-  return envBucketName;
+  console.warn(`⚠️ WARNING: Using non-standard bucket name: "${trimmedBucketName}". Expected: "${correctBucketName}"`);
+  return trimmedBucketName;
 })();
 
 console.log(`Using GCS bucket name: ${bucketName} (from env: ${envBucketName || 'not set'})`);

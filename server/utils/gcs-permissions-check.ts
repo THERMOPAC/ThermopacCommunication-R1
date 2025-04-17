@@ -49,7 +49,11 @@ export async function checkGcsPermissions(): Promise<{
   
   try {
     // Check if credentials are properly set up
+    // Debug credential info
+    console.log('GCS Permissions Check - GOOGLE_CLOUD_CREDENTIALS exists:', !!process.env.GOOGLE_CLOUD_CREDENTIALS);
     if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+      console.log('GCS Permissions Check - GOOGLE_CLOUD_CREDENTIALS length:', process.env.GOOGLE_CLOUD_CREDENTIALS.length);
+      console.log('GCS Permissions Check - First 20 chars:', process.env.GOOGLE_CLOUD_CREDENTIALS.substring(0, 20));
       try {
         const credentialsStr = process.env.GOOGLE_CLOUD_CREDENTIALS.trim();
         
