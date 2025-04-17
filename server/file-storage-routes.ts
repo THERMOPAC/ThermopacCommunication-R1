@@ -1065,13 +1065,47 @@ export function setupFileStorageRoutes(app: Router) {
         credentialsLength: process.env.GOOGLE_CLOUD_CREDENTIALS ? 
           process.env.GOOGLE_CLOUD_CREDENTIALS.length : 0,
         hostname: req.headers.host,
-        serverStartTime: new Date().toISOString()
+        serverStartTime: new Date().toISOString(),
+        // Add more detailed diagnostic info
+        googleProjectId: process.env.GOOGLE_CLOUD_PROJECT_ID || '(not set)',
+        runningEnvironment: process.env.REPLIT_ENVIRONMENT || '(not replit)',
+        hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
+        hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+        hasGoogleRedirectUri: !!process.env.GOOGLE_REDIRECT_URI
       };
+
+      // Generate actionable suggestions based on the results
+      const suggestions: string[] = [];
+      
+      // Check for credential issues
+      if (!process.env.GOOGLE_CLOUD_CREDENTIALS) {
+        suggestions.push('GOOGLE_CLOUD_CREDENTIALS environment variable is missing. Add service account credentials in JSON format.');
+      } else if (permissionsResult.details.credentials.type === 'parse-error' || 
+                permissionsResult.details.credentials.type === 'invalid-format') {
+        suggestions.push('GOOGLE_CLOUD_CREDENTIALS environment variable contains invalid JSON. Verify the format.');
+      } else if (!permissionsResult.details.credentials.clientEmail) {
+        suggestions.push('Service account email is missing from credentials. Verify the service account key JSON is complete.');
+      } else if (!permissionsResult.details.credentials.hasPrivateKey) {
+        suggestions.push('Private key is missing from credentials. Verify the service account key JSON is complete.');
+      }
+      
+      // Check for bucket issues
+      if (!permissionsResult.details.bucketExists) {
+        suggestions.push(`Bucket "${permissionsResult.details.bucket}" does not exist or the service account lacks access. Create the bucket or grant Storage Object Admin role.`);
+      } else {
+        if (!permissionsResult.details.canListFiles) {
+          suggestions.push('Service account lacks permission to list files. Grant Storage Object Viewer role.');
+        }
+        if (!permissionsResult.details.canWriteFiles) {
+          suggestions.push('Service account lacks permission to write files. Grant Storage Object Creator role.');
+        }
+      }
       
       res.status(200).json({
         success: permissionsResult.success,
         permissions: permissionsResult.details,
         environment: environmentInfo,
+        suggestions: suggestions,
         timestamp: new Date().toISOString()
       });
     } catch (error: any) {

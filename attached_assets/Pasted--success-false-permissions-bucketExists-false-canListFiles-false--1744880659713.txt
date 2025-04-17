@@ -1,0 +1,53 @@
+{
+  "success": false,
+  "permissions": {
+    "bucketExists": false,
+    "canListFiles": false,
+    "canWriteFiles": false,
+    "canDeleteFiles": false,
+    "environment": "production",
+    "bucket": "thermopac_storage",
+    "error": {
+      "code": 403,
+      "errors": [
+        {
+          "message": "replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.buckets.get access to the Google Cloud Storage bucket. Permission 'storage.buckets.get' denied on resource (or it may not exist).",
+          "domain": "global",
+          "reason": "forbidden"
+        }
+      ],
+      "response": {
+        "headers": {
+          "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "content-length": "636",
+          "content-type": "application/json; charset=UTF-8",
+          "date": "Thu, 17 Apr 2025 09:02:33 GMT",
+          "expires": "Mon, 01 Jan 1990 00:00:00 GMT",
+          "pragma": "no-cache",
+          "server": "UploadServer",
+          "vary": "Origin, X-Origin",
+          "x-guploader-uploadid": "AKDAyIvcG4BJWYt1UHDm2GlprGag2m684ZtZCh98VQv39hueqhl9epxgtjEilv9MckZY6owUs7RBQ_I"
+        }
+      },
+      "message": "replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.buckets.get access to the Google Cloud Storage bucket. Permission 'storage.buckets.get' denied on resource (or it may not exist)."
+    },
+    "credentials": {
+      "type": null,
+      "projectId": null,
+      "privateKeyId": null,
+      "clientEmail": null,
+      "hasPrivateKey": false
+    }
+  },
+  "environment": {
+    "nodeEnv": "production",
+    "googleBucketEnvVar": "(not set)",
+    "correctedBucketName": "thermopac_storage",
+    "hasGoogleCredentials": false,
+    "credentialsLength": 0,
+    "hostname": "thermopac-communication-thermopacllp.replit.app",
+    "serverStartTime": "2025-04-17T09:02:33.335Z"
+  },
+  "timestamp": "2025-04-17T09:02:33.335Z"
+}

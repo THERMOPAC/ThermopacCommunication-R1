@@ -4,6 +4,8 @@ import storage, { bucketName } from './storage-config';
  * Utility to check Google Cloud Storage permissions
  * This helps diagnose permission issues in production environments
  */
+type CredentialsType = 'service_account' | 'invalid-format' | 'parse-error' | 'missing' | string | null;
+
 export async function checkGcsPermissions(): Promise<{
   success: boolean;
   details: {
@@ -15,7 +17,7 @@ export async function checkGcsPermissions(): Promise<{
     environment: string;
     bucket: string;
     credentials: {
-      type: string | null;
+      type: CredentialsType;
       projectId: string | null;
       privateKeyId: string | null;
       clientEmail: string | null;
@@ -49,7 +51,22 @@ export async function checkGcsPermissions(): Promise<{
     // Check if credentials are properly set up
     if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
       try {
-        const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
+        const credentialsStr = process.env.GOOGLE_CLOUD_CREDENTIALS.trim();
+        
+        // Add basic format validation
+        if (!credentialsStr.startsWith('{')) {
+          console.error('GOOGLE_CLOUD_CREDENTIALS does not appear to be in JSON format.');
+          result.details.credentials = {
+            type: 'invalid-format',
+            projectId: null,
+            privateKeyId: null,
+            clientEmail: null,
+            hasPrivateKey: false
+          };
+          throw new Error('Invalid credential format');
+        }
+        
+        const credentials = JSON.parse(credentialsStr);
         result.details.credentials = {
           type: credentials.type || null,
           projectId: credentials.project_id || null,
@@ -57,9 +74,34 @@ export async function checkGcsPermissions(): Promise<{
           clientEmail: credentials.client_email || null,
           hasPrivateKey: !!credentials.private_key
         };
+        
+        // Log detailed credential info for diagnostics
+        console.log('Credentials diagnostic info:');
+        console.log('- Type:', result.details.credentials.type);
+        console.log('- Project ID:', result.details.credentials.projectId ? '✓ Present' : '❌ Missing');
+        console.log('- Service Account:', result.details.credentials.clientEmail || 'Not set');
+        console.log('- Private Key:', result.details.credentials.hasPrivateKey ? '✓ Present' : '❌ Missing');
       } catch (e) {
         console.error('Error parsing GCS credentials:', e);
+        console.log('Credentials string length:', process.env.GOOGLE_CLOUD_CREDENTIALS.length);
+        // Store the parsing error
+        result.details.credentials = {
+          type: 'parse-error',
+          projectId: null,
+          privateKeyId: null,
+          clientEmail: null,
+          hasPrivateKey: false
+        };
       }
+    } else {
+      console.log('No GOOGLE_CLOUD_CREDENTIALS found in environment');
+      result.details.credentials = {
+        type: 'missing',
+        projectId: null,
+        privateKeyId: null,
+        clientEmail: null,
+        hasPrivateKey: false
+      };
     }
     
     // Check if bucket exists
