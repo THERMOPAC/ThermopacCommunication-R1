@@ -172,9 +172,18 @@ export function setupProductionRoutes(app: Router) {
       const childPreviewItems: PreviewItem[] = mapItemsToPreview(childItems, false);
       const allPreviewItems = [...parentPreviewItems, ...childPreviewItems];
       
-      // Generate unique work order numbers
-      const parentWorkOrderNumber = `WO-${project.code}-P-${Date.now().toString().substring(7)}`;
-      const childWorkOrderNumber = `WO-${project.code}-C-${Date.now().toString().substring(9)}`;
+      // Get the count of existing work orders for this project to determine the sequence number
+      const workOrderCount = await db.query.workOrders.findMany({
+        where: eq(workOrders.projectId, projectId),
+      });
+      
+      // Calculate the next sequential number for parent and child work orders
+      const nextParentSeqNumber = workOrderCount.filter(wo => wo.workOrderNumber.includes('-P-')).length + 1;
+      const nextChildSeqNumber = workOrderCount.filter(wo => wo.workOrderNumber.includes('-C-')).length + 1;
+      
+      // Generate unique work order numbers with sequential numbering
+      const parentWorkOrderNumber = `WO-${project.code}-P-${nextParentSeqNumber}`;
+      const childWorkOrderNumber = `WO-${project.code}-C-${nextChildSeqNumber}`;
       
       res.status(200).json({
         project: {
@@ -317,8 +326,9 @@ export function setupProductionRoutes(app: Router) {
       const endDate = new Date();
       endDate.setDate(today.getDate() + 30); // Default to 30 days schedule
       
-      // Generate a unique work order number
-      const workOrderNumber = `WO-${project.code}-${Date.now().toString().substring(7)}`;
+      // Generate a unique work order number using sequential numbering
+      const nextSeqNumber = existingWorkOrders.length + 1;
+      const workOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
       
       // Divide items into parent and child categories
       const parentItems: typeof makeItems = [];
@@ -339,10 +349,20 @@ export function setupProductionRoutes(app: Router) {
       const createdWorkOrders: any[] = [];
       const createdWorkOrderItems: any[] = [];
       
+      // Get the count of existing work orders for this project to determine the sequence number
+      const workOrderCount = await db.query.workOrders.findMany({
+        where: eq(workOrders.projectId, projectId),
+      });
+      
+      // Calculate the next sequential number for parent and child work orders
+      const nextParentSeqNumber = workOrderCount.filter(wo => wo.workOrderNumber.includes('-P-')).length + 1;
+      const nextChildSeqNumber = workOrderCount.filter(wo => wo.workOrderNumber.includes('-C-')).length + 1;
+      
       // Helper function to create a work order
       const createWorkOrder = async (items: typeof makeItems, isParent: boolean) => {
         const suffix = isParent ? 'P' : 'C';
-        const specificWorkOrderNumber = `WO-${project.code}-${suffix}-${Date.now().toString().substring(7)}`;
+        const seqNumber = isParent ? nextParentSeqNumber : nextChildSeqNumber;
+        const specificWorkOrderNumber = `WO-${project.code}-${suffix}-${seqNumber}`;
         const typeDescription = isParent ? 'Parent Items' : 'Child Components';
         
         // Create work order
@@ -495,9 +515,21 @@ export function setupProductionRoutes(app: Router) {
         return res.status(404).json({ error: 'Project not found' });
       }
       
+      // Count existing work orders for this project to generate sequential work order number
+      const existingWorkOrderCount = await db.query.workOrders.findMany({
+        where: eq(workOrders.projectId, req.body.projectId),
+      });
+      const nextSeqNumber = existingWorkOrderCount.length + 1;
+      
+      // If workOrderNumber not provided by client, generate one with sequential numbering
+      const workOrderData = { ...req.body };
+      if (!workOrderData.workOrderNumber) {
+        workOrderData.workOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
+      }
+      
       // Create work order
       const [newWorkOrder] = await db.insert(workOrders).values({
-        ...req.body,
+        ...workOrderData,
         createdBy: req.user!.id,
         createdAt: new Date(),
         updatedAt: new Date()
