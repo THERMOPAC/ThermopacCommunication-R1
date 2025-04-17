@@ -3,8 +3,8 @@ import { db } from './db';
 import { insertWorkOrderSchema, workOrders, insertWorkOrderItemSchema, 
   workOrderItems, insertResourceAssignmentSchema, resourceAssignments,
   insertProductionRecordSchema, productionRecords, insertMaterialConsumptionSchema,
-  materialConsumption, insertMachineAllocationSchema, machineAllocations, projects, projectItems } from '@shared/schema';
-import { eq, and, desc, asc } from 'drizzle-orm';
+  materialConsumption, insertMachineAllocationSchema, machineAllocations, projects, projectItems, masterItems } from '@shared/schema';
+import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 
 // Authentication middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
@@ -21,6 +21,111 @@ function canManage(role: string): boolean {
 
 export function setupProductionRoutes(app: Router) {
   // ==================== WORK ORDERS ====================
+  
+  // Generate work orders for all items in a project
+  app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      
+      // Verify user can manage production
+      if (!canManage(req.user!.role)) {
+        return res.status(403).json({ error: 'You do not have permission to create work orders' });
+      }
+      
+      // Get project to ensure it exists
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      
+      // Get all items for the project
+      const projectItemsList = await db.query.projectItems.findMany({
+        where: eq(projectItems.projectId, projectId)
+      });
+      
+      if (projectItemsList.length === 0) {
+        return res.status(404).json({ error: 'No items found for this project' });
+      }
+      
+      // Get all master items details for the project items
+      const masterItemIds = projectItemsList.map(item => item.itemId);
+      const masterItemsData = await db.query.masterItems.findMany({
+        where: inArray(masterItems.id, masterItemIds)
+      });
+      
+      // Create a map of master item id to details for faster lookups
+      const masterItemsMap = new Map();
+      masterItemsData.forEach(item => {
+        masterItemsMap.set(item.id, item);
+      });
+      
+      // Group items by "makeOrBuy" status
+      const makeItems = projectItemsList.filter(item => {
+        const masterItem = masterItemsMap.get(item.itemId);
+        return masterItem && masterItem.makeOrBuy === 'Make';
+      });
+      
+      // Create work order date range
+      const today = new Date();
+      const endDate = new Date();
+      endDate.setDate(today.getDate() + 30); // Default to 30 days schedule
+      
+      // Generate a unique work order number
+      const workOrderNumber = `WO-${project.code}-${Date.now().toString().substring(7)}`;
+      
+      // Create the main work order
+      const [newWorkOrder] = await db.insert(workOrders).values({
+        projectId,
+        projectCode: project.code,
+        workOrderNumber,
+        title: `Production order for ${project.name}`,
+        description: `Auto-generated work order for project ${project.code}`,
+        status: 'planned',
+        priority: 'Medium',
+        plannedStartDate: today,
+        plannedEndDate: endDate,
+        quantity: 1,
+        supervisorId: req.user!.id,
+        createdBy: req.user!.id,
+        createdAt: today,
+        updatedAt: today
+      }).returning();
+      
+      // Add all make items to the work order
+      let sequenceNumber = 1;
+      const workOrderItems = [];
+      
+      for (const item of makeItems) {
+        const masterItem = masterItemsMap.get(item.itemId);
+        if (!masterItem) continue;
+        
+        const [newItem] = await db.insert(workOrderItems).values({
+          workOrderId: newWorkOrder.id,
+          projectItemId: item.id,
+          quantity: item.quantity,
+          status: 'pending',
+          sequenceNumber: sequenceNumber++,
+          notes: `Auto-generated from project item ${masterItem.description || masterItem.itemCode}`,
+          createdAt: today,
+          updatedAt: today
+        }).returning();
+        
+        workOrderItems.push(newItem);
+      }
+      
+      res.status(201).json({
+        workOrder: newWorkOrder,
+        items: workOrderItems,
+        message: `Created work order with ${workOrderItems.length} items`
+      });
+    } catch (error) {
+      console.error('Error generating work orders for project:', error);
+      res.status(500).json({ error: 'Failed to generate work orders' });
+    }
+  });
   
   // Get all work orders for a project
   app.get('/api/production/work-orders/project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
