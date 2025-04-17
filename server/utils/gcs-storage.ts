@@ -686,25 +686,81 @@ class GcsStorage {
     console.log(`Direct upload: Starting upload to path ${filePath}`);
     
     try {
+      // Validate bucket name is properly configured
+      if (!bucketName) {
+        throw new Error('GCS bucket name is not configured. Please check GOOGLE_CLOUD_BUCKET environment variable.');
+      }
+      
+      console.log(`Direct upload: Using bucket ${bucketName}`);
+      
       // Get bucket and file references
       const bucket = storage.bucket(bucketName);
+      
+      // Check if the bucket exists and is accessible
+      try {
+        const [exists] = await bucket.exists();
+        if (!exists) {
+          throw new Error(`Bucket ${bucketName} does not exist or is not accessible`);
+        }
+        console.log(`Direct upload: Bucket ${bucketName} exists and is accessible`);
+      } catch (bucketError: any) {
+        console.error(`Direct upload: Bucket check failed: ${bucketError.message}`);
+        throw new Error(`Failed to access bucket ${bucketName}: ${bucketError.message}`);
+      }
+      
       const file = bucket.file(filePath);
       
       // Create directory if needed
       const dirPath = path.dirname(filePath);
       await this.ensureDirectoryStructure(dirPath);
       
+      // Validate input
+      if (!buffer || buffer.length === 0) {
+        throw new Error('Upload buffer is empty or undefined');
+      }
+      
+      if (!contentType) {
+        console.warn('Content type not provided, using application/octet-stream');
+        contentType = 'application/octet-stream';
+      }
+      
       // Upload with promise-based approach instead of streams
       console.log(`Direct upload: Uploading ${buffer.length} bytes with content type ${contentType}`);
       
-      // Use the Storage API's upload method with proper error handling
-      await file.save(buffer, {
-        contentType,
-        metadata: {
-          contentType,
-          cacheControl: 'private, max-age=0'
+      // Use a retry mechanism for the file upload
+      const maxRetries = 3;
+      let attempt = 0;
+      let lastError = null;
+      
+      while (attempt < maxRetries) {
+        try {
+          // Use the Storage API's upload method with proper error handling
+          await file.save(buffer, {
+            contentType,
+            metadata: {
+              contentType,
+              cacheControl: 'private, max-age=0'
+            },
+            resumable: false // Use non-resumable upload for smaller files to avoid timeout issues
+          });
+          
+          // If we get here, the upload succeeded
+          console.log(`Direct upload: Upload complete on attempt ${attempt + 1}`);
+          break;
+        } catch (uploadError: any) {
+          lastError = uploadError;
+          attempt++;
+          
+          if (attempt < maxRetries) {
+            const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+            console.log(`Direct upload: Attempt ${attempt} failed, retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          } else {
+            console.error(`Direct upload: All ${maxRetries} attempts failed, giving up`);
+            throw uploadError;
+          }
         }
-      });
+      }
       
       console.log(`Direct upload: Upload complete, generating download URL`);
       
@@ -720,13 +776,19 @@ class GcsStorage {
       };
     } catch (error: any) {
       console.error('Direct upload error:', error);
+      const errorDetails = {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+        details: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+      };
+      
+      // Log more comprehensive error information
+      console.error('Error details:', errorDetails);
+      
       return { 
         success: false, 
-        error: {
-          message: error.message,
-          code: error.code,
-          details: JSON.stringify(error, null, 2)
-        }
+        error: errorDetails
       };
     }
   }
