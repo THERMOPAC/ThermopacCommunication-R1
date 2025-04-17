@@ -1056,6 +1056,22 @@ export function setupFileStorageRoutes(app: Router) {
       
       const permissionsResult = await checkGcsPermissions();
       
+      // Extract service account email from credentials for diagnostics
+      let serviceAccountEmail = null;
+      let credentialType = 'unknown';
+      let credentialProjectId = null;
+      
+      if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+        try {
+          const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
+          serviceAccountEmail = credentials.client_email;
+          credentialType = credentials.type || 'missing-type';
+          credentialProjectId = credentials.project_id;
+        } catch (e) {
+          credentialType = 'parse-error';
+        }
+      }
+      
       // Add additional environment information
       const environmentInfo = {
         nodeEnv: process.env.NODE_ENV || 'development',
@@ -1064,14 +1080,19 @@ export function setupFileStorageRoutes(app: Router) {
         hasGoogleCredentials: !!process.env.GOOGLE_CLOUD_CREDENTIALS,
         credentialsLength: process.env.GOOGLE_CLOUD_CREDENTIALS ? 
           process.env.GOOGLE_CLOUD_CREDENTIALS.length : 0,
+        credentialType: credentialType,
+        serviceAccountEmail: serviceAccountEmail,
+        credentialProjectId: credentialProjectId,
+        googleProjectIdEnv: process.env.GOOGLE_CLOUD_PROJECT_ID || '(not set)',
         hostname: req.headers.host,
         serverStartTime: new Date().toISOString(),
-        // Add more detailed diagnostic info
-        googleProjectId: process.env.GOOGLE_CLOUD_PROJECT_ID || '(not set)',
-        runningEnvironment: process.env.REPLIT_ENVIRONMENT || '(not replit)',
+        runningEnvironment: process.env.REPLIT_ENVIRONMENT || process.env.ENVIRONMENT || '(not replit)',
         hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
         hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
-        hasGoogleRedirectUri: !!process.env.GOOGLE_REDIRECT_URI
+        hasGoogleRedirectUri: !!process.env.GOOGLE_REDIRECT_URI,
+        deploymentType: process.env.REPLIT_DEPLOYMENT_TYPE || '(not deployed)',
+        fixedBucketName: process.env.GOOGLE_CLOUD_BUCKET ? 
+          process.env.GOOGLE_CLOUD_BUCKET.trim() : '(not set)'
       };
 
       // Generate actionable suggestions based on the results
@@ -1099,6 +1120,11 @@ export function setupFileStorageRoutes(app: Router) {
         if (!permissionsResult.details.canWriteFiles) {
           suggestions.push('Service account lacks permission to write files. Grant Storage Object Creator role.');
         }
+      }
+      
+      // Add suggestion about development vs production
+      if (process.env.NODE_ENV === 'production' && !permissionsResult.success) {
+        suggestions.push('Consider using the same GCS service account and configuration from the Development environment, where file uploads are working correctly.');
       }
       
       res.status(200).json({

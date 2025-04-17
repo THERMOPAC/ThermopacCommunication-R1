@@ -101,10 +101,42 @@ export default function GcsDiagnostics() {
     
     return (
       <div className="space-y-1 text-sm">
-        <div>Type: {credentials.type || "Not set"}</div>
-        <div>Project ID: {credentials.projectId ? "✓ Present" : "❌ Missing"}</div>
-        <div>Service Account: {credentials.clientEmail ? "✓ Present" : "❌ Missing"}</div>
-        <div>Private Key: {credentials.hasPrivateKey ? "✓ Present" : "❌ Missing"}</div>
+        <div className="flex items-center">
+          <span className="w-40">Type:</span>
+          <span className="flex items-center">
+            {credentials.type === 'service_account' ? 
+              <CheckCircle className="w-4 h-4 text-green-500 mr-1" /> : 
+              <XCircle className="w-4 h-4 text-red-500 mr-1" />}
+            {credentials.type || "Not set"}
+          </span>
+        </div>
+        <div className="flex items-center">
+          <span className="w-40">Project ID:</span>
+          <span className="flex items-center">
+            {credentials.projectId ? 
+              <CheckCircle className="w-4 h-4 text-green-500 mr-1" /> : 
+              <XCircle className="w-4 h-4 text-red-500 mr-1" />}
+            {credentials.projectId ? credentials.projectId : "❌ Missing"}
+          </span>
+        </div>
+        <div className="flex items-center">
+          <span className="w-40">Service Account:</span>
+          <span className="flex items-center">
+            {credentials.clientEmail ? 
+              <CheckCircle className="w-4 h-4 text-green-500 mr-1" /> : 
+              <XCircle className="w-4 h-4 text-red-500 mr-1" />}
+            {credentials.clientEmail || "❌ Missing"}
+          </span>
+        </div>
+        <div className="flex items-center">
+          <span className="w-40">Private Key:</span>
+          <span className="flex items-center">
+            {credentials.hasPrivateKey ? 
+              <CheckCircle className="w-4 h-4 text-green-500 mr-1" /> : 
+              <XCircle className="w-4 h-4 text-red-500 mr-1" />}
+            {credentials.hasPrivateKey ? "✓ Present" : "❌ Missing"}
+          </span>
+        </div>
       </div>
     );
   };
@@ -232,6 +264,50 @@ export default function GcsDiagnostics() {
               <h3 className="font-medium mb-2">Google Cloud Credentials</h3>
               {formatCredentials()}
             </div>
+            
+            {/* Environment Comparison Section */}
+            {diagnosticResult.environment && diagnosticResult.environment.nodeEnv === 'production' && (
+              <div className="pt-2 border-t">
+                <h3 className="font-medium mb-2">Production vs Development Comparison</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  For best results, the Production environment should use the same configuration as the Development environment,
+                  where file uploads are working correctly.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 px-4">Setting</th>
+                        <th className="text-left py-2 px-4">Production (Current)</th>
+                        <th className="text-left py-2 px-4">Development (Working)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b">
+                        <td className="py-2 px-4">Environment</td>
+                        <td className="py-2 px-4">{diagnosticResult.environment.nodeEnv}</td>
+                        <td className="py-2 px-4">development</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="py-2 px-4">Bucket Name</td>
+                        <td className="py-2 px-4">{diagnosticResult.environment.googleBucketEnvVar}</td>
+                        <td className="py-2 px-4">thermopac_storage</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="py-2 px-4">Service Account Type</td>
+                        <td className="py-2 px-4">{diagnosticResult.environment.credentialType || 'unknown'}</td>
+                        <td className="py-2 px-4">service_account</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4">Service Account</td>
+                        <td className="py-2 px-4">{diagnosticResult.environment.serviceAccountEmail || 'missing'}</td>
+                        <td className="py-2 px-4">thermopac-cloud@thermopac-communication-system.iam.gserviceaccount.com</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             
             {/* Suggestions Section */}
             {getSuggestions().length > 0 && (
