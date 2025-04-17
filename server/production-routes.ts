@@ -450,14 +450,13 @@ app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, a
             const masterComponentItem = masterItemsMap.get(componentItemId);
             if (masterComponentItem && masterComponentItem.makeOrBuy === 'Make') {
               // Create a virtual project item for this component
-              // We use special string IDs for virtual items to avoid type conflicts
-              // Converting the ID to a string with a special prefix
+              // We use numeric ID with a special value for virtual items
               virtualChildItems.push({
-                id: `virtual-${componentItemId}`, // Use string ID for virtual items
+                id: -(Math.abs(componentItemId)), // Use negative ID to mark as virtual
                 projectId: parentProjectItem.projectId,
                 itemId: componentItemId,
                 quantity: 1, // Default to 1 for now, could be improved with BOM relationships
-                makeOrBuy: 'Make',
+                makeOrBuy: 'Make' as const,
                 notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`
               });
             }
@@ -519,7 +518,7 @@ app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, a
           // Add item to work order
           const [newItem] = await db.insert(workOrderItems).values({
             workOrderId: newWorkOrder.id,
-            projectItemId: item.id < 0 ? 0 : item.id, // Virtual items have negative IDs, convert to 0
+            projectItemId: item.id < 0 ? 0 : item.id, // Handle virtual items (negative IDs)
             quantity: item.quantity,
             status: 'pending',
             sequenceNumber: sequenceNumber++,
