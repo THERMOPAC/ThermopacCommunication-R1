@@ -113,6 +113,21 @@ export function setupProductionRoutes(app: Router) {
         where: inArray(itemComponents.parentItemId, masterItemIds)
       });
       
+      // If we have components, also get their master item details
+      const componentItemIds = itemComponentRelationships.map(rel => rel.componentItemId);
+      if (componentItemIds.length > 0) {
+        const componentMasterItems = await db.query.masterItems.findMany({
+          where: inArray(masterItems.id, componentItemIds)
+        });
+        
+        // Add these to the master items map
+        componentMasterItems.forEach(item => {
+          if (!masterItemsMap.has(item.id)) {
+            masterItemsMap.set(item.id, item);
+          }
+        });
+      }
+      
       // Create lookup maps for parent-child relationships
       const parentToChildMap = new Map<number, number[]>();
       const childToParentMap = new Map<number, number>();
@@ -129,12 +144,20 @@ export function setupProductionRoutes(app: Router) {
       const parentItems: typeof makeItems = [];
       const childItems: typeof makeItems = [];
       
+      // Track parent items that have components
+      const parentsWithComponents = new Set<number>();
+      
       makeItems.forEach(item => {
         const masterItemId = item.itemId;
         if (childToParentMap.has(masterItemId)) {
           childItems.push(item);
         } else {
           parentItems.push(item);
+          
+          // Check if this parent has components
+          if (parentToChildMap.has(masterItemId)) {
+            parentsWithComponents.add(masterItemId);
+          }
         }
       });
       
