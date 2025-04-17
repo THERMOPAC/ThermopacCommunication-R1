@@ -23,7 +23,8 @@ import {
   Truck,
   HeartPulse,
   Lock,
-  Shield
+  Shield,
+  Settings
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -133,6 +134,7 @@ export default function Layout({ children }: LayoutProps) {
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
     { icon: MessageSquare, label: "Messages", href: "/messages" },
     { icon: Mail, label: "Emails", href: "/emails" },
+    { icon: Settings, label: "Tools", href: "/tools" },
     { icon: UserIcon, label: "Profile", href: "/profile" },
     ...(user?.role === "Superuser" || user?.role === "General Manager" ? [
       { icon: UserCog, label: "User Management", href: "/users" },
