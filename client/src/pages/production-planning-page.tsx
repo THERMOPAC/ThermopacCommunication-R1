@@ -160,61 +160,76 @@ export default function ProductionPlanningPage() {
     }
   };
   
-  // Mutation for generating work orders with confirmation
-  const generateWorkOrdersMutation = useMutation({
-    mutationFn: async (projectId: number) => {
-      // Validate projectId is a number
-      if (!projectId || isNaN(projectId)) {
-        throw new Error("Invalid project ID");
-      }
-      
+  // Simplified function to generate work orders - separate from mutation to reduce complexity
+  const generateWorkOrders = async (projectId: number) => {
+    if (!projectId || isNaN(projectId)) {
+      toast({
+        title: "Error",
+        description: "Invalid project ID",
+        variant: "destructive"
+      });
+      resetWorkOrderGenerationState();
+      return;
+    }
+
+    try {
+      setIsGeneratingWorkOrders(true);
       console.log("Generating work orders for project ID:", projectId);
       
-      const response = await apiRequest(
-        'POST', 
+      const response = await fetch(
         `/api/production/work-orders/generate-for-project/${projectId}`,
-        { confirm: true } // Add confirmation flag
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ confirm: true }),
+        }
       );
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate work orders");
+        let errorMessage = "Failed to generate work orders";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          console.error("Error parsing error response:", e);
+        }
+        throw new Error(errorMessage);
       }
       
+      let successData;
       try {
-        const responseData = await response.json();
-        console.log("Work order generation response:", responseData);
-        return responseData;
+        successData = await response.json();
+        console.log("Work order generation response:", successData);
       } catch (error) {
         console.error("Failed to parse response JSON:", error);
-        // Return a default response object to prevent hanging
-        return { 
+        successData = { 
           workOrders: [], 
           items: [],
           message: "Created work orders successfully, but encountered an issue processing the response" 
         };
       }
-    },
-    onSuccess: (data) => {
+      
       toast({
         title: "Work Orders Generated",
-        description: data.message || `Successfully created work orders for the project`,
+        description: successData.message || `Successfully created work orders for the project`,
       });
-      // Refresh the work orders list
-      refetchWorkOrders();
-      // Reset all related states
+      
+      // Refresh the work orders list and reset states
+      await refetchWorkOrders();
       resetWorkOrderGenerationState();
-    },
-    onError: (error: Error) => {
+      
+    } catch (error: any) {
+      console.error("Error generating work orders:", error);
       toast({
         title: "Error Generating Work Orders",
         description: error.message || "There was an error generating work orders for this project.",
         variant: "destructive",
       });
-      // Reset all related states
       resetWorkOrderGenerationState();
     }
-  });
+  };
 
   // Form for creating new work order
   const form = useForm<WorkOrderFormValues>({
@@ -331,10 +346,10 @@ export default function ProductionPlanningPage() {
                 <Button
                   variant="outline"
                   onClick={handleGenerateWorkOrdersClick}
-                  disabled={isGeneratingWorkOrders || generateWorkOrdersMutation.isPending || isLoadingPreview}
+                  disabled={isGeneratingWorkOrders || isLoadingPreview}
                   className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700"
                 >
-                  {isGeneratingWorkOrders || generateWorkOrdersMutation.isPending || isLoadingPreview ? (
+                  {isGeneratingWorkOrders || isLoadingPreview ? (
                     <>
                       <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
                       {isLoadingPreview ? "Loading Preview..." : "Generating..."}
@@ -903,21 +918,27 @@ export default function ProductionPlanningPage() {
           <DialogFooter>
             <Button 
               variant="outline" 
-              onClick={() => resetWorkOrderGenerationState()}
-              disabled={generateWorkOrdersMutation.isPending}
+              onClick={resetWorkOrderGenerationState}
+              disabled={isGeneratingWorkOrders}
             >
               Cancel
             </Button>
             <Button 
               onClick={() => {
-                setIsGeneratingWorkOrders(true);
-                generateWorkOrdersMutation.mutate(selectedProject!);
-                // Dialog will be closed in onSuccess callback
+                if (selectedProject) {
+                  generateWorkOrders(selectedProject);
+                } else {
+                  toast({
+                    title: "Error",
+                    description: "No project selected",
+                    variant: "destructive"
+                  });
+                }
               }}
-              disabled={generateWorkOrdersMutation.isPending || !previewData}
+              disabled={isGeneratingWorkOrders || !previewData}
               className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700"
             >
-              {generateWorkOrdersMutation.isPending ? (
+              {isGeneratingWorkOrders ? (
                 <>
                   <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
                   Generating...
