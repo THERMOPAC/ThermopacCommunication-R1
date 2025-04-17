@@ -108,7 +108,19 @@ export default function ProductionPlanningPage() {
     isLoading: isLoadingPreview,
     refetch: refetchPreview
   } = useQuery<any>({
-    queryKey: ['/api/production/work-orders/preview', selectedProject?.toString()],
+    queryKey: ['/api/production/work-orders/preview', selectedProject],
+    queryFn: async ({ queryKey }) => {
+      // Extract the projectId from queryKey and ensure it's a valid number
+      const [_, projectId] = queryKey;
+      if (!projectId) throw new Error("Project ID is required");
+      
+      const response = await fetch(`/api/production/work-orders/preview/${projectId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch preview data");
+      }
+      return response.json();
+    },
     enabled: false, // We'll trigger this manually
   });
   
@@ -132,11 +144,24 @@ export default function ProductionPlanningPage() {
   // Mutation for generating work orders with confirmation
   const generateWorkOrdersMutation = useMutation({
     mutationFn: async (projectId: number) => {
+      // Validate projectId is a number
+      if (!projectId || isNaN(projectId)) {
+        throw new Error("Invalid project ID");
+      }
+      
+      console.log("Generating work orders for project ID:", projectId);
+      
       const response = await apiRequest(
         'POST', 
         `/api/production/work-orders/generate-for-project/${projectId}`,
         { confirm: true } // Add confirmation flag
       );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate work orders");
+      }
+      
       return await response.json();
     },
     onSuccess: (data) => {

@@ -64,13 +64,48 @@ export function setupProductionRoutes(app: Router) {
       });
       
       // Group items by "makeOrBuy" status
-      const makeItems = projectItemsList.filter(item => {
+      let makeItems = projectItemsList.filter(item => {
         const masterItem = masterItemsMap.get(item.itemId);
         return masterItem && masterItem.makeOrBuy === 'Make';
       });
       
       if (makeItems.length === 0) {
         return res.status(400).json({ error: 'No "Make" items found for this project' });
+      }
+      
+      // Check for existing work orders for this project to avoid duplicates
+      const existingWorkOrders = await db.query.workOrders.findMany({
+        where: eq(workOrders.projectId, projectId)
+      });
+      
+      if (existingWorkOrders.length > 0) {
+        // Get all work order items for this project to check for duplicates
+        const existingWorkOrderIds = existingWorkOrders.map(wo => wo.id);
+        const existingWorkOrderItems = await db.query.workOrderItems.findMany({
+          where: inArray(workOrderItems.workOrderId, existingWorkOrderIds)
+        });
+        
+        // Create a set of project item IDs that already have work orders
+        const existingProjectItemIds = new Set(existingWorkOrderItems.map(item => item.projectItemId));
+        
+        // Filter out items that already have work orders
+        const filteredMakeItems = makeItems.filter(item => !existingProjectItemIds.has(item.id));
+        
+        if (filteredMakeItems.length === 0) {
+          return res.status(200).json({ 
+            project: {
+              id: project.id,
+              code: project.code,
+              name: project.name
+            },
+            itemCount: 0,
+            items: [],
+            message: 'All "Make" items already have work orders'
+          });
+        }
+        
+        // Update makeItems to only include items that don't already have work orders
+        makeItems = filteredMakeItems;
       }
       
       // Create preview data for client
