@@ -897,14 +897,89 @@ export function setupFileStorageRoutes(app: Router) {
         });
       } else {
         // Generic error
-        console.error(`Generic upload error: ${error.message}`);
-        res.status(500).json({ 
-          error: 'Failed to upload file',
-          errorCode: error.code,
-          errorMessage: error.message,
-          shouldRetry: true,  // Generic errors might be worth retrying
-          retryDelay: 5000    // Suggest retrying after 5 seconds for generic errors
-        });
+        // Classify the error type for more intelligent retry decisions
+        const errorMessage = error.message || 'Unknown error';
+        
+        // Connection reset errors - these are definitely retriable
+        if (errorMessage.includes('ECONNRESET') || errorMessage.includes('socket hang up')) {
+          console.error(`Connection reset during upload: ${errorMessage}`);
+          res.status(500).json({
+            error: 'Connection interrupted',
+            errorCode: error.code || 'ECONNRESET',
+            errorMessage: errorMessage,
+            details: 'The connection was reset while uploading the file',
+            suggestion: 'This is likely a transient network issue',
+            shouldRetry: true,
+            retryDelay: 2000 // Quick retry for connection resets
+          });
+        } 
+        // Rate limiting or server overload - retriable with longer backoff
+        else if (error.code === 429 || errorMessage.includes('Too many requests') || errorMessage.includes('rate limit')) {
+          console.error(`Rate limit or server overload during upload: ${errorMessage}`);
+          res.status(429).json({
+            error: 'Upload rate limit exceeded',
+            errorCode: error.code || 429,
+            errorMessage: errorMessage,
+            details: 'The server is processing too many uploads right now',
+            suggestion: 'Please wait a moment before retrying',
+            shouldRetry: true,
+            retryDelay: 10000 // Longer delay for rate limiting
+          });
+        }
+        // GCS timeout errors - retriable with medium backoff
+        else if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
+          console.error(`Timeout during upload: ${errorMessage}`);
+          res.status(500).json({
+            error: 'Upload operation timed out',
+            errorCode: error.code || 'TIMEOUT',
+            errorMessage: errorMessage,
+            details: 'The upload operation took too long to complete',
+            suggestion: 'This could be due to file size or network conditions',
+            shouldRetry: true,
+            retryDelay: 5000 // Medium delay for timeouts
+          });
+        }
+        // File validation errors - not retriable
+        else if (errorMessage.includes('validation') || errorMessage.includes('invalid file')) {
+          console.error(`File validation error: ${errorMessage}`);
+          res.status(400).json({
+            error: 'Invalid file',
+            errorCode: error.code || 'VALIDATION_ERROR',
+            errorMessage: errorMessage,
+            details: 'The file did not pass validation checks',
+            suggestion: 'Please check the file format and try again with a valid file',
+            shouldRetry: false
+          });
+        }
+        // Other server-side errors - may be retriable
+        else {
+          // Generic server error - default to retriable with our best guess about whether it's worth retrying
+          const isLikelyRetriable = 
+            !errorMessage.includes('permission') && 
+            !errorMessage.includes('access') && 
+            !errorMessage.includes('not found') &&
+            !errorMessage.includes('invalid') &&
+            !errorMessage.includes('corruption') &&
+            (error.code === undefined || error.code >= 500 || typeof error.code !== 'number');
+          
+          console.error(`Generic upload error: ${errorMessage}`, {
+            stack: error.stack,
+            code: error.code,
+            isLikelyRetriable
+          });
+          
+          res.status(500).json({ 
+            error: 'Failed to upload file',
+            errorCode: error.code,
+            errorMessage: errorMessage,
+            details: 'An unexpected error occurred during upload',
+            suggestion: isLikelyRetriable 
+              ? 'This may be a temporary issue, please try again'
+              : 'Please check your file and try again with a different file if the issue persists',
+            shouldRetry: isLikelyRetriable,
+            retryDelay: isLikelyRetriable ? 5000 : 0
+          });
+        }
       }
     }
   });
