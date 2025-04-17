@@ -326,7 +326,7 @@ export function setupProductionRoutes(app: Router) {
       const endDate = new Date();
       endDate.setDate(today.getDate() + 30); // Default to 30 days schedule
       
-      // Generate a unique work order number using sequential numbering
+      // Generate a unique work order number using sequential numbering with format WO-[ProjectCode]-[SequentialNumber]
       const nextSeqNumber = existingWorkOrders.length + 1;
       const workOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
       
