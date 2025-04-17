@@ -49,9 +49,9 @@ class GcsStorage {
       sanitized.projectCode
     ].filter(Boolean); // Filter out any empty strings
     
-    // Add department to the path (including 'drawings')
-    // We previously skipped 'drawings' folder but this was causing search issues
-    if (sanitized.department) {
+    // Only add department if it's not 'drawings'
+    // For drawings, we want the structure THERMOPAC_INVENTORY/{drawingNo}/{drawingNo}_R{revisionNumber}.{fileExtension}
+    if (sanitized.department && sanitized.department !== 'drawings') {
       pathComponents.push(sanitized.department);
     }
 
