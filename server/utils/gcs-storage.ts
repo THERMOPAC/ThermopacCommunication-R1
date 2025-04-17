@@ -776,14 +776,80 @@ class GcsStorage {
       };
     } catch (error: any) {
       console.error('Direct upload error:', error);
+      
+      // Classify error for more intelligent retry decisions
+      const isNetworkError = error.message && (
+        error.message.includes('ECONNRESET') ||
+        error.message.includes('ETIMEDOUT') ||
+        error.message.includes('ENETUNREACH') ||
+        error.message.includes('ENOTFOUND') ||
+        error.message.includes('socket hang up') ||
+        error.message.includes('connection') ||
+        error.message.includes('network')
+      );
+      
+      const isRateLimitError = error.code === 429 || 
+        (error.message && (
+          error.message.includes('Too many requests') || 
+          error.message.includes('rate limit')
+        ));
+      
+      const isTimeoutError = error.message && (
+        error.message.includes('timeout') || 
+        error.message.includes('timed out')
+      );
+      
+      const isPermissionError = error.code === 403 || 
+        (error.message && (
+          error.message.includes('permission') || 
+          error.message.includes('access denied')
+        ));
+        
+      const isNotFoundError = error.code === 404 || 
+        (error.message && error.message.includes('not found'));
+      
+      const isAuthError = error.message && (
+        error.message.includes('authentication') || 
+        error.message.includes('credentials') || 
+        error.message.includes('auth')
+      );
+      
+      // Determine if this error is retriable
+      const shouldRetry = isNetworkError || isRateLimitError || isTimeoutError || 
+        // Server errors (5xx) are generally retriable
+        (error.code >= 500 && error.code < 600);
+      
+      // Calculate suggested retry delay based on error type
+      let retryDelay = 0;
+      if (shouldRetry) {
+        if (isRateLimitError) {
+          retryDelay = 10000; // 10 seconds for rate limits
+        } else if (isTimeoutError) {
+          retryDelay = 5000;  // 5 seconds for timeouts
+        } else if (isNetworkError) {
+          retryDelay = 3000;  // 3 seconds for network errors
+        } else {
+          retryDelay = 5000;  // 5 seconds default for other retriable errors
+        }
+      }
+      
+      // Build enhanced error details
       const errorDetails = {
-        message: error.message,
+        message: error.message || 'Unknown error',
         code: error.code,
         stack: error.stack,
-        details: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+        details: JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
+        shouldRetry,
+        retryDelay,
+        errorType: isNetworkError ? 'network' : 
+                   isRateLimitError ? 'rate_limit' : 
+                   isTimeoutError ? 'timeout' : 
+                   isPermissionError ? 'permission' : 
+                   isNotFoundError ? 'not_found' :
+                   isAuthError ? 'authentication' : 'other'
       };
       
-      // Log more comprehensive error information
+      // Log comprehensive error information
       console.error('Error details:', errorDetails);
       
       return { 
