@@ -84,6 +84,8 @@ export default function ProductionPlanningPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const [isGeneratingWorkOrders, setIsGeneratingWorkOrders] = useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
 
   // Fetch projects for dropdown
   const { data: projects, isLoading: isLoadingProjects } = useQuery({
@@ -100,12 +102,40 @@ export default function ProductionPlanningPage() {
     enabled: !!selectedProject,
   });
   
-  // Mutation for generating work orders for a project
+  // Query for work order preview data
+  const { 
+    data: previewApiData, 
+    isLoading: isLoadingPreview,
+    refetch: refetchPreview
+  } = useQuery({
+    queryKey: ['/api/production/work-orders/preview', selectedProject],
+    enabled: false, // We'll trigger this manually
+  });
+  
+  // Get preview data before generating work orders
+  const handleGenerateWorkOrdersClick = async () => {
+    if (!selectedProject) return;
+    
+    try {
+      const { data } = await refetchPreview();
+      setPreviewData(data);
+      setIsConfirmDialogOpen(true);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Could not retrieve work order preview data",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Mutation for generating work orders with confirmation
   const generateWorkOrdersMutation = useMutation({
     mutationFn: async (projectId: number) => {
       const response = await apiRequest(
         'POST', 
-        `/api/production/work-orders/generate-for-project/${projectId}`
+        `/api/production/work-orders/generate-for-project/${projectId}`,
+        { confirm: true } // Add confirmation flag
       );
       return await response.json();
     },
@@ -117,6 +147,7 @@ export default function ProductionPlanningPage() {
       // Refresh the work orders list
       refetchWorkOrders();
       setIsGeneratingWorkOrders(false);
+      setIsConfirmDialogOpen(false);
     },
     onError: (error: Error) => {
       toast({
@@ -125,6 +156,7 @@ export default function ProductionPlanningPage() {
         variant: "destructive",
       });
       setIsGeneratingWorkOrders(false);
+      setIsConfirmDialogOpen(false);
     }
   });
 
@@ -242,17 +274,14 @@ export default function ProductionPlanningPage() {
               {selectedProject && (
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setIsGeneratingWorkOrders(true);
-                    generateWorkOrdersMutation.mutate(selectedProject);
-                  }}
-                  disabled={isGeneratingWorkOrders || generateWorkOrdersMutation.isPending}
+                  onClick={handleGenerateWorkOrdersClick}
+                  disabled={isGeneratingWorkOrders || generateWorkOrdersMutation.isPending || isLoadingPreview}
                   className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700"
                 >
-                  {isGeneratingWorkOrders || generateWorkOrdersMutation.isPending ? (
+                  {isGeneratingWorkOrders || generateWorkOrdersMutation.isPending || isLoadingPreview ? (
                     <>
                       <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
-                      Generating...
+                      {isLoadingPreview ? "Loading Preview..." : "Generating..."}
                     </>
                   ) : (
                     <>Create Work Orders for Project</>
@@ -670,6 +699,101 @@ export default function ProductionPlanningPage() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Work Order Confirmation Dialog */}
+      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Confirm Work Order Generation</DialogTitle>
+            <DialogDescription>
+              Please review the items that will be included in the work order(s).
+            </DialogDescription>
+          </DialogHeader>
+          
+          {previewData ? (
+            <div className="space-y-4">
+              <div className="border rounded-md p-4 bg-muted/30">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Project</Label>
+                    <p className="font-medium">{previewData.project?.name || previewData.project?.code}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Work Order Number</Label>
+                    <p className="font-medium">{previewData.workOrderNumber}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Total Items</Label>
+                    <p className="font-medium">{previewData.itemCount || 0}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {previewData.items && previewData.items.length > 0 ? (
+                <div className="max-h-80 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>#</TableHead>
+                        <TableHead>Item Code</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Unit</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {previewData.items.map((item: any) => (
+                        <TableRow key={item.sequenceNumber}>
+                          <TableCell>{item.sequenceNumber}</TableCell>
+                          <TableCell className="font-medium">{item.itemCode}</TableCell>
+                          <TableCell>{item.description}</TableCell>
+                          <TableCell>{item.quantity}</TableCell>
+                          <TableCell>{item.unit}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="p-4 border rounded border-dashed text-center">
+                  <p className="text-muted-foreground">No items to display</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-40">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsConfirmDialogOpen(false)}
+              disabled={generateWorkOrdersMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                setIsGeneratingWorkOrders(true);
+                generateWorkOrdersMutation.mutate(selectedProject!);
+              }}
+              disabled={generateWorkOrdersMutation.isPending || !previewData}
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700"
+            >
+              {generateWorkOrdersMutation.isPending ? (
+                <>
+                  <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
+                  Generating...
+                </>
+              ) : (
+                <>Confirm & Generate Work Orders</>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
