@@ -24,7 +24,7 @@ import ProjectCommissioningPage from "@/pages/project-commissioning-page";
 import DispatchShippingPage from "@/pages/dispatch-shipping-page";
 import AfterSalesPage from "@/pages/after-sales-page";
 import ModulePermissionsPage from "@/pages/module-permissions-page";
-import ToolsPage from "@/pages/tools-page";
+import DiagnosticsPage from "@/pages/diagnostics-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
@@ -76,7 +76,7 @@ function Router() {
       <ProtectedRoute path="/recommendations" component={Dashboard} />
       <ProtectedRoute path="/messages" component={MessagesPage} />
       <ProtectedRoute path="/emails" component={EmailsPage} />
-      <SuperuserRoute path="/tools" component={ToolsPage} />
+      <SuperuserRoute path="/tools" component={DiagnosticsPage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/leaderboard" component={LeaderboardPage} />
       <ProtectedRoute path="/recurring-tasks" component={RecurringTasksPage} />
