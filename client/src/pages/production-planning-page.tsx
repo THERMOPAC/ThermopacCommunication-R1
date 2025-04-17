@@ -179,7 +179,7 @@ export default function ProductionPlanningPage() {
     onSuccess: (data) => {
       toast({
         title: "Work Orders Generated",
-        description: `Successfully created ${data.items?.length || 0} work order items for ${data.workOrder?.title || 'project'}`,
+        description: `Successfully created ${data.items?.length || 0} work order items for ${data.workOrders?.[0]?.title || 'project'}`,
       });
       // Refresh the work orders list
       refetchWorkOrders();

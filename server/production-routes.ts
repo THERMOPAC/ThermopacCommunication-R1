@@ -190,7 +190,7 @@ app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, a
               projectId: parentProjectItem.projectId,
               itemId: componentItemId,
               quantity: '1', // Default to 1 for now, could be improved with BOM relationships
-              makeOrBuy: 'Make' as const,
+              // Exclude makeOrBuy as it's not in the schema type
               notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}` as string
             });
           }
@@ -456,7 +456,7 @@ app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, a
                 projectId: parentProjectItem.projectId,
                 itemId: componentItemId,
                 quantity: '1', // Default to 1 for now, could be improved with BOM relationships
-                makeOrBuy: 'Make' as const,
+                // Exclude makeOrBuy as it's not in the schema type
                 notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}` as string
               });
             }
