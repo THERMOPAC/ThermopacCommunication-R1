@@ -381,7 +381,13 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
       return;
     }
     
-    createEcrMutation.mutate(ecrForm);
+    // Automatically set the drawing number from the current item
+    const drawingNumber = currentItem?.drawingNo || currentItem?.itemCode || '';
+    
+    createEcrMutation.mutate({
+      ...ecrForm,
+      drawing_number: drawingNumber
+    });
   };
 
   // Handle ECN create form submission
@@ -707,29 +713,10 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="ecr-drawing">Drawing Number</Label>
-              <Select
-                value={ecrForm.drawing_number}
-                onValueChange={(value) => setEcrForm({ ...ecrForm, drawing_number: value })}
-              >
-                <SelectTrigger id="ecr-drawing">
-                  <SelectValue placeholder="Select a drawing number" />
-                </SelectTrigger>
-                <SelectContent>
-                  {drawingNumbers.length === 0 ? (
-                    <SelectItem value="none" disabled>No drawing numbers available</SelectItem>
-                  ) : (
-                    <>
-                      <SelectItem value="none">None</SelectItem>
-                      {drawingNumbers.map((drawing) => (
-                        <SelectItem key={drawing.id} value={drawing.drawingNo}>
-                          {drawing.drawingNo} - {drawing.itemCode}
-                        </SelectItem>
-                      ))}
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-1">Select a drawing number from parent or sub-assembly components</p>
+              <div className="border rounded-md p-2 bg-muted text-sm">
+                {currentItem?.drawingNo ? `${currentItem.drawingNo} - ${currentItem.itemCode}` : `${currentItem?.itemCode || ''}`}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Drawing number is automatically set from the current item</p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="ecr-description">Description</Label>
