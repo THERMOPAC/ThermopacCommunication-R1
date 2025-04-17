@@ -381,14 +381,50 @@ const ItemMasterManagement: React.FC = () => {
           /_R(\d+)/, // DrawingNo_R1.pdf
           /Rev\.?(\d+)/i, // Rev1 or Rev.1
           /Revision[_\s-]?(\d+)/i, // Revision 1
-          /V(\d+)/ // V1
+          /V(\d+)/, // V1
+          /-R(\d+)/, // DrawingNo-R1.pdf
+          /_Rev(\d+)/, // DrawingNo_Rev1.pdf
+          /[_-](\d+)$/, // Ends with _1 or -1 before extension
+          /(\d+)$/ // Last digits in the filename before extension
         ];
         
+        let foundRevision = false;
         for (const pattern of revPatterns) {
-          const match = fileName.match(pattern);
-          if (match && match[1]) {
-            revision = match[1];
+          // First check in the filename
+          const fileMatch = fileName.match(pattern);
+          if (fileMatch && fileMatch[1]) {
+            revision = fileMatch[1];
+            foundRevision = true;
+            console.log(`Found revision ${revision} in filename: ${fileName} using pattern: ${pattern}`);
             break;
+          }
+          
+          // Also check in the full path which might contain revision info
+          const pathMatch = fullPath.match(pattern);
+          if (pathMatch && pathMatch[1]) {
+            revision = pathMatch[1];
+            foundRevision = true;
+            console.log(`Found revision ${revision} in path: ${fullPath} using pattern: ${pattern}`);
+            break;
+          }
+        }
+        
+        // If no revision found in the filename, try extracting it from the path
+        if (!foundRevision) {
+          // Look for revision in parent directory name
+          if (pathParts.length >= 2) {
+            const parentDir = pathParts[pathParts.length - 2];
+            const parentDirMatch = parentDir.match(/R(\d+)$/);
+            if (parentDirMatch && parentDirMatch[1]) {
+              revision = parentDirMatch[1];
+              console.log(`Found revision ${revision} in parent directory: ${parentDir}`);
+            }
+          }
+          
+          // If still no revision found, check if revision might be in file's metadata
+          if (file.metadata && file.metadata.revision) {
+            revision = file.metadata.revision.toString();
+            console.log(`Found revision ${revision} in file metadata`);
           }
         }
         
