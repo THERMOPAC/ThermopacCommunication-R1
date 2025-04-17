@@ -703,11 +703,11 @@ export function setupFileStorageRoutes(app: Router) {
       
       // Handle stream errors
       const streamError = new Promise((resolve, reject) => {
-        stream.on('error', (error) => {
+        stream.on('error', (error: any) => {
           console.error('Stream error during GCS upload:', error);
           console.error('Error details:', {
             message: error.message || 'Unknown error',
-            code: error.code,
+            code: error.code, // GCS errors include a code property
             stack: error.stack,
             bucket: bucketName,
             storagePath: storagePath,
@@ -846,7 +846,36 @@ export function setupFileStorageRoutes(app: Router) {
       }
       
       // If we got here, we couldn't recover
-      res.status(500).json({ error: 'Failed to upload file' });
+      // Provide more specific error information based on error type
+      if (error.code === 403) {
+        console.error('GCS permission error - check IAM roles and bucket permissions');
+        res.status(500).json({ 
+          error: 'Permission denied while uploading file',
+          details: 'The server does not have permission to write to the storage bucket',
+          suggestion: 'Please contact support to verify Google Cloud Storage permissions'
+        });
+      } else if (error.code === 404) {
+        console.error('GCS bucket not found - check bucket name configuration');
+        res.status(500).json({ 
+          error: 'Storage bucket not found',
+          details: 'The configured storage bucket does not exist or is not accessible',
+          suggestion: 'Please contact support to verify Google Cloud Storage configuration'
+        });
+      } else if (error.message && error.message.includes('ENOTFOUND')) {
+        console.error('DNS resolution failed - check network connectivity');
+        res.status(500).json({ 
+          error: 'Cannot connect to storage service',
+          details: 'Network connection to Google Cloud Storage failed',
+          suggestion: 'Please try again later or contact support if the issue persists'
+        });
+      } else {
+        // Generic error
+        res.status(500).json({ 
+          error: 'Failed to upload file',
+          errorCode: error.code,
+          errorMessage: error.message
+        });
+      }
     }
   });
 

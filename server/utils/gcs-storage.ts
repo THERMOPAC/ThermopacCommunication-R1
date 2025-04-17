@@ -1,5 +1,6 @@
 import path from 'path';
 import storage, { bucketName } from './storage-config';
+import { promises as fs } from 'fs';
 import { GcsApiResponse } from './gcs-types';
 
 /**
