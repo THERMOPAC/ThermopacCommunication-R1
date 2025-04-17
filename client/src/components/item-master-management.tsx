@@ -207,26 +207,68 @@ const ItemMasterManagement: React.FC = () => {
       
       console.log(`Fetching drawings for numbers: ${drawingNumbers.join(', ')}`);
       
-      // Search path
-      const searchPath = 'THERMOPAC_INVENTORY';
+      // Try multiple search paths to handle both Development and Production environments
+      const searchPaths = [
+        'THERMOPAC_INVENTORY',  // Standard path for inventory items
+        'THERMOPAC_INVENTORY/drawings',  // Path with drawings subdirectory
+        'THERMOPAC_PROJECTS/drawings'  // Legacy path in some environments
+      ];
+      
       let allFoundFiles: any[] = [];
       
-      try {
-        console.log(`Searching in path: ${searchPath}`);
-        
-        // Use recursive search to find all files
-        const response = await fetch(`/api/storage/files?path=${encodeURIComponent(searchPath)}&recursive=true`);
-        
-        if (response.ok) {
-          const pathFiles = await response.json();
-          console.log(`Found ${pathFiles.length} total files in ${searchPath}`);
+      // Attempt to search in all potential paths
+      for (const searchPath of searchPaths) {
+        try {
+          console.log(`Searching in path: ${searchPath}`);
           
-          if (pathFiles.length > 0) {
-            allFoundFiles = [...pathFiles];
+          // Use recursive search to find all files
+          const response = await fetch(`/api/storage/files?path=${encodeURIComponent(searchPath)}&recursive=true`);
+          
+          if (response.ok) {
+            const pathFiles = await response.json();
+            console.log(`Found ${pathFiles.length} total files in ${searchPath}`);
+            
+            if (pathFiles.length > 0) {
+              // For diagnostic purposes, log the structure of a few files
+              if (pathFiles.length > 0) {
+                console.log(`Sample file structure in ${searchPath}:`, 
+                  pathFiles.slice(0, 2).map((f: any) => ({
+                    path: f.path,
+                    name: f.name,
+                    isDir: f.isDirectory
+                  }))
+                );
+              }
+              
+              allFoundFiles = [...allFoundFiles, ...pathFiles];
+            }
+          } else {
+            console.log(`API returned non-OK status for ${searchPath}: ${response.status}`);
           }
+        } catch (error) {
+          console.error(`Error searching in path ${searchPath}:`, error);
         }
-      } catch (error) {
-        console.error(`Error searching in path ${searchPath}:`, error);
+      }
+      
+      // For each drawing number, also try a direct path search as fallback
+      for (const drawingNo of drawingNumbers) {
+        try {
+          const directPath = `THERMOPAC_INVENTORY/${drawingNo}`;
+          console.log(`Searching direct drawing path: ${directPath}`);
+          
+          const response = await fetch(`/api/storage/files?path=${encodeURIComponent(directPath)}&recursive=true`);
+          
+          if (response.ok) {
+            const directFiles = await response.json();
+            console.log(`Found ${directFiles.length} files in direct path ${directPath}`);
+            
+            if (directFiles.length > 0) {
+              allFoundFiles = [...allFoundFiles, ...directFiles];
+            }
+          }
+        } catch (error) {
+          console.error(`Error searching direct path for ${drawingNo}:`, error);
+        }
       }
       
       console.log(`Found ${allFoundFiles.length} total files across all search paths`);
