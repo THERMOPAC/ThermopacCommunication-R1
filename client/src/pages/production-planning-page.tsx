@@ -741,7 +741,7 @@ export default function ProductionPlanningPage() {
 
       {/* Work Order Confirmation Dialog */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-5xl w-full">
           <DialogHeader>
             <DialogTitle>Confirm Work Order Generation</DialogTitle>
             <DialogDescription>
@@ -769,15 +769,15 @@ export default function ProductionPlanningPage() {
               </div>
               
               {previewData.items && previewData.items.length > 0 ? (
-                <div className="max-h-80 overflow-y-auto">
-                  <Table>
+                <div className="max-h-96 overflow-y-auto">
+                  <Table className="w-full border">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>#</TableHead>
-                        <TableHead>Item Code</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Unit</TableHead>
+                        <TableHead className="w-[5%]">#</TableHead>
+                        <TableHead className="w-[20%]">Item Code</TableHead>
+                        <TableHead className="w-[50%]">Description</TableHead>
+                        <TableHead className="w-[15%]">Quantity</TableHead>
+                        <TableHead className="w-[10%]">Unit</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -785,7 +785,7 @@ export default function ProductionPlanningPage() {
                         <TableRow key={item.sequenceNumber}>
                           <TableCell>{item.sequenceNumber}</TableCell>
                           <TableCell className="font-medium">{item.itemCode}</TableCell>
-                          <TableCell>{item.description}</TableCell>
+                          <TableCell className="break-words">{item.description}</TableCell>
                           <TableCell>{item.quantity}</TableCell>
                           <TableCell>{item.unit}</TableCell>
                         </TableRow>
