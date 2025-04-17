@@ -86,6 +86,13 @@ export default function ProductionPlanningPage() {
   const [isGeneratingWorkOrders, setIsGeneratingWorkOrders] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
+  
+  // Function to reset all work order generation states
+  const resetWorkOrderGenerationState = () => {
+    setIsGeneratingWorkOrders(false);
+    setIsConfirmDialogOpen(false);
+    setPreviewData(null);
+  };
 
   // Fetch projects for dropdown
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<any[]>({
@@ -174,9 +181,19 @@ export default function ProductionPlanningPage() {
         throw new Error(errorData.error || "Failed to generate work orders");
       }
       
-      const responseData = await response.json();
-      console.log("Work order generation response:", responseData);
-      return responseData;
+      try {
+        const responseData = await response.json();
+        console.log("Work order generation response:", responseData);
+        return responseData;
+      } catch (error) {
+        console.error("Failed to parse response JSON:", error);
+        // Return a default response object to prevent hanging
+        return { 
+          workOrders: [], 
+          items: [],
+          message: "Created work orders successfully, but encountered an issue processing the response" 
+        };
+      }
     },
     onSuccess: (data) => {
       toast({
@@ -185,8 +202,8 @@ export default function ProductionPlanningPage() {
       });
       // Refresh the work orders list
       refetchWorkOrders();
-      setIsGeneratingWorkOrders(false);
-      setIsConfirmDialogOpen(false);
+      // Reset all related states
+      resetWorkOrderGenerationState();
     },
     onError: (error: Error) => {
       toast({
@@ -194,8 +211,8 @@ export default function ProductionPlanningPage() {
         description: error.message || "There was an error generating work orders for this project.",
         variant: "destructive",
       });
-      setIsGeneratingWorkOrders(false);
-      setIsConfirmDialogOpen(false);
+      // Reset all related states
+      resetWorkOrderGenerationState();
     }
   });
 
@@ -886,7 +903,7 @@ export default function ProductionPlanningPage() {
           <DialogFooter>
             <Button 
               variant="outline" 
-              onClick={() => setIsConfirmDialogOpen(false)}
+              onClick={() => resetWorkOrderGenerationState()}
               disabled={generateWorkOrdersMutation.isPending}
             >
               Cancel
