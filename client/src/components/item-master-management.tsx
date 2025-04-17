@@ -100,7 +100,8 @@ interface MasterItem {
   uom: string;
   makeOrBuy: string | null;
   drawingNo: string | null;
-  latestRevision?: number; // Add latest revision tracking for drawing uploads
+  latestRevision?: number; // camelCase version for Development environment
+  latest_revision?: number; // snake_case version for Production environment
   standardCost: number | null;
   supplier: string | null;
   notes: string | null;
@@ -1530,9 +1531,9 @@ const ItemMasterManagement: React.FC = () => {
                         // Use the database value if available (camelCase field)
                         latestRev = currentItem.latestRevision;
                         console.log(`Using latestRevision from database: ${latestRev}`);
-                      } else if (currentItem.latest_revision !== undefined && currentItem.latest_revision !== null) {
+                      } else if ((currentItem as any).latest_revision !== undefined && (currentItem as any).latest_revision !== null) {
                         // Use the database value if available (snake_case field)
-                        latestRev = currentItem.latest_revision;
+                        latestRev = (currentItem as any).latest_revision;
                         console.log(`Using latest_revision (snake_case) from database: ${latestRev}`);
                       } else if (latestRevisions[drawingNo] !== undefined) {
                         // Fallback to the state object
