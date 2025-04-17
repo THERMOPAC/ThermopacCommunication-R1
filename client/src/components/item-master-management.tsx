@@ -148,6 +148,15 @@ const ItemMasterManagement: React.FC = () => {
   const [drawingDescription, setDrawingDescription] = useState('');
   const [drawingFile, setDrawingFile] = useState<File | null>(null);
   const [isUploadingDrawing, setIsUploadingDrawing] = useState(false);
+  
+  // Enhanced error tracking for drawing uploads
+  const [drawingUploadError, setDrawingUploadError] = useState<{
+    message: string;
+    details?: string;
+    errorType?: string;
+    suggestion?: string;
+    shouldRetry?: boolean;
+  } | null>(null);
   const [selectedDrawingItem, setSelectedDrawingItem] = useState<{ id: number, code: string, drawingNo?: string | null } | null>(null);
   const [isDrawingDialogOpen, setIsDrawingDialogOpen] = useState(false);
   // Track the latest revision number for each drawing number
