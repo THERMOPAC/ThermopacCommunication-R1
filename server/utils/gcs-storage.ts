@@ -668,6 +668,68 @@ class GcsStorage {
       return false;
     }
   }
+  
+  /**
+   * Direct upload function for better error handling and debugging
+   * This is an alternative to using the signed URL approach and
+   * has improved error details for troubleshooting
+   */
+  async uploadFileDirectly({
+    filePath, 
+    buffer, 
+    contentType
+  }: {
+    filePath: string;
+    buffer: Buffer;
+    contentType: string;
+  }): Promise<{ success: boolean; error?: any; url?: string }> {
+    console.log(`Direct upload: Starting upload to path ${filePath}`);
+    
+    try {
+      // Get bucket and file references
+      const bucket = storage.bucket(bucketName);
+      const file = bucket.file(filePath);
+      
+      // Create directory if needed
+      const dirPath = path.dirname(filePath);
+      await this.ensureDirectoryStructure(dirPath);
+      
+      // Upload with promise-based approach instead of streams
+      console.log(`Direct upload: Uploading ${buffer.length} bytes with content type ${contentType}`);
+      
+      // Use the Storage API's upload method with proper error handling
+      await file.save(buffer, {
+        contentType,
+        metadata: {
+          contentType,
+          cacheControl: 'private, max-age=0'
+        }
+      });
+      
+      console.log(`Direct upload: Upload complete, generating download URL`);
+      
+      // Generate a temporary download URL
+      const downloadUrl = await this.generateDownloadSignedUrl({
+        filePath,
+        expirationMinutes: 60 // 1 hour
+      });
+      
+      return { 
+        success: true, 
+        url: downloadUrl || undefined 
+      };
+    } catch (error: any) {
+      console.error('Direct upload error:', error);
+      return { 
+        success: false, 
+        error: {
+          message: error.message,
+          code: error.code,
+          details: JSON.stringify(error, null, 2)
+        }
+      };
+    }
+  }
 }
 
 export const gcsStorage = new GcsStorage();

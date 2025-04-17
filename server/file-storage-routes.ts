@@ -512,9 +512,9 @@ export function setupFileStorageRoutes(app: Router) {
       console.log(`File upload: Parameters - FY: ${financialYear}, Project: ${projectCode}, Dept: ${department}, SubDir: ${subDirectory || 'none'}`);
       
       // Check for drawing revision pattern in filename (e.g., 4823002002001000_R0.PDF)
-      const revisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/);
-      if (revisionMatch && department === 'drawings') {
-        const [, drawingNo, revisionStr] = revisionMatch;
+      const uploadRevisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/);
+      if (uploadRevisionMatch && department === 'drawings') {
+        const [, drawingNo, revisionStr] = uploadRevisionMatch;
         const revisionNum = parseInt(revisionStr, 10);
         
         // Check if this is a master item drawing by looking up the drawingNo in the database
@@ -684,128 +684,95 @@ export function setupFileStorageRoutes(app: Router) {
       // Ensure the physical directory exists in GCS
       await gcsStorage.ensureDirectoryStructure(dirPath);
       
-      // Import storage module
-      const storageModule = await import('./utils/storage-config');
-      const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage';
-      console.log(`File upload: Using bucket name: ${bucketName}`);
+      console.log('Using direct upload method instead of streams for more reliable uploads');
       
-      // Create the file in GCS
-      const bucket = storageModule.default.bucket(bucketName);
-      console.log(`File upload: Created bucket object for ${bucketName}`);
-      const file = bucket.file(storagePath);
-      
-      // Create a write stream to upload the file
-      const stream = file.createWriteStream({
-        metadata: {
-          contentType: req.file.mimetype
-        }
+      // Use our new direct upload function instead of streams
+      const uploadResult = await gcsStorage.uploadFileDirectly({
+        filePath: storagePath,
+        buffer: req.file.buffer,
+        contentType: req.file.mimetype
       });
       
-      // Handle stream errors
-      const streamError = new Promise((resolve, reject) => {
-        stream.on('error', (error: any) => {
-          console.error('Stream error during GCS upload:', error);
-          console.error('Error details:', {
-            message: error.message || 'Unknown error',
-            code: error.code, // GCS errors include a code property
-            stack: error.stack,
-            bucket: bucketName,
-            storagePath: storagePath,
-          });
-          reject(error);
-        });
+      if (!uploadResult.success) {
+        console.error('Direct upload failed:', uploadResult.error);
+        throw new Error(`Upload failed: ${uploadResult.error?.message || 'Unknown error'}`);
+      }
+      
+      console.log('Direct upload successful, download URL:', uploadResult.url);
+      const downloadUrl = uploadResult.url;
+      
+      // Update the master item's latest revision if this is a drawing file
+      const fileRevisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/);
+      if (fileRevisionMatch && department === 'drawings') {
+        const [, drawingNo, revisionStr] = fileRevisionMatch;
+        const revisionNum = parseInt(revisionStr, 10);
         
-        stream.on('finish', async () => {
-          try {
-            // Generate a temporary download URL
-            const downloadUrl = await gcsStorage.generateDownloadSignedUrl({
-              filePath: storagePath,
-              expirationMinutes: 60 // 1 hour
-            });
+        try {
+          // Find the master item by drawing number
+          const masterItemsList = await db
+            .select()
+            .from(masterItems)
+            .where(eq(masterItems.drawingNo, drawingNo));
+          
+          // If we found a matching master item, update its latestRevision if this revision is higher
+          if (masterItemsList && masterItemsList.length > 0) {
+            const masterItem = masterItemsList[0];
+            const currentLatestRevision = masterItem.latestRevision || 0;
             
-            // Update the master item's latest revision if this is a drawing file
-            const revisionMatch = fileName.match(/(.+)_R(\d+)\.(.+)/);
-            if (revisionMatch && department === 'drawings') {
-              const [, drawingNo, revisionStr] = revisionMatch;
-              const revisionNum = parseInt(revisionStr, 10);
+            // Only update if the new revision is higher
+            if (revisionNum > currentLatestRevision) {
+              console.log(`Updating master item ${masterItem.id} latest revision from ${currentLatestRevision} to ${revisionNum}`);
               
-              try {
-                // Find the master item by drawing number
-                const masterItemsList = await db
-                  .select()
-                  .from(masterItems)
-                  .where(eq(masterItems.drawingNo, drawingNo));
-                
-                // If we found a matching master item, update its latestRevision if this revision is higher
-                if (masterItemsList && masterItemsList.length > 0) {
-                  const masterItem = masterItemsList[0];
-                  const currentLatestRevision = masterItem.latestRevision || 0;
-                  
-                  // Only update if the new revision is higher
-                  if (revisionNum > currentLatestRevision) {
-                    console.log(`Updating master item ${masterItem.id} latest revision from ${currentLatestRevision} to ${revisionNum}`);
-                    
-                    await db
-                      .update(masterItems)
-                      .set({
-                        latestRevision: revisionNum,
-                        updatedAt: new Date()
-                      })
-                      .where(eq(masterItems.id, masterItem.id));
-                  }
-                }
-              } catch (error) {
-                console.error('Error updating master item revision:', error);
-                // Don't fail the upload if this update fails
-              }
-            }
-            
-            // Create a document record in the database
-            try {
-              const [doc] = await db
-                .insert(projectDocuments)
-                .values({
-                  projectId: parseInt(projectId),
-                  phaseId: phaseId ? parseInt(phaseId) : undefined,
-                  name: fileName,
-                  description: description || '',
-                  type: type || 'document',
-                  url: downloadUrl || '',
-                  uploadedBy: req.user?.id as number,
-                  size: req.file?.size || 0,
-                  format: path.extname(fileName).replace('.', ''),
-                  isPublic: isPublic === 'true',
-                  storagePath,
-                  storageUrl: downloadUrl || null,
-                  storageUrlExpiry: downloadUrl ? new Date(Date.now() + 60 * 60 * 1000) : null // 1 hour
+              await db
+                .update(masterItems)
+                .set({
+                  latestRevision: revisionNum,
+                  updatedAt: new Date()
                 })
-                .returning();
-              
-              resolve(doc);
-            } catch (dbError) {
-              console.error("Error inserting document record:", dbError);
-              // Return a basic document object so the client still gets a success response
-              // The file is already uploaded to GCS successfully at this point
-              resolve({
-                id: 0,
-                projectId: parseInt(projectId),
-                name: fileName,
-                description: description || '',
-                storagePath,
-                storageUrl: downloadUrl || null
-              });
+                .where(eq(masterItems.id, masterItem.id));
             }
-          } catch (error) {
-            reject(error);
           }
-        });
-      });
+        } catch (error) {
+          console.error('Error updating master item revision:', error);
+          // Don't fail the upload if this update fails
+        }
+      }
       
-      // Write the file to GCS
-      stream.end(req.file.buffer);
-      
-      // Wait for the upload to complete
-      document = await streamError;
+      // Create a document record in the database
+      try {
+        const [doc] = await db
+          .insert(projectDocuments)
+          .values({
+            projectId: parseInt(projectId),
+            phaseId: phaseId ? parseInt(phaseId) : undefined,
+            name: fileName,
+            description: description || '',
+            type: type || 'document',
+            url: downloadUrl || '',
+            uploadedBy: req.user?.id as number,
+            size: req.file?.size || 0,
+            format: path.extname(fileName).replace('.', ''),
+            isPublic: isPublic === 'true',
+            storagePath,
+            storageUrl: downloadUrl || null,
+            storageUrlExpiry: downloadUrl ? new Date(Date.now() + 60 * 60 * 1000) : null // 1 hour
+          })
+          .returning();
+        
+        document = doc;
+      } catch (dbError) {
+        console.error("Error inserting document record:", dbError);
+        // Return a basic document object so the client still gets a success response
+        // The file is already uploaded to GCS successfully at this point
+        document = {
+          id: 0,
+          projectId: parseInt(projectId),
+          name: fileName,
+          description: description || '',
+          storagePath,
+          storageUrl: downloadUrl || null
+        };
+      }
       
       res.status(201).json(document);
     } catch (error: any) {

@@ -1877,56 +1877,106 @@ const ItemMasterManagement: React.FC = () => {
                             
                             // Use fetch API with async/await pattern in an IIFE
                             (async () => {
-                              try {
-                                console.log('Uploading drawing with fetch...');
-                                // Log the FormData contents for debugging
-                                console.log(`FormData contains file: ${formData.has('file')}`);
-                                console.log(`FormData financialYear: ${formData.get('financialYear')}`);
-                                console.log(`FormData projectCode: ${formData.get('projectCode')}`);
-                                console.log(`FormData department: ${formData.get('department')}`);
-                                console.log(`FormData description: ${formData.get('description')}`);
-                                console.log(`FormData type: ${formData.get('type')}`);
-                                console.log(`FormData projectId: ${formData.get('projectId')}`);
-                                
-                                const response = await fetch('/api/storage/upload', {
-                                  method: 'POST',
-                                  body: formData
-                                });
-                                
-                                // Log the full response for debugging
-                                console.log('Upload response status:', response.status, response.statusText);
-                                
-                                if (!response.ok) {
-                                  // Try to parse the error details from the response
-                                  const errorText = await response.text();
-                                  console.error('Upload error response text:', errorText);
-                                  
-                                  let errorData = {};
-                                  try {
-                                    // Try to parse as JSON if possible
-                                    errorData = JSON.parse(errorText);
-                                    console.log('Parsed error data:', errorData);
-                                  } catch (parseError) {
-                                    console.log('Error is not in JSON format:', parseError);
+                              const maxRetries = 2;
+                              let lastError = null;
+                              
+                              // Upload function with retry logic
+                              const uploadWithRetry = async (attempt: number) => {
+                                try {
+                                  if (attempt > 0) {
+                                    console.log(`Retry attempt ${attempt} of ${maxRetries}...`);
+                                    toast({
+                                      title: "Retrying upload",
+                                      description: `Attempt ${attempt} of ${maxRetries}...`,
+                                    });
+                                    // Add delay between retries
+                                    await new Promise(resolve => setTimeout(resolve, 1000));
                                   }
                                   
-                                  if (errorData && (errorData as any).error) {
-                                    // Handle specific error cases like duplicate drawing revisions
-                                    if (response.status === 409 && (errorData as any).suggestedRevision !== undefined) {
-                                      // Update the revision field with the suggested revision
-                                      setDrawingRevision((errorData as any).suggestedRevision.toString());
-                                      
-                                      // Show a helpful error message
-                                      throw new Error(`${(errorData as any).error} Please use revision ${(errorData as any).suggestedRevision}.`);
-                                    } else {
-                                      throw new Error((errorData as any).error);
+                                  console.log('Uploading drawing with fetch...');
+                                  // Log FormData for debugging
+                                  console.log(`FormData contains file: ${formData.has('file')}`);
+                                  console.log(`FormData financialYear: ${formData.get('financialYear')}`);
+                                  console.log(`FormData projectCode: ${formData.get('projectCode')}`);
+                                  console.log(`FormData department: ${formData.get('department')}`);
+                                  console.log(`FormData description: ${formData.get('description')}`);
+                                  console.log(`FormData type: ${formData.get('type')}`);
+                                  console.log(`FormData projectId: ${formData.get('projectId')}`);
+                                  
+                                  const response = await fetch('/api/storage/upload', {
+                                    method: 'POST',
+                                    body: formData
+                                  });
+                                  
+                                  console.log('Upload response status:', response.status, response.statusText);
+                                  
+                                  if (!response.ok) {
+                                    // Try to parse error details
+                                    const errorText = await response.text();
+                                    console.error('Upload error response text:', errorText);
+                                    
+                                    let errorData = {};
+                                    try {
+                                      errorData = JSON.parse(errorText);
+                                      console.log('Parsed error data:', errorData);
+                                    } catch (parseError) {
+                                      console.log('Error is not in JSON format:', parseError);
                                     }
+                                    
+                                    // Check if we should retry based on error type
+                                    const shouldRetry = 
+                                      response.status >= 500 || 
+                                      errorText.includes('ECONNRESET') || 
+                                      errorText.includes('timeout') || 
+                                      errorText.includes('network') || 
+                                      (errorData as any)?.error?.includes('Failed to upload');
+                                    
+                                    if (shouldRetry && attempt < maxRetries) {
+                                      // Return false to indicate retry needed
+                                      return { success: false, errorData, errorText, response, shouldRetry: true };
+                                    }
+                                    
+                                    // Handle specific error cases
+                                    if (errorData && (errorData as any).error) {
+                                      if (response.status === 409 && (errorData as any).suggestedRevision !== undefined) {
+                                        // Update revision field with suggested value
+                                        setDrawingRevision((errorData as any).suggestedRevision.toString());
+                                        throw new Error(`${(errorData as any).error} Please use revision ${(errorData as any).suggestedRevision}.`);
+                                      } else {
+                                        throw new Error((errorData as any).error);
+                                      }
+                                    }
+                                    
+                                    // Generic error with details
+                                    throw new Error(`Upload failed with status: ${response.status} ${response.statusText}. ${errorText.substring(0, 100)}...`);
                                   }
                                   
-                                  // Generic error with more details
-                                  throw new Error(`Upload failed with status: ${response.status} ${response.statusText}. ${errorText.substring(0, 100)}...`);
+                                  // Success - return true
+                                  return { success: true };
+                                } catch (error) {
+                                  lastError = error;
+                                  // Return error result
+                                  return { success: false, error, shouldRetry: false };
+                                }
+                              };
+                              
+                              try {
+                                // Attempt initial upload
+                                let result = await uploadWithRetry(0);
+                                
+                                // Retry if needed
+                                let retryCount = 0;
+                                while (!result.success && result.shouldRetry && retryCount < maxRetries) {
+                                  retryCount++;
+                                  result = await uploadWithRetry(retryCount);
                                 }
                                 
+                                // If we didn't succeed after all retries, throw the last error
+                                if (!result.success) {
+                                  throw lastError || new Error("Upload failed after retries");
+                                }
+                                
+                                // Success path
                                 console.log('Upload successful');
                                 
                                 toast({
@@ -1934,12 +1984,10 @@ const ItemMasterManagement: React.FC = () => {
                                   description: 'Drawing uploaded successfully',
                                 });
                                 
-                                // Update our tracking of latest revisions
+                                // Update revision tracking
                                 if (selectedDrawingItem) {
-                                  // Use drawingNo variable already declared above
                                   const currentRevNum = parseInt(revisionNumber, 10);
                                   
-                                  // Update our tracking state if this is a higher revision
                                   setLatestRevisions(prev => {
                                     const prevRev = prev[drawingNo] || 0;
                                     if (currentRevNum > prevRev) {
@@ -1952,18 +2000,16 @@ const ItemMasterManagement: React.FC = () => {
                                   });
                                 }
                                 
-                                // Invalidate the drawings query to refresh the list
+                                // Refresh the drawings list
                                 queryClient.invalidateQueries({ 
                                   queryKey: ['item-drawings', currentItem?.id, currentItem?.drawingNo, itemComponentsQuery.data] 
                                 });
                                 
-                                // Reset the form
+                                // Reset form and close dialog
                                 setDrawingFile(null);
                                 setDrawingRevision('');
                                 setDrawingDescription('');
                                 setSelectedDrawingItem(null);
-                                
-                                // Close the dialog
                                 setIsDrawingDialogOpen(false);
                               } catch (error) {
                                 console.error('Upload error:', error);
