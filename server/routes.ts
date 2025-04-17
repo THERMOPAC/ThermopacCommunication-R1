@@ -238,6 +238,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/master-items/by-code/:itemCode", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+      
+      const itemCode = req.params.itemCode;
+      console.log(`Looking up master item by code: ${itemCode}`);
+      
+      // Get item from database by code
+      const [item] = await db.select().from(masterItemsTable).where(eq(masterItemsTable.itemCode, itemCode));
+      
+      if (!item) {
+        return res.status(404).json({ error: 'Master item not found' });
+      }
+      
+      res.json(item);
+    } catch (error) {
+      console.error("Error fetching master item by code:", error);
+      res.status(500).json({ 
+        error: 'Failed to fetch master item by code',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   app.get("/api/master-items/:id", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {

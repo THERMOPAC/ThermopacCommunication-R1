@@ -1610,6 +1610,10 @@ const ItemMasterManagement: React.FC = () => {
                                 // Component item selected
                                 const component = itemComponentsQuery.data?.find((c: any) => c.id === parseInt(value));
                                 if (component) {
+                                  console.log('Found component data:', component);
+                                  // Log ALL keys to see what naming format is used in Production
+                                  console.log('Component keys:', Object.keys(component));
+                                  
                                   const newSelectedItem = {
                                     id: component.id,
                                     code: component.componentItemCode || component.itemCode,
@@ -1624,9 +1628,10 @@ const ItemMasterManagement: React.FC = () => {
                                   let latestRev = -1;
                                   
                                   // Production fix: log the component data to diagnose issues
-                                  console.log('Component data in dialog:', component);
+                                  console.log('Component data in dialog:', JSON.stringify(component, null, 2));
                                   
-                                  // First check if the component has a latestRevision field
+                                  // Try EVERY possible field name variation for latest revision
+                                  // First check if the component has a latestRevision field (camelCase)
                                   if (component.latestRevision !== undefined && component.latestRevision !== null) {
                                     latestRev = component.latestRevision;
                                     console.log(`Using component latestRevision from database: ${latestRev}`);
@@ -1634,12 +1639,72 @@ const ItemMasterManagement: React.FC = () => {
                                     // Try snake_case variation (sometimes data comes in this format in Production)
                                     latestRev = (component as any).latest_revision;
                                     console.log(`Using component latest_revision (snake_case) from database: ${latestRev}`);
+                                  } else if ((component as any).latestrevision !== undefined && (component as any).latestrevision !== null) {
+                                    // Try lowercase variation
+                                    latestRev = (component as any).latestrevision;
+                                    console.log(`Using component latestrevision (lowercase) from database: ${latestRev}`);
+                                  } else if ((component as any).component_latest_revision !== undefined && (component as any).component_latest_revision !== null) {
+                                    // Try component_latest_revision variation
+                                    latestRev = (component as any).component_latest_revision;
+                                    console.log(`Using component_latest_revision from database: ${latestRev}`);
+                                  } else if (component.componentItem && component.componentItem.latestRevision !== undefined && component.componentItem.latestRevision !== null) {
+                                    // Try nested object format
+                                    latestRev = component.componentItem.latestRevision;
+                                    console.log(`Using component.componentItem.latestRevision from database: ${latestRev}`);
+                                  } else if (component.master_item && component.master_item.latest_revision !== undefined && component.master_item.latest_revision !== null) {
+                                    // Try nested master_item object with snake_case
+                                    latestRev = component.master_item.latest_revision;
+                                    console.log(`Using component.master_item.latest_revision from database: ${latestRev}`);
+                                  } else if ((component as any).masterItem && (component as any).masterItem.latestRevision !== undefined && (component as any).masterItem.latestRevision !== null) {
+                                    // Try nested masterItem object with camelCase 
+                                    latestRev = (component as any).masterItem.latestRevision;
+                                    console.log(`Using component.masterItem.latestRevision from database: ${latestRev}`);
                                   } else if (latestRevisions[drawingNo] !== undefined) {
                                     // Fallback to the state object
                                     latestRev = latestRevisions[drawingNo];
                                     console.log(`Using component latestRevision from state cache: ${latestRev}`);
                                   } else {
-                                    console.log('No component revision information found, defaulting to -1');
+                                    console.log('No component revision information found in component object, attempting direct API fetch');
+                                    
+                                    // As a last resort, we'll try to fetch the latest revision directly from the API
+                                    // This is an advanced fallback for production environment where the component structure might vary
+                                    // Use an IIFE to handle the async operation
+                                    (async () => {
+                                      try {
+                                        // Find the component item code to use in the API call
+                                        const componentItemCode = component.componentItemCode || component.itemCode;
+                                        
+                                        if (componentItemCode) {
+                                          console.log(`Performing direct API query for component item: ${componentItemCode}`);
+                                          const response = await fetch(`/api/master-items/by-code/${componentItemCode}`);
+                                          
+                                          if (response.ok) {
+                                            const masterItem = await response.json();
+                                            console.log('Direct API response for component item:', masterItem);
+                                            
+                                            // Check for latest revision in any possible format
+                                            if (masterItem.latestRevision !== undefined && masterItem.latestRevision !== null) {
+                                              latestRev = masterItem.latestRevision;
+                                              console.log(`Found latestRevision in direct API call: ${latestRev}`);
+                                            } else if (masterItem.latest_revision !== undefined && masterItem.latest_revision !== null) {
+                                              latestRev = masterItem.latest_revision;
+                                              console.log(`Found latest_revision in direct API call: ${latestRev}`);
+                                            }
+                                            
+                                            // If we found a revision, update the state
+                                            if (latestRev !== -1) {
+                                              const nextRev = (latestRev + 1).toString();
+                                              console.log(`Updating revision from direct API call to: ${nextRev}`);
+                                              setDrawingRevision(nextRev);
+                                            }
+                                          }
+                                        }
+                                      } catch (error) {
+                                        console.error('Error in direct API fallback:', error);
+                                      }
+                                    })();
+                                    
+                                    console.log('No revision information found in all available sources, defaulting to -1');
                                   }
                                   
                                   const nextRev = (latestRev + 1).toString();
