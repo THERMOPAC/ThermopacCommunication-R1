@@ -1046,6 +1046,29 @@ export const resourceAssignments = pgTable('resource_assignments', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+// Work Order History table (tracking all changes to work orders)
+export const workOrderHistory = pgTable('work_order_history', {
+  id: serial('id').primaryKey(),
+  workOrderId: integer('work_order_id').notNull().references(() => workOrders.id, { onDelete: 'cascade' }),
+  
+  // Who made the change
+  userId: integer('user_id').notNull().references(() => users.id),
+  username: text('username').notNull(), // Denormalized for history records
+  
+  // What changed
+  changeType: text('change_type').notNull(), // 'created', 'updated', 'status_change', 'comment', etc.
+  fieldName: text('field_name'), // Which field was changed (if applicable)
+  oldValue: text('old_value'), // Previous value (serialized if needed)
+  newValue: text('new_value'), // New value (serialized if needed)
+  
+  // Change details
+  changeDescription: text('change_description').notNull(), // Human-readable description of what changed
+  comment: text('comment'), // Optional comment added by the user
+  
+  // When it happened
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
 // Production Records table (daily production entry)
 export const productionRecords = pgTable('production_records', {
   id: serial('id').primaryKey(),
@@ -1384,6 +1407,11 @@ export type InsertWorkOrderItem = z.infer<typeof insertWorkOrderItemSchema>;
 
 export type ResourceAssignment = typeof resourceAssignments.$inferSelect;
 export type InsertResourceAssignment = z.infer<typeof insertResourceAssignmentSchema>;
+
+// Work Order History schemas
+export const insertWorkOrderHistorySchema = createInsertSchema(workOrderHistory).omit({ id: true });
+export type WorkOrderHistory = typeof workOrderHistory.$inferSelect;
+export type InsertWorkOrderHistory = z.infer<typeof insertWorkOrderHistorySchema>;
 
 export type ProductionRecord = typeof productionRecords.$inferSelect;
 export type InsertProductionRecord = z.infer<typeof insertProductionRecordSchema>;

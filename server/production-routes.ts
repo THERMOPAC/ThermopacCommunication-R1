@@ -3,7 +3,8 @@ import { db } from './db';
 import { insertWorkOrderSchema, workOrders, insertWorkOrderItemSchema, 
   workOrderItems, insertResourceAssignmentSchema, resourceAssignments,
   insertProductionRecordSchema, productionRecords, insertMaterialConsumptionSchema,
-  materialConsumption, insertMachineAllocationSchema, machineAllocations, projects, projectItems, masterItems, itemComponents } from '@shared/schema';
+  materialConsumption, insertMachineAllocationSchema, machineAllocations, projects, projectItems, masterItems, itemComponents,
+  workOrderHistory, insertWorkOrderHistorySchema } from '@shared/schema';
 import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 
 // Authentication middleware
