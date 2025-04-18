@@ -53,6 +53,7 @@ const workOrderSchema = z.object({
   productionLine: z.string().optional(),
   batchNumber: z.string().optional(),
   quantity: z.number().optional(),
+  changeComment: z.string().optional(), // Optional comment to record with change history
 });
 
 type WorkOrderFormValues = z.infer<typeof workOrderSchema>;
@@ -120,6 +121,7 @@ export default function WorkOrderEditPage() {
       plannedEndDate: new Date(),
       productionLine: "",
       batchNumber: "",
+      changeComment: "", // Add empty default for change comment
     },
   });
   
@@ -137,6 +139,7 @@ export default function WorkOrderEditPage() {
         productionLine: workOrder.productionLine || "",
         batchNumber: workOrder.batchNumber || "",
         quantity: workOrder.quantity || undefined,
+        changeComment: "", // Reset change comment to empty
       });
     }
   }, [workOrder, form]);
