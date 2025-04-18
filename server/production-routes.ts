@@ -496,8 +496,29 @@ export function setupProductionRoutes(app: Router) {
       const createWorkOrder = async (items: typeof makeItems, isParent: boolean) => {
         // For consistency across the application, always use the simple sequential number 
         // format: WO-[ProjectCode]-[SequentialNumber]
-        const seqNumber = isParent ? nextParentSeqNumber : nextChildSeqNumber;
-        const specificWorkOrderNumber = `WO-${project.code}-${seqNumber}`;
+        let seqNumber = isParent ? nextParentSeqNumber : nextChildSeqNumber;
+        let specificWorkOrderNumber = `WO-${project.code}-${seqNumber}`;
+        
+        // Ensure the work order number is unique
+        let workOrderExists = await db.query.workOrders.findFirst({
+          where: eq(workOrders.workOrderNumber, specificWorkOrderNumber)
+        });
+        
+        // If a work order with this number already exists, increment until we find a unique one
+        while (workOrderExists) {
+          seqNumber++;
+          specificWorkOrderNumber = `WO-${project.code}-${seqNumber}`;
+          workOrderExists = await db.query.workOrders.findFirst({
+            where: eq(workOrders.workOrderNumber, specificWorkOrderNumber)
+          });
+        }
+        
+        // Update the next sequence numbers based on what we've used
+        if (isParent) {
+          nextParentSeqNumber = seqNumber + 1;
+        } else {
+          nextChildSeqNumber = seqNumber + 1;
+        }
         
         // Get item-specific details for the work order title
         let title = '';
