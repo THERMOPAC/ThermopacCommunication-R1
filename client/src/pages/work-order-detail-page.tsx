@@ -25,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { ArrowLeft, Edit, CheckCircle2, Hourglass, AlertTriangle, XCircle, Printer, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, Edit, CheckCircle2, Hourglass, AlertTriangle, XCircle, Printer, FileSpreadsheet, Clock, FileEdit, MessageSquare, AlertCircle, RotateCcw } from "lucide-react";
 import Layout from "@/components/layout";
 
 export default function WorkOrderDetailPage() {
@@ -64,6 +64,24 @@ export default function WorkOrderDetailPage() {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to fetch work order items");
+      }
+      return response.json();
+    },
+    enabled: !isNaN(workOrderId),
+  });
+  
+  // Fetch work order history
+  const { 
+    data: workOrderHistory = [], 
+    isLoading: isLoadingHistory,
+    error: historyError
+  } = useQuery<any[]>({
+    queryKey: ['/api/production/work-orders', workOrderId, 'history'],
+    queryFn: async () => {
+      const response = await fetch(`/api/production/work-orders/${workOrderId}/history`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch work order history");
       }
       return response.json();
     },

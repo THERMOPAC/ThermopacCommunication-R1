@@ -975,11 +975,92 @@ export function setupProductionRoutes(app: Router) {
         ...(plannedEndDate ? { plannedEndDate: new Date(plannedEndDate) } : {})
       };
       
+      // Track changes for history
+      const changedFields: { field: string, oldValue: any, newValue: any, description: string }[] = [];
+      
+      // Check for changes in each field
+      Object.keys(formattedData).forEach(key => {
+        // Skip the updatedAt field
+        if (key === 'updatedAt') return;
+        
+        // Get values for comparison, handle dates properly
+        let oldValue = existingWorkOrder[key as keyof typeof existingWorkOrder];
+        let newValue = formattedData[key as keyof typeof formattedData];
+        
+        // Convert Date objects to strings for comparison
+        if (oldValue instanceof Date) oldValue = oldValue.toISOString();
+        if (newValue instanceof Date) newValue = newValue.toISOString();
+        
+        // Check if the value has changed
+        if (oldValue !== newValue) {
+          changedFields.push({
+            field: key,
+            oldValue: oldValue ? String(oldValue) : '',
+            newValue: newValue ? String(newValue) : '',
+            description: `Changed ${key} from "${oldValue || ''}" to "${newValue || ''}"`
+          });
+        }
+      });
+      
       // Update work order with properly formatted data
       const [updatedWorkOrder] = await db.update(workOrders)
         .set(formattedData)
         .where(eq(workOrders.id, workOrderId))
         .returning();
+      
+      // Create history records for each changed field
+      if (changedFields.length > 0) {
+        // Common history record data
+        const historyBaseData = {
+          workOrderId,
+          userId: req.user!.id,
+          username: req.user!.username,
+          createdAt: new Date()
+        };
+        
+        // Add detailed history entries for each change
+        const historyEntries = changedFields.map(change => ({
+          ...historyBaseData,
+          changeType: 'field_update',
+          fieldName: change.field,
+          oldValue: change.oldValue,
+          newValue: change.newValue,
+          changeDescription: change.description,
+          comment: req.body.historyComment || null // Optional comment from the form
+        }));
+        
+        // Add a summary entry if there are multiple changes
+        if (changedFields.length > 1) {
+          historyEntries.push({
+            ...historyBaseData,
+            changeType: 'update',
+            fieldName: '',
+            oldValue: '',
+            newValue: '',
+            changeDescription: `Updated work order with ${changedFields.length} changes`,
+            comment: req.body.historyComment || null
+          });
+        }
+        
+        // Insert all history records
+        await db.insert(workOrderHistory).values(historyEntries);
+      }
+      
+      // If there was a status change, add special status change history record
+      if (formattedData.status && existingWorkOrder.status !== formattedData.status) {
+        await db.insert(workOrderHistory).values({
+          workOrderId,
+          userId: req.user!.id,
+          username: req.user!.username,
+          changeType: 'status_change',
+          fieldName: 'status',
+          oldValue: existingWorkOrder.status,
+          newValue: formattedData.status,
+          changeDescription: `Status changed from "${existingWorkOrder.status}" to "${formattedData.status}"`,
+          comment: req.body.statusChangeComment || req.body.historyComment || null,
+          createdAt: new Date()
+        });
+      }
       
       res.status(200).json(updatedWorkOrder);
     } catch (error) {
@@ -1410,6 +1491,85 @@ export function setupProductionRoutes(app: Router) {
     } catch (error) {
       console.error('Error deleting resource assignment:', error);
       res.status(500).json({ error: 'Failed to delete resource assignment' });
+    }
+  });
+  
+  // ==================== WORK ORDER HISTORY ====================
+  
+  // Get all history records for a work order
+  app.get('/api/production/work-orders/:id/history', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      
+      // Verify workOrderId is valid
+      if (isNaN(workOrderId)) {
+        return res.status(400).json({ error: 'Invalid work order ID' });
+      }
+      
+      // Check if the work order exists
+      const workOrder = await db.query.workOrders.findFirst({
+        where: eq(workOrders.id, workOrderId)
+      });
+      
+      if (!workOrder) {
+        return res.status(404).json({ error: 'Work order not found' });
+      }
+      
+      // Get all history records for this work order, newest first
+      const historyRecords = await db.query.workOrderHistory.findMany({
+        where: eq(workOrderHistory.workOrderId, workOrderId),
+        orderBy: [desc(workOrderHistory.createdAt)]
+      });
+      
+      res.status(200).json(historyRecords);
+    } catch (error) {
+      console.error('Error fetching work order history:', error);
+      res.status(500).json({ error: 'Failed to fetch work order history' });
+    }
+  });
+  
+  // Add a history record for a work order
+  app.post('/api/production/work-orders/:id/history', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const workOrderId = parseInt(req.params.id);
+      
+      // Verify workOrderId is valid
+      if (isNaN(workOrderId)) {
+        return res.status(400).json({ error: 'Invalid work order ID' });
+      }
+      
+      // Check if the work order exists
+      const workOrder = await db.query.workOrders.findFirst({
+        where: eq(workOrders.id, workOrderId)
+      });
+      
+      if (!workOrder) {
+        return res.status(404).json({ error: 'Work order not found' });
+      }
+      
+      // Validate history data
+      const validationResult = insertWorkOrderHistorySchema.safeParse({
+        ...req.body,
+        workOrderId,
+        userId: req.user!.id,
+        username: req.user!.username,
+        createdAt: new Date()
+      });
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: 'Invalid history data', 
+          details: validationResult.error 
+        });
+      }
+      
+      // Create history record
+      const [newHistoryRecord] = await db.insert(workOrderHistory).values(validationResult.data).returning();
+      
+      res.status(201).json(newHistoryRecord);
+    } catch (error) {
+      console.error('Error adding work order history record:', error);
+      res.status(500).json({ error: 'Failed to add work order history record' });
     }
   });
   
