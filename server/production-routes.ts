@@ -1041,7 +1041,7 @@ export function setupProductionRoutes(app: Router) {
             oldValue: '',
             newValue: '',
             changeDescription: `Updated work order with ${changedFields.length} changes`,
-            comment: req.body.historyComment || null
+            comment: userComment
           });
         }
         
@@ -1060,7 +1060,7 @@ export function setupProductionRoutes(app: Router) {
           oldValue: existingWorkOrder.status,
           newValue: formattedData.status,
           changeDescription: `Status changed from "${existingWorkOrder.status}" to "${formattedData.status}"`,
-          comment: req.body.statusChangeComment || req.body.historyComment || null,
+          comment: userComment,
           createdAt: new Date()
         });
       }
