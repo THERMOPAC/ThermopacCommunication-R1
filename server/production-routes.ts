@@ -402,8 +402,22 @@ export function setupProductionRoutes(app: Router) {
       endDate.setDate(today.getDate() + 30); // Default to 30 days schedule
       
       // Generate a unique work order number using sequential numbering with format WO-[ProjectCode]-[SequentialNumber]
-      const nextSeqNumber = existingWorkOrders.length + 1;
-      const workOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
+      let nextSeqNumber = existingWorkOrders.length + 1;
+      let workOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
+      
+      // Ensure the generated work order number is unique
+      let workOrderExists = await db.query.workOrders.findFirst({
+        where: eq(workOrders.workOrderNumber, workOrderNumber)
+      });
+      
+      // If a work order with this number already exists, increment until we find a unique one
+      while (workOrderExists) {
+        nextSeqNumber++;
+        workOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
+        workOrderExists = await db.query.workOrders.findFirst({
+          where: eq(workOrders.workOrderNumber, workOrderNumber)
+        });
+      }
       
       // Divide items into parent and child categories
       const parentItems: typeof makeItems = [];
@@ -474,9 +488,9 @@ export function setupProductionRoutes(app: Router) {
         where: eq(workOrders.projectId, projectId),
       });
       
-      // Calculate the next sequential numbers
-      const nextParentSeqNumber = workOrderCount.length + 1;
-      const nextChildSeqNumber = workOrderCount.length + 2;
+      // Calculate initial sequential numbers (we'll check uniqueness later)
+      let nextParentSeqNumber = workOrderCount.length + 1;
+      let nextChildSeqNumber = workOrderCount.length + 2;
       
       // Helper function to create a work order
       const createWorkOrder = async (items: typeof makeItems, isParent: boolean) => {
@@ -728,13 +742,29 @@ export function setupProductionRoutes(app: Router) {
       const existingWorkOrderCount = await db.query.workOrders.findMany({
         where: eq(workOrders.projectId, req.body.projectId),
       });
-      const nextSeqNumber = existingWorkOrderCount.length + 1;
+      let nextSeqNumber = existingWorkOrderCount.length + 1;
       
       // If workOrderNumber not provided by client, generate one with sequential numbering
       // following the standard format: WO-[ProjectCode]-[SequentialNumber]
       const workOrderData = { ...req.body };
       if (!workOrderData.workOrderNumber) {
-        workOrderData.workOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
+        let workOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
+        
+        // Ensure the generated work order number is unique
+        let workOrderExists = await db.query.workOrders.findFirst({
+          where: eq(workOrders.workOrderNumber, workOrderNumber)
+        });
+        
+        // If a work order with this number already exists, increment until we find a unique one
+        while (workOrderExists) {
+          nextSeqNumber++;
+          workOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
+          workOrderExists = await db.query.workOrders.findFirst({
+            where: eq(workOrders.workOrderNumber, workOrderNumber)
+          });
+        }
+        
+        workOrderData.workOrderNumber = workOrderNumber;
       }
       
       // Create work order
