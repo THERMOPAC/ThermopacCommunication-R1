@@ -493,31 +493,37 @@ export function setupProductionRoutes(app: Router) {
       let nextChildSeqNumber = workOrderCount.length + 2;
       
       // Helper function to create a work order
-      const createWorkOrder = async (items: typeof makeItems, isParent: boolean) => {
-        // For consistency across the application, always use the simple sequential number 
-        // format: WO-[ProjectCode]-[SequentialNumber]
-        let seqNumber = isParent ? nextParentSeqNumber : nextChildSeqNumber;
-        let specificWorkOrderNumber = `WO-${project.code}-${seqNumber}`;
+      const createWorkOrder = async (items: typeof makeItems, isParent: boolean, customWorkOrderNumber?: string) => {
+        // If a custom work order number is provided, use it
+        let specificWorkOrderNumber = customWorkOrderNumber;
         
-        // Ensure the work order number is unique
-        let workOrderExists = await db.query.workOrders.findFirst({
-          where: eq(workOrders.workOrderNumber, specificWorkOrderNumber)
-        });
-        
-        // If a work order with this number already exists, increment until we find a unique one
-        while (workOrderExists) {
-          seqNumber++;
+        // If no custom number is provided, generate one with sequential numbering
+        if (!specificWorkOrderNumber) {
+          // For consistency across the application, use the simple sequential number 
+          // format: WO-[ProjectCode]-[SequentialNumber]
+          let seqNumber = isParent ? nextParentSeqNumber : nextChildSeqNumber;
           specificWorkOrderNumber = `WO-${project.code}-${seqNumber}`;
-          workOrderExists = await db.query.workOrders.findFirst({
+          
+          // Ensure the work order number is unique
+          let workOrderExists = await db.query.workOrders.findFirst({
             where: eq(workOrders.workOrderNumber, specificWorkOrderNumber)
           });
-        }
-        
-        // Update the next sequence numbers based on what we've used
-        if (isParent) {
-          nextParentSeqNumber = seqNumber + 1;
-        } else {
-          nextChildSeqNumber = seqNumber + 1;
+          
+          // If a work order with this number already exists, increment until we find a unique one
+          while (workOrderExists) {
+            seqNumber++;
+            specificWorkOrderNumber = `WO-${project.code}-${seqNumber}`;
+            workOrderExists = await db.query.workOrders.findFirst({
+              where: eq(workOrders.workOrderNumber, specificWorkOrderNumber)
+            });
+          }
+          
+          // Update the next sequence numbers based on what we've used
+          if (isParent) {
+            nextParentSeqNumber = seqNumber + 1;
+          } else {
+            nextChildSeqNumber = seqNumber + 1;
+          }
         }
         
         // Get item-specific details for the work order title
@@ -634,8 +640,8 @@ export function setupProductionRoutes(app: Router) {
       
       // Create individual work orders for each parent item
       for (const parentItem of parentItems) {
-        // Creating a separate work order for each parent
-        await createWorkOrder([parentItem], true);
+        // Creating a work order for the parent item first
+        const parentWorkOrder = await createWorkOrder([parentItem], true);
         
         // Find all direct children of this parent
         const directChildren = childItems.filter(child => {
@@ -644,9 +650,18 @@ export function setupProductionRoutes(app: Router) {
           return parentRelation === parentItem.itemId;
         });
         
-        // Create a separate work order for each child item instead of grouping them
-        for (const childItem of directChildren) {
-          await createWorkOrder([childItem], false);
+        // Extract the parent work order number
+        const parentWorkOrderNumber = parentWorkOrder.workOrderNumber;
+        
+        // Now create work orders for each child with hierarchical numbering
+        for (let i = 0; i < directChildren.length; i++) {
+          // Create hierarchical numbering (e.g., WO-2526-1-6-1, WO-2526-1-6-2)
+          const childSeqNumber = i + 1;
+          await createWorkOrder(
+            [directChildren[i]], 
+            false, 
+            `${parentWorkOrderNumber}-${childSeqNumber}`
+          );
         }
       }
       
