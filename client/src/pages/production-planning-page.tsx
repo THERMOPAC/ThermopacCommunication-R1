@@ -108,6 +108,16 @@ export default function ProductionPlanningPage() {
   
   // Function to clean up existing work orders for a project
   const cleanupWorkOrders = async () => {
+    // Double-check user is a Superuser for additional security
+    if (user?.role !== 'Superuser') {
+      toast({
+        title: "Permission Denied",
+        description: "Only Superusers can clean up work orders",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (!selectedProject) return;
     
     if (!confirm("Are you sure you want to delete ALL work orders for this project? This action cannot be undone.")) {
