@@ -11,8 +11,35 @@ import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
 import { format } from "date-fns";
 
+// Define WorkOrder type
+interface WorkOrder {
+  id: number;
+  projectId: number; 
+  workOrderNumber: string;
+  title: string;
+  description: string | null;
+  status: 'planned' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
+  priority: string;
+  plannedStartDate: string | null;
+  plannedEndDate: string | null;
+  actualStartDate: string | null;
+  actualEndDate: string | null;
+  productionLine: string | null;
+  batchNumber: string | null;
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Define Team type
+interface Team {
+  name: string;
+  workload: number;
+  activeOrders: number;
+}
+
 // Status color mapping for visual indicators
-const statusColors = {
+const statusColors: Record<string, string> = {
   planned: "bg-blue-100 text-blue-800",
   in_progress: "bg-amber-100 text-amber-800",
   on_hold: "bg-purple-100 text-purple-800",
@@ -25,7 +52,7 @@ export default function ShopFloorPage() {
   const [activeTab, setActiveTab] = useState("active");
 
   // Fetch all active work orders
-  const { data: workOrders, isLoading, isError } = useQuery({
+  const { data: workOrders, isLoading, isError } = useQuery<WorkOrder[]>({
     queryKey: ["/api/production/work-orders"],
     refetchInterval: 60000, // Refresh every minute
   });
@@ -37,7 +64,7 @@ export default function ShopFloorPage() {
   });
 
   // Calculate work order progress
-  const getWorkOrderProgress = (status) => {
+  const getWorkOrderProgress = (status: string): number => {
     switch (status) {
       case "planned": return 10;
       case "in_progress": return 50;
@@ -49,7 +76,7 @@ export default function ShopFloorPage() {
   };
 
   // Filter work orders by status
-  const getFilteredWorkOrders = () => {
+  const getFilteredWorkOrders = (): WorkOrder[] => {
     if (!workOrders) return [];
     
     switch (activeTab) {

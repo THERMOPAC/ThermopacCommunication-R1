@@ -22,6 +22,26 @@ function canManage(role: string): boolean {
 export function setupProductionRoutes(app: Router) {
   // ==================== WORK ORDERS ====================
   
+  // Get all work orders (for Shop Floor Management)
+  app.get('/api/production/work-orders', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching all work orders for Shop Floor Management');
+      
+      // Get all work orders across all projects, ordered by most recent first
+      const allWorkOrders = await db.query.workOrders.findMany({
+        orderBy: [desc(workOrders.createdAt)],
+        limit: 100 // Limit to most recent 100 orders for performance
+      });
+      
+      console.log(`Found ${allWorkOrders.length} work orders`);
+      
+      res.status(200).json(allWorkOrders);
+    } catch (error) {
+      console.error('Error fetching all work orders:', error);
+      res.status(500).json({ error: 'Failed to fetch work orders' });
+    }
+  });
+  
   // Preview work orders for a project
   app.get('/api/production/work-orders/preview/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
