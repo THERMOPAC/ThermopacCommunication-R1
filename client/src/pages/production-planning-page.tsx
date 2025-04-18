@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { 
   Card, 
@@ -18,6 +18,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from "@/components/ui/select";
 import {
   Table,
@@ -51,13 +53,22 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ClipboardList, Calendar as CalendarIcon, CheckCircle2, Hourglass, AlertTriangle, XCircle, Trash2, Loader2 } from "lucide-react";
+import { Plus, ClipboardList, Calendar as CalendarIcon, CheckCircle2, Hourglass, AlertTriangle, XCircle, Trash2, Loader2, Search } from "lucide-react";
 import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { 
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator
+} from "@/components/ui/command";
 
 // Placeholder schema for Work Order - will need to match the backend schema
 const workOrderSchema = z.object({
@@ -146,9 +157,44 @@ export default function ProductionPlanningPage() {
     }
   };
 
+  // State for searching items
+  const [searchTerm, setSearchTerm] = useState('');
+  const [open, setOpen] = useState(false);
+  const [masterItems, setMasterItems] = useState<any[]>([]);
+  const [projectItems, setProjectItems] = useState<any[]>([]);
+  const [filteredItems, setFilteredItems] = useState<any[]>([]);
+  
   // Fetch projects for dropdown
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<any[]>({
     queryKey: ['/api/projects'],
+  });
+  
+  // Fetch master items
+  const { data: allMasterItems = [], isLoading: isLoadingMasterItems } = useQuery<any[]>({
+    queryKey: ['/api/master-items'],
+    onSuccess: (data) => setMasterItems(data),
+  });
+  
+  // Fetch project items when a project is selected
+  const { 
+    data: selectedProjectItems = [], 
+    isLoading: isLoadingProjectItems,
+    refetch: refetchProjectItems
+  } = useQuery<any[]>({
+    queryKey: ['/api/projects', selectedProject, 'items'],
+    queryFn: async ({ queryKey }) => {
+      const [_, projectId] = queryKey;
+      if (!projectId) return [];
+      
+      const response = await fetch(`/api/projects/${projectId}/items`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch project items");
+      }
+      return response.json();
+    },
+    enabled: !!selectedProject,
+    onSuccess: (data) => setProjectItems(data),
   });
 
   // Fetch work orders based on selected project
@@ -348,6 +394,40 @@ export default function ProductionPlanningPage() {
         return <Badge variant="outline">{priority}</Badge>;
     }
   };
+  
+  // Function to filter items based on search term
+  useEffect(() => {
+    if (!selectedProject || searchTerm.trim() === '') {
+      setFilteredItems([]);
+      return;
+    }
+    
+    const filtered: any[] = [];
+    const lowercaseSearch = searchTerm.toLowerCase();
+    
+    // Filter project items based on master item details (item code or description)
+    projectItems.forEach(projectItem => {
+      const masterItem = masterItems.find(mi => mi.id === projectItem.itemId);
+      if (masterItem) {
+        const itemCode = masterItem.itemCode?.toLowerCase() || '';
+        const description = masterItem.description?.toLowerCase() || '';
+        
+        if (itemCode.includes(lowercaseSearch) || description.includes(lowercaseSearch)) {
+          filtered.push({
+            projectId: selectedProject,
+            projectItemId: projectItem.id,
+            masterItemId: masterItem.id,
+            itemCode: masterItem.itemCode,
+            description: masterItem.description,
+            quantity: projectItem.quantity,
+            makeOrBuy: masterItem.makeOrBuy,
+          });
+        }
+      }
+    });
+    
+    setFilteredItems(filtered);
+  }, [searchTerm, selectedProject, projectItems, masterItems]);
 
   return (
     <>
