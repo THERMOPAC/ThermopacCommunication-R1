@@ -376,18 +376,98 @@ export default function WorkOrderDetailPage() {
             </Card>
           </TabsContent>
           
+
           <TabsContent value="history" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Work Order History</CardTitle>
                 <CardDescription>
-                  Timeline of changes and activities for this work order.
+                  Track changes and activities related to this work order over time.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-10">
-                  <p className="text-gray-500">Work order history is not implemented yet.</p>
-                </div>
+                {isLoadingHistory ? (
+                  <div className="flex items-center justify-center h-40">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : workOrderHistory.length === 0 ? (
+                  <div className="text-center py-10">
+                    <p className="text-gray-500">No history records found for this work order.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    {workOrderHistory.map((record: any) => {
+                      // Determine icon based on change type
+                      let Icon;
+                      let iconColor;
+                      
+                      switch (record.changeType) {
+                        case 'created':
+                          Icon = FileEdit;
+                          iconColor = 'text-green-500';
+                          break;
+                        case 'update':
+                        case 'field_update':
+                          Icon = Edit;
+                          iconColor = 'text-blue-500';
+                          break;
+                        case 'status_change':
+                          Icon = RotateCcw;
+                          iconColor = 'text-purple-500';
+                          break;
+                        case 'comment':
+                          Icon = MessageSquare;
+                          iconColor = 'text-gray-500';
+                          break;
+                        default:
+                          Icon = AlertCircle;
+                          iconColor = 'text-gray-500';
+                      }
+                      
+                      return (
+                        <div key={record.id} className="relative pl-8 pb-6 border-l-2 border-muted last:border-l-transparent">
+                          <div className={`absolute -left-3 p-2 rounded-full bg-background ${iconColor}`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          
+                          <div className="flex flex-col space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">
+                                {record.username}
+                              </span>
+                              <span className="text-xs text-muted-foreground flex items-center">
+                                <Clock className="h-3 w-3 mr-1" />
+                                {format(new Date(record.createdAt), 'dd MMM yyyy, h:mm a')}
+                              </span>
+                            </div>
+                            
+                            <p className="text-sm">{record.changeDescription}</p>
+                            
+                            {record.fieldName && record.oldValue !== record.newValue && (
+                              <div className="mt-2 text-xs bg-muted/50 p-2 rounded">
+                                <div className="grid grid-cols-3 gap-1">
+                                  <span className="font-medium">Field</span>
+                                  <span className="font-medium">Previous Value</span>
+                                  <span className="font-medium">New Value</span>
+                                  
+                                  <span>{record.fieldName}</span>
+                                  <span className="text-red-500">{record.oldValue || '-'}</span>
+                                  <span className="text-green-500">{record.newValue || '-'}</span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {record.comment && (
+                              <div className="mt-2 text-sm bg-muted/30 p-2 rounded italic">
+                                "{record.comment}"
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
