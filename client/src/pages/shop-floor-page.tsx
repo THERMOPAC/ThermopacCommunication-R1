@@ -52,9 +52,10 @@ export default function ShopFloorPage() {
   const [activeTab, setActiveTab] = useState("active");
 
   // Fetch all active work orders
-  const { data: workOrders, isLoading, isError } = useQuery<WorkOrder[]>({
+  const { data: workOrders, isLoading, isError, error } = useQuery<WorkOrder[]>({
     queryKey: ["/api/production/work-orders"],
     refetchInterval: 60000, // Refresh every minute
+    retry: 1, // Only retry once to avoid excessive failed requests
   });
 
   // Fetch all production teams and resources
@@ -94,13 +95,22 @@ export default function ShopFloorPage() {
   };
 
   // Production teams data (mock data for now)
-  const productionTeams = [
+  const productionTeams: Team[] = [
     { name: "Production Team-1", workload: 80, activeOrders: 3 },
     { name: "Production Team-2", workload: 45, activeOrders: 2 },
     { name: "Production Team-3", workload: 90, activeOrders: 4 },
     { name: "Production Team-4", workload: 30, activeOrders: 1 },
     { name: "Production Team-5", workload: 0, activeOrders: 0 },
   ];
+  
+  // Log debugging information
+  React.useEffect(() => {
+    if (isError) {
+      console.error("Error fetching work orders:", error);
+    } else if (workOrders) {
+      console.log(`Successfully fetched ${workOrders.length} work orders`);
+    }
+  }, [isError, error, workOrders]);
 
   return (
     <Layout>
@@ -196,9 +206,14 @@ export default function ShopFloorPage() {
                     <span>Loading work orders...</span>
                   </div>
                 ) : isError ? (
-                  <div className="flex justify-center items-center py-8 text-red-600">
-                    <AlertCircle className="h-8 w-8 mr-2" /> 
-                    <span>Error loading work orders</span>
+                  <div className="flex flex-col justify-center items-center py-8 text-red-600">
+                    <div className="flex items-center mb-2">
+                      <AlertCircle className="h-8 w-8 mr-2" /> 
+                      <span className="font-medium">Error loading work orders</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-2">
+                      Please refresh the page or check your connection
+                    </div>
                   </div>
                 ) : getFilteredWorkOrders().length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
@@ -216,8 +231,15 @@ export default function ShopFloorPage() {
                                workOrder.status.charAt(0).toUpperCase() + workOrder.status.slice(1)}
                             </Badge>
                           </div>
-                          <Button variant="outline" size="sm" className="flex items-center" 
-                            onClick={() => window.location.href = `/production/work-orders/${workOrder.id}`}>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex items-center" 
+                            onClick={() => {
+                              // Use window.location to navigate to work order details
+                              window.location.href = `/production/work-orders/${workOrder.id}`;
+                            }}
+                          >
                             Details <ChevronRight className="h-4 w-4 ml-1" />
                           </Button>
                         </div>
@@ -294,13 +316,21 @@ export default function ShopFloorPage() {
                   <Loader2 className="h-6 w-6 animate-spin mr-2" /> 
                   <span>Loading priorities...</span>
                 </div>
+              ) : isError ? (
+                <div className="flex items-center justify-center h-24 text-red-600">
+                  <AlertCircle className="h-5 w-5 mr-2" /> Unable to load priorities
+                </div>
               ) : (
                 <div className="space-y-2">
                   {workOrders && workOrders
                     .filter(wo => wo.priority === "High" && wo.status !== "completed" && wo.status !== "cancelled")
                     .slice(0, 5)
                     .map(wo => (
-                      <div key={wo.id} className="flex items-center p-3 border rounded-md hover:bg-muted/30 transition-colors">
+                      <div 
+                        key={wo.id} 
+                        className="flex items-center p-3 border rounded-md hover:bg-muted/30 transition-colors cursor-pointer"
+                        onClick={() => window.location.href = `/production/work-orders/${wo.id}`}
+                      >
                         <div className={`h-2 w-2 rounded-full mr-3 ${wo.status === "in_progress" ? "bg-amber-500" : "bg-blue-500"}`}></div>
                         <div className="flex-1">
                           <div className="font-medium">{wo.workOrderNumber}</div>
