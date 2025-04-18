@@ -618,12 +618,22 @@ export function setupProductionRoutes(app: Router) {
           }
         }
         
-        // Get drawing number for parent item
+        // Get drawing number and UOM for parent item
         let drawingNo = null;
         if (items.length > 0 && isParent) {
           // Get the drawing number from the first item (parent items)
           const firstItem = items[0];
-          drawingNo = firstItem.drawingNo || null;
+          
+          // Get the master item to extract drawing number and UOM
+          const masterItem = masterItemsMap.get(firstItem.itemId);
+          
+          if (masterItem) {
+            // Use drawing number from master item
+            if (masterItem.drawingNo && masterItem.drawingNo.trim() !== '') {
+              drawingNo = masterItem.drawingNo;
+              console.log(`Using master item drawing number: ${drawingNo}`);
+            }
+          }
         }
         
         // Create work order with the correct quantity and drawing number
@@ -690,6 +700,12 @@ export function setupProductionRoutes(app: Router) {
             }
           }
           
+          // Prepare unit field from master item UOM
+          let unit = null;
+          if (masterItem && masterItem.uom) {
+            unit = masterItem.uom;
+          }
+          
           const [newItem] = await db.insert(workOrderItems).values({
             workOrderId: newWorkOrder.id,
             projectItemId: projectItemId,
@@ -698,7 +714,8 @@ export function setupProductionRoutes(app: Router) {
             sequenceNumber: sequenceNumber++,
             notes: itemNotes,
             createdAt: today,
-            updatedAt: today
+            updatedAt: today,
+            unit: unit // Store the UOM from master item
           }).returning();
           
           createdWorkOrderItems.push(newItem);
