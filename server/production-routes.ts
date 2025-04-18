@@ -539,16 +539,27 @@ export function setupProductionRoutes(app: Router) {
             title = `${masterItem.itemCode} - ${masterItem.description || 'Item'}`;
             description = `Work order for parent item: ${masterItem.itemCode} (${masterItem.description || 'No description'})`;
           } else if (!isParent) {
-            // For child items, we need to check if they share the same parent
+            // For child items, we need to include the specific sub-assembly component item code
+            const componentItem = masterItemsMap.get(firstItem.itemId);
             const parentItemId = childToParentMap.get(firstItem.itemId);
             const parentItem = parentItemId ? masterItemsMap.get(parentItemId) : null;
             
-            if (parentItem) {
-              title = `Components for ${parentItem.itemCode} - ${parentItem.description || 'Item'}`;
-              description = `Work order for child components of ${parentItem.itemCode} (${parentItem.description || 'No description'})`;
+            if (componentItem && parentItem) {
+              // Include both component and parent item details in the title
+              title = `${componentItem.itemCode} - ${componentItem.description || 'Item'} (Component of ${parentItem.itemCode})`;
+              description = `Work order for sub-assembly component ${componentItem.itemCode} (${componentItem.description || 'No description'}) of parent ${parentItem.itemCode}`;
+            } else if (componentItem) {
+              // Include just component details if parent isn't found
+              title = `${componentItem.itemCode} - ${componentItem.description || 'Item'}`;
+              description = `Work order for sub-assembly component ${componentItem.itemCode} (${componentItem.description || 'No description'})`;
+            } else if (parentItem) {
+              // Fallback if component details missing but parent is known
+              title = `Component for ${parentItem.itemCode} - ${parentItem.description || 'Item'}`;
+              description = `Work order for child component of ${parentItem.itemCode} (${parentItem.description || 'No description'})`;
             } else {
-              title = `Child Components for ${project.name}`;
-              description = `Auto-generated components work order for project ${project.code}`;
+              // Final fallback
+              title = `Child Component for ${project.name}`;
+              description = `Auto-generated component work order for project ${project.code}`;
             }
           }
         } else {
@@ -941,15 +952,51 @@ export function setupProductionRoutes(app: Router) {
         orderBy: [asc(workOrderItems.sequenceNumber)]
       });
       
-      // Get related project items for more details
+      // Get related project items and master items for more details
       const items = await Promise.all(workOrderItemsList.map(async (item) => {
+        // Get project item
         const projectItem = await db.query.projectItems.findFirst({
           where: eq(projectItems.id, item.projectItemId)
         });
         
+        let masterItem = null;
+        let isVirtual = false;
+        
+        if (projectItem) {
+          // Get the actual master item with item code and description
+          masterItem = await db.query.masterItems.findFirst({
+            where: eq(masterItems.id, projectItem.itemId)
+          });
+          
+          // Check if the project item has a virtual component via notes
+          if (item.notes && item.notes.includes("Virtual component:")) {
+            isVirtual = true;
+            
+            // Try to extract the actual item code and description from the notes
+            const match = item.notes.match(/Virtual component: ([\w\-\.]+) - (.*?) \(/);
+            if (match && match.length >= 3) {
+              // If we found a match, use that instead of falling back to project item
+              if (!masterItem) {
+                masterItem = {
+                  id: -1, // Use a negative ID to mark as virtual
+                  itemCode: match[1],
+                  description: match[2],
+                  // Add other required fields with default values
+                  revision: 0,
+                  unit: "EA",
+                  createdAt: new Date(),
+                  updatedAt: new Date()
+                };
+              }
+            }
+          }
+        }
+        
         return {
           ...item,
-          projectItem
+          projectItem,
+          masterItem,
+          isVirtual
         };
       }));
       

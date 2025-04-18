@@ -301,15 +301,24 @@ export default function WorkOrderDetailPage() {
                       </TableHeader>
                       <TableBody>
                         {workOrderItems.map((item: any) => {
-                          // Check if this is a virtual component by examining the notes
-                          const isVirtualComponent = item.notes && item.notes.includes('Virtual component:');
+                          // Use the masterItem data from our enhanced API
+                          const isVirtualComponent = item.isVirtual || (item.notes && item.notes.includes('Virtual component:'));
                           
-                          // Extract item code and description from notes for virtual components
-                          let itemCode = item.projectItem?.itemCode || "Unknown";
-                          let itemDescription = item.projectItem?.description || "Unknown";
+                          // Get item code and description from masterItem if available,
+                          // otherwise fall back to projectItem or extraction from notes
+                          let itemCode = "Unknown";
+                          let itemDescription = "Unknown";
                           
-                          if (isVirtualComponent) {
-                            // Format of notes: "Virtual component: ITEM-CODE - DESCRIPTION (using parent project item XX)"
+                          if (item.masterItem) {
+                            // Use the masterItem data that comes directly from the API
+                            itemCode = item.masterItem.itemCode;
+                            itemDescription = item.masterItem.description;
+                          } else if (item.projectItem?.itemCode) {
+                            // Fallback to projectItem if masterItem isn't available
+                            itemCode = item.projectItem.itemCode;
+                            itemDescription = item.projectItem.description || "Unknown";
+                          } else if (isVirtualComponent && item.notes) {
+                            // Last resort - extract from notes for legacy data
                             const match = item.notes.match(/Virtual component: ([^-]+) - ([^(]+)/);
                             if (match && match.length >= 3) {
                               itemCode = match[1].trim();
