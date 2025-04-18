@@ -17,6 +17,8 @@ import ProjectDetailPage from "@/pages/project-detail-page";
 import CustomersPage from "@/pages/customers-page";
 import ItemMasterPage from "@/pages/item-master-page";
 import ProductionPlanningPage from "@/pages/production-planning-page";
+import WorkOrderDetailPage from "@/pages/work-order-detail-page";
+import WorkOrderEditPage from "@/pages/work-order-edit-page";
 import ShopFloorPage from "@/pages/shop-floor-page";
 import InspectionsPage from "@/pages/inspections-page";
 import QualityReportsPage from "@/pages/quality-reports-page";
@@ -85,6 +87,8 @@ function Router() {
       <ProtectedRoute path="/customers" component={CustomersPage} />
       <ProtectedRoute path="/item-master" component={ItemMasterPage} />
       <ProtectedRoute path="/production-planning" component={ProductionPlanningPage} />
+      <ProtectedRoute path="/production/work-orders/:id" component={WorkOrderDetailPage} />
+      <ProtectedRoute path="/production/work-orders/:id/edit" component={WorkOrderEditPage} />
       <ProtectedRoute path="/shop-floor" component={ShopFloorPage} />
       <ProtectedRoute path="/inspections" component={InspectionsPage} />
       <ProtectedRoute path="/quality-reports" component={QualityReportsPage} />

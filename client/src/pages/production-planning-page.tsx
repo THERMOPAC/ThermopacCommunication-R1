@@ -414,8 +414,20 @@ export default function ProductionPlanningPage() {
                         <TableCell>{format(new Date(workOrder.plannedEndDate), 'dd MMM yyyy')}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm">View</Button>
-                            <Button variant="outline" size="sm">Edit</Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => window.location.href = `/production/work-orders/${workOrder.id}`}
+                            >
+                              View
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => window.location.href = `/production/work-orders/${workOrder.id}/edit`}
+                            >
+                              Edit
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
