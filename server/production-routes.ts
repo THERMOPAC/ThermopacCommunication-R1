@@ -484,15 +484,46 @@ export function setupProductionRoutes(app: Router) {
         // format: WO-[ProjectCode]-[SequentialNumber]
         const seqNumber = isParent ? nextParentSeqNumber : nextChildSeqNumber;
         const specificWorkOrderNumber = `WO-${project.code}-${seqNumber}`;
-        const typeDescription = isParent ? 'Parent Items' : 'Child Components';
+        
+        // Get item-specific details for the work order title
+        let title = '';
+        let description = '';
+        
+        if (items.length > 0) {
+          const firstItem = items[0];
+          const masterItem = masterItemsMap.get(firstItem.itemId);
+          
+          if (isParent && masterItem) {
+            // For parent items, use the specific item details
+            title = `${masterItem.itemCode} - ${masterItem.description || 'Item'}`;
+            description = `Work order for parent item: ${masterItem.itemCode} (${masterItem.description || 'No description'})`;
+          } else if (!isParent) {
+            // For child items, we need to check if they share the same parent
+            const parentItemId = childToParentMap.get(firstItem.itemId);
+            const parentItem = parentItemId ? masterItemsMap.get(parentItemId) : null;
+            
+            if (parentItem) {
+              title = `Components for ${parentItem.itemCode} - ${parentItem.description || 'Item'}`;
+              description = `Work order for child components of ${parentItem.itemCode} (${parentItem.description || 'No description'})`;
+            } else {
+              title = `Child Components for ${project.name}`;
+              description = `Auto-generated components work order for project ${project.code}`;
+            }
+          }
+        } else {
+          // Fallback for empty item lists (shouldn't happen, but just in case)
+          const typeDescription = isParent ? 'Parent Items' : 'Child Components';
+          title = `${typeDescription} for ${project.name}`;
+          description = `Auto-generated ${typeDescription.toLowerCase()} work order for project ${project.code}`;
+        }
         
         // Create work order
         const [newWorkOrder] = await db.insert(workOrders).values({
           projectId,
           projectCode: project.code,
           workOrderNumber: specificWorkOrderNumber,
-          title: `${typeDescription} for ${project.name}`,
-          description: `Auto-generated ${typeDescription.toLowerCase()} work order for project ${project.code}`,
+          title: title,
+          description: description,
           status: 'planned',
           priority: 'Medium',
           plannedStartDate: today,
@@ -566,14 +597,37 @@ export function setupProductionRoutes(app: Router) {
         return newWorkOrder;
       };
       
-      // Create work orders for parent items
-      if (parentItems.length > 0) {
-        await createWorkOrder(parentItems, true);
+      // Create individual work orders for each parent item
+      for (const parentItem of parentItems) {
+        // Creating a separate work order for each parent
+        await createWorkOrder([parentItem], true);
+        
+        // Find all direct children of this parent
+        const directChildren = childItems.filter(child => {
+          // Match child's parentItemId with parent's itemId
+          const parentRelation = childToParentMap.get(child.itemId);
+          return parentRelation === parentItem.itemId;
+        });
+        
+        // Create work order for the children if there are any
+        if (directChildren.length > 0) {
+          await createWorkOrder(directChildren, false);
+        }
       }
       
-      // Create work orders for child items
-      if (childItems.length > 0) {
-        await createWorkOrder(childItems, false);
+      // Handle any remaining child items that might not have parents in the makeItems list
+      const processedChildItemIds = new Set();
+      parentItems.forEach(parent => {
+        const directChildren = childItems.filter(child => {
+          const parentRelation = childToParentMap.get(child.itemId);
+          return parentRelation === parent.itemId;
+        });
+        directChildren.forEach(child => processedChildItemIds.add(child.id));
+      });
+      
+      const remainingChildren = childItems.filter(child => !processedChildItemIds.has(child.id));
+      if (remainingChildren.length > 0) {
+        await createWorkOrder(remainingChildren, false);
       }
       
       res.status(201).json({
