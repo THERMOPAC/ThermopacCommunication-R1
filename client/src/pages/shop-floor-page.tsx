@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertCircle, ChevronRight, Check, Activity, Clock, Users, Settings } from "lucide-react";
+import { Loader2, AlertCircle, ChevronRight, Check, Activity, Clock, Users, Settings, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
 import { format } from "date-fns";
+import { Input } from "@/components/ui/input";
 
 // Define WorkOrder type
 interface WorkOrder {
@@ -50,6 +51,8 @@ const statusColors: Record<string, string> = {
 export default function ShopFloorPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("active");
+  const [isExpanded, setIsExpanded] = useState(false); // Default collapsed
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch all active work orders
   const { data: workOrders, isLoading, isError, error } = useQuery<WorkOrder[]>({
@@ -76,22 +79,50 @@ export default function ShopFloorPage() {
     }
   };
 
-  // Filter work orders by status
+  // Filter work orders by status, search term and sort by project order
   const getFilteredWorkOrders = (): WorkOrder[] => {
     if (!workOrders) return [];
     
+    // First filter by status
+    let filteredOrders: WorkOrder[] = [];
     switch (activeTab) {
       case "active":
-        return workOrders.filter(wo => wo.status === "in_progress" || wo.status === "planned");
+        filteredOrders = workOrders.filter(wo => wo.status === "in_progress" || wo.status === "planned");
+        break;
       case "completed":
-        return workOrders.filter(wo => wo.status === "completed");
+        filteredOrders = workOrders.filter(wo => wo.status === "completed");
+        break;
       case "onhold":
-        return workOrders.filter(wo => wo.status === "on_hold");
+        filteredOrders = workOrders.filter(wo => wo.status === "on_hold");
+        break;
       case "all":
-        return workOrders;
+        filteredOrders = workOrders;
+        break;
       default:
-        return workOrders;
+        filteredOrders = workOrders;
     }
+    
+    // Then filter by search term if provided
+    if (searchTerm.trim() !== "") {
+      const searchTermLower = searchTerm.toLowerCase();
+      filteredOrders = filteredOrders.filter(wo => 
+        wo.workOrderNumber.toLowerCase().includes(searchTermLower) || 
+        wo.title.toLowerCase().includes(searchTermLower) ||
+        (wo.description && wo.description.toLowerCase().includes(searchTermLower)) ||
+        (wo.batchNumber && wo.batchNumber.toLowerCase().includes(searchTermLower))
+      );
+    }
+    
+    // Sort by Project ID and then by work order number
+    return filteredOrders.sort((a, b) => {
+      // First sort by project ID
+      if (a.projectId !== b.projectId) {
+        return a.projectId - b.projectId;
+      }
+      
+      // If same project, sort by work order number
+      return a.workOrderNumber.localeCompare(b.workOrderNumber);
+    });
   };
 
   // Production teams data (mock data for now)
@@ -193,88 +224,127 @@ export default function ShopFloorPage() {
 
           <TabsContent value={activeTab} className="mt-0">
             <Card>
-              <CardHeader>
-                <CardTitle>Work Orders</CardTitle>
-                <CardDescription>
-                  View and manage all {activeTab} work orders from the shop floor.
-                </CardDescription>
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Work Orders</CardTitle>
+                    <CardDescription>
+                      View and manage all {activeTab} work orders from the shop floor.
+                    </CardDescription>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="flex items-center"
+                  >
+                    {isExpanded ? (
+                      <>Collapse <ChevronUp className="ml-1 h-4 w-4" /></>
+                    ) : (
+                      <>Expand <ChevronDown className="ml-1 h-4 w-4" /></>
+                    )}
+                  </Button>
+                </div>
+                
+                {/* Search bar for work orders */}
+                <div className="flex items-center space-x-2 mt-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Search work orders by number, title, or drawing no."
+                      className="pl-8"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex justify-center items-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin mr-2" /> 
-                    <span>Loading work orders...</span>
-                  </div>
-                ) : isError ? (
-                  <div className="flex flex-col justify-center items-center py-8 text-red-600">
-                    <div className="flex items-center mb-2">
-                      <AlertCircle className="h-8 w-8 mr-2" /> 
-                      <span className="font-medium">Error loading work orders</span>
+              
+              {isExpanded && (
+                <CardContent className="pt-4">
+                  {isLoading ? (
+                    <div className="flex justify-center items-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin mr-2" /> 
+                      <span>Loading work orders...</span>
                     </div>
-                    <div className="text-sm text-muted-foreground mt-2">
-                      Please refresh the page or check your connection
+                  ) : isError ? (
+                    <div className="flex flex-col justify-center items-center py-8 text-red-600">
+                      <div className="flex items-center mb-2">
+                        <AlertCircle className="h-8 w-8 mr-2" /> 
+                        <span className="font-medium">Error loading work orders</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-2">
+                        Please refresh the page or check your connection
+                      </div>
                     </div>
-                  </div>
-                ) : getFilteredWorkOrders().length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No {activeTab} work orders found
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {getFilteredWorkOrders().map(workOrder => (
-                      <div key={workOrder.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                        <div className="flex justify-between items-center mb-2">
-                          <div className="flex items-center">
-                            <span className="font-medium text-lg">{workOrder.workOrderNumber}</span>
-                            <Badge className={`ml-3 ${statusColors[workOrder.status]}`}>
-                              {workOrder.status === "in_progress" ? "In Progress" : 
-                               workOrder.status.charAt(0).toUpperCase() + workOrder.status.slice(1)}
-                            </Badge>
+                  ) : getFilteredWorkOrders().length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      {searchTerm ? `No work orders matching "${searchTerm}"` : `No ${activeTab} work orders found`}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {getFilteredWorkOrders().map(workOrder => (
+                        <div key={workOrder.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                          <div className="flex justify-between items-center mb-2">
+                            <div className="flex items-center">
+                              <span className="font-medium text-lg">{workOrder.workOrderNumber}</span>
+                              <Badge className={`ml-3 ${statusColors[workOrder.status]}`}>
+                                {workOrder.status === "in_progress" ? "In Progress" : 
+                                 workOrder.status.charAt(0).toUpperCase() + workOrder.status.slice(1)}
+                              </Badge>
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex items-center" 
+                              onClick={() => {
+                                // Navigate to work order edit page
+                                window.location.href = `/production/work-orders/${workOrder.id}`;
+                              }}
+                            >
+                              Edit Work Order <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
                           </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex items-center" 
-                            onClick={() => {
-                              // Navigate to work order edit page
-                              window.location.href = `/production/work-orders/${workOrder.id}`;
-                            }}
-                          >
-                            Edit Work Order <ChevronRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                          <div>
-                            <div className="text-sm text-muted-foreground">Production Team</div>
-                            <div>{workOrder.productionLine || "Unassigned"}</div>
-                          </div>
-                          <div>
-                            <div className="text-sm text-muted-foreground">Scheduled</div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
                             <div>
-                              {workOrder.plannedStartDate ? 
-                                format(new Date(workOrder.plannedStartDate), 'dd MMM yyyy') : 
-                                "Not scheduled"}
+                              <div className="text-sm text-muted-foreground">Production Team</div>
+                              <div>{workOrder.productionLine || "Unassigned"}</div>
+                            </div>
+                            <div>
+                              <div className="text-sm text-muted-foreground">Scheduled</div>
+                              <div>
+                                {workOrder.plannedStartDate ? 
+                                  format(new Date(workOrder.plannedStartDate), 'dd MMM yyyy') : 
+                                  "Not scheduled"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-sm text-muted-foreground">Priority</div>
+                              <div>{workOrder.priority || "Medium"}</div>
                             </div>
                           </div>
-                          <div>
-                            <div className="text-sm text-muted-foreground">Priority</div>
-                            <div>{workOrder.priority || "Medium"}</div>
+                          
+                          <div className="mt-4">
+                            <div className="flex justify-between text-sm mb-1">
+                              <span>Progress</span>
+                              <span>{getWorkOrderProgress(workOrder.status)}%</span>
+                            </div>
+                            <Progress value={getWorkOrderProgress(workOrder.status)} />
                           </div>
                         </div>
-                        
-                        <div className="mt-4">
-                          <div className="flex justify-between text-sm mb-1">
-                            <span>Progress</span>
-                            <span>{getWorkOrderProgress(workOrder.status)}%</span>
-                          </div>
-                          <Progress value={getWorkOrderProgress(workOrder.status)} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              )}
+              
+              {!isExpanded && getFilteredWorkOrders().length > 0 && (
+                <div className="px-6 py-4 text-sm text-muted-foreground">
+                  {getFilteredWorkOrders().length} work orders found. Click "Expand" to view details.
+                </div>
+              )}
             </Card>
           </TabsContent>
         </Tabs>
