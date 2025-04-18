@@ -531,8 +531,16 @@ export default function WorkOrderEditPage() {
                           <FormItem>
                             <FormLabel>Drawing No.</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Enter drawing number" />
+                              <Input 
+                                {...field} 
+                                readOnly 
+                                className="bg-muted/50"
+                                placeholder="Drawing number (read-only)" 
+                              />
                             </FormControl>
+                            <div className="text-xs text-muted-foreground">
+                              Drawing number from master item (read-only)
+                            </div>
                             <FormMessage />
                           </FormItem>
                         )}
