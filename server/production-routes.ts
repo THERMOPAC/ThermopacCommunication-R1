@@ -570,7 +570,22 @@ export function setupProductionRoutes(app: Router) {
           description = `Auto-generated ${typeDescription.toLowerCase()} work order for project ${project.code}`;
         }
         
-        // Create work order
+        // Get the quantity from the first item in the array
+        // If there are no items or the quantity is invalid, default to 1
+        let itemQuantity = 1;
+        if (items.length > 0 && items[0].quantity) {
+          // Convert the quantity to a number if it's a string
+          const quantity = typeof items[0].quantity === 'string' 
+            ? parseFloat(items[0].quantity) 
+            : items[0].quantity;
+            
+          // Make sure it's a valid positive number
+          if (!isNaN(quantity) && quantity > 0) {
+            itemQuantity = quantity;
+          }
+        }
+        
+        // Create work order with the correct quantity
         const [newWorkOrder] = await db.insert(workOrders).values({
           projectId,
           projectCode: project.code,
@@ -581,7 +596,7 @@ export function setupProductionRoutes(app: Router) {
           priority: 'Medium',
           plannedStartDate: today,
           plannedEndDate: endDate,
-          quantity: 1,
+          quantity: itemQuantity,
           supervisorId: req.user!.id,
           createdBy: req.user!.id,
           createdAt: today,
