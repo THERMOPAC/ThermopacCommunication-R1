@@ -515,15 +515,47 @@ export function setupProductionRoutes(app: Router) {
           if (!masterItem) continue;
           
           // Add item to work order
+          // For virtual items, we need to use a valid project item ID since the foreign key constraint
+          // requires project_item_id to reference an existing record in the project_items table
+          // We'll use the parent project item's ID since it's guaranteed to exist
+          let projectItemId = item.id;
+          let itemNotes = `Auto-generated from ${isParent ? 'parent' : 'child'} item ${masterItem.description || masterItem.itemCode}`;
+          
+          if (item.id < 0) {
+            // For virtual items, find a valid project item ID to use
+            // Find the parent project item of this virtual component
+            const parentItemId = childToParentMap.get(item.itemId);
+            if (parentItemId) {
+              // Find the project item for this parent
+              const parentProjectItem = makeItems.find(pi => pi.itemId === parentItemId);
+              if (parentProjectItem && parentProjectItem.id > 0) {
+                projectItemId = parentProjectItem.id;
+                itemNotes = `Virtual component: ${masterItem.itemCode} - ${masterItem.description} (using parent project item ${projectItemId})`;
+              }
+            }
+          }
+
+          // Make sure we have a valid project item ID
+          if (projectItemId < 0) {
+            // If we still don't have a valid ID, use the first valid project item
+            const firstValidItem = makeItems.find(pi => pi.id > 0);
+            if (firstValidItem) {
+              projectItemId = firstValidItem.id;
+              itemNotes = `Virtual component: ${masterItem.itemCode} - ${masterItem.description} (using fallback project item ${projectItemId})`;
+            } else {
+              console.log('Warning: Could not find a valid project item ID for virtual component', item);
+              // Skip this item to avoid foreign key violation
+              continue;
+            }
+          }
+          
           const [newItem] = await db.insert(workOrderItems).values({
             workOrderId: newWorkOrder.id,
-            projectItemId: item.id < 0 ? 0 : item.id, // Handle virtual items (negative IDs)
+            projectItemId: projectItemId,
             quantity: item.quantity,
             status: 'pending',
             sequenceNumber: sequenceNumber++,
-            notes: item.id < 0 
-              ? `Virtual component: ${masterItem.itemCode} - ${masterItem.description}`
-              : `Auto-generated from ${isParent ? 'parent' : 'child'} item ${masterItem.description || masterItem.itemCode}`,
+            notes: itemNotes,
             createdAt: today,
             updatedAt: today
           }).returning();
