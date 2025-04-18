@@ -2,13 +2,25 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 const AdminTools = () => {
+  const { user } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   
   const handleReset = async () => {
+    // Double-check user is a Superuser for additional security
+    if (user?.role !== 'Superuser') {
+      toast({
+        title: "Permission Denied",
+        description: "Only Superusers can reset the master items database",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (confirmText !== "RESET") {
       toast({
         title: "Error",
@@ -59,6 +71,11 @@ const AdminTools = () => {
       setConfirmText("");
     }
   };
+  
+  // Only Superusers should be able to see these tools
+  if (user?.role !== 'Superuser') {
+    return null;
+  }
   
   return (
     <div className="mb-8">
