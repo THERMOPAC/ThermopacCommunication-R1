@@ -163,6 +163,8 @@ export default function ProductionPlanningPage() {
   const [masterItems, setMasterItems] = useState<any[]>([]);
   const [projectItems, setProjectItems] = useState<any[]>([]);
   const [filteredItems, setFilteredItems] = useState<any[]>([]);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [isItemDetailOpen, setIsItemDetailOpen] = useState(false);
   
   // Fetch projects for dropdown
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<any[]>({
@@ -172,8 +174,14 @@ export default function ProductionPlanningPage() {
   // Fetch master items
   const { data: allMasterItems = [], isLoading: isLoadingMasterItems } = useQuery<any[]>({
     queryKey: ['/api/master-items'],
-    onSuccess: (data) => setMasterItems(data),
   });
+  
+  // Update masterItems state when the data changes
+  useEffect(() => {
+    if (allMasterItems) {
+      setMasterItems(allMasterItems);
+    }
+  }, [allMasterItems]);
   
   // Fetch project items when a project is selected
   const { 
@@ -194,8 +202,14 @@ export default function ProductionPlanningPage() {
       return response.json();
     },
     enabled: !!selectedProject,
-    onSuccess: (data) => setProjectItems(data),
   });
+  
+  // Update project items when data changes
+  useEffect(() => {
+    if (selectedProjectItems) {
+      setProjectItems(selectedProjectItems);
+    }
+  }, [selectedProjectItems]);
 
   // Fetch work orders based on selected project
   const { 
@@ -455,23 +469,45 @@ export default function ProductionPlanningPage() {
           </CardHeader>
           <CardContent>
             <div className="flex justify-between items-center mb-6">
-              <div>
-                <Label htmlFor="project-filter">Select Project</Label>
-                <Select 
-                  onValueChange={(value) => setSelectedProject(parseInt(value))}
-                  disabled={isLoadingProjects}
-                >
-                  <SelectTrigger className="w-full md:w-[300px]">
-                    <SelectValue placeholder="Select a project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects?.map((project: any) => (
-                      <SelectItem key={project.id} value={project.id.toString()}>
-                        {project.code}: {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="project-filter">Select Project</Label>
+                  <Select 
+                    onValueChange={(value) => {
+                      setSelectedProject(parseInt(value));
+                      setSearchTerm(''); // Clear search term when project changes
+                    }}
+                    disabled={isLoadingProjects}
+                  >
+                    <SelectTrigger className="w-full md:w-[300px]">
+                      <SelectValue placeholder="Select a project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects?.map((project: any) => (
+                        <SelectItem key={project.id} value={project.id.toString()}>
+                          {project.code}: {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {selectedProject && (
+                  <div className="relative">
+                    <Label htmlFor="item-search">Search Items by Code or Description</Label>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="item-search"
+                        className="pl-8 w-full md:w-[300px]"
+                        placeholder="Search items..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        disabled={isLoadingProjectItems || isLoadingMasterItems}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
               
               {selectedProject && (
@@ -510,6 +546,57 @@ export default function ProductionPlanningPage() {
                 </div>
               )}
             </div>
+            
+            {/* Display filtered items when search term is present */}
+            {selectedProject && searchTerm.trim() !== '' && (
+              <div className="mb-6">
+                <h3 className="text-lg font-medium mb-2">Search Results</h3>
+                {isLoadingProjectItems || isLoadingMasterItems ? (
+                  <div className="flex items-center h-12">
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <span>Loading items...</span>
+                  </div>
+                ) : filteredItems.length === 0 ? (
+                  <div className="text-muted-foreground py-4 border border-border rounded-md text-center">
+                    No items found matching "{searchTerm}"
+                  </div>
+                ) : (
+                  <div className="border border-border rounded-md overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Item Code</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Make/Buy</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredItems.map((item) => (
+                          <TableRow 
+                            key={item.projectItemId} 
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => {
+                              setSelectedItem(item);
+                              setIsItemDetailOpen(true);
+                            }}
+                          >
+                            <TableCell className="font-medium">{item.itemCode}</TableCell>
+                            <TableCell>{item.description}</TableCell>
+                            <TableCell>{item.quantity}</TableCell>
+                            <TableCell>
+                              <Badge variant={item.makeOrBuy === 'Make' ? 'default' : 'outline'}>
+                                {item.makeOrBuy}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            )}
 
             {!selectedProject ? (
               <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 rounded-lg p-4">
@@ -1110,6 +1197,63 @@ export default function ProductionPlanningPage() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Item Detail Dialog */}
+      <Dialog open={isItemDetailOpen} onOpenChange={setIsItemDetailOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Item Details</DialogTitle>
+            <DialogDescription>
+              Information about the selected item
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedItem && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">Item Code</h4>
+                  <p className="text-base font-medium">{selectedItem.itemCode}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">Make/Buy</h4>
+                  <Badge variant={selectedItem.makeOrBuy === 'Make' ? 'default' : 'outline'} className="mt-1">
+                    {selectedItem.makeOrBuy}
+                  </Badge>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground">Description</h4>
+                <p className="text-base">{selectedItem.description}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">Project Quantity</h4>
+                  <p className="text-base">{selectedItem.quantity}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground">Item ID</h4>
+                  <p className="text-base text-muted-foreground">{selectedItem.masterItemId}</p>
+                </div>
+              </div>
+              
+              <DialogFooter className="mt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSelectedItem(null);
+                    setIsItemDetailOpen(false);
+                  }}
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
