@@ -644,9 +644,9 @@ export function setupProductionRoutes(app: Router) {
           return parentRelation === parentItem.itemId;
         });
         
-        // Create work order for the children if there are any
-        if (directChildren.length > 0) {
-          await createWorkOrder(directChildren, false);
+        // Create a separate work order for each child item instead of grouping them
+        for (const childItem of directChildren) {
+          await createWorkOrder([childItem], false);
         }
       }
       
@@ -661,8 +661,9 @@ export function setupProductionRoutes(app: Router) {
       });
       
       const remainingChildren = childItems.filter(child => !processedChildItemIds.has(child.id));
-      if (remainingChildren.length > 0) {
-        await createWorkOrder(remainingChildren, false);
+      // Create a separate work order for each remaining child item
+      for (const childItem of remainingChildren) {
+        await createWorkOrder([childItem], false);
       }
       
       res.status(201).json({
