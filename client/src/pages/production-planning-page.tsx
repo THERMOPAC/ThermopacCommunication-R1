@@ -157,12 +157,12 @@ export default function ProductionPlanningPage() {
     }
   };
 
-  // State for searching items
+  // State for searching
   const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
   const [masterItems, setMasterItems] = useState<any[]>([]);
   const [projectItems, setProjectItems] = useState<any[]>([]);
-  const [filteredItems, setFilteredItems] = useState<any[]>([]);
+  const [filteredWorkOrders, setFilteredWorkOrders] = useState<any[]>([]);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isItemDetailOpen, setIsItemDetailOpen] = useState(false);
   
@@ -409,39 +409,41 @@ export default function ProductionPlanningPage() {
     }
   };
   
-  // Function to filter items based on search term
+  // Function to filter work orders based on search term
   useEffect(() => {
-    if (!selectedProject || searchTerm.trim() === '') {
-      setFilteredItems([]);
+    if (!selectedProject || !workOrders || searchTerm.trim() === '') {
+      setFilteredWorkOrders([]);
       return;
     }
     
-    const filtered: any[] = [];
     const lowercaseSearch = searchTerm.toLowerCase();
     
-    // Filter project items based on master item details (item code or description)
-    projectItems.forEach(projectItem => {
-      const masterItem = masterItems.find(mi => mi.id === projectItem.itemId);
-      if (masterItem) {
-        const itemCode = masterItem.itemCode?.toLowerCase() || '';
-        const description = masterItem.description?.toLowerCase() || '';
-        
-        if (itemCode.includes(lowercaseSearch) || description.includes(lowercaseSearch)) {
-          filtered.push({
-            projectId: selectedProject,
-            projectItemId: projectItem.id,
-            masterItemId: masterItem.id,
-            itemCode: masterItem.itemCode,
-            description: masterItem.description,
-            quantity: projectItem.quantity,
-            makeOrBuy: masterItem.makeOrBuy,
-          });
-        }
+    // Filter work orders by work order number, title, or associated items
+    const filtered = workOrders.filter((workOrder: any) => {
+      // Check work order number
+      if (workOrder.workOrderNumber?.toLowerCase().includes(lowercaseSearch)) {
+        return true;
       }
+      
+      // Check work order title
+      if (workOrder.title?.toLowerCase().includes(lowercaseSearch)) {
+        return true;
+      }
+      
+      // Check associated items (if available in work order data)
+      if (workOrder.items && Array.isArray(workOrder.items)) {
+        return workOrder.items.some((item: any) => {
+          const itemCode = item.itemCode?.toLowerCase() || '';
+          const description = item.description?.toLowerCase() || '';
+          return itemCode.includes(lowercaseSearch) || description.includes(lowercaseSearch);
+        });
+      }
+      
+      return false;
     });
     
-    setFilteredItems(filtered);
-  }, [searchTerm, selectedProject, projectItems, masterItems]);
+    setFilteredWorkOrders(filtered);
+  }, [searchTerm, selectedProject, workOrders]);
 
   return (
     <>
@@ -494,16 +496,16 @@ export default function ProductionPlanningPage() {
                 
                 {selectedProject && (
                   <div className="relative">
-                    <Label htmlFor="item-search">Search Items by Code or Description</Label>
+                    <Label htmlFor="work-order-search">Search Work Orders</Label>
                     <div className="relative">
                       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
-                        id="item-search"
+                        id="work-order-search"
                         className="pl-8 w-full md:w-[300px]"
-                        placeholder="Search items..."
+                        placeholder="Search by number, title, or item..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        disabled={isLoadingProjectItems || isLoadingMasterItems}
+                        disabled={isLoadingWorkOrders}
                       />
                     </div>
                   </div>
@@ -547,47 +549,58 @@ export default function ProductionPlanningPage() {
               )}
             </div>
             
-            {/* Display filtered items when search term is present */}
+            {/* Display filtered work orders when search term is present */}
             {selectedProject && searchTerm.trim() !== '' && (
               <div className="mb-6">
                 <h3 className="text-lg font-medium mb-2">Search Results</h3>
-                {isLoadingProjectItems || isLoadingMasterItems ? (
+                {isLoadingWorkOrders ? (
                   <div className="flex items-center h-12">
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    <span>Loading items...</span>
+                    <span>Loading work orders...</span>
                   </div>
-                ) : filteredItems.length === 0 ? (
+                ) : filteredWorkOrders.length === 0 ? (
                   <div className="text-muted-foreground py-4 border border-border rounded-md text-center">
-                    No items found matching "{searchTerm}"
+                    No work orders found matching "{searchTerm}"
                   </div>
                 ) : (
                   <div className="border border-border rounded-md overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Item Code</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Quantity</TableHead>
-                          <TableHead>Make/Buy</TableHead>
+                          <TableHead>Work Order #</TableHead>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Priority</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredItems.map((item) => (
+                        {filteredWorkOrders.map((workOrder: any) => (
                           <TableRow 
-                            key={item.projectItemId} 
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => {
-                              setSelectedItem(item);
-                              setIsItemDetailOpen(true);
-                            }}
+                            key={workOrder.id} 
+                            className="hover:bg-muted/50"
                           >
-                            <TableCell className="font-medium">{item.itemCode}</TableCell>
-                            <TableCell>{item.description}</TableCell>
-                            <TableCell>{item.quantity}</TableCell>
+                            <TableCell className="font-medium">{workOrder.workOrderNumber}</TableCell>
+                            <TableCell>{workOrder.title}</TableCell>
+                            <TableCell>{getStatusBadge(workOrder.status)}</TableCell>
+                            <TableCell>{getPriorityBadge(workOrder.priority)}</TableCell>
                             <TableCell>
-                              <Badge variant={item.makeOrBuy === 'Make' ? 'default' : 'outline'}>
-                                {item.makeOrBuy}
-                              </Badge>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => window.location.href = `/production/work-orders/${workOrder.id}`}
+                                >
+                                  View
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => window.location.href = `/production/work-orders/${workOrder.id}/edit`}
+                                >
+                                  Edit
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -625,7 +638,7 @@ export default function ProductionPlanningPage() {
                   <Plus className="mr-2 h-4 w-4" /> Create Work Order
                 </Button>
               </div>
-            ) : (
+            ) : searchTerm.trim() !== '' ? null : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableCaption>List of work orders for the selected project.</TableCaption>
