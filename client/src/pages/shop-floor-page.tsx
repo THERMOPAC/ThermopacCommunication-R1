@@ -2,16 +2,16 @@ import React from "react";
 import { Helmet } from "react-helmet";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
+import Layout from "@/components/layout";
 
 export default function ShopFloorPage() {
   const { user } = useAuth();
 
   return (
-    <>
+    <Layout>
       <Helmet>
         <title>Shop Floor | Thermopac</title>
       </Helmet>
-
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight">Shop Floor Management</h1>
@@ -36,6 +36,6 @@ export default function ShopFloorPage() {
           </CardContent>
         </Card>
       </div>
-    </>
+    </Layout>
   );
 }
