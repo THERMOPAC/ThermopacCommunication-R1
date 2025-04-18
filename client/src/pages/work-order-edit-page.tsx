@@ -552,6 +552,30 @@ export default function WorkOrderEditPage() {
                   </TabsContent>
                 </Tabs>
                 
+                {/* Change Comment Field */}
+                <div className="space-y-4 pt-6 border-t mt-6">
+                  <FormField
+                    control={form.control}
+                    name="changeComment"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Change Comment</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            {...field} 
+                            placeholder="Add a note about the changes you're making (optional)"
+                            rows={2}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Your comment will be recorded in the work order history
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
                 <div className="flex justify-end gap-3">
                   <Button
                     type="button"

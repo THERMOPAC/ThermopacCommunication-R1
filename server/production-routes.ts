@@ -965,7 +965,7 @@ export function setupProductionRoutes(app: Router) {
       }
       
       // Extract and format the date fields properly
-      const { plannedStartDate, plannedEndDate, ...otherFields } = req.body;
+      const { plannedStartDate, plannedEndDate, changeComment, ...otherFields } = req.body;
       
       // Ensure dates are properly converted to Date objects
       const formattedData = {
@@ -974,6 +974,9 @@ export function setupProductionRoutes(app: Router) {
         ...(plannedStartDate ? { plannedStartDate: new Date(plannedStartDate) } : {}),
         ...(plannedEndDate ? { plannedEndDate: new Date(plannedEndDate) } : {})
       };
+      
+      // Store change comment for history
+      const userComment = changeComment || null;
       
       // Track changes for history
       const changedFields: { field: string, oldValue: any, newValue: any, description: string }[] = [];
@@ -1026,7 +1029,7 @@ export function setupProductionRoutes(app: Router) {
           oldValue: change.oldValue,
           newValue: change.newValue,
           changeDescription: change.description,
-          comment: req.body.historyComment || null // Optional comment from the form
+          comment: userComment // Use the extracted change comment
         }));
         
         // Add a summary entry if there are multiple changes
