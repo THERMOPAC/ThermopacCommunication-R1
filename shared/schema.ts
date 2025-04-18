@@ -991,7 +991,7 @@ export const workOrders = pgTable('work_orders', {
   
   // Production details
   productionLine: text('production_line'),
-  batchNumber: text('batch_number'),
+  batchNumber: text('batch_number'), // Used to store drawing numbers
   quantity: integer('quantity').notNull().default(1),
   
   // Resources and costs
@@ -1018,6 +1018,7 @@ export const workOrderItems = pgTable('work_order_items', {
   status: text('status').notNull().default('pending'), // pending, in_progress, complete
   sequenceNumber: integer('sequence_number').notNull(), // order of production
   notes: text('notes'),
+  unit: text('unit'), // Unit of measurement (e.g., EA, KG, LTR)
   
   // Tracking
   createdAt: timestamp('created_at').notNull().defaultNow(),

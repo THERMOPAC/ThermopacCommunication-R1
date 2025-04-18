@@ -624,10 +624,14 @@ export function setupProductionRoutes(app: Router) {
           // Get the drawing number from the first item (parent items)
           const firstItem = items[0];
           
+          console.log(`First item data:`, firstItem);
+          
           // Get the master item to extract drawing number and UOM
           const masterItem = masterItemsMap.get(firstItem.itemId);
           
           if (masterItem) {
+            console.log(`Master item data:`, masterItem);
+            
             // Use drawing number from master item
             if (masterItem.drawingNo && masterItem.drawingNo.trim() !== '') {
               drawingNo = masterItem.drawingNo;
