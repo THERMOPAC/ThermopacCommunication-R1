@@ -395,21 +395,39 @@ export default function ProductionPlanningPage() {
               </div>
               
               {selectedProject && (
-                <Button
-                  variant="outline"
-                  onClick={handleGenerateWorkOrdersClick}
-                  disabled={isGeneratingWorkOrders || isLoadingPreview}
-                  className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700"
-                >
-                  {isGeneratingWorkOrders || isLoadingPreview ? (
-                    <>
-                      <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
-                      {isLoadingPreview ? "Loading Preview..." : "Generating..."}
-                    </>
-                  ) : (
-                    <>Create Work Orders for Project</>
+                <div className="flex space-x-3">
+                  {user?.role === 'Superuser' && (
+                    <Button 
+                      variant="destructive"
+                      onClick={cleanupWorkOrders}
+                      disabled={isCleaningUp || isGeneratingWorkOrders}
+                      className="flex items-center"
+                    >
+                      {isCleaningUp ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4 mr-2" />
+                      )}
+                      Clean Up Existing Orders
+                    </Button>
                   )}
-                </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={handleGenerateWorkOrdersClick}
+                    disabled={isGeneratingWorkOrders || isLoadingPreview || isCleaningUp}
+                    className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700"
+                  >
+                    {isGeneratingWorkOrders || isLoadingPreview ? (
+                      <>
+                        <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
+                        {isLoadingPreview ? "Loading Preview..." : "Generating..."}
+                      </>
+                    ) : (
+                      <>Create Work Orders for Project</>
+                    )}
+                  </Button>
+                </div>
               )}
             </div>
 
