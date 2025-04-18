@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
+import Layout from "@/components/layout";
 import { 
   Card, 
   CardContent, 
@@ -456,11 +457,11 @@ export default function ProductionPlanningPage() {
   }, [searchTerm, selectedProject, workOrders]);
 
   return (
-    <>
+    <Layout>
       <Helmet>
         <title>Production Planning | Thermopac</title>
       </Helmet>
-
+      
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight">Production Planning</h1>
@@ -1293,6 +1294,6 @@ export default function ProductionPlanningPage() {
           )}
         </DialogContent>
       </Dialog>
-    </>
+    </Layout>
   );
 }
