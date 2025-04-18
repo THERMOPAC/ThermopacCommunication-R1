@@ -546,7 +546,8 @@ export function setupProductionRoutes(app: Router) {
             
             if (componentItem && parentItem) {
               // Include both component and parent item details in the title
-              title = `${componentItem.itemCode} - ${componentItem.description || 'Item'} (Component of ${parentItem.itemCode})`;
+              // Format the title to prominently feature the component item code first
+              title = `${componentItem.itemCode} - ${componentItem.description || 'Item'}`;
               description = `Work order for sub-assembly component ${componentItem.itemCode} (${componentItem.description || 'No description'}) of parent ${parentItem.itemCode}`;
             } else if (componentItem) {
               // Include just component details if parent isn't found
@@ -554,7 +555,7 @@ export function setupProductionRoutes(app: Router) {
               description = `Work order for sub-assembly component ${componentItem.itemCode} (${componentItem.description || 'No description'})`;
             } else if (parentItem) {
               // Fallback if component details missing but parent is known
-              title = `Component for ${parentItem.itemCode} - ${parentItem.description || 'Item'}`;
+              title = `Component for ${parentItem.itemCode}`;
               description = `Work order for child component of ${parentItem.itemCode} (${parentItem.description || 'No description'})`;
             } else {
               // Final fallback
@@ -666,6 +667,14 @@ export function setupProductionRoutes(app: Router) {
         
         // Now create work orders for each child with hierarchical numbering
         for (let i = 0; i < directChildren.length; i++) {
+          // Get the child item details for inclusion in work order
+          const childItem = directChildren[i];
+          const childMasterItem = masterItemsMap.get(childItem.itemId);
+          
+          if (!childMasterItem) {
+            console.warn(`Missing master item data for child component with itemId ${childItem.itemId}`);
+          }
+          
           // Create hierarchical numbering (e.g., WO-2526-1-6-1, WO-2526-1-6-2)
           const childSeqNumber = i + 1;
           await createWorkOrder(
@@ -947,6 +956,18 @@ export function setupProductionRoutes(app: Router) {
     try {
       const workOrderId = parseInt(req.params.id);
       
+      // First, get the work order to determine if it's a child/component work order
+      const workOrder = await db.query.workOrders.findFirst({
+        where: eq(workOrders.id, workOrderId)
+      });
+      
+      if (!workOrder) {
+        return res.status(404).json({ error: 'Work order not found' });
+      }
+      
+      // Check if this is a component work order (has parent work order number in the format WO-YYYY-#-#-#)
+      const isComponentWorkOrder = workOrder.workOrderNumber.split('-').length > 4; // WO-YYYY-#-#-# has 5 parts
+      
       const workOrderItemsList = await db.query.workOrderItems.findMany({
         where: eq(workOrderItems.workOrderId, workOrderId),
         orderBy: [asc(workOrderItems.sequenceNumber)]
@@ -962,25 +983,59 @@ export function setupProductionRoutes(app: Router) {
         let masterItem = null;
         let isVirtual = false;
         
-        if (projectItem) {
+        // For component work orders, we need to prioritize getting the actual component item details
+        if (isComponentWorkOrder && item.notes) {
+          // Try to extract the component item code and description from the notes first
+          const match = item.notes.match(/Virtual component: ([\w\-\.]+) - (.*?)( \(|$)/);
+          
+          if (match && match.length >= 3) {
+            isVirtual = true;
+            const componentItemCode = match[1].trim();
+            const componentDescription = match[2].trim();
+            
+            // First try to find the actual master item by item code
+            const actualMasterItem = await db.query.masterItems.findFirst({
+              where: eq(masterItems.itemCode, componentItemCode)
+            });
+            
+            if (actualMasterItem) {
+              // Great! We found the actual master item
+              masterItem = actualMasterItem;
+            } else {
+              // Create a virtual item with the extracted information
+              masterItem = {
+                id: -1, // Use a negative ID to mark as virtual
+                itemCode: componentItemCode,
+                description: componentDescription,
+                revision: 0,
+                unit: "EA",
+                createdAt: new Date(),
+                updatedAt: new Date()
+              };
+            }
+          }
+        }
+        
+        // If we haven't found a master item yet, proceed with the normal lookup
+        if (!masterItem && projectItem) {
           // Get the actual master item with item code and description
           masterItem = await db.query.masterItems.findFirst({
             where: eq(masterItems.id, projectItem.itemId)
           });
           
           // Check if the project item has a virtual component via notes
-          if (item.notes && item.notes.includes("Virtual component:")) {
+          if (!isVirtual && item.notes && item.notes.includes("Virtual component:")) {
             isVirtual = true;
             
             // Try to extract the actual item code and description from the notes
-            const match = item.notes.match(/Virtual component: ([\w\-\.]+) - (.*?) \(/);
+            const match = item.notes.match(/Virtual component: ([\w\-\.]+) - (.*?)( \(|$)/);
             if (match && match.length >= 3) {
-              // If we found a match, use that instead of falling back to project item
+              // If we found a match and didn't already set masterItem, use the extracted info
               if (!masterItem) {
                 masterItem = {
                   id: -1, // Use a negative ID to mark as virtual
-                  itemCode: match[1],
-                  description: match[2],
+                  itemCode: match[1].trim(),
+                  description: match[2].trim(),
                   // Add other required fields with default values
                   revision: 0,
                   unit: "EA",
