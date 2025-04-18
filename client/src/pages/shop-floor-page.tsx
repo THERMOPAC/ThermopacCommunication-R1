@@ -294,17 +294,30 @@ export default function ShopFloorPage() {
                                  workOrder.status.charAt(0).toUpperCase() + workOrder.status.slice(1)}
                               </Badge>
                             </div>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="flex items-center" 
-                              onClick={() => {
-                                // Navigate to work order edit page
-                                window.location.href = `/production/work-orders/${workOrder.id}`;
-                              }}
-                            >
-                              Edit Work Order <ChevronRight className="h-4 w-4 ml-1" />
-                            </Button>
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex items-center" 
+                                onClick={() => {
+                                  // Navigate to work order view page
+                                  window.location.href = `/production/work-orders/${workOrder.id}/view`;
+                                }}
+                              >
+                                View
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex items-center" 
+                                onClick={() => {
+                                  // Navigate to work order edit page
+                                  window.location.href = `/production/work-orders/${workOrder.id}`;
+                                }}
+                              >
+                                Edit
+                              </Button>
+                            </div>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
@@ -398,19 +411,39 @@ export default function ShopFloorPage() {
                     .map(wo => (
                       <div 
                         key={wo.id} 
-                        className="flex items-center p-3 border rounded-md hover:bg-muted/30 transition-colors cursor-pointer"
-                        onClick={() => window.location.href = `/production/work-orders/${wo.id}`}
-                        title="Edit Work Order"
+                        className="flex items-center p-3 border rounded-md hover:bg-muted/30 transition-colors"
                       >
                         <div className={`h-2 w-2 rounded-full mr-3 ${wo.status === "in_progress" ? "bg-amber-500" : "bg-blue-500"}`}></div>
                         <div className="flex-1">
                           <div className="font-medium">{wo.workOrderNumber}</div>
                           <div className="text-sm text-muted-foreground">{wo.productionLine || "Unassigned"}</div>
                         </div>
-                        <Badge className={statusColors[wo.status]}>
+                        <Badge className={`mr-2 ${statusColors[wo.status]}`}>
                           {wo.status === "in_progress" ? "In Progress" : 
                            wo.status.charAt(0).toUpperCase() + wo.status.slice(1)}
                         </Badge>
+                        <div className="flex space-x-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() => {
+                              window.location.href = `/production/work-orders/${wo.id}/view`;
+                            }}
+                          >
+                            View
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={() => {
+                              window.location.href = `/production/work-orders/${wo.id}`;
+                            }}
+                          >
+                            Edit
+                          </Button>
+                        </div>
                       </div>
                     ))}
                     
