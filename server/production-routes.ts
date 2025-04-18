@@ -191,6 +191,7 @@ export function setupProductionRoutes(app: Router) {
               : 1;
               
             // Create a virtual project item for this component with all required fields
+            // Use negative ID to mark as virtual items (important for later processing)
             virtualChildItems.push({
               id: -componentItemId, // Use negative ID to indicate virtual item
               projectId: parentProjectItem.projectId,
