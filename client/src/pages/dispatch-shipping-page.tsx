@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -892,7 +893,7 @@ export default function DispatchShippingPage() {
   };
   
   return (
-    <>
+    <Layout>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dispatch & Shipping</h1>
@@ -1059,7 +1060,7 @@ export default function DispatchShippingPage() {
           </Form>
         </DialogContent>
       </Dialog>
-    </>
+    </Layout>
   );
 }
 
