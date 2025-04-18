@@ -580,7 +580,14 @@ export default function ProductionPlanningPage() {
                             key={workOrder.id} 
                             className="hover:bg-muted/50"
                           >
-                            <TableCell className="font-medium">{workOrder.workOrderNumber}</TableCell>
+                            <TableCell className="font-medium">
+                              {workOrder.workOrderNumber}
+                              {workOrder.title && workOrder.title.includes('Components for') && (
+                                <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
+                                  Assembly Parts
+                                </span>
+                              )}
+                            </TableCell>
                             <TableCell>{workOrder.title}</TableCell>
                             <TableCell>{getStatusBadge(workOrder.status)}</TableCell>
                             <TableCell>{getPriorityBadge(workOrder.priority)}</TableCell>
@@ -656,7 +663,14 @@ export default function ProductionPlanningPage() {
                   <TableBody>
                     {workOrders?.map((workOrder: any) => (
                       <TableRow key={workOrder.id}>
-                        <TableCell className="font-medium">{workOrder.workOrderNumber}</TableCell>
+                        <TableCell className="font-medium">
+                          {workOrder.workOrderNumber}
+                          {workOrder.title && workOrder.title.includes('Components for') && (
+                            <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
+                              Assembly Parts
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell>{workOrder.title}</TableCell>
                         <TableCell>{getStatusBadge(workOrder.status)}</TableCell>
                         <TableCell>{getPriorityBadge(workOrder.priority)}</TableCell>

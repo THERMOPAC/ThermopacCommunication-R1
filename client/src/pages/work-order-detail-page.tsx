@@ -300,22 +300,47 @@ export default function WorkOrderDetailPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {workOrderItems.map((item: any) => (
-                          <TableRow key={item.id}>
-                            <TableCell>{item.sequenceNumber}</TableCell>
-                            <TableCell className="font-medium">
-                              {item.projectItem?.itemCode || "Unknown"}
-                            </TableCell>
-                            <TableCell>
-                              {item.projectItem?.description || "Unknown"}
-                            </TableCell>
-                            <TableCell>{item.quantity}</TableCell>
-                            <TableCell>{getStatusBadge(item.status || "pending")}</TableCell>
-                            <TableCell className="max-w-md truncate">
-                              {item.notes || "No notes"}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {workOrderItems.map((item: any) => {
+                          // Check if this is a virtual component by examining the notes
+                          const isVirtualComponent = item.notes && item.notes.includes('Virtual component:');
+                          
+                          // Extract item code and description from notes for virtual components
+                          let itemCode = item.projectItem?.itemCode || "Unknown";
+                          let itemDescription = item.projectItem?.description || "Unknown";
+                          
+                          if (isVirtualComponent) {
+                            // Format of notes: "Virtual component: ITEM-CODE - DESCRIPTION (using parent project item XX)"
+                            const match = item.notes.match(/Virtual component: ([^-]+) - ([^(]+)/);
+                            if (match && match.length >= 3) {
+                              itemCode = match[1].trim();
+                              itemDescription = match[2].trim();
+                            }
+                          }
+                          
+                          return (
+                            <TableRow key={item.id}>
+                              <TableCell>{item.sequenceNumber}</TableCell>
+                              <TableCell className="font-medium">
+                                {itemCode}
+                                {isVirtualComponent && (
+                                  <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
+                                    Virtual
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {itemDescription}
+                              </TableCell>
+                              <TableCell>{item.quantity}</TableCell>
+                              <TableCell>{getStatusBadge(item.status || "pending")}</TableCell>
+                              <TableCell className="max-w-md truncate">
+                                {isVirtualComponent 
+                                  ? "Virtual component (not added to project items)" 
+                                  : (item.notes || "No notes")}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
