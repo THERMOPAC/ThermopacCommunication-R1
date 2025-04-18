@@ -294,30 +294,17 @@ export default function ShopFloorPage() {
                                  workOrder.status.charAt(0).toUpperCase() + workOrder.status.slice(1)}
                               </Badge>
                             </div>
-                            <div className="flex space-x-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="flex items-center" 
-                                onClick={() => {
-                                  // Navigate to work order view page
-                                  window.location.href = `/production/work-orders/${workOrder.id}/view`;
-                                }}
-                              >
-                                View
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="flex items-center" 
-                                onClick={() => {
-                                  // Navigate to work order edit page
-                                  window.location.href = `/production/work-orders/${workOrder.id}`;
-                                }}
-                              >
-                                Edit
-                              </Button>
-                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex items-center" 
+                              onClick={() => {
+                                // Navigate to work order edit page
+                                window.location.href = `/production/work-orders/${workOrder.id}`;
+                              }}
+                            >
+                              Edit Work Order <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
@@ -422,28 +409,16 @@ export default function ShopFloorPage() {
                           {wo.status === "in_progress" ? "In Progress" : 
                            wo.status.charAt(0).toUpperCase() + wo.status.slice(1)}
                         </Badge>
-                        <div className="flex space-x-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="h-7 px-2"
-                            onClick={() => {
-                              window.location.href = `/production/work-orders/${wo.id}/view`;
-                            }}
-                          >
-                            View
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="h-7 px-2"
-                            onClick={() => {
-                              window.location.href = `/production/work-orders/${wo.id}`;
-                            }}
-                          >
-                            Edit
-                          </Button>
-                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={() => {
+                            window.location.href = `/production/work-orders/${wo.id}`;
+                          }}
+                        >
+                          Edit
+                        </Button>
                       </div>
                     ))}
                     
