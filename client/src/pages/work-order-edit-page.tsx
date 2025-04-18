@@ -464,9 +464,9 @@ export default function WorkOrderEditPage() {
                         name="batchNumber"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Batch Number</FormLabel>
+                            <FormLabel>Drawing No.</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Enter batch number" />
+                              <Input {...field} placeholder="Enter drawing number" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
