@@ -2,12 +2,13 @@ import React from "react";
 import { Helmet } from "react-helmet";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
+import Layout from "@/components/layout";
 
 export default function QualityReportsPage() {
   const { user } = useAuth();
 
   return (
-    <>
+    <Layout>
       <Helmet>
         <title>Quality Reports | Thermopac</title>
       </Helmet>
@@ -36,6 +37,6 @@ export default function QualityReportsPage() {
           </CardContent>
         </Card>
       </div>
-    </>
+    </Layout>
   );
 }

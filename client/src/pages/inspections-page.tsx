@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Helmet } from "react-helmet";
+import Layout from "@/components/layout";
 import { 
   Card, 
   CardContent, 
@@ -161,7 +162,7 @@ export default function InspectionsPage() {
   };
 
   return (
-    <>
+    <Layout>
       <Helmet>
         <title>Quality Inspections | Thermopac</title>
       </Helmet>
@@ -712,6 +713,6 @@ export default function InspectionsPage() {
           </Form>
         </DialogContent>
       </Dialog>
-    </>
+    </Layout>
   );
 }
