@@ -708,6 +708,13 @@ export function setupProductionRoutes(app: Router) {
           let unit = null;
           if (masterItem && masterItem.uom) {
             unit = masterItem.uom;
+            console.log(`Using UOM value "${unit}" from master item for work order item`);
+          } else if (masterItem && masterItem.unit) {
+            unit = masterItem.unit;
+            console.log(`Using unit value "${unit}" from master item for work order item`);
+          } else {
+            console.log(`No UOM/unit found for master item, using default 'EA'`);
+            unit = 'EA';
           }
           
           const [newItem] = await db.insert(workOrderItems).values({
@@ -1058,6 +1065,9 @@ export function setupProductionRoutes(app: Router) {
         where: eq(workOrderItems.workOrderId, workOrderId),
         orderBy: [asc(workOrderItems.sequenceNumber)]
       });
+      
+      // Debug log to check if unit field is present in work order items
+      console.log('Fetched work order items with unit field:', workOrderItemsList[0]);
       
       // Get related project items and master items for more details
       const items = await Promise.all(workOrderItemsList.map(async (item) => {

@@ -346,7 +346,9 @@ export default function WorkOrderEditPage() {
                       <div className="space-y-2">
                         <div className="font-medium">Unit of Measurement</div>
                         <div className="px-3 py-2 border rounded-md bg-muted/50">
-                          {workOrder?.workOrderItems?.[0]?.unit || 'EA'}
+                          {workOrderItems?.length > 0 && workOrderItems[0].unit ? 
+                            workOrderItems[0].unit : 
+                            (workOrder?.workOrderItems?.[0]?.unit || 'No UOM')}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Unit of measurement from master item
