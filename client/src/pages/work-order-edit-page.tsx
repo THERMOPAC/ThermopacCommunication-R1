@@ -262,8 +262,11 @@ export default function WorkOrderEditPage() {
                           <FormItem>
                             <FormLabel>Title</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input {...field} disabled />
                             </FormControl>
+                            <FormDescription>
+                              Title cannot be modified as it's auto-generated based on item code
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
