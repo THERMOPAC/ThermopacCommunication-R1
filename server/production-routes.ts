@@ -906,12 +906,20 @@ export function setupProductionRoutes(app: Router) {
         return res.status(404).json({ error: 'Work order not found' });
       }
       
-      // Update work order
+      // Extract and format the date fields properly
+      const { plannedStartDate, plannedEndDate, ...otherFields } = req.body;
+      
+      // Ensure dates are properly converted to Date objects
+      const formattedData = {
+        ...otherFields,
+        updatedAt: new Date(),
+        ...(plannedStartDate ? { plannedStartDate: new Date(plannedStartDate) } : {}),
+        ...(plannedEndDate ? { plannedEndDate: new Date(plannedEndDate) } : {})
+      };
+      
+      // Update work order with properly formatted data
       const [updatedWorkOrder] = await db.update(workOrders)
-        .set({
-          ...req.body,
-          updatedAt: new Date()
-        })
+        .set(formattedData)
         .where(eq(workOrders.id, workOrderId))
         .returning();
       
