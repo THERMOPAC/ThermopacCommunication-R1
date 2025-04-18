@@ -618,7 +618,15 @@ export function setupProductionRoutes(app: Router) {
           }
         }
         
-        // Create work order with the correct quantity
+        // Get drawing number for parent item
+        let drawingNo = null;
+        if (items.length > 0 && isParent) {
+          // Get the drawing number from the first item (parent items)
+          const firstItem = items[0];
+          drawingNo = firstItem.drawingNo || null;
+        }
+        
+        // Create work order with the correct quantity and drawing number
         const [newWorkOrder] = await db.insert(workOrders).values({
           projectId,
           projectCode: project.code,
@@ -633,7 +641,8 @@ export function setupProductionRoutes(app: Router) {
           supervisorId: req.user!.id,
           createdBy: req.user!.id,
           createdAt: today,
-          updatedAt: today
+          updatedAt: today,
+          batchNumber: drawingNo // Using batchNumber field to store drawing number
         }).returning();
         
         createdWorkOrders.push(newWorkOrder);
