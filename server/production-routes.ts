@@ -181,14 +181,28 @@ export function setupProductionRoutes(app: Router) {
           // If component is not already a project item, create a virtual one
           const masterComponentItem = masterItemsMap.get(componentItemId);
           if (masterComponentItem && masterComponentItem.makeOrBuy === 'Make') {
-            // Create a virtual project item for this component
-            // We use negative IDs for virtual items to avoid conflicts
+            // Get the parent item's quantity to calculate child component quantity
+            const parentQuantity = typeof parentProjectItem.quantity === 'string' 
+              ? parseFloat(parentProjectItem.quantity) 
+              : parentProjectItem.quantity;
+              
+            const validParentQuantity = !isNaN(parentQuantity) && parentQuantity > 0 
+              ? parentQuantity 
+              : 1;
+              
+            // Create a virtual project item for this component with all required fields
             virtualChildItems.push({
               id: -componentItemId, // Use negative ID to indicate virtual item
               projectId: parentProjectItem.projectId,
+              projectCode: project.code,
               itemId: componentItemId,
-              quantity: '1', // Default to 1 for now, could be improved with BOM relationships
-              notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`
+              quantity: validParentQuantity.toString(), // Use parent's quantity for components
+              notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`,
+              status: 'active',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              actualCost: null,
+              estimatedCost: null
             });
           }
         }
@@ -465,12 +479,30 @@ export function setupProductionRoutes(app: Router) {
             if (masterComponentItem && masterComponentItem.makeOrBuy === 'Make') {
               // Create a virtual project item for this component
               // We use numeric ID with a special value for virtual items
+              // Get the parent item's quantity to calculate child component quantity
+              // For now, we'll use the same quantity as the parent item
+              // This can be improved with BOM relationships in the future
+              const parentQuantity = typeof parentProjectItem.quantity === 'string' 
+                ? parseFloat(parentProjectItem.quantity) 
+                : parentProjectItem.quantity;
+                
+              const validParentQuantity = !isNaN(parentQuantity) && parentQuantity > 0 
+                ? parentQuantity 
+                : 1;
+                
+              // Virtual component with all required fields - using negative ID to mark virtual items
               virtualChildItems.push({
                 id: -(Math.abs(componentItemId)), // Use negative ID to mark as virtual
                 projectId: parentProjectItem.projectId,
+                projectCode: project.code,
                 itemId: componentItemId,
-                quantity: '1', // Default to 1 for now, could be improved with BOM relationships
-                notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`
+                quantity: validParentQuantity.toString(), // Use parent's quantity for components
+                notes: `Virtual component of ${masterItemsMap.get(parentItemId)?.itemCode || 'parent item'}`,
+                status: 'active',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                actualCost: null,
+                estimatedCost: null
               });
             }
           }
