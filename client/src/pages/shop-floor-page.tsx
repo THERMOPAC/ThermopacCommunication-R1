@@ -236,11 +236,11 @@ export default function ShopFloorPage() {
                             size="sm" 
                             className="flex items-center" 
                             onClick={() => {
-                              // Use window.location to navigate to work order details
+                              // Navigate to work order edit page
                               window.location.href = `/production/work-orders/${workOrder.id}`;
                             }}
                           >
-                            Details <ChevronRight className="h-4 w-4 ml-1" />
+                            Edit Work Order <ChevronRight className="h-4 w-4 ml-1" />
                           </Button>
                         </div>
                         
@@ -330,6 +330,7 @@ export default function ShopFloorPage() {
                         key={wo.id} 
                         className="flex items-center p-3 border rounded-md hover:bg-muted/30 transition-colors cursor-pointer"
                         onClick={() => window.location.href = `/production/work-orders/${wo.id}`}
+                        title="Edit Work Order"
                       >
                         <div className={`h-2 w-2 rounded-full mr-3 ${wo.status === "in_progress" ? "bg-amber-500" : "bg-blue-500"}`}></div>
                         <div className="flex-1">
