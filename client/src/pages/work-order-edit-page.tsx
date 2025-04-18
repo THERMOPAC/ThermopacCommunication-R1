@@ -82,6 +82,31 @@ export default function WorkOrderEditPage() {
     enabled: !isNaN(workOrderId),
   });
   
+  // Fetch work order items to get the UOM (unit)
+  const {
+    data: workOrderItems,
+    isLoading: isLoadingItems
+  } = useQuery<any>({
+    queryKey: ['/api/production/work-orders', workOrderId, 'items'],
+    queryFn: async () => {
+      const response = await fetch(`/api/production/work-orders/${workOrderId}/items`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch work order items");
+      }
+      return response.json();
+    },
+    enabled: !isNaN(workOrderId),
+  });
+  
+  // Combine the work order and items data
+  useEffect(() => {
+    if (workOrder && workOrderItems) {
+      // Add the items to the work order object
+      workOrder.workOrderItems = workOrderItems;
+    }
+  }, [workOrder, workOrderItems]);
+  
   // Initialize form with default values
   const form = useForm<WorkOrderFormValues>({
     resolver: zodResolver(workOrderSchema),
@@ -170,7 +195,8 @@ export default function WorkOrderEditPage() {
     }
   }, [workOrderError, toast]);
   
-  if (isLoadingWorkOrder) {
+  // Show loading state when fetching work order or work order items
+  if (isLoadingWorkOrder || isLoadingItems) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-96">
@@ -292,6 +318,43 @@ export default function WorkOrderEditPage() {
                     />
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="quantity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Planned Quantity</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                {...field} 
+                                value={field.value || ''} 
+                                onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
+                                placeholder="Enter planned quantity" 
+                                disabled
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Quantity from project item
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* UOM is fetched from work order items */}
+                      <div className="space-y-2">
+                        <div className="font-medium">Unit of Measurement</div>
+                        <div className="px-3 py-2 border rounded-md bg-muted/50">
+                          {workOrder?.workOrderItems?.[0]?.unit || 'EA'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Unit of measurement from master item
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                       <FormField
                         control={form.control}
                         name="status"
