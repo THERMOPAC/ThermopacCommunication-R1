@@ -431,10 +431,29 @@ export default function WorkOrderEditPage() {
                         name="productionLine"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Production Line</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Enter production line" />
-                            </FormControl>
+                            <FormLabel>Production Team</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select production team" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Production Team-1">Production Team-1</SelectItem>
+                                <SelectItem value="Production Team-2">Production Team-2</SelectItem>
+                                <SelectItem value="Production Team-3">Production Team-3</SelectItem>
+                                <SelectItem value="Production Team-4">Production Team-4</SelectItem>
+                                <SelectItem value="Production Team-5">Production Team-5</SelectItem>
+                                <SelectItem value="Production Team-6">Production Team-6</SelectItem>
+                                <SelectItem value="Production Team-7">Production Team-7</SelectItem>
+                                <SelectItem value="Production Team-8">Production Team-8</SelectItem>
+                                <SelectItem value="Production Team-9">Production Team-9</SelectItem>
+                                <SelectItem value="Production Team-10">Production Team-10</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
