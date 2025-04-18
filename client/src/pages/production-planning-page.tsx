@@ -51,7 +51,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ClipboardList, Calendar as CalendarIcon, CheckCircle2, Hourglass, AlertTriangle, XCircle } from "lucide-react";
+import { Plus, ClipboardList, Calendar as CalendarIcon, CheckCircle2, Hourglass, AlertTriangle, XCircle, Trash2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -86,12 +86,64 @@ export default function ProductionPlanningPage() {
   const [isGeneratingWorkOrders, setIsGeneratingWorkOrders] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
   
   // Function to reset all work order generation states
   const resetWorkOrderGenerationState = () => {
     setIsGeneratingWorkOrders(false);
     setIsConfirmDialogOpen(false);
     setPreviewData(null);
+  };
+  
+  // Function to clean up existing work orders for a project
+  const cleanupWorkOrders = async () => {
+    if (!selectedProject) return;
+    
+    if (!confirm("Are you sure you want to delete ALL work orders for this project? This action cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      setIsCleaningUp(true);
+      
+      const response = await fetch(
+        `/api/production/work-orders/project/${selectedProject}/clean`,
+        {
+          method: 'DELETE',
+        }
+      );
+      
+      if (!response.ok) {
+        let errorMessage = "Failed to clean up work orders";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          console.error("Error parsing error response:", e);
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const result = await response.json();
+      
+      toast({
+        title: "Work Orders Cleaned Up",
+        description: result.message || `Successfully deleted all work orders for the project`,
+      });
+      
+      // Refresh the work orders list
+      await refetchWorkOrders();
+      
+    } catch (error: any) {
+      console.error("Error cleaning up work orders:", error);
+      toast({
+        title: "Error Cleaning Up Work Orders",
+        description: error.message || "There was an error deleting work orders for this project.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCleaningUp(false);
+    }
   };
 
   // Fetch projects for dropdown

@@ -816,6 +816,52 @@ export function setupProductionRoutes(app: Router) {
     }
   });
   
+  // Clean up all work orders for a project (for testing/dev purposes)
+  app.delete('/api/production/work-orders/project/:projectId/clean', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      
+      // Only allow Superusers to perform this operation as it's destructive
+      if (req.user!.role !== 'Superuser') {
+        return res.status(403).json({ error: 'Only Superusers can clean up all work orders for a project' });
+      }
+      
+      // Check if project exists
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      
+      // Find all work orders for this project
+      const projectWorkOrders = await db.query.workOrders.findMany({
+        where: eq(workOrders.projectId, projectId)
+      });
+      
+      const workOrderIds = projectWorkOrders.map(wo => wo.id);
+      
+      // Delete all work order items first
+      if (workOrderIds.length > 0) {
+        // Create a condition to match any work order ID in the list
+        const workOrderIdConditions = inArray(workOrderItems.workOrderId, workOrderIds);
+        await db.delete(workOrderItems).where(workOrderIdConditions);
+      }
+      
+      // Then delete all work orders for this project
+      await db.delete(workOrders).where(eq(workOrders.projectId, projectId));
+      
+      res.status(200).json({ 
+        message: `Successfully deleted ${projectWorkOrders.length} work orders for project ${project.code}`,
+        deletedCount: projectWorkOrders.length
+      });
+    } catch (error) {
+      console.error('Error cleaning up work orders:', error);
+      res.status(500).json({ error: 'Failed to clean up work orders for project' });
+    }
+  });
+  
   // ==================== WORK ORDER ITEMS ====================
   
   // Get all items for a work order
