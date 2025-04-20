@@ -362,6 +362,44 @@ export default function CreateQAPPage() {
                     )}
                   />
                   
+                  {/* QAP Header Row */}
+                  <div className="col-span-1 md:col-span-2 mt-6 mb-4">
+                    <h3 className="font-medium text-lg mb-3">QAP Items</h3>
+                    <div className="overflow-x-auto">
+                      <div className="min-w-full border rounded-md">
+                        <div className="grid grid-cols-11 text-xs font-medium text-center bg-muted">
+                          <div className="p-2 border-r">SL.NO</div>
+                          <div className="p-2 border-r">COMPONENT & OPERATION</div>
+                          <div className="p-2 border-r">CHARACTERISTICS CHECKED</div>
+                          <div className="p-2 border-r">CLASS</div>
+                          <div className="p-2 border-r">TYPE OF CHECK</div>
+                          <div className="p-2 border-r">QUANTUM OF CHECK</div>
+                          <div className="p-2 border-r">REFERENCE DOCUMENT</div>
+                          <div className="p-2 border-r">ACCEPTANCE NORMS</div>
+                          <div className="p-2 border-r">FORMAT OF RECORDS</div>
+                          <div className="p-2 border-r">AGENCY</div>
+                          <div className="p-2">REMARK</div>
+                        </div>
+                        <div className="grid grid-cols-11 text-xs text-center">
+                          <div className="p-3 border-r border-t">1</div>
+                          <div className="p-3 border-r border-t"></div>
+                          <div className="p-3 border-r border-t"></div>
+                          <div className="p-3 border-r border-t"></div>
+                          <div className="p-3 border-r border-t"></div>
+                          <div className="p-3 border-r border-t"></div>
+                          <div className="p-3 border-r border-t"></div>
+                          <div className="p-3 border-r border-t"></div>
+                          <div className="p-3 border-r border-t"></div>
+                          <div className="p-3 border-r border-t"></div>
+                          <div className="p-3 border-t"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-2">
+                      <p>QAP items will be editable after creating the QAP document.</p>
+                    </div>
+                  </div>
+                  
                   <FormField
                     control={form.control}
                     name="remarks"
