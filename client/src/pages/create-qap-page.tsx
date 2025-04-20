@@ -239,15 +239,15 @@ export default function CreateQAPPage() {
                   />
                 </div>
                 
-                {/* Remaining form fields in a two-column layout */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Project, Customer, and PO Number in a row */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
                   <FormField
                     control={form.control}
                     name="projectId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Project</FormLabel>
-                        <FormDescription>Select a project to auto-populate customer information</FormDescription>
+                        <FormDescription>Select a project</FormDescription>
                         <Select 
                           onValueChange={(value) => handleProjectChange(value)} 
                           defaultValue={field.value}
@@ -278,9 +278,9 @@ export default function CreateQAPPage() {
                       const selectedCustomer = customers.find(c => c.id.toString() === field.value);
                       
                       return (
-                        <FormItem>
+                        <FormItem className="px-2">
                           <FormLabel>Customer</FormLabel>
-                          <FormDescription>Auto-populated based on project selection</FormDescription>
+                          <FormDescription>Auto-populated from project</FormDescription>
                           {field.value ? (
                             <div className="flex items-center space-x-2 p-2 border rounded-md bg-muted/30">
                               <div className="text-sm">
@@ -318,6 +318,24 @@ export default function CreateQAPPage() {
                   
                   <FormField
                     control={form.control}
+                    name="poNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>PO Number</FormLabel>
+                        <FormDescription>Purchase order reference</FormDescription>
+                        <FormControl>
+                          <Input placeholder="PO-001" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Remaining form fields in a two-column layout */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
                     name="title"
                     render={({ field }) => (
                       <FormItem>
@@ -338,20 +356,6 @@ export default function CreateQAPPage() {
                         <FormLabel>Revision</FormLabel>
                         <FormControl>
                           <Input placeholder="A" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="poNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>PO Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="PO-001" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
