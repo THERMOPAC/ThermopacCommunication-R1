@@ -42,6 +42,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
 
 // Form schema
@@ -261,21 +262,30 @@ export default function ViewEditQAPPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="space-y-6 p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">{qap?.title || "Untitled QAP"}</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline" className="text-sm">
-                  {formatQapNumber()}
-                </Badge>
-                <Badge
-                  variant={(qap?.status || "") === "approved" ? "default" : "secondary"}
-                  className="text-sm"
-                >
-                  {qap?.status ? `${qap.status.charAt(0).toUpperCase()}${qap.status.slice(1)}` : "Draft"}
-                </Badge>
-              </div>
+            <div className="flex items-center space-x-2">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={() => navigate("/quality-assurance-plan")}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h1 className="text-2xl font-bold">{qap?.status === "draft" ? "Edit" : "View"} Quality Assurance Plan</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-sm">
+                {formatQapNumber()}
+              </Badge>
+              <Badge
+                variant={(qap?.status || "") === "approved" ? "default" : "secondary"}
+                className="text-sm"
+              >
+                {qap?.status ? `${qap.status.charAt(0).toUpperCase()}${qap.status.slice(1)}` : "Draft"}
+              </Badge>
+              <FileText className="h-6 w-6 text-muted-foreground ml-2" />
             </div>
           </div>
 
