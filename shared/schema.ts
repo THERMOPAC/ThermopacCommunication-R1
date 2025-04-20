@@ -1947,3 +1947,154 @@ export type InsertGeneratedQap = z.infer<typeof insertGeneratedQapSchema>;
 
 export type QapVersion = typeof qapVersions.$inferSelect;
 export type InsertQapVersion = z.infer<typeof insertQapVersionSchema>;
+
+// ==================== QUALITY MANAGEMENT - ITP GENERATION ====================
+
+// ITP Templates
+export const itpTemplates = pgTable('itp_templates', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  content: text('content').notNull(), // HTML/JSON template content
+  version: varchar('version', { length: 50 }).notNull(),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// ITPs (Inspection Test Plans)
+export const itps = pgTable('itps', {
+  id: serial('id').primaryKey(),
+  title: varchar('title', { length: 255 }).notNull(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  qapId: integer('qap_id').references(() => generatedQaps.id, { onDelete: 'cascade' }),
+  equipmentName: varchar('equipment_name', { length: 255 }).notNull(),
+  drawingNumber: varchar('drawing_number', { length: 255 }),
+  revision: varchar('revision', { length: 50 }).notNull().default('A'),
+  version: integer('version').notNull().default(1),
+  status: varchar('status', { length: 50 }).notNull().default('draft'),
+  notifiedBody: varchar('notified_body', { length: 255 }),
+  hazardLevel: varchar('hazard_level', { length: 50 }),
+  preparedBy: integer('prepared_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  approvedBy: integer('approved_by').references(() => users.id, { onDelete: 'restrict' }),
+  content: jsonb('content').notNull(), // The filled template content in JSON format
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// ITP Versions (History)
+export const itpVersions = pgTable('itp_versions', {
+  id: serial('id').primaryKey(),
+  itpId: integer('itp_id').notNull().references(() => itps.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  revision: varchar('revision', { length: 50 }).notNull(),
+  content: jsonb('content').notNull(),
+  createdBy: integer('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// ITP Activities
+export const itpActivities = pgTable('itp_activities', {
+  id: serial('id').primaryKey(),
+  itpId: integer('itp_id').notNull().references(() => itps.id, { onDelete: 'cascade' }),
+  sequenceNumber: integer('sequence_number').notNull(),
+  activityName: varchar('activity_name', { length: 255 }).notNull(),
+  characteristics: varchar('characteristics', { length: 255 }),
+  referenceDocuments: text('reference_documents'),
+  acceptanceCriteria: text('acceptance_criteria'),
+  recordFormat: varchar('record_format', { length: 255 }),
+  inspectionBy: jsonb('inspection_by'), // Stores who needs to inspect (Manufacturer, Third-party, etc.)
+  remarks: text('remarks'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Define relationships
+export const itpTemplatesRelations = relations(itpTemplates, ({ one }) => ({
+  creator: one(users, {
+    fields: [itpTemplates.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const itpsRelations = relations(itps, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [itps.projectId],
+    references: [projects.id],
+  }),
+  qap: one(generatedQaps, {
+    fields: [itps.qapId],
+    references: [generatedQaps.id],
+  }),
+  preparedByUser: one(users, {
+    fields: [itps.preparedBy],
+    references: [users.id],
+  }),
+  approvedByUser: one(users, {
+    fields: [itps.approvedBy],
+    references: [users.id],
+  }),
+  versions: many(itpVersions),
+  activities: many(itpActivities),
+}));
+
+export const itpVersionsRelations = relations(itpVersions, ({ one }) => ({
+  itp: one(itps, {
+    fields: [itpVersions.itpId],
+    references: [itps.id],
+  }),
+  createdByUser: one(users, {
+    fields: [itpVersions.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const itpActivitiesRelations = relations(itpActivities, ({ one }) => ({
+  itp: one(itps, {
+    fields: [itpActivities.itpId],
+    references: [itps.id],
+  }),
+}));
+
+// Note: We update the existing QAP relations by searching for it and updating it
+// instead of redefining it.
+
+// Create Zod schemas for data validation
+export const insertItpTemplateSchema = createInsertSchema(itpTemplates)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export const insertItpSchema = createInsertSchema(itps)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    approvedBy: z.number().optional(),
+    notifiedBody: z.string().optional(),
+    hazardLevel: z.string().optional(),
+    drawingNumber: z.string().optional(),
+  });
+
+export const insertItpVersionSchema = createInsertSchema(itpVersions)
+  .omit({ id: true, createdAt: true });
+
+export const insertItpActivitySchema = createInsertSchema(itpActivities)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    characteristics: z.string().optional(),
+    referenceDocuments: z.string().optional(),
+    acceptanceCriteria: z.string().optional(),
+    recordFormat: z.string().optional(),
+    inspectionBy: z.any().optional(),
+    remarks: z.string().optional(),
+  });
+
+// Export types
+export type ItpTemplate = typeof itpTemplates.$inferSelect;
+export type InsertItpTemplate = z.infer<typeof insertItpTemplateSchema>;
+
+export type Itp = typeof itps.$inferSelect;
+export type InsertItp = z.infer<typeof insertItpSchema>;
+
+export type ItpVersion = typeof itpVersions.$inferSelect;
+export type InsertItpVersion = z.infer<typeof insertItpVersionSchema>;
+
+export type ItpActivity = typeof itpActivities.$inferSelect;
+export type InsertItpActivity = z.infer<typeof insertItpActivitySchema>;
