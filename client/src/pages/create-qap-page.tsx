@@ -200,9 +200,11 @@ export default function CreateQAPPage() {
       // Get current date in ISO format
       const currentDate = new Date().toISOString();
       
-      // Prepare QAP table structure for display
-      const qapTableItems = [
+      // Use the QAP items from state
+      // Ensure at least one item exists
+      const qapTableItems = qapItems.length > 0 ? qapItems : [
         {
+          id: 1,
           slNo: 1,
           componentOperation: "Review of Documents",
           characteristicsChecked: "Document completeness",
@@ -613,7 +615,21 @@ export default function CreateQAPPage() {
                             </div>
                             <div className="p-3 border-r border-t text-center">{item.slNo}</div>
                             <div className="p-3 border-r border-t">
-                              <Select defaultValue="review-documents">
+                              <Select 
+                                defaultValue="review-documents"
+                                onValueChange={(value) => {
+                                  const updatedItems = [...qapItems];
+                                  updatedItems[index] = {
+                                    ...updatedItems[index],
+                                    componentOperation: value === "review-documents" ? "Review of Documents" :
+                                                       value === "raw-material" ? "Raw Material" :
+                                                       value === "in-process" ? "In Process Inspection" :
+                                                       value === "final-assessment" ? "Final Assessment" :
+                                                       "Testing & Painting"
+                                  };
+                                  setQapItems(updatedItems);
+                                }}
+                              >
                                 <SelectTrigger className="w-full h-6 text-xs">
                                   <SelectValue placeholder="Select option" />
                                 </SelectTrigger>
@@ -626,15 +642,201 @@ export default function CreateQAPPage() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div className="p-3 border-r border-t"></div>
-                            <div className="p-3 border-r border-t"></div>
-                            <div className="p-3 border-r border-t"></div>
-                            <div className="p-3 border-r border-t"></div>
-                            <div className="p-3 border-r border-t"></div>
-                            <div className="p-3 border-r border-t"></div>
-                            <div className="p-3 border-r border-t"></div>
-                            <div className="p-3 border-r border-t"></div>
-                            <div className="p-3 border-t"></div>
+                            <div className="p-3 border-r border-t">
+                              <Input 
+                                className="h-6 text-xs"
+                                placeholder="Description"
+                                value={item.characteristicsChecked}
+                                onChange={(e) => {
+                                  const updatedItems = [...qapItems];
+                                  updatedItems[index] = {
+                                    ...updatedItems[index],
+                                    characteristicsChecked: e.target.value
+                                  };
+                                  setQapItems(updatedItems);
+                                }}
+                              />
+                            </div>
+                            <div className="p-3 border-r border-t">
+                              <Select 
+                                defaultValue="Major"
+                                onValueChange={(value) => {
+                                  const updatedItems = [...qapItems];
+                                  updatedItems[index] = {
+                                    ...updatedItems[index],
+                                    class: value
+                                  };
+                                  setQapItems(updatedItems);
+                                }}
+                              >
+                                <SelectTrigger className="w-full h-6 text-xs">
+                                  <SelectValue placeholder="Class" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Major">Major</SelectItem>
+                                  <SelectItem value="Minor">Minor</SelectItem>
+                                  <SelectItem value="Critical">Critical</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="p-3 border-r border-t">
+                              <Select 
+                                defaultValue="Visual"
+                                onValueChange={(value) => {
+                                  const updatedItems = [...qapItems];
+                                  updatedItems[index] = {
+                                    ...updatedItems[index],
+                                    typeOfCheck: value
+                                  };
+                                  setQapItems(updatedItems);
+                                }}
+                              >
+                                <SelectTrigger className="w-full h-6 text-xs">
+                                  <SelectValue placeholder="Type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Visual">Visual</SelectItem>
+                                  <SelectItem value="Dimensional">Dimensional</SelectItem>
+                                  <SelectItem value="Physical">Physical</SelectItem>
+                                  <SelectItem value="Chemical">Chemical</SelectItem>
+                                  <SelectItem value="NDT">NDT</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="p-3 border-r border-t">
+                              <Input 
+                                className="h-6 text-xs"
+                                placeholder="100%"
+                                value={item.quantumOfCheck}
+                                onChange={(e) => {
+                                  const updatedItems = [...qapItems];
+                                  updatedItems[index] = {
+                                    ...updatedItems[index],
+                                    quantumOfCheck: e.target.value
+                                  };
+                                  setQapItems(updatedItems);
+                                }}
+                              />
+                            </div>
+                            <div className="p-3 border-r border-t">
+                              <Input 
+                                className="h-6 text-xs"
+                                placeholder="Reference"
+                                value={item.referenceDocument}
+                                onChange={(e) => {
+                                  const updatedItems = [...qapItems];
+                                  updatedItems[index] = {
+                                    ...updatedItems[index],
+                                    referenceDocument: e.target.value
+                                  };
+                                  setQapItems(updatedItems);
+                                }}
+                              />
+                            </div>
+                            <div className="p-3 border-r border-t">
+                              <Input 
+                                className="h-6 text-xs"
+                                placeholder="Norms"
+                                value={item.acceptanceNorms}
+                                onChange={(e) => {
+                                  const updatedItems = [...qapItems];
+                                  updatedItems[index] = {
+                                    ...updatedItems[index],
+                                    acceptanceNorms: e.target.value
+                                  };
+                                  setQapItems(updatedItems);
+                                }}
+                              />
+                            </div>
+                            <div className="p-3 border-r border-t">
+                              <Input 
+                                className="h-6 text-xs"
+                                placeholder="Format"
+                                value={item.formatOfRecords}
+                                onChange={(e) => {
+                                  const updatedItems = [...qapItems];
+                                  updatedItems[index] = {
+                                    ...updatedItems[index],
+                                    formatOfRecords: e.target.value
+                                  };
+                                  setQapItems(updatedItems);
+                                }}
+                              />
+                            </div>
+                            <div className="p-3 border-r border-t flex items-center justify-center space-x-1">
+                              <div className="flex items-center space-x-1">
+                                <input 
+                                  type="checkbox" 
+                                  className="h-3 w-3"
+                                  checked={item.agency.M}
+                                  onChange={(e) => {
+                                    const updatedItems = [...qapItems];
+                                    updatedItems[index] = {
+                                      ...updatedItems[index],
+                                      agency: {
+                                        ...updatedItems[index].agency,
+                                        M: e.target.checked
+                                      }
+                                    };
+                                    setQapItems(updatedItems);
+                                  }}
+                                />
+                                <span className="text-xs">M</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <input 
+                                  type="checkbox" 
+                                  className="h-3 w-3"
+                                  checked={item.agency.C}
+                                  onChange={(e) => {
+                                    const updatedItems = [...qapItems];
+                                    updatedItems[index] = {
+                                      ...updatedItems[index],
+                                      agency: {
+                                        ...updatedItems[index].agency,
+                                        C: e.target.checked
+                                      }
+                                    };
+                                    setQapItems(updatedItems);
+                                  }}
+                                />
+                                <span className="text-xs">C</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <input 
+                                  type="checkbox" 
+                                  className="h-3 w-3"
+                                  checked={item.agency.SGS}
+                                  onChange={(e) => {
+                                    const updatedItems = [...qapItems];
+                                    updatedItems[index] = {
+                                      ...updatedItems[index],
+                                      agency: {
+                                        ...updatedItems[index].agency,
+                                        SGS: e.target.checked
+                                      }
+                                    };
+                                    setQapItems(updatedItems);
+                                  }}
+                                />
+                                <span className="text-xs">SGS</span>
+                              </div>
+                            </div>
+                            <div className="p-3 border-t">
+                              <Input 
+                                className="h-6 text-xs"
+                                placeholder="Remarks"
+                                value={item.remark}
+                                onChange={(e) => {
+                                  const updatedItems = [...qapItems];
+                                  updatedItems[index] = {
+                                    ...updatedItems[index],
+                                    remark: e.target.value
+                                  };
+                                  setQapItems(updatedItems);
+                                }}
+                              />
+                            </div>
                           </div>
                         ))}
                       </div>
