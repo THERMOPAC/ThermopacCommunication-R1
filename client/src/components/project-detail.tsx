@@ -504,7 +504,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No Customer</SelectItem>
+                        <SelectItem value="no-customer">No Customer</SelectItem>
                         {customers?.map((customer) => (
                           <SelectItem key={customer.id} value={customer.id.toString()}>
                             {customer.bpName}

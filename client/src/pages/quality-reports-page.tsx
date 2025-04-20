@@ -1463,7 +1463,7 @@ function ITPTemplatesTab() {
   });
   
   // Query templates
-  const { data: templates, isLoading, refetch } = useQuery({
+  const { data: templates = [], isLoading, refetch } = useQuery<any[]>({
     queryKey: ['/api/quality/itp-templates'],
     throwOnError: false,
     enabled: true,

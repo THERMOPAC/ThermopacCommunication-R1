@@ -152,7 +152,7 @@ export default function QualityAssurancePlanPage() {
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all-statuses">All Statuses</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="in-review">In Review</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>

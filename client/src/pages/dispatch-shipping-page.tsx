@@ -1006,7 +1006,7 @@ export default function DispatchShippingPage() {
                                 {transporter.name}
                               </SelectItem>
                             )) : 
-                            <SelectItem value="">No transporters available</SelectItem>
+                            <SelectItem value="no-transporters">No transporters available</SelectItem>
                           }
                         </SelectContent>
                       </Select>
