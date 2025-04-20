@@ -130,14 +130,66 @@ export default function CreateQAPPage() {
   };
 
   // Handle form submission
-  const onSubmit = (values: QAPFormValues) => {
-    // This would be replaced with actual API call
-    console.log("Form values:", values);
-    toast({
-      title: "Success",
-      description: "QAP created successfully",
-    });
-    setLocation("/quality-assurance-plan");
+  const onSubmit = async (values: QAPFormValues) => {
+    try {
+      // Prepare data for API
+      const templateId = 1; // This would normally come from a template selection
+      const qapData = {
+        projectId: parseInt(values.projectId),
+        templateId: templateId,
+        title: values.title,
+        clientName: customers.find(c => c.id.toString() === values.customerId)?.bpName || "",
+        equipmentType: values.category,
+        standards: "",
+        revision: values.revision || "0",
+        revisionNumber: values.revisionNumber,
+        poNumber: values.poNumber,
+        content: JSON.stringify({
+          title: values.title,
+          category: values.category,
+          remarks: values.remarks,
+          // You would include the QAP items/rows here
+          items: [
+            {
+              slNo: 1,
+              componentOperation: "Review of Documents",
+              characteristicsChecked: "",
+              class: "",
+              typeOfCheck: "",
+              quantumOfCheck: "",
+              referenceDocument: "",
+              acceptanceNorms: "",
+              formatOfRecords: "",
+              agency: "",
+              remark: "",
+            }
+          ]
+        }),
+        status: "draft",
+        remarks: values.remarks,
+      };
+      
+      console.log("Submitting QAP data:", qapData);
+      
+      // Send to API
+      const response = await apiRequest('POST', 'api/quality/generated-qaps', qapData);
+      
+      console.log("API response:", response);
+      
+      toast({
+        title: "Success",
+        description: "QAP created successfully",
+      });
+      
+      setLocation("/quality-assurance-plan");
+    } catch (error) {
+      console.error("Error creating QAP:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create QAP. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
