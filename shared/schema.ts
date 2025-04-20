@@ -1969,6 +1969,7 @@ export const itps = pgTable('itps', {
   title: varchar('title', { length: 255 }).notNull(),
   projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   qapId: integer('qap_id').references(() => generatedQaps.id, { onDelete: 'cascade' }),
+  templateId: integer('template_id').references(() => itpTemplates.id), // Added field for template reference
   equipmentName: varchar('equipment_name', { length: 255 }).notNull(),
   drawingNumber: varchar('drawing_number', { length: 255 }),
   revision: varchar('revision', { length: 50 }).notNull().default('A'),
@@ -2011,11 +2012,12 @@ export const itpActivities = pgTable('itp_activities', {
 });
 
 // Define relationships
-export const itpTemplatesRelations = relations(itpTemplates, ({ one }) => ({
+export const itpTemplatesRelations = relations(itpTemplates, ({ one, many }) => ({
   creator: one(users, {
     fields: [itpTemplates.createdBy],
     references: [users.id],
   }),
+  itps: many(itps),
 }));
 
 export const itpsRelations = relations(itps, ({ one, many }) => ({
@@ -2026,6 +2028,10 @@ export const itpsRelations = relations(itps, ({ one, many }) => ({
   qap: one(generatedQaps, {
     fields: [itps.qapId],
     references: [generatedQaps.id],
+  }),
+  template: one(itpTemplates, {
+    fields: [itps.templateId],
+    references: [itpTemplates.id],
   }),
   preparedByUser: one(users, {
     fields: [itps.preparedBy],
@@ -2067,6 +2073,7 @@ export const insertItpTemplateSchema = createInsertSchema(itpTemplates)
 export const insertItpSchema = createInsertSchema(itps)
   .omit({ id: true, createdAt: true, updatedAt: true })
   .extend({
+    templateId: z.number().optional(),
     approvedBy: z.number().optional(),
     notifiedBody: z.string().optional(),
     hazardLevel: z.string().optional(),

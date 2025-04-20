@@ -824,6 +824,7 @@ export const setupQualityRoutes = (app: any) => {
         with: {
           project: true,
           qap: true,
+          template: true,
           preparedByUser: {
             columns: {
               id: true,
@@ -903,6 +904,17 @@ export const setupQualityRoutes = (app: any) => {
           return res.status(404).json({ error: 'Referenced QAP not found' });
         }
       }
+      
+      // If template ID is provided, check if it exists
+      if (validationResult.data.templateId) {
+        const template = await db.query.itpTemplates.findFirst({
+          where: eq(itpTemplates.id, validationResult.data.templateId),
+        });
+
+        if (!template) {
+          return res.status(404).json({ error: 'Referenced ITP template not found' });
+        }
+      }
 
       // Create ITP
       const [newItp] = await db.insert(itps).values({
@@ -977,10 +989,22 @@ export const setupQualityRoutes = (app: any) => {
         notifiedBody,
         status,
         approvedBy,
+        templateId,
         activities,
         ...otherFields
       } = req.body;
 
+      // If template ID is provided, check if it exists
+      if (templateId && templateId !== existingItp.templateId) {
+        const template = await db.query.itpTemplates.findFirst({
+          where: eq(itpTemplates.id, templateId),
+        });
+
+        if (!template) {
+          return res.status(404).json({ error: 'Referenced ITP template not found' });
+        }
+      }
+      
       // Check if creating a new version
       const createNewVersion = content !== existingItp.content || revision !== existingItp.revision;
       const newVersion = createNewVersion ? existingItp.version + 1 : existingItp.version;
@@ -997,6 +1021,7 @@ export const setupQualityRoutes = (app: any) => {
           notifiedBody: notifiedBody ?? existingItp.notifiedBody,
           status: status ?? existingItp.status,
           approvedBy: approvedBy ?? existingItp.approvedBy,
+          templateId: templateId ?? existingItp.templateId,
           version: newVersion,
           updatedAt: new Date(),
         })
@@ -1111,6 +1136,7 @@ export const setupQualityRoutes = (app: any) => {
         with: {
           project: true,
           qap: true,
+          template: true,
           preparedByUser: {
             columns: {
               id: true,
@@ -1157,6 +1183,9 @@ export const setupQualityRoutes = (app: any) => {
         '{{revisionDate}}': format(itp.updatedAt, 'yyyy-MM-dd'),
         '{{hazardLevel}}': itp.hazardLevel || 'Not Specified',
         '{{notifiedBody}}': itp.notifiedBody || 'Not Applicable',
+        '{{templateName}}': itp.template?.name || 'Standard Template',
+        '{{templateVersion}}': itp.template?.version || '1.0',
+        '{{qapReference}}': itp.qap?.title || 'N/A',
       };
       
       // Apply all replacements
