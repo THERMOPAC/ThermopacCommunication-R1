@@ -697,8 +697,8 @@ export const setupQualityRoutes = (app: any) => {
     }
   });
   
-  // Export ITP to PDF
-  app.get('/api/quality/itps/:id/export', ensureAuthenticated, async (req: Request, res: Response) => {
+  // Export ITP endpoint is moved further down in the file
+  /* app.get('/api/quality/itps/:id/export', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const itpId = parseInt(req.params.id);
       
@@ -929,7 +929,7 @@ export const setupQualityRoutes = (app: any) => {
       console.error('Error exporting ITP to PDF:', error);
       res.status(500).json({ error: 'Failed to export ITP to PDF' });
     }
-  });
+  }); */
   
   // ==================== GENERATED QAPs ====================
 
