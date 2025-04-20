@@ -395,6 +395,314 @@ export const setupQualityRoutes = (app: any) => {
     }
   });
 
+  // ==================== GENERATED QAPs ====================
+  
+  // Get all generated QAPs
+  app.get('/api/quality/generated-qaps', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Allow filtering by project
+      const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : null;
+      
+      let whereClause;
+      if (projectId && !isNaN(projectId)) {
+        whereClause = eq(generatedQaps.projectId, projectId);
+      }
+
+      const qaps = await db.query.generatedQaps.findMany({
+        where: whereClause,
+        orderBy: [desc(generatedQaps.updatedAt)],
+        with: {
+          project: true,
+          template: {
+            columns: {
+              id: true,
+              name: true,
+              version: true,
+            },
+          },
+          preparedByUser: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+          approvedByUser: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+        },
+      });
+
+      res.status(200).json(qaps);
+    } catch (error) {
+      console.error('Error fetching generated QAPs:', error);
+      res.status(500).json({ error: 'Failed to fetch generated QAPs' });
+    }
+  });
+
+  // Get a single generated QAP by ID
+  app.get('/api/quality/generated-qaps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const qapId = parseInt(req.params.id);
+
+      if (isNaN(qapId)) {
+        return res.status(400).json({ error: 'Invalid QAP ID' });
+      }
+
+      const qap = await db.query.generatedQaps.findFirst({
+        where: eq(generatedQaps.id, qapId),
+        with: {
+          project: true,
+          template: true,
+          preparedByUser: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+          approvedByUser: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+          versions: {
+            orderBy: [desc(qapVersions.version)],
+          },
+        },
+      });
+
+      if (!qap) {
+        return res.status(404).json({ error: 'QAP not found' });
+      }
+
+      res.status(200).json(qap);
+    } catch (error) {
+      console.error('Error fetching QAP:', error);
+      res.status(500).json({ error: 'Failed to fetch QAP' });
+    }
+  });
+
+  // Create a new generated QAP
+  app.post('/api/quality/generated-qaps', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Check if user has permission to create QAPs
+      if (!canManageQuality(req.user!.role)) {
+        return res.status(403).json({ error: 'You do not have permission to create QAPs' });
+      }
+
+      // Validate request body
+      const validationResult = insertGeneratedQapSchema.safeParse({
+        ...req.body,
+        preparedBy: req.user!.id,
+        status: 'draft',
+      });
+
+      if (!validationResult.success) {
+        return res.status(400).json({ error: 'Invalid QAP data', details: validationResult.error });
+      }
+
+      // Create QAP
+      const [newQap] = await db.insert(generatedQaps).values({
+        ...validationResult.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).returning();
+
+      // Create initial version
+      await db.insert(qapVersions).values({
+        qapId: newQap.id,
+        version: 1,
+        content: newQap.content,
+        createdBy: req.user!.id,
+        createdAt: new Date(),
+      });
+
+      res.status(201).json(newQap);
+    } catch (error) {
+      console.error('Error creating QAP:', error);
+      res.status(500).json({ error: 'Failed to create QAP' });
+    }
+  });
+
+  // Update a generated QAP
+  app.put('/api/quality/generated-qaps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const qapId = parseInt(req.params.id);
+
+      // Check if QAP exists
+      const existingQap = await db.query.generatedQaps.findFirst({
+        where: eq(generatedQaps.id, qapId),
+      });
+
+      if (!existingQap) {
+        return res.status(404).json({ error: 'QAP not found' });
+      }
+
+      // Check permissions
+      if (!canManageQuality(req.user!.role) && existingQap.preparedBy !== req.user!.id) {
+        return res.status(403).json({ error: 'You do not have permission to update this QAP' });
+      }
+
+      // Don't allow changes to approved QAPs
+      if (existingQap.status === 'approved' && req.user!.role !== 'Superuser') {
+        return res.status(400).json({ error: 'Cannot update an approved QAP. Please create a new revision.' });
+      }
+
+      // Validate request body
+      const validationResult = insertGeneratedQapSchema.partial().safeParse(req.body);
+
+      if (!validationResult.success) {
+        return res.status(400).json({ error: 'Invalid QAP data', details: validationResult.error });
+      }
+
+      // Handle status changes
+      if (req.body.status === 'approved' && existingQap.status !== 'approved') {
+        // Only specific roles can approve
+        if (!['Superuser', 'Senior Manager', 'Manager'].includes(req.user!.role)) {
+          return res.status(403).json({ error: 'You do not have permission to approve QAPs' });
+        }
+        validationResult.data.approvedBy = req.user!.id;
+        validationResult.data.approvedDate = new Date();
+      }
+
+      // Check for content changes to create a new version
+      const contentChanged = req.body.content && req.body.content !== existingQap.content;
+      
+      // Only create a new version if content changed and not just status
+      if (contentChanged) {
+        // Get highest version number
+        const latestVersion = await db.query.qapVersions.findFirst({
+          where: eq(qapVersions.qapId, qapId),
+          orderBy: [desc(qapVersions.version)],
+        });
+
+        const newVersionNumber = latestVersion ? latestVersion.version + 1 : 1;
+
+        // Create new version record
+        await db.insert(qapVersions).values({
+          qapId: qapId,
+          version: newVersionNumber,
+          content: req.body.content,
+          createdBy: req.user!.id,
+          createdAt: new Date(),
+        });
+      }
+
+      // Update QAP
+      const [updatedQap] = await db.update(generatedQaps)
+        .set({
+          ...validationResult.data,
+          updatedAt: new Date(),
+        })
+        .where(eq(generatedQaps.id, qapId))
+        .returning();
+
+      res.status(200).json(updatedQap);
+    } catch (error) {
+      console.error('Error updating QAP:', error);
+      res.status(500).json({ error: 'Failed to update QAP' });
+    }
+  });
+
+  // Delete a generated QAP
+  app.delete('/api/quality/generated-qaps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const qapId = parseInt(req.params.id);
+
+      // Check if QAP exists
+      const existingQap = await db.query.generatedQaps.findFirst({
+        where: eq(generatedQaps.id, qapId),
+      });
+
+      if (!existingQap) {
+        return res.status(404).json({ error: 'QAP not found' });
+      }
+
+      // Check permissions - only Superuser can delete
+      if (req.user!.role !== 'Superuser') {
+        return res.status(403).json({ error: 'You do not have permission to delete QAPs' });
+      }
+
+      // Delete QAP and all versions (cascade delete should handle this)
+      await db.delete(generatedQaps).where(eq(generatedQaps.id, qapId));
+
+      res.status(200).json({ message: 'QAP deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting QAP:', error);
+      res.status(500).json({ error: 'Failed to delete QAP' });
+    }
+  });
+
+  // Export QAP to HTML/PDF
+  app.get('/api/quality/generated-qaps/:id/export', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const qapId = parseInt(req.params.id);
+
+      if (isNaN(qapId)) {
+        return res.status(400).json({ error: 'Invalid QAP ID' });
+      }
+
+      const qap = await db.query.generatedQaps.findFirst({
+        where: eq(generatedQaps.id, qapId),
+        with: {
+          project: true,
+          template: true,
+          preparedByUser: {
+            columns: {
+              id: true,
+              username: true,
+              email: true,
+            },
+          },
+          approvedByUser: {
+            columns: {
+              id: true,
+              username: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      if (!qap) {
+        return res.status(404).json({ error: 'QAP not found' });
+      }
+
+      // Process the content
+      let content = qap.content;
+
+      // Add general metadata replacements
+      const replacements: Record<string, string> = {
+        '{{title}}': qap.title,
+        '{{projectName}}': qap.project?.name || '',
+        '{{projectNumber}}': qap.project?.projectCode || '',
+        '{{client}}': qap.clientName || '',
+        '{{preparedBy}}': qap.preparedByUser?.username || '',
+        '{{preparedDate}}': format(qap.createdAt, 'yyyy-MM-dd'),
+        '{{approvedBy}}': qap.approvedByUser?.username || '',
+        '{{approvedDate}}': qap.approvedDate ? format(qap.approvedDate, 'yyyy-MM-dd') : '',
+        '{{revisionDate}}': format(qap.updatedAt, 'yyyy-MM-dd'),
+        '{{equipmentType}}': qap.equipmentType || '',
+        '{{standardsApplicable}}': qap.standardsApplicable || '',
+      };
+      
+      // Apply all replacements
+      Object.entries(replacements).forEach(([placeholder, value]) => {
+        content = content.replace(new RegExp(placeholder, 'g'), value || '');
+      });
+
+      // Set response headers for HTML content
+      res.setHeader('Content-Type', 'text/html');
+      res.status(200).send(content);
+    } catch (error) {
+      console.error('Error exporting QAP:', error);
+      res.status(500).json({ error: 'Failed to export QAP' });
+    }
+  });
+
   // ==================== ITPs ====================
   
   // Get all ITPs
@@ -502,61 +810,45 @@ export const setupQualityRoutes = (app: any) => {
         return res.status(400).json({ error: 'Invalid ITP data', details: validationResult.error });
       }
       
-      // Start a transaction for creating ITP and activities
-      await db.transaction(async (tx) => {
-        // Create ITP
-        const [newItp] = await tx.insert(itps).values({
-          ...validationResult.data,
+      // Create ITP
+      const [newItp] = await db.insert(itps).values({
+        ...validationResult.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).returning();
+      
+      // Create initial version
+      await db.insert(itpVersions).values({
+        itpId: newItp.id,
+        version: 1,
+        revision: newItp.revision,
+        content: newItp.content,
+        createdBy: req.user!.id,
+        createdAt: new Date(),
+      });
+      
+      // If activities were provided, create them
+      if (req.body.activities && Array.isArray(req.body.activities)) {
+        const activitiesToInsert = req.body.activities.map((activity: any, index: number) => ({
+          itpId: newItp.id,
+          sequenceNumber: index + 1,
+          description: activity.description,
+          characteristics: activity.characteristics || null,
+          referenceDocuments: activity.referenceDocuments || null,
+          acceptanceCriteria: activity.acceptanceCriteria || null,
+          recordFormat: activity.recordFormat || null,
+          inspectionBy: activity.inspectionBy || null,
+          remarks: activity.remarks || null,
           createdAt: new Date(),
           updatedAt: new Date(),
-        }).returning();
+        }));
         
-        // If content contains activities, create them
-        if (req.body.content?.activities?.length > 0) {
-          const activities = req.body.content.activities.map((activity: any, index: number) => ({
-            itpId: newItp.id,
-            sequenceNumber: index + 1,
-            description: activity.description,
-            acceptanceCriteria: activity.acceptanceCriteria,
-            responsibility: activity.responsibility,
-            referenceDocuments: activity.referenceDocuments || '',
-          }));
-          
-          await tx.insert(itpActivities).values(activities);
+        if (activitiesToInsert.length > 0) {
+          await db.insert(itpActivities).values(activitiesToInsert);
         }
-        
-        // Return the created ITP with activities
-        const createdItp = await tx.query.itps.findFirst({
-          where: eq(itps.id, newItp.id),
-          with: {
-            project: true,
-            template: {
-              columns: {
-                id: true,
-                name: true,
-                version: true,
-              },
-            },
-            qap: {
-              columns: {
-                id: true,
-                title: true,
-              },
-            },
-            preparedByUser: {
-              columns: {
-                id: true,
-                username: true,
-              },
-            },
-            activities: {
-              orderBy: asc(itpActivities.sequenceNumber),
-            },
-          },
-        });
-        
-        res.status(201).json(createdItp);
-      });
+      }
+      
+      res.status(201).json(newItp);
     } catch (error) {
       console.error('Error creating ITP:', error);
       res.status(500).json({ error: 'Failed to create ITP' });
@@ -571,97 +863,98 @@ export const setupQualityRoutes = (app: any) => {
       // Check if ITP exists
       const existingItp = await db.query.itps.findFirst({
         where: eq(itps.id, itpId),
-        with: {
-          activities: true,
-        },
       });
       
       if (!existingItp) {
         return res.status(404).json({ error: 'ITP not found' });
       }
       
-      // Check if user has permission to update this ITP
-      const isCreator = existingItp.preparedBy === req.user!.id;
-      if (!canManageQuality(req.user!.role) && !isCreator) {
+      // Check permissions
+      if (!canManageQuality(req.user!.role) && existingItp.preparedBy !== req.user!.id) {
         return res.status(403).json({ error: 'You do not have permission to update this ITP' });
       }
       
-      // Approved ITPs can only be updated by managers or above
-      if (existingItp.status === 'approved' && !canManageQuality(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to update an approved ITP' });
+      // Don't allow changes to approved ITPs
+      if (existingItp.status === 'approved' && req.user!.role !== 'Superuser') {
+        return res.status(400).json({ error: 'Cannot update an approved ITP. Please create a new revision.' });
       }
       
       // Validate request body
-      const validationResult = updateItpSchema.safeParse({
-        ...req.body,
-        preparedBy: existingItp.preparedBy, // Preserve original preparer
-      });
+      const validationResult = updateItpSchema.safeParse(req.body);
       
       if (!validationResult.success) {
         return res.status(400).json({ error: 'Invalid ITP data', details: validationResult.error });
       }
       
-      // Start a transaction for updating ITP and activities
-      await db.transaction(async (tx) => {
-        // Update ITP
-        const [updatedItp] = await tx.update(itps)
-          .set({
-            ...validationResult.data,
-            updatedAt: new Date(),
-          })
-          .where(eq(itps.id, itpId))
-          .returning();
-        
-        // If content contains activities, update them
-        if (req.body.content?.activities?.length > 0) {
-          // Delete existing activities
-          await tx.delete(itpActivities).where(eq(itpActivities.itpId, itpId));
-          
-          // Create new activities
-          const activities = req.body.content.activities.map((activity: any, index: number) => ({
-            itpId: updatedItp.id,
-            sequenceNumber: index + 1,
-            description: activity.description,
-            acceptanceCriteria: activity.acceptanceCriteria,
-            responsibility: activity.responsibility,
-            referenceDocuments: activity.referenceDocuments || '',
-          }));
-          
-          await tx.insert(itpActivities).values(activities);
+      // Handle status changes
+      if (req.body.status === 'approved' && existingItp.status !== 'approved') {
+        // Only specific roles can approve
+        if (!['Superuser', 'Senior Manager', 'Manager'].includes(req.user!.role)) {
+          return res.status(403).json({ error: 'You do not have permission to approve ITPs' });
         }
-        
-        // Return the updated ITP with activities
-        const finalUpdatedItp = await tx.query.itps.findFirst({
-          where: eq(itps.id, updatedItp.id),
-          with: {
-            project: true,
-            template: {
-              columns: {
-                id: true,
-                name: true,
-                version: true,
-              },
-            },
-            qap: {
-              columns: {
-                id: true,
-                title: true,
-              },
-            },
-            preparedByUser: {
-              columns: {
-                id: true,
-                username: true,
-              },
-            },
-            activities: {
-              orderBy: asc(itpActivities.sequenceNumber),
-            },
-          },
+        validationResult.data.approvedBy = req.user!.id;
+      }
+      
+      // Check for content changes to create a new version
+      const contentChanged = req.body.content && req.body.content !== existingItp.content;
+      const revisionChanged = req.body.revision && req.body.revision !== existingItp.revision;
+      
+      // Only create a new version if content or revision changed
+      if (contentChanged || revisionChanged) {
+        // Get highest version number
+        const latestVersion = await db.query.itpVersions.findFirst({
+          where: eq(itpVersions.itpId, itpId),
+          orderBy: [desc(itpVersions.version)],
         });
         
-        res.status(200).json(finalUpdatedItp);
-      });
+        const newVersionNumber = latestVersion ? latestVersion.version + 1 : 1;
+        
+        // Create new version record
+        await db.insert(itpVersions).values({
+          itpId: itpId,
+          version: newVersionNumber,
+          revision: req.body.revision || existingItp.revision,
+          content: req.body.content || existingItp.content,
+          createdBy: req.user!.id,
+          createdAt: new Date(),
+        });
+      }
+      
+      // Update ITP
+      const [updatedItp] = await db.update(itps)
+        .set({
+          ...validationResult.data,
+          updatedAt: new Date(),
+        })
+        .where(eq(itps.id, itpId))
+        .returning();
+      
+      // Handle activities update if provided
+      if (req.body.activities && Array.isArray(req.body.activities)) {
+        // Delete existing activities
+        await db.delete(itpActivities).where(eq(itpActivities.itpId, itpId));
+        
+        // Create new activities
+        const activitiesToInsert = req.body.activities.map((activity: any, index: number) => ({
+          itpId: itpId,
+          sequenceNumber: index + 1,
+          description: activity.description,
+          characteristics: activity.characteristics || null,
+          referenceDocuments: activity.referenceDocuments || null,
+          acceptanceCriteria: activity.acceptanceCriteria || null,
+          recordFormat: activity.recordFormat || null,
+          inspectionBy: activity.inspectionBy || null,
+          remarks: activity.remarks || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }));
+        
+        if (activitiesToInsert.length > 0) {
+          await db.insert(itpActivities).values(activitiesToInsert);
+        }
+      }
+      
+      res.status(200).json(updatedItp);
     } catch (error) {
       console.error('Error updating ITP:', error);
       res.status(500).json({ error: 'Failed to update ITP' });
@@ -696,1151 +989,8 @@ export const setupQualityRoutes = (app: any) => {
       res.status(500).json({ error: 'Failed to delete ITP' });
     }
   });
-  
-  // Export ITP endpoint is moved further down in the file
-  /* app.get('/api/quality/itps/:id/export', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const itpId = parseInt(req.params.id);
-      
-      if (isNaN(itpId)) {
-        return res.status(400).json({ error: 'Invalid ITP ID' });
-      }
-      
-      // Fetch ITP with all related data
-      const itp = await db.query.itps.findFirst({
-        where: eq(itps.id, itpId),
-        with: {
-          project: true,
-          template: true,
-          qap: true,
-          preparedByUser: {
-            columns: {
-              id: true,
-              username: true,
-            },
-          },
-          activities: {
-            orderBy: asc(itpActivities.sequenceNumber),
-          },
-        },
-      });
-      
-      if (!itp) {
-        return res.status(404).json({ error: 'ITP not found' });
-      }
-      
-      // Generate PDF content
-      const pdfContent = {
-        content: [
-          { text: 'INSPECTION AND TEST PLAN', style: 'header', alignment: 'center' },
-          { text: itp.title, style: 'subheader', alignment: 'center' },
-          { text: 'Revision: ' + itp.revision, style: 'subheader', alignment: 'center', margin: [0, 0, 0, 20] },
-          
-          {
-            columns: [
-              {
-                width: '50%',
-                text: [
-                  { text: 'Project: ', style: 'label' },
-                  { text: itp.project?.name || 'N/A', style: 'value' },
-                  '\n',
-                  { text: 'Project Code: ', style: 'label' },
-                  { text: itp.project?.code || 'N/A', style: 'value' },
-                  '\n',
-                  { text: 'Equipment: ', style: 'label' },
-                  { text: itp.equipmentName, style: 'value' },
-                ],
-              },
-              {
-                width: '50%',
-                text: [
-                  { text: 'Drawing No.: ', style: 'label' },
-                  { text: itp.drawingNumber || 'N/A', style: 'value' },
-                  '\n',
-                  { text: 'Hazard Level: ', style: 'label' },
-                  { text: itp.hazardLevel || 'N/A', style: 'value' },
-                  '\n',
-                  { text: 'QAP Reference: ', style: 'label' },
-                  { text: itp.qap?.title || 'N/A', style: 'value' },
-                ],
-              },
-            ],
-            margin: [0, 0, 0, 20],
-          },
-          
-          // Activities table
-          {
-            table: {
-              headerRows: 1,
-              widths: ['auto', '*', '*', '*', '*'],
-              body: [
-                [
-                  { text: '#', style: 'tableHeader' },
-                  { text: 'Activity Description', style: 'tableHeader' },
-                  { text: 'Reference Documents', style: 'tableHeader' },
-                  { text: 'Acceptance Criteria', style: 'tableHeader' },
-                  { text: 'Responsibility', style: 'tableHeader' },
-                ],
-                // Add activity rows
-                ...(itp.activities?.map(activity => [
-                  activity.sequenceNumber.toString(),
-                  activity.description,
-                  activity.referenceDocuments || '-',
-                  activity.acceptanceCriteria,
-                  activity.responsibility,
-                ]) || [['No activities defined', '', '', '', '']]),
-              ],
-            },
-            layout: 'lightHorizontalLines',
-          },
-          
-          // Approvals section
-          {
-            text: 'Approvals',
-            style: 'sectionHeader',
-            margin: [0, 30, 0, 10],
-          },
-          {
-            columns: [
-              {
-                width: '33%',
-                text: [
-                  { text: 'Prepared By: ', style: 'label' },
-                  { text: itp.preparedByUser?.username || 'N/A', style: 'value' },
-                  '\n\n\n',
-                  { text: 'Signature: _________________', style: 'signature' },
-                  '\n',
-                  { text: 'Date: _________________', style: 'signature' },
-                ],
-              },
-              {
-                width: '33%',
-                text: [
-                  { text: 'Reviewed By: ', style: 'label' },
-                  { text: '________________', style: 'value' },
-                  '\n\n\n',
-                  { text: 'Signature: _________________', style: 'signature' },
-                  '\n',
-                  { text: 'Date: _________________', style: 'signature' },
-                ],
-              },
-              {
-                width: '33%',
-                text: [
-                  { text: 'Approved By: ', style: 'label' },
-                  { text: '________________', style: 'value' },
-                  '\n\n\n',
-                  { text: 'Signature: _________________', style: 'signature' },
-                  '\n',
-                  { text: 'Date: _________________', style: 'signature' },
-                ],
-              },
-            ],
-            margin: [0, 0, 0, 20],
-          },
-          
-          // Footer
-          {
-            text: 'This document is controlled and maintained electronically. When printed, this document is UNCONTROLLED.',
-            style: 'footer',
-            alignment: 'center',
-            margin: [0, 20, 0, 0],
-          },
-        ],
-        styles: {
-          header: { fontSize: 18, bold: true, margin: [0, 0, 0, 10] },
-          subheader: { fontSize: 14, bold: true, margin: [0, 5, 0, 5] },
-          sectionHeader: { fontSize: 14, bold: true, margin: [0, 15, 0, 5] },
-          tableHeader: { bold: true, fontSize: 10, color: 'black', fillColor: '#eeeeee' },
-          label: { bold: true, fontSize: 10 },
-          value: { fontSize: 10 },
-          signature: { fontSize: 10, italics: true },
-          footer: { fontSize: 8, italics: true },
-        },
-        defaultStyle: {
-          fontSize: 10,
-        },
-      };
-      
-      // Replace template placeholders if available
-      if (itp.template?.placeholders) {
-        // Parse placeholders JSON
-        const placeholders = typeof itp.template.placeholders === 'string'
-          ? JSON.parse(itp.template.placeholders)
-          : itp.template.placeholders;
-        
-        // Create placeholder values map
-        const placeholderValues: Record<string, string> = {
-          PROJECT_NAME: itp.project?.name || '',
-          PROJECT_CODE: itp.project?.code || '',
-          EQUIPMENT_NAME: itp.equipmentName || '',
-          DRAWING_NUMBER: itp.drawingNumber || '',
-          REVISION: itp.revision || '',
-          QAP_TITLE: itp.qap?.title || '',
-          PREPARED_BY: itp.preparedByUser?.username || '',
-          HAZARD_LEVEL: itp.hazardLevel || '',
-          CURRENT_DATE: new Date().toLocaleDateString(),
-        };
-        
-        // Apply placeholders to PDF content
-        const applyPlaceholders = (text: string): string => {
-          let processedText = text;
-          Object.entries(placeholderValues).forEach(([key, value]) => {
-            processedText = processedText.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
-          });
-          return processedText;
-        };
-        
-        // Recursively process the PDF content to replace placeholders
-        const processContentItem = (item: any): any => {
-          if (typeof item === 'string') {
-            return applyPlaceholders(item);
-          } else if (Array.isArray(item)) {
-            return item.map(subItem => processContentItem(subItem));
-          } else if (typeof item === 'object' && item !== null) {
-            const processedItem: any = {};
-            for (const [key, value] of Object.entries(item)) {
-              if (key === 'text' && typeof value === 'string') {
-                processedItem[key] = applyPlaceholders(value);
-              } else {
-                processedItem[key] = processContentItem(value);
-              }
-            }
-            return processedItem;
-          }
-          return item;
-        };
-        
-        // Process the entire PDF content
-        pdfContent.content = processContentItem(pdfContent.content);
-      }
-      
-      // Generate PDF
-      const pdfDoc = printer.createPdfKitDocument(pdfContent as any);
-      
-      // Set response headers
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="ITP-${itp.title.replace(/\s+/g, '_')}-${itp.revision}.pdf"`);
-      
-      // Pipe the PDF to the response
-      pdfDoc.pipe(res);
-      pdfDoc.end();
-    } catch (error) {
-      console.error('Error exporting ITP to PDF:', error);
-      res.status(500).json({ error: 'Failed to export ITP to PDF' });
-    }
-  }); */
-  
-  // ==================== GENERATED QAPs ====================
 
-  // Get all generated QAPs
-  app.get('/api/quality/generated-qaps', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      // Allow filtering by project
-      const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : null;
-      
-      let whereClause;
-      if (projectId && !isNaN(projectId)) {
-        whereClause = eq(generatedQaps.projectId, projectId);
-      }
-
-      const qaps = await db.query.generatedQaps.findMany({
-        where: whereClause,
-        orderBy: [desc(generatedQaps.updatedAt)],
-        with: {
-          project: true,
-          template: {
-            columns: {
-              id: true,
-              name: true,
-              version: true,
-            },
-          },
-          preparedByUser: {
-            columns: {
-              id: true,
-              username: true,
-            },
-          },
-          approvedByUser: {
-            columns: {
-              id: true,
-              username: true,
-            },
-          },
-        },
-      });
-
-      res.status(200).json(qaps);
-    } catch (error) {
-      console.error('Error fetching generated QAPs:', error);
-      res.status(500).json({ error: 'Failed to fetch generated QAPs' });
-    }
-  });
-
-  // Get a single generated QAP by ID
-  app.get('/api/quality/generated-qaps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const qapId = parseInt(req.params.id);
-
-      if (isNaN(qapId)) {
-        return res.status(400).json({ error: 'Invalid QAP ID' });
-      }
-
-      const qap = await db.query.generatedQaps.findFirst({
-        where: eq(generatedQaps.id, qapId),
-        with: {
-          project: true,
-          template: true,
-          preparedByUser: {
-            columns: {
-              id: true,
-              username: true,
-              email: true,
-            },
-          },
-          approvedByUser: {
-            columns: {
-              id: true,
-              username: true,
-              email: true,
-            },
-          },
-          versions: {
-            orderBy: [desc(qapVersions.version)],
-            with: {
-              createdByUser: {
-                columns: {
-                  id: true,
-                  username: true,
-                },
-              },
-            },
-          },
-        },
-      });
-
-      if (!qap) {
-        return res.status(404).json({ error: 'Generated QAP not found' });
-      }
-
-      res.status(200).json(qap);
-    } catch (error) {
-      console.error('Error fetching generated QAP:', error);
-      res.status(500).json({ error: 'Failed to fetch generated QAP' });
-    }
-  });
-
-  // Create a new generated QAP
-  app.post('/api/quality/generated-qaps', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      // Check if user has permission to create QAPs
-      if (!canManageQuality(req.user!.role) && req.user!.role !== 'Employee') {
-        return res.status(403).json({ error: 'You do not have permission to create QAPs' });
-      }
-
-      // Validate request body
-      const validationResult = insertGeneratedQapSchema.safeParse({
-        ...req.body,
-        preparedBy: req.user!.id,
-      });
-
-      if (!validationResult.success) {
-        return res.status(400).json({ error: 'Invalid QAP data', details: validationResult.error });
-      }
-
-      // Check if project exists
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, validationResult.data.projectId),
-      });
-
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
-
-      // Check if template exists
-      const template = await db.query.qapTemplates.findFirst({
-        where: eq(qapTemplates.id, validationResult.data.templateId),
-      });
-
-      if (!template) {
-        return res.status(404).json({ error: 'QAP template not found' });
-      }
-
-      // Create QAP
-      const [newQap] = await db.insert(generatedQaps).values({
-        ...validationResult.data,
-        version: 1,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }).returning();
-
-      // Create initial version record
-      await db.insert(qapVersions).values({
-        qapId: newQap.id,
-        version: 1,
-        content: newQap.content,
-        revision: newQap.revision,
-        createdBy: req.user!.id,
-        createdAt: new Date(),
-      });
-
-      res.status(201).json(newQap);
-    } catch (error) {
-      console.error('Error creating generated QAP:', error);
-      res.status(500).json({ error: 'Failed to create generated QAP' });
-    }
-  });
-
-  // Update a generated QAP
-  app.put('/api/quality/generated-qaps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const qapId = parseInt(req.params.id);
-
-      // Check if QAP exists
-      const existingQap = await db.query.generatedQaps.findFirst({
-        where: eq(generatedQaps.id, qapId),
-      });
-
-      if (!existingQap) {
-        return res.status(404).json({ error: 'Generated QAP not found' });
-      }
-
-      // Check if user has permission to update QAPs
-      const isCreator = existingQap.preparedBy === req.user!.id;
-      if (!canManageQuality(req.user!.role) && !isCreator) {
-        return res.status(403).json({ error: 'You do not have permission to update this QAP' });
-      }
-
-      // Extract fields to update
-      const {
-        content,
-        title,
-        clientName,
-        equipmentType,
-        standards,
-        revision,
-        itpReferences,
-        status,
-        approvedBy,
-        ...otherFields
-      } = req.body;
-
-      // Check if creating a new version
-      const createNewVersion = content !== existingQap.content || revision !== existingQap.revision;
-      const newVersion = createNewVersion ? existingQap.version + 1 : existingQap.version;
-
-      // Update QAP
-      const [updatedQap] = await db.update(generatedQaps)
-        .set({
-          content: content ?? existingQap.content,
-          title: title ?? existingQap.title,
-          clientName: clientName ?? existingQap.clientName,
-          equipmentType: equipmentType ?? existingQap.equipmentType,
-          standards: standards ?? existingQap.standards,
-          revision: revision ?? existingQap.revision,
-          itpReferences: itpReferences ?? existingQap.itpReferences,
-          status: status ?? existingQap.status,
-          approvedBy: approvedBy ?? existingQap.approvedBy,
-          version: newVersion,
-          updatedAt: new Date(),
-        })
-        .where(eq(generatedQaps.id, qapId))
-        .returning();
-
-      // Create new version record if needed
-      if (createNewVersion) {
-        await db.insert(qapVersions).values({
-          qapId: qapId,
-          version: newVersion,
-          content: content ?? existingQap.content,
-          revision: revision ?? existingQap.revision,
-          createdBy: req.user!.id,
-          createdAt: new Date(),
-        });
-      }
-
-      res.status(200).json(updatedQap);
-    } catch (error) {
-      console.error('Error updating generated QAP:', error);
-      res.status(500).json({ error: 'Failed to update generated QAP' });
-    }
-  });
-
-  // Delete a generated QAP
-  app.delete('/api/quality/generated-qaps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const qapId = parseInt(req.params.id);
-
-      // Check if QAP exists
-      const existingQap = await db.query.generatedQaps.findFirst({
-        where: eq(generatedQaps.id, qapId),
-      });
-
-      if (!existingQap) {
-        return res.status(404).json({ error: 'Generated QAP not found' });
-      }
-
-      // Check if user has permission to delete QAPs
-      const isCreator = existingQap.preparedBy === req.user!.id;
-      if (req.user!.role !== 'Superuser' && !isCreator) {
-        return res.status(403).json({ error: 'You do not have permission to delete this QAP' });
-      }
-
-      // Delete QAP (versions will be deleted by cascade)
-      await db.delete(generatedQaps).where(eq(generatedQaps.id, qapId));
-
-      res.status(200).json({ message: 'Generated QAP deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting generated QAP:', error);
-      res.status(500).json({ error: 'Failed to delete generated QAP' });
-    }
-  });
-
-  // Get a specific version of a QAP
-  app.get('/api/quality/generated-qaps/:id/versions/:versionId', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const qapId = parseInt(req.params.id);
-      const versionId = parseInt(req.params.versionId);
-
-      if (isNaN(qapId) || isNaN(versionId)) {
-        return res.status(400).json({ error: 'Invalid QAP ID or version ID' });
-      }
-
-      const version = await db.query.qapVersions.findFirst({
-        where: and(
-          eq(qapVersions.qapId, qapId),
-          eq(qapVersions.id, versionId)
-        ),
-        with: {
-          createdByUser: {
-            columns: {
-              id: true,
-              username: true,
-            },
-          },
-        },
-      });
-
-      if (!version) {
-        return res.status(404).json({ error: 'QAP version not found' });
-      }
-
-      res.status(200).json(version);
-    } catch (error) {
-      console.error('Error fetching QAP version:', error);
-      res.status(500).json({ error: 'Failed to fetch QAP version' });
-    }
-  });
-
-  // Export QAP as PDF
-  app.get('/api/quality/generated-qaps/:id/export', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const qapId = parseInt(req.params.id);
-
-      if (isNaN(qapId)) {
-        return res.status(400).json({ error: 'Invalid QAP ID' });
-      }
-
-      const qap = await db.query.generatedQaps.findFirst({
-        where: eq(generatedQaps.id, qapId),
-        with: {
-          project: true,
-          preparedByUser: {
-            columns: {
-              id: true,
-              username: true,
-            },
-          },
-          approvedByUser: {
-            columns: {
-              id: true,
-              username: true,
-            },
-          },
-        },
-      });
-
-      if (!qap) {
-        return res.status(404).json({ error: 'Generated QAP not found' });
-      }
-
-      // For demonstration, we'll return HTML content that can be converted to PDF on the client side
-      // In a production environment, you might use a library like puppeteer to generate a PDF server-side
-      
-      // Replace placeholders in content with actual values
-      let content = qap.content;
-      
-      // Basic placeholder replacements
-      const replacements = {
-        '{{title}}': qap.title,
-        '{{projectName}}': qap.project?.name || 'Unknown Project',
-        '{{projectCode}}': qap.project?.code || '',
-        '{{clientName}}': qap.clientName,
-        '{{equipmentType}}': qap.equipmentType,
-        '{{standards}}': qap.standards || '',
-        '{{revision}}': qap.revision,
-        '{{date}}': format(new Date(), 'yyyy-MM-dd'),
-        '{{preparedByName}}': qap.preparedByUser?.username || 'Unknown',
-        '{{approvedByName}}': qap.approvedByUser?.username || '',
-        '{{qapNumber}}': qap.id.toString().padStart(3, '0'),
-        '{{preparedDate}}': format(qap.createdAt, 'yyyy-MM-dd'),
-        '{{approvedDate}}': qap.approvedByUser ? format(qap.updatedAt, 'yyyy-MM-dd') : '',
-        '{{revisionDate}}': format(qap.updatedAt, 'yyyy-MM-dd'),
-        '{{revisionDescription}}': 'Initial creation' // This could be stored in version records
-      };
-      
-      // Apply all replacements
-      Object.entries(replacements).forEach(([placeholder, value]) => {
-        content = content.replace(new RegExp(placeholder, 'g'), value || '');
-      });
-
-      // Set response headers for HTML content
-      res.setHeader('Content-Type', 'text/html');
-      res.status(200).send(content);
-    } catch (error) {
-      console.error('Error exporting QAP:', error);
-      res.status(500).json({ error: 'Failed to export QAP' });
-    }
-  });
-
-  // ==================== ITP TEMPLATES ====================
-
-  // Get all ITP templates
-  app.get('/api/quality/itp-templates', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const templates = await db.query.itpTemplates.findMany({
-        orderBy: [asc(itpTemplates.name)],
-        with: {
-          creator: {
-            columns: {
-              id: true,
-              username: true,
-            },
-          },
-        },
-      });
-
-      res.status(200).json(templates);
-    } catch (error) {
-      console.error('Error fetching ITP templates:', error);
-      res.status(500).json({ error: 'Failed to fetch ITP templates' });
-    }
-  });
-
-  // Get a single ITP template by ID
-  app.get('/api/quality/itp-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const templateId = parseInt(req.params.id);
-
-      if (isNaN(templateId)) {
-        return res.status(400).json({ error: 'Invalid template ID' });
-      }
-
-      const template = await db.query.itpTemplates.findFirst({
-        where: eq(itpTemplates.id, templateId),
-        with: {
-          creator: {
-            columns: {
-              id: true,
-              username: true,
-            },
-          },
-        },
-      });
-
-      if (!template) {
-        return res.status(404).json({ error: 'ITP template not found' });
-      }
-
-      res.status(200).json(template);
-    } catch (error) {
-      console.error('Error fetching ITP template:', error);
-      res.status(500).json({ error: 'Failed to fetch ITP template' });
-    }
-  });
-
-  // Create a new ITP template
-  app.post('/api/quality/itp-templates', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      // Check if user has permission to create templates
-      if (!canManageQuality(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to create ITP templates' });
-      }
-
-      // Validate request body
-      const validationResult = insertItpTemplateSchema.safeParse({
-        ...req.body,
-        createdBy: req.user!.id,
-      });
-
-      if (!validationResult.success) {
-        return res.status(400).json({ error: 'Invalid template data', details: validationResult.error });
-      }
-
-      // Create template
-      const [newTemplate] = await db.insert(itpTemplates).values({
-        ...validationResult.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }).returning();
-
-      res.status(201).json(newTemplate);
-    } catch (error) {
-      console.error('Error creating ITP template:', error);
-      res.status(500).json({ error: 'Failed to create ITP template' });
-    }
-  });
-
-  // Update an ITP template
-  app.put('/api/quality/itp-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const templateId = parseInt(req.params.id);
-
-      // Check if user has permission to update templates
-      if (!canManageQuality(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to update ITP templates' });
-      }
-
-      // Check if template exists
-      const existingTemplate = await db.query.itpTemplates.findFirst({
-        where: eq(itpTemplates.id, templateId),
-      });
-
-      if (!existingTemplate) {
-        return res.status(404).json({ error: 'ITP template not found' });
-      }
-
-      // Validate request body
-      const validationResult = insertItpTemplateSchema.safeParse({
-        ...req.body,
-        createdBy: existingTemplate.createdBy, // Preserve original creator
-      });
-
-      if (!validationResult.success) {
-        return res.status(400).json({ error: 'Invalid template data', details: validationResult.error });
-      }
-
-      // Update template
-      const [updatedTemplate] = await db.update(itpTemplates)
-        .set({
-          ...validationResult.data,
-          updatedAt: new Date(),
-        })
-        .where(eq(itpTemplates.id, templateId))
-        .returning();
-
-      res.status(200).json(updatedTemplate);
-    } catch (error) {
-      console.error('Error updating ITP template:', error);
-      res.status(500).json({ error: 'Failed to update ITP template' });
-    }
-  });
-
-  // Delete an ITP template
-  app.delete('/api/quality/itp-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const templateId = parseInt(req.params.id);
-
-      // Check if user has permission to delete templates
-      if (req.user!.role !== 'Superuser') {
-        return res.status(403).json({ error: 'You do not have permission to delete ITP templates' });
-      }
-
-      // Check if template exists
-      const existingTemplate = await db.query.itpTemplates.findFirst({
-        where: eq(itpTemplates.id, templateId),
-      });
-
-      if (!existingTemplate) {
-        return res.status(404).json({ error: 'ITP template not found' });
-      }
-
-      // Check if template is used by any ITPs
-      const usedItps = await db.query.itps.findMany({
-        where: eq(itps.id, templateId),
-        limit: 1,
-      });
-
-      if (usedItps.length > 0) {
-        return res.status(400).json({ 
-          error: 'Cannot delete template that is in use', 
-          message: 'This template is currently used by existing ITP documents. Please remove those documents first or update them to use a different template.' 
-        });
-      }
-
-      // Delete template
-      await db.delete(itpTemplates).where(eq(itpTemplates.id, templateId));
-
-      res.status(200).json({ message: 'ITP template deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting ITP template:', error);
-      res.status(500).json({ error: 'Failed to delete ITP template' });
-    }
-  });
-
-  // ==================== ITPs (INSPECTION TEST PLANS) ====================
-
-  // Get all ITPs
-  app.get('/api/quality/itps', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      // Allow filtering by project or QAP
-      const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : null;
-      const qapId = req.query.qapId ? parseInt(req.query.qapId as string) : null;
-      
-      let whereClause;
-      if (projectId && !isNaN(projectId)) {
-        whereClause = eq(itps.projectId, projectId);
-      } else if (qapId && !isNaN(qapId)) {
-        whereClause = eq(itps.qapId, qapId);
-      }
-
-      const itpList = await db.query.itps.findMany({
-        where: whereClause,
-        orderBy: [desc(itps.updatedAt)],
-        with: {
-          project: true,
-          qap: {
-            columns: {
-              id: true,
-              title: true,
-            },
-          },
-          preparedByUser: {
-            columns: {
-              id: true,
-              username: true,
-            },
-          },
-          approvedByUser: {
-            columns: {
-              id: true,
-              username: true,
-            },
-          },
-        },
-      });
-
-      res.status(200).json(itpList);
-    } catch (error) {
-      console.error('Error fetching ITPs:', error);
-      res.status(500).json({ error: 'Failed to fetch ITPs' });
-    }
-  });
-
-  // Get a single ITP by ID
-  app.get('/api/quality/itps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const itpId = parseInt(req.params.id);
-
-      if (isNaN(itpId)) {
-        return res.status(400).json({ error: 'Invalid ITP ID' });
-      }
-
-      const itp = await db.query.itps.findFirst({
-        where: eq(itps.id, itpId),
-        with: {
-          project: true,
-          qap: true,
-          template: true,
-          preparedByUser: {
-            columns: {
-              id: true,
-              username: true,
-              email: true,
-            },
-          },
-          approvedByUser: {
-            columns: {
-              id: true,
-              username: true,
-              email: true,
-            },
-          },
-          versions: {
-            orderBy: [desc(itpVersions.version)],
-            with: {
-              createdByUser: {
-                columns: {
-                  id: true,
-                  username: true,
-                },
-              },
-            },
-          },
-          activities: {
-            orderBy: [asc(itpActivities.sequenceNumber)],
-          },
-        },
-      });
-
-      if (!itp) {
-        return res.status(404).json({ error: 'ITP not found' });
-      }
-
-      res.status(200).json(itp);
-    } catch (error) {
-      console.error('Error fetching ITP:', error);
-      res.status(500).json({ error: 'Failed to fetch ITP' });
-    }
-  });
-
-  // Create a new ITP
-  app.post('/api/quality/itps', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      // Check if user has permission to create ITPs
-      if (!canManageQuality(req.user!.role) && req.user!.role !== 'Employee') {
-        return res.status(403).json({ error: 'You do not have permission to create ITPs' });
-      }
-
-      // Validate request body
-      const validationResult = insertItpSchema.safeParse({
-        ...req.body,
-        preparedBy: req.user!.id,
-      });
-
-      if (!validationResult.success) {
-        return res.status(400).json({ error: 'Invalid ITP data', details: validationResult.error });
-      }
-
-      // Check if project exists
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, validationResult.data.projectId),
-      });
-
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
-
-      // If QAP ID is provided, check if it exists
-      if (validationResult.data.qapId) {
-        const qap = await db.query.generatedQaps.findFirst({
-          where: eq(generatedQaps.id, validationResult.data.qapId),
-        });
-
-        if (!qap) {
-          return res.status(404).json({ error: 'Referenced QAP not found' });
-        }
-      }
-      
-      // If template ID is provided, check if it exists
-      if (validationResult.data.templateId) {
-        const template = await db.query.itpTemplates.findFirst({
-          where: eq(itpTemplates.id, validationResult.data.templateId),
-        });
-
-        if (!template) {
-          return res.status(404).json({ error: 'Referenced ITP template not found' });
-        }
-      }
-
-      // Create ITP
-      const [newItp] = await db.insert(itps).values({
-        ...validationResult.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }).returning();
-
-      // Create initial version record
-      await db.insert(itpVersions).values({
-        itpId: newItp.id,
-        version: 1,
-        content: newItp.content,
-        revision: newItp.revision,
-        createdBy: req.user!.id,
-        createdAt: new Date(),
-      });
-
-      // If there are activities, create them
-      if (req.body.activities && Array.isArray(req.body.activities)) {
-        for (const activity of req.body.activities) {
-          const activityValidation = insertItpActivitySchema.safeParse({
-            ...activity,
-            itpId: newItp.id,
-          });
-
-          if (activityValidation.success) {
-            await db.insert(itpActivities).values({
-              ...activityValidation.data,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            });
-          }
-        }
-      }
-
-      res.status(201).json(newItp);
-    } catch (error) {
-      console.error('Error creating ITP:', error);
-      res.status(500).json({ error: 'Failed to create ITP' });
-    }
-  });
-
-  // Update an ITP
-  app.put('/api/quality/itps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const itpId = parseInt(req.params.id);
-
-      // Check if ITP exists
-      const existingItp = await db.query.itps.findFirst({
-        where: eq(itps.id, itpId),
-      });
-
-      if (!existingItp) {
-        return res.status(404).json({ error: 'ITP not found' });
-      }
-
-      // Check if user has permission to update ITPs
-      const isCreator = existingItp.preparedBy === req.user!.id;
-      if (!canManageQuality(req.user!.role) && !isCreator) {
-        return res.status(403).json({ error: 'You do not have permission to update this ITP' });
-      }
-
-      // Extract fields to update
-      const {
-        content,
-        title,
-        equipmentName,
-        drawingNumber,
-        revision,
-        hazardLevel,
-        notifiedBody,
-        status,
-        approvedBy,
-        templateId,
-        activities,
-        ...otherFields
-      } = req.body;
-
-      // If template ID is provided, check if it exists
-      if (templateId && templateId !== existingItp.templateId) {
-        const template = await db.query.itpTemplates.findFirst({
-          where: eq(itpTemplates.id, templateId),
-        });
-
-        if (!template) {
-          return res.status(404).json({ error: 'Referenced ITP template not found' });
-        }
-      }
-      
-      // Check if creating a new version
-      const createNewVersion = content !== existingItp.content || revision !== existingItp.revision;
-      const newVersion = createNewVersion ? existingItp.version + 1 : existingItp.version;
-
-      // Update ITP
-      const [updatedItp] = await db.update(itps)
-        .set({
-          content: content ?? existingItp.content,
-          title: title ?? existingItp.title,
-          equipmentName: equipmentName ?? existingItp.equipmentName,
-          drawingNumber: drawingNumber ?? existingItp.drawingNumber,
-          revision: revision ?? existingItp.revision,
-          hazardLevel: hazardLevel ?? existingItp.hazardLevel,
-          notifiedBody: notifiedBody ?? existingItp.notifiedBody,
-          status: status ?? existingItp.status,
-          approvedBy: approvedBy ?? existingItp.approvedBy,
-          templateId: templateId ?? existingItp.templateId,
-          version: newVersion,
-          updatedAt: new Date(),
-        })
-        .where(eq(itps.id, itpId))
-        .returning();
-
-      // Create new version record if needed
-      if (createNewVersion) {
-        await db.insert(itpVersions).values({
-          itpId: itpId,
-          version: newVersion,
-          content: content ?? existingItp.content,
-          revision: revision ?? existingItp.revision,
-          createdBy: req.user!.id,
-          createdAt: new Date(),
-        });
-      }
-
-      // Update activities if provided
-      if (activities && Array.isArray(activities)) {
-        // First, delete existing activities
-        await db.delete(itpActivities).where(eq(itpActivities.itpId, itpId));
-        
-        // Then insert new ones
-        for (const activity of activities) {
-          const activityValidation = insertItpActivitySchema.safeParse({
-            ...activity,
-            itpId: itpId,
-          });
-
-          if (activityValidation.success) {
-            await db.insert(itpActivities).values({
-              ...activityValidation.data,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            });
-          }
-        }
-      }
-
-      res.status(200).json(updatedItp);
-    } catch (error) {
-      console.error('Error updating ITP:', error);
-      res.status(500).json({ error: 'Failed to update ITP' });
-    }
-  });
-
-  // Delete an ITP
-  app.delete('/api/quality/itps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const itpId = parseInt(req.params.id);
-
-      // Check if ITP exists
-      const existingItp = await db.query.itps.findFirst({
-        where: eq(itps.id, itpId),
-      });
-
-      if (!existingItp) {
-        return res.status(404).json({ error: 'ITP not found' });
-      }
-
-      // Check if user has permission to delete ITPs
-      const isCreator = existingItp.preparedBy === req.user!.id;
-      if (req.user!.role !== 'Superuser' && !isCreator) {
-        return res.status(403).json({ error: 'You do not have permission to delete this ITP' });
-      }
-
-      // Delete ITP (versions and activities will be deleted by cascade)
-      await db.delete(itps).where(eq(itps.id, itpId));
-
-      res.status(200).json({ message: 'ITP deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting ITP:', error);
-      res.status(500).json({ error: 'Failed to delete ITP' });
-    }
-  });
-
-  // ==================== ITP ACTIVITIES ====================
-
-  // Get activities for an ITP
-  app.get('/api/quality/itps/:id/activities', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const itpId = parseInt(req.params.id);
-
-      if (isNaN(itpId)) {
-        return res.status(400).json({ error: 'Invalid ITP ID' });
-      }
-
-      const activities = await db.query.itpActivities.findMany({
-        where: eq(itpActivities.itpId, itpId),
-        orderBy: [asc(itpActivities.sequenceNumber)],
-      });
-
-      res.status(200).json(activities);
-    } catch (error) {
-      console.error('Error fetching ITP activities:', error);
-      res.status(500).json({ error: 'Failed to fetch ITP activities' });
-    }
-  });
-
-  // Export ITP as HTML (for PDF conversion)
+  // Export ITP to HTML
   app.get('/api/quality/itps/:id/export', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const itpId = parseInt(req.params.id);
@@ -1879,24 +1029,20 @@ export const setupQualityRoutes = (app: any) => {
         return res.status(404).json({ error: 'ITP not found' });
       }
 
-      // For demonstration, we'll return HTML content that can be converted to PDF on the client side
-      
-      // Replace placeholders in content with actual values
-      let content = JSON.stringify(itp.content);
-      
-      // Basic placeholder replacements
-      const replacements = {
+      // Process the content
+      let content = itp.content;
+
+      // Add general metadata replacements
+      const replacements: Record<string, string> = {
         '{{title}}': itp.title,
-        '{{projectName}}': itp.project?.name || 'Unknown Project',
-        '{{projectCode}}': itp.project?.code || '',
-        '{{equipmentName}}': itp.equipmentName,
+        '{{projectName}}': itp.project?.name || '',
+        '{{projectNumber}}': itp.project?.projectCode || '',
+        '{{equipmentName}}': itp.equipmentName || '',
         '{{drawingNumber}}': itp.drawingNumber || '',
-        '{{revision}}': itp.revision,
-        '{{date}}': format(new Date(), 'yyyy-MM-dd'),
-        '{{preparedByName}}': itp.preparedByUser?.username || 'Unknown',
-        '{{approvedByName}}': itp.approvedByUser?.username || '',
-        '{{itpNumber}}': itp.id.toString().padStart(3, '0'),
+        '{{revision}}': itp.revision || 'A',
+        '{{preparedBy}}': itp.preparedByUser?.username || '',
         '{{preparedDate}}': format(itp.createdAt, 'yyyy-MM-dd'),
+        '{{approvedBy}}': itp.approvedByUser ? itp.approvedByUser.username : '',
         '{{approvedDate}}': itp.approvedByUser ? format(itp.updatedAt, 'yyyy-MM-dd') : '',
         '{{revisionDate}}': format(itp.updatedAt, 'yyyy-MM-dd'),
         '{{hazardLevel}}': itp.hazardLevel || 'Not Specified',
@@ -1942,69 +1088,71 @@ export const setupQualityRoutes = (app: any) => {
             
             <div class="info-section">
               <div class="info-column">
-                <p><span class="label">Project Name:</span> ${itp.project?.name || 'N/A'}</p>
-                <p><span class="label">Project Code:</span> ${itp.project?.code || 'N/A'}</p>
-                <p><span class="label">Equipment Name:</span> ${itp.equipmentName || 'N/A'}</p>
+                <p><span class="label">Project: </span>${itp.project?.name || 'N/A'}</p>
+                <p><span class="label">Project Code: </span>${itp.project?.projectCode || 'N/A'}</p>
+                <p><span class="label">Equipment: </span>${itp.equipmentName || 'N/A'}</p>
+                <p><span class="label">Drawing No.: </span>${itp.drawingNumber || 'N/A'}</p>
               </div>
               <div class="info-column">
-                <p><span class="label">Drawing No.:</span> ${itp.drawingNumber || 'N/A'}</p>
-                <p><span class="label">Hazard Level:</span> ${itp.hazardLevel || 'N/A'}</p>
-                <p><span class="label">Date:</span> ${format(new Date(), 'yyyy-MM-dd')}</p>
+                <p><span class="label">QAP Reference: </span>${itp.qap?.title || 'N/A'}</p>
+                <p><span class="label">Hazard Level: </span>${itp.hazardLevel || 'Not Specified'}</p>
+                <p><span class="label">Notified Body: </span>${itp.notifiedBody || 'Not Applicable'}</p>
+                <p><span class="label">Template: </span>${itp.template?.name || 'Standard'}</p>
               </div>
             </div>
             
-            ${itp.qap ? `<p><span class="label">Related QAP:</span> ${itp.qap.title || 'N/A'}</p>` : ''}
-            
-            <div class="section-header">Inspection & Test Activities</div>
+            <div class="section-header">Inspection Activities</div>
             <table>
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Activity</th>
-                  <th>Reference Documents</th>
+                  <th>Activity Description</th>
+                  <th>Characteristics</th>
+                  <th>Reference Document</th>
                   <th>Acceptance Criteria</th>
+                  <th>Record Format</th>
                   <th>Inspection By</th>
                   <th>Remarks</th>
                 </tr>
               </thead>
               <tbody>
-                ${itp.activities && itp.activities.length > 0 ? 
-                  itp.activities.map(activity => `
-                    <tr>
-                      <td>${activity.sequenceNumber}</td>
-                      <td>${activity.activityName}</td>
-                      <td>${activity.referenceDocuments || 'N/A'}</td>
-                      <td>${activity.acceptanceCriteria || 'N/A'}</td>
-                      <td>${activity.inspectionBy || 'N/A'}</td>
-                      <td>${activity.remarks || ''}</td>
-                    </tr>
-                  `).join('') : 
-                  '<tr><td colspan="6">No activities defined</td></tr>'
-                }
+                ${itp.activities?.map((activity: any) => `
+                  <tr>
+                    <td>${activity.sequenceNumber}</td>
+                    <td>${activity.description}</td>
+                    <td>${activity.characteristics || ''}</td>
+                    <td>${activity.referenceDocuments || ''}</td>
+                    <td>${activity.acceptanceCriteria || ''}</td>
+                    <td>${activity.recordFormat || ''}</td>
+                    <td>${
+                      typeof activity.inspectionBy === 'object' 
+                        ? Object.entries(activity.inspectionBy)
+                            .filter(([_, value]) => value)
+                            .map(([key]) => key)
+                            .join(', ')
+                        : activity.inspectionBy || ''
+                    }</td>
+                    <td>${activity.remarks || ''}</td>
+                  </tr>
+                `).join('') || '<tr><td colspan="8">No activities defined</td></tr>'}
               </tbody>
             </table>
             
-            <div class="section-header">Approvals</div>
             <div class="approvals">
               <div class="approval-section">
-                <p><span class="label">Prepared By:</span> ${itp.preparedByUser?.username || 'N/A'}</p>
-                <p><span class="label">Signature:</span> _________________</p>
-                <p><span class="label">Date:</span> _________________</p>
+                <p><span class="label">Prepared By: </span>${itp.preparedByUser?.username || ''}</p>
+                <p><span class="label">Date: </span>${format(itp.createdAt, 'yyyy-MM-dd')}</p>
+                <p>Signature: _________________</p>
               </div>
               <div class="approval-section">
-                <p><span class="label">Reviewed By:</span> ________________</p>
-                <p><span class="label">Signature:</span> _________________</p>
-                <p><span class="label">Date:</span> _________________</p>
-              </div>
-              <div class="approval-section">
-                <p><span class="label">Approved By:</span> ${itp.approvedByUser?.username || '________________'}</p>
-                <p><span class="label">Signature:</span> _________________</p>
-                <p><span class="label">Date:</span> _________________</p>
+                <p><span class="label">Approved By: </span>${itp.approvedByUser?.username || ''}</p>
+                <p><span class="label">Date: </span>${itp.approvedByUser ? format(itp.updatedAt, 'yyyy-MM-dd') : ''}</p>
+                <p>Signature: _________________</p>
               </div>
             </div>
             
             <div class="footer">
-              This document is controlled and maintained electronically. When printed, this document is UNCONTROLLED.
+              This document is system-generated from the Thermopac Communication System on ${format(new Date(), 'yyyy-MM-dd HH:mm')}
             </div>
           </body>
         </html>
