@@ -62,6 +62,7 @@ interface QapItem {
   subMaterial?: string; // Optional field for Raw Material sub-options
   reviewDocument?: string; // Optional field for Review of Documents sub-options
   processInspection?: string; // Optional field for In Process Inspection sub-options
+  finalAssessment?: string; // Optional field for Final Assessment sub-options
   characteristicsChecked: string;
   class: string;
   typeOfCheck: string;
@@ -286,6 +287,8 @@ export default function CreateQAPPage() {
                          ? `${item.componentOperation} - ${item.reviewDocument}`
                          : item.componentOperation === "In Process Inspection" && item.processInspection
                          ? `${item.componentOperation} - ${item.processInspection}`
+                         : item.componentOperation === "Final Assessment" && item.finalAssessment
+                         ? `${item.componentOperation} - ${item.finalAssessment}`
                          : item.componentOperation}
                     </td>
                     <td>${item.characteristicsChecked}</td>
@@ -643,7 +646,8 @@ export default function CreateQAPPage() {
                                       // Clear sub-option fields when not relevant
                                       subMaterial: value !== "raw-material" ? "" : updatedItems[index].subMaterial,
                                       reviewDocument: value !== "review-documents" ? "" : updatedItems[index].reviewDocument,
-                                      processInspection: value !== "in-process" ? "" : updatedItems[index].processInspection
+                                      processInspection: value !== "in-process" ? "" : updatedItems[index].processInspection,
+                                      finalAssessment: value !== "final-assessment" ? "" : updatedItems[index].finalAssessment
                                     };
                                     setQapItems(updatedItems);
                                   }}
@@ -748,6 +752,31 @@ export default function CreateQAPPage() {
                                         <SelectItem value="Final Visual & Dimension Inspection">Final Visual & Dimension Inspection</SelectItem>
                                         <SelectItem value="Pneumatic Test of Nozzle RF pads">Pneumatic Test of Nozzle RF pads</SelectItem>
                                         <SelectItem value="Hydrostatic Test">Hydrostatic Test</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+                                
+                                {/* Dependent dropdown for Final Assessment sub-options */}
+                                {item.componentOperation === "Final Assessment" && (
+                                  <div className="pl-3 mt-1"> {/* Added padding-left for indentation */}
+                                    <Select 
+                                      value={item.finalAssessment || ""}
+                                      onValueChange={(value) => {
+                                        const updatedItems = [...qapItems];
+                                        updatedItems[index] = {
+                                          ...updatedItems[index],
+                                          finalAssessment: value
+                                        };
+                                        setQapItems(updatedItems);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-full h-5 text-[8px] border-dashed border-gray-400"> {/* Added dashed border to indicate hierarchy */}
+                                        <SelectValue placeholder="Select assessment type" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Documentation review (heat chart, weld plans, test reports, NDT reports etc.)">Documentation review (heat chart, weld plans, test reports, NDT reports etc.)</SelectItem>
+                                        <SelectItem value="Painting, stamping of data plate & signing of declaration">Painting, stamping of data plate & signing of declaration</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
