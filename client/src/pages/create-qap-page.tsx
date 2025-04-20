@@ -108,6 +108,20 @@ export default function CreateQAPPage() {
           code: "2526-3", 
           customerId: 3,
           customer: { id: 3, bpCode: "C10003", bpName: "AFRO INDIA" }
+        },
+        { 
+          id: 4, 
+          name: "Heat Exchanger Project", 
+          code: "2526-4", 
+          customerId: 4,
+          customer: { id: 4, bpCode: "C10004", bpName: "BHEL" }
+        },
+        { 
+          id: 5, 
+          name: "Refinery Expansion", 
+          code: "2526-5", 
+          customerId: 5,
+          customer: { id: 5, bpCode: "C10005", bpName: "IOCL" }
         }
       ];
       setDisplayProjects(sampleProjects);
@@ -145,47 +159,115 @@ export default function CreateQAPPage() {
   }, [customers, customersLoading]);
 
   // Handle project selection
-  const handleProjectChange = (projectId: string) => {
+  const handleProjectChange = async (projectId: string) => {
     form.setValue("projectId", projectId);
     
-    // Find the selected project from displayProjects (will work with both API data and sample data)
+    // First, find the project from our local data
     const selectedProject = displayProjects.find(project => project.id.toString() === projectId);
     
     if (selectedProject) {
-      // Set the project code
-      setSelectedProjectCode(selectedProject.code);
-      
-      // Auto-populate customer field
-      if (selectedProject.customerId) {
-        form.setValue("customerId", selectedProject.customerId.toString());
+      try {
+        console.log(`Selected Project: ${selectedProject.code} - ${selectedProject.name}`);
         
-        // Find the customer in displayCustomers
-        const selectedCustomer = displayCustomers.find(customer => customer.id === selectedProject.customerId);
-        if (selectedCustomer) {
-          // Set the customer name for display
-          setSelectedCustomerName(selectedCustomer.bpName);
-          console.log(`Found customer: ${selectedCustomer.bpName} (${selectedCustomer.bpCode})`);
+        // Set the project code
+        setSelectedProjectCode(selectedProject.code);
+        
+        // Fetch complete project data to ensure we have the customer information
+        const projectDetails = await getProjectDetails(projectId);
+        console.log("Fetched project details:", projectDetails);
+        
+        if (projectDetails) {
+          // If we have customer data in the project details
+          if (projectDetails.customerId) {
+            form.setValue("customerId", projectDetails.customerId.toString());
+            
+            // Check if the project has customer info directly
+            if (projectDetails.customer && projectDetails.customer.bpName) {
+              setSelectedCustomerName(projectDetails.customer.bpName);
+              console.log(`Direct customer data found: ${projectDetails.customer.bpName}`);
+            } else {
+              // Try to find customer in our displayCustomers
+              const selectedCustomer = displayCustomers.find(customer => customer.id === projectDetails.customerId);
+              if (selectedCustomer) {
+                setSelectedCustomerName(selectedCustomer.bpName);
+                console.log(`Found customer: ${selectedCustomer.bpName} (${selectedCustomer.bpCode})`);
+              } else {
+                // If all else fails, just show the ID
+                setSelectedCustomerName(`Customer ID: ${projectDetails.customerId}`);
+                console.log(`Customer with ID ${projectDetails.customerId} not found, showing ID only`);
+              }
+            }
+          } else if (selectedProject.customerId) {
+            // Fallback to the initial project data if API call doesn't have customer info
+            form.setValue("customerId", selectedProject.customerId.toString());
+            
+            // Find the customer in displayCustomers
+            const selectedCustomer = displayCustomers.find(customer => customer.id === selectedProject.customerId);
+            if (selectedCustomer) {
+              setSelectedCustomerName(selectedCustomer.bpName);
+              console.log(`Using local customer data: ${selectedCustomer.bpName} (${selectedCustomer.bpCode})`);
+            } else {
+              setSelectedCustomerName(`Customer ID: ${selectedProject.customerId}`);
+              console.log(`Using customer ID from local data: ${selectedProject.customerId}`);
+            }
+          }
         } else {
-          console.log(`Customer with ID ${selectedProject.customerId} not found in displayCustomers`);
+          // Use the basic project data we have if the API call fails
+          if (selectedProject.customerId) {
+            form.setValue("customerId", selectedProject.customerId.toString());
+            
+            // Try to find the customer in our displayCustomers
+            const selectedCustomer = displayCustomers.find(customer => customer.id === selectedProject.customerId);
+            if (selectedCustomer) {
+              setSelectedCustomerName(selectedCustomer.bpName);
+              console.log(`Fallback to local customer data: ${selectedCustomer.bpName}`);
+            } else {
+              setSelectedCustomerName(`Customer ID: ${selectedProject.customerId}`);
+              console.log(`Fallback to customer ID: ${selectedProject.customerId}`);
+            }
+          }
         }
+        
+        // Set QAP number based on project code
+        form.setValue("qapNumber", `QAP-${selectedProject.code}-001`);
+        
+        // Set title based on project name
+        form.setValue("title", `Quality Assurance Plan for ${selectedProject.name}`);
+      } catch (error) {
+        console.error("Error in handleProjectChange:", error);
+        toast({
+          title: "Error",
+          description: "Failed to retrieve complete project details. Using basic information.",
+          variant: "destructive"
+        });
       }
-      
-      // Set QAP number based on project code
-      form.setValue("qapNumber", `QAP-${selectedProject.code}-001`);
-      
-      // Set title based on project name
-      form.setValue("title", `Quality Assurance Plan for ${selectedProject.name}`);
-      
-      console.log(`Selected Project: ${selectedProject.code} - ${selectedProject.name}`);
-      console.log(`Auto-populated customer ID: ${selectedProject.customerId}`);
     }
   };
 
   // Get project details
-  const getProjectDetails = async (projectId: string) => {
+  const getProjectDetails = async (projectId: string): Promise<Project | null> => {
     try {
-      const project = await apiRequest('GET', `api/projects/${projectId}`, null);
-      return project;
+      console.log(`Fetching details for project ID: ${projectId}`);
+      const response = await apiRequest('GET', `api/projects/${projectId}`, null);
+      
+      // Log the response to help with debugging
+      console.log("API response for project details:", response);
+      
+      // Check if we have a valid response
+      if (!response) {
+        console.warn("Empty response received from API");
+        return null;
+      }
+      
+      // Check if the response has the minimal required properties
+      if (typeof response === 'object' && 'id' in response && 'name' in response) {
+        console.log("Valid project data received");
+        // Type cast the response to Project
+        return response as unknown as Project;
+      } else {
+        console.warn("Invalid project data format received:", response);
+        return null;
+      }
     } catch (error) {
       console.error("Error fetching project details:", error);
       return null;
