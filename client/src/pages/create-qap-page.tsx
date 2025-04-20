@@ -222,7 +222,7 @@ export default function CreateQAPPage() {
           class: "Major",
           typeOfCheck: "Visual",
           quantumOfCheck: "100%",
-          referenceDocument: "Project specifications",
+          referenceDocument: "Design & drawing",
           acceptanceNorms: "Approved drawings",
           formatOfRecords: "Checklist",
           agency: { M: true, C: false, SGS: false },
@@ -879,19 +879,35 @@ export default function CreateQAPPage() {
                               />
                             </div>
                             <div className="p-1 border-r border-t">
-                              <Input 
-                                className="h-5 text-[8px]"
-                                placeholder="Reference"
-                                value={item.referenceDocument}
-                                onChange={(e) => {
+                              <Select 
+                                value={item.referenceDocument || ""}
+                                onValueChange={(value) => {
                                   const updatedItems = [...qapItems];
                                   updatedItems[index] = {
                                     ...updatedItems[index],
-                                    referenceDocument: e.target.value
+                                    referenceDocument: value
                                   };
                                   setQapItems(updatedItems);
                                 }}
-                              />
+                              >
+                                <SelectTrigger className="w-full h-5 text-[8px]">
+                                  <SelectValue placeholder="Select reference document" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Design & drawing">Design & drawing</SelectItem>
+                                  <SelectItem value="WPS PQR WPQ & Weld plan">WPS PQR WPQ & Weld plan</SelectItem>
+                                  <SelectItem value="As per Design Code">As per Design Code</SelectItem>
+                                  <SelectItem value="Drawing Design Code & test procedure">Drawing Design Code & test procedure</SelectItem>
+                                  <SelectItem value="Drawing respective WPS">Drawing respective WPS</SelectItem>
+                                  <SelectItem value="Approved drawing">Approved drawing</SelectItem>
+                                  <SelectItem value="Respective WPS">Respective WPS</SelectItem>
+                                  <SelectItem value="Weld plan respective WPS">Weld plan respective WPS</SelectItem>
+                                  <SelectItem value="Approved drawing weld plan NDT procedures">Approved drawing weld plan NDT procedures</SelectItem>
+                                  <SelectItem value="Customer PO">Customer PO</SelectItem>
+                                  <SelectItem value="Painting Procedure RAL (color code)">Painting Procedure RAL (color code)</SelectItem>
+                                  <SelectItem value="Assessment of documents">Assessment of documents</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                             <div className="p-1 border-r border-t">
                               <Input 
