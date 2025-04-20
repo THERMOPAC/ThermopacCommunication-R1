@@ -380,9 +380,22 @@ export default function CreateQAPPage() {
                           <div className="p-2 border-r">AGENCY</div>
                           <div className="p-2">REMARK</div>
                         </div>
-                        <div className="grid grid-cols-11 text-xs text-center">
-                          <div className="p-3 border-r border-t">1</div>
-                          <div className="p-3 border-r border-t"></div>
+                        <div className="grid grid-cols-11 text-xs">
+                          <div className="p-3 border-r border-t text-center">1</div>
+                          <div className="p-3 border-r border-t">
+                            <Select defaultValue="">
+                              <SelectTrigger className="w-full h-6 text-xs">
+                                <SelectValue placeholder="Select option" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="review-documents">Review of Documents</SelectItem>
+                                <SelectItem value="raw-material">Raw Material</SelectItem>
+                                <SelectItem value="in-process">In Process Inspection</SelectItem>
+                                <SelectItem value="final-assessment">Final Assessment</SelectItem>
+                                <SelectItem value="testing-painting">Testing & Painting</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                           <div className="p-3 border-r border-t"></div>
                           <div className="p-3 border-r border-t"></div>
                           <div className="p-3 border-r border-t"></div>
