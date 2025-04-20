@@ -165,6 +165,70 @@ export default function CreateQAPPage() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <Card>
               <CardContent className="p-6">
+                {/* First row with QAP Number, Category, and Revision Number */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <FormField
+                    control={form.control}
+                    name="qapNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>QAP Number</FormLabel>
+                        <FormDescription>Auto-generated based on project code</FormDescription>
+                        <FormControl>
+                          <Input placeholder="QAP-0001" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem className="px-2">
+                        <FormLabel>Category</FormLabel>
+                        <FormDescription>Select the equipment category</FormDescription>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Pressure Vessel">Pressure Vessel</SelectItem>
+                            <SelectItem value="Heat Exchanger">Heat Exchanger</SelectItem>
+                            <SelectItem value="Piping">Piping</SelectItem>
+                            <SelectItem value="Structure">Structure</SelectItem>
+                            <SelectItem value="Electrical">Electrical</SelectItem>
+                            <SelectItem value="Instrumentation">Instrumentation</SelectItem>
+                            <SelectItem value="General">General</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="revisionNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Revision Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="0" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                {/* Remaining form fields in a two-column layout */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -250,66 +314,6 @@ export default function CreateQAPPage() {
                         <FormControl>
                           <Input placeholder="QAP Title" {...field} />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="qapNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>QAP Number</FormLabel>
-                        <FormDescription>Auto-generated based on project code</FormDescription>
-                        <FormControl>
-                          <Input placeholder="QAP-0001" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="revisionNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Revision Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="0" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <FormDescription>Select the equipment category</FormDescription>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Pressure Vessel">Pressure Vessel</SelectItem>
-                            <SelectItem value="Heat Exchanger">Heat Exchanger</SelectItem>
-                            <SelectItem value="Piping">Piping</SelectItem>
-                            <SelectItem value="Structure">Structure</SelectItem>
-                            <SelectItem value="Electrical">Electrical</SelectItem>
-                            <SelectItem value="Instrumentation">Instrumentation</SelectItem>
-                            <SelectItem value="General">General</SelectItem>
-                          </SelectContent>
-                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
