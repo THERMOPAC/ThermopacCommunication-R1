@@ -534,7 +534,7 @@ export default function CreateQAPPage() {
                         <div className="grid grid-cols-11 text-xs">
                           <div className="p-3 border-r border-t text-center">1</div>
                           <div className="p-3 border-r border-t">
-                            <Select defaultValue="">
+                            <Select defaultValue="review-documents">
                               <SelectTrigger className="w-full h-6 text-xs">
                                 <SelectValue placeholder="Select option" />
                               </SelectTrigger>
