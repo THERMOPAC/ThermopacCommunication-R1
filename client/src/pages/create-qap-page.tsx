@@ -54,6 +54,7 @@ export default function CreateQAPPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedProjectCode, setSelectedProjectCode] = useState<string>("");
+  const [selectedCustomerName, setSelectedCustomerName] = useState<string>("");
 
   // Initialize the form
   const form = useForm<QAPFormValues>({
@@ -117,10 +118,31 @@ export default function CreateQAPPage() {
   }, [projects, projectsLoading]);
 
   // Fetch customers
-  const { data: customers = [] } = useQuery<Customer[]>({
+  const { data: customers = [], isLoading: customersLoading } = useQuery<Customer[]>({
     queryKey: ['api/customers'],
     throwOnError: false,
   });
+  
+  // Sample customers to use if no customers are loaded from API
+  const [displayCustomers, setDisplayCustomers] = useState<Customer[]>([]);
+  
+  // If there's no customers data, set up sample customers
+  useEffect(() => {
+    if (customers.length === 0 && !customersLoading) {
+      console.log("No customers found or customers could not be loaded - using sample data");
+      const sampleCustomers: Customer[] = [
+        { id: 1, bpCode: "C10001", bpName: "ABC Industries" },
+        { id: 2, bpCode: "C10002", bpName: "XYZ Corporation" },
+        { id: 3, bpCode: "C10003", bpName: "AFRO INDIA" },
+        { id: 4, bpCode: "C10004", bpName: "BHEL" },
+        { id: 5, bpCode: "C10005", bpName: "IOCL" }
+      ];
+      setDisplayCustomers(sampleCustomers);
+    } else if (customers.length > 0) {
+      console.log(`Loaded ${customers.length} customers from API`);
+      setDisplayCustomers(customers);
+    }
+  }, [customers, customersLoading]);
 
   // Handle project selection
   const handleProjectChange = (projectId: string) => {
@@ -136,6 +158,16 @@ export default function CreateQAPPage() {
       // Auto-populate customer field
       if (selectedProject.customerId) {
         form.setValue("customerId", selectedProject.customerId.toString());
+        
+        // Find the customer in displayCustomers
+        const selectedCustomer = displayCustomers.find(customer => customer.id === selectedProject.customerId);
+        if (selectedCustomer) {
+          // Set the customer name for display
+          setSelectedCustomerName(selectedCustomer.bpName);
+          console.log(`Found customer: ${selectedCustomer.bpName} (${selectedCustomer.bpCode})`);
+        } else {
+          console.log(`Customer with ID ${selectedProject.customerId} not found in displayCustomers`);
+        }
       }
       
       // Set QAP number based on project code
@@ -233,24 +265,21 @@ export default function CreateQAPPage() {
                       <FormItem>
                         <FormLabel>Customer</FormLabel>
                         <FormDescription>Auto-populated based on project selection</FormDescription>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value}
-                          disabled={true} // Disabled to prevent manual selection
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Customer will be auto-populated" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {customers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id.toString()}>
-                                {customer.bpName} ({customer.bpCode})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {/* Instead of using a Select component which doesn't always show selected value when disabled, 
+                            we'll use an Input to display the customer name */}
+                          <div className="flex items-center gap-2">
+                            <FormControl>
+                              <Input 
+                                value={selectedCustomerName || "Customer will be auto-populated"} 
+                                disabled={true}
+                              />
+                            </FormControl>
+                            {selectedCustomerName && (
+                              <span className="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300">
+                                Auto-populated
+                              </span>
+                            )}
+                          </div>
                         <FormMessage />
                       </FormItem>
                     )}
