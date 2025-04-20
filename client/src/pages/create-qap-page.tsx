@@ -141,8 +141,8 @@ export default function CreateQAPPage() {
       // Find customer details
       const selectedCustomer = customers.find(c => c.id.toString() === values.customerId);
       
-      // Get template ID (using the first template for now, would normally be selected)
-      const templateId = 1;
+      // Get template ID (using the existing template for now, would normally be selected)
+      const templateId = 3;
       
       // Get current date in ISO format
       const currentDate = new Date().toISOString();
