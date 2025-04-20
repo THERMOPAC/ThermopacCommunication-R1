@@ -1957,7 +1957,10 @@ export const itpTemplates = pgTable('itp_templates', {
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   content: text('content').notNull(), // HTML/JSON template content
+  placeholders: jsonb('placeholders'), // Available placeholders in template
   version: varchar('version', { length: 50 }).notNull(),
+  category: varchar('category', { length: 100 }),
+  tags: text('tags').array(),
   createdBy: integer('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

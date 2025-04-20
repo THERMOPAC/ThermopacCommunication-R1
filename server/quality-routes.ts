@@ -20,9 +20,23 @@ import {
   insertItpVersionSchema,
   insertItpActivitySchema
 } from "../shared/schema";
+import { z } from "zod";
 import { format } from "date-fns";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Define missing update schemas
+const updateItpTemplateSchema = insertItpTemplateSchema
+  .partial()
+  .required({ name: true });
+
+const updateItpSchema = insertItpSchema
+  .partial()
+  .required({ title: true });
 
 // Authentication middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
