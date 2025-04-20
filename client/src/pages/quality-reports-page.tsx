@@ -574,7 +574,7 @@ function GeneratedQAPsTab() {
   const { data: qaps, isLoading, refetch } = useQuery({
     queryKey: ['/api/quality/generated-qaps', selectedProject],
     queryFn: async () => {
-      const url = selectedProject 
+      const url = selectedProject && selectedProject !== 'all'
         ? `/api/quality/generated-qaps?projectId=${selectedProject}` 
         : '/api/quality/generated-qaps';
       const response = await fetch(url);
@@ -679,7 +679,7 @@ function GeneratedQAPsTab() {
       case "in_review":
         return <Badge variant="secondary">In Review</Badge>;
       case "approved":
-        return <Badge variant="success">Approved</Badge>;
+        return <Badge className="bg-green-500 text-white">Approved</Badge>;
       case "rejected":
         return <Badge variant="destructive">Rejected</Badge>;
       default:
@@ -706,7 +706,7 @@ function GeneratedQAPsTab() {
             <SelectValue placeholder="All Projects" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Projects</SelectItem>
+            <SelectItem value="all">All Projects</SelectItem>
             {projects?.map((project: any) => (
               <SelectItem key={project.id} value={project.id.toString()}>
                 {project.code} - {project.name}
