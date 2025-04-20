@@ -184,13 +184,13 @@ export default function ViewEditQAPPage() {
     }
     
     // Can't approve already approved QAPs
-    return qap.status !== "approved";
+    return (qap?.status || "") !== "approved";
   };
 
   // Format QAP number
   const formatQapNumber = () => {
-    if (!qap || !qap.project) return "QAP-???";
-    return `QAP-${qap.project.code}-${String(qap.id).padStart(3, '0')}`;
+    if (!qap || !qap?.project) return "QAP-???";
+    return `QAP-${qap?.project?.code || "???"}-${String(qap?.id || "").padStart(3, '0')}`;
   };
 
   // Handle back button
@@ -239,7 +239,7 @@ export default function ViewEditQAPPage() {
                 Edit QAP
               </Button>
             )}
-            {canApprove() && qap.status !== "approved" && (
+            {canApprove() && (qap?.status || "") !== "approved" && (
               <Button
                 variant="outline"
                 className="text-green-600 border-green-600 hover:bg-green-50"
@@ -270,10 +270,10 @@ export default function ViewEditQAPPage() {
                   {formatQapNumber()}
                 </Badge>
                 <Badge
-                  variant={qap.status === "approved" ? "default" : "secondary"}
+                  variant={(qap?.status || "") === "approved" ? "default" : "secondary"}
                   className="text-sm"
                 >
-                  {qap.status.charAt(0).toUpperCase() + qap.status.slice(1)}
+                  {qap?.status ? `${qap.status.charAt(0).toUpperCase()}${qap.status.slice(1)}` : "Draft"}
                 </Badge>
               </div>
             </div>
@@ -451,7 +451,7 @@ export default function ViewEditQAPPage() {
                           {format(new Date(qap.createdAt), "MMM dd, yyyy")}
                         </p>
                       </div>
-                      {qap.status === "approved" && qap.approvedByUser && (
+                      {(qap?.status || "") === "approved" && qap?.approvedByUser && (
                         <div>
                           <h3 className="text-sm font-medium text-muted-foreground mb-1">
                             Approved By
@@ -466,7 +466,7 @@ export default function ViewEditQAPPage() {
                       )}
                     </div>
 
-                    {qap.remarks && (
+                    {qap?.remarks && (
                       <div className="mt-6">
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
                           Remarks
