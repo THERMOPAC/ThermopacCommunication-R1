@@ -578,116 +578,186 @@ function ITPTemplatesTab() {
   <div class="itp-container">
     <!-- Header Section -->
     <div class="itp-header">
-      <table width="100%" border="1" cellpadding="5" cellspacing="0">
+      <table width="100%" border="1" cellpadding="3" cellspacing="0">
         <tr>
-          <td colspan="4" align="center"><h2>INSPECTION AND TEST PLAN</h2></td>
+          <td colspan="6" align="center" style="background-color: #f5f5f5;"><h2>INSPECTION TEST PLAN (ITP)</h2></td>
         </tr>
         <tr>
-          <td width="25%"><strong>Manufacturer:</strong></td>
-          <td width="25%">{{manufacturerName}}</td>
-          <td width="25%"><strong>Customer:</strong></td>
-          <td width="25%">{{customerName}}</td>
+          <td width="25%" style="vertical-align: top;"><strong>MANUFACTURER:</strong><br/>{{manufacturerName}}<br/>{{manufacturerAddress}}</td>
+          <td width="25%" style="vertical-align: top;"><strong>CUSTOMER:</strong><br/>{{customerName}}<br/>{{customerAddress}}</td>
+          <td width="16%" style="vertical-align: top;"><strong>PROJECT:</strong><br/>{{projectName}}</td>
+          <td width="16%" style="vertical-align: top;"><strong>EQUIPMENT:</strong><br/>{{equipmentName}}</td>
         </tr>
         <tr>
-          <td><strong>Project:</strong></td>
-          <td>{{projectName}}</td>
-          <td><strong>P.O. No:</strong></td>
-          <td>{{poNumber}}</td>
+          <td style="vertical-align: top;"><strong>PO NO.</strong><br/>{{poNumber}}</td>
+          <td style="vertical-align: top;"><strong>DRAWING NO</strong><br/>{{drawingNumber}}</td>
+          <td style="vertical-align: top;"><strong>ITP NO</strong><br/>{{itpNumber}}</td>
+          <td style="vertical-align: top;"><strong>REVISION</strong><br/>{{revision}}</td>
         </tr>
         <tr>
-          <td><strong>Equipment:</strong></td>
-          <td>{{equipmentName}}</td>
-          <td><strong>Drawing No:</strong></td>
-          <td>{{drawingNumber}}</td>
+          <td style="vertical-align: top;"><strong>ITP DATE</strong><br/>{{itpDate}}</td>
+          <td style="vertical-align: top;"><strong>Design Verification No & Date</strong><br/>{{designVerificationInfo}}</td>
+          <td style="vertical-align: top;"><strong>ITP REVISION</strong><br/>{{itpRevision}}</td>
+          <td style="vertical-align: top;"><strong>QTY</strong><br/>{{quantity}}</td>
         </tr>
         <tr>
-          <td><strong>ITP No:</strong></td>
-          <td>{{itpNumber}}</td>
-          <td><strong>Revision:</strong></td>
-          <td>{{revision}}</td>
-        </tr>
-        <tr>
-          <td><strong>Applicable Standards:</strong></td>
-          <td colspan="3">{{applicableStandards}}</td>
+          <td style="vertical-align: top;"><strong>NOTIFIED BODY</strong><br/>{{notifiedBody}}</td>
+          <td style="vertical-align: top;"><strong>Hazard Level</strong><br/>{{hazardLevel}}</td>
+          <td colspan="2" style="vertical-align: top;"><strong>Applicable Standards</strong><br/>{{applicableStandards}}</td>
         </tr>
       </table>
     </div>
     
     <!-- Main Inspection Table -->
     <div class="itp-inspection-table">
-      <table width="100%" border="1" cellpadding="5" cellspacing="0">
+      <table width="100%" border="1" cellpadding="3" cellspacing="0">
         <tr>
-          <th width="5%">S.No</th>
-          <th width="15%">Activity Description</th>
-          <th width="15%">Characteristics</th>
-          <th width="15%">Reference Documents</th>
-          <th width="15%">Acceptance Criteria</th>
-          <th width="15%">Record Format</th>
-          <th width="15%">Inspection Responsibility</th>
-          <th width="5%">Remarks</th>
-        </tr>
-        <!-- Raw Material Inspection -->
-        <tr>
-          <td colspan="8" class="section-header">Raw Material Inspection</td>
+          <th width="5%" style="background-color: #f5f5f5;">SL.NO</th>
+          <th width="20%" style="background-color: #f5f5f5;">INSPECTION ACTIVITY / ITEM</th>
+          <th width="15%" style="background-color: #f5f5f5;">CHARACTERISTICS CHECKED</th>
+          <th width="15%" style="background-color: #f5f5f5;">REFERENCE DOCUMENTS</th>
+          <th width="15%" style="background-color: #f5f5f5;">ACCEPTANCE CRITERIA</th>
+          <th width="10%" style="background-color: #f5f5f5;">FORMAT OF RECORDS</th>
+          <th width="10%" style="background-color: #f5f5f5;">INSPECTION BY</th>
+          <th width="10%" style="background-color: #f5f5f5;">REMARKS</th>
         </tr>
         <tr>
-          <td>1</td>
-          <td>Material Verification</td>
-          <td>Material Certificate</td>
-          <td>Drawing, P.O.</td>
-          <td>As per specification</td>
-          <td>MTC</td>
-          <td>MFR</td>
+          <td align="center">1</td>
+          <td colspan="7" class="section-header"><strong>REVIEW OF DOCUMENTS</strong></td>
+        </tr>
+        <tr>
+          <td align="center">1.1</td>
+          <td>Design & Drawings</td>
+          <td>Review & approval</td>
+          <td>Design & drawing</td>
+          <td>Design Verification by notified body</td>
+          <td>Design Verification certificate</td>
+          <td align="center">P<br/>R/H</td>
+          <td>DV certificate No.{{dvCertificateNo}}</td>
+        </tr>
+        <tr>
+          <td align="center">1.2</td>
+          <td>Approval of Inspection Test Plan (ITP)</td>
+          <td>Review & approval</td>
+          <td>Drawing, EN13445-3&5, ACOP</td>
+          <td>Compliance to Drawing, EN13445-3 & 5, ACOP</td>
+          <td>Inspection Test Plan</td>
+          <td align="center">P<br/>R/A</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td align="center">1.3</td>
+          <td>WPS/PQR/WPQ & weld plan</td>
+          <td>Review & approval</td>
+          <td>WPS, PQR, WPQ & Weld plan</td>
+          <td>Compliance to EN287(EN 9606) & EN288, Weld Sketch</td>
+          <td>WPS/PQR/WPQ & weld plan</td>
+          <td align="center">P<br/>W/A</td>
+          <td>EN 287 REPLACED BY EN 9606</td>
+        </tr>
+        
+        <tr>
+          <td align="center">2</td>
+          <td colspan="7" class="section-header"><strong>MATERIALS</strong></td>
+        </tr>
+        <tr>
+          <td align="center">2.1</td>
+          <td>Material for pressure parts such as Shell, Dished end, RF pad etc.</td>
+          <td>Physical, Chem., dimensional & visual</td>
+          <td>Drawing, ASME SECT.II, EN10204</td>
+          <td>Compliance to specification of drawing & ASME standards</td>
+          <td>IR / MTC (3.1)/ Lab Test(3.2)</td>
+          <td align="center">P<br/>R/W</td>
+          <td>Check testing as required</td>
+        </tr>
+        <tr>
+          <td align="center">2.2</td>
+          <td>Pipes for all Nozzles</td>
+          <td>Physical, Chem., dimensional & visual</td>
+          <td>Drawing, ASME SECT.II, EN10204</td>
+          <td>Compliance to specification of drawing & ASME standards</td>
+          <td>IR / MTC (3.1)/ Lab Test(3.2)</td>
+          <td align="center">P<br/>R/W</td>
+          <td>Check testing as required</td>
+        </tr>
+        
+        <tr>
+          <td align="center">3</td>
+          <td colspan="7" class="section-header"><strong>IN PROCESS INSPECTION</strong></td>
+        </tr>
+        <tr>
+          <td align="center">3.1</td>
+          <td>Identification of material and witnessing stamp transfer of identification marks</td>
+          <td>Identification of heat no, w.r.t Marking TC</td>
+          <td>Approved Drawing, cutting layout, IR</td>
+          <td>Approved Drawing, cutting layout, IR</td>
+          <td>Joint Inspection report</td>
+          <td align="center">P<br/>W</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td align="center">3.2</td>
+          <td>Dimensional Check of component parts</td>
+          <td>Dimensional</td>
+          <td>Approved Drawing</td>
+          <td>As per drawing</td>
+          <td>IR</td>
+          <td align="center">P<br/>R</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td align="center">3.3</td>
+          <td>Fit up for welding</td>
+          <td>Dimensional, Visual</td>
+          <td>Approved Drawing, WPS</td>
+          <td>As per drawing & WPS</td>
+          <td>IR</td>
+          <td align="center">P<br/>R</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td align="center">3.4</td>
+          <td>Visual & dimensional inspection after welding</td>
+          <td>Visual, Dimensional</td>
+          <td>Approved Drawing, ASME Sec VIII Div 1</td>
+          <td>As per drawing, ASME Sec VIII</td>
+          <td>IR</td>
+          <td align="center">P<br/>W</td>
           <td></td>
         </tr>
         
-        <!-- In-Process Inspection -->
         <tr>
-          <td colspan="8" class="section-header">In-Process Inspection</td>
+          <td align="center">4</td>
+          <td colspan="7" class="section-header"><strong>FINAL INSPECTION</strong></td>
         </tr>
         <tr>
-          <td>2</td>
-          <td>Dimensional Check</td>
-          <td>Dimensions</td>
-          <td>Drawing</td>
+          <td align="center">4.1</td>
+          <td>Final dimensional inspection</td>
+          <td>Dimensional</td>
+          <td>Approved Drawing</td>
           <td>As per drawing</td>
-          <td>QC Report</td>
-          <td>MFR</td>
+          <td>Dimensional IR</td>
+          <td align="center">P<br/>R/W</td>
           <td></td>
         </tr>
         <tr>
-          <td>3</td>
-          <td>Welding Procedure Qualification</td>
-          <td>WPS, PQR</td>
-          <td>ASME Sec IX</td>
-          <td>ASME Sec IX</td>
-          <td>WPS, PQR</td>
-          <td>MFR, TPI</td>
-          <td></td>
-        </tr>
-        
-        <!-- Final Inspection -->
-        <tr>
-          <td colspan="8" class="section-header">Final Inspection</td>
+          <td align="center">4.2</td>
+          <td>Hydrotest</td>
+          <td>Visual, Pressure, Time</td>
+          <td>Approved Drawing, ASME Sec VIII, Test procedure</td>
+          <td>No leakage, No permanent deformation</td>
+          <td>Hydrotest report</td>
+          <td align="center">P<br/>W</td>
+          <td>Test pressure: {{testPressure}}</td>
         </tr>
         <tr>
-          <td>4</td>
-          <td>Final Dimensional Check</td>
-          <td>Overall Dimensions</td>
-          <td>Drawing</td>
-          <td>As per drawing</td>
-          <td>QC Report</td>
-          <td>MFR, TPI</td>
-          <td></td>
-        </tr>
-        <tr>
-          <td>5</td>
-          <td>Pressure Test</td>
-          <td>Pressure Rating</td>
-          <td>Test Procedure</td>
-          <td>No leakage</td>
-          <td>Test Report</td>
-          <td>MFR, TPI, CLI</td>
+          <td align="center">4.3</td>
+          <td>Final visual inspection & documentation review</td>
+          <td>Visual, Documentation</td>
+          <td>All applicable codes & standards</td>
+          <td>As per applicable codes & standards</td>
+          <td>IR</td>
+          <td align="center">P<br/>R/W</td>
           <td></td>
         </tr>
       </table>
@@ -695,44 +765,52 @@ function ITPTemplatesTab() {
     
     <!-- Legend and Signature Section -->
     <div class="itp-footer">
-      <table width="100%" border="1" cellpadding="5" cellspacing="0">
+      <table width="100%" border="1" cellpadding="3" cellspacing="0">
         <tr>
-          <td colspan="2"><strong>Legend:</strong></td>
+          <td colspan="5" style="background-color: #f5f5f5;"><strong>LEGEND:</strong></td>
         </tr>
         <tr>
-          <td width="25%">MFR</td>
+          <td width="10%">P</td>
+          <td width="30%">Perform</td>
+          <td width="10%">R</td>
+          <td width="30%">Review</td>
+          <td width="20%" rowspan="4">NOTE: The supplier/vendor shall not proceed to the next stage unless the hold points are cleared by the concerned Inspector</td>
+        </tr>
+        <tr>
+          <td>H</td>
+          <td>Hold Point (Do not proceed without clearance)</td>
+          <td>W</td>
+          <td>Witness</td>
+        </tr>
+        <tr>
+          <td>MFR</td>
           <td>Manufacturer</td>
-        </tr>
-        <tr>
           <td>TPI</td>
           <td>Third Party Inspector</td>
         </tr>
         <tr>
+          <td>A</td>
+          <td>Approval</td>
           <td>CLI</td>
           <td>Client</td>
         </tr>
       </table>
       
-      <table width="100%" border="1" cellpadding="5" cellspacing="0" style="margin-top: 20px;">
-        <tr>
-          <td width="33%"><strong>Prepared By:</strong></td>
-          <td width="33%"><strong>Reviewed By:</strong></td>
-          <td width="34%"><strong>Approved By:</strong></td>
+      <table width="100%" border="1" cellpadding="3" cellspacing="0" style="margin-top: 15px;">
+        <tr style="background-color: #f5f5f5;">
+          <td width="33%"><strong>PREPARED BY:</strong></td>
+          <td width="33%"><strong>REVIEWED BY:</strong></td>
+          <td width="34%"><strong>APPROVED BY:</strong></td>
         </tr>
         <tr>
-          <td height="50"></td>
-          <td></td>
-          <td></td>
+          <td height="60" style="vertical-align: bottom;">{{preparedBy}}<br/>{{preparedDesignation}}</td>
+          <td style="vertical-align: bottom;">{{reviewedBy}}<br/>{{reviewedDesignation}}</td>
+          <td style="vertical-align: bottom;">{{approvedBy}}<br/>{{approvedDesignation}}</td>
         </tr>
         <tr>
-          <td>{{preparedBy}}</td>
-          <td>{{reviewedBy}}</td>
-          <td>{{approvedBy}}</td>
-        </tr>
-        <tr>
-          <td>{{preparedDate}}</td>
-          <td>{{reviewedDate}}</td>
-          <td>{{approvedDate}}</td>
+          <td>Date: {{preparedDate}}</td>
+          <td>Date: {{reviewedDate}}</td>
+          <td>Date: {{approvedDate}}</td>
         </tr>
       </table>
     </div>
@@ -742,9 +820,17 @@ function ITPTemplatesTab() {
     .itp-container {
       font-family: Arial, sans-serif;
       margin: 20px;
+      font-size: 11pt;
     }
     .itp-header, .itp-inspection-table, .itp-footer {
       margin-bottom: 20px;
+    }
+    .itp-header h2 {
+      font-size: 16pt;
+      font-weight: bold;
+      margin: 0;
+      padding: 8px 0;
+      text-align: center;
     }
     .section-header {
       background-color: #f2f2f2;
@@ -753,9 +839,49 @@ function ITPTemplatesTab() {
     }
     table {
       border-collapse: collapse;
+      width: 100%;
+    }
+    table, th, td {
+      border: 1px solid #000;
     }
     th {
-      background-color: #f2f2f2;
+      background-color: #f5f5f5;
+      font-weight: bold;
+      padding: 6px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    td {
+      padding: 6px;
+      vertical-align: top;
+    }
+    strong {
+      font-weight: bold;
+    }
+    .inspection-by-cell {
+      text-align: center;
+      line-height: 1.5;
+    }
+    /* Print-friendly styles */
+    @media print {
+      .itp-container {
+        margin: 0;
+        padding: 0;
+        font-size: 10pt;
+      }
+      table, th, td {
+        border: 1px solid #000;
+      }
+      th {
+        background-color: #f5f5f5 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .section-header {
+        background-color: #f2f2f2 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
     }
   </style>
   `;
@@ -1339,8 +1465,44 @@ function ITPTemplatesTab() {
               <Separator />
               
               <div>
-                <Label>Template Preview</Label>
-                <Card className="mt-1 p-4 overflow-auto max-h-[500px]">
+                <div className="flex justify-between items-center mb-2">
+                  <Label>Template Preview</Label>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      // Open in a new window for print view
+                      const printWindow = window.open('', '_blank');
+                      if (printWindow) {
+                        printWindow.document.write(`
+                          <html>
+                            <head>
+                              <title>${selectedTemplate.name} - Preview</title>
+                              <style>
+                                body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+                                @media print {
+                                  body { margin: 0; padding: 0; }
+                                  button { display: none; }
+                                }
+                                ${selectedTemplate.content.match(/<style>([\s\S]*?)<\/style>/)?.[1] || ''}
+                              </style>
+                            </head>
+                            <body>
+                              <div style="text-align: right; margin-bottom: 10px;">
+                                <button onclick="window.print()">Print</button>
+                              </div>
+                              ${selectedTemplate.content.replace(/<style>[\s\S]*?<\/style>/, '')}
+                            </body>
+                          </html>
+                        `);
+                        printWindow.document.close();
+                      }
+                    }}
+                  >
+                    <Printer className="h-4 w-4 mr-1" /> Print Preview
+                  </Button>
+                </div>
+                <Card className="mt-1 p-4 overflow-auto max-h-[500px] bg-white border-2">
                   <div dangerouslySetInnerHTML={{ __html: selectedTemplate.content }} />
                 </Card>
               </div>
