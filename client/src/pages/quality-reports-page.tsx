@@ -625,8 +625,6 @@ function ITPTemplatesTab() {
           <th rowspan="2">REMARKS</th>
         </tr>
         <tr>
-          <th>TYPE OF CHECK</th>
-          <th>QTY NO.</th>
           <th>M</th>
           <th>C</th>
           <th>SGS</th>
@@ -685,28 +683,56 @@ function ITPTemplatesTab() {
         </tr>
         
         <tr>
+          <td align="center" rowspan="7">IV</td>
+          <td colspan="14" class="section-header"><strong>WELDING</strong></td>
+        </tr>
+        <tr>
+          <td align="center">1</td>
+          <td>WPS & PQR Qualification</td>
+          <td>Document Review</td>
+          <td>Major</td>
+          <td>Visual</td>
+          <td>100%</td>
+          <td>All WPS</td>
+          <td>ASME Sec IX</td>
+          <td>Compliance to standards</td>
+          <td>Qualified WPS/PQR</td>
+          <td align="center">P</td>
+          <td align="center">R</td>
+          <td align="center">R</td>
+          <td></td>
+        </tr>
+        <tr>
           <td align="center">2</td>
-          <td colspan="7" class="section-header"><strong>MATERIALS</strong></td>
+          <td>Welder Qualification</td>
+          <td>Document Review</td>
+          <td>Major</td>
+          <td>Visual</td>
+          <td>100%</td>
+          <td>All welders</td>
+          <td>ASME Sec IX</td>
+          <td>Compliance to standards</td>
+          <td>WPQ Certificates</td>
+          <td align="center">P</td>
+          <td align="center">R</td>
+          <td align="center">R</td>
+          <td></td>
         </tr>
         <tr>
-          <td align="center">2.1</td>
-          <td>Material for pressure parts such as Shell, Dished end, RF pad etc.</td>
-          <td>Physical, Chem., dimensional & visual</td>
-          <td>Drawing, ASME SECT.II, EN10204</td>
-          <td>Compliance to specification of drawing & ASME standards</td>
-          <td>IR / MTC (3.1)/ Lab Test(3.2)</td>
-          <td align="center">P<br/>R/W</td>
-          <td>Check testing as required</td>
-        </tr>
-        <tr>
-          <td align="center">2.2</td>
-          <td>Pipes for all Nozzles</td>
-          <td>Physical, Chem., dimensional & visual</td>
-          <td>Drawing, ASME SECT.II, EN10204</td>
-          <td>Compliance to specification of drawing & ASME standards</td>
-          <td>IR / MTC (3.1)/ Lab Test(3.2)</td>
-          <td align="center">P<br/>R/W</td>
-          <td>Check testing as required</td>
+          <td align="center">3</td>
+          <td>Welding Consumables</td>
+          <td>Document Review</td>
+          <td>Major</td>
+          <td>Visual</td>
+          <td>100%</td>
+          <td>All batches</td>
+          <td>ASME Sec II C</td>
+          <td>Compliance to standards</td>
+          <td>MTC</td>
+          <td align="center">P</td>
+          <td align="center">-</td>
+          <td align="center">V</td>
+          <td></td>
         </tr>
         
         <tr>
@@ -746,58 +772,88 @@ function ITPTemplatesTab() {
           <td></td>
         </tr>
         <tr>
-          <td align="center">3.3</td>
+          <td align="center">3</td>
           <td>Fit up for welding</td>
-          <td>Dimensional, Visual</td>
+          <td>Dimensional/Visual</td>
+          <td>Major</td>
+          <td>Measurement</td>
+          <td>100%</td>
+          <td>All joints</td>
           <td>Approved Drawing, WPS</td>
           <td>As per drawing & WPS</td>
-          <td>IR</td>
-          <td align="center">P<br/>R</td>
+          <td>Fit-up Inspection Report</td>
+          <td align="center">P</td>
+          <td align="center">-</td>
+          <td align="center">V</td>
           <td></td>
         </tr>
         <tr>
-          <td align="center">3.4</td>
-          <td>Visual & dimensional inspection after welding</td>
-          <td>Visual, Dimensional</td>
-          <td>Approved Drawing, ASME Sec VIII Div 1</td>
-          <td>As per drawing, ASME Sec VIII</td>
-          <td>IR</td>
-          <td align="center">P<br/>W</td>
+          <td align="center">4</td>
+          <td>Visual inspection after welding</td>
+          <td>Visual/Dimensional</td>
+          <td>Major</td>
+          <td>Visual</td>
+          <td>100%</td>
+          <td>All welds</td>
+          <td>ASME Sec VIII Div 1</td>
+          <td>As per ASME code & drawing</td>
+          <td>QC Report</td>
+          <td align="center">P</td>
+          <td align="center">-</td>
+          <td align="center">V</td>
           <td></td>
         </tr>
         
         <tr>
-          <td align="center">4</td>
-          <td colspan="7" class="section-header"><strong>FINAL INSPECTION</strong></td>
+          <td align="center" rowspan="5">III</td>
+          <td colspan="14" class="section-header"><strong>FINAL INSPECTION & TESTING</strong></td>
         </tr>
         <tr>
-          <td align="center">4.1</td>
+          <td align="center">1</td>
           <td>Final dimensional inspection</td>
           <td>Dimensional</td>
+          <td>Major</td>
+          <td>Measurement</td>
+          <td>100%</td>
+          <td>Complete vessel</td>
           <td>Approved Drawing</td>
           <td>As per drawing</td>
-          <td>Dimensional IR</td>
-          <td align="center">P<br/>R/W</td>
+          <td>Dimensional Report</td>
+          <td align="center">P</td>
+          <td align="center">W</td>
+          <td align="center">H</td>
           <td></td>
         </tr>
         <tr>
-          <td align="center">4.2</td>
+          <td align="center">2</td>
           <td>Hydrotest</td>
-          <td>Visual, Pressure, Time</td>
-          <td>Approved Drawing, ASME Sec VIII, Test procedure</td>
-          <td>No leakage, No permanent deformation</td>
-          <td>Hydrotest report</td>
-          <td align="center">P<br/>W</td>
+          <td>Visual/Pressure</td>
+          <td>Critical</td>
+          <td>Hydro</td>
+          <td>100%</td>
+          <td>Complete vessel</td>
+          <td>ASME Sec VIII, Test procedure</td>
+          <td>No leakage, No deformation</td>
+          <td>Hydrotest Report</td>
+          <td align="center">P</td>
+          <td align="center">W</td>
+          <td align="center">H</td>
           <td>Test pressure: {{testPressure}}</td>
         </tr>
         <tr>
-          <td align="center">4.3</td>
-          <td>Final visual inspection & documentation review</td>
-          <td>Visual, Documentation</td>
-          <td>All applicable codes & standards</td>
-          <td>As per applicable codes & standards</td>
-          <td>IR</td>
-          <td align="center">P<br/>R/W</td>
+          <td align="center">3</td>
+          <td>Final inspection & documentation review</td>
+          <td>Visual/Documents</td>
+          <td>Major</td>
+          <td>Visual</td>
+          <td>100%</td>
+          <td>Complete vessel</td>
+          <td>All codes & standards</td>
+          <td>All documentation complete</td>
+          <td>Final QC Report</td>
+          <td align="center">P</td>
+          <td align="center">W</td>
+          <td align="center">H</td>
           <td></td>
         </tr>
       </table>
