@@ -516,6 +516,7 @@ export const setupQualityRoutes = (app: any) => {
         qapId: newQap.id,
         version: 1,
         content: newQap.content,
+        revision: newQap.revision || "0", // Use the QAP revision or default to "0"
         createdBy: req.user!.id,
         createdAt: new Date(),
       });
@@ -586,6 +587,7 @@ export const setupQualityRoutes = (app: any) => {
           qapId: qapId,
           version: newVersionNumber,
           content: req.body.content,
+          revision: req.body.revision || existingQap.revision || "0", // Use provided revision, existing one, or default
           createdBy: req.user!.id,
           createdAt: new Date(),
         });
