@@ -175,7 +175,12 @@ export default function CreateQAPPage() {
                         <FormLabel>QAP Number</FormLabel>
                         <FormDescription>Auto-generated based on project code</FormDescription>
                         <FormControl>
-                          <Input placeholder="QAP-0001" {...field} />
+                          <Input 
+                            placeholder="QAP-0001" 
+                            {...field} 
+                            disabled={true}
+                            className="bg-muted/30"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -219,8 +224,14 @@ export default function CreateQAPPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Revision Number</FormLabel>
+                        <FormDescription>Auto-generated as "0" for new QAPs</FormDescription>
                         <FormControl>
-                          <Input placeholder="0" {...field} />
+                          <Input 
+                            placeholder="0" 
+                            {...field} 
+                            disabled={true}
+                            className="bg-muted/30"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
