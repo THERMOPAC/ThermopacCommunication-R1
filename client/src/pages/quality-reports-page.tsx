@@ -137,7 +137,346 @@ function QAPTemplatesTab() {
     defaultValues: {
       name: "",
       description: "",
-      content: "<h1>{{title}}</h1>\n<p>Project: {{projectName}}</p>\n<p>Client: {{clientName}}</p>\n<p>Equipment: {{equipmentType}}</p>\n<p>Standards: {{standards}}</p>\n<p>Revision: {{revision}}</p>\n<p>Prepared by: {{preparedByName}}</p>\n<p>Date: {{date}}</p>",
+      content: `
+  <div class="qap-container">
+    <div class="qap-header">
+      <h2>QUALITY ASSURANCE PLAN (QAP)</h2>
+      <table width="100%" border="1" cellpadding="2" cellspacing="0">
+        <tr>
+          <td colspan="2" width="33%"><strong>MANUFACTURER:</strong><br/>
+          <strong>THERMOPAC PROCESS ENGG. LLP</strong><br/>
+          CIN: AAD-8929<br/>
+          L4 405,THE CAPITOL, BANDRA KURLA COMPLEX<br/>
+          EXPRESS HIGHWAY, VILE PARLE (EAST)<br/>
+          MUMBAI 400057 MAHARASHTRA, INDIA</td>
+          <td colspan="2" width="33%"><strong>CUSTOMER:</strong><br/>
+          {{customer}}<br/>
+          {{customerAddress1}}<br/>
+          {{customerAddress2}}<br/>
+          {{customerCity}}</td>
+          <td width="17%"><strong>ITEM:</strong> {{itemDescription}}<br/>
+          <strong>REFERENCE DRG. NO:</strong> {{drawingNumber}}<br/>
+          <strong>REV.:</strong> {{revision}}</td>
+          <td width="17%"><strong>PROJECT:</strong><br/>{{projectName}}<br/>
+          <strong>PACKAGE:</strong><br/>{{package}}</td>
+        </tr>
+        <tr>
+          <td><strong>QAP NO.:</strong><br/>{{qapNumber}}</td>
+          <td><strong>REV.NO.:</strong> {{revisionNumber}}</td>
+          <td><strong>PO NO.:</strong><br/>{{poNumber}}</td>
+          <td><strong>DATE:</strong><br/>{{dateIssued}}</td>
+          <td><strong>DATE:</strong><br/>{{dateApproved}}</td>
+          <td><strong>MAIN CONTRACTOR:</strong><br/>{{mainContractor}}</td>
+        </tr>
+      </table>
+    </div>
+    
+    <!-- Main Inspection Table -->
+    <div class="qap-inspection-table">
+      <table width="100%" border="1" cellpadding="3" cellspacing="0" class="inspection-table">
+        <tr>
+          <th rowspan="2">SL.NO</th>
+          <th rowspan="2">COMPONENT & OPERATION</th>
+          <th rowspan="2">CHARACTERISTICS CHECKED</th>
+          <th rowspan="2">CLASS</th>
+          <th rowspan="2">TYPE OF CHECK</th>
+          <th rowspan="2">QTY NO.</th>
+          <th rowspan="2">QUANTAM OF CHECK</th>
+          <th rowspan="2">REFERENCE DOCUMENT</th>
+          <th rowspan="2">ACCEPTANCE NORMS</th>
+          <th rowspan="2">FORMAT OF RECORDS</th>
+          <th colspan="3">AGENCY</th>
+          <th rowspan="2">REMARKS</th>
+        </tr>
+        <tr>
+          <th>M</th>
+          <th>C</th>
+          <th>SGS</th>
+        </tr>
+        <tr>
+          <td align="center" rowspan="6">I</td>
+          <td colspan="14" class="section-header"><strong>RAW MATERIAL</strong></td>
+        </tr>
+        <tr>
+          <td align="center">1</td>
+          <td>Shell, Dished end, lugs & lug pads</td>
+          <td>Physical & Chem./Visual</td>
+          <td>Major</td>
+          <td>Measurement</td>
+          <td>All plates</td>
+          <td>ASME</td>
+          <td>ASTM A516 GR.70/ASTM A537 GR.B</td>
+          <td>Compliance to standard</td>
+          <td>Mill material test certificate OR Lab test report (if reqd.)</td>
+          <td align="center">P</td>
+          <td align="center">-</td>
+          <td align="center">V</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td align="center">2</td>
+          <td>Pipes for all Nozzles</td>
+          <td>Physical & Chem./Visual</td>
+          <td>Major</td>
+          <td>Measurement</td>
+          <td>All pipes</td>
+          <td>ASME</td>
+          <td>ASTM A106 GR.B/ASTM A312 TP316</td>
+          <td>Compliance to standard</td>
+          <td>Mill material test certificate OR Lab test report (if reqd.)</td>
+          <td align="center">P</td>
+          <td align="center">-</td>
+          <td align="center">V</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td align="center">3</td>
+          <td>All Flanges</td>
+          <td>Physical & Chem./Visual</td>
+          <td>Major</td>
+          <td>Measurement</td>
+          <td>All plates</td>
+          <td>ASME</td>
+          <td>ASTM A105 /ASTM A182</td>
+          <td>Compliance to standard</td>
+          <td>Lab test report & QC report</td>
+          <td align="center">P</td>
+          <td align="center">-</td>
+          <td align="center">V</td>
+          <td></td>
+        </tr>
+        
+        <tr>
+          <td align="center" rowspan="7">IV</td>
+          <td colspan="14" class="section-header"><strong>WELDING</strong></td>
+        </tr>
+        <tr>
+          <td align="center">1</td>
+          <td>WPS & PQR Qualification</td>
+          <td>Document Review</td>
+          <td>Major</td>
+          <td>Visual</td>
+          <td>100%</td>
+          <td>All WPS</td>
+          <td>ASME Sec IX</td>
+          <td>Compliance to standards</td>
+          <td>Qualified WPS/PQR</td>
+          <td align="center">P</td>
+          <td align="center">R</td>
+          <td align="center">R</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td align="center">2</td>
+          <td>Welder Qualification</td>
+          <td>Document Review</td>
+          <td>Major</td>
+          <td>Visual</td>
+          <td>100%</td>
+          <td>All welders</td>
+          <td>ASME Sec IX</td>
+          <td>Compliance to standards</td>
+          <td>WPQ Certificates</td>
+          <td align="center">P</td>
+          <td align="center">R</td>
+          <td align="center">R</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td align="center">3</td>
+          <td>Welding Consumables</td>
+          <td>Document Review</td>
+          <td>Major</td>
+          <td>Visual</td>
+          <td>100%</td>
+          <td>All batches</td>
+          <td>ASME Sec II C</td>
+          <td>Compliance to standards</td>
+          <td>MTC</td>
+          <td align="center">P</td>
+          <td align="center">-</td>
+          <td align="center">V</td>
+          <td></td>
+        </tr>
+        
+        <tr>
+          <td align="center" rowspan="5">III</td>
+          <td colspan="14" class="section-header"><strong>FINAL INSPECTION & TESTING</strong></td>
+        </tr>
+        <tr>
+          <td align="center">1</td>
+          <td>Final dimensional inspection</td>
+          <td>Dimensional</td>
+          <td>Major</td>
+          <td>Measurement</td>
+          <td>100%</td>
+          <td>Complete vessel</td>
+          <td>Approved Drawing</td>
+          <td>As per drawing</td>
+          <td>Dimensional Report</td>
+          <td align="center">P</td>
+          <td align="center">W</td>
+          <td align="center">H</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td align="center">2</td>
+          <td>Hydrotest</td>
+          <td>Visual/Pressure</td>
+          <td>Critical</td>
+          <td>Hydro</td>
+          <td>100%</td>
+          <td>Complete vessel</td>
+          <td>ASME Sec VIII, Test procedure</td>
+          <td>No leakage, No deformation</td>
+          <td>Hydrotest Report</td>
+          <td align="center">P</td>
+          <td align="center">W</td>
+          <td align="center">H</td>
+          <td>Test pressure: {{testPressure}}</td>
+        </tr>
+      </table>
+    </div>
+    
+    <!-- Legend and Signature Section -->
+    <div class="qap-footer">
+      <div style="display: flex; width: 100%; margin-bottom: 10px;">
+        <div style="width: 50%; text-align: left;">
+          <div class="thermopac-logo">
+            <div style="color: #0000ff; font-weight: bold; font-size: 24px; line-height: 1;">
+              THERMOPAC
+            </div>
+            <div style="color: #ff0000; font-size: 18px; line-height: 1;">
+              PROCESS ENGINEERING LLP
+            </div>
+          </div>
+        </div>
+        <div style="width: 50%; text-align: right;">
+          <div style="border: 1px solid #ccc; display: inline-block; width: 100px; height: 100px; border-radius: 50%; text-align: center; padding-top: 30px; font-size: 12px;">
+            QAP/QC<br>APPROVED
+          </div>
+        </div>
+      </div>
+      
+      <table width="100%" border="1" cellpadding="3" cellspacing="0">
+        <tr>
+          <td colspan="5" style="background-color: #f5f5f5;"><strong>LEGEND:</strong></td>
+        </tr>
+        <tr>
+          <td width="10%"><strong>M</strong></td>
+          <td width="30%">MANUFACTURER/SUB SUPPLIER</td>
+          <td width="10%"><strong>P</strong></td>
+          <td width="30%">PERFORM</td>
+          <td width="20%" rowspan="4">NOTE: The supplier/vendor shall not proceed to the next stage unless the hold points are cleared by the concerned Inspector</td>
+        </tr>
+        <tr>
+          <td><strong>C</strong></td>
+          <td>CUSTOMER</td>
+          <td><strong>W</strong></td>
+          <td>WITNESS</td>
+        </tr>
+        <tr>
+          <td><strong>SGS</strong></td>
+          <td>APPROVED INSPECTION AGENCY</td>
+          <td><strong>H</strong></td>
+          <td>HOLD</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td></td>
+          <td><strong>V</strong></td>
+          <td>VERIFICATION</td>
+        </tr>
+      </table>
+      
+      <table width="100%" border="1" cellpadding="3" cellspacing="0" style="margin-top: 15px;">
+        <tr style="background-color: #f5f5f5;">
+          <td width="33%"><strong>PREPARED BY:</strong></td>
+          <td width="33%"><strong>REVIEWED BY:</strong></td>
+          <td width="34%"><strong>APPROVED BY:</strong></td>
+        </tr>
+        <tr>
+          <td height="60" style="vertical-align: bottom;">{{preparedBy}}<br/>{{preparedDesignation}}</td>
+          <td style="vertical-align: bottom;">{{reviewedBy}}<br/>{{reviewedDesignation}}</td>
+          <td style="vertical-align: bottom;">{{approvedBy}}<br/>{{approvedDesignation}}</td>
+        </tr>
+        <tr>
+          <td>Date: {{preparedDate}}</td>
+          <td>Date: {{reviewedDate}}</td>
+          <td>Date: {{approvedDate}}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  
+  <style>
+    @page {
+      size: A3 landscape;
+      margin: 0.5cm;
+    }
+    .qap-container {
+      font-family: Arial, sans-serif;
+      margin: 10px;
+      font-size: 10pt;
+      width: 100%;
+      max-width: 1180px; /* A3 landscape width approximate */
+    }
+    .qap-header, .qap-inspection-table, .qap-footer {
+      margin-bottom: 10px;
+      width: 100%;
+    }
+    .qap-header h2 {
+      font-size: 16pt;
+      font-weight: bold;
+      margin: 0;
+      padding: 5px 0;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .section-header {
+      background-color: #f2f2f2;
+      font-weight: bold;
+      text-align: center;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      table-layout: fixed;
+    }
+    table, th, td {
+      border: 1px solid #000;
+    }
+    th {
+      background-color: #f5f5f5;
+      font-weight: bold;
+      padding: 5px 3px;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 9pt;
+      text-transform: uppercase;
+    }
+    td {
+      padding: 4px 3px;
+      vertical-align: top;
+      font-size: 9pt;
+    }
+    /* Column widths for QAP format */
+    .inspection-table th:nth-child(1) { width: 3%; } /* SL.NO */
+    .inspection-table th:nth-child(2) { width: 15%; } /* COMPONENT & OPERATION */
+    .inspection-table th:nth-child(3) { width: 12%; } /* CHARACTERISTICS CHECKED */
+    .inspection-table th:nth-child(4) { width: 5%; } /* CLASS */
+    .inspection-table th:nth-child(5) { width: 6%; } /* TYPE OF CHECK */
+    .inspection-table th:nth-child(6) { width: 5%; } /* QTY NO. */
+    .inspection-table th:nth-child(7) { width: 8%; } /* QUANTAM OF CHECK */
+    .inspection-table th:nth-child(8) { width: 8%; } /* REFERENCE DOCUMENT */
+    .inspection-table th:nth-child(9) { width: 12%; } /* ACCEPTANCE NORMS */
+    .inspection-table th:nth-child(10) { width: 12%; } /* FORMAT OF RECORDS */
+    .inspection-table th:nth-child(11) { width: 2%; } /* M */
+    .inspection-table th:nth-child(12) { width: 2%; } /* C */
+    .inspection-table th:nth-child(13) { width: 2%; } /* SGS */
+    .inspection-table th:nth-child(14) { width: 8%; } /* REMARKS */
+  </style>
+      `,
       version: "1.0",
     },
   });
