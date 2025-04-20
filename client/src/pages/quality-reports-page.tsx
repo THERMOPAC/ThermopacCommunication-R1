@@ -494,7 +494,7 @@ function QAPTemplatesTab() {
   
   // Query templates
   const { data: templates, isLoading, refetch } = useQuery({
-    queryKey: ['/api/quality/qap-templates'],
+    queryKey: ['api/quality/qap-templates'],
     throwOnError: false,
     enabled: true,
   });
@@ -502,7 +502,7 @@ function QAPTemplatesTab() {
   // Create template mutation
   const createTemplateMutation = useMutation({
     mutationFn: async (values: z.infer<typeof templateFormSchema>) => {
-      return apiRequest('/api/quality/qap-templates', 'POST', values);
+      return apiRequest('api/quality/qap-templates', 'POST', values);
     },
     onSuccess: () => {
       toast({
@@ -525,7 +525,7 @@ function QAPTemplatesTab() {
   // Update template mutation
   const updateTemplateMutation = useMutation({
     mutationFn: async (values: z.infer<typeof templateFormSchema>) => {
-      return apiRequest(`/api/quality/qap-templates/${selectedTemplate.id}`, 'PUT', values);
+      return apiRequest(`api/quality/qap-templates/${selectedTemplate.id}`, 'PUT', values);
     },
     onSuccess: () => {
       toast({
@@ -548,7 +548,7 @@ function QAPTemplatesTab() {
   // Delete template mutation
   const deleteTemplateMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/quality/qap-templates/${id}`, 'DELETE');
+      return apiRequest(`api/quality/qap-templates/${id}`, 'DELETE');
     },
     onSuccess: () => {
       toast({
