@@ -23,8 +23,9 @@ const qapFormSchema = z.object({
   projectId: z.string().min(1, "Project is required"),
   customerId: z.string().min(1, "Customer is required"),
   title: z.string().min(1, "Title is required"),
-  itemDescription: z.string().min(1, "Item description is required"),
-  drawingNumber: z.string().optional(),
+  category: z.enum(["Pressure Vessel", "Heat Exchanger", "Piping", "Structure", "Electrical", "Instrumentation", "General"], {
+    required_error: "Category is required",
+  }),
   revision: z.string().optional(),
   poNumber: z.string().optional(),
   qapNumber: z.string().min(1, "QAP number is required"),
@@ -66,8 +67,7 @@ export default function CreateQAPPage() {
       projectId: "",
       customerId: "",
       title: "",
-      itemDescription: "",
-      drawingNumber: "",
+      category: "General",
       revision: "",
       poNumber: "",
       qapNumber: "",
@@ -286,27 +286,30 @@ export default function CreateQAPPage() {
                   
                   <FormField
                     control={form.control}
-                    name="itemDescription"
+                    name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Item Description</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Item Description" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="drawingNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Drawing Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="DRG-001" {...field} />
-                        </FormControl>
+                        <FormLabel>Category</FormLabel>
+                        <FormDescription>Select the equipment category</FormDescription>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Pressure Vessel">Pressure Vessel</SelectItem>
+                            <SelectItem value="Heat Exchanger">Heat Exchanger</SelectItem>
+                            <SelectItem value="Piping">Piping</SelectItem>
+                            <SelectItem value="Structure">Structure</SelectItem>
+                            <SelectItem value="Electrical">Electrical</SelectItem>
+                            <SelectItem value="Instrumentation">Instrumentation</SelectItem>
+                            <SelectItem value="General">General</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
