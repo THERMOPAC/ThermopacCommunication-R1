@@ -132,47 +132,143 @@ export default function CreateQAPPage() {
   // Handle form submission
   const onSubmit = async (values: QAPFormValues) => {
     try {
+      // Find project details to include in QAP content
+      const selectedProject = projects.find(p => p.id.toString() === values.projectId);
+      if (!selectedProject) {
+        throw new Error("Project not found");
+      }
+      
+      // Find customer details
+      const selectedCustomer = customers.find(c => c.id.toString() === values.customerId);
+      
+      // Get template ID (using the first template for now, would normally be selected)
+      const templateId = 1;
+      
+      // Get current date in ISO format
+      const currentDate = new Date().toISOString();
+      
+      // Prepare QAP table structure for display
+      const qapTableItems = [
+        {
+          slNo: 1,
+          componentOperation: "Review of Documents",
+          characteristicsChecked: "Document completeness",
+          class: "Major",
+          typeOfCheck: "Visual",
+          quantumOfCheck: "100%",
+          referenceDocument: "Project specifications",
+          acceptanceNorms: "Approved drawings",
+          formatOfRecords: "Checklist",
+          agency: { M: true, C: false, SGS: false },
+          remark: values.remarks || "",
+        }
+      ];
+      
+      // Format QAP content as an HTML structure
+      const contentHtml = `
+        <div class="qap-document">
+          <div class="qap-header">
+            <h1>${values.title}</h1>
+            <div class="qap-info">
+              <p><strong>QAP Number:</strong> ${values.qapNumber}</p>
+              <p><strong>Revision:</strong> ${values.revisionNumber}</p>
+              <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            </div>
+          </div>
+          
+          <div class="qap-details">
+            <p><strong>Project:</strong> ${selectedProject.code} - ${selectedProject.name}</p>
+            <p><strong>Customer:</strong> ${selectedCustomer?.bpName || "N/A"}</p>
+            <p><strong>Equipment Type:</strong> ${values.category}</p>
+            <p><strong>PO Number:</strong> ${values.poNumber || "N/A"}</p>
+          </div>
+          
+          <div class="qap-content">
+            <table class="qap-table">
+              <thead>
+                <tr>
+                  <th>SL.NO</th>
+                  <th>COMPONENT & OPERATION</th>
+                  <th>CHARACTERISTICS CHECKED</th>
+                  <th>CLASS</th>
+                  <th>TYPE OF CHECK</th>
+                  <th>QUANTUM OF CHECK</th>
+                  <th>REFERENCE DOCUMENT</th>
+                  <th>ACCEPTANCE NORMS</th>
+                  <th>FORMAT OF RECORDS</th>
+                  <th colspan="3">AGENCY</th>
+                  <th>REMARK</th>
+                </tr>
+                <tr>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                  <th></th>
+                  <th>M</th>
+                  <th>C</th>
+                  <th>SGS</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${qapTableItems.map(item => `
+                  <tr>
+                    <td>${item.slNo}</td>
+                    <td>${item.componentOperation}</td>
+                    <td>${item.characteristicsChecked}</td>
+                    <td>${item.class}</td>
+                    <td>${item.typeOfCheck}</td>
+                    <td>${item.quantumOfCheck}</td>
+                    <td>${item.referenceDocument}</td>
+                    <td>${item.acceptanceNorms}</td>
+                    <td>${item.formatOfRecords}</td>
+                    <td>${item.agency.M ? '✓' : ''}</td>
+                    <td>${item.agency.C ? '✓' : ''}</td>
+                    <td>${item.agency.SGS ? '✓' : ''}</td>
+                    <td>${item.remark}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="qap-footer">
+            <div class="signatures">
+              <div class="prepared-by">
+                <p><strong>Prepared By:</strong></p>
+                <p>${user?.username || ""}</p>
+              </div>
+              <div class="approved-by">
+                <p><strong>Approved By:</strong></p>
+                <p></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
       // Prepare data for API
-      const templateId = 1; // This would normally come from a template selection
       const qapData = {
         projectId: parseInt(values.projectId),
         templateId: templateId,
         title: values.title,
-        clientName: customers.find(c => c.id.toString() === values.customerId)?.bpName || "",
+        clientName: selectedCustomer?.bpName || "",
         equipmentType: values.category,
         standards: "",
-        revision: values.revision || "0",
-        revisionNumber: values.revisionNumber,
-        poNumber: values.poNumber,
-        content: JSON.stringify({
-          title: values.title,
-          category: values.category,
-          remarks: values.remarks,
-          // You would include the QAP items/rows here
-          items: [
-            {
-              slNo: 1,
-              componentOperation: "Review of Documents",
-              characteristicsChecked: "",
-              class: "",
-              typeOfCheck: "",
-              quantumOfCheck: "",
-              referenceDocument: "",
-              acceptanceNorms: "",
-              formatOfRecords: "",
-              agency: "",
-              remark: "",
-            }
-          ]
-        }),
-        status: "draft",
-        remarks: values.remarks,
+        revision: values.revisionNumber,
+        content: contentHtml,
+        status: "draft"
       };
       
       console.log("Submitting QAP data:", qapData);
       
       // Send to API
-      const response = await apiRequest('POST', 'api/quality/generated-qaps', qapData);
+      const response = await apiRequest('POST', '/api/quality/generated-qaps', qapData);
       
       console.log("API response:", response);
       
@@ -181,12 +277,15 @@ export default function CreateQAPPage() {
         description: "QAP created successfully",
       });
       
+      // Redirect to QAP listing page
       setLocation("/quality-assurance-plan");
     } catch (error) {
       console.error("Error creating QAP:", error);
       toast({
         title: "Error",
-        description: "Failed to create QAP. Please try again.",
+        description: typeof error === 'object' && error !== null && 'message' in error 
+          ? `Failed to create QAP: ${(error as Error).message}` 
+          : "Failed to create QAP. Please try again.",
         variant: "destructive",
       });
     }
