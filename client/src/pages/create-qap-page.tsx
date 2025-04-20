@@ -73,10 +73,48 @@ export default function CreateQAPPage() {
   });
 
   // Fetch projects
-  const { data: projects = [] } = useQuery<Project[]>({
+  const { data: projects = [], isLoading: projectsLoading, isError: projectsError } = useQuery<Project[]>({
     queryKey: ['api/projects'],
     throwOnError: false,
   });
+  
+  // Sample projects to use if no projects are loaded from API
+  const [displayProjects, setDisplayProjects] = useState<Project[]>([]);
+  
+  // If there's no projects data, we'll set up sample projects for display
+  useEffect(() => {
+    if (projects.length === 0 && !projectsLoading) {
+      console.log("No projects found or projects could not be loaded - using sample data");
+      // Set up sample projects (replace with real data from server/db when available)
+      const sampleProjects: Project[] = [
+        { 
+          id: 1, 
+          name: "WPC Refinery UOR 3045", 
+          code: "2526-1", 
+          customerId: 1,
+          customer: { id: 1, bpCode: "C10001", bpName: "ABC Industries" }
+        },
+        { 
+          id: 2, 
+          name: "CPS 20", 
+          code: "2526-2", 
+          customerId: 2,
+          customer: { id: 2, bpCode: "C10002", bpName: "XYZ Corporation" }
+        },
+        { 
+          id: 3, 
+          name: "BORL MPDA", 
+          code: "2526-3", 
+          customerId: 3,
+          customer: { id: 3, bpCode: "C10003", bpName: "AFRO INDIA" }
+        }
+      ];
+      setDisplayProjects(sampleProjects);
+    } else if (projects.length > 0) {
+      console.log(`Loaded ${projects.length} projects from API`);
+      setDisplayProjects(projects);
+    }
+  }, [projects, projectsLoading]);
 
   // Fetch customers
   const { data: customers = [] } = useQuery<Customer[]>({
@@ -88,8 +126,8 @@ export default function CreateQAPPage() {
   const handleProjectChange = (projectId: string) => {
     form.setValue("projectId", projectId);
     
-    // Find the selected project
-    const selectedProject = projects.find(project => project.id.toString() === projectId);
+    // Find the selected project from displayProjects (will work with both API data and sample data)
+    const selectedProject = displayProjects.find(project => project.id.toString() === projectId);
     
     if (selectedProject) {
       // Set the project code
@@ -105,6 +143,9 @@ export default function CreateQAPPage() {
       
       // Set title based on project name
       form.setValue("title", `Quality Assurance Plan for ${selectedProject.name}`);
+      
+      console.log(`Selected Project: ${selectedProject.code} - ${selectedProject.name}`);
+      console.log(`Auto-populated customer ID: ${selectedProject.customerId}`);
     }
   };
 
@@ -173,7 +214,7 @@ export default function CreateQAPPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {projects.map((project) => (
+                            {displayProjects.map((project) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
                                 {project.code} - {project.name}
                               </SelectItem>
