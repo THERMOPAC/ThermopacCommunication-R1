@@ -59,6 +59,7 @@ interface QapItem {
   id: number;
   slNo: number;
   componentOperation: string;
+  subMaterial?: string; // Optional field for Raw Material sub-options
   characteristicsChecked: string;
   class: string;
   typeOfCheck: string;
@@ -80,6 +81,7 @@ export default function CreateQAPPage() {
       id: 1,
       slNo: 1,
       componentOperation: "Review of Documents",
+      subMaterial: "",
       characteristicsChecked: "Document completeness",
       class: "Major",
       typeOfCheck: "Visual",
@@ -168,6 +170,7 @@ export default function CreateQAPPage() {
       id: newId,
       slNo: newId,
       componentOperation: "Review of Documents",
+      subMaterial: "",
       characteristicsChecked: "",
       class: "Major",
       typeOfCheck: "Visual",
@@ -207,6 +210,7 @@ export default function CreateQAPPage() {
           id: 1,
           slNo: 1,
           componentOperation: "Review of Documents",
+          subMaterial: "",
           characteristicsChecked: "Document completeness",
           class: "Major",
           typeOfCheck: "Visual",
@@ -274,7 +278,10 @@ export default function CreateQAPPage() {
                 ${qapTableItems.map(item => `
                   <tr>
                     <td>${item.slNo}</td>
-                    <td>${item.componentOperation}</td>
+                    <td>${item.componentOperation === "Raw Material" && item.subMaterial 
+                         ? `${item.componentOperation} - ${item.subMaterial}` 
+                         : item.componentOperation}
+                    </td>
                     <td>${item.characteristicsChecked}</td>
                     <td>${item.class}</td>
                     <td>${item.typeOfCheck}</td>
@@ -615,32 +622,63 @@ export default function CreateQAPPage() {
                             </div>
                             <div className="p-1 border-r border-t text-center">{item.slNo}</div>
                             <div className="p-1 border-r border-t">
-                              <Select 
-                                defaultValue="review-documents"
-                                onValueChange={(value) => {
-                                  const updatedItems = [...qapItems];
-                                  updatedItems[index] = {
-                                    ...updatedItems[index],
-                                    componentOperation: value === "review-documents" ? "Review of Documents" :
-                                                       value === "raw-material" ? "Raw Material" :
-                                                       value === "in-process" ? "In Process Inspection" :
-                                                       value === "final-assessment" ? "Final Assessment" :
-                                                       "Testing & Painting"
-                                  };
-                                  setQapItems(updatedItems);
-                                }}
-                              >
-                                <SelectTrigger className="w-full h-5 text-[8px]">
-                                  <SelectValue placeholder="Select option" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="review-documents">Review of Documents</SelectItem>
-                                  <SelectItem value="raw-material">Raw Material</SelectItem>
-                                  <SelectItem value="in-process">In Process Inspection</SelectItem>
-                                  <SelectItem value="final-assessment">Final Assessment</SelectItem>
-                                  <SelectItem value="testing-painting">Testing & Painting</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <div className="space-y-1">
+                                <Select 
+                                  defaultValue="review-documents"
+                                  onValueChange={(value) => {
+                                    const updatedItems = [...qapItems];
+                                    updatedItems[index] = {
+                                      ...updatedItems[index],
+                                      componentOperation: value === "review-documents" ? "Review of Documents" :
+                                                        value === "raw-material" ? "Raw Material" :
+                                                        value === "in-process" ? "In Process Inspection" :
+                                                        value === "final-assessment" ? "Final Assessment" :
+                                                        "Testing & Painting",
+                                      // Clear subMaterial if not Raw Material
+                                      subMaterial: value !== "raw-material" ? "" : updatedItems[index].subMaterial
+                                    };
+                                    setQapItems(updatedItems);
+                                  }}
+                                >
+                                  <SelectTrigger className="w-full h-5 text-[8px]">
+                                    <SelectValue placeholder="Select option" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="review-documents">Review of Documents</SelectItem>
+                                    <SelectItem value="raw-material">Raw Material</SelectItem>
+                                    <SelectItem value="in-process">In Process Inspection</SelectItem>
+                                    <SelectItem value="final-assessment">Final Assessment</SelectItem>
+                                    <SelectItem value="testing-painting">Testing & Painting</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                
+                                {/* Dependent dropdown for Raw Material sub-options */}
+                                {item.componentOperation === "Raw Material" && (
+                                  <Select 
+                                    value={item.subMaterial || ""}
+                                    onValueChange={(value) => {
+                                      const updatedItems = [...qapItems];
+                                      updatedItems[index] = {
+                                        ...updatedItems[index],
+                                        subMaterial: value
+                                      };
+                                      setQapItems(updatedItems);
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-full h-5 text-[8px] mt-1">
+                                      <SelectValue placeholder="Select material" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Shell Dish">Shell Dish</SelectItem>
+                                      <SelectItem value="Lugs">Lugs</SelectItem>
+                                      <SelectItem value="Pipes">Pipes</SelectItem>
+                                      <SelectItem value="Flanges">Flanges</SelectItem>
+                                      <SelectItem value="Hard Ware">Hard Ware</SelectItem>
+                                      <SelectItem value="Insulation">Insulation</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </div>
                             </div>
                             <div className="p-1 border-r border-t">
                               <Input 
