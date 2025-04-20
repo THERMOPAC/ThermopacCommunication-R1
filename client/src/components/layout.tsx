@@ -56,7 +56,8 @@ export default function Layout({ children }: LayoutProps) {
                            
   // Check if we're on any quality-related page
   const isOnQualityPage = location === '/inspections' ||
-                        location.startsWith('/quality-reports');
+                        location.startsWith('/quality-reports') ||
+                        location === '/quality-assurance-plan';
   
   // Auto-open menus based on current page
   useEffect(() => {
@@ -125,7 +126,7 @@ export default function Layout({ children }: LayoutProps) {
       children: [
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
         { icon: Award, label: "Quality Reports", href: "/quality-reports" },
-        { icon: FileCheck, label: "Quality Assurance Plan", href: "/quality-reports?tab=qap-templates" }
+        { icon: FileCheck, label: "Quality Assurance Plan", href: "/quality-assurance-plan" }
       ]
     }] : []),
     ...(hasViewPermission("Project Commissioning") ? [{ icon: Briefcase, label: "Project Commissioning", href: "/project-commissioning" }] : []),
