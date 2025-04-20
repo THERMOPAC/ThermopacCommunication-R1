@@ -576,50 +576,55 @@ function ITPTemplatesTab() {
   // Define default template content structure
   const defaultTemplateContent = `
   <div class="itp-container">
-    <!-- Header Section -->
     <div class="itp-header">
+      <h2>INSPECTION TEST PLAN (ITP)</h2>
       <table width="100%" border="1" cellpadding="3" cellspacing="0">
         <tr>
-          <td colspan="6" align="center" style="background-color: #f5f5f5;"><h2>INSPECTION TEST PLAN (ITP)</h2></td>
+          <td width="33%"><strong>MANUFACTURER:</strong> {{manufacturer}}<br/>
+          {{manufacturerAddress1}}<br/>
+          {{manufacturerAddress2}}<br/>
+          {{manufacturerCity}}, {{manufacturerPostcode}}<br/>
+          {{manufacturerState}}, {{manufacturerCountry}}</td>
+          <td width="33%"><strong>CUSTOMER:</strong> {{customer}}<br/>
+          {{customerAddress1}}<br/>
+          {{customerAddress2}}<br/>
+          {{customerCity}}, {{customerPostcode}}<br/>
+          {{customerState}}, {{customerCountry}}</td>
+          <td width="34%">
+            <table width="100%" border="0" cellpadding="1" cellspacing="0">
+              <tr><td width="35%"><strong>PROJECT:</strong></td><td>{{projectName}}</td></tr>
+              <tr><td><strong>PO NO.</strong></td><td>{{poNumber}}</td></tr>
+              <tr><td><strong>ITP NO</strong></td><td>{{itpNumber}}</td></tr>
+              <tr><td><strong>ITP DATE</strong></td><td>{{itpDate}}</td></tr>
+            </table>
+          </td>
         </tr>
         <tr>
-          <td width="25%" style="vertical-align: top;"><strong>MANUFACTURER:</strong><br/>{{manufacturerName}}<br/>{{manufacturerAddress}}</td>
-          <td width="25%" style="vertical-align: top;"><strong>CUSTOMER:</strong><br/>{{customerName}}<br/>{{customerAddress}}</td>
-          <td width="16%" style="vertical-align: top;"><strong>PROJECT:</strong><br/>{{projectName}}</td>
-          <td width="16%" style="vertical-align: top;"><strong>EQUIPMENT:</strong><br/>{{equipmentName}}</td>
-        </tr>
-        <tr>
-          <td style="vertical-align: top;"><strong>PO NO.</strong><br/>{{poNumber}}</td>
-          <td style="vertical-align: top;"><strong>DRAWING NO</strong><br/>{{drawingNumber}}</td>
-          <td style="vertical-align: top;"><strong>ITP NO</strong><br/>{{itpNumber}}</td>
-          <td style="vertical-align: top;"><strong>REVISION</strong><br/>{{revision}}</td>
-        </tr>
-        <tr>
-          <td style="vertical-align: top;"><strong>ITP DATE</strong><br/>{{itpDate}}</td>
-          <td style="vertical-align: top;"><strong>Design Verification No & Date</strong><br/>{{designVerificationInfo}}</td>
-          <td style="vertical-align: top;"><strong>ITP REVISION</strong><br/>{{itpRevision}}</td>
-          <td style="vertical-align: top;"><strong>QTY</strong><br/>{{quantity}}</td>
-        </tr>
-        <tr>
-          <td style="vertical-align: top;"><strong>NOTIFIED BODY</strong><br/>{{notifiedBody}}</td>
-          <td style="vertical-align: top;"><strong>Hazard Level</strong><br/>{{hazardLevel}}</td>
-          <td colspan="2" style="vertical-align: top;"><strong>Applicable Standards</strong><br/>{{applicableStandards}}</td>
-        </tr>
+          <td><strong>EQUIPMENT</strong><br/>{{equipmentName}}</td>
+          <td><strong>DRAWING NO</strong><br/>{{drawingNumber}}</td>
+          <td>
+            <table width="100%" border="0" cellpadding="1" cellspacing="0">
+              <tr><td width="35%"><strong>REVISION</strong></td><td>{{revision}}</td></tr>
+              <tr><td><strong>QTY</strong></td><td>{{quantity}}</td></tr>
+              <tr><td><strong>NOTIFIED BODY</strong></td><td>{{notifiedBody}}</td></tr>
+              <tr><td><strong>Hazard Level</strong></td><td>{{hazardLevel}}</td></tr>
+            </table>
+          </td>
       </table>
     </div>
     
     <!-- Main Inspection Table -->
     <div class="itp-inspection-table">
-      <table width="100%" border="1" cellpadding="3" cellspacing="0">
+      <table width="100%" border="1" cellpadding="3" cellspacing="0" class="inspection-table">
         <tr>
-          <th width="5%" style="background-color: #f5f5f5;">SL.NO</th>
-          <th width="20%" style="background-color: #f5f5f5;">INSPECTION ACTIVITY / ITEM</th>
-          <th width="15%" style="background-color: #f5f5f5;">CHARACTERISTICS CHECKED</th>
-          <th width="15%" style="background-color: #f5f5f5;">REFERENCE DOCUMENTS</th>
-          <th width="15%" style="background-color: #f5f5f5;">ACCEPTANCE CRITERIA</th>
-          <th width="10%" style="background-color: #f5f5f5;">FORMAT OF RECORDS</th>
-          <th width="10%" style="background-color: #f5f5f5;">INSPECTION BY</th>
-          <th width="10%" style="background-color: #f5f5f5;">REMARKS</th>
+          <th>SL.NO</th>
+          <th>INSPECTION ACTIVITY / ITEM</th>
+          <th>CHARACTERISTICS CHECKED</th>
+          <th>REFERENCE DOCUMENTS</th>
+          <th>ACCEPTANCE CRITERIA</th>
+          <th>FORMAT OF RECORDS</th>
+          <th>INSPECTION BY</th>
+          <th>REMARKS</th>
         </tr>
         <tr>
           <td align="center">1</td>
@@ -817,20 +822,28 @@ function ITPTemplatesTab() {
   </div>
   
   <style>
+    @page {
+      size: A3 landscape;
+      margin: 0.5cm;
+    }
     .itp-container {
       font-family: Arial, sans-serif;
-      margin: 20px;
-      font-size: 11pt;
+      margin: 10px;
+      font-size: 10pt;
+      width: 100%;
+      max-width: 1180px; /* A3 landscape width approximate */
     }
     .itp-header, .itp-inspection-table, .itp-footer {
-      margin-bottom: 20px;
+      margin-bottom: 10px;
+      width: 100%;
     }
     .itp-header h2 {
       font-size: 16pt;
       font-weight: bold;
       margin: 0;
-      padding: 8px 0;
+      padding: 5px 0;
       text-align: center;
+      text-transform: uppercase;
     }
     .section-header {
       background-color: #f2f2f2;
@@ -840,6 +853,7 @@ function ITPTemplatesTab() {
     table {
       border-collapse: collapse;
       width: 100%;
+      table-layout: fixed;
     }
     table, th, td {
       border: 1px solid #000;
@@ -847,27 +861,65 @@ function ITPTemplatesTab() {
     th {
       background-color: #f5f5f5;
       font-weight: bold;
-      padding: 6px;
+      padding: 5px 3px;
       text-align: center;
       vertical-align: middle;
+      font-size: 9pt;
+      text-transform: uppercase;
     }
     td {
-      padding: 6px;
+      padding: 4px 3px;
       vertical-align: top;
+      font-size: 9pt;
+    }
+    .inspection-table th:nth-child(1) { width: 4%; }
+    .inspection-table th:nth-child(2) { width: 20%; }
+    .inspection-table th:nth-child(3) { width: 13%; }
+    .inspection-table th:nth-child(4) { width: 13%; }
+    .inspection-table th:nth-child(5) { width: 15%; }
+    .inspection-table th:nth-child(6) { width: 13%; }
+    .inspection-table th:nth-child(7) { width: 8%; }
+    .inspection-table th:nth-child(8) { width: 14%; }
+    
+    .itp-header td {
+      font-size: 8pt;
+      line-height: 1.2;
+      vertical-align: middle;
     }
     strong {
       font-weight: bold;
     }
+    .centered {
+      text-align: center;
+    }
     .inspection-by-cell {
       text-align: center;
-      line-height: 1.5;
+      line-height: 1.2;
+    }
+    /* Excel-like styling */
+    th, td {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: normal;
+      border: 1px solid #000;
+    }
+    tr:nth-child(even) {
+      background-color: #fcfcfc;
     }
     /* Print-friendly styles */
     @media print {
-      .itp-container {
+      body {
+        width: 100%;
+        height: 100%;
         margin: 0;
         padding: 0;
-        font-size: 10pt;
+      }
+      .itp-container {
+        margin: 0;
+        padding: 5mm;
+        font-size: 9pt;
+        box-sizing: border-box;
+        width: 100%;
       }
       table, th, td {
         border: 1px solid #000;
