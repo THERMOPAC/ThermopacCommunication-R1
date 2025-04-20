@@ -264,7 +264,7 @@ export default function ViewEditQAPPage() {
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">{qap.title}</h1>
+              <h1 className="text-2xl font-bold">{qap?.title || "Untitled QAP"}</h1>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="outline" className="text-sm">
                   {formatQapNumber()}
@@ -410,45 +410,45 @@ export default function ViewEditQAPPage() {
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
                           Project
                         </h3>
-                        <p>{qap.project?.name || "N/A"}</p>
+                        <p>{qap?.project?.name || "N/A"}</p>
                       </div>
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
                           Project Code
                         </h3>
-                        <p>{qap.project?.code || "N/A"}</p>
+                        <p>{qap?.project?.code || "N/A"}</p>
                       </div>
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
                           Client
                         </h3>
-                        <p>{qap.clientName || "N/A"}</p>
+                        <p>{qap?.clientName || "N/A"}</p>
                       </div>
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
                           Equipment Type
                         </h3>
-                        <p>{qap.equipmentType || "N/A"}</p>
+                        <p>{qap?.equipmentType || "N/A"}</p>
                       </div>
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
                           Standards
                         </h3>
-                        <p>{qap.standardsApplicable || "N/A"}</p>
+                        <p>{qap?.standardsApplicable || "N/A"}</p>
                       </div>
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
                           Revision
                         </h3>
-                        <p>{qap.revision || "0"}</p>
+                        <p>{qap?.revision || "0"}</p>
                       </div>
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
                           Prepared By
                         </h3>
                         <p>
-                          {qap.preparedByUser?.username || "Unknown"} on{" "}
-                          {format(new Date(qap.createdAt), "MMM dd, yyyy")}
+                          {qap?.preparedByUser?.username || "Unknown"} on{" "}
+                          {qap?.createdAt ? format(new Date(qap.createdAt), "MMM dd, yyyy") : "Unknown"}
                         </p>
                       </div>
                       {(qap?.status || "") === "approved" && qap?.approvedByUser && (
@@ -457,8 +457,8 @@ export default function ViewEditQAPPage() {
                             Approved By
                           </h3>
                           <p>
-                            {qap.approvedByUser.username || "Unknown"}
-                            {qap.approvedDate && (
+                            {qap?.approvedByUser?.username || "Unknown"}
+                            {qap?.approvedDate && (
                               <> on {format(new Date(qap.approvedDate), "MMM dd, yyyy")}</>
                             )}
                           </p>
@@ -471,7 +471,7 @@ export default function ViewEditQAPPage() {
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
                           Remarks
                         </h3>
-                        <p className="whitespace-pre-wrap">{qap.remarks}</p>
+                        <p className="whitespace-pre-wrap">{qap?.remarks}</p>
                       </div>
                     )}
                   </CardContent>
@@ -532,7 +532,7 @@ export default function ViewEditQAPPage() {
                     <div
                       className="prose max-w-none"
                       dangerouslySetInnerHTML={{
-                        __html: qap.content || "<p>No content available</p>",
+                        __html: qap?.content || "<p>No content available</p>",
                       }}
                     />
                   </div>
@@ -548,7 +548,7 @@ export default function ViewEditQAPPage() {
                       <h3 className="text-lg font-medium">Revision History</h3>
                     </div>
 
-                    {qap.versions && qap.versions.length > 0 ? (
+                    {qap?.versions && qap.versions.length > 0 ? (
                       <div className="space-y-4">
                         {qap.versions.map((version: any) => (
                           <div
