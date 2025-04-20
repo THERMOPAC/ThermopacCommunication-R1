@@ -63,6 +63,174 @@ export const setupQualityRoutes = (app: any) => {
   });
 
   // Get a single QAP template by ID
+  // ==================== ITP TEMPLATES ====================
+  
+  // Get all ITP templates
+  app.get('/api/quality/itp-templates', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Check if user has permission to manage ITPs
+      if (!canManageQuality(req.user!.role) && req.user!.role !== 'Employee') {
+        return res.status(403).json({ error: 'You do not have permission to view ITP templates' });
+      }
+      
+      const templates = await db.query.itpTemplates.findMany({
+        with: {
+          creator: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+        },
+        orderBy: [desc(itpTemplates.updatedAt)],
+      });
+      
+      res.status(200).json(templates);
+    } catch (error) {
+      console.error('Error fetching ITP templates:', error);
+      res.status(500).json({ error: 'Failed to fetch ITP templates' });
+    }
+  });
+  
+  // Create a new ITP template
+  app.post('/api/quality/itp-templates', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Check if user has permission to create ITP templates
+      if (!canManageQuality(req.user!.role)) {
+        return res.status(403).json({ error: 'You do not have permission to create ITP templates' });
+      }
+      
+      // Validate request body
+      const validationResult = insertItpTemplateSchema.safeParse({
+        ...req.body,
+        createdBy: req.user!.id,
+      });
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ error: 'Invalid template data', details: validationResult.error });
+      }
+      
+      // Create template
+      const [newTemplate] = await db.insert(itpTemplates).values({
+        ...validationResult.data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).returning();
+      
+      res.status(201).json(newTemplate);
+    } catch (error) {
+      console.error('Error creating ITP template:', error);
+      res.status(500).json({ error: 'Failed to create ITP template' });
+    }
+  });
+  
+  // Get a single ITP template by ID
+  app.get('/api/quality/itp-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      
+      // Check if user has permission to view ITP templates
+      if (!canManageQuality(req.user!.role) && req.user!.role !== 'Employee') {
+        return res.status(403).json({ error: 'You do not have permission to view ITP templates' });
+      }
+      
+      const template = await db.query.itpTemplates.findFirst({
+        where: eq(itpTemplates.id, templateId),
+        with: {
+          creator: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+        },
+      });
+      
+      if (!template) {
+        return res.status(404).json({ error: 'Template not found' });
+      }
+      
+      res.status(200).json(template);
+    } catch (error) {
+      console.error('Error fetching ITP template:', error);
+      res.status(500).json({ error: 'Failed to fetch ITP template' });
+    }
+  });
+  
+  // Update an ITP template
+  app.put('/api/quality/itp-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      
+      // Check if template exists
+      const existingTemplate = await db.query.itpTemplates.findFirst({
+        where: eq(itpTemplates.id, templateId),
+      });
+      
+      if (!existingTemplate) {
+        return res.status(404).json({ error: 'Template not found' });
+      }
+      
+      // Check if user has permission to update templates
+      const isCreator = existingTemplate.createdBy === req.user!.id;
+      if (!canManageQuality(req.user!.role) && !isCreator) {
+        return res.status(403).json({ error: 'You do not have permission to update this template' });
+      }
+      
+      // Validate request body
+      const validationResult = updateItpTemplateSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ error: 'Invalid template data', details: validationResult.error });
+      }
+      
+      // Update template
+      const [updatedTemplate] = await db.update(itpTemplates)
+        .set({
+          ...validationResult.data,
+          updatedAt: new Date(),
+        })
+        .where(eq(itpTemplates.id, templateId))
+        .returning();
+      
+      res.status(200).json(updatedTemplate);
+    } catch (error) {
+      console.error('Error updating ITP template:', error);
+      res.status(500).json({ error: 'Failed to update ITP template' });
+    }
+  });
+  
+  // Delete an ITP template
+  app.delete('/api/quality/itp-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      
+      // Check if template exists
+      const existingTemplate = await db.query.itpTemplates.findFirst({
+        where: eq(itpTemplates.id, templateId),
+      });
+      
+      if (!existingTemplate) {
+        return res.status(404).json({ error: 'Template not found' });
+      }
+      
+      // Check if user has permission to delete templates
+      if (req.user!.role !== 'Superuser') {
+        return res.status(403).json({ error: 'You do not have permission to delete templates' });
+      }
+      
+      // Delete template
+      await db.delete(itpTemplates).where(eq(itpTemplates.id, templateId));
+      
+      res.status(200).json({ message: 'Template deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting ITP template:', error);
+      res.status(500).json({ error: 'Failed to delete ITP template' });
+    }
+  });
+  
+  // ==================== QAP TEMPLATES ====================
+  
   app.get('/api/quality/qap-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const templateId = parseInt(req.params.id);
@@ -213,6 +381,542 @@ export const setupQualityRoutes = (app: any) => {
     }
   });
 
+  // ==================== ITPs ====================
+  
+  // Get all ITPs
+  app.get('/api/quality/itps', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Allow filtering by project
+      const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : null;
+      const qapId = req.query.qapId ? parseInt(req.query.qapId as string) : null;
+      
+      let whereClause;
+      if (projectId && !isNaN(projectId)) {
+        whereClause = eq(itps.projectId, projectId);
+      } else if (qapId && !isNaN(qapId)) {
+        whereClause = eq(itps.qapId, qapId);
+      }
+      
+      const allItps = await db.query.itps.findMany({
+        where: whereClause,
+        orderBy: [desc(itps.updatedAt)],
+        with: {
+          project: true,
+          template: {
+            columns: {
+              id: true,
+              name: true,
+              version: true,
+            },
+          },
+          qap: {
+            columns: {
+              id: true,
+              title: true,
+            },
+          },
+          preparedByUser: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+        },
+      });
+      
+      res.status(200).json(allItps);
+    } catch (error) {
+      console.error('Error fetching ITPs:', error);
+      res.status(500).json({ error: 'Failed to fetch ITPs' });
+    }
+  });
+  
+  // Get a single ITP
+  app.get('/api/quality/itps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const itpId = parseInt(req.params.id);
+      
+      if (isNaN(itpId)) {
+        return res.status(400).json({ error: 'Invalid ITP ID' });
+      }
+      
+      const itp = await db.query.itps.findFirst({
+        where: eq(itps.id, itpId),
+        with: {
+          project: true,
+          template: true,
+          qap: true,
+          preparedByUser: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+          activities: {
+            orderBy: asc(itpActivities.sequenceNumber),
+          },
+        },
+      });
+      
+      if (!itp) {
+        return res.status(404).json({ error: 'ITP not found' });
+      }
+      
+      res.status(200).json(itp);
+    } catch (error) {
+      console.error('Error fetching ITP:', error);
+      res.status(500).json({ error: 'Failed to fetch ITP' });
+    }
+  });
+  
+  // Create a new ITP
+  app.post('/api/quality/itps', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Check if user has permission to create ITPs
+      if (!canManageQuality(req.user!.role) && req.user!.role !== 'Employee') {
+        return res.status(403).json({ error: 'You do not have permission to create ITPs' });
+      }
+      
+      // Validate request body
+      const validationResult = insertItpSchema.safeParse({
+        ...req.body,
+        preparedBy: req.user!.id,
+        status: 'draft',
+      });
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ error: 'Invalid ITP data', details: validationResult.error });
+      }
+      
+      // Start a transaction for creating ITP and activities
+      await db.transaction(async (tx) => {
+        // Create ITP
+        const [newItp] = await tx.insert(itps).values({
+          ...validationResult.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }).returning();
+        
+        // If content contains activities, create them
+        if (req.body.content?.activities?.length > 0) {
+          const activities = req.body.content.activities.map((activity: any, index: number) => ({
+            itpId: newItp.id,
+            sequenceNumber: index + 1,
+            description: activity.description,
+            acceptanceCriteria: activity.acceptanceCriteria,
+            responsibility: activity.responsibility,
+            referenceDocuments: activity.referenceDocuments || '',
+          }));
+          
+          await tx.insert(itpActivities).values(activities);
+        }
+        
+        // Return the created ITP with activities
+        const createdItp = await tx.query.itps.findFirst({
+          where: eq(itps.id, newItp.id),
+          with: {
+            project: true,
+            template: {
+              columns: {
+                id: true,
+                name: true,
+                version: true,
+              },
+            },
+            qap: {
+              columns: {
+                id: true,
+                title: true,
+              },
+            },
+            preparedByUser: {
+              columns: {
+                id: true,
+                username: true,
+              },
+            },
+            activities: {
+              orderBy: asc(itpActivities.sequenceNumber),
+            },
+          },
+        });
+        
+        res.status(201).json(createdItp);
+      });
+    } catch (error) {
+      console.error('Error creating ITP:', error);
+      res.status(500).json({ error: 'Failed to create ITP' });
+    }
+  });
+  
+  // Update an ITP
+  app.put('/api/quality/itps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const itpId = parseInt(req.params.id);
+      
+      // Check if ITP exists
+      const existingItp = await db.query.itps.findFirst({
+        where: eq(itps.id, itpId),
+        with: {
+          activities: true,
+        },
+      });
+      
+      if (!existingItp) {
+        return res.status(404).json({ error: 'ITP not found' });
+      }
+      
+      // Check if user has permission to update this ITP
+      const isCreator = existingItp.preparedBy === req.user!.id;
+      if (!canManageQuality(req.user!.role) && !isCreator) {
+        return res.status(403).json({ error: 'You do not have permission to update this ITP' });
+      }
+      
+      // Approved ITPs can only be updated by managers or above
+      if (existingItp.status === 'approved' && !canManageQuality(req.user!.role)) {
+        return res.status(403).json({ error: 'You do not have permission to update an approved ITP' });
+      }
+      
+      // Validate request body
+      const validationResult = updateItpSchema.safeParse({
+        ...req.body,
+        preparedBy: existingItp.preparedBy, // Preserve original preparer
+      });
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ error: 'Invalid ITP data', details: validationResult.error });
+      }
+      
+      // Start a transaction for updating ITP and activities
+      await db.transaction(async (tx) => {
+        // Update ITP
+        const [updatedItp] = await tx.update(itps)
+          .set({
+            ...validationResult.data,
+            updatedAt: new Date(),
+          })
+          .where(eq(itps.id, itpId))
+          .returning();
+        
+        // If content contains activities, update them
+        if (req.body.content?.activities?.length > 0) {
+          // Delete existing activities
+          await tx.delete(itpActivities).where(eq(itpActivities.itpId, itpId));
+          
+          // Create new activities
+          const activities = req.body.content.activities.map((activity: any, index: number) => ({
+            itpId: updatedItp.id,
+            sequenceNumber: index + 1,
+            description: activity.description,
+            acceptanceCriteria: activity.acceptanceCriteria,
+            responsibility: activity.responsibility,
+            referenceDocuments: activity.referenceDocuments || '',
+          }));
+          
+          await tx.insert(itpActivities).values(activities);
+        }
+        
+        // Return the updated ITP with activities
+        const finalUpdatedItp = await tx.query.itps.findFirst({
+          where: eq(itps.id, updatedItp.id),
+          with: {
+            project: true,
+            template: {
+              columns: {
+                id: true,
+                name: true,
+                version: true,
+              },
+            },
+            qap: {
+              columns: {
+                id: true,
+                title: true,
+              },
+            },
+            preparedByUser: {
+              columns: {
+                id: true,
+                username: true,
+              },
+            },
+            activities: {
+              orderBy: asc(itpActivities.sequenceNumber),
+            },
+          },
+        });
+        
+        res.status(200).json(finalUpdatedItp);
+      });
+    } catch (error) {
+      console.error('Error updating ITP:', error);
+      res.status(500).json({ error: 'Failed to update ITP' });
+    }
+  });
+  
+  // Delete an ITP
+  app.delete('/api/quality/itps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const itpId = parseInt(req.params.id);
+      
+      // Check if ITP exists
+      const existingItp = await db.query.itps.findFirst({
+        where: eq(itps.id, itpId),
+      });
+      
+      if (!existingItp) {
+        return res.status(404).json({ error: 'ITP not found' });
+      }
+      
+      // Check if user has permission to delete ITPs
+      if (req.user!.role !== 'Superuser') {
+        return res.status(403).json({ error: 'You do not have permission to delete ITPs' });
+      }
+      
+      // Delete ITP and related activities (cascade delete should handle this)
+      await db.delete(itps).where(eq(itps.id, itpId));
+      
+      res.status(200).json({ message: 'ITP deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting ITP:', error);
+      res.status(500).json({ error: 'Failed to delete ITP' });
+    }
+  });
+  
+  // Export ITP to PDF
+  app.get('/api/quality/itps/:id/export', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const itpId = parseInt(req.params.id);
+      
+      if (isNaN(itpId)) {
+        return res.status(400).json({ error: 'Invalid ITP ID' });
+      }
+      
+      // Fetch ITP with all related data
+      const itp = await db.query.itps.findFirst({
+        where: eq(itps.id, itpId),
+        with: {
+          project: true,
+          template: true,
+          qap: true,
+          preparedByUser: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+          activities: {
+            orderBy: asc(itpActivities.sequenceNumber),
+          },
+        },
+      });
+      
+      if (!itp) {
+        return res.status(404).json({ error: 'ITP not found' });
+      }
+      
+      // Generate PDF content
+      const pdfContent = {
+        content: [
+          { text: 'INSPECTION AND TEST PLAN', style: 'header', alignment: 'center' },
+          { text: itp.title, style: 'subheader', alignment: 'center' },
+          { text: 'Revision: ' + itp.revision, style: 'subheader', alignment: 'center', margin: [0, 0, 0, 20] },
+          
+          {
+            columns: [
+              {
+                width: '50%',
+                text: [
+                  { text: 'Project: ', style: 'label' },
+                  { text: itp.project?.name || 'N/A', style: 'value' },
+                  '\n',
+                  { text: 'Project Code: ', style: 'label' },
+                  { text: itp.project?.code || 'N/A', style: 'value' },
+                  '\n',
+                  { text: 'Equipment: ', style: 'label' },
+                  { text: itp.equipmentName, style: 'value' },
+                ],
+              },
+              {
+                width: '50%',
+                text: [
+                  { text: 'Drawing No.: ', style: 'label' },
+                  { text: itp.drawingNumber || 'N/A', style: 'value' },
+                  '\n',
+                  { text: 'Hazard Level: ', style: 'label' },
+                  { text: itp.hazardLevel || 'N/A', style: 'value' },
+                  '\n',
+                  { text: 'QAP Reference: ', style: 'label' },
+                  { text: itp.qap?.title || 'N/A', style: 'value' },
+                ],
+              },
+            ],
+            margin: [0, 0, 0, 20],
+          },
+          
+          // Activities table
+          {
+            table: {
+              headerRows: 1,
+              widths: ['auto', '*', '*', '*', '*'],
+              body: [
+                [
+                  { text: '#', style: 'tableHeader' },
+                  { text: 'Activity Description', style: 'tableHeader' },
+                  { text: 'Reference Documents', style: 'tableHeader' },
+                  { text: 'Acceptance Criteria', style: 'tableHeader' },
+                  { text: 'Responsibility', style: 'tableHeader' },
+                ],
+                // Add activity rows
+                ...(itp.activities?.map(activity => [
+                  activity.sequenceNumber.toString(),
+                  activity.description,
+                  activity.referenceDocuments || '-',
+                  activity.acceptanceCriteria,
+                  activity.responsibility,
+                ]) || [['No activities defined', '', '', '', '']]),
+              ],
+            },
+            layout: 'lightHorizontalLines',
+          },
+          
+          // Approvals section
+          {
+            text: 'Approvals',
+            style: 'sectionHeader',
+            margin: [0, 30, 0, 10],
+          },
+          {
+            columns: [
+              {
+                width: '33%',
+                text: [
+                  { text: 'Prepared By: ', style: 'label' },
+                  { text: itp.preparedByUser?.username || 'N/A', style: 'value' },
+                  '\n\n\n',
+                  { text: 'Signature: _________________', style: 'signature' },
+                  '\n',
+                  { text: 'Date: _________________', style: 'signature' },
+                ],
+              },
+              {
+                width: '33%',
+                text: [
+                  { text: 'Reviewed By: ', style: 'label' },
+                  { text: '________________', style: 'value' },
+                  '\n\n\n',
+                  { text: 'Signature: _________________', style: 'signature' },
+                  '\n',
+                  { text: 'Date: _________________', style: 'signature' },
+                ],
+              },
+              {
+                width: '33%',
+                text: [
+                  { text: 'Approved By: ', style: 'label' },
+                  { text: '________________', style: 'value' },
+                  '\n\n\n',
+                  { text: 'Signature: _________________', style: 'signature' },
+                  '\n',
+                  { text: 'Date: _________________', style: 'signature' },
+                ],
+              },
+            ],
+            margin: [0, 0, 0, 20],
+          },
+          
+          // Footer
+          {
+            text: 'This document is controlled and maintained electronically. When printed, this document is UNCONTROLLED.',
+            style: 'footer',
+            alignment: 'center',
+            margin: [0, 20, 0, 0],
+          },
+        ],
+        styles: {
+          header: { fontSize: 18, bold: true, margin: [0, 0, 0, 10] },
+          subheader: { fontSize: 14, bold: true, margin: [0, 5, 0, 5] },
+          sectionHeader: { fontSize: 14, bold: true, margin: [0, 15, 0, 5] },
+          tableHeader: { bold: true, fontSize: 10, color: 'black', fillColor: '#eeeeee' },
+          label: { bold: true, fontSize: 10 },
+          value: { fontSize: 10 },
+          signature: { fontSize: 10, italics: true },
+          footer: { fontSize: 8, italics: true },
+        },
+        defaultStyle: {
+          fontSize: 10,
+        },
+      };
+      
+      // Replace template placeholders if available
+      if (itp.template?.placeholders) {
+        // Parse placeholders JSON
+        const placeholders = typeof itp.template.placeholders === 'string'
+          ? JSON.parse(itp.template.placeholders)
+          : itp.template.placeholders;
+        
+        // Create placeholder values map
+        const placeholderValues: Record<string, string> = {
+          PROJECT_NAME: itp.project?.name || '',
+          PROJECT_CODE: itp.project?.code || '',
+          EQUIPMENT_NAME: itp.equipmentName || '',
+          DRAWING_NUMBER: itp.drawingNumber || '',
+          REVISION: itp.revision || '',
+          QAP_TITLE: itp.qap?.title || '',
+          PREPARED_BY: itp.preparedByUser?.username || '',
+          HAZARD_LEVEL: itp.hazardLevel || '',
+          CURRENT_DATE: new Date().toLocaleDateString(),
+        };
+        
+        // Apply placeholders to PDF content
+        const applyPlaceholders = (text: string): string => {
+          let processedText = text;
+          Object.entries(placeholderValues).forEach(([key, value]) => {
+            processedText = processedText.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+          });
+          return processedText;
+        };
+        
+        // Recursively process the PDF content to replace placeholders
+        const processContentItem = (item: any): any => {
+          if (typeof item === 'string') {
+            return applyPlaceholders(item);
+          } else if (Array.isArray(item)) {
+            return item.map(subItem => processContentItem(subItem));
+          } else if (typeof item === 'object' && item !== null) {
+            const processedItem: any = {};
+            for (const [key, value] of Object.entries(item)) {
+              if (key === 'text' && typeof value === 'string') {
+                processedItem[key] = applyPlaceholders(value);
+              } else {
+                processedItem[key] = processContentItem(value);
+              }
+            }
+            return processedItem;
+          }
+          return item;
+        };
+        
+        // Process the entire PDF content
+        pdfContent.content = processContentItem(pdfContent.content);
+      }
+      
+      // Generate PDF
+      const pdfDoc = printer.createPdfKitDocument(pdfContent as any);
+      
+      // Set response headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="ITP-${itp.title.replace(/\s+/g, '_')}-${itp.revision}.pdf"`);
+      
+      // Pipe the PDF to the response
+      pdfDoc.pipe(res);
+      pdfDoc.end();
+    } catch (error) {
+      console.error('Error exporting ITP to PDF:', error);
+      res.status(500).json({ error: 'Failed to export ITP to PDF' });
+    }
+  });
+  
   // ==================== GENERATED QAPs ====================
 
   // Get all generated QAPs
