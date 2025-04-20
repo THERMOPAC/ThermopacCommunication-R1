@@ -224,7 +224,7 @@ export default function CreateQAPPage() {
           quantumOfCheck: "100%",
           referenceDocument: "Design & drawing",
           acceptanceNorms: "Compliance to Drawing",
-          formatOfRecords: "Checklist",
+          formatOfRecords: "Inspection Test Plan",
           agency: { M: true, C: false, SGS: false },
           remark: values.remarks || "",
         }
@@ -935,19 +935,33 @@ export default function CreateQAPPage() {
                               </Select>
                             </div>
                             <div className="p-1 border-r border-t">
-                              <Input 
-                                className="h-5 text-[8px]"
-                                placeholder="Format"
-                                value={item.formatOfRecords}
-                                onChange={(e) => {
+                              <Select 
+                                value={item.formatOfRecords || ""}
+                                onValueChange={(value) => {
                                   const updatedItems = [...qapItems];
                                   updatedItems[index] = {
                                     ...updatedItems[index],
-                                    formatOfRecords: e.target.value
+                                    formatOfRecords: value
                                   };
                                   setQapItems(updatedItems);
                                 }}
-                              />
+                              >
+                                <SelectTrigger className="w-full h-5 text-[8px]">
+                                  <SelectValue placeholder="Select format of records" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Approved procedure">Approved procedure</SelectItem>
+                                  <SelectItem value="Design Verification Certificate">Design Verification Certificate</SelectItem>
+                                  <SelectItem value="Declaration of Compliance with the Standard">Declaration of Compliance with the Standard</SelectItem>
+                                  <SelectItem value="Declaration of compliance">Declaration of compliance</SelectItem>
+                                  <SelectItem value="Evaluation report from level III qualified personal as per ISO9712">Evaluation report from level III qualified personal as per ISO9712</SelectItem>
+                                  <SelectItem value="IR / MTC (3.1) / Lab Test (3.2)">IR / MTC (3.1) / Lab Test (3.2)</SelectItem>
+                                  <SelectItem value="IR / MTC">IR / MTC</SelectItem>
+                                  <SelectItem value="IR">IR</SelectItem>
+                                  <SelectItem value="Inspection Test Plan">Inspection Test Plan</SelectItem>
+                                  <SelectItem value="WPS/PQR/WPQ & Weld Plan">WPS/PQR/WPQ & Weld Plan</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                             <div className="p-1 border-r border-t flex items-center justify-center space-x-1">
                               <div className="flex items-center space-x-1">
