@@ -654,29 +654,31 @@ export default function CreateQAPPage() {
                                 
                                 {/* Dependent dropdown for Raw Material sub-options */}
                                 {item.componentOperation === "Raw Material" && (
-                                  <Select 
-                                    value={item.subMaterial || ""}
-                                    onValueChange={(value) => {
-                                      const updatedItems = [...qapItems];
-                                      updatedItems[index] = {
-                                        ...updatedItems[index],
-                                        subMaterial: value
-                                      };
-                                      setQapItems(updatedItems);
-                                    }}
-                                  >
-                                    <SelectTrigger className="w-full h-5 text-[8px] mt-1">
-                                      <SelectValue placeholder="Select material" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="Shell Dish">Shell Dish</SelectItem>
-                                      <SelectItem value="Lugs">Lugs</SelectItem>
-                                      <SelectItem value="Pipes">Pipes</SelectItem>
-                                      <SelectItem value="Flanges">Flanges</SelectItem>
-                                      <SelectItem value="Hard Ware">Hard Ware</SelectItem>
-                                      <SelectItem value="Insulation">Insulation</SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                                  <div className="pl-3 mt-1"> {/* Added padding-left for indentation */}
+                                    <Select 
+                                      value={item.subMaterial || ""}
+                                      onValueChange={(value) => {
+                                        const updatedItems = [...qapItems];
+                                        updatedItems[index] = {
+                                          ...updatedItems[index],
+                                          subMaterial: value
+                                        };
+                                        setQapItems(updatedItems);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-full h-5 text-[8px] border-dashed border-gray-400"> {/* Added dashed border to indicate hierarchy */}
+                                        <SelectValue placeholder="Select material" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Shell Dish">Shell Dish</SelectItem>
+                                        <SelectItem value="Lugs">Lugs</SelectItem>
+                                        <SelectItem value="Pipes">Pipes</SelectItem>
+                                        <SelectItem value="Flanges">Flanges</SelectItem>
+                                        <SelectItem value="Hard Ware">Hard Ware</SelectItem>
+                                        <SelectItem value="Insulation">Insulation</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
                                 )}
                               </div>
                             </div>
