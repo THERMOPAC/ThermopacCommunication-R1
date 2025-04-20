@@ -60,6 +60,7 @@ interface QapItem {
   slNo: number;
   componentOperation: string;
   subMaterial?: string; // Optional field for Raw Material sub-options
+  reviewDocument?: string; // Optional field for Review of Documents sub-options
   characteristicsChecked: string;
   class: string;
   typeOfCheck: string;
@@ -280,6 +281,8 @@ export default function CreateQAPPage() {
                     <td>${item.slNo}</td>
                     <td>${item.componentOperation === "Raw Material" && item.subMaterial 
                          ? `${item.componentOperation} - ${item.subMaterial}` 
+                         : item.componentOperation === "Review of Documents" && item.reviewDocument
+                         ? `${item.componentOperation} - ${item.reviewDocument}`
                          : item.componentOperation}
                     </td>
                     <td>${item.characteristicsChecked}</td>
@@ -676,6 +679,35 @@ export default function CreateQAPPage() {
                                         <SelectItem value="Flanges">Flanges</SelectItem>
                                         <SelectItem value="Hard Ware">Hard Ware</SelectItem>
                                         <SelectItem value="Insulation">Insulation</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+                                
+                                {/* Dependent dropdown for Review of Documents sub-options */}
+                                {item.componentOperation === "Review of Documents" && (
+                                  <div className="pl-3 mt-1"> {/* Added padding-left for indentation */}
+                                    <Select 
+                                      value={item.reviewDocument || ""}
+                                      onValueChange={(value) => {
+                                        const updatedItems = [...qapItems];
+                                        updatedItems[index] = {
+                                          ...updatedItems[index],
+                                          reviewDocument: value
+                                        };
+                                        setQapItems(updatedItems);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-full h-5 text-[8px] border-dashed border-gray-400"> {/* Added dashed border to indicate hierarchy */}
+                                        <SelectValue placeholder="Select document" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Design & Drawings">Design & Drawings</SelectItem>
+                                        <SelectItem value="Approval (ITP)">Approval (ITP)</SelectItem>
+                                        <SelectItem value="WPS/PQR/WPQ & weld plan">WPS/PQR/WPQ & weld plan</SelectItem>
+                                        <SelectItem value="Particular Material Appraisal">Particular Material Appraisal</SelectItem>
+                                        <SelectItem value="Pneumatic & Hydrostatic leak test procedures">Pneumatic & Hydrostatic leak test procedures</SelectItem>
+                                        <SelectItem value="(NDE) procedure">(NDE) procedure</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
