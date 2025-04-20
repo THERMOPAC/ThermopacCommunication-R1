@@ -502,7 +502,7 @@ function QAPTemplatesTab() {
   // Create template mutation
   const createTemplateMutation = useMutation({
     mutationFn: async (values: z.infer<typeof templateFormSchema>) => {
-      return apiRequest('api/quality/qap-templates', 'POST', values);
+      return apiRequest('POST', 'api/quality/qap-templates', values);
     },
     onSuccess: () => {
       toast({
@@ -525,7 +525,7 @@ function QAPTemplatesTab() {
   // Update template mutation
   const updateTemplateMutation = useMutation({
     mutationFn: async (values: z.infer<typeof templateFormSchema>) => {
-      return apiRequest(`api/quality/qap-templates/${selectedTemplate.id}`, 'PUT', values);
+      return apiRequest('PUT', `api/quality/qap-templates/${selectedTemplate.id}`, values);
     },
     onSuccess: () => {
       toast({
@@ -548,7 +548,7 @@ function QAPTemplatesTab() {
   // Delete template mutation
   const deleteTemplateMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`api/quality/qap-templates/${id}`, 'DELETE');
+      return apiRequest('DELETE', `api/quality/qap-templates/${id}`);
     },
     onSuccess: () => {
       toast({
