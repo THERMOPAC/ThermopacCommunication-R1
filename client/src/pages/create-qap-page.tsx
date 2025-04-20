@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Helmet } from "react-helmet";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +15,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { FileText, ArrowLeft, Check, Save } from "lucide-react";
+import { FileText, ArrowLeft, Save } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 // Define schema for the QAP form
 const qapFormSchema = z.object({
@@ -33,10 +34,26 @@ const qapFormSchema = z.object({
 
 type QAPFormValues = z.infer<typeof qapFormSchema>;
 
+// Define interfaces
+interface Project {
+  id: number;
+  name: string;
+  code: string;
+  customerId: number;
+  customer: Customer;
+}
+
+interface Customer {
+  id: number;
+  bpCode: string;
+  bpName: string;
+}
+
 export default function CreateQAPPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [selectedProjectCode, setSelectedProjectCode] = useState<string>("");
 
   // Initialize the form
   const form = useForm<QAPFormValues>({
@@ -56,17 +73,53 @@ export default function CreateQAPPage() {
   });
 
   // Fetch projects
-  const { data: projects = [] } = useQuery<{ id: number; name: string; code: string; customer: { id: number; bpName: string } }[]>({
+  const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ['api/projects'],
     throwOnError: false,
   });
 
   // Fetch customers
-  const { data: customers = [] } = useQuery<{ id: number; bpCode: string; bpName: string }[]>({
+  const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ['api/customers'],
     throwOnError: false,
   });
 
+  // Handle project selection
+  const handleProjectChange = (projectId: string) => {
+    form.setValue("projectId", projectId);
+    
+    // Find the selected project
+    const selectedProject = projects.find(project => project.id.toString() === projectId);
+    
+    if (selectedProject) {
+      // Set the project code
+      setSelectedProjectCode(selectedProject.code);
+      
+      // Auto-populate customer field
+      if (selectedProject.customerId) {
+        form.setValue("customerId", selectedProject.customerId.toString());
+      }
+      
+      // Set QAP number based on project code
+      form.setValue("qapNumber", `QAP-${selectedProject.code}-001`);
+      
+      // Set title based on project name
+      form.setValue("title", `Quality Assurance Plan for ${selectedProject.name}`);
+    }
+  };
+
+  // Get project details
+  const getProjectDetails = async (projectId: string) => {
+    try {
+      const project = await apiRequest('GET', `api/projects/${projectId}`, null);
+      return project;
+    } catch (error) {
+      console.error("Error fetching project details:", error);
+      return null;
+    }
+  };
+
+  // Handle form submission
   const onSubmit = (values: QAPFormValues) => {
     // This would be replaced with actual API call
     console.log("Form values:", values);
@@ -109,8 +162,9 @@ export default function CreateQAPPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Project</FormLabel>
+                        <FormDescription>Select a project to auto-populate customer information</FormDescription>
                         <Select 
-                          onValueChange={field.onChange} 
+                          onValueChange={(value) => handleProjectChange(value)} 
                           defaultValue={field.value}
                         >
                           <FormControl>
@@ -121,7 +175,7 @@ export default function CreateQAPPage() {
                           <SelectContent>
                             {projects.map((project) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
-                                {project.name} ({project.code})
+                                {project.code} - {project.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -137,13 +191,15 @@ export default function CreateQAPPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Customer</FormLabel>
+                        <FormDescription>Auto-populated based on project selection</FormDescription>
                         <Select 
                           onValueChange={field.onChange} 
-                          defaultValue={field.value}
+                          value={field.value}
+                          disabled={true} // Disabled to prevent manual selection
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a customer" />
+                              <SelectValue placeholder="Customer will be auto-populated" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -179,6 +235,7 @@ export default function CreateQAPPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>QAP Number</FormLabel>
+                        <FormDescription>Auto-generated based on project code</FormDescription>
                         <FormControl>
                           <Input placeholder="QAP-0001" {...field} />
                         </FormControl>
