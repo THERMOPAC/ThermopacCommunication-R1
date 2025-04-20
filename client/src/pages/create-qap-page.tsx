@@ -223,7 +223,7 @@ export default function CreateQAPPage() {
           typeOfCheck: "Visual",
           quantumOfCheck: "100%",
           referenceDocument: "Design & drawing",
-          acceptanceNorms: "Approved drawings",
+          acceptanceNorms: "Compliance to Drawing",
           formatOfRecords: "Checklist",
           agency: { M: true, C: false, SGS: false },
           remark: values.remarks || "",
@@ -910,19 +910,29 @@ export default function CreateQAPPage() {
                               </Select>
                             </div>
                             <div className="p-1 border-r border-t">
-                              <Input 
-                                className="h-5 text-[8px]"
-                                placeholder="Norms"
-                                value={item.acceptanceNorms}
-                                onChange={(e) => {
+                              <Select 
+                                value={item.acceptanceNorms || ""}
+                                onValueChange={(value) => {
                                   const updatedItems = [...qapItems];
                                   updatedItems[index] = {
                                     ...updatedItems[index],
-                                    acceptanceNorms: e.target.value
+                                    acceptanceNorms: value
                                   };
                                   setQapItems(updatedItems);
                                 }}
-                              />
+                              >
+                                <SelectTrigger className="w-full h-5 text-[8px]">
+                                  <SelectValue placeholder="Select acceptance norms" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Design Verification by Notified body">Design Verification by Notified body</SelectItem>
+                                  <SelectItem value="Compliance to Drawing">Compliance to Drawing</SelectItem>
+                                  <SelectItem value="Compliance to Reference Document">Compliance to Reference Document</SelectItem>
+                                  <SelectItem value="Compliance to Requirement of WPS / Welding process">Compliance to Requirement of WPS / Welding process</SelectItem>
+                                  <SelectItem value="Compliance to Approved Drawing dimensions">Compliance to Approved Drawing dimensions</SelectItem>
+                                  <SelectItem value="No leaks">No leaks</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                             <div className="p-1 border-r border-t">
                               <Input 
