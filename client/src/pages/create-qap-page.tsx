@@ -40,7 +40,11 @@ interface Project {
   name: string;
   code: string;
   customerId: number;
-  customer: Customer;
+  customer?: {
+    id: number;
+    bpName: string;
+    bpCode: string;
+  };
 }
 
 interface Customer {
@@ -73,14 +77,14 @@ export default function CreateQAPPage() {
   });
 
   // Fetch projects
-  const { data: projects = [] } = useQuery<Project[]>({
-    queryKey: ['api/projects'],
+  const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
+    queryKey: ['/api/projects'],
     throwOnError: false,
   });
 
   // Fetch customers
-  const { data: customers = [] } = useQuery<Customer[]>({
-    queryKey: ['api/customers'],
+  const { data: customers = [], isLoading: isLoadingCustomers } = useQuery<Customer[]>({
+    queryKey: ['/api/customers'],
     throwOnError: false,
   });
 
@@ -92,12 +96,18 @@ export default function CreateQAPPage() {
     const selectedProject = projects.find(project => project.id.toString() === projectId);
     
     if (selectedProject) {
+      console.log("Selected project:", selectedProject);
+      
       // Set the project code
       setSelectedProjectCode(selectedProject.code);
       
-      // Auto-populate customer field
+      // Auto-populate customer field if customer exists in the project
       if (selectedProject.customerId) {
         form.setValue("customerId", selectedProject.customerId.toString());
+        
+        // Find customer name to display
+        const customerName = customers.find(c => c.id === selectedProject.customerId)?.bpName || "Unknown Customer";
+        console.log("Auto-populated customer:", customerName);
       }
       
       // Set QAP number based on project code
@@ -188,31 +198,47 @@ export default function CreateQAPPage() {
                   <FormField
                     control={form.control}
                     name="customerId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Customer</FormLabel>
-                        <FormDescription>Auto-populated based on project selection</FormDescription>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value}
-                          disabled={true} // Disabled to prevent manual selection
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Customer will be auto-populated" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {customers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id.toString()}>
-                                {customer.bpName} ({customer.bpCode})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      // Find the customer name to display
+                      const selectedCustomer = customers.find(c => c.id.toString() === field.value);
+                      
+                      return (
+                        <FormItem>
+                          <FormLabel>Customer</FormLabel>
+                          <FormDescription>Auto-populated based on project selection</FormDescription>
+                          {field.value ? (
+                            <div className="flex items-center space-x-2 p-2 border rounded-md bg-muted/30">
+                              <div className="text-sm">
+                                <span className="font-medium">{selectedCustomer?.bpName}</span>
+                                {selectedCustomer?.bpCode && (
+                                  <span className="text-muted-foreground ml-2">({selectedCustomer.bpCode})</span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <Select 
+                              onValueChange={field.onChange} 
+                              value={field.value}
+                              disabled={true}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a project first" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {customers.map((customer) => (
+                                  <SelectItem key={customer.id} value={customer.id.toString()}>
+                                    {customer.bpName} ({customer.bpCode})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                   
                   <FormField
