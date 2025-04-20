@@ -444,7 +444,7 @@ export default function CreateQAPPage() {
                           ) : (
                             <Select 
                               onValueChange={field.onChange} 
-                              value={field.value}
+                              defaultValue={field.value || "no-customer"}
                               disabled={true}
                             >
                               <FormControl>
@@ -453,6 +453,7 @@ export default function CreateQAPPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
+                                <SelectItem value="no-customer" className="hidden">Select a customer</SelectItem>
                                 {customers.map((customer) => (
                                   <SelectItem key={customer.id} value={customer.id.toString()}>
                                     {customer.bpName} ({customer.bpCode})
