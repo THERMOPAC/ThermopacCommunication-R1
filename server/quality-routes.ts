@@ -1911,9 +1911,111 @@ export const setupQualityRoutes = (app: any) => {
         content = content.replace(new RegExp(placeholder, 'g'), value || '');
       });
 
+      // Create a simplified HTML representation that could be used for export
+      const htmlContent = `
+        <html>
+          <head>
+            <title>ITP - ${itp.title}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 40px; }
+              .header { text-align: center; margin-bottom: 30px; }
+              .title { font-size: 22px; font-weight: bold; margin-bottom: 10px; }
+              .subtitle { font-size: 18px; margin-bottom: 20px; }
+              .info-section { display: flex; margin-bottom: 20px; }
+              .info-column { flex: 1; }
+              .label { font-weight: bold; }
+              .section-header { font-size: 18px; font-weight: bold; margin: 30px 0 10px 0; }
+              table { width: 100%; border-collapse: collapse; }
+              th { background-color: #f2f2f2; text-align: left; padding: 8px; }
+              td { border: 1px solid #ddd; padding: 8px; }
+              .footer { text-align: center; font-style: italic; margin-top: 40px; font-size: 12px; }
+              .approvals { display: flex; margin-top: 40px; }
+              .approval-section { flex: 1; padding: 15px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="title">INSPECTION AND TEST PLAN</div>
+              <div class="subtitle">${itp.title}</div>
+              <div>Revision: ${itp.revision || 'R0'}</div>
+            </div>
+            
+            <div class="info-section">
+              <div class="info-column">
+                <p><span class="label">Project Name:</span> ${itp.project?.name || 'N/A'}</p>
+                <p><span class="label">Project Code:</span> ${itp.project?.code || 'N/A'}</p>
+                <p><span class="label">Equipment Name:</span> ${itp.equipmentName || 'N/A'}</p>
+              </div>
+              <div class="info-column">
+                <p><span class="label">Drawing No.:</span> ${itp.drawingNumber || 'N/A'}</p>
+                <p><span class="label">Hazard Level:</span> ${itp.hazardLevel || 'N/A'}</p>
+                <p><span class="label">Date:</span> ${format(new Date(), 'yyyy-MM-dd')}</p>
+              </div>
+            </div>
+            
+            ${itp.qap ? `<p><span class="label">Related QAP:</span> ${itp.qap.title || 'N/A'}</p>` : ''}
+            
+            <div class="section-header">Inspection & Test Activities</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Activity</th>
+                  <th>Reference Documents</th>
+                  <th>Acceptance Criteria</th>
+                  <th>Inspection By</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itp.activities && itp.activities.length > 0 ? 
+                  itp.activities.map(activity => `
+                    <tr>
+                      <td>${activity.sequenceNumber}</td>
+                      <td>${activity.activityName}</td>
+                      <td>${activity.referenceDocuments || 'N/A'}</td>
+                      <td>${activity.acceptanceCriteria || 'N/A'}</td>
+                      <td>${activity.inspectionBy || 'N/A'}</td>
+                      <td>${activity.remarks || ''}</td>
+                    </tr>
+                  `).join('') : 
+                  '<tr><td colspan="6">No activities defined</td></tr>'
+                }
+              </tbody>
+            </table>
+            
+            <div class="section-header">Approvals</div>
+            <div class="approvals">
+              <div class="approval-section">
+                <p><span class="label">Prepared By:</span> ${itp.preparedByUser?.username || 'N/A'}</p>
+                <p><span class="label">Signature:</span> _________________</p>
+                <p><span class="label">Date:</span> _________________</p>
+              </div>
+              <div class="approval-section">
+                <p><span class="label">Reviewed By:</span> ________________</p>
+                <p><span class="label">Signature:</span> _________________</p>
+                <p><span class="label">Date:</span> _________________</p>
+              </div>
+              <div class="approval-section">
+                <p><span class="label">Approved By:</span> ${itp.approvedByUser?.username || '________________'}</p>
+                <p><span class="label">Signature:</span> _________________</p>
+                <p><span class="label">Date:</span> _________________</p>
+              </div>
+            </div>
+            
+            <div class="footer">
+              This document is controlled and maintained electronically. When printed, this document is UNCONTROLLED.
+            </div>
+          </body>
+        </html>
+      `;
+      
       // Set response headers for HTML content
-      res.setHeader('Content-Type', 'application/json');
-      res.status(200).send(content);
+      res.setHeader('Content-Type', 'text/html');
+      res.setHeader('Content-Disposition', `attachment; filename="ITP-${itp.title.replace(/\s+/g, '_')}-${itp.revision || 'R0'}.html"`);
+      
+      // Send the HTML content as the response
+      res.status(200).send(htmlContent);
     } catch (error) {
       console.error('Error exporting ITP:', error);
       res.status(500).json({ error: 'Failed to export ITP' });
