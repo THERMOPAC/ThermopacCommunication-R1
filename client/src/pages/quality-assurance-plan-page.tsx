@@ -217,7 +217,7 @@ export default function QualityAssurancePlanPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => setLocation(`/quality-assurance-plan/${qap.id}/edit`)}
+                            onClick={() => setLocation(`/quality-assurance-plan/${qap.id}`)}
                             title="Edit QAP"
                             disabled={qap.status === 'approved'}
                           >
