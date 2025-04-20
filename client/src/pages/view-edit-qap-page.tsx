@@ -441,6 +441,7 @@ export default function ViewEditQAPPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>QAP Content</FormLabel>
+                          <FormDescription>Main content of the Quality Assurance Plan</FormDescription>
                           <FormControl>
                             <Textarea
                               {...field}
@@ -501,7 +502,7 @@ export default function ViewEditQAPPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-1">PO Number</h3>
-                    <p>N/A</p>
+                    <p>{qap?.poNumber || "N/A"}</p>
                   </div>
                 </div>
                 
