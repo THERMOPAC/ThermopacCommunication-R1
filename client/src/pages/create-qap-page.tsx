@@ -175,6 +175,7 @@ export default function CreateQAPPage() {
       componentOperation: "Review of Documents",
       subMaterial: "",
       characteristicsChecked: "",
+      finalAssessment: "",
       class: "Major",
       typeOfCheck: "Visual",
       quantumOfCheck: "100%",
@@ -214,7 +215,10 @@ export default function CreateQAPPage() {
           slNo: 1,
           componentOperation: "Review of Documents",
           subMaterial: "",
-          characteristicsChecked: "Document completeness",
+          reviewDocument: "",
+          processInspection: "",
+          finalAssessment: "",
+          characteristicsChecked: "Review & approval",
           class: "Major",
           typeOfCheck: "Visual",
           quantumOfCheck: "100%",
@@ -784,19 +788,34 @@ export default function CreateQAPPage() {
                               </div>
                             </div>
                             <div className="p-1 border-r border-t">
-                              <Input 
-                                className="h-5 text-[8px]"
-                                placeholder="Description"
-                                value={item.characteristicsChecked}
-                                onChange={(e) => {
+                              <Select 
+                                value={item.characteristicsChecked || ""}
+                                onValueChange={(value) => {
                                   const updatedItems = [...qapItems];
                                   updatedItems[index] = {
                                     ...updatedItems[index],
-                                    characteristicsChecked: e.target.value
+                                    characteristicsChecked: value
                                   };
                                   setQapItems(updatedItems);
                                 }}
-                              />
+                              >
+                                <SelectTrigger className="w-full h-5 text-[8px]">
+                                  <SelectValue placeholder="Select characteristic" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Review & approval">Review & approval</SelectItem>
+                                  <SelectItem value="Physical Chemical dimensional & visual">Physical Chemical dimensional & visual</SelectItem>
+                                  <SelectItem value="Dimensional Visual">Dimensional Visual</SelectItem>
+                                  <SelectItem value="Identification of heat no, w.r.t Marking TC">Identification of heat no, w.r.t Marking TC</SelectItem>
+                                  <SelectItem value="Visual">Visual</SelectItem>
+                                  <SelectItem value="Welding">Welding</SelectItem>
+                                  <SelectItem value="Weld defects">Weld defects</SelectItem>
+                                  <SelectItem value="Weld leak">Weld leak</SelectItem>
+                                  <SelectItem value="Documentation requirement as per PO">Documentation requirement as per PO</SelectItem>
+                                  <SelectItem value="Painting as per RAL shade DFT measurement">Painting as per RAL shade DFT measurement</SelectItem>
+                                  <SelectItem value="Final acceptance of vessel">Final acceptance of vessel</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                             <div className="p-1 border-r border-t">
                               <Select 
