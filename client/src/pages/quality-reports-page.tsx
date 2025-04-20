@@ -577,39 +577,34 @@ function ITPTemplatesTab() {
   const defaultTemplateContent = `
   <div class="itp-container">
     <div class="itp-header">
-      <h2>INSPECTION TEST PLAN (ITP)</h2>
-      <table width="100%" border="1" cellpadding="3" cellspacing="0">
+      <h2>MANUFACTURING QUALITY ASSURANCE PLAN</h2>
+      <table width="100%" border="1" cellpadding="2" cellspacing="0">
         <tr>
-          <td width="33%"><strong>MANUFACTURER:</strong> {{manufacturer}}<br/>
-          {{manufacturerAddress1}}<br/>
-          {{manufacturerAddress2}}<br/>
-          {{manufacturerCity}}, {{manufacturerPostcode}}<br/>
-          {{manufacturerState}}, {{manufacturerCountry}}</td>
-          <td width="33%"><strong>CUSTOMER:</strong> {{customer}}<br/>
+          <td colspan="2" width="33%"><strong>MANUFACTURER:</strong><br/>
+          <strong>THERMOPAC PROCESS ENGG.</strong><br/>
+          LLP (CIN AAD-8929) L4 405,THE<br/>
+          CAPITOL, BANDRA KURLA COMPLEX<br/>
+          EXPRESS HIGHWAY,VILEPARLE(EAST)<br/>
+          MUMBAI 400057 MAHARASHTRA, INDIA</td>
+          <td colspan="2" width="33%"><strong>CUSTOMER:</strong><br/>
+          {{customer}}<br/>
           {{customerAddress1}}<br/>
           {{customerAddress2}}<br/>
-          {{customerCity}}, {{customerPostcode}}<br/>
-          {{customerState}}, {{customerCountry}}</td>
-          <td width="34%">
-            <table width="100%" border="0" cellpadding="1" cellspacing="0">
-              <tr><td width="35%"><strong>PROJECT:</strong></td><td>{{projectName}}</td></tr>
-              <tr><td><strong>PO NO.</strong></td><td>{{poNumber}}</td></tr>
-              <tr><td><strong>ITP NO</strong></td><td>{{itpNumber}}</td></tr>
-              <tr><td><strong>ITP DATE</strong></td><td>{{itpDate}}</td></tr>
-            </table>
-          </td>
+          {{customerCity}}</td>
+          <td width="17%"><strong>ITEM:</strong> {{itemDescription}}<br/>
+          <strong>REFERENCE DRG. NO:</strong> {{drawingNumber}}<br/>
+          <strong>REV.:</strong> {{revision}}</td>
+          <td width="17%"><strong>PROJECT:</strong><br/>{{projectName}}<br/>
+          <strong>PACKAGE:</strong><br/>{{package}}</td>
         </tr>
         <tr>
-          <td><strong>EQUIPMENT</strong><br/>{{equipmentName}}</td>
-          <td><strong>DRAWING NO</strong><br/>{{drawingNumber}}</td>
-          <td>
-            <table width="100%" border="0" cellpadding="1" cellspacing="0">
-              <tr><td width="35%"><strong>REVISION</strong></td><td>{{revision}}</td></tr>
-              <tr><td><strong>QTY</strong></td><td>{{quantity}}</td></tr>
-              <tr><td><strong>NOTIFIED BODY</strong></td><td>{{notifiedBody}}</td></tr>
-              <tr><td><strong>Hazard Level</strong></td><td>{{hazardLevel}}</td></tr>
-            </table>
-          </td>
+          <td><strong>QAP NO.:</strong><br/>{{qapNumber}}</td>
+          <td><strong>REV.NO.:</strong> {{revisionNumber}}</td>
+          <td><strong>PO NO.:</strong><br/>{{poNumber}}</td>
+          <td><strong>DATE:</strong><br/>{{dateIssued}}</td>
+          <td><strong>DATE:</strong><br/>{{dateApproved}}</td>
+          <td><strong>MAIN CONTRACTOR:</strong><br/>{{mainContractor}}</td>
+        </tr>
       </table>
     </div>
     
@@ -617,48 +612,76 @@ function ITPTemplatesTab() {
     <div class="itp-inspection-table">
       <table width="100%" border="1" cellpadding="3" cellspacing="0" class="inspection-table">
         <tr>
-          <th>SL.NO</th>
-          <th>INSPECTION ACTIVITY / ITEM</th>
-          <th>CHARACTERISTICS CHECKED</th>
-          <th>REFERENCE DOCUMENTS</th>
-          <th>ACCEPTANCE CRITERIA</th>
-          <th>FORMAT OF RECORDS</th>
-          <th>INSPECTION BY</th>
-          <th>REMARKS</th>
+          <th rowspan="2">SL.NO</th>
+          <th rowspan="2">COMPONENT & OPERATION</th>
+          <th rowspan="2">CHARACTERISTICS CHECKED</th>
+          <th rowspan="2">CLASS</th>
+          <th colspan="3">QUANTITY</th>
+          <th rowspan="2">QUANTAM OF CHECK</th>
+          <th rowspan="2">REFERENCE DOCUMENT</th>
+          <th rowspan="2">ACCEPTANCE NORMS</th>
+          <th rowspan="2">FORMAT OF RECORDS</th>
+          <th colspan="3">AGENCY</th>
+          <th rowspan="2">REMARKS</th>
+        </tr>
+        <tr>
+          <th>TYPE OF CHECK</th>
+          <th>QTY NO.</th>
+          <th>M</th>
+          <th>C</th>
+          <th>SGS</th>
+        </tr>
+        <tr>
+          <td align="center" rowspan="6">I</td>
+          <td colspan="14" class="section-header"><strong>RAW MATERIAL</strong></td>
         </tr>
         <tr>
           <td align="center">1</td>
-          <td colspan="7" class="section-header"><strong>REVIEW OF DOCUMENTS</strong></td>
-        </tr>
-        <tr>
-          <td align="center">1.1</td>
-          <td>Design & Drawings</td>
-          <td>Review & approval</td>
-          <td>Design & drawing</td>
-          <td>Design Verification by notified body</td>
-          <td>Design Verification certificate</td>
-          <td align="center">P<br/>R/H</td>
-          <td>DV certificate No.{{dvCertificateNo}}</td>
-        </tr>
-        <tr>
-          <td align="center">1.2</td>
-          <td>Approval of Inspection Test Plan (ITP)</td>
-          <td>Review & approval</td>
-          <td>Drawing, EN13445-3&5, ACOP</td>
-          <td>Compliance to Drawing, EN13445-3 & 5, ACOP</td>
-          <td>Inspection Test Plan</td>
-          <td align="center">P<br/>R/A</td>
+          <td>Shell, Dished end, lugs & lug pads</td>
+          <td>Physical & Chem./Visual</td>
+          <td>Major</td>
+          <td>Measurement</td>
+          <td>All plates</td>
+          <td>ASME</td>
+          <td>ASTM A516 GR.70/ASTM A537 GR.B</td>
+          <td>Compliance to standard</td>
+          <td>Mill material test certificate OR Lab test report (if reqd.)</td>
+          <td align="center">P</td>
+          <td align="center">-</td>
+          <td align="center">V</td>
           <td></td>
         </tr>
         <tr>
-          <td align="center">1.3</td>
-          <td>WPS/PQR/WPQ & weld plan</td>
-          <td>Review & approval</td>
-          <td>WPS, PQR, WPQ & Weld plan</td>
-          <td>Compliance to EN287(EN 9606) & EN288, Weld Sketch</td>
-          <td>WPS/PQR/WPQ & weld plan</td>
-          <td align="center">P<br/>W/A</td>
-          <td>EN 287 REPLACED BY EN 9606</td>
+          <td align="center">2</td>
+          <td>Pipes for all Nozzles</td>
+          <td>Physical & Chem./Visual</td>
+          <td>Major</td>
+          <td>Measurement</td>
+          <td>All pipes</td>
+          <td>ASME</td>
+          <td>ASTM A106 GR.B/ASTM A312 TP316</td>
+          <td>Compliance to standard</td>
+          <td>Mill material test certificate OR Lab test report (if reqd.)</td>
+          <td align="center">P</td>
+          <td align="center">-</td>
+          <td align="center">V</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td align="center">3</td>
+          <td>All Flanges</td>
+          <td>Physical & Chem./Visual</td>
+          <td>Major</td>
+          <td>Measurement</td>
+          <td>All plates</td>
+          <td>ASME</td>
+          <td>ASTM A105 /ASTM A182</td>
+          <td>Compliance to standard</td>
+          <td>Lab test report & QC report</td>
+          <td align="center">P</td>
+          <td align="center">-</td>
+          <td align="center">V</td>
+          <td></td>
         </tr>
         
         <tr>
@@ -687,27 +710,39 @@ function ITPTemplatesTab() {
         </tr>
         
         <tr>
-          <td align="center">3</td>
-          <td colspan="7" class="section-header"><strong>IN PROCESS INSPECTION</strong></td>
+          <td align="center" rowspan="12">II</td>
+          <td colspan="14" class="section-header"><strong>IN PROCESS INSPECTION</strong></td>
         </tr>
         <tr>
-          <td align="center">3.1</td>
-          <td>Identification of material and witnessing stamp transfer of identification marks</td>
-          <td>Identification of heat no, w.r.t Marking TC</td>
-          <td>Approved Drawing, cutting layout, IR</td>
-          <td>Approved Drawing, cutting layout, IR</td>
-          <td>Joint Inspection report</td>
-          <td align="center">P<br/>W</td>
+          <td align="center">1</td>
+          <td>Material Identification</td>
+          <td>Visual/Check Heat No.</td>
+          <td>Major</td>
+          <td>Measurement</td>
+          <td>100%</td>
+          <td>ASME</td>
+          <td>Drawing Requirements</td>
+          <td>Compliance with TC</td>
+          <td>QC Report</td>
+          <td align="center">P</td>
+          <td align="center">-</td>
+          <td align="center">V</td>
           <td></td>
         </tr>
         <tr>
-          <td align="center">3.2</td>
-          <td>Dimensional Check of component parts</td>
-          <td>Dimensional</td>
-          <td>Approved Drawing</td>
+          <td align="center">2</td>
+          <td>Dimensional check of component parts</td>
+          <td>Visual & Dimensional</td>
+          <td>Major</td>
+          <td>Measurement</td>
+          <td>100%</td>
+          <td>Drawing</td>
+          <td>Drawing Requirements</td>
           <td>As per drawing</td>
-          <td>IR</td>
-          <td align="center">P<br/>R</td>
+          <td>QC Report</td>
+          <td align="center">P</td>
+          <td align="center">-</td>
+          <td align="center">V</td>
           <td></td>
         </tr>
         <tr>
@@ -770,34 +805,52 @@ function ITPTemplatesTab() {
     
     <!-- Legend and Signature Section -->
     <div class="itp-footer">
+      <div style="display: flex; width: 100%; margin-bottom: 10px;">
+        <div style="width: 50%; text-align: left;">
+          <div class="thermopac-logo">
+            <div style="color: #0000ff; font-weight: bold; font-size: 24px; line-height: 1;">
+              THERMOPAC
+            </div>
+            <div style="color: #ff0000; font-size: 18px; line-height: 1;">
+              PROCESS ENGINEERING LLP
+            </div>
+          </div>
+        </div>
+        <div style="width: 50%; text-align: right;">
+          <div style="border: 1px solid #ccc; display: inline-block; width: 100px; height: 100px; border-radius: 50%; text-align: center; padding-top: 30px; font-size: 12px;">
+            QAP/QC<br>APPROVED
+          </div>
+        </div>
+      </div>
+      
       <table width="100%" border="1" cellpadding="3" cellspacing="0">
         <tr>
           <td colspan="5" style="background-color: #f5f5f5;"><strong>LEGEND:</strong></td>
         </tr>
         <tr>
-          <td width="10%">P</td>
-          <td width="30%">Perform</td>
-          <td width="10%">R</td>
-          <td width="30%">Review</td>
+          <td width="10%"><strong>M</strong></td>
+          <td width="30%">MANUFACTURER/SUB SUPPLIER</td>
+          <td width="10%"><strong>P</strong></td>
+          <td width="30%">PERFORM</td>
           <td width="20%" rowspan="4">NOTE: The supplier/vendor shall not proceed to the next stage unless the hold points are cleared by the concerned Inspector</td>
         </tr>
         <tr>
-          <td>H</td>
-          <td>Hold Point (Do not proceed without clearance)</td>
-          <td>W</td>
-          <td>Witness</td>
+          <td><strong>C</strong></td>
+          <td>CUSTOMER</td>
+          <td><strong>W</strong></td>
+          <td>WITNESS</td>
         </tr>
         <tr>
-          <td>MFR</td>
-          <td>Manufacturer</td>
-          <td>TPI</td>
-          <td>Third Party Inspector</td>
+          <td><strong>SGS</strong></td>
+          <td>APPROVED INSPECTION AGENCY</td>
+          <td><strong>H</strong></td>
+          <td>HOLD</td>
         </tr>
         <tr>
-          <td>A</td>
-          <td>Approval</td>
-          <td>CLI</td>
-          <td>Client</td>
+          <td></td>
+          <td></td>
+          <td><strong>V</strong></td>
+          <td>VERIFICATION</td>
         </tr>
       </table>
       
@@ -872,14 +925,21 @@ function ITPTemplatesTab() {
       vertical-align: top;
       font-size: 9pt;
     }
-    .inspection-table th:nth-child(1) { width: 4%; }
-    .inspection-table th:nth-child(2) { width: 20%; }
-    .inspection-table th:nth-child(3) { width: 13%; }
-    .inspection-table th:nth-child(4) { width: 13%; }
-    .inspection-table th:nth-child(5) { width: 15%; }
-    .inspection-table th:nth-child(6) { width: 13%; }
-    .inspection-table th:nth-child(7) { width: 8%; }
-    .inspection-table th:nth-child(8) { width: 14%; }
+    /* Column widths for QAP format */
+    .inspection-table th:nth-child(1) { width: 3%; } /* SL.NO */
+    .inspection-table th:nth-child(2) { width: 12%; } /* COMPONENT & OPERATION */
+    .inspection-table th:nth-child(3) { width: 10%; } /* CHARACTERISTICS CHECKED */
+    .inspection-table th:nth-child(4) { width: 5%; } /* CLASS */
+    .inspection-table th:nth-child(5) { width: 5%; } /* TYPE OF CHECK */
+    .inspection-table th:nth-child(6) { width: 5%; } /* QTY NO. */
+    .inspection-table th:nth-child(7) { width: 6%; } /* QUANTAM OF CHECK */
+    .inspection-table th:nth-child(8) { width: 10%; } /* REFERENCE DOCUMENT */
+    .inspection-table th:nth-child(9) { width: 10%; } /* ACCEPTANCE NORMS */
+    .inspection-table th:nth-child(10) { width: 10%; } /* FORMAT OF RECORDS */
+    .inspection-table th:nth-child(11) { width: 3%; } /* AGENCY M */
+    .inspection-table th:nth-child(12) { width: 3%; } /* AGENCY C */
+    .inspection-table th:nth-child(13) { width: 3%; } /* AGENCY SGS */
+    .inspection-table th:nth-child(14) { width: 10%; } /* REMARKS */
     
     .itp-header td {
       font-size: 8pt;
