@@ -1837,3 +1837,113 @@ export const contractDeliveriesRelations = relations(contractDeliveries, ({ one 
     references: [users.id],
   }),
 }));
+
+// ==================== QUALITY MANAGEMENT - QAP GENERATION ====================
+
+// QAP Templates
+export const qapTemplates = pgTable('qap_templates', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  content: text('content').notNull(), // HTML/JSON template content
+  version: varchar('version', { length: 50 }).notNull(),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Generated QAPs
+export const generatedQaps = pgTable('generated_qaps', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  templateId: integer('template_id').notNull().references(() => qapTemplates.id, { onDelete: 'restrict' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  clientName: varchar('client_name', { length: 255 }).notNull(),
+  equipmentType: varchar('equipment_type', { length: 255 }).notNull(),
+  standards: text('standards'), // Could be comma-separated list or JSON array
+  revision: varchar('revision', { length: 50 }).notNull().default('0'),
+  preparedBy: integer('prepared_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  approvedBy: integer('approved_by').references(() => users.id, { onDelete: 'restrict' }),
+  itpReferences: text('itp_references'), // Optional references to ITPs
+  content: text('content').notNull(), // The filled template content
+  status: varchar('status', { length: 50 }).notNull().default('draft'),
+  version: integer('version').notNull().default(1),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// QAP Versions (History)
+export const qapVersions = pgTable('qap_versions', {
+  id: serial('id').primaryKey(),
+  qapId: integer('qap_id').notNull().references(() => generatedQaps.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  content: text('content').notNull(),
+  revision: varchar('revision', { length: 50 }).notNull(),
+  createdBy: integer('created_by').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// Define relationships
+export const qapTemplatesRelations = relations(qapTemplates, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [qapTemplates.createdBy],
+    references: [users.id],
+  }),
+  generatedQaps: many(generatedQaps),
+}));
+
+export const generatedQapsRelations = relations(generatedQaps, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [generatedQaps.projectId],
+    references: [projects.id],
+  }),
+  template: one(qapTemplates, {
+    fields: [generatedQaps.templateId],
+    references: [qapTemplates.id],
+  }),
+  preparedByUser: one(users, {
+    fields: [generatedQaps.preparedBy],
+    references: [users.id],
+  }),
+  approvedByUser: one(users, {
+    fields: [generatedQaps.approvedBy],
+    references: [users.id],
+  }),
+  versions: many(qapVersions),
+}));
+
+export const qapVersionsRelations = relations(qapVersions, ({ one }) => ({
+  qap: one(generatedQaps, {
+    fields: [qapVersions.qapId],
+    references: [generatedQaps.id],
+  }),
+  createdByUser: one(users, {
+    fields: [qapVersions.createdBy],
+    references: [users.id],
+  }),
+}));
+
+// Create Zod schemas for data validation
+export const insertQapTemplateSchema = createInsertSchema(qapTemplates)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export const insertGeneratedQapSchema = createInsertSchema(generatedQaps)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    standards: z.string().optional(),
+    itpReferences: z.string().optional(),
+    approvedBy: z.number().optional(),
+  });
+
+export const insertQapVersionSchema = createInsertSchema(qapVersions)
+  .omit({ id: true, createdAt: true });
+
+// Export types
+export type QapTemplate = typeof qapTemplates.$inferSelect;
+export type InsertQapTemplate = z.infer<typeof insertQapTemplateSchema>;
+
+export type GeneratedQap = typeof generatedQaps.$inferSelect;
+export type InsertGeneratedQap = z.infer<typeof insertGeneratedQapSchema>;
+
+export type QapVersion = typeof qapVersions.$inferSelect;
+export type InsertQapVersion = z.infer<typeof insertQapVersionSchema>;

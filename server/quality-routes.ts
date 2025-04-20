@@ -1,920 +1,579 @@
-import { Response, Router, Request } from 'express';
-import { db } from './db';
-import { insertInspectionReportSchema, inspectionReports, insertNonConformanceReportSchema, 
-  nonConformanceReports, insertQualityChecklistSchema, qualityChecklists, 
-  insertChecklistItemSchema, checklistItems, insertChecklistExecutionSchema,
-  checklistExecutions, insertChecklistItemResultSchema, checklistItemResults,
-  projects, workOrders, projectItems } from '@shared/schema';
-import { eq, and, desc, asc } from 'drizzle-orm';
+import { Request, Response } from "express";
+import { eq, asc, desc, and } from "drizzle-orm";
+import { db } from "./db";
+import { 
+  qapTemplates, 
+  generatedQaps, 
+  qapVersions, 
+  projects, 
+  users,
+  insertQapTemplateSchema,
+  insertGeneratedQapSchema,
+  insertQapVersionSchema
+} from "../shared/schema";
+import { format } from "date-fns";
+import * as fs from "fs";
+import * as path from "path";
 
 // Authentication middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
     return next();
   }
-  res.status(401).json({ error: 'Not authenticated' });
+  res.status(401).json({ error: 'You must be logged in to access this resource' });
 }
 
-// Role authorization middleware
-function canManage(role: string): boolean {
-  return ['Superuser', 'General Manager', 'Senior Manager', 'Manager'].includes(role);
-}
+// Helper function to check if user has quality management permissions
+const canManageQuality = (role: string) => {
+  return ['Superuser', 'Admin', 'Manager', 'Senior Manager'].includes(role);
+};
 
-export function setupQualityRoutes(app: Router) {
-  // ==================== INSPECTION REPORTS ====================
-  
-  // Get all inspection reports for a project
-  app.get('/api/quality/inspections/project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
+export const setupQualityRoutes = (app: any) => {
+  // ==================== QAP TEMPLATES ====================
+
+  // Get all QAP templates
+  app.get('/api/quality/qap-templates', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const projectId = parseInt(req.params.projectId);
-      
-      // Get project to ensure it exists
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
+      const templates = await db.query.qapTemplates.findMany({
+        orderBy: [asc(qapTemplates.name)],
+        with: {
+          creator: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+        },
       });
-      
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
-      
-      const inspectionReportsList = await db.query.inspectionReports.findMany({
-        where: eq(inspectionReports.projectId, projectId),
-        orderBy: [desc(inspectionReports.createdAt)]
-      });
-      
-      res.status(200).json(inspectionReportsList);
+
+      res.status(200).json(templates);
     } catch (error) {
-      console.error('Error fetching inspection reports:', error);
-      res.status(500).json({ error: 'Failed to fetch inspection reports' });
+      console.error('Error fetching QAP templates:', error);
+      res.status(500).json({ error: 'Failed to fetch QAP templates' });
     }
   });
-  
-  // Get inspection reports by work order
-  app.get('/api/quality/inspections/work-order/:workOrderId', ensureAuthenticated, async (req: Request, res: Response) => {
+
+  // Get a single QAP template by ID
+  app.get('/api/quality/qap-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const workOrderId = parseInt(req.params.workOrderId);
-      
-      // Check if work order exists
-      const workOrder = await db.query.workOrders.findFirst({
-        where: eq(workOrders.id, workOrderId)
-      });
-      
-      if (!workOrder) {
-        return res.status(404).json({ error: 'Work order not found' });
+      const templateId = parseInt(req.params.id);
+
+      if (isNaN(templateId)) {
+        return res.status(400).json({ error: 'Invalid template ID' });
       }
-      
-      const inspectionReportsList = await db.query.inspectionReports.findMany({
-        where: eq(inspectionReports.workOrderId, workOrderId),
-        orderBy: [desc(inspectionReports.createdAt)]
+
+      const template = await db.query.qapTemplates.findFirst({
+        where: eq(qapTemplates.id, templateId),
+        with: {
+          creator: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+        },
       });
-      
-      res.status(200).json(inspectionReportsList);
+
+      if (!template) {
+        return res.status(404).json({ error: 'QAP template not found' });
+      }
+
+      res.status(200).json(template);
     } catch (error) {
-      console.error('Error fetching inspection reports:', error);
-      res.status(500).json({ error: 'Failed to fetch inspection reports' });
+      console.error('Error fetching QAP template:', error);
+      res.status(500).json({ error: 'Failed to fetch QAP template' });
     }
   });
-  
-  // Get specific inspection report
-  app.get('/api/quality/inspections/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+
+  // Create a new QAP template
+  app.post('/api/quality/qap-templates', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const reportId = parseInt(req.params.id);
-      
-      const inspectionReport = await db.query.inspectionReports.findFirst({
-        where: eq(inspectionReports.id, reportId)
-      });
-      
-      if (!inspectionReport) {
-        return res.status(404).json({ error: 'Inspection report not found' });
+      // Check if user has permission to create templates
+      if (!canManageQuality(req.user!.role)) {
+        return res.status(403).json({ error: 'You do not have permission to create QAP templates' });
       }
-      
-      res.status(200).json(inspectionReport);
-    } catch (error) {
-      console.error('Error fetching inspection report:', error);
-      res.status(500).json({ error: 'Failed to fetch inspection report' });
-    }
-  });
-  
-  // Create new inspection report
-  app.post('/api/quality/inspections', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
+
       // Validate request body
-      const validationResult = insertInspectionReportSchema.safeParse({
-        ...req.body,
-        createdBy: req.user!.id
-      });
-      
-      if (!validationResult.success) {
-        return res.status(400).json({ error: 'Invalid inspection report data', details: validationResult.error });
-      }
-      
-      // Verify project exists
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, req.body.projectId)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
-      
-      // Create inspection report
-      const [newReport] = await db.insert(inspectionReports).values({
+      const validationResult = insertQapTemplateSchema.safeParse({
         ...req.body,
         createdBy: req.user!.id,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }).returning();
-      
-      res.status(201).json(newReport);
-    } catch (error) {
-      console.error('Error creating inspection report:', error);
-      res.status(500).json({ error: 'Failed to create inspection report' });
-    }
-  });
-  
-  // Update inspection report
-  app.put('/api/quality/inspections/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const reportId = parseInt(req.params.id);
-      
-      // Check if inspection report exists
-      const existingReport = await db.query.inspectionReports.findFirst({
-        where: eq(inspectionReports.id, reportId)
       });
-      
-      if (!existingReport) {
-        return res.status(404).json({ error: 'Inspection report not found' });
-      }
-      
-      // Verify user can update the report
-      if (existingReport.createdBy !== req.user!.id && !canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to update this inspection report' });
-      }
-      
-      // Update inspection report
-      const [updatedReport] = await db.update(inspectionReports)
-        .set({
-          ...req.body,
-          updatedAt: new Date()
-        })
-        .where(eq(inspectionReports.id, reportId))
-        .returning();
-      
-      res.status(200).json(updatedReport);
-    } catch (error) {
-      console.error('Error updating inspection report:', error);
-      res.status(500).json({ error: 'Failed to update inspection report' });
-    }
-  });
-  
-  // Delete inspection report
-  app.delete('/api/quality/inspections/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const reportId = parseInt(req.params.id);
-      
-      // Verify user can manage quality
-      if (!canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to delete inspection reports' });
-      }
-      
-      // Check if inspection report exists
-      const existingReport = await db.query.inspectionReports.findFirst({
-        where: eq(inspectionReports.id, reportId)
-      });
-      
-      if (!existingReport) {
-        return res.status(404).json({ error: 'Inspection report not found' });
-      }
-      
-      // Delete inspection report
-      await db.delete(inspectionReports).where(eq(inspectionReports.id, reportId));
-      
-      res.status(200).json({ message: 'Inspection report deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting inspection report:', error);
-      res.status(500).json({ error: 'Failed to delete inspection report' });
-    }
-  });
-  
-  // ==================== NON-CONFORMANCE REPORTS (NCRs) ====================
-  
-  // Get all NCRs for a project
-  app.get('/api/quality/ncrs/project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      
-      // Get project to ensure it exists
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
-      
-      const ncrList = await db.query.nonConformanceReports.findMany({
-        where: eq(nonConformanceReports.projectId, projectId),
-        orderBy: [desc(nonConformanceReports.createdAt)]
-      });
-      
-      res.status(200).json(ncrList);
-    } catch (error) {
-      console.error('Error fetching NCRs:', error);
-      res.status(500).json({ error: 'Failed to fetch NCRs' });
-    }
-  });
-  
-  // Get NCRs by inspection report
-  app.get('/api/quality/ncrs/inspection/:inspectionId', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const inspectionId = parseInt(req.params.inspectionId);
-      
-      const ncrList = await db.query.nonConformanceReports.findMany({
-        where: eq(nonConformanceReports.inspectionReportId, inspectionId),
-        orderBy: [desc(nonConformanceReports.createdAt)]
-      });
-      
-      res.status(200).json(ncrList);
-    } catch (error) {
-      console.error('Error fetching NCRs:', error);
-      res.status(500).json({ error: 'Failed to fetch NCRs' });
-    }
-  });
-  
-  // Get specific NCR
-  app.get('/api/quality/ncrs/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const ncrId = parseInt(req.params.id);
-      
-      const ncr = await db.query.nonConformanceReports.findFirst({
-        where: eq(nonConformanceReports.id, ncrId)
-      });
-      
-      if (!ncr) {
-        return res.status(404).json({ error: 'NCR not found' });
-      }
-      
-      res.status(200).json(ncr);
-    } catch (error) {
-      console.error('Error fetching NCR:', error);
-      res.status(500).json({ error: 'Failed to fetch NCR' });
-    }
-  });
-  
-  // Create new NCR
-  app.post('/api/quality/ncrs', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      // Validate request body
-      const validationResult = insertNonConformanceReportSchema.safeParse({
-        ...req.body,
-        createdBy: req.user!.id
-      });
-      
+
       if (!validationResult.success) {
-        return res.status(400).json({ error: 'Invalid NCR data', details: validationResult.error });
+        return res.status(400).json({ error: 'Invalid template data', details: validationResult.error });
       }
-      
-      // Verify project exists
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, req.body.projectId)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
-      
-      // Create NCR
-      const [newNcr] = await db.insert(nonConformanceReports).values({
-        ...req.body,
-        createdBy: req.user!.id,
+
+      // Create template
+      const [newTemplate] = await db.insert(qapTemplates).values({
+        ...validationResult.data,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       }).returning();
-      
-      res.status(201).json(newNcr);
+
+      res.status(201).json(newTemplate);
     } catch (error) {
-      console.error('Error creating NCR:', error);
-      res.status(500).json({ error: 'Failed to create NCR' });
+      console.error('Error creating QAP template:', error);
+      res.status(500).json({ error: 'Failed to create QAP template' });
     }
   });
-  
-  // Update NCR
-  app.put('/api/quality/ncrs/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+
+  // Update a QAP template
+  app.put('/api/quality/qap-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const ncrId = parseInt(req.params.id);
-      
-      // Check if NCR exists
-      const existingNcr = await db.query.nonConformanceReports.findFirst({
-        where: eq(nonConformanceReports.id, ncrId)
-      });
-      
-      if (!existingNcr) {
-        return res.status(404).json({ error: 'NCR not found' });
+      const templateId = parseInt(req.params.id);
+
+      // Check if user has permission to update templates
+      if (!canManageQuality(req.user!.role)) {
+        return res.status(403).json({ error: 'You do not have permission to update QAP templates' });
       }
-      
-      // Update NCR
-      const [updatedNcr] = await db.update(nonConformanceReports)
-        .set({
-          ...req.body,
-          updatedAt: new Date()
-        })
-        .where(eq(nonConformanceReports.id, ncrId))
-        .returning();
-      
-      res.status(200).json(updatedNcr);
-    } catch (error) {
-      console.error('Error updating NCR:', error);
-      res.status(500).json({ error: 'Failed to update NCR' });
-    }
-  });
-  
-  // Delete NCR
-  app.delete('/api/quality/ncrs/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const ncrId = parseInt(req.params.id);
-      
-      // Verify user can manage quality
-      if (!canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to delete NCRs' });
+
+      // Check if template exists
+      const existingTemplate = await db.query.qapTemplates.findFirst({
+        where: eq(qapTemplates.id, templateId),
+      });
+
+      if (!existingTemplate) {
+        return res.status(404).json({ error: 'QAP template not found' });
       }
-      
-      // Check if NCR exists
-      const existingNcr = await db.query.nonConformanceReports.findFirst({
-        where: eq(nonConformanceReports.id, ncrId)
-      });
-      
-      if (!existingNcr) {
-        return res.status(404).json({ error: 'NCR not found' });
-      }
-      
-      // Delete NCR
-      await db.delete(nonConformanceReports).where(eq(nonConformanceReports.id, ncrId));
-      
-      res.status(200).json({ message: 'NCR deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting NCR:', error);
-      res.status(500).json({ error: 'Failed to delete NCR' });
-    }
-  });
-  
-  // ==================== QUALITY CHECKLISTS ====================
-  
-  // Get all checklists for a project
-  app.get('/api/quality/checklists/project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const projectId = parseInt(req.params.projectId);
-      
-      // Get project to ensure it exists
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
-      
-      const checklistsList = await db.query.qualityChecklists.findMany({
-        where: eq(qualityChecklists.projectId, projectId),
-        orderBy: [desc(qualityChecklists.createdAt)]
-      });
-      
-      res.status(200).json(checklistsList);
-    } catch (error) {
-      console.error('Error fetching quality checklists:', error);
-      res.status(500).json({ error: 'Failed to fetch quality checklists' });
-    }
-  });
-  
-  // Get specific checklist with items
-  app.get('/api/quality/checklists/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const checklistId = parseInt(req.params.id);
-      
-      const checklist = await db.query.qualityChecklists.findFirst({
-        where: eq(qualityChecklists.id, checklistId)
-      });
-      
-      if (!checklist) {
-        return res.status(404).json({ error: 'Quality checklist not found' });
-      }
-      
-      // Fetch the checklist items
-      const items = await db.query.checklistItems.findMany({
-        where: eq(checklistItems.checklistId, checklistId),
-        orderBy: [asc(checklistItems.sequenceNumber)]
-      });
-      
-      res.status(200).json({
-        ...checklist,
-        items
-      });
-    } catch (error) {
-      console.error('Error fetching quality checklist:', error);
-      res.status(500).json({ error: 'Failed to fetch quality checklist' });
-    }
-  });
-  
-  // Create new checklist
-  app.post('/api/quality/checklists', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      // Verify user can manage quality
-      if (!canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to create quality checklists' });
-      }
-      
+
       // Validate request body
-      const validationResult = insertQualityChecklistSchema.safeParse({
+      const validationResult = insertQapTemplateSchema.safeParse({
         ...req.body,
-        preparedBy: req.user!.id
+        createdBy: existingTemplate.createdBy, // Preserve original creator
       });
-      
+
       if (!validationResult.success) {
-        return res.status(400).json({ error: 'Invalid checklist data', details: validationResult.error });
+        return res.status(400).json({ error: 'Invalid template data', details: validationResult.error });
       }
-      
-      // Verify project exists
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, req.body.projectId)
+
+      // Update template
+      const [updatedTemplate] = await db.update(qapTemplates)
+        .set({
+          ...validationResult.data,
+          updatedAt: new Date(),
+        })
+        .where(eq(qapTemplates.id, templateId))
+        .returning();
+
+      res.status(200).json(updatedTemplate);
+    } catch (error) {
+      console.error('Error updating QAP template:', error);
+      res.status(500).json({ error: 'Failed to update QAP template' });
+    }
+  });
+
+  // Delete a QAP template
+  app.delete('/api/quality/qap-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const templateId = parseInt(req.params.id);
+
+      // Check if user has permission to delete templates
+      if (req.user!.role !== 'Superuser') {
+        return res.status(403).json({ error: 'You do not have permission to delete QAP templates' });
+      }
+
+      // Check if template exists
+      const existingTemplate = await db.query.qapTemplates.findFirst({
+        where: eq(qapTemplates.id, templateId),
       });
-      
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found' });
+
+      if (!existingTemplate) {
+        return res.status(404).json({ error: 'QAP template not found' });
       }
+
+      // Check if template is used by any generated QAPs
+      const usedQaps = await db.query.generatedQaps.findMany({
+        where: eq(generatedQaps.templateId, templateId),
+        limit: 1,
+      });
+
+      if (usedQaps.length > 0) {
+        return res.status(400).json({ 
+          error: 'Cannot delete template that is in use', 
+          message: 'This template is currently used by existing QAP documents. Please remove those documents first or update them to use a different template.' 
+        });
+      }
+
+      // Delete template
+      await db.delete(qapTemplates).where(eq(qapTemplates.id, templateId));
+
+      res.status(200).json({ message: 'QAP template deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting QAP template:', error);
+      res.status(500).json({ error: 'Failed to delete QAP template' });
+    }
+  });
+
+  // ==================== GENERATED QAPs ====================
+
+  // Get all generated QAPs
+  app.get('/api/quality/generated-qaps', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Allow filtering by project
+      const projectId = req.query.projectId ? parseInt(req.query.projectId as string) : null;
       
-      // Create checklist
-      const [newChecklist] = await db.insert(qualityChecklists).values({
+      let whereClause;
+      if (projectId && !isNaN(projectId)) {
+        whereClause = eq(generatedQaps.projectId, projectId);
+      }
+
+      const qaps = await db.query.generatedQaps.findMany({
+        where: whereClause,
+        orderBy: [desc(generatedQaps.updatedAt)],
+        with: {
+          project: true,
+          template: {
+            columns: {
+              id: true,
+              name: true,
+              version: true,
+            },
+          },
+          preparedByUser: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+          approvedByUser: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+        },
+      });
+
+      res.status(200).json(qaps);
+    } catch (error) {
+      console.error('Error fetching generated QAPs:', error);
+      res.status(500).json({ error: 'Failed to fetch generated QAPs' });
+    }
+  });
+
+  // Get a single generated QAP by ID
+  app.get('/api/quality/generated-qaps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const qapId = parseInt(req.params.id);
+
+      if (isNaN(qapId)) {
+        return res.status(400).json({ error: 'Invalid QAP ID' });
+      }
+
+      const qap = await db.query.generatedQaps.findFirst({
+        where: eq(generatedQaps.id, qapId),
+        with: {
+          project: true,
+          template: true,
+          preparedByUser: {
+            columns: {
+              id: true,
+              username: true,
+              email: true,
+            },
+          },
+          approvedByUser: {
+            columns: {
+              id: true,
+              username: true,
+              email: true,
+            },
+          },
+          versions: {
+            orderBy: [desc(qapVersions.version)],
+            with: {
+              createdByUser: {
+                columns: {
+                  id: true,
+                  username: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!qap) {
+        return res.status(404).json({ error: 'Generated QAP not found' });
+      }
+
+      res.status(200).json(qap);
+    } catch (error) {
+      console.error('Error fetching generated QAP:', error);
+      res.status(500).json({ error: 'Failed to fetch generated QAP' });
+    }
+  });
+
+  // Create a new generated QAP
+  app.post('/api/quality/generated-qaps', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Check if user has permission to create QAPs
+      if (!canManageQuality(req.user!.role) && req.user!.role !== 'Employee') {
+        return res.status(403).json({ error: 'You do not have permission to create QAPs' });
+      }
+
+      // Validate request body
+      const validationResult = insertGeneratedQapSchema.safeParse({
         ...req.body,
         preparedBy: req.user!.id,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }).returning();
-      
-      res.status(201).json(newChecklist);
-    } catch (error) {
-      console.error('Error creating quality checklist:', error);
-      res.status(500).json({ error: 'Failed to create quality checklist' });
-    }
-  });
-  
-  // Update checklist
-  app.put('/api/quality/checklists/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const checklistId = parseInt(req.params.id);
-      
-      // Verify user can manage quality
-      if (!canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to update quality checklists' });
-      }
-      
-      // Check if checklist exists
-      const existingChecklist = await db.query.qualityChecklists.findFirst({
-        where: eq(qualityChecklists.id, checklistId)
       });
-      
-      if (!existingChecklist) {
-        return res.status(404).json({ error: 'Quality checklist not found' });
-      }
-      
-      // Update checklist
-      const [updatedChecklist] = await db.update(qualityChecklists)
-        .set({
-          ...req.body,
-          updatedAt: new Date()
-        })
-        .where(eq(qualityChecklists.id, checklistId))
-        .returning();
-      
-      res.status(200).json(updatedChecklist);
-    } catch (error) {
-      console.error('Error updating quality checklist:', error);
-      res.status(500).json({ error: 'Failed to update quality checklist' });
-    }
-  });
-  
-  // Delete checklist
-  app.delete('/api/quality/checklists/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const checklistId = parseInt(req.params.id);
-      
-      // Verify user can manage quality
-      if (!canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to delete quality checklists' });
-      }
-      
-      // Check if checklist exists
-      const existingChecklist = await db.query.qualityChecklists.findFirst({
-        where: eq(qualityChecklists.id, checklistId)
-      });
-      
-      if (!existingChecklist) {
-        return res.status(404).json({ error: 'Quality checklist not found' });
-      }
-      
-      // Delete checklist - cascade will handle related items
-      await db.delete(qualityChecklists).where(eq(qualityChecklists.id, checklistId));
-      
-      res.status(200).json({ message: 'Quality checklist deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting quality checklist:', error);
-      res.status(500).json({ error: 'Failed to delete quality checklist' });
-    }
-  });
-  
-  // ==================== CHECKLIST ITEMS ====================
-  
-  // Add item to checklist
-  app.post('/api/quality/checklists/:id/items', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const checklistId = parseInt(req.params.id);
-      
-      // Verify user can manage quality
-      if (!canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to add checklist items' });
-      }
-      
-      // Validate request body
-      const validationResult = insertChecklistItemSchema.safeParse({
-        ...req.body,
-        checklistId
-      });
-      
+
       if (!validationResult.success) {
-        return res.status(400).json({ error: 'Invalid checklist item data', details: validationResult.error });
+        return res.status(400).json({ error: 'Invalid QAP data', details: validationResult.error });
       }
-      
-      // Verify checklist exists
-      const checklist = await db.query.qualityChecklists.findFirst({
-        where: eq(qualityChecklists.id, checklistId)
+
+      // Check if project exists
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, validationResult.data.projectId),
       });
-      
-      if (!checklist) {
-        return res.status(404).json({ error: 'Quality checklist not found' });
+
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
       }
-      
-      // Create checklist item
-      const [newItem] = await db.insert(checklistItems).values({
-        ...req.body,
-        checklistId,
+
+      // Check if template exists
+      const template = await db.query.qapTemplates.findFirst({
+        where: eq(qapTemplates.id, validationResult.data.templateId),
+      });
+
+      if (!template) {
+        return res.status(404).json({ error: 'QAP template not found' });
+      }
+
+      // Create QAP
+      const [newQap] = await db.insert(generatedQaps).values({
+        ...validationResult.data,
+        version: 1,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       }).returning();
-      
-      res.status(201).json(newItem);
-    } catch (error) {
-      console.error('Error adding checklist item:', error);
-      res.status(500).json({ error: 'Failed to add checklist item' });
-    }
-  });
-  
-  // Update checklist item
-  app.put('/api/quality/checklist-items/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const itemId = parseInt(req.params.id);
-      
-      // Verify user can manage quality
-      if (!canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to update checklist items' });
-      }
-      
-      // Check if checklist item exists
-      const existingItem = await db.query.checklistItems.findFirst({
-        where: eq(checklistItems.id, itemId)
-      });
-      
-      if (!existingItem) {
-        return res.status(404).json({ error: 'Checklist item not found' });
-      }
-      
-      // Update checklist item
-      const [updatedItem] = await db.update(checklistItems)
-        .set({
-          ...req.body,
-          updatedAt: new Date()
-        })
-        .where(eq(checklistItems.id, itemId))
-        .returning();
-      
-      res.status(200).json(updatedItem);
-    } catch (error) {
-      console.error('Error updating checklist item:', error);
-      res.status(500).json({ error: 'Failed to update checklist item' });
-    }
-  });
-  
-  // Delete checklist item
-  app.delete('/api/quality/checklist-items/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const itemId = parseInt(req.params.id);
-      
-      // Verify user can manage quality
-      if (!canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to delete checklist items' });
-      }
-      
-      // Check if checklist item exists
-      const existingItem = await db.query.checklistItems.findFirst({
-        where: eq(checklistItems.id, itemId)
-      });
-      
-      if (!existingItem) {
-        return res.status(404).json({ error: 'Checklist item not found' });
-      }
-      
-      // Delete checklist item
-      await db.delete(checklistItems).where(eq(checklistItems.id, itemId));
-      
-      res.status(200).json({ message: 'Checklist item deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting checklist item:', error);
-      res.status(500).json({ error: 'Failed to delete checklist item' });
-    }
-  });
-  
-  // ==================== CHECKLIST EXECUTIONS ====================
-  
-  // Get all executions for a checklist
-  app.get('/api/quality/checklists/:id/executions', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const checklistId = parseInt(req.params.id);
-      
-      const executions = await db.query.checklistExecutions.findMany({
-        where: eq(checklistExecutions.checklistId, checklistId),
-        orderBy: [desc(checklistExecutions.executionDate)]
-      });
-      
-      res.status(200).json(executions);
-    } catch (error) {
-      console.error('Error fetching checklist executions:', error);
-      res.status(500).json({ error: 'Failed to fetch checklist executions' });
-    }
-  });
-  
-  // Get specific execution with results
-  app.get('/api/quality/executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const executionId = parseInt(req.params.id);
-      
-      const execution = await db.query.checklistExecutions.findFirst({
-        where: eq(checklistExecutions.id, executionId)
-      });
-      
-      if (!execution) {
-        return res.status(404).json({ error: 'Checklist execution not found' });
-      }
-      
-      // Fetch the checklist items
-      const checklistId = execution.checklistId;
-      const items = await db.query.checklistItems.findMany({
-        where: eq(checklistItems.checklistId, checklistId),
-        orderBy: [asc(checklistItems.sequenceNumber)]
-      });
-      
-      // Fetch the results for each item
-      const itemResults = await db.query.checklistItemResults.findMany({
-        where: eq(checklistItemResults.executionId, executionId)
-      });
-      
-      // Map results to items
-      const itemsWithResults = items.map(item => {
-        const result = itemResults.find(r => r.checklistItemId === item.id);
-        return {
-          ...item,
-          result: result || null
-        };
-      });
-      
-      res.status(200).json({
-        ...execution,
-        items: itemsWithResults
-      });
-    } catch (error) {
-      console.error('Error fetching checklist execution:', error);
-      res.status(500).json({ error: 'Failed to fetch checklist execution' });
-    }
-  });
-  
-  // Create new checklist execution
-  app.post('/api/quality/checklists/:id/executions', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const checklistId = parseInt(req.params.id);
-      
-      // Validate request body
-      const validationResult = insertChecklistExecutionSchema.safeParse({
-        ...req.body,
-        checklistId,
-        executedBy: req.user!.id
-      });
-      
-      if (!validationResult.success) {
-        return res.status(400).json({ error: 'Invalid checklist execution data', details: validationResult.error });
-      }
-      
-      // Verify checklist exists
-      const checklist = await db.query.qualityChecklists.findFirst({
-        where: eq(qualityChecklists.id, checklistId)
-      });
-      
-      if (!checklist) {
-        return res.status(404).json({ error: 'Quality checklist not found' });
-      }
-      
-      // Create checklist execution
-      const [newExecution] = await db.insert(checklistExecutions).values({
-        ...req.body,
-        checklistId,
-        executedBy: req.user!.id,
+
+      // Create initial version record
+      await db.insert(qapVersions).values({
+        qapId: newQap.id,
+        version: 1,
+        content: newQap.content,
+        revision: newQap.revision,
+        createdBy: req.user!.id,
         createdAt: new Date(),
-        updatedAt: new Date()
-      }).returning();
-      
-      res.status(201).json(newExecution);
+      });
+
+      res.status(201).json(newQap);
     } catch (error) {
-      console.error('Error creating checklist execution:', error);
-      res.status(500).json({ error: 'Failed to create checklist execution' });
+      console.error('Error creating generated QAP:', error);
+      res.status(500).json({ error: 'Failed to create generated QAP' });
     }
   });
-  
-  // Update checklist execution
-  app.put('/api/quality/executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+
+  // Update a generated QAP
+  app.put('/api/quality/generated-qaps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const executionId = parseInt(req.params.id);
-      
-      // Check if checklist execution exists
-      const existingExecution = await db.query.checklistExecutions.findFirst({
-        where: eq(checklistExecutions.id, executionId)
+      const qapId = parseInt(req.params.id);
+
+      // Check if QAP exists
+      const existingQap = await db.query.generatedQaps.findFirst({
+        where: eq(generatedQaps.id, qapId),
       });
-      
-      if (!existingExecution) {
-        return res.status(404).json({ error: 'Checklist execution not found' });
+
+      if (!existingQap) {
+        return res.status(404).json({ error: 'Generated QAP not found' });
       }
-      
-      // Verify user can update (either they executed it or they're a manager)
-      if (existingExecution.executedBy !== req.user!.id && !canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to update this checklist execution' });
+
+      // Check if user has permission to update QAPs
+      const isCreator = existingQap.preparedBy === req.user!.id;
+      if (!canManageQuality(req.user!.role) && !isCreator) {
+        return res.status(403).json({ error: 'You do not have permission to update this QAP' });
       }
-      
-      // Update checklist execution
-      const [updatedExecution] = await db.update(checklistExecutions)
+
+      // Extract fields to update
+      const {
+        content,
+        title,
+        clientName,
+        equipmentType,
+        standards,
+        revision,
+        itpReferences,
+        status,
+        approvedBy,
+        ...otherFields
+      } = req.body;
+
+      // Check if creating a new version
+      const createNewVersion = content !== existingQap.content || revision !== existingQap.revision;
+      const newVersion = createNewVersion ? existingQap.version + 1 : existingQap.version;
+
+      // Update QAP
+      const [updatedQap] = await db.update(generatedQaps)
         .set({
-          ...req.body,
-          updatedAt: new Date()
+          content: content ?? existingQap.content,
+          title: title ?? existingQap.title,
+          clientName: clientName ?? existingQap.clientName,
+          equipmentType: equipmentType ?? existingQap.equipmentType,
+          standards: standards ?? existingQap.standards,
+          revision: revision ?? existingQap.revision,
+          itpReferences: itpReferences ?? existingQap.itpReferences,
+          status: status ?? existingQap.status,
+          approvedBy: approvedBy ?? existingQap.approvedBy,
+          version: newVersion,
+          updatedAt: new Date(),
         })
-        .where(eq(checklistExecutions.id, executionId))
+        .where(eq(generatedQaps.id, qapId))
         .returning();
-      
-      res.status(200).json(updatedExecution);
+
+      // Create new version record if needed
+      if (createNewVersion) {
+        await db.insert(qapVersions).values({
+          qapId: qapId,
+          version: newVersion,
+          content: content ?? existingQap.content,
+          revision: revision ?? existingQap.revision,
+          createdBy: req.user!.id,
+          createdAt: new Date(),
+        });
+      }
+
+      res.status(200).json(updatedQap);
     } catch (error) {
-      console.error('Error updating checklist execution:', error);
-      res.status(500).json({ error: 'Failed to update checklist execution' });
+      console.error('Error updating generated QAP:', error);
+      res.status(500).json({ error: 'Failed to update generated QAP' });
     }
   });
-  
-  // Delete checklist execution
-  app.delete('/api/quality/executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+
+  // Delete a generated QAP
+  app.delete('/api/quality/generated-qaps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const executionId = parseInt(req.params.id);
-      
-      // Verify user can manage quality
-      if (!canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to delete checklist executions' });
-      }
-      
-      // Check if checklist execution exists
-      const existingExecution = await db.query.checklistExecutions.findFirst({
-        where: eq(checklistExecutions.id, executionId)
+      const qapId = parseInt(req.params.id);
+
+      // Check if QAP exists
+      const existingQap = await db.query.generatedQaps.findFirst({
+        where: eq(generatedQaps.id, qapId),
       });
-      
-      if (!existingExecution) {
-        return res.status(404).json({ error: 'Checklist execution not found' });
+
+      if (!existingQap) {
+        return res.status(404).json({ error: 'Generated QAP not found' });
       }
-      
-      // Delete checklist execution - cascade will handle related results
-      await db.delete(checklistExecutions).where(eq(checklistExecutions.id, executionId));
-      
-      res.status(200).json({ message: 'Checklist execution deleted successfully' });
+
+      // Check if user has permission to delete QAPs
+      const isCreator = existingQap.preparedBy === req.user!.id;
+      if (req.user!.role !== 'Superuser' && !isCreator) {
+        return res.status(403).json({ error: 'You do not have permission to delete this QAP' });
+      }
+
+      // Delete QAP (versions will be deleted by cascade)
+      await db.delete(generatedQaps).where(eq(generatedQaps.id, qapId));
+
+      res.status(200).json({ message: 'Generated QAP deleted successfully' });
     } catch (error) {
-      console.error('Error deleting checklist execution:', error);
-      res.status(500).json({ error: 'Failed to delete checklist execution' });
+      console.error('Error deleting generated QAP:', error);
+      res.status(500).json({ error: 'Failed to delete generated QAP' });
     }
   });
-  
-  // ==================== CHECKLIST ITEM RESULTS ====================
-  
-  // Add item result to execution
-  app.post('/api/quality/executions/:id/results', ensureAuthenticated, async (req: Request, res: Response) => {
+
+  // Get a specific version of a QAP
+  app.get('/api/quality/generated-qaps/:id/versions/:versionId', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const executionId = parseInt(req.params.id);
-      
-      // Validate request body
-      const validationResult = insertChecklistItemResultSchema.safeParse({
-        ...req.body,
-        executionId
+      const qapId = parseInt(req.params.id);
+      const versionId = parseInt(req.params.versionId);
+
+      if (isNaN(qapId) || isNaN(versionId)) {
+        return res.status(400).json({ error: 'Invalid QAP ID or version ID' });
+      }
+
+      const version = await db.query.qapVersions.findFirst({
+        where: and(
+          eq(qapVersions.qapId, qapId),
+          eq(qapVersions.id, versionId)
+        ),
+        with: {
+          createdByUser: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+        },
       });
-      
-      if (!validationResult.success) {
-        return res.status(400).json({ error: 'Invalid checklist item result data', details: validationResult.error });
+
+      if (!version) {
+        return res.status(404).json({ error: 'QAP version not found' });
       }
-      
-      // Verify execution exists
-      const execution = await db.query.checklistExecutions.findFirst({
-        where: eq(checklistExecutions.id, executionId)
-      });
-      
-      if (!execution) {
-        return res.status(404).json({ error: 'Checklist execution not found' });
-      }
-      
-      // Verify user can add results (either they executed it or they're a manager)
-      if (execution.executedBy !== req.user!.id && !canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to add results to this checklist execution' });
-      }
-      
-      // Create checklist item result
-      const [newResult] = await db.insert(checklistItemResults).values({
-        ...req.body,
-        executionId,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }).returning();
-      
-      res.status(201).json(newResult);
+
+      res.status(200).json(version);
     } catch (error) {
-      console.error('Error adding checklist item result:', error);
-      res.status(500).json({ error: 'Failed to add checklist item result' });
+      console.error('Error fetching QAP version:', error);
+      res.status(500).json({ error: 'Failed to fetch QAP version' });
     }
   });
-  
-  // Update checklist item result
-  app.put('/api/quality/results/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+
+  // Export QAP as PDF
+  app.get('/api/quality/generated-qaps/:id/export', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const resultId = parseInt(req.params.id);
-      
-      // Check if result exists
-      const existingResult = await db.query.checklistItemResults.findFirst({
-        where: eq(checklistItemResults.id, resultId)
-      });
-      
-      if (!existingResult) {
-        return res.status(404).json({ error: 'Checklist item result not found' });
+      const qapId = parseInt(req.params.id);
+
+      if (isNaN(qapId)) {
+        return res.status(400).json({ error: 'Invalid QAP ID' });
       }
-      
-      // Get the execution to check permissions
-      const execution = await db.query.checklistExecutions.findFirst({
-        where: eq(checklistExecutions.id, existingResult.executionId)
+
+      const qap = await db.query.generatedQaps.findFirst({
+        where: eq(generatedQaps.id, qapId),
+        with: {
+          project: true,
+          preparedByUser: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+          approvedByUser: {
+            columns: {
+              id: true,
+              username: true,
+            },
+          },
+        },
       });
-      
-      // Verify user can update results (either they executed it or they're a manager)
-      if (execution!.executedBy !== req.user!.id && !canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to update results for this checklist execution' });
+
+      if (!qap) {
+        return res.status(404).json({ error: 'Generated QAP not found' });
       }
+
+      // For demonstration, we'll return HTML content that can be converted to PDF on the client side
+      // In a production environment, you might use a library like puppeteer to generate a PDF server-side
       
-      // Update checklist item result
-      const [updatedResult] = await db.update(checklistItemResults)
-        .set({
-          ...req.body,
-          updatedAt: new Date()
-        })
-        .where(eq(checklistItemResults.id, resultId))
-        .returning();
+      // Replace placeholders in content with actual values
+      let content = qap.content;
       
-      res.status(200).json(updatedResult);
+      // Basic placeholder replacements
+      const replacements = {
+        '{{title}}': qap.title,
+        '{{projectName}}': qap.project?.name || 'Unknown Project',
+        '{{projectCode}}': qap.project?.code || '',
+        '{{clientName}}': qap.clientName,
+        '{{equipmentType}}': qap.equipmentType,
+        '{{standards}}': qap.standards || '',
+        '{{revision}}': qap.revision,
+        '{{date}}': format(new Date(), 'yyyy-MM-dd'),
+        '{{preparedByName}}': qap.preparedByUser?.username || 'Unknown',
+        '{{approvedByName}}': qap.approvedByUser?.username || '',
+        '{{qapNumber}}': qap.id.toString().padStart(3, '0'),
+        '{{preparedDate}}': format(qap.createdAt, 'yyyy-MM-dd'),
+        '{{approvedDate}}': qap.approvedByUser ? format(qap.updatedAt, 'yyyy-MM-dd') : '',
+        '{{revisionDate}}': format(qap.updatedAt, 'yyyy-MM-dd'),
+        '{{revisionDescription}}': 'Initial creation' // This could be stored in version records
+      };
+      
+      // Apply all replacements
+      Object.entries(replacements).forEach(([placeholder, value]) => {
+        content = content.replace(new RegExp(placeholder, 'g'), value || '');
+      });
+
+      // Set response headers for HTML content
+      res.setHeader('Content-Type', 'text/html');
+      res.status(200).send(content);
     } catch (error) {
-      console.error('Error updating checklist item result:', error);
-      res.status(500).json({ error: 'Failed to update checklist item result' });
+      console.error('Error exporting QAP:', error);
+      res.status(500).json({ error: 'Failed to export QAP' });
     }
   });
-  
-  // Delete checklist item result
-  app.delete('/api/quality/results/:id', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const resultId = parseInt(req.params.id);
-      
-      // Check if result exists
-      const existingResult = await db.query.checklistItemResults.findFirst({
-        where: eq(checklistItemResults.id, resultId)
-      });
-      
-      if (!existingResult) {
-        return res.status(404).json({ error: 'Checklist item result not found' });
-      }
-      
-      // Get the execution to check permissions
-      const execution = await db.query.checklistExecutions.findFirst({
-        where: eq(checklistExecutions.id, existingResult.executionId)
-      });
-      
-      // Verify user can delete results (either they executed it or they're a manager)
-      if (execution!.executedBy !== req.user!.id && !canManage(req.user!.role)) {
-        return res.status(403).json({ error: 'You do not have permission to delete results for this checklist execution' });
-      }
-      
-      // Delete checklist item result
-      await db.delete(checklistItemResults).where(eq(checklistItemResults.id, resultId));
-      
-      res.status(200).json({ message: 'Checklist item result deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting checklist item result:', error);
-      res.status(500).json({ error: 'Failed to delete checklist item result' });
-    }
-  });
-}
+};
