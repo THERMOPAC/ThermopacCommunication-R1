@@ -1910,6 +1910,7 @@ export const generatedQapsRelations = relations(generatedQaps, ({ one, many }) =
     references: [users.id],
   }),
   versions: many(qapVersions),
+  itps: many(itps), // Adding relation to ITPs
 }));
 
 export const qapVersionsRelations = relations(qapVersions, ({ one }) => ({
