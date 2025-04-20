@@ -24,7 +24,8 @@ import {
   HeartPulse,
   Lock,
   Shield,
-  Settings
+  Settings,
+  FileCheck
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -55,7 +56,7 @@ export default function Layout({ children }: LayoutProps) {
                            
   // Check if we're on any quality-related page
   const isOnQualityPage = location === '/inspections' ||
-                        location === '/quality-reports';
+                        location.startsWith('/quality-reports');
   
   // Auto-open menus based on current page
   useEffect(() => {
@@ -123,7 +124,8 @@ export default function Layout({ children }: LayoutProps) {
       toggle: () => setIsQualityMenuOpen(!isQualityMenuOpen),
       children: [
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
-        { icon: Award, label: "Quality Reports", href: "/quality-reports" }
+        { icon: Award, label: "Quality Reports", href: "/quality-reports" },
+        { icon: FileCheck, label: "Quality Assurance Plan", href: "/quality-reports?tab=qap-templates" }
       ]
     }] : []),
     ...(hasViewPermission("Project Commissioning") ? [{ icon: Briefcase, label: "Project Commissioning", href: "/project-commissioning" }] : []),
@@ -205,14 +207,17 @@ export default function Layout({ children }: LayoutProps) {
                       <ul className="pl-5 space-y-1">
                         {item.children?.map((child, childIndex) => {
                           const ChildIcon = child.icon;
-                          const isChildActive = location === child.href;
+                          // Check if current location starts with child.href to handle query parameters
+                          const isChildActive = child.href ? location.startsWith(child.href.split('?')[0]) : false;
+                          // When we have exact match or for the case of query parameters - check full href match
+                          const isExactMatch = location === child.href;
                           
                           return (
                             <li key={`${index}-${childIndex}`}>
                               <Link href={child.href || ''}>
                                 <button
                                   className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors w-full text-left
-                                    ${isChildActive
+                                    ${isExactMatch || isChildActive
                                       ? 'bg-primary text-primary-foreground'
                                       : 'hover:bg-accent hover:text-accent-foreground'
                                     }`}
