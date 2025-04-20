@@ -577,14 +577,14 @@ function ITPTemplatesTab() {
   const defaultTemplateContent = `
   <div class="itp-container">
     <div class="itp-header">
-      <h2>MANUFACTURING QUALITY ASSURANCE PLAN</h2>
+      <h2>QUALITY ASSURANCE PLAN (QAP)</h2>
       <table width="100%" border="1" cellpadding="2" cellspacing="0">
         <tr>
           <td colspan="2" width="33%"><strong>MANUFACTURER:</strong><br/>
-          <strong>THERMOPAC PROCESS ENGG.</strong><br/>
-          LLP (CIN AAD-8929) L4 405,THE<br/>
-          CAPITOL, BANDRA KURLA COMPLEX<br/>
-          EXPRESS HIGHWAY,VILEPARLE(EAST)<br/>
+          <strong>THERMOPAC PROCESS ENGG. LLP</strong><br/>
+          CIN: AAD-8929<br/>
+          L4 405,THE CAPITOL, BANDRA KURLA COMPLEX<br/>
+          EXPRESS HIGHWAY, VILE PARLE (EAST)<br/>
           MUMBAI 400057 MAHARASHTRA, INDIA</td>
           <td colspan="2" width="33%"><strong>CUSTOMER:</strong><br/>
           {{customer}}<br/>
@@ -616,7 +616,8 @@ function ITPTemplatesTab() {
           <th rowspan="2">COMPONENT & OPERATION</th>
           <th rowspan="2">CHARACTERISTICS CHECKED</th>
           <th rowspan="2">CLASS</th>
-          <th colspan="3">QUANTITY</th>
+          <th rowspan="2">TYPE OF CHECK</th>
+          <th rowspan="2">QTY NO.</th>
           <th rowspan="2">QUANTAM OF CHECK</th>
           <th rowspan="2">REFERENCE DOCUMENT</th>
           <th rowspan="2">ACCEPTANCE NORMS</th>
