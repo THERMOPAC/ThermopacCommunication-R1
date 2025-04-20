@@ -15,7 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { FileText, ArrowLeft, Save } from "lucide-react";
+import { FileText, ArrowLeft, Save, Plus } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 // Define schema for the QAP form
@@ -54,11 +54,43 @@ interface Customer {
   bpName: string;
 }
 
+// Define QAP Item interface
+interface QapItem {
+  id: number;
+  slNo: number;
+  componentOperation: string;
+  characteristicsChecked: string;
+  class: string;
+  typeOfCheck: string;
+  quantumOfCheck: string;
+  referenceDocument: string;
+  acceptanceNorms: string;
+  formatOfRecords: string;
+  agency: { M: boolean; C: boolean; SGS: boolean };
+  remark: string;
+}
+
 export default function CreateQAPPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedProjectCode, setSelectedProjectCode] = useState<string>("");
+  const [qapItems, setQapItems] = useState<QapItem[]>([
+    {
+      id: 1,
+      slNo: 1,
+      componentOperation: "Review of Documents",
+      characteristicsChecked: "Document completeness",
+      class: "Major",
+      typeOfCheck: "Visual",
+      quantumOfCheck: "100%",
+      referenceDocument: "Project specifications",
+      acceptanceNorms: "Approved drawings",
+      formatOfRecords: "Checklist",
+      agency: { M: true, C: false, SGS: false },
+      remark: "",
+    }
+  ]);
 
   // Initialize the form
   const form = useForm<QAPFormValues>({
@@ -127,6 +159,27 @@ export default function CreateQAPPage() {
       console.error("Error fetching project details:", error);
       return null;
     }
+  };
+  
+  // Add a new QAP item
+  const addQapItem = () => {
+    const newId = qapItems.length + 1;
+    const newItem: QapItem = {
+      id: newId,
+      slNo: newId,
+      componentOperation: "Review of Documents",
+      characteristicsChecked: "",
+      class: "Major",
+      typeOfCheck: "Visual",
+      quantumOfCheck: "100%",
+      referenceDocument: "",
+      acceptanceNorms: "",
+      formatOfRecords: "",
+      agency: { M: true, C: false, SGS: false },
+      remark: "",
+    };
+    
+    setQapItems([...qapItems, newItem]);
   };
 
   // Handle form submission
@@ -516,10 +569,23 @@ export default function CreateQAPPage() {
                   
                   {/* QAP Header Row */}
                   <div className="col-span-1 md:col-span-2 mt-6 mb-4">
-                    <h3 className="font-medium text-lg mb-3">QAP Items</h3>
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="font-medium text-lg">QAP Items</h3>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={addQapItem}
+                        className="flex gap-1 items-center"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Item
+                      </Button>
+                    </div>
                     <div className="overflow-x-auto">
                       <div className="min-w-full border rounded-md">
-                        <div className="grid grid-cols-11 text-xs font-medium text-center bg-muted">
+                        <div className="grid grid-cols-12 text-xs font-medium text-center bg-muted">
+                          <div className="p-2 border-r">ACTION</div>
                           <div className="p-2 border-r">SL.NO</div>
                           <div className="p-2 border-r">COMPONENT & OPERATION</div>
                           <div className="p-2 border-r">CHARACTERISTICS CHECKED</div>
@@ -532,36 +598,49 @@ export default function CreateQAPPage() {
                           <div className="p-2 border-r">AGENCY</div>
                           <div className="p-2">REMARK</div>
                         </div>
-                        <div className="grid grid-cols-11 text-xs">
-                          <div className="p-3 border-r border-t text-center">1</div>
-                          <div className="p-3 border-r border-t">
-                            <Select defaultValue="review-documents">
-                              <SelectTrigger className="w-full h-6 text-xs">
-                                <SelectValue placeholder="Select option" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="review-documents">Review of Documents</SelectItem>
-                                <SelectItem value="raw-material">Raw Material</SelectItem>
-                                <SelectItem value="in-process">In Process Inspection</SelectItem>
-                                <SelectItem value="final-assessment">Final Assessment</SelectItem>
-                                <SelectItem value="testing-painting">Testing & Painting</SelectItem>
-                              </SelectContent>
-                            </Select>
+                        {qapItems.map((item, index) => (
+                          <div key={item.id} className="grid grid-cols-12 text-xs">
+                            <div className="p-3 border-r border-t text-center">
+                              <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={addQapItem}
+                                className="h-5 w-5"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <div className="p-3 border-r border-t text-center">{item.slNo}</div>
+                            <div className="p-3 border-r border-t">
+                              <Select defaultValue="review-documents">
+                                <SelectTrigger className="w-full h-6 text-xs">
+                                  <SelectValue placeholder="Select option" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="review-documents">Review of Documents</SelectItem>
+                                  <SelectItem value="raw-material">Raw Material</SelectItem>
+                                  <SelectItem value="in-process">In Process Inspection</SelectItem>
+                                  <SelectItem value="final-assessment">Final Assessment</SelectItem>
+                                  <SelectItem value="testing-painting">Testing & Painting</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="p-3 border-r border-t"></div>
+                            <div className="p-3 border-r border-t"></div>
+                            <div className="p-3 border-r border-t"></div>
+                            <div className="p-3 border-r border-t"></div>
+                            <div className="p-3 border-r border-t"></div>
+                            <div className="p-3 border-r border-t"></div>
+                            <div className="p-3 border-r border-t"></div>
+                            <div className="p-3 border-r border-t"></div>
+                            <div className="p-3 border-t"></div>
                           </div>
-                          <div className="p-3 border-r border-t"></div>
-                          <div className="p-3 border-r border-t"></div>
-                          <div className="p-3 border-r border-t"></div>
-                          <div className="p-3 border-r border-t"></div>
-                          <div className="p-3 border-r border-t"></div>
-                          <div className="p-3 border-r border-t"></div>
-                          <div className="p-3 border-r border-t"></div>
-                          <div className="p-3 border-r border-t"></div>
-                          <div className="p-3 border-t"></div>
-                        </div>
+                        ))}
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground mt-2">
-                      <p>QAP items will be editable after creating the QAP document.</p>
+                      <p>Click the + button to add more QAP items. Items will be fully editable after creating the QAP document.</p>
                     </div>
                   </div>
                   
