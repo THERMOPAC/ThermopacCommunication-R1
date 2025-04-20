@@ -276,6 +276,7 @@ export default function ViewEditQAPPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>QAP Number</FormLabel>
+                          <FormDescription>Auto-generated based on project code</FormDescription>
                           <FormControl>
                             <Input 
                               value={formatQapNumber()}
@@ -294,6 +295,7 @@ export default function ViewEditQAPPage() {
                       render={({ field }) => (
                         <FormItem className="px-2">
                           <FormLabel>Category</FormLabel>
+                          <FormDescription>Select the equipment category</FormDescription>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
@@ -308,6 +310,7 @@ export default function ViewEditQAPPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Revision Number</FormLabel>
+                          <FormDescription>Auto-generated as '0' for new QAPs</FormDescription>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
@@ -325,6 +328,7 @@ export default function ViewEditQAPPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Project</FormLabel>
+                          <FormDescription>Associated project details</FormDescription>
                           <FormControl>
                             <Input 
                               value={qap?.project ? `${qap.project.code} - ${qap.project.name}` : ""}
@@ -343,6 +347,7 @@ export default function ViewEditQAPPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Customer</FormLabel>
+                          <FormDescription>Client or customer name</FormDescription>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
@@ -354,12 +359,14 @@ export default function ViewEditQAPPage() {
                     <FormField
                       control={form.control}
                       name="poNumber"
-                      render={() => (
+                      render={({ field }) => (
                         <FormItem>
                           <FormLabel>PO Number</FormLabel>
+                          <FormDescription>Purchase order reference number</FormDescription>
                           <FormControl>
                             <Input 
                               placeholder="Purchase order reference"
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />
@@ -376,6 +383,7 @@ export default function ViewEditQAPPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Title</FormLabel>
+                          <FormDescription>Main title for the QAP</FormDescription>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
@@ -393,6 +401,7 @@ export default function ViewEditQAPPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Standards Applicable</FormLabel>
+                          <FormDescription>Industry or regulatory standards that apply</FormDescription>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
@@ -410,6 +419,7 @@ export default function ViewEditQAPPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Remarks</FormLabel>
+                          <FormDescription>Additional notes or comments</FormDescription>
                           <FormControl>
                             <Textarea
                               placeholder="Additional notes or remarks"
