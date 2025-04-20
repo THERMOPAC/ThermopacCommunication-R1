@@ -63,6 +63,48 @@ export default function QualityReportsPage() {
   const canManageQuality = user?.role === "Superuser" || user?.role === "Manager" || 
                            user?.role === "Senior Manager" || user?.role === "General Manager";
 
+  // Get the tab from URL query parameter if available
+  const getTabFromURL = () => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      
+      // Validate that tab is one of our valid tab values
+      if (tab === 'qap-templates' || tab === 'generated-qaps' || 
+          tab === 'itp-templates' || tab === 'generated-itps') {
+        return tab;
+      }
+    }
+    
+    // Default to ITP templates if no valid tab in URL
+    return "itp-templates";
+  };
+
+  // Set default tab based on URL or default to itp-templates
+  const [activeTab, setActiveTab] = useState(getTabFromURL());
+
+  // Update URL when tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    
+    // Update URL without full page reload
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', value);
+      window.history.pushState({}, '', url.toString());
+    }
+  };
+
+  // Effect to update tab when URL changes (browser back/forward navigation)
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveTab(getTabFromURL());
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   return (
     <Layout>
       <Helmet>
@@ -77,7 +119,7 @@ export default function QualityReportsPage() {
           </p>
         </div>
         
-        <Tabs defaultValue="itp-templates">
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="grid grid-cols-4 mb-8">
             <TabsTrigger value="qap-templates">QAP Templates</TabsTrigger>
             <TabsTrigger value="generated-qaps">Generated QAPs</TabsTrigger>
