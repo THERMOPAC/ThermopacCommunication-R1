@@ -289,6 +289,8 @@ export default function ViewEditQAPPage() {
             </div>
           </div>
 
+          <Separator />
+
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
               <TabsTrigger value="details">Details</TabsTrigger>
@@ -299,122 +301,136 @@ export default function ViewEditQAPPage() {
             <TabsContent value="details" className="space-y-4">
               {isEditing ? (
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="title"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Title</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="revision"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Revision</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <Card>
+                      <CardContent className="p-6">
+                        {/* First row: Title and Revision */}
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                          <FormField
+                            control={form.control}
+                            name="title"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Title</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="revision"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Revision</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="clientName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Client Name</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="equipmentType"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Equipment Type</FormLabel>
-                            <FormControl>
-                              <Input {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                        {/* Second row: Client Name and Equipment Type */}
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                          <FormField
+                            control={form.control}
+                            name="clientName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Client Name</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="equipmentType"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Equipment Type</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                    <FormField
-                      control={form.control}
-                      name="standardsApplicable"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Standards Applicable</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        {/* Third row: Standards Applicable */}
+                        <div className="mb-6">
+                          <FormField
+                            control={form.control}
+                            name="standardsApplicable"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Standards Applicable</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                    <FormField
-                      control={form.control}
-                      name="remarks"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Remarks</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Additional notes or remarks"
-                              className="min-h-[100px]"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        {/* Fourth row: Remarks */}
+                        <div className="mb-6">
+                          <FormField
+                            control={form.control}
+                            name="remarks"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Remarks</FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    placeholder="Additional notes or remarks"
+                                    className="min-h-[100px]"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsEditing(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={updateQapMutation.isPending}
-                      >
-                        {updateQapMutation.isPending && (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        Save Changes
-                      </Button>
-                    </div>
+                        {/* Fifth row: Buttons */}
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsEditing(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={updateQapMutation.isPending}
+                          >
+                            {updateQapMutation.isPending && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Changes
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </form>
                 </Form>
               ) : (
                 <Card>
-                  <CardContent className="pt-6">
+                  <CardContent className="p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
@@ -492,67 +508,74 @@ export default function ViewEditQAPPage() {
             <TabsContent value="content">
               {isEditing ? (
                 <Form {...form}>
-                  <form className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="content"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>QAP Content</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              {...field}
-                              className="font-mono min-h-[60vh]"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsEditing(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={form.handleSubmit(onSubmit)}
-                        disabled={updateQapMutation.isPending}
-                      >
-                        {updateQapMutation.isPending && (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        Save Changes
-                      </Button>
-                    </div>
+                  <form className="space-y-6">
+                    <Card>
+                      <CardContent className="p-6">
+                        <FormField
+                          control={form.control}
+                          name="content"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>QAP Content</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  className="font-mono min-h-[60vh]"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div className="flex justify-end gap-2 mt-6">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsEditing(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={form.handleSubmit(onSubmit)}
+                            disabled={updateQapMutation.isPending}
+                          >
+                            {updateQapMutation.isPending && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Changes
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </form>
                 </Form>
               ) : (
-                <div className="border rounded-md p-4">
-                  <div className="flex justify-end mb-2">
-                    <Button variant="outline" onClick={handleExport}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      View Full Document
-                    </Button>
-                  </div>
-                  <div className="max-h-[600px] overflow-auto">
-                    <div
-                      className="prose max-w-none"
-                      dangerouslySetInnerHTML={{
-                        __html: qap?.content || "<p>No content available</p>",
-                      }}
-                    />
-                  </div>
-                </div>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex justify-end mb-4">
+                      <Button variant="outline" onClick={handleExport}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        View Full Document
+                      </Button>
+                    </div>
+                    <div className="max-h-[600px] overflow-auto border rounded-md p-4">
+                      <div
+                        className="prose max-w-none"
+                        dangerouslySetInnerHTML={{
+                          __html: qap?.content || "<p>No content available</p>",
+                        }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
 
             <TabsContent value="history">
               <Card>
-                <CardContent className="pt-6">
+                <CardContent className="p-6">
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <h3 className="text-lg font-medium">Revision History</h3>
