@@ -586,35 +586,35 @@ export default function CreateQAPPage() {
                     </div>
                     <div className="overflow-x-auto">
                       <div className="min-w-full border rounded-md">
-                        <div className="grid grid-cols-12 text-xs font-medium text-center bg-muted">
-                          <div className="p-2 border-r">ACTION</div>
-                          <div className="p-2 border-r">SL.NO</div>
-                          <div className="p-2 border-r">COMPONENT & OPERATION</div>
-                          <div className="p-2 border-r">CHARACTERISTICS CHECKED</div>
-                          <div className="p-2 border-r">CLASS</div>
-                          <div className="p-2 border-r">TYPE OF CHECK</div>
-                          <div className="p-2 border-r">QUANTUM OF CHECK</div>
-                          <div className="p-2 border-r">REFERENCE DOCUMENT</div>
-                          <div className="p-2 border-r">ACCEPTANCE NORMS</div>
-                          <div className="p-2 border-r">FORMAT OF RECORDS</div>
-                          <div className="p-2 border-r">AGENCY</div>
-                          <div className="p-2">REMARK</div>
+                        <div className="grid grid-cols-12 text-[8px] font-medium text-center bg-muted" style={{ gridTemplateColumns: '30px 40px 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr' }}>
+                          <div className="p-1 border-r">ACTION</div>
+                          <div className="p-1 border-r">SL.NO</div>
+                          <div className="p-1 border-r">COMPONENT & OPERATION</div>
+                          <div className="p-1 border-r">CHARACTERISTICS CHECKED</div>
+                          <div className="p-1 border-r">CLASS</div>
+                          <div className="p-1 border-r">TYPE OF CHECK</div>
+                          <div className="p-1 border-r">QUANTUM OF CHECK</div>
+                          <div className="p-1 border-r">REFERENCE DOCUMENT</div>
+                          <div className="p-1 border-r">ACCEPTANCE NORMS</div>
+                          <div className="p-1 border-r">FORMAT OF RECORDS</div>
+                          <div className="p-1 border-r">AGENCY</div>
+                          <div className="p-1">REMARK</div>
                         </div>
                         {qapItems.map((item, index) => (
-                          <div key={item.id} className="grid grid-cols-12 text-xs">
-                            <div className="p-3 border-r border-t text-center">
+                          <div key={item.id} className="grid grid-cols-12 text-[8px]" style={{ gridTemplateColumns: '30px 40px 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr' }}>
+                            <div className="p-1 border-r border-t text-center">
                               <Button 
                                 type="button" 
                                 variant="ghost" 
                                 size="icon"
                                 onClick={addQapItem}
-                                className="h-5 w-5"
+                                className="h-4 w-4"
                               >
-                                <Plus className="h-3 w-3" />
+                                <Plus className="h-2 w-2" />
                               </Button>
                             </div>
-                            <div className="p-3 border-r border-t text-center">{item.slNo}</div>
-                            <div className="p-3 border-r border-t">
+                            <div className="p-1 border-r border-t text-center">{item.slNo}</div>
+                            <div className="p-1 border-r border-t">
                               <Select 
                                 defaultValue="review-documents"
                                 onValueChange={(value) => {
@@ -630,7 +630,7 @@ export default function CreateQAPPage() {
                                   setQapItems(updatedItems);
                                 }}
                               >
-                                <SelectTrigger className="w-full h-6 text-xs">
+                                <SelectTrigger className="w-full h-5 text-[8px]">
                                   <SelectValue placeholder="Select option" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -642,9 +642,9 @@ export default function CreateQAPPage() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div className="p-3 border-r border-t">
+                            <div className="p-1 border-r border-t">
                               <Input 
-                                className="h-6 text-xs"
+                                className="h-5 text-[8px]"
                                 placeholder="Description"
                                 value={item.characteristicsChecked}
                                 onChange={(e) => {
@@ -657,7 +657,7 @@ export default function CreateQAPPage() {
                                 }}
                               />
                             </div>
-                            <div className="p-3 border-r border-t">
+                            <div className="p-1 border-r border-t">
                               <Select 
                                 defaultValue="Major"
                                 onValueChange={(value) => {
@@ -669,7 +669,7 @@ export default function CreateQAPPage() {
                                   setQapItems(updatedItems);
                                 }}
                               >
-                                <SelectTrigger className="w-full h-6 text-xs">
+                                <SelectTrigger className="w-full h-5 text-[8px]">
                                   <SelectValue placeholder="Class" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -679,7 +679,7 @@ export default function CreateQAPPage() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div className="p-3 border-r border-t">
+                            <div className="p-1 border-r border-t">
                               <Select 
                                 defaultValue="Visual"
                                 onValueChange={(value) => {
@@ -691,7 +691,7 @@ export default function CreateQAPPage() {
                                   setQapItems(updatedItems);
                                 }}
                               >
-                                <SelectTrigger className="w-full h-6 text-xs">
+                                <SelectTrigger className="w-full h-5 text-[8px]">
                                   <SelectValue placeholder="Type" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -703,9 +703,9 @@ export default function CreateQAPPage() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div className="p-3 border-r border-t">
+                            <div className="p-1 border-r border-t">
                               <Input 
-                                className="h-6 text-xs"
+                                className="h-5 text-[8px]"
                                 placeholder="100%"
                                 value={item.quantumOfCheck}
                                 onChange={(e) => {
@@ -718,9 +718,9 @@ export default function CreateQAPPage() {
                                 }}
                               />
                             </div>
-                            <div className="p-3 border-r border-t">
+                            <div className="p-1 border-r border-t">
                               <Input 
-                                className="h-6 text-xs"
+                                className="h-5 text-[8px]"
                                 placeholder="Reference"
                                 value={item.referenceDocument}
                                 onChange={(e) => {
@@ -733,9 +733,9 @@ export default function CreateQAPPage() {
                                 }}
                               />
                             </div>
-                            <div className="p-3 border-r border-t">
+                            <div className="p-1 border-r border-t">
                               <Input 
-                                className="h-6 text-xs"
+                                className="h-5 text-[8px]"
                                 placeholder="Norms"
                                 value={item.acceptanceNorms}
                                 onChange={(e) => {
@@ -748,9 +748,9 @@ export default function CreateQAPPage() {
                                 }}
                               />
                             </div>
-                            <div className="p-3 border-r border-t">
+                            <div className="p-1 border-r border-t">
                               <Input 
-                                className="h-6 text-xs"
+                                className="h-5 text-[8px]"
                                 placeholder="Format"
                                 value={item.formatOfRecords}
                                 onChange={(e) => {
@@ -763,11 +763,11 @@ export default function CreateQAPPage() {
                                 }}
                               />
                             </div>
-                            <div className="p-3 border-r border-t flex items-center justify-center space-x-1">
+                            <div className="p-1 border-r border-t flex items-center justify-center space-x-1">
                               <div className="flex items-center space-x-1">
                                 <input 
                                   type="checkbox" 
-                                  className="h-3 w-3"
+                                  className="h-2 w-2"
                                   checked={item.agency.M}
                                   onChange={(e) => {
                                     const updatedItems = [...qapItems];
@@ -781,12 +781,12 @@ export default function CreateQAPPage() {
                                     setQapItems(updatedItems);
                                   }}
                                 />
-                                <span className="text-xs">M</span>
+                                <span className="text-[8px]">M</span>
                               </div>
                               <div className="flex items-center space-x-1">
                                 <input 
                                   type="checkbox" 
-                                  className="h-3 w-3"
+                                  className="h-2 w-2"
                                   checked={item.agency.C}
                                   onChange={(e) => {
                                     const updatedItems = [...qapItems];
@@ -800,12 +800,12 @@ export default function CreateQAPPage() {
                                     setQapItems(updatedItems);
                                   }}
                                 />
-                                <span className="text-xs">C</span>
+                                <span className="text-[8px]">C</span>
                               </div>
                               <div className="flex items-center space-x-1">
                                 <input 
                                   type="checkbox" 
-                                  className="h-3 w-3"
+                                  className="h-2 w-2"
                                   checked={item.agency.SGS}
                                   onChange={(e) => {
                                     const updatedItems = [...qapItems];
@@ -819,12 +819,12 @@ export default function CreateQAPPage() {
                                     setQapItems(updatedItems);
                                   }}
                                 />
-                                <span className="text-xs">SGS</span>
+                                <span className="text-[8px]">SGS</span>
                               </div>
                             </div>
-                            <div className="p-3 border-t">
+                            <div className="p-1 border-t">
                               <Input 
-                                className="h-6 text-xs"
+                                className="h-5 text-[8px]"
                                 placeholder="Remarks"
                                 value={item.remark}
                                 onChange={(e) => {
