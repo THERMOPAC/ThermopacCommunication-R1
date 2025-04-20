@@ -61,6 +61,7 @@ interface QapItem {
   componentOperation: string;
   subMaterial?: string; // Optional field for Raw Material sub-options
   reviewDocument?: string; // Optional field for Review of Documents sub-options
+  processInspection?: string; // Optional field for In Process Inspection sub-options
   characteristicsChecked: string;
   class: string;
   typeOfCheck: string;
@@ -283,6 +284,8 @@ export default function CreateQAPPage() {
                          ? `${item.componentOperation} - ${item.subMaterial}` 
                          : item.componentOperation === "Review of Documents" && item.reviewDocument
                          ? `${item.componentOperation} - ${item.reviewDocument}`
+                         : item.componentOperation === "In Process Inspection" && item.processInspection
+                         ? `${item.componentOperation} - ${item.processInspection}`
                          : item.componentOperation}
                     </td>
                     <td>${item.characteristicsChecked}</td>
@@ -637,8 +640,10 @@ export default function CreateQAPPage() {
                                                         value === "in-process" ? "In Process Inspection" :
                                                         value === "final-assessment" ? "Final Assessment" :
                                                         "Testing & Painting",
-                                      // Clear subMaterial if not Raw Material
-                                      subMaterial: value !== "raw-material" ? "" : updatedItems[index].subMaterial
+                                      // Clear sub-option fields when not relevant
+                                      subMaterial: value !== "raw-material" ? "" : updatedItems[index].subMaterial,
+                                      reviewDocument: value !== "review-documents" ? "" : updatedItems[index].reviewDocument,
+                                      processInspection: value !== "in-process" ? "" : updatedItems[index].processInspection
                                     };
                                     setQapItems(updatedItems);
                                   }}
@@ -708,6 +713,41 @@ export default function CreateQAPPage() {
                                         <SelectItem value="Particular Material Appraisal">Particular Material Appraisal</SelectItem>
                                         <SelectItem value="Pneumatic & Hydrostatic leak test procedures">Pneumatic & Hydrostatic leak test procedures</SelectItem>
                                         <SelectItem value="(NDE) procedure">(NDE) procedure</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+                                
+                                {/* Dependent dropdown for In Process Inspection sub-options */}
+                                {item.componentOperation === "In Process Inspection" && (
+                                  <div className="pl-3 mt-1"> {/* Added padding-left for indentation */}
+                                    <Select 
+                                      value={item.processInspection || ""}
+                                      onValueChange={(value) => {
+                                        const updatedItems = [...qapItems];
+                                        updatedItems[index] = {
+                                          ...updatedItems[index],
+                                          processInspection: value
+                                        };
+                                        setQapItems(updatedItems);
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-full h-5 text-[8px] border-dashed border-gray-400"> {/* Added dashed border to indicate hierarchy */}
+                                        <SelectValue placeholder="Select inspection type" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Identification of material and witnessing stamp transfer">Identification of material and witnessing stamp transfer</SelectItem>
+                                        <SelectItem value="Examination of material cut edges and heat affected Zones">Examination of material cut edges and heat affected Zones</SelectItem>
+                                        <SelectItem value="Examination of formed part">Examination of formed part</SelectItem>
+                                        <SelectItem value="Examination of set up of seams for welding">Examination of set up of seams for welding</SelectItem>
+                                        <SelectItem value="Examination of weld preparation">Examination of weld preparation</SelectItem>
+                                        <SelectItem value="Inspection of second side of weld preparations">Inspection of second side of weld preparations</SelectItem>
+                                        <SelectItem value="Nozzle, manhole Set-up on Shell & Dish End">Nozzle, manhole Set-up on Shell & Dish End</SelectItem>
+                                        <SelectItem value="PWHT wherever applicable">PWHT wherever applicable</SelectItem>
+                                        <SelectItem value="NDT tests for weld joints">NDT tests for weld joints</SelectItem>
+                                        <SelectItem value="Final Visual & Dimension Inspection">Final Visual & Dimension Inspection</SelectItem>
+                                        <SelectItem value="Pneumatic Test of Nozzle RF pads">Pneumatic Test of Nozzle RF pads</SelectItem>
+                                        <SelectItem value="Hydrostatic Test">Hydrostatic Test</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
