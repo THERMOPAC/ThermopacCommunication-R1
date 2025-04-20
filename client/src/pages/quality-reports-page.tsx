@@ -1558,7 +1558,7 @@ function ITPManagementTab() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {qaps?.map((qap: any) => (
                             <SelectItem key={qap.id} value={qap.id.toString()}>
                               {qap.title}
@@ -1591,7 +1591,7 @@ function ITPManagementTab() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {templates?.map((template: any) => (
                             <SelectItem key={template.id} value={template.id.toString()}>
                               {template.name} (v{template.version})
@@ -1874,7 +1874,7 @@ function ITPManagementTab() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {qaps?.map((qap: any) => (
                             <SelectItem key={qap.id} value={qap.id.toString()}>
                               {qap.title}
@@ -1907,7 +1907,7 @@ function ITPManagementTab() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {templates?.map((template: any) => (
                             <SelectItem key={template.id} value={template.id.toString()}>
                               {template.name} (v{template.version})
