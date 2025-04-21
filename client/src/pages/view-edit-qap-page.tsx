@@ -845,9 +845,11 @@ export default function ViewEditQAPPage() {
                               <FormDescription>Associated project details</FormDescription>
                               <FormControl>
                                 <Input 
+                                  {...field}
                                   value={qap?.projectInfo || (qap?.project ? `${qap.project.code} - ${qap.project.name}` : "")}
                                   disabled={true}
                                   className="bg-muted/30"
+                                  readOnly
                                 />
                               </FormControl>
                               <FormMessage />
