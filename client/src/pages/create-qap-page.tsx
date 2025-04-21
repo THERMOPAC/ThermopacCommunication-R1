@@ -251,13 +251,27 @@ export default function CreateQAPPage() {
           form.setValue("revision", existingQap.revision);
         }
         
-        if (existingQap.id && existingQap.project?.code) {
-          form.setValue("qapNumber", `QAP-${existingQap.project.code}-${existingQap.id.toString().padStart(3, '0')}`);
+        // Handle QAP number with fallback for missing project
+        if (existingQap.id) {
+          const projectCode = existingQap.project?.code || "UNKNOWN";
+          form.setValue("qapNumber", `QAP-${projectCode}-${existingQap.id.toString().padStart(3, '0')}`);
+          
+          // If project is missing, try to find it from projects array
+          if (!existingQap.project && existingQap.projectId) {
+            const matchingProject = projects.find(p => p.id === existingQap.projectId);
+            if (matchingProject) {
+              console.log("Found matching project:", matchingProject);
+              setSelectedProjectCode(matchingProject.code);
+              form.setValue("qapNumber", `QAP-${matchingProject.code}-${existingQap.id.toString().padStart(3, '0')}`);
+            } else {
+              console.warn("Project with ID", existingQap.projectId, "not found in projects list");
+            }
+          }
         }
         
         form.setValue("revisionNumber", existingQap.revision || "0");
         
-        // Set selected project code
+        // Set selected project code with additional safety
         if (existingQap.project?.code) {
           setSelectedProjectCode(existingQap.project.code);
         }
@@ -267,7 +281,7 @@ export default function CreateQAPPage() {
         console.error("Error populating form with existing QAP:", error);
       }
     }
-  }, [existingQap, isLoadingQap, form, customers]);
+  }, [existingQap, isLoadingQap, form, customers, projects]);
 
   // Handle project selection
   const handleProjectChange = (projectId: string) => {
