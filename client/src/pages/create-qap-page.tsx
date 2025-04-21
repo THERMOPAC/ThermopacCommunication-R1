@@ -117,7 +117,13 @@ export default function CreateQAPPage() {
   const [location, params] = useLocation();
   const pathSegments = location.split('/');
   const idParam = pathSegments[pathSegments.length - 1];
-  const qapId = idParam !== 'form' ? parseInt(idParam) : undefined;
+  // Better parameter parsing - handle both /form/:id and /form paths
+  const qapId = idParam !== 'form' && !isNaN(parseInt(idParam)) ? parseInt(idParam) : undefined;
+  
+  console.log('CreateQAPPage - URL path:', location);
+  console.log('CreateQAPPage - Path segments:', pathSegments);
+  console.log('CreateQAPPage - ID parameter:', idParam);
+  console.log('CreateQAPPage - Parsed QAP ID:', qapId);
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -177,30 +183,34 @@ export default function CreateQAPPage() {
         console.log(`Fetching QAP data for ID: ${qapId}`);
         
         // Make the API request with enhanced error handling and type safety
-        let response: any;
+        let responseObj: any;
         try {
-          response = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
-          console.log("Raw API Response for QAP:", JSON.stringify(response, null, 2));
+          // Get response from API
+          const response = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
+          
+          // Parse response as JSON
+          responseObj = await response.json();
+          console.log("Raw API Response for QAP:", JSON.stringify(responseObj, null, 2));
         } catch (requestError) {
           console.error("API Request failed:", requestError);
           throw new Error(`API request failed: ${requestError}`);
         }
         
         // More robust response validation with type checking
-        if (!response) {
+        if (!responseObj) {
           console.error("API response is null or undefined");
           throw new Error("API response is empty");
         }
         
-        if (typeof response !== 'object') {
-          console.error(`API response is not an object: ${typeof response}`);
-          throw new Error(`Unexpected response type: ${typeof response}`);
+        if (typeof responseObj !== 'object') {
+          console.error(`API response is not an object: ${typeof responseObj}`);
+          throw new Error(`Unexpected response type: ${typeof responseObj}`);
         }
         
         // Ensure numeric ID is present
-        const id = response.id;
+        const id = responseObj.id;
         if (id === undefined || id === null) {
-          console.error("API response missing valid 'id' field:", response);
+          console.error("API response missing valid 'id' field:", responseObj);
           throw new Error("QAP data is incomplete (missing ID)");
         }
         
@@ -213,45 +223,45 @@ export default function CreateQAPPage() {
         }
         
         // Extract project information more safely
-        const projectId = response.projectId !== undefined ? 
-                        (typeof response.projectId === 'string' ? parseInt(response.projectId, 10) : response.projectId) : 
+        const projectId = responseObj.projectId !== undefined ? 
+                        (typeof responseObj.projectId === 'string' ? parseInt(responseObj.projectId, 10) : responseObj.projectId) : 
                         0;
         
         // Log extracted data for debugging
         console.log("Extracted QAP ID:", numericId);
         console.log("Extracted projectId:", projectId);
-        console.log("Original project object:", response.project);
+        console.log("Original project object:", responseObj.project);
         
         // Create a complete QAP object with fallbacks for missing fields and strict type checking
         const safeQap: QAP = {
           id: numericId,
           projectId: projectId || 0,
-          templateId: response.templateId || 3,
-          title: response.title || "Quality Assurance Plan",
-          clientName: response.clientName || "",
-          equipmentType: response.equipmentType || "General",
-          standards: response.standards || null,
-          revision: response.revision || "0",
-          preparedBy: response.preparedBy || (user?.id || 0),
-          approvedBy: response.approvedBy || null,
-          status: response.status || "draft",
-          version: response.version || 1,
-          content: response.content || "",
-          createdAt: response.createdAt || new Date().toISOString(),
-          updatedAt: response.updatedAt || new Date().toISOString(),
+          templateId: responseObj.templateId || 3,
+          title: responseObj.title || "Quality Assurance Plan",
+          clientName: responseObj.clientName || "",
+          equipmentType: responseObj.equipmentType || "General",
+          standards: responseObj.standards || null,
+          revision: responseObj.revision || "0",
+          preparedBy: responseObj.preparedBy || (user?.id || 0),
+          approvedBy: responseObj.approvedBy || null,
+          status: responseObj.status || "draft",
+          version: responseObj.version || 1,
+          content: responseObj.content || "",
+          createdAt: responseObj.createdAt || new Date().toISOString(),
+          updatedAt: responseObj.updatedAt || new Date().toISOString(),
           project: {
-            id: response.project?.id || 0,
-            code: response.project?.code || 'UNKNOWN',
-            name: response.project?.name || 'Unknown Project'
+            id: responseObj.project?.id || 0,
+            code: responseObj.project?.code || 'UNKNOWN',
+            name: responseObj.project?.name || 'Unknown Project'
           }, // Default values to prevent null errors
-          preparedByUser: response.preparedByUser || { id: user?.id || 0, username: user?.username || "Unknown" },
-          approvedByUser: response.approvedByUser || undefined
+          preparedByUser: responseObj.preparedByUser || { id: user?.id || 0, username: user?.username || "Unknown" },
+          approvedByUser: responseObj.approvedByUser || undefined
         };
         
         // Process project data more carefully
-        if (response.project && typeof response.project === 'object') {
+        if (responseObj.project && typeof responseObj.project === 'object') {
           // Extract project values safely
-          const projectObj = response.project;
+          const projectObj = responseObj.project;
           safeQap.project = {
             id: typeof projectObj.id === 'number' ? projectObj.id : 
                 (typeof projectObj.id === 'string' ? parseInt(projectObj.id, 10) : projectId || 0),
@@ -279,7 +289,9 @@ export default function CreateQAPPage() {
             // Attempt to get project details from the API directly
             try {
               console.log(`Attempting to fetch project details for ID ${projectId}`);
-              const projectData = await apiRequest('GET', `/api/projects/${projectId}`);
+              const projectResponse = await apiRequest('GET', `/api/projects/${projectId}`);
+              const projectData = await projectResponse.json();
+              
               if (projectData && typeof projectData === 'object') {
                 console.log("Successfully fetched project details:", projectData);
                 
