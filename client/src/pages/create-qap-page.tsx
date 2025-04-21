@@ -248,63 +248,266 @@ export default function CreateQAPPage() {
   
   // Populate form with existing data when in edit mode
   useEffect(() => {
-    if (existingQap && !isLoadingQap) {
+    if (existingQap && !isLoadingQap && projects.length > 0 && customers.length > 0) {
       try {
-        // Update form with existing QAP data with null safety checks
-        if (existingQap.projectId !== undefined && existingQap.projectId !== null) {
-          form.setValue("projectId", existingQap.projectId.toString());
-        }
+        console.log("Attempting to populate form with QAP:", existingQap);
+        console.log("Available projects:", projects);
+        console.log("Available customers:", customers);
         
-        if (existingQap.clientName) {
-          const customerMatch = customers.find(c => c.bpName === existingQap.clientName);
-          if (customerMatch?.id) {
-            form.setValue("customerId", customerMatch.id.toString());
+        // First, set project ID - this is critical and must be done first
+        if (existingQap.projectId !== undefined && existingQap.projectId !== null) {
+          // Find the project in our projects list
+          const project = projects.find(p => p.id === existingQap.projectId);
+          
+          if (project) {
+            console.log("Found matching project for form population:", project);
+            // Set the project ID in the form
+            form.setValue("projectId", existingQap.projectId.toString());
+            
+            // Set project code for QAP number generation
+            setSelectedProjectCode(project.code);
+            
+            // Generate QAP number
+            if (existingQap.id) {
+              form.setValue("qapNumber", `QAP-${project.code}-${existingQap.id.toString().padStart(3, '0')}`);
+            }
+            
+            // If customer ID is not in the form but exists in the project, use it
+            if (project.customerId) {
+              form.setValue("customerId", project.customerId.toString());
+              
+              // Log the auto-selected customer
+              const autoCustomer = customers.find(c => c.id === project.customerId);
+              if (autoCustomer) {
+                console.log("Auto-populated customer from project:", autoCustomer.bpName);
+              }
+            }
+          } else {
+            console.warn(`Project with ID ${existingQap.projectId} not found in available projects list`);
           }
         }
         
-        if (existingQap.title) {
+        // Then, if we have clientName, try to match it to a customer
+        if (existingQap.clientName && existingQap.clientName.trim() !== "") {
+          const customerMatch = customers.find(c => c.bpName === existingQap.clientName);
+          if (customerMatch?.id) {
+            console.log("Found customer match by name:", customerMatch.bpName);
+            form.setValue("customerId", customerMatch.id.toString());
+          } else {
+            console.warn(`Customer with name "${existingQap.clientName}" not found in available customers list`);
+          }
+        }
+        
+        // Set title
+        if (existingQap.title && existingQap.title.trim() !== "") {
           form.setValue("title", existingQap.title);
+        } else {
+          // Create a default title based on the project if no title exists
+          const project = projects.find(p => p.id === existingQap.projectId);
+          if (project) {
+            form.setValue("title", `Quality Assurance Plan for ${project.name}`);
+          }
         }
         
-        if (existingQap.equipmentType) {
+        // Set equipment type (category)
+        if (existingQap.equipmentType && existingQap.equipmentType.trim() !== "") {
           form.setValue("category", existingQap.equipmentType as any);
+        } else {
+          // Default to General if not specified
+          form.setValue("category", "General");
         }
         
-        if (existingQap.revision) {
-          form.setValue("revision", existingQap.revision);
-        }
+        // Set revision
+        form.setValue("revision", existingQap.revision || "0");
+        form.setValue("revisionNumber", existingQap.revision || "0");
         
-        // Handle QAP number with fallback for missing project
-        if (existingQap.id) {
-          const projectCode = existingQap.project?.code || "UNKNOWN";
-          form.setValue("qapNumber", `QAP-${projectCode}-${existingQap.id.toString().padStart(3, '0')}`);
-          
-          // If project is missing, try to find it from projects array
-          if (!existingQap.project && existingQap.projectId) {
-            const matchingProject = projects.find(p => p.id === existingQap.projectId);
-            if (matchingProject) {
-              console.log("Found matching project:", matchingProject);
-              setSelectedProjectCode(matchingProject.code);
-              form.setValue("qapNumber", `QAP-${matchingProject.code}-${existingQap.id.toString().padStart(3, '0')}`);
-            } else {
-              console.warn("Project with ID", existingQap.projectId, "not found in projects list");
+        // Set PO number if it exists in the database version
+        if (existingQap.content && existingQap.content.includes("PO Number")) {
+          const poMatch = existingQap.content.match(/<strong>PO Number:<\/strong>\s*([^<]+)/);
+          if (poMatch && poMatch[1]) {
+            const poNumber = poMatch[1].trim().replace("N/A", "");
+            if (poNumber) {
+              form.setValue("poNumber", poNumber);
             }
           }
         }
         
-        form.setValue("revisionNumber", existingQap.revision || "0");
+        // Make sure form triggers validation after setting values
+        form.trigger();
         
-        // Set selected project code with additional safety
-        if (existingQap.project?.code) {
-          setSelectedProjectCode(existingQap.project.code);
-        }
-        
-        console.log("Populated form with existing QAP data:", existingQap);
+        console.log("Finished populating form with existing QAP data");
       } catch (error) {
         console.error("Error populating form with existing QAP:", error);
+        toast({
+          title: "Form Error",
+          description: "Could not load all QAP data. Some fields may need to be filled manually.",
+          variant: "destructive",
+        });
       }
+    } else if (existingQap && (!projects.length || !customers.length)) {
+      console.warn("Cannot populate form - projects or customers data not loaded yet");
     }
   }, [existingQap, isLoadingQap, form, customers, projects]);
+  
+  // Load QAP items from existing QAP content if editing
+  useEffect(() => {
+    if (existingQap?.content && existingQap.content.includes("table")) {
+      try {
+        console.log("Attempting to parse QAP items from content...");
+        
+        // Create a temporary div to parse HTML content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = existingQap.content;
+        
+        // First try: Look for rows in the QAP table
+        const rows = tempDiv.querySelectorAll('.qap-table tbody tr');
+        
+        if (rows.length > 0) {
+          console.log(`Found ${rows.length} QAP items in content`);
+          
+          const parsedItems: QapItem[] = Array.from(rows).map((row, index) => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length < 13) {
+              console.warn(`Row ${index} doesn't have enough cells (${cells.length}), skipping`);
+              return null; // Skip if row doesn't have enough cells
+            }
+            
+            // Parse component operation and its sub-option
+            const componentCell = cells[1].textContent || "";
+            let componentOperation = "Review of Documents";
+            let subMaterial = "";
+            let reviewDocument = "";
+            let processInspection = "";
+            let finalAssessment = "";
+            
+            if (componentCell.includes("Raw Material")) {
+              componentOperation = "Raw Material";
+              const parts = componentCell.split('-');
+              if (parts.length > 1) {
+                subMaterial = parts[1].trim();
+              }
+            } else if (componentCell.includes("Review of Documents")) {
+              componentOperation = "Review of Documents";
+              const parts = componentCell.split('-');
+              if (parts.length > 1) {
+                reviewDocument = parts[1].trim();
+              }
+            } else if (componentCell.includes("In Process Inspection")) {
+              componentOperation = "In Process Inspection";
+              const parts = componentCell.split('-');
+              if (parts.length > 1) {
+                processInspection = parts[1].trim();
+              }
+            } else if (componentCell.includes("Final Assessment")) {
+              componentOperation = "Final Assessment";
+              const parts = componentCell.split('-');
+              if (parts.length > 1) {
+                finalAssessment = parts[1].trim();
+              }
+            } else if (componentCell.includes("Testing & Painting")) {
+              componentOperation = "Testing & Painting";
+            }
+            
+            // Parse agency checkmarks
+            const mChecked = (cells[9].textContent || "").includes("✓");
+            const cChecked = (cells[10].textContent || "").includes("✓");
+            const sgsChecked = (cells[11].textContent || "").includes("✓");
+            
+            return {
+              id: index + 1,
+              slNo: index + 1,
+              componentOperation,
+              subMaterial,
+              reviewDocument,
+              processInspection,
+              finalAssessment,
+              characteristicsChecked: cells[2].textContent?.trim() || "",
+              class: cells[3].textContent?.trim() || "Major",
+              typeOfCheck: cells[4].textContent?.trim() || "Visual",
+              quantumOfCheck: cells[5].textContent?.trim() || "100%",
+              referenceDocument: cells[6].textContent?.trim() || "",
+              acceptanceNorms: cells[7].textContent?.trim() || "",
+              formatOfRecords: cells[8].textContent?.trim() || "",
+              agency: {
+                M: mChecked,
+                C: cChecked,
+                SGS: sgsChecked
+              },
+              remark: cells[12].textContent?.trim() || ""
+            };
+          }).filter(item => item !== null) as QapItem[];
+          
+          if (parsedItems.length > 0) {
+            setQapItems(parsedItems);
+            console.log("Parsed QAP items from content:", parsedItems);
+          } else {
+            console.warn("No valid QAP items parsed from content, using default item");
+            // Create a default QAP item
+            setQapItems([{
+              id: 1,
+              slNo: 1,
+              componentOperation: "Review of Documents",
+              subMaterial: "",
+              reviewDocument: "",
+              processInspection: "",
+              finalAssessment: "",
+              characteristicsChecked: "Review & approval",
+              class: "Major",
+              typeOfCheck: "Visual",
+              quantumOfCheck: "100%",
+              referenceDocument: "Design & drawing",
+              acceptanceNorms: "Compliance to Drawing",
+              formatOfRecords: "Inspection Test Plan",
+              agency: { M: true, C: false, SGS: false },
+              remark: ""
+            }]);
+          }
+        } else {
+          console.warn("No QAP table rows found in content, using default item");
+          // Create a default QAP item
+          setQapItems([{
+            id: 1,
+            slNo: 1,
+            componentOperation: "Review of Documents",
+            subMaterial: "",
+            reviewDocument: "",
+            processInspection: "",
+            finalAssessment: "",
+            characteristicsChecked: "Review & approval",
+            class: "Major",
+            typeOfCheck: "Visual",
+            quantumOfCheck: "100%",
+            referenceDocument: "Design & drawing",
+            acceptanceNorms: "Compliance to Drawing",
+            formatOfRecords: "Inspection Test Plan",
+            agency: { M: true, C: false, SGS: false },
+            remark: ""
+          }]);
+        }
+      } catch (error) {
+        console.error("Error parsing QAP content:", error);
+        // Fallback to a default item
+        setQapItems([{
+          id: 1,
+          slNo: 1,
+          componentOperation: "Review of Documents",
+          subMaterial: "",
+          reviewDocument: "",
+          processInspection: "",
+          finalAssessment: "",
+          characteristicsChecked: "Review & approval",
+          class: "Major",
+          typeOfCheck: "Visual",
+          quantumOfCheck: "100%",
+          referenceDocument: "Design & drawing",
+          acceptanceNorms: "Compliance to Drawing",
+          formatOfRecords: "Inspection Test Plan",
+          agency: { M: true, C: false, SGS: false },
+          remark: ""
+        }]);
+      }
+    }
+  }, [existingQap?.content]);
 
   // Handle project selection
   const handleProjectChange = (projectId: string) => {
