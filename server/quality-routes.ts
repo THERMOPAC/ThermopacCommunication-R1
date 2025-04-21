@@ -547,10 +547,14 @@ export const setupQualityRoutes = (app: any) => {
         return res.status(403).json({ error: 'You do not have permission to update this QAP' });
       }
 
-      // Don't allow changes to approved QAPs
+      // Don't allow changes to approved QAPs but allow changes to 'in-review' QAPs
       if (existingQap.status === 'approved' && req.user!.role !== 'Superuser') {
         return res.status(400).json({ error: 'Cannot update an approved QAP. Please create a new revision.' });
       }
+      
+      // Log the status for debugging
+      console.log(`Updating QAP ${qapId} with current status: ${existingQap.status}`);
+      
 
       // Validate request body
       const validationResult = insertGeneratedQapSchema.partial().safeParse(req.body);

@@ -136,7 +136,8 @@ export default function ViewEditQAPPage() {
   // Approve QAP mutation
   const approveQapMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/quality/generated-qaps/${qapId}`, 'PUT', { status: 'approved' });
+      // Use PATCH for status updates instead of PUT
+      return apiRequest(`/api/quality/generated-qaps/${qapId}`, 'PATCH', { status: 'approved' });
     },
     onSuccess: () => {
       toast({
