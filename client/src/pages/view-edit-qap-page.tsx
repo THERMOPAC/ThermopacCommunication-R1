@@ -7,9 +7,26 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { format } from "date-fns";
-import { Loader2, Save, ArrowLeft, FileText, Send, Check, AlertTriangle, Download } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { 
+  Loader2, 
+  Save, 
+  ArrowLeft, 
+  FileText, 
+  Send, 
+  Check as CheckIcon, 
+  AlertTriangle, 
+  Download as FileDownIcon,
+  Edit as PencilIcon, 
+  Plus as PlusIcon, 
+  ChevronUp as ChevronUpIcon, 
+  ChevronDown as ChevronDownIcon,
+  Trash2 as Trash2Icon 
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Layout from "@/components/layout";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -20,13 +37,6 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { 
@@ -60,7 +70,7 @@ const qapFormSchema = z.object({
   poNumber: z.string().optional(),
 });
 
-// QAP Item interface (consistent with create-qap-page.tsx)
+// QAP Item interface
 interface QapItem {
   id: number;
   slNo: number;
@@ -378,67 +388,6 @@ export default function ViewEditQAPPage() {
     }
   };
 
-  // Update QAP mutation
-  const updateQapMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof qapFormSchema>) => {
-      try {
-        // Using improved apiRequest which automatically parses JSON response
-        const data = await apiRequest('PUT', `/api/quality/generated-qaps/${qapId}`, values);
-        console.log("Update QAP response:", data);
-        return data;
-      } catch (error) {
-        console.error("Error updating QAP:", error);
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: "QAP updated",
-        description: "Quality Assurance Plan has been updated successfully",
-      });
-      setIsEditing(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/quality/generated-qaps'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/quality/generated-qaps', qapId] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Failed to update QAP",
-        description: error.message || "Something went wrong",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Approve QAP mutation
-  const approveQapMutation = useMutation({
-    mutationFn: async () => {
-      try {
-        // Use PATCH for status updates instead of PUT with improved apiRequest
-        const data = await apiRequest('PATCH', `/api/quality/generated-qaps/${qapId}`, { status: 'approved' });
-        console.log("Approve QAP response:", data);
-        return data;
-      } catch (error) {
-        console.error("Error approving QAP:", error);
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: "QAP approved",
-        description: "Quality Assurance Plan has been approved successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/quality/generated-qaps'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/quality/generated-qaps', qapId] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Failed to approve QAP",
-        description: error.message || "Something went wrong",
-        variant: "destructive",
-      });
-    },
-  });
-
   // Function to generate QAP table HTML from QAP items
   const generateQapTableHtml = (qapItemsArray: QapItem[]) => {
     try {
@@ -517,6 +466,67 @@ export default function ViewEditQAPPage() {
     }
   };
 
+  // Update QAP mutation
+  const updateQapMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof qapFormSchema>) => {
+      try {
+        // Using improved apiRequest which automatically parses JSON response
+        const data = await apiRequest('PUT', `/api/quality/generated-qaps/${qapId}`, values);
+        console.log("Update QAP response:", data);
+        return data;
+      } catch (error) {
+        console.error("Error updating QAP:", error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "QAP updated",
+        description: "Quality Assurance Plan has been updated successfully",
+      });
+      setIsEditing(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/quality/generated-qaps'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/quality/generated-qaps', qapId] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update QAP",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Approve QAP mutation
+  const approveQapMutation = useMutation({
+    mutationFn: async () => {
+      try {
+        // Use PATCH for status updates instead of PUT with improved apiRequest
+        const data = await apiRequest('PATCH', `/api/quality/generated-qaps/${qapId}`, { status: 'approved' });
+        console.log("Approve QAP response:", data);
+        return data;
+      } catch (error) {
+        console.error("Error approving QAP:", error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "QAP approved",
+        description: "Quality Assurance Plan has been approved successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/quality/generated-qaps'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/quality/generated-qaps', qapId] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to approve QAP",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Handle form submission
   const onSubmit = (values: z.infer<typeof qapFormSchema>) => {
     try {
@@ -551,6 +561,77 @@ export default function ViewEditQAPPage() {
         variant: "destructive",
       });
     }
+  };
+
+  // Add, remove, move up, move down QAP items
+  const addQapItem = () => {
+    const newId = qapItems.length > 0 ? Math.max(...qapItems.map(item => item.id)) + 1 : 1;
+    setQapItems([
+      ...qapItems,
+      {
+        id: newId,
+        slNo: qapItems.length + 1,
+        componentOperation: "Review of Documents",
+        subMaterial: "",
+        reviewDocument: "",
+        processInspection: "",
+        finalAssessment: "",
+        characteristicsChecked: "Review & approval",
+        class: "Major",
+        typeOfCheck: "Visual",
+        quantumOfCheck: "100%",
+        referenceDocument: "Design & drawing",
+        acceptanceNorms: "Compliance to Drawing",
+        formatOfRecords: "Inspection Test Plan",
+        agency: { M: true, C: false, SGS: false },
+        remark: ""
+      }
+    ]);
+  };
+
+  const removeQapItem = (id: number) => {
+    setQapItems(qapItems.filter(item => item.id !== id).map((item, index) => ({
+      ...item,
+      slNo: index + 1
+    })));
+  };
+
+  const moveQapItemUp = (id: number) => {
+    const index = qapItems.findIndex(item => item.id === id);
+    if (index <= 0) return;
+    
+    const newItems = [...qapItems];
+    [newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]];
+    
+    // Update sequence numbers
+    const updatedItems = newItems.map((item, i) => ({
+      ...item,
+      slNo: i + 1
+    }));
+    
+    setQapItems(updatedItems);
+  };
+
+  const moveQapItemDown = (id: number) => {
+    const index = qapItems.findIndex(item => item.id === id);
+    if (index === -1 || index === qapItems.length - 1) return;
+    
+    const newItems = [...qapItems];
+    [newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]];
+    
+    // Update sequence numbers
+    const updatedItems = newItems.map((item, i) => ({
+      ...item,
+      slNo: i + 1
+    }));
+    
+    setQapItems(updatedItems);
+  };
+
+  const updateQapItem = (id: number, updatedItem: Partial<QapItem>) => {
+    setQapItems(qapItems.map(item => 
+      item.id === id ? { ...item, ...updatedItem } : item
+    ));
   };
 
   // Handle export
@@ -671,377 +752,611 @@ export default function ViewEditQAPPage() {
         <Separator />
         
         {isEditing ? (
-          // Edit Mode - Similar to Create QAP page
+          // Edit Mode with Tabs
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <Card>
-                <CardContent className="p-6">
-                  {/* First row with QAP Number, Category, and Revision Number */}
-                  <div className="grid grid-cols-3 gap-4 mb-6">
-                    <FormField
-                      control={form.control}
-                      name="title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>QAP Number</FormLabel>
-                          <FormDescription>Auto-generated based on project code</FormDescription>
-                          <FormControl>
-                            <Input 
-                              value={formatQapNumber()}
-                              disabled={true}
-                              className="bg-muted/30"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+              <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="mb-4">
+                  <TabsTrigger value="details">QAP Details</TabsTrigger>
+                  <TabsTrigger value="items">QAP Items</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="details">
+                  <Card>
+                    <CardContent className="p-6">
+                      {/* First row with QAP Number, Category, and Revision Number */}
+                      <div className="grid grid-cols-3 gap-4 mb-6">
+                        <FormField
+                          control={form.control}
+                          name="title"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>QAP Number</FormLabel>
+                              <FormDescription>Auto-generated based on project code</FormDescription>
+                              <FormControl>
+                                <Input 
+                                  value={formatQapNumber()}
+                                  disabled={true}
+                                  className="bg-muted/30"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="equipmentType"
+                          render={({ field }) => (
+                            <FormItem className="px-2">
+                              <FormLabel>Category</FormLabel>
+                              <FormDescription>Select the equipment category</FormDescription>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="revision"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Revision Number</FormLabel>
+                              <FormDescription>Auto-generated as '0' for new QAPs</FormDescription>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      {/* Project, Customer, PO Number row */}
+                      <div className="grid grid-cols-3 gap-4 mb-6">
+                        <FormField
+                          control={form.control}
+                          name="projectId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Project</FormLabel>
+                              <FormDescription>Associated project details</FormDescription>
+                              <FormControl>
+                                <Input 
+                                  value={qap?.project ? `${qap.project.code} - ${qap.project.name}` : ""}
+                                  disabled={true}
+                                  className="bg-muted/30"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="clientName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Customer</FormLabel>
+                              <FormDescription>Client or customer name</FormDescription>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="poNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>PO Number</FormLabel>
+                              <FormDescription>Purchase order reference</FormDescription>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      {/* Title, Standards Applicable row */}
+                      <div className="grid grid-cols-2 gap-4 mb-6">
+                        <FormField
+                          control={form.control}
+                          name="title"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>QAP Title</FormLabel>
+                              <FormDescription>Title for the QAP</FormDescription>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="standardsApplicable"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Standards Applicable</FormLabel>
+                              <FormDescription>Relevant quality standards</FormDescription>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      {/* Remarks field */}
+                      <div className="mb-6">
+                        <FormField
+                          control={form.control}
+                          name="remarks"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Remarks</FormLabel>
+                              <FormDescription>Any additional notes or comments</FormDescription>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  className="min-h-24"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="items">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle>QAP Items</CardTitle>
+                        <Button onClick={addQapItem} variant="outline" size="sm">
+                          <PlusIcon className="mr-2 h-4 w-4" />
+                          Add Item
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {qapItems.length === 0 ? (
+                        <div className="text-center py-6">
+                          <p className="text-muted-foreground">No QAP items added yet.</p>
+                          <Button onClick={addQapItem} variant="secondary" className="mt-4">
+                            <PlusIcon className="mr-2 h-4 w-4" />
+                            Add First Item
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {qapItems.map((item, index) => (
+                            <Card key={item.id} className="p-4 bg-muted/30">
+                              <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold">Item #{item.slNo}</h3>
+                                <div className="flex space-x-2">
+                                  <Button 
+                                    onClick={() => moveQapItemUp(item.id)}
+                                    variant="outline"
+                                    size="icon"
+                                    disabled={index === 0}
+                                    className="h-8 w-8"
+                                  >
+                                    <ChevronUpIcon className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    onClick={() => moveQapItemDown(item.id)}
+                                    variant="outline"
+                                    size="icon"
+                                    disabled={index === qapItems.length - 1}
+                                    className="h-8 w-8"
+                                  >
+                                    <ChevronDownIcon className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    onClick={() => removeQapItem(item.id)}
+                                    variant="destructive"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                  >
+                                    <Trash2Icon className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                  <Label htmlFor={`item-${item.id}-component`}>Component & Operation</Label>
+                                  <Select 
+                                    value={item.componentOperation}
+                                    onValueChange={(value) => updateQapItem(item.id, { componentOperation: value })}
+                                  >
+                                    <SelectTrigger className="mt-1">
+                                      <SelectValue placeholder="Select Component/Operation" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Review of Documents">Review of Documents</SelectItem>
+                                      <SelectItem value="Raw Material">Raw Material</SelectItem>
+                                      <SelectItem value="In Process Inspection">In Process Inspection</SelectItem>
+                                      <SelectItem value="Final Assessment">Final Assessment</SelectItem>
+                                      <SelectItem value="Testing & Painting">Testing & Painting</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                
+                                {/* Sub-options based on component operation */}
+                                {item.componentOperation === "Raw Material" && (
+                                  <div>
+                                    <Label htmlFor={`item-${item.id}-sub-material`}>Material Type</Label>
+                                    <Input
+                                      id={`item-${item.id}-sub-material`}
+                                      className="mt-1"
+                                      value={item.subMaterial || ""}
+                                      onChange={(e) => updateQapItem(item.id, { subMaterial: e.target.value })}
+                                    />
+                                  </div>
+                                )}
+                                
+                                {item.componentOperation === "Review of Documents" && (
+                                  <div>
+                                    <Label htmlFor={`item-${item.id}-document-type`}>Document Type</Label>
+                                    <Input
+                                      id={`item-${item.id}-document-type`}
+                                      className="mt-1"
+                                      value={item.reviewDocument || ""}
+                                      onChange={(e) => updateQapItem(item.id, { reviewDocument: e.target.value })}
+                                    />
+                                  </div>
+                                )}
+                                
+                                {item.componentOperation === "In Process Inspection" && (
+                                  <div>
+                                    <Label htmlFor={`item-${item.id}-process`}>Process Type</Label>
+                                    <Input
+                                      id={`item-${item.id}-process`}
+                                      className="mt-1"
+                                      value={item.processInspection || ""}
+                                      onChange={(e) => updateQapItem(item.id, { processInspection: e.target.value })}
+                                    />
+                                  </div>
+                                )}
+                                
+                                {item.componentOperation === "Final Assessment" && (
+                                  <div>
+                                    <Label htmlFor={`item-${item.id}-assessment`}>Assessment Type</Label>
+                                    <Input
+                                      id={`item-${item.id}-assessment`}
+                                      className="mt-1"
+                                      value={item.finalAssessment || ""}
+                                      onChange={(e) => updateQapItem(item.id, { finalAssessment: e.target.value })}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                  <Label htmlFor={`item-${item.id}-characteristics`}>Characteristics Checked</Label>
+                                  <Input
+                                    id={`item-${item.id}-characteristics`}
+                                    className="mt-1"
+                                    value={item.characteristicsChecked}
+                                    onChange={(e) => updateQapItem(item.id, { characteristicsChecked: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor={`item-${item.id}-class`}>Class</Label>
+                                  <Select 
+                                    value={item.class}
+                                    onValueChange={(value) => updateQapItem(item.id, { class: value })}
+                                  >
+                                    <SelectTrigger className="mt-1">
+                                      <SelectValue placeholder="Select Class" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Major">Major</SelectItem>
+                                      <SelectItem value="Critical">Critical</SelectItem>
+                                      <SelectItem value="Minor">Minor</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                  <Label htmlFor={`item-${item.id}-type-of-check`}>Type of Check</Label>
+                                  <Input
+                                    id={`item-${item.id}-type-of-check`}
+                                    className="mt-1"
+                                    value={item.typeOfCheck}
+                                    onChange={(e) => updateQapItem(item.id, { typeOfCheck: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor={`item-${item.id}-quantum-of-check`}>Quantum of Check</Label>
+                                  <Input
+                                    id={`item-${item.id}-quantum-of-check`}
+                                    className="mt-1"
+                                    value={item.quantumOfCheck}
+                                    onChange={(e) => updateQapItem(item.id, { quantumOfCheck: e.target.value })}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                  <Label htmlFor={`item-${item.id}-reference-document`}>Reference Document</Label>
+                                  <Input
+                                    id={`item-${item.id}-reference-document`}
+                                    className="mt-1"
+                                    value={item.referenceDocument}
+                                    onChange={(e) => updateQapItem(item.id, { referenceDocument: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor={`item-${item.id}-acceptance-norms`}>Acceptance Norms</Label>
+                                  <Input
+                                    id={`item-${item.id}-acceptance-norms`}
+                                    className="mt-1"
+                                    value={item.acceptanceNorms}
+                                    onChange={(e) => updateQapItem(item.id, { acceptanceNorms: e.target.value })}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                  <Label htmlFor={`item-${item.id}-format-of-records`}>Format of Records</Label>
+                                  <Input
+                                    id={`item-${item.id}-format-of-records`}
+                                    className="mt-1"
+                                    value={item.formatOfRecords}
+                                    onChange={(e) => updateQapItem(item.id, { formatOfRecords: e.target.value })}
+                                  />
+                                </div>
+                                <div>
+                                  <Label>Agency</Label>
+                                  <div className="flex space-x-4 mt-2">
+                                    <div className="flex items-center">
+                                      <Checkbox 
+                                        id={`item-${item.id}-agency-m`} 
+                                        checked={item.agency.M}
+                                        onCheckedChange={(checked) => 
+                                          updateQapItem(item.id, { agency: {...item.agency, M: !!checked} })
+                                        }
+                                      />
+                                      <label htmlFor={`item-${item.id}-agency-m`} className="ml-2 text-sm">
+                                        M (Manufacturer)
+                                      </label>
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Checkbox 
+                                        id={`item-${item.id}-agency-c`} 
+                                        checked={item.agency.C}
+                                        onCheckedChange={(checked) => 
+                                          updateQapItem(item.id, { agency: {...item.agency, C: !!checked} })
+                                        }
+                                      />
+                                      <label htmlFor={`item-${item.id}-agency-c`} className="ml-2 text-sm">
+                                        C (Customer)
+                                      </label>
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Checkbox 
+                                        id={`item-${item.id}-agency-sgs`} 
+                                        checked={item.agency.SGS}
+                                        onCheckedChange={(checked) => 
+                                          updateQapItem(item.id, { agency: {...item.agency, SGS: !!checked} })
+                                        }
+                                      />
+                                      <label htmlFor={`item-${item.id}-agency-sgs`} className="ml-2 text-sm">
+                                        SGS (Third Party)
+                                      </label>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <Label htmlFor={`item-${item.id}-remark`}>Remark</Label>
+                                <Input
+                                  id={`item-${item.id}-remark`}
+                                  className="mt-1"
+                                  value={item.remark}
+                                  onChange={(e) => updateQapItem(item.id, { remark: e.target.value })}
+                                />
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
                       )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="equipmentType"
-                      render={({ field }) => (
-                        <FormItem className="px-2">
-                          <FormLabel>Category</FormLabel>
-                          <FormDescription>Select the equipment category</FormDescription>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="revision"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Revision Number</FormLabel>
-                          <FormDescription>Auto-generated as '0' for new QAPs</FormDescription>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  {/* Project, Customer, PO Number row */}
-                  <div className="grid grid-cols-3 gap-4 mb-6">
-                    <FormField
-                      control={form.control}
-                      name="projectId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Project</FormLabel>
-                          <FormDescription>Associated project details</FormDescription>
-                          <FormControl>
-                            <Input 
-                              value={qap?.project ? `${qap.project.code} - ${qap.project.name}` : ""}
-                              disabled={true}
-                              className="bg-muted/30"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="clientName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Customer</FormLabel>
-                          <FormDescription>Client or customer name</FormDescription>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="poNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>PO Number</FormLabel>
-                          <FormDescription>Purchase order reference number</FormDescription>
-                          <FormControl>
-                            <Input 
-                              placeholder="Purchase order reference"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  {/* Title field */}
-                  <div className="mb-6">
-                    <FormField
-                      control={form.control}
-                      name="title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Title</FormLabel>
-                          <FormDescription>Main title for the QAP</FormDescription>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  {/* Standards Applicable field */}
-                  <div className="mb-6">
-                    <FormField
-                      control={form.control}
-                      name="standardsApplicable"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Standards Applicable</FormLabel>
-                          <FormDescription>Industry or regulatory standards that apply</FormDescription>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  {/* Remarks field */}
-                  <div className="mb-6">
-                    <FormField
-                      control={form.control}
-                      name="remarks"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Remarks</FormLabel>
-                          <FormDescription>Additional notes or comments</FormDescription>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Additional notes or remarks"
-                              className="min-h-[100px]"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  {/* QAP Content field */}
-                  <div className="mb-6">
-                    <FormField
-                      control={form.control}
-                      name="content"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>QAP Content</FormLabel>
-                          <FormDescription>Main content of the Quality Assurance Plan</FormDescription>
-                          <FormControl>
-                            <Textarea
-                              {...field}
-                              className="font-mono min-h-[60vh]"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
               
-              <div className="flex justify-end gap-4">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+              <div className="flex justify-end space-x-2 mt-6">
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setIsEditing(false)}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" className="flex items-center gap-2">
-                  <Save size={16} />
-                  Save QAP
+                <Button type="submit" disabled={updateQapMutation.isPending}>
+                  {updateQapMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
                 </Button>
               </div>
             </form>
           </Form>
         ) : (
           // View Mode
-          <>
+          <div className="space-y-6">
             <Card>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">QAP Number</h3>
-                    <p>{formatQapNumber()}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Category</h3>
-                    <p>{qap?.equipmentType || "N/A"}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Revision Number</h3>
-                    <p>{qap?.revision || "0"}</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Project</h3>
-                    <p>{qap?.project ? `${qap.project.code} - ${qap.project.name}` : "N/A"}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Customer</h3>
-                    <p>{qap?.clientName || "N/A"}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">PO Number</h3>
-                    <p>{qap?.poNumber || "N/A"}</p>
-                  </div>
-                </div>
-                
-                <div className="mb-6">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Title</h3>
-                  <p>{qap?.title || "Untitled QAP"}</p>
-                </div>
-                
-                <div className="mb-6">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Standards</h3>
-                  <p>{qap?.standardsApplicable || "N/A"}</p>
-                </div>
-                
-                {qap?.remarks && (
-                  <div className="mb-6">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Remarks</h3>
-                    <p className="whitespace-pre-wrap">{qap?.remarks}</p>
-                  </div>
-                )}
-                
-                <div className="border-t pt-4 mt-6">
-                  <div className="flex flex-col space-y-2">
-                    <div>
-                      <span className="text-sm font-medium text-muted-foreground mr-2">Prepared By:</span>
-                      <span>{qap?.preparedByUser?.username || "Unknown"} on {qap?.createdAt ? format(new Date(qap.createdAt), "MMM dd, yyyy") : "Unknown"}</span>
-                    </div>
-                    
-                    {(qap?.status || "") === "approved" && qap?.approvedByUser && (
-                      <div>
-                        <span className="text-sm font-medium text-muted-foreground mr-2">Approved By:</span>
-                        <span>{qap?.approvedByUser?.username || "Unknown"}{qap?.approvedDate && <> on {format(new Date(qap.approvedDate), "MMM dd, yyyy")}</>}</span>
-                      </div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle>QAP Details</CardTitle>
+                  <div className="flex items-center space-x-2">
+                    {qap?.status !== "approved" && canEdit() && (
+                      <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
+                        <PencilIcon className="mr-2 h-4 w-4" />
+                        Edit
+                      </Button>
                     )}
+                    {qap?.status !== "approved" && canApprove() && (
+                      <Button
+                        onClick={() => {
+                          if (confirm("Are you sure you want to approve this QAP?")) {
+                            approveQapMutation.mutate();
+                          }
+                        }}
+                        size="sm"
+                        disabled={approveQapMutation.isPending}
+                      >
+                        {approveQapMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Approving...
+                          </>
+                        ) : (
+                          <>
+                            <CheckIcon className="mr-2 h-4 w-4" />
+                            Approve
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    <Button
+                      onClick={handleExport}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <FileDownIcon className="mr-2 h-4 w-4" />
+                      Export
+                    </Button>
                   </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground">QAP Number</h3>
+                    <p className="text-sm">{formatQapNumber()}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground">Status</h3>
+                    <p className="text-sm capitalize">{qap?.status || "Draft"}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground">Project</h3>
+                    <p className="text-sm">{qap?.project ? `${qap.project.code} - ${qap.project.name}` : "Not specified"}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground">Customer</h3>
+                    <p className="text-sm">{qap?.clientName || "Not specified"}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground">Title</h3>
+                    <p className="text-sm">{qap?.title || "Not specified"}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground">Revision</h3>
+                    <p className="text-sm">{qap?.revision || "0"}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground">Standards Applicable</h3>
+                    <p className="text-sm">{qap?.standardsApplicable || "Not specified"}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground">Equipment Type</h3>
+                    <p className="text-sm">{qap?.equipmentType || "Not specified"}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground">Prepared By</h3>
+                    <p className="text-sm">{qap?.preparedByUser?.username || "Unknown"}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground">Approved By</h3>
+                    <p className="text-sm">{qap?.approvedByUser?.username || "Not approved yet"}</p>
+                  </div>
+                  {qap?.remarks && (
+                    <div className="col-span-2">
+                      <h3 className="text-sm font-semibold text-muted-foreground">Remarks</h3>
+                      <p className="text-sm whitespace-pre-line">{qap.remarks}</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
             
-            <div className="mt-6">
-              <h3 className="text-lg font-bold mb-4">QAP Content</h3>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex justify-end mb-4">
-                    <Button variant="outline" onClick={handleExport}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      View Full Document
-                    </Button>
-                  </div>
-                  <div className="max-h-[600px] overflow-auto border rounded-md p-4">
-                    <div
-                      className="prose max-w-none"
-                      dangerouslySetInnerHTML={{
-                        __html: qap?.content || "<p>No content available</p>",
-                      }}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle>QAP Content</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="qap-preview">
+                  <div dangerouslySetInnerHTML={{ __html: qap?.content || "" }} />
+                </div>
+              </CardContent>
+            </Card>
             
-            <div className="mt-6">
-              <h3 className="text-lg font-bold mb-4">Revision History</h3>
+            {qap?.versions && qap.versions.length > 0 && (
               <Card>
-                <CardContent className="p-6">
-                  {qap?.versions && qap.versions.length > 0 ? (
-                    <div className="space-y-4">
-                      {qap.versions.map((version: any) => (
-                        <div
-                          key={version.id}
-                          className="border rounded-md p-4 space-y-2"
-                        >
-                          <div className="flex justify-between">
-                            <div>
-                              <span className="font-medium">Version {version.version}</span>
-                              <span className="text-muted-foreground ml-2">
-                                ({version.revision})
-                              </span>
-                            </div>
-                            <span className="text-sm text-muted-foreground">
-                              {format(new Date(version.createdAt), "MMM dd, yyyy HH:mm")}
-                            </span>
-                          </div>
-                          <p className="text-sm">
-                            Created by {version.createdByUser?.username || "Unknown"}
+                <CardHeader className="pb-3">
+                  <CardTitle>Version History</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {qap.versions.map((version) => (
+                      <div key={version.id} className="flex items-center justify-between border-b pb-3 last:border-0">
+                        <div>
+                          <p className="text-sm font-medium">Version {version.version}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(version.createdAt).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            By {version.createdByUser?.username || "Unknown"}
                           </p>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">No revision history available</p>
-                  )}
+                        <Button variant="outline" size="sm">
+                          <FileDownIcon className="mr-2 h-4 w-4" />
+                          Export
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
-            </div>
-            
-            <div className="flex justify-between mt-6">
-              <Button 
-                variant="outline" 
-                onClick={handleBack}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to QAPs
-              </Button>
-              
-              <div className="flex items-center gap-2">
-                {canEdit() && !isEditing && (
-                  <Button variant="outline" onClick={() => setIsEditing(true)}>
-                    Edit QAP
-                  </Button>
-                )}
-                {canApprove() && (qap?.status || "") !== "approved" && (
-                  <Button
-                    variant="outline"
-                    className="text-green-600 border-green-600 hover:bg-green-50"
-                    onClick={() => approveQapMutation.mutate()}
-                    disabled={approveQapMutation.isPending}
-                  >
-                    {approveQapMutation.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Check className="mr-2 h-4 w-4" />
-                    )}
-                    Approve
-                  </Button>
-                )}
-                <Button variant="outline" onClick={handleExport}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Export
-                </Button>
-              </div>
-            </div>
-          </>
+            )}
+          </div>
         )}
       </div>
     </Layout>
