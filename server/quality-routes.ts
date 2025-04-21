@@ -609,6 +609,69 @@ export const setupQualityRoutes = (app: any) => {
     }
   });
 
+  // Update only the status of a QAP (PATCH endpoint)
+  app.patch('/api/quality/generated-qaps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const qapId = parseInt(req.params.id);
+      
+      // Check if QAP exists
+      const existingQap = await db.query.generatedQaps.findFirst({
+        where: eq(generatedQaps.id, qapId),
+      });
+
+      if (!existingQap) {
+        return res.status(404).json({ error: 'QAP not found' });
+      }
+
+      // Only allow status updates via PATCH
+      if (!req.body.status) {
+        return res.status(400).json({ error: 'Status field is required for PATCH updates' });
+      }
+
+      // Validate the status value
+      if (!['draft', 'in-review', 'approved', 'rejected'].includes(req.body.status)) {
+        return res.status(400).json({ error: 'Invalid status value' });
+      }
+
+      // Check permissions for status updates
+      if (req.body.status === 'approved') {
+        // Only specific roles can approve
+        if (!['Superuser', 'Senior Manager', 'Manager'].includes(req.user!.role)) {
+          return res.status(403).json({ error: 'You do not have permission to approve QAPs' });
+        }
+      }
+
+      // Don't allow changes to approved QAPs unless you're a Superuser
+      if (existingQap.status === 'approved' && req.user!.role !== 'Superuser') {
+        return res.status(400).json({ error: 'Cannot update an approved QAP unless you are a Superuser.' });
+      }
+
+      // Update fields when status changes to approved
+      const updateData: any = {
+        status: req.body.status,
+        updatedAt: new Date(),
+      };
+
+      // Set approver data when approving
+      if (req.body.status === 'approved' && existingQap.status !== 'approved') {
+        updateData.approvedBy = req.user!.id;
+        updateData.approvedDate = new Date();
+      }
+
+      // Update QAP with status change
+      const [updatedQap] = await db.update(generatedQaps)
+        .set(updateData)
+        .where(eq(generatedQaps.id, qapId))
+        .returning();
+
+      console.log(`Updated QAP ${qapId} status to ${req.body.status}`);
+      res.status(200).json(updatedQap);
+    } catch (error) {
+      console.error('Error updating QAP status:', error);
+      res.status(500).json({ error: 'Failed to update QAP status' });
+    }
+  });
+
   // Delete a generated QAP
   app.delete('/api/quality/generated-qaps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
