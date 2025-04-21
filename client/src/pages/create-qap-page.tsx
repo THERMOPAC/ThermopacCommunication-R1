@@ -165,7 +165,7 @@ export default function CreateQAPPage() {
   // Fetch existing QAP if in edit mode
   const { data: existingQap, isLoading: isLoadingQap } = useQuery<QAP | null>({
     queryKey: ['/api/quality/generated-qaps', qapId],
-    queryFn: async () => {
+    queryFn: async ({ queryKey }) => {
       if (!qapId) return null;
       try {
         console.log(`Fetching QAP data for ID: ${qapId}`);
@@ -185,22 +185,45 @@ export default function CreateQAPPage() {
             return null;
           }
           
-          // Verify required fields are present
-          const requiredFields = ['id', 'projectId', 'title', 'status'];
-          const missingFields = requiredFields.filter(field => !(field in response));
+          // Create a complete QAP object with fallbacks for missing fields
+          const safeQap: QAP = {
+            id: response.id,
+            projectId: response.projectId || 0,
+            templateId: response.templateId || 3,
+            title: response.title || "Unknown QAP",
+            clientName: response.clientName || "",
+            equipmentType: response.equipmentType || "General",
+            standards: response.standards || null,
+            revision: response.revision || "0",
+            preparedBy: response.preparedBy || (user?.id || 0),
+            approvedBy: response.approvedBy || null,
+            status: response.status || "draft",
+            version: response.version || 1,
+            content: response.content || "",
+            createdAt: response.createdAt || new Date().toISOString(),
+            updatedAt: response.updatedAt || new Date().toISOString(),
+            project: response.project || null,
+            preparedByUser: response.preparedByUser || { id: user?.id || 0, username: user?.username || "Unknown" },
+            approvedByUser: response.approvedByUser || undefined
+          };
           
-          if (missingFields.length > 0) {
-            console.error(`API response missing required fields: ${missingFields.join(', ')}`, response);
-            toast({
-              title: "Data Error",
-              description: `The QAP data is missing required fields: ${missingFields.join(', ')}`,
-              variant: "destructive",
-            });
-            return null;
+          // Log the safe QAP object created
+          console.log("Created safe QAP object:", safeQap);
+          
+          // Attempt to find project details if project is missing but we have projectId
+          if (!safeQap.project && safeQap.projectId) {
+            const matchingProject = projects.find(p => p.id === safeQap.projectId);
+            if (matchingProject) {
+              console.log("Found matching project for QAP:", matchingProject);
+              safeQap.project = {
+                id: matchingProject.id,
+                code: matchingProject.code,
+                name: matchingProject.name
+              };
+            }
           }
           
-          // Cast to unknown first, then to QAP type with safe access
-          return response as unknown as QAP;
+          return safeQap;
         }
         
         console.error("Invalid QAP data received", response);
@@ -350,20 +373,61 @@ export default function CreateQAPPage() {
   // Handle form submission
   const onSubmit = async (values: QAPFormValues) => {
     try {
+      console.log("Form submission with values:", values);
+      
+      // Validate that project and customer are selected
+      if (!values.projectId) {
+        toast({
+          title: "Missing Project",
+          description: "Please select a project before saving.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (!values.customerId) {
+        toast({
+          title: "Missing Customer",
+          description: "Please select a customer before saving.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // Find project details to include in QAP content
       const selectedProject = projects.find(p => p.id.toString() === values.projectId);
       if (!selectedProject) {
-        throw new Error("Project not found");
+        toast({
+          title: "Project Error",
+          description: "The selected project could not be found. Please select a valid project.",
+          variant: "destructive",
+        });
+        return;
       }
       
       // Find customer details
       const selectedCustomer = customers.find(c => c.id.toString() === values.customerId);
+      if (!selectedCustomer) {
+        toast({
+          title: "Customer Error",
+          description: "The selected customer could not be found. Please select a valid customer.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Ensure we have a valid title
+      if (!values.title || values.title.trim() === "") {
+        values.title = `Quality Assurance Plan for ${selectedProject.name}`;
+      }
       
       // Get template ID (using the existing template for now, would normally be selected)
       const templateId = existingQap?.templateId || 3;
       
       // Log QAP data for debugging
       console.log("Existing QAP data:", existingQap);
+      console.log("Selected project:", selectedProject);
+      console.log("Selected customer:", selectedCustomer);
       
       // Get current date in ISO format
       const currentDate = new Date().toISOString();
