@@ -86,6 +86,12 @@ interface Customer {
   bpName: string;
 }
 
+// Helper function to safely convert values to strings for form fields
+function safeToString(value: any): string {
+  if (value === undefined || value === null) return "";
+  return String(value);
+}
+
 // Define QAP Item interface
 interface QapItem {
   id: number;
@@ -248,78 +254,76 @@ export default function CreateQAPPage() {
   
   // Populate form with existing data when in edit mode
   useEffect(() => {
-    if (existingQap && !isLoadingQap && projects.length > 0 && customers.length > 0) {
+    if (existingQap && !isLoadingQap) {
       try {
         console.log("Attempting to populate form with QAP:", existingQap);
-        console.log("Available projects:", projects);
-        console.log("Available customers:", customers);
         
-        // First, set project ID - this is critical and must be done first
-        if (existingQap.projectId !== undefined && existingQap.projectId !== null) {
-          // Find the project in our projects list
+        // Create a complete form reset with default values to avoid validation errors
+        const resetValues = {
+          projectId: "",
+          customerId: "",
+          title: "",
+          category: "General",
+          revision: "0",
+          poNumber: "",
+          qapNumber: "",
+          revisionNumber: "0",
+          remarks: "",
+        };
+        
+        // Reset form to clean state
+        form.reset(resetValues);
+        
+        // Create a direct form update without going through individual setValues
+        // This avoids validation issues during the population process
+        const formData: Record<string, string> = {};
+        
+        // Always set QAP number safely
+        formData.qapNumber = existingQap.id ? 
+          `QAP-${existingQap.project?.code || "UNKNOWN"}-${existingQap.id.toString().padStart(3, '0')}` : 
+          "QAP-UNKNOWN-001";
+        
+        // Set title safely
+        formData.title = safeToString(existingQap.title) || "Quality Assurance Plan";
+        
+        // Set equipment type (category) safely
+        formData.category = (existingQap.equipmentType && 
+          ["Pressure Vessel", "Heat Exchanger", "Piping", "Structure", "Electrical", "Instrumentation", "General"]
+          .includes(existingQap.equipmentType)) ? 
+          existingQap.equipmentType : "General";
+        
+        // Set revision safely
+        formData.revision = safeToString(existingQap.revision) || "0";
+        formData.revisionNumber = safeToString(existingQap.revision) || "0";
+        
+        // Set project ID if available
+        if (existingQap.projectId && projects.length > 0) {
           const project = projects.find(p => p.id === existingQap.projectId);
           
           if (project) {
             console.log("Found matching project for form population:", project);
-            // Set the project ID in the form
-            form.setValue("projectId", existingQap.projectId.toString());
+            formData.projectId = safeToString(existingQap.projectId);
+            setSelectedProjectCode(project.code || "");
             
-            // Set project code for QAP number generation
-            setSelectedProjectCode(project.code);
-            
-            // Generate QAP number
-            if (existingQap.id) {
-              form.setValue("qapNumber", `QAP-${project.code}-${existingQap.id.toString().padStart(3, '0')}`);
+            // If customer ID is available in the project, use it
+            if (project.customerId && customers.length > 0) {
+              formData.customerId = safeToString(project.customerId);
             }
-            
-            // If customer ID is not in the form but exists in the project, use it
-            if (project.customerId) {
-              form.setValue("customerId", project.customerId.toString());
-              
-              // Log the auto-selected customer
-              const autoCustomer = customers.find(c => c.id === project.customerId);
-              if (autoCustomer) {
-                console.log("Auto-populated customer from project:", autoCustomer.bpName);
-              }
-            }
-          } else {
-            console.warn(`Project with ID ${existingQap.projectId} not found in available projects list`);
+          } else if (existingQap.project?.id) {
+            // Use project from QAP if available
+            formData.projectId = safeToString(existingQap.project.id);
+            setSelectedProjectCode(existingQap.project.code || "");
           }
         }
         
-        // Then, if we have clientName, try to match it to a customer
-        if (existingQap.clientName && existingQap.clientName.trim() !== "") {
+        // Handle customer matching by name if needed
+        if (existingQap.clientName && existingQap.clientName.trim() !== "" && customers.length > 0) {
           const customerMatch = customers.find(c => c.bpName === existingQap.clientName);
           if (customerMatch?.id) {
             console.log("Found customer match by name:", customerMatch.bpName);
-            form.setValue("customerId", customerMatch.id.toString());
-          } else {
-            console.warn(`Customer with name "${existingQap.clientName}" not found in available customers list`);
+            formData.customerId = safeToString(customerMatch.id);
           }
         }
-        
-        // Set title
-        if (existingQap.title && existingQap.title.trim() !== "") {
-          form.setValue("title", existingQap.title);
-        } else {
-          // Create a default title based on the project if no title exists
-          const project = projects.find(p => p.id === existingQap.projectId);
-          if (project) {
-            form.setValue("title", `Quality Assurance Plan for ${project.name}`);
-          }
-        }
-        
-        // Set equipment type (category)
-        if (existingQap.equipmentType && existingQap.equipmentType.trim() !== "") {
-          form.setValue("category", existingQap.equipmentType as any);
-        } else {
-          // Default to General if not specified
-          form.setValue("category", "General");
-        }
-        
-        // Set revision
-        form.setValue("revision", existingQap.revision || "0");
-        form.setValue("revisionNumber", existingQap.revision || "0");
         
         // Set PO number if it exists in the database version
         if (existingQap.content && existingQap.content.includes("PO Number")) {
@@ -327,15 +331,31 @@ export default function CreateQAPPage() {
           if (poMatch && poMatch[1]) {
             const poNumber = poMatch[1].trim().replace("N/A", "");
             if (poNumber) {
-              form.setValue("poNumber", poNumber);
+              formData.poNumber = poNumber;
             }
           }
         }
         
-        // Make sure form triggers validation after setting values
-        form.trigger();
+        // Set remarks if available in HTML content
+        if (existingQap.content && existingQap.content.includes("Remarks")) {
+          const remarksMatch = existingQap.content.match(/<p><strong>Remarks:<\/strong>\s*([^<]+)/);
+          if (remarksMatch && remarksMatch[1]) {
+            const remarks = remarksMatch[1].trim();
+            if (remarks) {
+              formData.remarks = remarks;
+            }
+          }
+        }
         
-        console.log("Finished populating form with existing QAP data");
+        // Now update form with all values at once
+        console.log("Updating form with collected data:", formData);
+        form.reset(formData);
+        
+        // Force validation after form population
+        setTimeout(() => {
+          form.trigger();
+          console.log("Finished populating form with existing QAP data");
+        }, 100);
       } catch (error) {
         console.error("Error populating form with existing QAP:", error);
         toast({
@@ -344,8 +364,6 @@ export default function CreateQAPPage() {
           variant: "destructive",
         });
       }
-    } else if (existingQap && (!projects.length || !customers.length)) {
-      console.warn("Cannot populate form - projects or customers data not loaded yet");
     }
   }, [existingQap, isLoadingQap, form, customers, projects]);
   
