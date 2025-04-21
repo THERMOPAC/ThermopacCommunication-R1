@@ -204,8 +204,8 @@ export default function ViewEditQAPPage() {
   const updateQapMutation = useMutation({
     mutationFn: async (values: z.infer<typeof qapFormSchema>) => {
       try {
-        const response = await apiRequest('PUT', `/api/quality/generated-qaps/${qapId}`, values);
-        const data = await response.json();
+        // Using improved apiRequest which automatically parses JSON response
+        const data = await apiRequest('PUT', `/api/quality/generated-qaps/${qapId}`, values);
         console.log("Update QAP response:", data);
         return data;
       } catch (error) {
@@ -235,9 +235,8 @@ export default function ViewEditQAPPage() {
   const approveQapMutation = useMutation({
     mutationFn: async () => {
       try {
-        // Use PATCH for status updates instead of PUT
-        const response = await apiRequest('PATCH', `/api/quality/generated-qaps/${qapId}`, { status: 'approved' });
-        const data = await response.json();
+        // Use PATCH for status updates instead of PUT with improved apiRequest
+        const data = await apiRequest('PATCH', `/api/quality/generated-qaps/${qapId}`, { status: 'approved' });
         console.log("Approve QAP response:", data);
         return data;
       } catch (error) {

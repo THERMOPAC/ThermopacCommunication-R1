@@ -185,11 +185,8 @@ export default function CreateQAPPage() {
         // Make the API request with enhanced error handling and type safety
         let responseObj: any;
         try {
-          // Get response from API
-          const response = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
-          
-          // Parse response as JSON
-          responseObj = await response.json();
+          // Get response from API - using the updated apiRequest that automatically parses JSON
+          responseObj = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
           console.log("Raw API Response for QAP:", JSON.stringify(responseObj, null, 2));
         } catch (requestError) {
           console.error("API Request failed:", requestError);
@@ -289,8 +286,7 @@ export default function CreateQAPPage() {
             // Attempt to get project details from the API directly
             try {
               console.log(`Attempting to fetch project details for ID ${projectId}`);
-              const projectResponse = await apiRequest('GET', `/api/projects/${projectId}`);
-              const projectData = await projectResponse.json();
+              const projectData = await apiRequest('GET', `/api/projects/${projectId}`);
               
               if (projectData && typeof projectData === 'object') {
                 console.log("Successfully fetched project details:", projectData);
