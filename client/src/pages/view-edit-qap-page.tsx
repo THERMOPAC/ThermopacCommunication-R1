@@ -541,14 +541,21 @@ export default function ViewEditQAPPage() {
         console.warn("No QAP items available for content generation");
       }
       
-      // If project is present in the original QAP data, make sure it's included in the update
-      if (qap && qap.project && qap.projectId) {
-        // Add projectId explicitly to ensure it's sent to the server
-        values.projectId = qap.projectId.toString();
-        
-        console.log(`Including project ID ${values.projectId} in QAP update`);
-      } else {
-        console.warn("Warning: Project data is missing in the current QAP");
+      // Ensure project ID is included in the update
+      if (qap) {
+        // Try different sources for the project ID
+        if (qap.projectId) {
+          // Use the original projectId if available
+          values.projectId = qap.projectId.toString();
+          console.log(`Including project ID ${values.projectId} from QAP data in update`);
+        } else if (qap.project && qap.project.id) {
+          // Use the project.id if available
+          values.projectId = qap.project.id.toString();
+          console.log(`Including project ID ${values.projectId} from project object in update`);
+        } else {
+          // Log warning but don't break the update
+          console.warn("Warning: Project ID is missing, using existing value in form");
+        }
       }
       
       console.log("Submitting QAP update with values:", values);
@@ -674,16 +681,27 @@ export default function ViewEditQAPPage() {
     try {
       if (!qap) return "QAP-???";
       
-      // Ensure project exists
-      const project = qap.project;
-      if (!project) return "QAP-???-???";
+      // Get project code from projectInfo if available
+      let projectCode = "???";
+      
+      // Try to get project code from projectInfo first (which comes from the server)
+      if (qap.projectInfo) {
+        const parts = qap.projectInfo.split(' - ');
+        if (parts.length > 0) {
+          projectCode = parts[0];
+        }
+      } 
+      // Fallback to project object if projectInfo is not available
+      else if (qap.project && qap.project.code) {
+        projectCode = qap.project.code;
+      }
       
       // Ensure ID exists
       const id = qap.id;
-      if (!id) return `QAP-${project.code || "???"}-???`;
+      if (!id) return `QAP-${projectCode}-???`;
       
       // Format the QAP number
-      return `QAP-${project.code || "???"}-${String(id).padStart(3, '0')}`;
+      return `QAP-${projectCode}-${String(id).padStart(3, '0')}`;
     } catch (error) {
       console.error("Error formatting QAP number:", error);
       return "QAP-???-???";
@@ -827,7 +845,7 @@ export default function ViewEditQAPPage() {
                               <FormDescription>Associated project details</FormDescription>
                               <FormControl>
                                 <Input 
-                                  value={qap?.project ? `${qap.project.code} - ${qap.project.name}` : ""}
+                                  value={qap?.projectInfo || (qap?.project ? `${qap.project.code} - ${qap.project.name}` : "")}
                                   disabled={true}
                                   className="bg-muted/30"
                                 />
@@ -1273,7 +1291,7 @@ export default function ViewEditQAPPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-muted-foreground">Project</h3>
-                    <p className="text-sm">{qap?.project ? `${qap.project.code} - ${qap.project.name}` : "Not specified"}</p>
+                    <p className="text-sm">{qap?.projectInfo || (qap?.project ? `${qap.project.code} - ${qap.project.name}` : "Not specified")}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-muted-foreground">Customer</h3>
