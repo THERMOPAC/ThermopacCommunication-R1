@@ -14,10 +14,12 @@ import {
   Clock, 
   AlertCircle,
   Download,
-  Filter
+  Filter,
+  Trash2,
+  RefreshCw
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -31,6 +33,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
+import { apiRequest } from "@/lib/queryClient";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface QAP {
   id: number;
@@ -64,12 +77,20 @@ interface QAP {
 
 export default function QualityAssurancePlanPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [deleteQapId, setDeleteQapId] = useState<number | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isStatusChangeDialogOpen, setIsStatusChangeDialogOpen] = useState(false);
+  const [selectedQap, setSelectedQap] = useState<QAP | null>(null);
+  const [newStatus, setNewStatus] = useState<string>("");
+
+  const queryClient = useQueryClient();
 
   // Fetch all QAPs
-  const { data: qaps, isLoading, error } = useQuery<QAP[]>({
+  const { data: qaps, isLoading, error, refetch } = useQuery<QAP[]>({
     queryKey: ['/api/quality/generated-qaps'],
     refetchOnWindowFocus: true,
   });
@@ -98,6 +119,80 @@ export default function QualityAssurancePlanPage() {
     }
   };
 
+  // Mutation for deleting QAP
+  const deleteQapMutation = useMutation({
+    mutationFn: async (qapId: number) => {
+      return await apiRequest('DELETE', `/api/quality/generated-qaps/${qapId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "QAP deleted",
+        description: "The QAP has been deleted successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/quality/generated-qaps'] });
+      setIsDeleteDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error deleting QAP",
+        description: error.message || "An error occurred while deleting the QAP.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for changing QAP status
+  const changeStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      return await apiRequest('PATCH', `/api/quality/generated-qaps/${id}`, { status });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Status updated",
+        description: "The QAP status has been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/quality/generated-qaps'] });
+      setIsStatusChangeDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error updating status",
+        description: error.message || "An error occurred while updating the QAP status.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handler for opening delete confirmation dialog
+  const handleDeleteClick = (qap: QAP) => {
+    setDeleteQapId(qap.id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Handler for opening status change dialog
+  const handleStatusChangeClick = (qap: QAP) => {
+    setSelectedQap(qap);
+    setNewStatus(qap.status);
+    setIsStatusChangeDialogOpen(true);
+  };
+
+  // Execute delete operation
+  const confirmDelete = () => {
+    if (deleteQapId) {
+      deleteQapMutation.mutate(deleteQapId);
+    }
+  };
+
+  // Execute status change operation
+  const confirmStatusChange = () => {
+    if (selectedQap && newStatus) {
+      changeStatusMutation.mutate({ 
+        id: selectedQap.id, 
+        status: newStatus 
+      });
+    }
+  };
+
   // Filter QAPs by search term and status
   const filteredQAPs = qaps?.filter(qap => {
     const matchesSearch = qap.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -105,7 +200,7 @@ export default function QualityAssurancePlanPage() {
       qap.project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       qap.clientName.toLowerCase().includes(searchTerm.toLowerCase());
     
-    return matchesSearch && (statusFilter ? qap.status === statusFilter : true);
+    return matchesSearch && (statusFilter && statusFilter !== "all-statuses" ? qap.status === statusFilter : true);
   }) || [];
 
   return (
@@ -231,6 +326,26 @@ export default function QualityAssurancePlanPage() {
                           >
                             <Download size={16} />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleStatusChangeClick(qap)}
+                            title="Change Status"
+                            disabled={qap.status === 'approved' && user?.role !== 'Superuser'}
+                          >
+                            <RefreshCw size={16} />
+                          </Button>
+                          {user?.role === 'Superuser' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteClick(qap)}
+                              title="Delete QAP"
+                              className="text-destructive hover:text-destructive/90"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
