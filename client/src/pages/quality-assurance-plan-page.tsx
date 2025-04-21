@@ -356,6 +356,89 @@ export default function QualityAssurancePlanPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this QAP? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteQapMutation.isPending}
+            >
+              {deleteQapMutation.isPending ? (
+                <>
+                  <span className="mr-2">Deleting...</span>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Status Change Dialog */}
+      <Dialog open={isStatusChangeDialogOpen} onOpenChange={setIsStatusChangeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change QAP Status</DialogTitle>
+            <DialogDescription>
+              Update the status of the selected QAP.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="my-4">
+            <Select
+              value={newStatus}
+              onValueChange={setNewStatus}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select new status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="in-review">In Review</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsStatusChangeDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmStatusChange}
+              disabled={changeStatusMutation.isPending || !newStatus || (selectedQap && selectedQap.status === newStatus)}
+            >
+              {changeStatusMutation.isPending ? (
+                <>
+                  <span className="mr-2">Updating...</span>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                </>
+              ) : (
+                "Update Status"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
