@@ -175,81 +175,112 @@ export default function CreateQAPPage() {
       if (!qapId) return null;
       try {
         console.log(`Fetching QAP data for ID: ${qapId}`);
-        const response: any = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
         
-        console.log("API Response for QAP:", response);
-        
-        if (response && typeof response === 'object') {
-          // Check if response has the expected structure
-          if (!response.id) {
-            console.error("API response missing 'id' field:", response);
-            toast({
-              title: "Data Error",
-              description: "The QAP data is incomplete or invalid. Please try again.",
-              variant: "destructive",
-            });
-            return null;
-          }
-          
-          // Create a complete QAP object with fallbacks for missing fields
-          const safeQap: QAP = {
-            id: response.id,
-            projectId: response.projectId || 0,
-            templateId: response.templateId || 3,
-            title: response.title || "Unknown QAP",
-            clientName: response.clientName || "",
-            equipmentType: response.equipmentType || "General",
-            standards: response.standards || null,
-            revision: response.revision || "0",
-            preparedBy: response.preparedBy || (user?.id || 0),
-            approvedBy: response.approvedBy || null,
-            status: response.status || "draft",
-            version: response.version || 1,
-            content: response.content || "",
-            createdAt: response.createdAt || new Date().toISOString(),
-            updatedAt: response.updatedAt || new Date().toISOString(),
-            project: response.project || null,
-            preparedByUser: response.preparedByUser || { id: user?.id || 0, username: user?.username || "Unknown" },
-            approvedByUser: response.approvedByUser || undefined
-          };
-          
-          // Log the safe QAP object created
-          console.log("Created safe QAP object:", safeQap);
-          
-          // Attempt to find project details if project is missing but we have projectId
-          if (!safeQap.project && safeQap.projectId) {
-            const matchingProject = projects.find(p => p.id === safeQap.projectId);
-            if (matchingProject) {
-              console.log("Found matching project for QAP:", matchingProject);
-              safeQap.project = {
-                id: matchingProject.id,
-                code: matchingProject.code,
-                name: matchingProject.name
-              };
-            }
-          }
-          
-          return safeQap;
+        // Make the API request with detailed error logging
+        let response: any;
+        try {
+          response = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
+          console.log("Raw API Response for QAP:", JSON.stringify(response, null, 2));
+        } catch (requestError) {
+          console.error("API Request failed:", requestError);
+          throw new Error(`API request failed: ${requestError}`);
         }
         
-        console.error("Invalid QAP data received", response);
-        toast({
-          title: "Data Error",
-          description: "Could not load QAP data. Please try again.",
-          variant: "destructive",
-        });
-        return null;
+        // Validate the response structure with detailed logging
+        if (!response) {
+          console.error("API response is null or undefined");
+          throw new Error("API response is empty");
+        }
+        
+        if (typeof response !== 'object') {
+          console.error(`API response is not an object: ${typeof response}`);
+          throw new Error(`Unexpected response type: ${typeof response}`);
+        }
+        
+        if (!response.id) {
+          console.error("API response missing 'id' field:", response);
+          throw new Error("QAP data is incomplete (missing ID)");
+        }
+        
+        // Log the projectId and project object for debugging
+        console.log("QAP projectId:", response.projectId);
+        console.log("QAP project object:", response.project);
+        
+        // Create a complete QAP object with fallbacks for missing fields
+        const safeQap: QAP = {
+          id: response.id,
+          projectId: response.projectId || 0,
+          templateId: response.templateId || 3,
+          title: response.title || "Quality Assurance Plan",
+          clientName: response.clientName || "",
+          equipmentType: response.equipmentType || "General",
+          standards: response.standards || null,
+          revision: response.revision || "0",
+          preparedBy: response.preparedBy || (user?.id || 0),
+          approvedBy: response.approvedBy || null,
+          status: response.status || "draft",
+          version: response.version || 1,
+          content: response.content || "",
+          createdAt: response.createdAt || new Date().toISOString(),
+          updatedAt: response.updatedAt || new Date().toISOString(),
+          project: response.project || null,
+          preparedByUser: response.preparedByUser || { id: user?.id || 0, username: user?.username || "Unknown" },
+          approvedByUser: response.approvedByUser || undefined
+        };
+        
+        // Log the safe QAP object created
+        console.log("Created safe QAP object:", JSON.stringify(safeQap, null, 2));
+        
+        // Check if projectId exists but project object is missing
+        if (!safeQap.project && safeQap.projectId && projects.length > 0) {
+          console.log(`Searching for project with ID ${safeQap.projectId} among ${projects.length} projects`);
+          
+          // Find project by ID
+          const matchingProject = projects.find(p => p.id === safeQap.projectId);
+          if (matchingProject) {
+            console.log("Found matching project for QAP:", matchingProject);
+            safeQap.project = {
+              id: matchingProject.id,
+              code: matchingProject.code,
+              name: matchingProject.name
+            };
+          } else {
+            console.warn(`No project found with ID ${safeQap.projectId}`);
+            
+            // Attempt to get project details from the API directly
+            try {
+              console.log(`Attempting to fetch project details for ID ${safeQap.projectId}`);
+              const projectData = await apiRequest('GET', `/api/projects/${safeQap.projectId}`);
+              if (projectData && typeof projectData === 'object') {
+                console.log("Successfully fetched project details:", projectData);
+                
+                const projectId = typeof projectData.id === 'number' ? projectData.id : 
+                                 (typeof projectData.id === 'string' ? parseInt(projectData.id) : safeQap.projectId);
+                
+                safeQap.project = {
+                  id: projectId,
+                  code: typeof projectData.code === 'string' ? projectData.code : 'UNKNOWN',
+                  name: typeof projectData.name === 'string' ? projectData.name : 'Unknown Project'
+                };
+              }
+            } catch (projectError) {
+              console.error(`Failed to fetch additional project details: ${projectError}`);
+            }
+          }
+        }
+        
+        return safeQap;
       } catch (error) {
-        console.error("Error fetching QAP:", error);
+        console.error("Error processing QAP data:", error);
         toast({
           title: "Error",
-          description: "Failed to load QAP data. Please try again.",
+          description: `Failed to load QAP data: ${error instanceof Error ? error.message : "Unknown error"}`,
           variant: "destructive",
         });
         return null;
       }
     },
-    enabled: !!qapId,
+    enabled: !!qapId && projects.length > 0,
   });
   
   // Populate form with existing data when in edit mode
@@ -286,11 +317,12 @@ export default function CreateQAPPage() {
         // Set title safely
         formData.title = safeToString(existingQap.title) || "Quality Assurance Plan";
         
-        // Set equipment type (category) safely
-        formData.category = (existingQap.equipmentType && 
-          ["Pressure Vessel", "Heat Exchanger", "Piping", "Structure", "Electrical", "Instrumentation", "General"]
-          .includes(existingQap.equipmentType)) ? 
-          existingQap.equipmentType : "General";
+        // Set equipment type (category) safely with type checking
+        const validCategories = ["Pressure Vessel", "Heat Exchanger", "Piping", "Structure", "Electrical", "Instrumentation", "General"] as const;
+        const category = existingQap.equipmentType && 
+          validCategories.includes(existingQap.equipmentType as any) ? 
+          existingQap.equipmentType as any : "General";
+        formData.category = category;
         
         // Set revision safely
         formData.revision = safeToString(existingQap.revision) || "0";
@@ -347,9 +379,26 @@ export default function CreateQAPPage() {
           }
         }
         
-        // Now update form with all values at once
+        // Now update form with all values at once, ensuring correct types
         console.log("Updating form with collected data:", formData);
-        form.reset(formData);
+        
+        // Ensure category is a valid enum value
+        const typedFormData = {
+          projectId: formData.projectId || "",
+          customerId: formData.customerId || "",
+          title: formData.title || "",
+          category: (formData.category as "Pressure Vessel" | "Heat Exchanger" | "Piping" | "Structure" | "Electrical" | "Instrumentation" | "General") || "General",
+          revision: formData.revision || "0",
+          poNumber: formData.poNumber || "",
+          qapNumber: formData.qapNumber || "",
+          revisionNumber: formData.revisionNumber || "0",
+          remarks: formData.remarks || "",
+        };
+        
+        // Use setValue for each field instead of reset to avoid TypeScript errors
+        Object.entries(typedFormData).forEach(([key, value]) => {
+          form.setValue(key as any, value);
+        });
         
         // Force validation after form population
         setTimeout(() => {
