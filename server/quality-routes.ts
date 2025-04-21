@@ -497,12 +497,16 @@ export const setupQualityRoutes = (app: any) => {
           console.log(`Retrieved project ${project.id} separately and attaching to QAP ${qapId}`);
           qap.project = project;
         } else {
-          return res.status(500).json({ 
-            error: 'QAP data is incomplete (missing project data)', 
-            qapId: qap.id,
-            projectId: qap.projectId 
-          });
+          // Instead of returning an error, add a projectInfo field for the client
+          console.warn(`Could not find project for QAP ${qapId}; adding fallback project info`);
+          // Add a special field for the client to handle missing project gracefully
+          qap.projectInfo = 'UNKNOWN';
         }
+      }
+
+      // Always add the projectInfo field for easier access on the client
+      if (qap.project) {
+        qap.projectInfo = `${qap.project.code} - ${qap.project.name}`;
       }
 
       // Log QAP basic info
@@ -512,9 +516,10 @@ export const setupQualityRoutes = (app: any) => {
         title: qap.title,
         status: qap.status,
         hasProject: !!qap.project,
-        projectInfo: qap.project ? `${qap.project.code} - ${qap.project.name}` : 'MISSING'
+        projectInfo: qap.projectInfo || 'MISSING'
       });
 
+      // Return QAP data with all available information
       res.status(200).json(qap);
     } catch (error) {
       console.error('Error fetching QAP:', error);

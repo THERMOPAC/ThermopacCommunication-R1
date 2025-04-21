@@ -99,10 +99,29 @@ export default function ViewEditQAPPage() {
           throw new Error("QAP data is incomplete (missing ID)");
         }
         
-        // Check for project data - this is critical
-        if (!jsonData.project || !jsonData.project.id) {
-          console.error("QAP is missing project data:", jsonData);
-          throw new Error("QAP data is incomplete (missing project data)");
+        // Check for project data and load fallback project if missing
+        let projectData = { id: 0, code: "UNKNOWN", name: "Unknown Project" };
+        
+        if (jsonData.project && jsonData.project.id) {
+          projectData = {
+            id: jsonData.project.id,
+            code: jsonData.project.code || "UNKNOWN",
+            name: jsonData.project.name || "Unknown Project"
+          };
+          console.log("Found project data:", projectData);
+        } else if (jsonData.projectInfo) {
+          // Try to extract project info from the projectInfo field (added on the server)
+          const parts = jsonData.projectInfo.split(' - ');
+          if (parts.length > 1) {
+            projectData = {
+              id: jsonData.projectId || 0,
+              code: parts[0] || "UNKNOWN",
+              name: parts.slice(1).join(' - ') || "Unknown Project"
+            };
+            console.log("Reconstructed project data from projectInfo:", projectData);
+          }
+        } else {
+          console.warn("QAP is missing project data, using fallback:", jsonData);
         }
         
         // Convert QAP to a properly typed object with all required fields
@@ -120,11 +139,7 @@ export default function ViewEditQAPPage() {
           status: jsonData.status || "draft",
           content: jsonData.content || "",
           remarks: jsonData.remarks || "",
-          project: {
-            id: jsonData.project.id,
-            code: jsonData.project.code || "UNKNOWN",
-            name: jsonData.project.name || "Unknown Project"
-          },
+          project: projectData,
           preparedByUser: jsonData.preparedByUser || { id: 0, username: "Unknown" },
           approvedByUser: jsonData.approvedByUser || null,
           versions: jsonData.versions || [],
