@@ -470,7 +470,7 @@ export default function ViewEditQAPPage() {
 
   // Update QAP mutation
   const updateQapMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof qapFormSchema>) => {
+    mutationFn: async (values: any) => {
       try {
         // Using improved apiRequest which automatically parses JSON response
         const data = await apiRequest('PUT', `/api/quality/generated-qaps/${qapId}`, values);
@@ -543,25 +543,57 @@ export default function ViewEditQAPPage() {
         console.warn("No QAP items available for content generation");
       }
       
-      // Ensure project ID is included in the update
+      // Create a submission copy to convert types as needed
+      const submissionData = { ...values };
+      
+      // Ensure project ID is included in the update and convert to number
       if (qap) {
         // Try different sources for the project ID
         if (qap.projectId) {
           // Use the original projectId if available
-          values.projectId = qap.projectId.toString();
-          console.log(`Including project ID ${values.projectId} from QAP data in update`);
+          submissionData.projectId = qap.projectId.toString();
+          console.log(`Including project ID ${submissionData.projectId} from QAP data in update`);
         } else if (qap.project && qap.project.id) {
           // Use the project.id if available
-          values.projectId = qap.project.id.toString();
-          console.log(`Including project ID ${values.projectId} from project object in update`);
+          submissionData.projectId = qap.project.id.toString();
+          console.log(`Including project ID ${submissionData.projectId} from project object in update`);
         } else {
           // Log warning but don't break the update
           console.warn("Warning: Project ID is missing, using existing value in form");
         }
       }
       
-      console.log("Submitting QAP update with values:", values);
-      updateQapMutation.mutate(values);
+      // Important: Construct a clean payload to avoid TypeScript errors
+      // Extract only necessary fields and manually set the correct projectId type
+      const payload: any = {
+        title: submissionData.title,
+        clientName: submissionData.clientName || "",
+        equipmentType: submissionData.equipmentType || "",
+        standardsApplicable: submissionData.standardsApplicable || "",
+        revision: submissionData.revision || "0",
+        content: submissionData.content || "",
+        status: submissionData.status || "draft",
+        remarks: submissionData.remarks || "",
+        poNumber: submissionData.poNumber || "",
+      };
+      
+      // Convert projectId to number if available
+      if (submissionData.projectId) {
+        const projectIdNumber = parseInt(submissionData.projectId);
+        if (!isNaN(projectIdNumber)) {
+          payload.projectId = projectIdNumber;
+          console.log(`Set numeric projectId: ${projectIdNumber}`);
+        } else {
+          console.error("Failed to convert projectId to a number:", submissionData.projectId);
+        }
+      } else if (qap && qap.projectId) {
+        // Fallback to QAP's projectId
+        payload.projectId = qap.projectId;
+        console.log(`Using QAP's projectId: ${payload.projectId}`);
+      }
+      
+      console.log("Submitting QAP update with payload:", payload);
+      updateQapMutation.mutate(payload);
     } catch (error) {
       console.error("Error in form submission:", error);
       toast({
