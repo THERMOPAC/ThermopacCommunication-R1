@@ -322,121 +322,101 @@ export default function CreateQAPPage() {
       try {
         console.log("Attempting to populate form with QAP:", existingQap);
         
-        // Create a complete form reset with default values to avoid validation errors
-        const resetValues = {
-          projectId: "",
-          customerId: "",
-          title: "",
-          category: "General",
-          revision: "0",
-          poNumber: "",
-          qapNumber: "",
-          revisionNumber: "0",
-          remarks: "",
-        };
+        // 1. First, verify the QAP object has the required ID
+        if (!existingQap.id) {
+          console.error("QAP object is missing ID:", existingQap);
+          throw new Error("QAP data is incomplete (missing ID)");
+        }
         
-        // Reset form to clean state
-        form.reset(resetValues);
+        console.log("Using QAP with valid ID:", existingQap.id);
         
-        // Create a direct form update without going through individual setValues
-        // This avoids validation issues during the population process
-        const formData: Record<string, string> = {};
+        // 2. Set up individual form fields directly with error handling
         
-        // Always set QAP number safely
-        formData.qapNumber = existingQap.id ? 
-          `QAP-${existingQap.project?.code || "UNKNOWN"}-${existingQap.id.toString().padStart(3, '0')}` : 
-          "QAP-UNKNOWN-001";
+        // QAP Number
+        try {
+          const qapId = existingQap.id.toString().padStart(3, '0');
+          const qapCode = existingQap.project?.code || "UNKNOWN";
+          form.setValue("qapNumber", `QAP-${qapCode}-${qapId}`);
+          console.log(`Set QAP number to: QAP-${qapCode}-${qapId}`);
+        } catch (error) {
+          console.error("Error setting QAP number:", error);
+          form.setValue("qapNumber", "QAP-UNKNOWN-001");
+        }
         
-        // Set title safely
-        formData.title = safeToString(existingQap.title) || "Quality Assurance Plan";
+        // Title
+        form.setValue("title", existingQap.title || "Quality Assurance Plan");
         
-        // Set equipment type (category) safely with type checking
+        // Category/Equipment Type
         const validCategories = ["Pressure Vessel", "Heat Exchanger", "Piping", "Structure", "Electrical", "Instrumentation", "General"] as const;
-        const category = existingQap.equipmentType && 
-          validCategories.includes(existingQap.equipmentType as any) ? 
-          existingQap.equipmentType as any : "General";
-        formData.category = category;
+        let category = "General";
         
-        // Set revision safely
-        formData.revision = safeToString(existingQap.revision) || "0";
-        formData.revisionNumber = safeToString(existingQap.revision) || "0";
+        if (existingQap.equipmentType && validCategories.includes(existingQap.equipmentType as any)) {
+          category = existingQap.equipmentType as "Pressure Vessel" | "Heat Exchanger" | "Piping" | "Structure" | "Electrical" | "Instrumentation" | "General";
+        }
         
-        // Set project ID if available
+        form.setValue("category", category);
+        
+        // Revision
+        const revision = existingQap.revision || "0";
+        form.setValue("revision", revision);
+        form.setValue("revisionNumber", revision);
+        
+        // Project
         if (existingQap.projectId && projects.length > 0) {
           const project = projects.find(p => p.id === existingQap.projectId);
           
           if (project) {
-            console.log("Found matching project for form population:", project);
-            formData.projectId = safeToString(existingQap.projectId);
+            console.log("Found matching project for QAP:", project);
+            form.setValue("projectId", existingQap.projectId.toString());
             setSelectedProjectCode(project.code || "");
             
-            // If customer ID is available in the project, use it
+            // Set customer if available in project
             if (project.customerId && customers.length > 0) {
-              formData.customerId = safeToString(project.customerId);
+              form.setValue("customerId", project.customerId.toString());
             }
           } else if (existingQap.project?.id) {
-            // Use project from QAP if available
-            formData.projectId = safeToString(existingQap.project.id);
+            form.setValue("projectId", existingQap.project.id.toString());
             setSelectedProjectCode(existingQap.project.code || "");
           }
         }
         
-        // Handle customer matching by name if needed
+        // Customer by name match
         if (existingQap.clientName && existingQap.clientName.trim() !== "" && customers.length > 0) {
           const customerMatch = customers.find(c => c.bpName === existingQap.clientName);
           if (customerMatch?.id) {
             console.log("Found customer match by name:", customerMatch.bpName);
-            formData.customerId = safeToString(customerMatch.id);
+            form.setValue("customerId", customerMatch.id.toString());
           }
         }
         
-        // Set PO number if it exists in the database version
+        // PO Number from content
         if (existingQap.content && existingQap.content.includes("PO Number")) {
           const poMatch = existingQap.content.match(/<strong>PO Number:<\/strong>\s*([^<]+)/);
           if (poMatch && poMatch[1]) {
             const poNumber = poMatch[1].trim().replace("N/A", "");
             if (poNumber) {
-              formData.poNumber = poNumber;
+              form.setValue("poNumber", poNumber);
             }
           }
         }
         
-        // Set remarks if available in HTML content
+        // Remarks from content
         if (existingQap.content && existingQap.content.includes("Remarks")) {
           const remarksMatch = existingQap.content.match(/<p><strong>Remarks:<\/strong>\s*([^<]+)/);
           if (remarksMatch && remarksMatch[1]) {
             const remarks = remarksMatch[1].trim();
             if (remarks) {
-              formData.remarks = remarks;
+              form.setValue("remarks", remarks);
             }
           }
         }
         
-        // Now update form with all values at once, ensuring correct types
-        console.log("Updating form with collected data:", formData);
+        console.log("Form population complete with form state:", form.getValues());
         
-        // Ensure category is a valid enum value
-        const typedFormData = {
-          projectId: formData.projectId || "",
-          customerId: formData.customerId || "",
-          title: formData.title || "",
-          category: (formData.category as "Pressure Vessel" | "Heat Exchanger" | "Piping" | "Structure" | "Electrical" | "Instrumentation" | "General") || "General",
-          revision: formData.revision || "0",
-          poNumber: formData.poNumber || "",
-          qapNumber: formData.qapNumber || "",
-          revisionNumber: formData.revisionNumber || "0",
-          remarks: formData.remarks || "",
-        };
-        
-        // Use setValue for each field instead of reset to avoid TypeScript errors
-        Object.entries(typedFormData).forEach(([key, value]) => {
-          form.setValue(key as any, value);
-        });
-        
-        // Force validation after form population
+        // Validate all fields
         setTimeout(() => {
           form.trigger();
-          console.log("Finished populating form with existing QAP data");
+          console.log("Form validation triggered with current values:", form.getValues());
         }, 100);
       } catch (error) {
         console.error("Error populating form with existing QAP:", error);

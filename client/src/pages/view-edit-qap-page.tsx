@@ -72,7 +72,30 @@ export default function ViewEditQAPPage() {
   // Query QAP data
   const { data: qap, isLoading, error } = useQuery({
     queryKey: ['/api/quality/generated-qaps', qapId],
+    queryFn: async () => {
+      if (!qapId || isNaN(qapId)) {
+        throw new Error("Invalid QAP ID");
+      }
+      
+      try {
+        console.log(`Fetching QAP with ID: ${qapId}`);
+        const response = await apiRequest<QAP>(`/api/quality/generated-qaps/${qapId}`, 'GET');
+        
+        // Validate critical fields before returning
+        if (!response || !response.id) {
+          console.error("Invalid QAP data received:", response);
+          throw new Error("QAP data is incomplete (missing ID)");
+        }
+        
+        console.log("Successfully fetched QAP with ID:", response.id);
+        return response;
+      } catch (error) {
+        console.error("Error fetching QAP:", error);
+        throw error;
+      }
+    },
     enabled: !isNaN(qapId),
+    retry: 1,
   });
 
   // Setup form
