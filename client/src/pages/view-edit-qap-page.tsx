@@ -79,51 +79,57 @@ export default function ViewEditQAPPage() {
       
       try {
         console.log(`Fetching QAP with ID: ${qapId}`);
-        const response = await apiRequest<any>(`/api/quality/generated-qaps/${qapId}`, 'GET');
+        // Get the API response
+        const response = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
+        
+        // Convert response to JSON
+        const jsonData = await response.json();
+        
+        console.log("Raw API response data:", jsonData);
         
         // Enhanced validation with detailed error messages
-        if (!response) {
-          console.error("No response received from API");
+        if (!jsonData) {
+          console.error("No data received from API");
           throw new Error("Failed to load QAP: No data received from server");
         }
         
         // Check for ID
-        if (!response.id) {
-          console.error("QAP is missing ID:", response);
+        if (!jsonData.id) {
+          console.error("QAP is missing ID:", jsonData);
           throw new Error("QAP data is incomplete (missing ID)");
         }
         
         // Check for project data - this is critical
-        if (!response.project || !response.project.id) {
-          console.error("QAP is missing project data:", response);
+        if (!jsonData.project || !jsonData.project.id) {
+          console.error("QAP is missing project data:", jsonData);
           throw new Error("QAP data is incomplete (missing project data)");
         }
         
         // Convert QAP to a properly typed object with all required fields
         const safeQap: any = {
-          id: response.id,
-          projectId: response.projectId || 0,
-          templateId: response.templateId || 0,
-          title: response.title || "Untitled QAP",
-          clientName: response.clientName || "",
-          equipmentType: response.equipmentType || "General",
-          standardsApplicable: response.standardsApplicable || "",
-          revision: response.revision || "0",
-          preparedBy: response.preparedBy || 0,
-          approvedBy: response.approvedBy || null,
-          status: response.status || "draft",
-          content: response.content || "",
-          remarks: response.remarks || "",
+          id: jsonData.id,
+          projectId: jsonData.projectId || 0,
+          templateId: jsonData.templateId || 0,
+          title: jsonData.title || "Untitled QAP",
+          clientName: jsonData.clientName || "",
+          equipmentType: jsonData.equipmentType || "General",
+          standardsApplicable: jsonData.standardsApplicable || "",
+          revision: jsonData.revision || "0",
+          preparedBy: jsonData.preparedBy || 0,
+          approvedBy: jsonData.approvedBy || null,
+          status: jsonData.status || "draft",
+          content: jsonData.content || "",
+          remarks: jsonData.remarks || "",
           project: {
-            id: response.project.id,
-            code: response.project.code || "UNKNOWN",
-            name: response.project.name || "Unknown Project"
+            id: jsonData.project.id,
+            code: jsonData.project.code || "UNKNOWN",
+            name: jsonData.project.name || "Unknown Project"
           },
-          preparedByUser: response.preparedByUser || { id: 0, username: "Unknown" },
-          approvedByUser: response.approvedByUser || null,
-          versions: response.versions || [],
-          createdAt: response.createdAt || new Date().toISOString(),
-          updatedAt: response.updatedAt || new Date().toISOString(),
+          preparedByUser: jsonData.preparedByUser || { id: 0, username: "Unknown" },
+          approvedByUser: jsonData.approvedByUser || null,
+          versions: jsonData.versions || [],
+          createdAt: jsonData.createdAt || new Date().toISOString(),
+          updatedAt: jsonData.updatedAt || new Date().toISOString(),
         };
         
         console.log("Successfully processed QAP data:", {
@@ -182,7 +188,15 @@ export default function ViewEditQAPPage() {
   // Update QAP mutation
   const updateQapMutation = useMutation({
     mutationFn: async (values: z.infer<typeof qapFormSchema>) => {
-      return apiRequest(`/api/quality/generated-qaps/${qapId}`, 'PUT', values);
+      try {
+        const response = await apiRequest('PUT', `/api/quality/generated-qaps/${qapId}`, values);
+        const data = await response.json();
+        console.log("Update QAP response:", data);
+        return data;
+      } catch (error) {
+        console.error("Error updating QAP:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -205,8 +219,16 @@ export default function ViewEditQAPPage() {
   // Approve QAP mutation
   const approveQapMutation = useMutation({
     mutationFn: async () => {
-      // Use PATCH for status updates instead of PUT
-      return apiRequest(`/api/quality/generated-qaps/${qapId}`, 'PATCH', { status: 'approved' });
+      try {
+        // Use PATCH for status updates instead of PUT
+        const response = await apiRequest('PATCH', `/api/quality/generated-qaps/${qapId}`, { status: 'approved' });
+        const data = await response.json();
+        console.log("Approve QAP response:", data);
+        return data;
+      } catch (error) {
+        console.error("Error approving QAP:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
