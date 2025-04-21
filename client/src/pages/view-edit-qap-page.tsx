@@ -60,6 +60,26 @@ const qapFormSchema = z.object({
   poNumber: z.string().optional(),
 });
 
+// QAP Item interface (consistent with create-qap-page.tsx)
+interface QapItem {
+  id: number;
+  slNo: number;
+  componentOperation: string;
+  subMaterial?: string; // Optional field for Raw Material sub-options
+  reviewDocument?: string; // Optional field for Review of Documents sub-options
+  processInspection?: string; // Optional field for In Process Inspection sub-options
+  finalAssessment?: string; // Optional field for Final Assessment sub-options
+  characteristicsChecked: string;
+  class: string;
+  typeOfCheck: string;
+  quantumOfCheck: string;
+  referenceDocument: string;
+  acceptanceNorms: string;
+  formatOfRecords: string;
+  agency: { M: boolean; C: boolean; SGS: boolean };
+  remark: string;
+}
+
 export default function ViewEditQAPPage() {
   const { id } = useParams<{ id: string }>();
   const qapId = parseInt(id);
@@ -68,6 +88,7 @@ export default function ViewEditQAPPage() {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
+  const [qapItems, setQapItems] = useState<QapItem[]>([]);
 
   // Query QAP data
   const { data: qap, isLoading, error } = useQuery({
@@ -197,8 +218,165 @@ export default function ViewEditQAPPage() {
         projectId: qap.projectId?.toString() || "",
         poNumber: "",
       });
+      
+      // Parse QAP items from content if available
+      if (qap.content && qap.content.includes('table')) {
+        parseQapItemsFromContent(qap.content);
+      }
     }
   }, [qap, form]);
+  
+  // Function to parse QAP items from HTML content
+  const parseQapItemsFromContent = (content: string) => {
+    try {
+      console.log("Attempting to parse QAP items from content...");
+      
+      // Create a temporary div to parse HTML content
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      
+      // First try: Look for rows in the QAP table
+      const rows = tempDiv.querySelectorAll('.qap-table tbody tr');
+      
+      if (rows.length > 0) {
+        console.log(`Found ${rows.length} QAP items in content`);
+        
+        const parsedItems: QapItem[] = Array.from(rows).map((row, index) => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length < 13) {
+            console.warn(`Row ${index} doesn't have enough cells (${cells.length}), skipping`);
+            return null; // Skip if row doesn't have enough cells
+          }
+          
+          // Parse component operation and its sub-option
+          const componentCell = cells[1].textContent || "";
+          let componentOperation = "Review of Documents";
+          let subMaterial = "";
+          let reviewDocument = "";
+          let processInspection = "";
+          let finalAssessment = "";
+          
+          if (componentCell.includes("Raw Material")) {
+            componentOperation = "Raw Material";
+            const parts = componentCell.split('-');
+            if (parts.length > 1) {
+              subMaterial = parts[1].trim();
+            }
+          } else if (componentCell.includes("Review of Documents")) {
+            componentOperation = "Review of Documents";
+            const parts = componentCell.split('-');
+            if (parts.length > 1) {
+              reviewDocument = parts[1].trim();
+            }
+          } else if (componentCell.includes("In Process Inspection")) {
+            componentOperation = "In Process Inspection";
+            const parts = componentCell.split('-');
+            if (parts.length > 1) {
+              processInspection = parts[1].trim();
+            }
+          } else if (componentCell.includes("Final Assessment")) {
+            componentOperation = "Final Assessment";
+            const parts = componentCell.split('-');
+            if (parts.length > 1) {
+              finalAssessment = parts[1].trim();
+            }
+          } else if (componentCell.includes("Testing & Painting")) {
+            componentOperation = "Testing & Painting";
+          }
+          
+          // Parse agency checkmarks
+          const mChecked = (cells[9].textContent || "").includes("✓");
+          const cChecked = (cells[10].textContent || "").includes("✓");
+          const sgsChecked = (cells[11].textContent || "").includes("✓");
+          
+          return {
+            id: index + 1,
+            slNo: index + 1,
+            componentOperation,
+            subMaterial,
+            reviewDocument,
+            processInspection,
+            finalAssessment,
+            characteristicsChecked: cells[2].textContent?.trim() || "",
+            class: cells[3].textContent?.trim() || "Major",
+            typeOfCheck: cells[4].textContent?.trim() || "Visual",
+            quantumOfCheck: cells[5].textContent?.trim() || "100%",
+            referenceDocument: cells[6].textContent?.trim() || "",
+            acceptanceNorms: cells[7].textContent?.trim() || "",
+            formatOfRecords: cells[8].textContent?.trim() || "",
+            agency: {
+              M: mChecked,
+              C: cChecked,
+              SGS: sgsChecked
+            },
+            remark: cells[12].textContent?.trim() || ""
+          };
+        }).filter(item => item !== null) as QapItem[];
+        
+        if (parsedItems.length > 0) {
+          setQapItems(parsedItems);
+          console.log("Parsed QAP items from content:", parsedItems);
+        } else {
+          console.warn("No valid QAP items parsed from content, using default item");
+          setQapItems([{
+            id: 1,
+            slNo: 1,
+            componentOperation: "Review of Documents",
+            subMaterial: "",
+            reviewDocument: "",
+            processInspection: "",
+            finalAssessment: "",
+            characteristicsChecked: "Review & approval",
+            class: "Major",
+            typeOfCheck: "Visual",
+            quantumOfCheck: "100%",
+            referenceDocument: "Design & drawing",
+            acceptanceNorms: "Compliance to Drawing",
+            formatOfRecords: "Inspection Test Plan",
+            agency: { M: true, C: false, SGS: false },
+            remark: ""
+          }]);
+        }
+      } else {
+        console.warn("No QAP table rows found in content, using default item");
+        setQapItems([{
+          id: 1,
+          slNo: 1,
+          componentOperation: "Review of Documents",
+          subMaterial: "",
+          reviewDocument: "",
+          processInspection: "",
+          finalAssessment: "",
+          characteristicsChecked: "Review & approval",
+          class: "Major",
+          typeOfCheck: "Visual",
+          quantumOfCheck: "100%",
+          referenceDocument: "Design & drawing",
+          acceptanceNorms: "Compliance to Drawing",
+          formatOfRecords: "Inspection Test Plan",
+          agency: { M: true, C: false, SGS: false },
+          remark: ""
+        }]);
+      }
+    } catch (error) {
+      console.error("Error parsing QAP items from content:", error);
+      // Use default QAP item
+      setQapItems([{
+        id: 1,
+        slNo: 1,
+        componentOperation: "Review of Documents",
+        characteristicsChecked: "Review & approval",
+        class: "Major",
+        typeOfCheck: "Visual",
+        quantumOfCheck: "100%",
+        referenceDocument: "Design & drawing",
+        acceptanceNorms: "Compliance to Drawing",
+        formatOfRecords: "Inspection Test Plan",
+        agency: { M: true, C: false, SGS: false },
+        remark: ""
+      }]);
+    }
+  };
 
   // Update QAP mutation
   const updateQapMutation = useMutation({
@@ -261,9 +439,118 @@ export default function ViewEditQAPPage() {
     },
   });
 
+  // Function to generate QAP table HTML from QAP items
+  const generateQapTableHtml = (qapItemsArray: QapItem[]) => {
+    try {
+      // Build table HTML
+      return `
+      <div class="qap-container">
+        <table class="qap-table">
+          <thead>
+            <tr>
+              <th>SL.NO</th>
+              <th>COMPONENT & OPERATION</th>
+              <th>CHARACTERISTICS CHECKED</th>
+              <th>CLASS</th>
+              <th>TYPE OF CHECK</th>
+              <th>QUANTUM OF CHECK</th>
+              <th>REFERENCE DOCUMENT</th>
+              <th>ACCEPTANCE NORMS</th>
+              <th>FORMAT OF RECORDS</th>
+              <th colspan="3">AGENCY</th>
+              <th>REMARK</th>
+            </tr>
+            <tr>
+              <th></th>
+              <th></th>
+              <th></th>
+              <th></th>
+              <th></th>
+              <th></th>
+              <th></th>
+              <th></th>
+              <th></th>
+              <th>M</th>
+              <th>C</th>
+              <th>SGS</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${qapItemsArray.map((item, index) => {
+              // Determine component operation string with sub-option if applicable
+              let componentOpString = item.componentOperation;
+              
+              if (item.componentOperation === 'Raw Material' && item.subMaterial) {
+                componentOpString = `${item.componentOperation} - ${item.subMaterial}`;
+              } else if (item.componentOperation === 'Review of Documents' && item.reviewDocument) {
+                componentOpString = `${item.componentOperation} - ${item.reviewDocument}`;
+              } else if (item.componentOperation === 'In Process Inspection' && item.processInspection) {
+                componentOpString = `${item.componentOperation} - ${item.processInspection}`;
+              } else if (item.componentOperation === 'Final Assessment' && item.finalAssessment) {
+                componentOpString = `${item.componentOperation} - ${item.finalAssessment}`;
+              }
+              
+              return `<tr>
+                <td>${item.slNo}</td>
+                <td>${componentOpString}</td>
+                <td>${item.characteristicsChecked}</td>
+                <td>${item.class}</td>
+                <td>${item.typeOfCheck}</td>
+                <td>${item.quantumOfCheck}</td>
+                <td>${item.referenceDocument}</td>
+                <td>${item.acceptanceNorms}</td>
+                <td>${item.formatOfRecords}</td>
+                <td>${item.agency.M ? '✓' : ''}</td>
+                <td>${item.agency.C ? '✓' : ''}</td>
+                <td>${item.agency.SGS ? '✓' : ''}</td>
+                <td>${item.remark}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      `;
+    } catch (error) {
+      console.error("Error generating QAP table HTML:", error);
+      return "<p>Error generating QAP table. Please try again.</p>";
+    }
+  };
+
   // Handle form submission
   const onSubmit = (values: z.infer<typeof qapFormSchema>) => {
-    updateQapMutation.mutate(values);
+    try {
+      // Generate HTML content from QAP items if there are any
+      if (qapItems && qapItems.length > 0) {
+        console.log(`Generating QAP HTML content from ${qapItems.length} items`);
+        const qapTableHtml = generateQapTableHtml(qapItems);
+        
+        // Add table HTML to the content
+        values.content = qapTableHtml;
+      } else {
+        console.warn("No QAP items available for content generation");
+      }
+      
+      // If project is present in the original QAP data, make sure it's included in the update
+      if (qap && qap.project && qap.projectId) {
+        // Add projectId explicitly to ensure it's sent to the server
+        values.projectId = qap.projectId.toString();
+        
+        console.log(`Including project ID ${values.projectId} in QAP update`);
+      } else {
+        console.warn("Warning: Project data is missing in the current QAP");
+      }
+      
+      console.log("Submitting QAP update with values:", values);
+      updateQapMutation.mutate(values);
+    } catch (error) {
+      console.error("Error in form submission:", error);
+      toast({
+        title: "Error preparing QAP data",
+        description: "There was an error preparing the QAP data for submission.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle export
