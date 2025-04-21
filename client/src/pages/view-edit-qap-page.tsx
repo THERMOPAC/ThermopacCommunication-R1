@@ -171,6 +171,8 @@ export default function ViewEditQAPPage() {
           content: jsonData.content || "",
           remarks: jsonData.remarks || "",
           project: projectData,
+          // Include projectInfo for displaying project in a user-friendly format
+          projectInfo: jsonData.projectInfo || `${projectData.code} - ${projectData.name}`,
           preparedByUser: jsonData.preparedByUser || { id: 0, username: "Unknown" },
           approvedByUser: jsonData.approvedByUser || null,
           versions: jsonData.versions || [],
