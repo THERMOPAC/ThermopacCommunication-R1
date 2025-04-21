@@ -79,16 +79,62 @@ export default function ViewEditQAPPage() {
       
       try {
         console.log(`Fetching QAP with ID: ${qapId}`);
-        const response = await apiRequest<QAP>(`/api/quality/generated-qaps/${qapId}`, 'GET');
+        const response = await apiRequest<any>(`/api/quality/generated-qaps/${qapId}`, 'GET');
         
-        // Validate critical fields before returning
-        if (!response || !response.id) {
-          console.error("Invalid QAP data received:", response);
+        // Enhanced validation with detailed error messages
+        if (!response) {
+          console.error("No response received from API");
+          throw new Error("Failed to load QAP: No data received from server");
+        }
+        
+        // Check for ID
+        if (!response.id) {
+          console.error("QAP is missing ID:", response);
           throw new Error("QAP data is incomplete (missing ID)");
         }
         
-        console.log("Successfully fetched QAP with ID:", response.id);
-        return response;
+        // Check for project data - this is critical
+        if (!response.project || !response.project.id) {
+          console.error("QAP is missing project data:", response);
+          throw new Error("QAP data is incomplete (missing project data)");
+        }
+        
+        // Convert QAP to a properly typed object with all required fields
+        const safeQap: any = {
+          id: response.id,
+          projectId: response.projectId || 0,
+          templateId: response.templateId || 0,
+          title: response.title || "Untitled QAP",
+          clientName: response.clientName || "",
+          equipmentType: response.equipmentType || "General",
+          standardsApplicable: response.standardsApplicable || "",
+          revision: response.revision || "0",
+          preparedBy: response.preparedBy || 0,
+          approvedBy: response.approvedBy || null,
+          status: response.status || "draft",
+          content: response.content || "",
+          remarks: response.remarks || "",
+          project: {
+            id: response.project.id,
+            code: response.project.code || "UNKNOWN",
+            name: response.project.name || "Unknown Project"
+          },
+          preparedByUser: response.preparedByUser || { id: 0, username: "Unknown" },
+          approvedByUser: response.approvedByUser || null,
+          versions: response.versions || [],
+          createdAt: response.createdAt || new Date().toISOString(),
+          updatedAt: response.updatedAt || new Date().toISOString(),
+        };
+        
+        console.log("Successfully processed QAP data:", {
+          id: safeQap.id,
+          projectId: safeQap.projectId,
+          title: safeQap.title,
+          status: safeQap.status,
+          project: `${safeQap.project.code} - ${safeQap.project.name}`
+        });
+        
+        return safeQap;
       } catch (error) {
         console.error("Error fetching QAP:", error);
         throw error;

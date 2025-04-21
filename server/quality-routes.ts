@@ -445,12 +445,15 @@ export const setupQualityRoutes = (app: any) => {
   // Get a single generated QAP by ID
   app.get('/api/quality/generated-qaps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      console.log(`Getting QAP with ID: ${req.params.id}`);
       const qapId = parseInt(req.params.id);
 
       if (isNaN(qapId)) {
+        console.error(`Invalid QAP ID format: ${req.params.id}`);
         return res.status(400).json({ error: 'Invalid QAP ID' });
       }
 
+      // Get QAP with all relations
       const qap = await db.query.generatedQaps.findFirst({
         where: eq(generatedQaps.id, qapId),
         with: {
@@ -475,8 +478,42 @@ export const setupQualityRoutes = (app: any) => {
       });
 
       if (!qap) {
+        console.error(`QAP with ID ${qapId} not found`);
         return res.status(404).json({ error: 'QAP not found' });
       }
+
+      // Validate that crucial relationships are present
+      if (!qap.project) {
+        console.error(`QAP with ID ${qapId} has missing project reference`);
+        
+        // Attempt to get the project separately
+        const project = qap.projectId ? 
+          await db.query.projects.findFirst({
+            where: eq(projects.id, qap.projectId),
+          }) : null;
+          
+        if (project) {
+          // Manually attach the project
+          console.log(`Retrieved project ${project.id} separately and attaching to QAP ${qapId}`);
+          qap.project = project;
+        } else {
+          return res.status(500).json({ 
+            error: 'QAP data is incomplete (missing project data)', 
+            qapId: qap.id,
+            projectId: qap.projectId 
+          });
+        }
+      }
+
+      // Log QAP basic info
+      console.log(`Successfully retrieved QAP ${qapId}`, {
+        id: qap.id,
+        projectId: qap.projectId,
+        title: qap.title,
+        status: qap.status,
+        hasProject: !!qap.project,
+        projectInfo: qap.project ? `${qap.project.code} - ${qap.project.name}` : 'MISSING'
+      });
 
       res.status(200).json(qap);
     } catch (error) {
