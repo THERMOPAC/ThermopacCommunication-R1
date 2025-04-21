@@ -168,8 +168,13 @@ export default function CreateQAPPage() {
     queryFn: async () => {
       if (!qapId) return null;
       try {
-        const response = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
-        return response as QAP;
+        const response: any = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
+        if (response && typeof response === 'object') {
+          // Cast to unknown first, then to QAP type
+          return response as unknown as QAP;
+        }
+        console.error("Invalid QAP data received");
+        return null;
       } catch (error) {
         console.error("Error fetching QAP:", error);
         return null;

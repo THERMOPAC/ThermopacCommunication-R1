@@ -217,7 +217,7 @@ export default function QualityAssurancePlanPage() {
               Create and manage Quality Assurance Plans for your projects.
             </p>
           </div>
-          <Link href="/quality-assurance-plan/create">
+          <Link href="/quality-assurance-plan/form">
             <Button className="flex items-center gap-2">
               <Plus size={16} />
               Create QAP
@@ -304,7 +304,7 @@ export default function QualityAssurancePlanPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => setLocation(`/quality-assurance-plan/${qap.id}`)}
+                            onClick={() => setLocation(`/quality-assurance-plan/view/${qap.id}`)}
                             title="View QAP"
                           >
                             <FileText size={16} />
@@ -312,7 +312,7 @@ export default function QualityAssurancePlanPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => setLocation(`/quality-assurance-plan/${qap.id}`)}
+                            onClick={() => setLocation(`/quality-assurance-plan/form/${qap.id}`)}
                             title="Edit QAP"
                             disabled={qap.status === 'approved'}
                           >
@@ -425,7 +425,7 @@ export default function QualityAssurancePlanPage() {
             </Button>
             <Button
               onClick={confirmStatusChange}
-              disabled={changeStatusMutation.isPending || !newStatus || (selectedQap && selectedQap.status === newStatus)}
+              disabled={changeStatusMutation.isPending || !newStatus || (selectedQap ? selectedQap.status === newStatus : false)}
             >
               {changeStatusMutation.isPending ? (
                 <>
