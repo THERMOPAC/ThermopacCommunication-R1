@@ -18,6 +18,38 @@ import { Link, useLocation } from "wouter";
 import { FileText, ArrowLeft, Save, Plus } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
+// Define QAP interface
+interface QAP {
+  id: number;
+  projectId: number;
+  templateId: number;
+  title: string;
+  clientName: string;
+  equipmentType: string;
+  standards: string | null;
+  revision: string;
+  preparedBy: number;
+  approvedBy: number | null;
+  status: string;
+  version: number;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  project: {
+    id: number;
+    code: string;
+    name: string;
+  };
+  preparedByUser: {
+    id: number;
+    username: string;
+  };
+  approvedByUser?: {
+    id: number;
+    username: string;
+  };
+}
+
 // Define schema for the QAP form
 const qapFormSchema = z.object({
   projectId: z.string().min(1, "Project is required"),
@@ -131,11 +163,17 @@ export default function CreateQAPPage() {
   });
   
   // Fetch existing QAP if in edit mode
-  const { data: existingQap, isLoading: isLoadingQap } = useQuery({
+  const { data: existingQap, isLoading: isLoadingQap } = useQuery<QAP | null>({
     queryKey: ['/api/quality/generated-qaps', qapId],
     queryFn: async () => {
       if (!qapId) return null;
-      return await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
+      try {
+        const response = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
+        return response as QAP;
+      } catch (error) {
+        console.error("Error fetching QAP:", error);
+        return null;
+      }
     },
     enabled: !!qapId,
   });
@@ -237,7 +275,7 @@ export default function CreateQAPPage() {
       const selectedCustomer = customers.find(c => c.id.toString() === values.customerId);
       
       // Get template ID (using the existing template for now, would normally be selected)
-      const templateId = 3;
+      const templateId = existingQap?.templateId || 3;
       
       // Get current date in ISO format
       const currentDate = new Date().toISOString();
@@ -372,39 +410,54 @@ export default function CreateQAPPage() {
         standards: "",
         revision: values.revisionNumber,
         content: contentHtml,
-        status: "draft"
+        status: existingQap?.status || "draft"
       };
       
       console.log("Submitting QAP data:", qapData);
       
-      // Send to API
-      const response = await apiRequest('POST', '/api/quality/generated-qaps', qapData);
+      let response;
+      
+      // Determine if we're creating or updating
+      if (qapId) {
+        // Update existing QAP
+        response = await apiRequest('PATCH', `/api/quality/generated-qaps/${qapId}`, qapData);
+        toast({
+          title: "Success",
+          description: "QAP updated successfully",
+        });
+      } else {
+        // Create new QAP
+        response = await apiRequest('POST', '/api/quality/generated-qaps', qapData);
+        toast({
+          title: "Success",
+          description: "QAP created successfully",
+        });
+      }
       
       console.log("API response:", response);
-      
-      toast({
-        title: "Success",
-        description: "QAP created successfully",
-      });
       
       // Redirect to QAP listing page
       setLocation("/quality-assurance-plan");
     } catch (error) {
-      console.error("Error creating QAP:", error);
+      console.error("Error saving QAP:", error);
       toast({
         title: "Error",
         description: typeof error === 'object' && error !== null && 'message' in error 
-          ? `Failed to create QAP: ${(error as Error).message}` 
-          : "Failed to create QAP. Please try again.",
+          ? `Failed to save QAP: ${(error as Error).message}` 
+          : "Failed to save QAP. Please try again.",
         variant: "destructive",
       });
     }
   };
 
+  // Determine if we're in edit or create mode
+  const isEditMode = !!qapId;
+  const pageTitle = isEditMode ? "Edit Quality Assurance Plan" : "Create Quality Assurance Plan";
+  
   return (
     <Layout>
       <Helmet>
-        <title>Create Quality Assurance Plan | Thermopac</title>
+        <title>{pageTitle} | Thermopac</title>
       </Helmet>
       
       <div className="space-y-6 p-6">
@@ -415,7 +468,7 @@ export default function CreateQAPPage() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-2xl font-bold">Create Quality Assurance Plan</h1>
+            <h1 className="text-2xl font-bold">{pageTitle}</h1>
           </div>
           <FileText className="h-6 w-6 text-muted-foreground" />
         </div>
