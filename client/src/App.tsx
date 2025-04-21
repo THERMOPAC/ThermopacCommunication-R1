@@ -96,8 +96,7 @@ function Router() {
       <ProtectedRoute path="/inspections" component={InspectionsPage} />
       <ProtectedRoute path="/quality-reports" component={QualityReportsPage} />
       <ProtectedRoute path="/quality-assurance-plan" component={QualityAssurancePlanPage} />
-      <ProtectedRoute path="/quality-assurance-plan/create" component={CreateQAPPage} />
-      <ProtectedRoute path="/quality-assurance-plan/:id" component={ViewEditQAPPage} />
+      <ProtectedRoute path="/quality-assurance-plan/form/:id?" component={CreateQAPPage} />
       <ProtectedRoute path="/project-commissioning" component={ProjectCommissioningPage} />
       <ProtectedRoute path="/dispatch-shipping" component={DispatchShippingPage} />
       <ProtectedRoute path="/after-sales" component={AfterSalesPage} />

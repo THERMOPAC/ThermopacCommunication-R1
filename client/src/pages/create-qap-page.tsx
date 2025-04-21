@@ -75,6 +75,11 @@ interface QapItem {
 }
 
 export default function CreateQAPPage() {
+  // Use useParams from wouter to get the ID parameter
+  const [location, params] = useLocation();
+  const pathSegments = location.split('/');
+  const idParam = pathSegments[pathSegments.length - 1];
+  const qapId = idParam !== 'form' ? parseInt(idParam) : undefined;
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -124,6 +129,36 @@ export default function CreateQAPPage() {
     queryKey: ['/api/customers'],
     throwOnError: false,
   });
+  
+  // Fetch existing QAP if in edit mode
+  const { data: existingQap, isLoading: isLoadingQap } = useQuery({
+    queryKey: ['/api/quality/generated-qaps', qapId],
+    queryFn: async () => {
+      if (!qapId) return null;
+      return await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
+    },
+    enabled: !!qapId,
+  });
+  
+  // Populate form with existing data when in edit mode
+  useEffect(() => {
+    if (existingQap && !isLoadingQap) {
+      // Update form with existing QAP data
+      form.setValue("projectId", existingQap.projectId.toString());
+      form.setValue("customerId", existingQap.clientName ? 
+        customers.find(c => c.bpName === existingQap.clientName)?.id.toString() || "" : "");
+      form.setValue("title", existingQap.title);
+      form.setValue("category", existingQap.equipmentType as any);
+      form.setValue("revision", existingQap.revision);
+      form.setValue("qapNumber", `QAP-${existingQap.project?.code}-${existingQap.id.toString().padStart(3, '0')}`);
+      form.setValue("revisionNumber", existingQap.revision || "0");
+      
+      // Set selected project code
+      if (existingQap.project) {
+        setSelectedProjectCode(existingQap.project.code);
+      }
+    }
+  }, [existingQap, isLoadingQap, form, customers]);
 
   // Handle project selection
   const handleProjectChange = (projectId: string) => {
