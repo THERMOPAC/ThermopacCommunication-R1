@@ -176,7 +176,7 @@ export default function CreateQAPPage() {
       try {
         console.log(`Fetching QAP data for ID: ${qapId}`);
         
-        // Make the API request with detailed error logging
+        // Make the API request with enhanced error handling and type safety
         let response: any;
         try {
           response = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
@@ -186,7 +186,7 @@ export default function CreateQAPPage() {
           throw new Error(`API request failed: ${requestError}`);
         }
         
-        // Validate the response structure with detailed logging
+        // More robust response validation with type checking
         if (!response) {
           console.error("API response is null or undefined");
           throw new Error("API response is empty");
@@ -197,19 +197,35 @@ export default function CreateQAPPage() {
           throw new Error(`Unexpected response type: ${typeof response}`);
         }
         
-        if (!response.id) {
-          console.error("API response missing 'id' field:", response);
+        // Ensure numeric ID is present
+        const id = response.id;
+        if (id === undefined || id === null) {
+          console.error("API response missing valid 'id' field:", response);
           throw new Error("QAP data is incomplete (missing ID)");
         }
         
-        // Log the projectId and project object for debugging
-        console.log("QAP projectId:", response.projectId);
-        console.log("QAP project object:", response.project);
+        // Safe type conversion for ID (ensure it's a number)
+        const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
         
-        // Create a complete QAP object with fallbacks for missing fields
+        if (isNaN(numericId)) {
+          console.error(`Invalid QAP ID (not a number): ${id}`);
+          throw new Error("Invalid QAP ID format");
+        }
+        
+        // Extract project information more safely
+        const projectId = response.projectId !== undefined ? 
+                        (typeof response.projectId === 'string' ? parseInt(response.projectId, 10) : response.projectId) : 
+                        0;
+        
+        // Log extracted data for debugging
+        console.log("Extracted QAP ID:", numericId);
+        console.log("Extracted projectId:", projectId);
+        console.log("Original project object:", response.project);
+        
+        // Create a complete QAP object with fallbacks for missing fields and strict type checking
         const safeQap: QAP = {
-          id: response.id,
-          projectId: response.projectId || 0,
+          id: numericId,
+          projectId: projectId || 0,
           templateId: response.templateId || 3,
           title: response.title || "Quality Assurance Plan",
           clientName: response.clientName || "",
@@ -223,51 +239,67 @@ export default function CreateQAPPage() {
           content: response.content || "",
           createdAt: response.createdAt || new Date().toISOString(),
           updatedAt: response.updatedAt || new Date().toISOString(),
-          project: response.project || null,
+          project: null, // Initially set to null, we'll populate it properly below
           preparedByUser: response.preparedByUser || { id: user?.id || 0, username: user?.username || "Unknown" },
           approvedByUser: response.approvedByUser || undefined
         };
         
-        // Log the safe QAP object created
-        console.log("Created safe QAP object:", JSON.stringify(safeQap, null, 2));
-        
-        // Check if projectId exists but project object is missing
-        if (!safeQap.project && safeQap.projectId && projects.length > 0) {
-          console.log(`Searching for project with ID ${safeQap.projectId} among ${projects.length} projects`);
+        // Process project data more carefully
+        if (response.project && typeof response.project === 'object') {
+          // Extract project values safely
+          const projectObj = response.project;
+          safeQap.project = {
+            id: typeof projectObj.id === 'number' ? projectObj.id : 
+                (typeof projectObj.id === 'string' ? parseInt(projectObj.id, 10) : projectId || 0),
+            code: typeof projectObj.code === 'string' ? projectObj.code : 'UNKNOWN',
+            name: typeof projectObj.name === 'string' ? projectObj.name : 'Unknown Project'
+          };
+          console.log("Using project from API response:", safeQap.project);
+        } 
+        // Use project array if project was not included in response
+        else if (projectId && projects.length > 0) {
+          console.log(`Searching for project with ID ${projectId} among ${projects.length} projects`);
           
           // Find project by ID
-          const matchingProject = projects.find(p => p.id === safeQap.projectId);
+          const matchingProject = projects.find(p => p.id === projectId);
           if (matchingProject) {
-            console.log("Found matching project for QAP:", matchingProject);
+            console.log("Found matching project in projects array:", matchingProject);
             safeQap.project = {
               id: matchingProject.id,
-              code: matchingProject.code,
-              name: matchingProject.name
+              code: matchingProject.code || 'UNKNOWN',
+              name: matchingProject.name || 'Unknown Project'
             };
           } else {
-            console.warn(`No project found with ID ${safeQap.projectId}`);
+            console.warn(`No project found with ID ${projectId} in projects array`);
             
             // Attempt to get project details from the API directly
             try {
-              console.log(`Attempting to fetch project details for ID ${safeQap.projectId}`);
-              const projectData = await apiRequest('GET', `/api/projects/${safeQap.projectId}`);
+              console.log(`Attempting to fetch project details for ID ${projectId}`);
+              const projectData = await apiRequest('GET', `/api/projects/${projectId}`);
               if (projectData && typeof projectData === 'object') {
                 console.log("Successfully fetched project details:", projectData);
                 
-                const projectId = typeof projectData.id === 'number' ? projectData.id : 
-                                 (typeof projectData.id === 'string' ? parseInt(projectData.id) : safeQap.projectId);
-                
                 safeQap.project = {
-                  id: projectId,
+                  id: typeof projectData.id === 'number' ? projectData.id : 
+                      (typeof projectData.id === 'string' ? parseInt(projectData.id, 10) : projectId),
                   code: typeof projectData.code === 'string' ? projectData.code : 'UNKNOWN',
                   name: typeof projectData.name === 'string' ? projectData.name : 'Unknown Project'
                 };
               }
             } catch (projectError) {
               console.error(`Failed to fetch additional project details: ${projectError}`);
+              // Fallback - create minimal project object
+              safeQap.project = {
+                id: projectId,
+                code: 'UNKNOWN',
+                name: 'Unknown Project'
+              };
             }
           }
         }
+        
+        // Log the final safe QAP object
+        console.log("Created safe QAP object:", JSON.stringify(safeQap, null, 2));
         
         return safeQap;
       } catch (error) {
@@ -280,7 +312,8 @@ export default function CreateQAPPage() {
         return null;
       }
     },
-    enabled: !!qapId && projects.length > 0,
+    enabled: !!qapId,
+    retry: 1,
   });
   
   // Populate form with existing data when in edit mode
