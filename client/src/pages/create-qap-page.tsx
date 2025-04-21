@@ -168,15 +168,55 @@ export default function CreateQAPPage() {
     queryFn: async () => {
       if (!qapId) return null;
       try {
+        console.log(`Fetching QAP data for ID: ${qapId}`);
         const response: any = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
+        
+        console.log("API Response for QAP:", response);
+        
         if (response && typeof response === 'object') {
-          // Cast to unknown first, then to QAP type
+          // Check if response has the expected structure
+          if (!response.id) {
+            console.error("API response missing 'id' field:", response);
+            toast({
+              title: "Data Error",
+              description: "The QAP data is incomplete or invalid. Please try again.",
+              variant: "destructive",
+            });
+            return null;
+          }
+          
+          // Verify required fields are present
+          const requiredFields = ['id', 'projectId', 'title', 'status'];
+          const missingFields = requiredFields.filter(field => !(field in response));
+          
+          if (missingFields.length > 0) {
+            console.error(`API response missing required fields: ${missingFields.join(', ')}`, response);
+            toast({
+              title: "Data Error",
+              description: `The QAP data is missing required fields: ${missingFields.join(', ')}`,
+              variant: "destructive",
+            });
+            return null;
+          }
+          
+          // Cast to unknown first, then to QAP type with safe access
           return response as unknown as QAP;
         }
-        console.error("Invalid QAP data received");
+        
+        console.error("Invalid QAP data received", response);
+        toast({
+          title: "Data Error",
+          description: "Could not load QAP data. Please try again.",
+          variant: "destructive",
+        });
         return null;
       } catch (error) {
         console.error("Error fetching QAP:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load QAP data. Please try again.",
+          variant: "destructive",
+        });
         return null;
       }
     },
@@ -186,19 +226,45 @@ export default function CreateQAPPage() {
   // Populate form with existing data when in edit mode
   useEffect(() => {
     if (existingQap && !isLoadingQap) {
-      // Update form with existing QAP data
-      form.setValue("projectId", existingQap.projectId.toString());
-      form.setValue("customerId", existingQap.clientName ? 
-        customers.find(c => c.bpName === existingQap.clientName)?.id.toString() || "" : "");
-      form.setValue("title", existingQap.title);
-      form.setValue("category", existingQap.equipmentType as any);
-      form.setValue("revision", existingQap.revision);
-      form.setValue("qapNumber", `QAP-${existingQap.project?.code}-${existingQap.id.toString().padStart(3, '0')}`);
-      form.setValue("revisionNumber", existingQap.revision || "0");
-      
-      // Set selected project code
-      if (existingQap.project) {
-        setSelectedProjectCode(existingQap.project.code);
+      try {
+        // Update form with existing QAP data with null safety checks
+        if (existingQap.projectId !== undefined && existingQap.projectId !== null) {
+          form.setValue("projectId", existingQap.projectId.toString());
+        }
+        
+        if (existingQap.clientName) {
+          const customerMatch = customers.find(c => c.bpName === existingQap.clientName);
+          if (customerMatch?.id) {
+            form.setValue("customerId", customerMatch.id.toString());
+          }
+        }
+        
+        if (existingQap.title) {
+          form.setValue("title", existingQap.title);
+        }
+        
+        if (existingQap.equipmentType) {
+          form.setValue("category", existingQap.equipmentType as any);
+        }
+        
+        if (existingQap.revision) {
+          form.setValue("revision", existingQap.revision);
+        }
+        
+        if (existingQap.id && existingQap.project?.code) {
+          form.setValue("qapNumber", `QAP-${existingQap.project.code}-${existingQap.id.toString().padStart(3, '0')}`);
+        }
+        
+        form.setValue("revisionNumber", existingQap.revision || "0");
+        
+        // Set selected project code
+        if (existingQap.project?.code) {
+          setSelectedProjectCode(existingQap.project.code);
+        }
+        
+        console.log("Populated form with existing QAP data:", existingQap);
+      } catch (error) {
+        console.error("Error populating form with existing QAP:", error);
       }
     }
   }, [existingQap, isLoadingQap, form, customers]);
@@ -281,6 +347,9 @@ export default function CreateQAPPage() {
       
       // Get template ID (using the existing template for now, would normally be selected)
       const templateId = existingQap?.templateId || 3;
+      
+      // Log QAP data for debugging
+      console.log("Existing QAP data:", existingQap);
       
       // Get current date in ISO format
       const currentDate = new Date().toISOString();
