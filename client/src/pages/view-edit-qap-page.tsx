@@ -221,8 +221,23 @@ export default function ViewEditQAPPage() {
 
   // Format QAP number
   const formatQapNumber = () => {
-    if (!qap || !qap?.project) return "QAP-???";
-    return `QAP-${qap?.project?.code || "???"}-${String(qap?.id || "").padStart(3, '0')}`;
+    try {
+      if (!qap) return "QAP-???";
+      
+      // Ensure project exists
+      const project = qap.project;
+      if (!project) return "QAP-???-???";
+      
+      // Ensure ID exists
+      const id = qap.id;
+      if (!id) return `QAP-${project.code || "???"}-???`;
+      
+      // Format the QAP number
+      return `QAP-${project.code || "???"}-${String(id).padStart(3, '0')}`;
+    } catch (error) {
+      console.error("Error formatting QAP number:", error);
+      return "QAP-???-???";
+    }
   };
 
   // Handle back button

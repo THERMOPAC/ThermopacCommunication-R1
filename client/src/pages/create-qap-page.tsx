@@ -239,7 +239,11 @@ export default function CreateQAPPage() {
           content: response.content || "",
           createdAt: response.createdAt || new Date().toISOString(),
           updatedAt: response.updatedAt || new Date().toISOString(),
-          project: null, // Initially set to null, we'll populate it properly below
+          project: {
+            id: response.project?.id || 0,
+            code: response.project?.code || 'UNKNOWN',
+            name: response.project?.name || 'Unknown Project'
+          }, // Default values to prevent null errors
           preparedByUser: response.preparedByUser || { id: user?.id || 0, username: user?.username || "Unknown" },
           approvedByUser: response.approvedByUser || undefined
         };
