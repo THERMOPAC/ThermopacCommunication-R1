@@ -153,6 +153,7 @@ export function ProjectItemsImport({
           <DialogDescription>
             Upload an Excel file to import project items. 
             The file should include columns for Item Code, Description, Quantity, and UOM.
+            Optional columns include Make or Buy, Drawing No, and other specifications.
           </DialogDescription>
         </DialogHeader>
 
@@ -267,9 +268,10 @@ export function ProjectItemsImport({
           </h4>
           <ul className="list-disc pl-5 space-y-1 text-slate-700">
             <li>Required columns: Item Code, Description, Quantity, UOM</li>
-            <li>Optional columns: Specification, Make, Source Type, Supplier</li>
+            <li>Optional columns: Specification, Make, Source Type, Supplier, Make or Buy, Drawing No</li>
             <li>First row should be column headers</li>
             <li>Item Code must be unique within the project</li>
+            <li>Make or Buy should be "Make" or "Buy" (or "M"/"B" abbreviations)</li>
           </ul>
         </div>
       </DialogContent>
