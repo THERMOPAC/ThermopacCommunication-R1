@@ -125,25 +125,68 @@ export async function generateImprovedWorkOrders(req: Request, res: Response) {
     
     // Create a set of all available project item IDs for quick lookups
     const projectItemsSet = new Set(projectItemsList.map(item => item.itemId));
+    console.log(`Project ${projectId} has ${projectItemsList.length} total items`);
     
-    // Get all master item IDs that have components
+    // Log all project items for debugging
+    projectItemsList.forEach(item => {
+      const masterItem = masterItemsMap.get(item.itemId);
+      console.log(`Project item: ${item.id}, Master Item: ${masterItem?.itemCode}, Type: ${masterItem?.makeOrBuy}`);
+    });
+    
+    // Get all master item IDs that have components - direct query for speed
     const masterItemsWithComponents = await db.query.itemComponents.findMany();
+    console.log(`Found ${masterItemsWithComponents.length} total component relationships in database`);
+    
+    // Create parent-child maps for lookup
     const masterItemWithComponentsMap = new Map();
+    const masterItemIsComponentOfMap = new Map();
     
     masterItemsWithComponents.forEach(comp => {
+      // Map parent to its children
       if (!masterItemWithComponentsMap.has(comp.parentItemId)) {
         masterItemWithComponentsMap.set(comp.parentItemId, []);
       }
       masterItemWithComponentsMap.get(comp.parentItemId).push(comp.componentItemId);
+      
+      // Map child to its parent(s)
+      if (!masterItemIsComponentOfMap.has(comp.componentItemId)) {
+        masterItemIsComponentOfMap.set(comp.componentItemId, []);
+      }
+      masterItemIsComponentOfMap.get(comp.componentItemId).push(comp.parentItemId);
     });
+    
+    // Log component relationships for project items
+    for (const item of projectItemsList) {
+      const itemId = item.itemId;
+      const components = masterItemWithComponentsMap.get(itemId) || [];
+      const isComponentOf = masterItemIsComponentOfMap.get(itemId) || [];
+      
+      console.log(`Item ${masterItemsMap.get(itemId)?.itemCode} (ID: ${itemId}):`);
+      console.log(`  - Has ${components.length} components`);
+      console.log(`  - Is a component of ${isComponentOf.length} parent items`);
+      
+      if (components.length > 0) {
+        console.log(`  - Components: ${components.map(id => masterItemsMap.get(id)?.itemCode).join(', ')}`);
+      }
+      
+      if (isComponentOf.length > 0) {
+        console.log(`  - Parent items: ${isComponentOf.map(id => masterItemsMap.get(id)?.itemCode).join(', ')}`);
+      }
+    }
     
     // Filter for "Make" items first
     const makeItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
-      return masterItem && masterItem.makeOrBuy === 'Make';
+      const isMake = masterItem && masterItem.makeOrBuy === 'Make';
+      console.log(`Checking item ${masterItem?.itemCode}: makeOrBuy = ${masterItem?.makeOrBuy}, isMake = ${isMake}`);
+      return isMake;
     });
     
     console.log(`Found ${makeItems.length} 'Make' items from project items`);
+    makeItems.forEach(item => {
+      const masterItem = masterItemsMap.get(item.itemId);
+      console.log(`Make item: ${masterItem?.itemCode} (ID: ${item.itemId})`);
+    });
     
     // Now create virtual items for all components of the "Make" items
     const virtualComponentItems = [];
@@ -221,7 +264,10 @@ export async function generateImprovedWorkOrders(req: Request, res: Response) {
         if (id < 0) {
           // Check if any existing work order item references this master item
           const masterItemId = item.itemId;
-          const hasWorkOrder = existingWorkOrderItems.some(wo => wo.itemId === masterItemId);
+          // We need to check by itemCode since workOrderItems might not have itemId field
+          const masterItemCode = masterItemsMap.get(masterItemId)?.itemCode;
+          const hasWorkOrder = existingWorkOrderItems.some(wo => wo.itemCode === masterItemCode);
+          console.log(`Checking virtual component ${masterItemCode}: hasWorkOrder = ${hasWorkOrder}`);
           return !hasWorkOrder;
         }
         // For regular items, check by project item ID
