@@ -15,5 +15,9 @@ export const roleHierarchy: Record<string, number> = {
 };
 
 export function canManage(managerRole: string, subordinateRole: string): boolean {
+  // If roles don't exist in the hierarchy, default to false
+  if (roleHierarchy[managerRole] === undefined || roleHierarchy[subordinateRole] === undefined) {
+    return false;
+  }
   return roleHierarchy[managerRole] < roleHierarchy[subordinateRole];
 }

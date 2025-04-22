@@ -171,9 +171,14 @@ export default function UserManagement() {
       return acc;
     }, {} as Record<string, User[]>);
 
-    // Sort roles by hierarchy
+    // Sort roles by hierarchy with error handling
     return Object.entries(managersByRole).sort(
-      ([roleA], [roleB]) => roleHierarchy[roleA] - roleHierarchy[roleB]
+      ([roleA], [roleB]) => {
+        // Default hierarchy values if roles aren't found
+        const hierarchyA = roleHierarchy[roleA] !== undefined ? roleHierarchy[roleA] : 999;
+        const hierarchyB = roleHierarchy[roleB] !== undefined ? roleHierarchy[roleB] : 999;
+        return hierarchyA - hierarchyB;
+      }
     );
   };
 
