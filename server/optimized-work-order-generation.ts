@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
-import { eq, inArray, and } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { db } from './db';
 import { 
   projects, projectItems, workOrders, workOrderItems, 
-  masterItems, itemComponents, users
+  masterItems, itemComponents
 } from '@shared/schema';
 
 /**
@@ -12,7 +12,7 @@ import {
  */
 export async function generateWorkOrdersForProject(req: Request, res: Response) {
   const startTime = Date.now();
-  console.time('work-order-generation-total');
+  console.time('optimized-work-order-generation');
   
   try {
     const projectId = parseInt(req.params.projectId);
@@ -20,23 +20,23 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
     
     // Check if project ID is valid
     if (isNaN(projectId)) {
-      console.log('Invalid project ID in work order generation:', req.params.projectId);
+      console.log('Invalid project ID:', req.params.projectId);
       return res.status(400).json({ error: 'Invalid project ID' });
     }
     
-    // Verify user can manage production
+    // Verify user has permission
     const canManage = (role: string) => {
-      return ['Superuser', 'Administrator', 'Manager', 'Senior Manager', 'Production Manager'].includes(role);
+      return ['Superuser', 'Administrator', 'General Manager', 'Senior Manager', 'Manager'].includes(role);
     };
     
-    if (!canManage(req.user!.role)) {
+    if (!req.user || !canManage(req.user.role)) {
       return res.status(403).json({ error: 'You do not have permission to create work orders' });
     }
     
-    console.time('initial-data-fetch');
+    console.time('fetch-parallel-data');
     
     // OPTIMIZATION: Fetch all required data in parallel
-    const [project, existingWorkOrders, projectItemsList, allWorkOrdersByNumber] = await Promise.all([
+    const [project, existingWorkOrders, projectItemsList, workOrderNumbers] = await Promise.all([
       // Get project details
       db.query.projects.findFirst({
         where: eq(projects.id, projectId)
@@ -52,14 +52,14 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
         where: eq(projectItems.projectId, projectId)
       }),
       
-      // Get all work order numbers for this project (for uniqueness check)
+      // Get all work order numbers for uniqueness check
       db.query.workOrders.findMany({
         columns: { workOrderNumber: true },
         where: eq(workOrders.projectId, projectId)
       })
     ]);
     
-    console.timeEnd('initial-data-fetch');
+    console.timeEnd('fetch-parallel-data');
     
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
@@ -71,13 +71,13 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
     
     console.time('master-items-fetch');
     
-    // Get all master items details for the project items
+    // Get master items for the project
     const masterItemIds = projectItemsList.map(item => item.itemId);
     const masterItemsData = await db.query.masterItems.findMany({
       where: inArray(masterItems.id, masterItemIds)
     });
     
-    // Create a map of master item id to details for faster lookups
+    // Create lookup map for faster access
     const masterItemsMap = new Map();
     masterItemsData.forEach(item => {
       masterItemsMap.set(item.id, item);
@@ -87,7 +87,7 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
     
     console.time('item-processing');
     
-    // Filter for "Make" items only once
+    // Filter "Make" items
     const makeItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
       return masterItem && masterItem.makeOrBuy === 'Make';
@@ -97,16 +97,16 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
       return res.status(400).json({ error: 'No "Make" items found for this project' });
     }
     
-    // OPTIMIZATION: Fetch existing work order items and component relationships in parallel
+    // Get relationships and work order items in parallel
     const [existingWorkOrderItems, itemComponentRelationships] = await Promise.all([
-      // Only fetch if we have existing work orders
+      // Only fetch existing items if we have work orders
       existingWorkOrders.length > 0 
         ? db.query.workOrderItems.findMany({
             where: inArray(workOrderItems.workOrderId, existingWorkOrders.map(wo => wo.id))
           })
         : Promise.resolve([]),
-        
-      // Get parent-child relationships from component table
+          
+      // Get component relationships
       db.query.itemComponents.findMany({
         where: inArray(itemComponents.parentItemId, masterItemIds)
       })
@@ -127,7 +127,7 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
       });
     }
     
-    // Create lookup maps for parent-child relationships
+    // Create relationship maps
     const parentToChildMap = new Map<number, number[]>();
     const childToParentMap = new Map<number, number>();
     
@@ -140,12 +140,12 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
     });
     
     // Filter out items that already have work orders
-    let filteredMakeItems = makeItems;
+    let filteredItems = makeItems;
     if (existingWorkOrderItems.length > 0) {
-      const existingProjectItemIds = new Set(existingWorkOrderItems.map(item => item.projectItemId));
-      filteredMakeItems = makeItems.filter(item => !existingProjectItemIds.has(item.id));
+      const existingItemIds = new Set(existingWorkOrderItems.map(item => item.projectItemId));
+      filteredItems = makeItems.filter(item => !existingItemIds.has(item.id));
       
-      if (filteredMakeItems.length === 0) {
+      if (filteredItems.length === 0) {
         return res.status(200).json({ 
           message: 'All applicable items already have work orders', 
           itemCount: 0,
@@ -159,16 +159,16 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
       return res.status(200).json({
         requiresConfirmation: true,
         message: 'Please confirm to generate work orders',
-        itemCount: filteredMakeItems.length
+        itemCount: filteredItems.length
       });
     }
     
-    // Categorize items as parents or children
+    // Categorize items
     const parentItems: typeof makeItems = [];
     const childItems: typeof makeItems = [];
     const parentsWithComponents = new Set<number>();
     
-    filteredMakeItems.forEach(item => {
+    filteredItems.forEach(item => {
       const masterItemId = item.itemId;
       
       if (childToParentMap.has(masterItemId)) {
@@ -182,11 +182,11 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
       }
     });
     
-    // Create virtual child items for components not explicitly included in the project
+    // Create virtual components
     const virtualChildItems: typeof makeItems = [];
     
     parentsWithComponents.forEach(parentItemId => {
-      const parentProjectItem = filteredMakeItems.find(item => item.itemId === parentItemId);
+      const parentProjectItem = filteredItems.find(item => item.itemId === parentItemId);
       if (!parentProjectItem) return;
       
       const componentItemIds = parentToChildMap.get(parentItemId) || [];
@@ -200,7 +200,7 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
       
       componentItemIds.forEach(componentItemId => {
         // Skip if already exists as a project item
-        if (filteredMakeItems.some(item => item.itemId === componentItemId)) return;
+        if (filteredItems.some(item => item.itemId === componentItemId)) return;
         
         const masterComponentItem = masterItemsMap.get(componentItemId);
         if (masterComponentItem && masterComponentItem.makeOrBuy === 'Make') {
@@ -225,21 +225,21 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
     childItems.push(...virtualChildItems);
     console.timeEnd('item-processing');
     
-    console.time('work-order-number-generation');
+    console.time('work-order-creation');
     
-    // Create a set of existing work order numbers for faster lookups
-    const existingWorkOrderNumbers = new Set(allWorkOrdersByNumber.map(wo => wo.workOrderNumber));
+    // Create a set of existing work order numbers
+    const existingWorkOrderNumbers = new Set(workOrderNumbers.map(wo => wo.workOrderNumber));
     
-    // Set default dates
+    // Default dates
     const today = new Date();
     const endDate = new Date();
-    endDate.setDate(today.getDate() + 30); // Default to 30 days schedule
+    endDate.setDate(today.getDate() + 30); // 30 days schedule
     
-    // OPTIMIZATION: Generate work order numbers without database queries
+    // Generate work order numbers
     let seqNumberCounter = existingWorkOrders.length + 1;
-    const workOrderNumbers: { [key: string]: string } = {};
+    const parentWorkOrderMap: Record<string, string> = {};
     
-    // Parent work order numbers
+    // Generate parent work order numbers
     parentItems.forEach((_, index) => {
       let workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
       
@@ -249,40 +249,35 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
         workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
       }
       
-      // Store the work order number
-      workOrderNumbers[`parent-${index}`] = workOrderNumber;
-      existingWorkOrderNumbers.add(workOrderNumber); // Add to set to prevent duplicates
+      parentWorkOrderMap[`parent-${index}`] = workOrderNumber;
+      existingWorkOrderNumbers.add(workOrderNumber);
       seqNumberCounter++;
     });
-    
-    console.timeEnd('work-order-number-generation');
-    
-    console.time('work-order-creation');
     
     // Prepare bulk insert arrays
     const workOrdersToCreate = [];
     const workOrderItemsToCreate = [];
-    const workOrdersMap = new Map<string, any>(); // Map to track created work orders
+    const workOrdersMap = new Map<string, any>();
     
     // Create parent work orders
     for (let i = 0; i < parentItems.length; i++) {
       const parentItem = parentItems[i];
       const masterItem = masterItemsMap.get(parentItem.itemId);
-      const workOrderNumber = workOrderNumbers[`parent-${i}`];
+      const workOrderNumber = parentWorkOrderMap[`parent-${i}`];
       
       if (!masterItem) continue;
       
       const title = `${masterItem.itemCode} - ${masterItem.description || 'Item'}`;
       const description = `Work order for parent item: ${masterItem.itemCode}`;
       
-      // Convert quantity to number
+      // Convert quantity
       const quantity = typeof parentItem.quantity === 'string' 
         ? parseFloat(parentItem.quantity) 
         : parentItem.quantity;
       
       const validQuantity = !isNaN(quantity) && quantity > 0 ? quantity : 1;
       
-      // Get drawing number if available
+      // Get drawing number
       const drawingNo = masterItem.drawingNo && masterItem.drawingNo.trim() !== '' 
         ? masterItem.drawingNo 
         : null;
@@ -303,17 +298,16 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
         createdBy: req.user!.id,
         createdAt: today,
         updatedAt: today,
-        batchNumber: drawingNo // Using batchNumber field to store drawing number
+        batchNumber: drawingNo
       };
       
       workOrdersToCreate.push(workOrder);
       
       // Create work order item
-      const unit = masterItem.uom || 'EA';
+      const unit = masterItem.uom || masterItem.unit || 'EA';
       
       const workOrderItem = {
-        // workOrderId will be filled after insertion
-        tempWorkOrderIndex: workOrdersToCreate.length - 1, // Store index to map later
+        tempWorkOrderIndex: workOrdersToCreate.length - 1,
         projectItemId: parentItem.id,
         itemId: parentItem.itemId,
         itemCode: masterItem.itemCode,
@@ -338,7 +332,7 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
       });
     }
     
-    // Handle child items with parent references
+    // Handle child items
     for (const childItem of childItems) {
       const masterItem = masterItemsMap.get(childItem.itemId);
       const parentItemId = childToParentMap.get(childItem.itemId);
@@ -352,10 +346,8 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
       if (parentInfo) {
         workOrderNumber = `${parentInfo.workOrderNumber}-SUB`;
       } else {
-        // Create a new work order number for this child
         workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
         
-        // Ensure uniqueness
         while (existingWorkOrderNumbers.has(workOrderNumber)) {
           seqNumberCounter++;
           workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
@@ -365,13 +357,13 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
         seqNumberCounter++;
       }
       
-      // Create a title and description
+      // Create title and description
       const title = `${masterItem.itemCode} - ${masterItem.description || 'Component'}`;
       const description = parentItemId 
         ? `Sub-assembly component for parent item ${masterItemsMap.get(parentItemId)?.itemCode || ''}`
         : `Sub-assembly component for project ${project.code}`;
       
-      // Convert quantity to number
+      // Convert quantity
       const quantity = typeof childItem.quantity === 'string' 
         ? parseFloat(childItem.quantity) 
         : childItem.quantity;
@@ -398,16 +390,13 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
       
       workOrdersToCreate.push(childWorkOrder);
       
-      // Create work order item for the child
-      const unit = masterItem.uom || 'EA';
+      // For virtual items, handle project item IDs carefully
       const isVirtual = childItem.id < 0;
-      
-      // For virtual items, we need to handle project item IDs carefully
       let projectItemId = childItem.id;
       let itemNotes = `Auto-generated component for project ${project.code}`;
       
       if (isVirtual && parentItemId) {
-        // Find the parent project item to use its ID
+        // Use parent's project item ID for virtual items
         const parentProjectItem = parentItems.find(item => item.itemId === parentItemId);
         if (parentProjectItem) {
           projectItemId = parentProjectItem.id;
@@ -415,9 +404,10 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
         }
       }
       
+      const unit = masterItem.uom || masterItem.unit || 'EA';
+      
       const childWorkOrderItem = {
-        // workOrderId will be filled after insertion
-        tempWorkOrderIndex: workOrdersToCreate.length - 1, // Store index to map later
+        tempWorkOrderIndex: workOrdersToCreate.length - 1,
         projectItemId,
         itemId: childItem.itemId,
         itemCode: masterItem.itemCode,
@@ -425,7 +415,7 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
         quantity: validQuantity,
         unit,
         itemType: 'Child',
-        isVirtual,
+        isVirtual: isVirtual,
         status: 'pending',
         sequenceNumber: 1,
         notes: itemNotes,
@@ -436,7 +426,7 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
       workOrderItemsToCreate.push(childWorkOrderItem);
     }
     
-    // Insert all work orders in bulk
+    // Insert work orders in bulk
     const createdWorkOrders = await db.insert(workOrders)
       .values(workOrdersToCreate)
       .returning();
@@ -450,13 +440,13 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
       };
     });
     
-    // Insert all work order items in bulk
+    // Insert work order items in bulk
     const createdWorkOrderItems = await db.insert(workOrderItems)
       .values(finalWorkOrderItems)
       .returning();
     
     console.timeEnd('work-order-creation');
-    console.timeEnd('work-order-generation-total');
+    console.timeEnd('optimized-work-order-generation');
     
     const executionTime = Date.now() - startTime;
     
@@ -464,7 +454,8 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
     return res.status(201).json({
       message: 'Successfully generated work orders',
       workOrders: createdWorkOrders,
-      itemCount: filteredMakeItems.length,
+      items: createdWorkOrderItems,
+      itemCount: filteredItems.length,
       parentItemCount: parentItems.length,
       childItemCount: childItems.length,
       executionTime: `${executionTime}ms`
@@ -472,6 +463,8 @@ export async function generateWorkOrdersForProject(req: Request, res: Response) 
     
   } catch (error: any) {
     console.error('Error generating work orders:', error);
-    return res.status(500).json({ error: error.message || 'Failed to generate work orders' });
+    return res.status(500).json({ 
+      error: error.message || 'Failed to generate work orders' 
+    });
   }
 }

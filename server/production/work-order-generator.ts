@@ -241,7 +241,8 @@ export async function generateWorkOrders(req: Request, res: Response) {
     
     // Generate work order numbers
     let seqNumberCounter = existingWorkOrders.length + 1;
-    const workOrderNumbers: { [key: string]: string } = {};
+    // Create a mapping of indices to work order numbers
+    const parentWorkOrderMap: Record<string, string> = {};
     
     // Generate parent work order numbers
     parentItems.forEach((_, index) => {
@@ -253,7 +254,7 @@ export async function generateWorkOrders(req: Request, res: Response) {
         workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
       }
       
-      workOrderNumbers[`parent-${index}`] = workOrderNumber;
+      parentWorkOrderMap[`parent-${index}`] = workOrderNumber;
       existingWorkOrderNumbers.add(workOrderNumber);
       seqNumberCounter++;
     });
@@ -267,7 +268,7 @@ export async function generateWorkOrders(req: Request, res: Response) {
     for (let i = 0; i < parentItems.length; i++) {
       const parentItem = parentItems[i];
       const masterItem = masterItemsMap.get(parentItem.itemId);
-      const workOrderNumber = workOrderNumbers[`parent-${i}`];
+      const workOrderNumber = parentWorkOrderMap[`parent-${i}`];
       
       if (!masterItem) continue;
       
