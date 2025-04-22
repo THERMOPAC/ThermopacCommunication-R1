@@ -328,8 +328,20 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       
       if (!masterItem || !parentInfo) continue;
       
-      // Use parent's work order number with SUB suffix
-      const workOrderNumber = `${parentInfo.workOrderNumber}-SUB`;
+      // Use parent's work order number with SUB suffix, but ensure uniqueness
+      let workOrderNumber = `${parentInfo.workOrderNumber}-SUB`;
+      
+      // Check if this work order number already exists
+      while (existingWorkOrderNumbers.has(workOrderNumber)) {
+        // Add a sequence number if the SUB suffix is already taken
+        const suffixCount = workOrderNumber.includes('-SUB-') 
+          ? parseInt(workOrderNumber.split('-SUB-')[1]) + 1
+          : 1;
+        workOrderNumber = `${parentInfo.workOrderNumber}-SUB-${suffixCount}`;
+      }
+      
+      // Add to our tracking set
+      existingWorkOrderNumbers.add(workOrderNumber);
       
       // Create sub-assembly work order
       const title = `${masterItem.itemCode} - ${masterItem.description || 'Component'}`;
@@ -426,8 +438,8 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       parentCount: filteredMakeParentItems.length,
       componentCount: virtualComponentItems.length
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating direct work orders:', error);
-    return res.status(500).json({ error: 'Failed to generate work orders' });
+    return res.status(500).json({ error: 'Failed to generate work orders', details: error.message || 'Unknown error' });
   }
 }

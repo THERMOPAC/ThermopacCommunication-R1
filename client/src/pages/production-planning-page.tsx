@@ -331,7 +331,7 @@ export default function ProductionPlanningPage() {
       console.error("Error generating work orders:", error);
       toast({
         title: "Error Generating Work Orders",
-        description: error.message || "There was an error generating work orders for this project.",
+        description: error.message || "There was an error generating work orders for this project. Please try again.",
         variant: "destructive",
       });
       resetWorkOrderGenerationState();
