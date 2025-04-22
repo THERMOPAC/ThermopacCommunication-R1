@@ -78,15 +78,18 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     const allComponentRelationships = await db.query.itemComponents.findMany();
     
     // Create maps for parent-child relationships
-    const parentToChildrenMap = new Map();
-    const childToParentMap = new Map();
+    const parentToChildrenMap = new Map<number, number[]>();
+    const childToParentMap = new Map<number, number>();
     
     allComponentRelationships.forEach(rel => {
       // Parent to children mapping
       if (!parentToChildrenMap.has(rel.parentItemId)) {
         parentToChildrenMap.set(rel.parentItemId, []);
       }
-      parentToChildrenMap.get(rel.parentItemId).push(rel.componentItemId);
+      const childrenArray = parentToChildrenMap.get(rel.parentItemId);
+      if (childrenArray) {
+        childrenArray.push(rel.componentItemId);
+      }
       
       // Child to parent mapping
       childToParentMap.set(rel.componentItemId, rel.parentItemId);
@@ -94,10 +97,10 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     
     // Step 5: Get all sub-assembly components for our "Make" parent items
     console.log(`Finding sub-assembly components for 'Make' parent items`);
-    const componentMasterItemIds = new Set();
+    const componentMasterItemIds = new Set<number>();
     makeParentItems.forEach(parentItem => {
       const children = parentToChildrenMap.get(parentItem.itemId) || [];
-      children.forEach(childId => componentMasterItemIds.add(childId));
+      children.forEach((childId: number) => componentMasterItemIds.add(childId));
     });
     
     // Convert Set to Array
