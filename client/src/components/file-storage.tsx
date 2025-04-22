@@ -108,8 +108,11 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
     queryKey: ['/api/storage/directories', financialYear, projectCode],
     queryFn: async () => {
       try {
-        const response = await apiRequest('GET', `/api/storage/directories/${financialYear}/${projectCode}`);
+        const response = await fetch(`/api/storage/directories/${financialYear}/${projectCode}`);
         console.log("Directory API response:", response);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch directories: ${response.status} ${response.statusText}`);
+        }
         const data = await response.json();
         console.log("Directory data:", data);
         return data as DirectoryItem[];
@@ -125,7 +128,10 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
     queryKey: ['/api/storage/templates'],
     queryFn: async () => {
       try {
-        const response = await apiRequest('GET', '/api/storage/templates');
+        const response = await fetch('/api/storage/templates');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch templates: ${response.status} ${response.statusText}`);
+        }
         const data = await response.json();
         console.log("Templates data:", data);
         return data as Record<string, DirectoryTemplate[]>;
