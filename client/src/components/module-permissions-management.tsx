@@ -48,8 +48,8 @@ const ModulePermissionsManagement: React.FC = () => {
   const { data: modules, isLoading: isLoadingModules } = useQuery({
     queryKey: ['/api/modules'],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/modules');
-      return await res.json();
+      // apiRequest automatically parses JSON when parseJson=true (default)
+      return await apiRequest('GET', '/api/modules');
     }
   });
   
@@ -57,8 +57,8 @@ const ModulePermissionsManagement: React.FC = () => {
   const { data: users, isLoading: isLoadingUsers } = useQuery({
     queryKey: ['/api/users'],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/users');
-      return await res.json();
+      // apiRequest automatically parses JSON when parseJson=true (default)
+      return await apiRequest('GET', '/api/users');
     }
   });
   
@@ -66,8 +66,8 @@ const ModulePermissionsManagement: React.FC = () => {
   const { data: rolePermissions, isLoading: isLoadingRolePermissions } = useQuery({
     queryKey: ['/api/role-module-permissions'],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/role-module-permissions');
-      return await res.json();
+      // apiRequest automatically parses JSON when parseJson=true (default)
+      return await apiRequest('GET', '/api/role-module-permissions');
     },
     enabled: selectedTab === 'roles',
   });
@@ -76,8 +76,8 @@ const ModulePermissionsManagement: React.FC = () => {
   const { data: userPermissions, isLoading: isLoadingUserPermissions } = useQuery({
     queryKey: ['/api/users', selectedUser, 'module-permissions'],
     queryFn: async () => {
-      const res = await apiRequest('GET', `/api/users/${selectedUser}/module-permissions`);
-      return await res.json();
+      // apiRequest automatically parses JSON when parseJson=true (default)
+      return await apiRequest('GET', `/api/users/${selectedUser}/module-permissions`);
     },
     enabled: !!selectedUser && selectedTab === 'users',
   });
@@ -85,8 +85,8 @@ const ModulePermissionsManagement: React.FC = () => {
   // Set custom permissions for a user
   const updatePermissionMutation = useMutation({
     mutationFn: async ({ userId, moduleName, permissions }: { userId: number, moduleName: string, permissions: Partial<ModulePermission> }) => {
-      const res = await apiRequest('POST', `/api/users/${userId}/module-permissions/${moduleName}`, permissions);
-      return await res.json();
+      // apiRequest automatically parses JSON when parseJson=true (default)
+      return await apiRequest('POST', `/api/users/${userId}/module-permissions/${moduleName}`, permissions);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users', selectedUser, 'module-permissions'] });
@@ -107,8 +107,8 @@ const ModulePermissionsManagement: React.FC = () => {
   // Reset permissions for a user
   const resetPermissionMutation = useMutation({
     mutationFn: async ({ userId, moduleName }: { userId: number, moduleName: string }) => {
-      const res = await apiRequest('DELETE', `/api/users/${userId}/module-permissions/${moduleName}`);
-      return await res.json();
+      // apiRequest automatically parses JSON when parseJson=true (default)
+      return await apiRequest('DELETE', `/api/users/${userId}/module-permissions/${moduleName}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users', selectedUser, 'module-permissions'] });
