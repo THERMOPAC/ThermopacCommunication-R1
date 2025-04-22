@@ -98,16 +98,12 @@ export default function UserManagement() {
       console.log('Updating user with data:', { id, ...data, password: '[REDACTED]' });
 
       try {
-        const res = await apiRequest("PATCH", `/api/users/${id}`, data);
-        
-        // The apiRequest function already parses JSON, so we don't need to parse it again
-        if (!res.ok) {
-          throw new Error(res.message || 'Failed to update user');
-        }
-        
-        return res; // Return the response directly since apiRequest already parses the JSON
+        // The apiRequest function handles all the request logic including JSON parsing
+        const result = await apiRequest("PATCH", `/api/users/${id}`, data);
+        console.log('Update user API response:', result);
+        return result;
       } catch (error) {
-        console.error('Error updating user:', error);
+        console.error('Error caught in updateUserMutation:', error);
         throw error;
       }
     },
@@ -130,13 +126,13 @@ export default function UserManagement() {
     },
   });
 
-  const editForm = useForm({
+  const editForm = useForm<Partial<InsertUser>>({
     resolver: zodResolver(insertUserSchema.partial()),
     defaultValues: {
       username: "",
       email: "",
       password: "",
-      role: "Employee" as const,
+      role: undefined,
       mobileNumber: "",
       countryCode: "",
       reportingManagerId: undefined,
@@ -161,7 +157,9 @@ export default function UserManagement() {
   const addSelectedRole = addForm.watch("role");
 
   // Get potential managers for the selected role
-  const getEligibleManagers = (selectedRole: string) => {
+  const getEligibleManagers = (selectedRole: string | undefined) => {
+    if (!selectedRole) return [];
+
     // Group managers by their roles
     const managersByRole = users.reduce((acc, manager) => {
       if (manager.id !== editingUser?.id && canManage(manager.role, selectedRole)) {
@@ -189,13 +187,14 @@ export default function UserManagement() {
 
   function handleEdit(user: User) {
     setEditingUser(user);
+    // Convert null to undefined for the form
     editForm.reset({
       username: user.username,
       email: user.email,
       role: user.role,
       mobileNumber: user.mobileNumber,
       countryCode: user.countryCode,
-      reportingManagerId: user.reportingManagerId,
+      reportingManagerId: user.reportingManagerId === null ? undefined : user.reportingManagerId,
     });
     setIsEditDialogOpen(true);
   }
