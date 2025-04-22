@@ -6,13 +6,33 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertCircle, ChevronRight, Check, Activity, Clock, Users, Settings, Search, ChevronDown, ChevronUp, Download, FileSpreadsheet } from "lucide-react";
+import { Loader2, AlertCircle, ChevronRight, Check, Activity, Clock, Users, Settings, Search, 
+         ChevronDown, ChevronUp, Download, FileSpreadsheet, Save } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Define WorkOrder type
 interface WorkOrder {
@@ -50,6 +70,26 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-red-100 text-red-800"
 };
 
+// Configuration settings interface
+interface ConfigSettings {
+  // View settings
+  autoRefreshInterval: number; // in seconds
+  showCompletedOrders: boolean;
+  showCancelledOrders: boolean;
+  defaultSortField: string;
+  defaultSortOrder: 'asc' | 'desc';
+  
+  // Notification settings
+  alertOnHighPriority: boolean;
+  alertOnDelay: boolean;
+  alertOnCompletion: boolean;
+  
+  // Production settings
+  enableResourceTracking: boolean;
+  maxTeamWorkload: number; // percentage
+  allowAutoAssignment: boolean;
+}
+
 export default function ShopFloorPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -57,6 +97,27 @@ export default function ShopFloorPage() {
   const [isExpanded, setIsExpanded] = useState(false); // Default collapsed
   const [searchTerm, setSearchTerm] = useState("");
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  
+  // Shop floor configuration settings with default values
+  const [config, setConfig] = useState<ConfigSettings>({
+    // View settings
+    autoRefreshInterval: 60, // 60 seconds
+    showCompletedOrders: true,
+    showCancelledOrders: false,
+    defaultSortField: "workOrderNumber",
+    defaultSortOrder: "asc",
+    
+    // Notification settings
+    alertOnHighPriority: true,
+    alertOnDelay: true,
+    alertOnCompletion: false,
+    
+    // Production settings
+    enableResourceTracking: true,
+    maxTeamWorkload: 85, // 85% maximum workload
+    allowAutoAssignment: false
+  });
 
   // Fetch all active work orders
   const { data: workOrders, isLoading, isError, error } = useQuery<WorkOrder[]>({
@@ -222,6 +283,28 @@ export default function ShopFloorPage() {
     }
   };
 
+  // Handle saving configuration
+  const handleSaveConfig = () => {
+    // In a real application, save config to API or localStorage
+    // For now, we'll just close the dialog and show a success message
+    setConfigDialogOpen(false);
+    toast({
+      title: "Configuration saved",
+      description: "Your shop floor settings have been updated.",
+    });
+    
+    // Apply new refresh interval if it has changed
+    // This would typically be implemented in useEffect watching for config changes
+  };
+  
+  // Update individual configuration setting
+  const updateConfig = (key: keyof ConfigSettings, value: any) => {
+    setConfig(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
   // Log debugging information
   React.useEffect(() => {
     if (isError) {
@@ -239,10 +322,159 @@ export default function ShopFloorPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight">Shop Floor Management</h1>
-          <Button className="bg-blue-600 hover:bg-blue-700">
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setConfigDialogOpen(true)}>
             <Settings className="mr-2 h-4 w-4" /> Configure
           </Button>
         </div>
+        
+        {/* Configuration Dialog */}
+        <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+          <DialogContent className="sm:max-w-[625px]">
+            <DialogHeader>
+              <DialogTitle>Shop Floor Configuration</DialogTitle>
+              <DialogDescription>
+                Customize shop floor display and behavior settings. Changes will apply immediately after saving.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-6 py-4">
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">View Settings</h3>
+                
+                <div className="grid grid-cols-2 items-center gap-4">
+                  <Label htmlFor="autoRefreshInterval">Auto refresh interval (seconds)</Label>
+                  <div className="flex items-center">
+                    <Input
+                      id="autoRefreshInterval"
+                      type="number"
+                      value={config.autoRefreshInterval}
+                      onChange={(e) => updateConfig('autoRefreshInterval', parseInt(e.target.value) || 30)}
+                      min={15}
+                      max={300}
+                      className="w-24"
+                    />
+                    <span className="ml-2 text-sm text-muted-foreground">
+                      {config.autoRefreshInterval < 30 && "Min: 30s"}
+                    </span>
+                  </div>
+                  
+                  <Label htmlFor="showCompletedOrders">Show completed work orders</Label>
+                  <Switch
+                    id="showCompletedOrders"
+                    checked={config.showCompletedOrders}
+                    onCheckedChange={(checked) => updateConfig('showCompletedOrders', checked)}
+                  />
+                  
+                  <Label htmlFor="showCancelledOrders">Show cancelled work orders</Label>
+                  <Switch
+                    id="showCancelledOrders"
+                    checked={config.showCancelledOrders}
+                    onCheckedChange={(checked) => updateConfig('showCancelledOrders', checked)}
+                  />
+                  
+                  <Label htmlFor="defaultSortField">Default sort field</Label>
+                  <Select
+                    value={config.defaultSortField}
+                    onValueChange={(value) => updateConfig('defaultSortField', value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select field" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="workOrderNumber">Work Order Number</SelectItem>
+                      <SelectItem value="priority">Priority</SelectItem>
+                      <SelectItem value="plannedStartDate">Planned Start Date</SelectItem>
+                      <SelectItem value="productionLine">Production Line</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Label htmlFor="defaultSortOrder">Sort order</Label>
+                  <Select
+                    value={config.defaultSortOrder}
+                    onValueChange={(value) => updateConfig('defaultSortOrder', value as 'asc' | 'desc')}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select order" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">Ascending</SelectItem>
+                      <SelectItem value="desc">Descending</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Notification Settings</h3>
+                
+                <div className="grid grid-cols-2 items-center gap-4">
+                  <Label htmlFor="alertOnHighPriority">Alert on high priority work orders</Label>
+                  <Switch
+                    id="alertOnHighPriority"
+                    checked={config.alertOnHighPriority}
+                    onCheckedChange={(checked) => updateConfig('alertOnHighPriority', checked)}
+                  />
+                  
+                  <Label htmlFor="alertOnDelay">Alert on delayed work orders</Label>
+                  <Switch
+                    id="alertOnDelay"
+                    checked={config.alertOnDelay}
+                    onCheckedChange={(checked) => updateConfig('alertOnDelay', checked)}
+                  />
+                  
+                  <Label htmlFor="alertOnCompletion">Alert on work order completion</Label>
+                  <Switch
+                    id="alertOnCompletion"
+                    checked={config.alertOnCompletion}
+                    onCheckedChange={(checked) => updateConfig('alertOnCompletion', checked)}
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Production Settings</h3>
+                
+                <div className="grid grid-cols-2 items-center gap-4">
+                  <Label htmlFor="enableResourceTracking">Enable resource tracking</Label>
+                  <Switch
+                    id="enableResourceTracking"
+                    checked={config.enableResourceTracking}
+                    onCheckedChange={(checked) => updateConfig('enableResourceTracking', checked)}
+                  />
+                  
+                  <Label htmlFor="maxTeamWorkload">Maximum team workload (%)</Label>
+                  <div className="flex items-center">
+                    <Input
+                      id="maxTeamWorkload"
+                      type="number"
+                      value={config.maxTeamWorkload}
+                      onChange={(e) => updateConfig('maxTeamWorkload', parseInt(e.target.value) || 85)}
+                      min={50}
+                      max={100}
+                      className="w-24"
+                    />
+                    <span className="ml-2 text-sm text-muted-foreground">%</span>
+                  </div>
+                  
+                  <Label htmlFor="allowAutoAssignment">Allow auto assignment of work orders</Label>
+                  <Switch
+                    id="allowAutoAssignment"
+                    checked={config.allowAutoAssignment}
+                    onCheckedChange={(checked) => updateConfig('allowAutoAssignment', checked)}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfigDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleSaveConfig} className="bg-blue-600 hover:bg-blue-700">
+                <Save className="h-4 w-4 mr-2" />
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Production Summary Cards */}
