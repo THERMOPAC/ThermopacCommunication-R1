@@ -328,16 +328,16 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       
       if (!masterItem || !parentInfo) continue;
       
-      // Use parent's work order number with SUB suffix, but ensure uniqueness
-      let workOrderNumber = `${parentInfo.workOrderNumber}-SUB`;
+      // Use parent's work order number with a child sequence number (e.g., WO-2526-3-1-1)
+      // Start with child sequence number 1
+      let childSequence = 1;
+      let workOrderNumber = `${parentInfo.workOrderNumber}-${childSequence}`;
       
       // Check if this work order number already exists
       while (existingWorkOrderNumbers.has(workOrderNumber)) {
-        // Add a sequence number if the SUB suffix is already taken
-        const suffixCount = workOrderNumber.includes('-SUB-') 
-          ? parseInt(workOrderNumber.split('-SUB-')[1]) + 1
-          : 1;
-        workOrderNumber = `${parentInfo.workOrderNumber}-SUB-${suffixCount}`;
+        // Increment the child sequence number
+        childSequence++;
+        workOrderNumber = `${parentInfo.workOrderNumber}-${childSequence}`;
       }
       
       // Add to our tracking set
