@@ -9,6 +9,7 @@ import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 import { generateWorkOrders } from './production/work-order-generator';
 import { generateWorkOrdersForProject } from './optimized-work-order-generation';
 import { generateImprovedWorkOrders } from './production/improved-work-order-generator';
+import { generateDirectWorkOrders } from './production/direct-work-order-generator';
 
 // Authentication middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
@@ -304,10 +305,11 @@ export function setupProductionRoutes(app: Router) {
   }
 });
   
-  // Generate work orders for a project with improved implementation
-  app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, generateImprovedWorkOrders);
+  // Generate work orders for a project with direct implementation that properly handles sub-assemblies
+  app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, generateDirectWorkOrders);
   
   // Alternative implementations (kept as fallback)
+  app.post('/api/production/work-orders/generate-for-project-improved/:projectId', ensureAuthenticated, generateImprovedWorkOrders);
   app.post('/api/production/work-orders/generate-for-project-optimized/:projectId', ensureAuthenticated, generateWorkOrdersForProject);
   app.post('/api/production/work-orders/generate-for-project-old/:projectId', ensureAuthenticated, generateWorkOrders);
   
