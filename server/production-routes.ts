@@ -304,6 +304,7 @@ export function setupProductionRoutes(app: Router) {
   // Generate work orders for a project
   app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      console.time('work-order-generation');
       const projectId = parseInt(req.params.projectId);
       const { confirm } = req.body;
       
@@ -318,28 +319,43 @@ export function setupProductionRoutes(app: Router) {
         return res.status(403).json({ error: 'You do not have permission to create work orders' });
       }
       
-      // Get project to ensure it exists
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
-      });
+      // OPTIMIZATION: Fetch all required data in parallel to reduce database roundtrips
+      console.time('initial-data-fetch');
+      
+      const [project, existingWorkOrders, projectItemsList, allWorkOrdersByNumber] = await Promise.all([
+        // Get project details
+        db.query.projects.findFirst({
+          where: eq(projects.id, projectId)
+        }),
+        
+        // Get existing work orders
+        db.query.workOrders.findMany({
+          where: eq(workOrders.projectId, projectId)
+        }),
+        
+        // Get project items
+        db.query.projectItems.findMany({
+          where: eq(projectItems.projectId, projectId)
+        }),
+        
+        // Get all work order numbers for this project (for uniqueness check)
+        db.query.workOrders.findMany({
+          columns: { workOrderNumber: true },
+          where: eq(workOrders.projectId, projectId)
+        })
+      ]);
+      
+      console.timeEnd('initial-data-fetch');
       
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
       
-      // Check if there are already work orders for this project
-      const existingWorkOrders = await db.query.workOrders.findMany({
-        where: eq(workOrders.projectId, projectId)
-      });
-      
-      // Get all items for the project
-      const projectItemsList = await db.query.projectItems.findMany({
-        where: eq(projectItems.projectId, projectId)
-      });
-      
       if (projectItemsList.length === 0) {
         return res.status(404).json({ error: 'No items found for this project' });
       }
+      
+      console.time('master-items-fetch');
       
       // Get all master items details for the project items
       const masterItemIds = projectItemsList.map(item => item.itemId);
@@ -353,26 +369,44 @@ export function setupProductionRoutes(app: Router) {
         masterItemsMap.set(item.id, item);
       });
       
-      // Group items by "makeOrBuy" status
+      console.timeEnd('master-items-fetch');
+      
+      // OPTIMIZATION: Only filter make items once
+      console.time('item-processing');
       const makeItems = projectItemsList.filter(item => {
         const masterItem = masterItemsMap.get(item.itemId);
         return masterItem && masterItem.makeOrBuy === 'Make';
       });
       
-      // Identify parent-child relationships using item components table
-      // We already have masterItemIds from above, so we can use it directly
-      const itemComponentRelationships = await db.query.itemComponents.findMany({
-        where: inArray(itemComponents.parentItemId, masterItemIds)
-      });
+      if (makeItems.length === 0) {
+        return res.status(400).json({ error: 'No "Make" items found for this project' });
+      }
       
-      // If we have components, also get their master item details
+      // OPTIMIZATION: Fetch existing work order items and component relationships in parallel
+      const [existingWorkOrderItems, itemComponentRelationships] = await Promise.all([
+        // Only fetch if we have existing work orders
+        existingWorkOrders.length > 0 
+          ? db.query.workOrderItems.findMany({
+              where: inArray(workOrderItems.workOrderId, existingWorkOrders.map(wo => wo.id))
+            })
+          : Promise.resolve([]),
+          
+        // Get parent-child relationships from component table
+        db.query.itemComponents.findMany({
+          where: inArray(itemComponents.parentItemId, masterItemIds)
+        })
+      ]);
+      
+      // OPTIMIZATION: Process component items only if needed
       const componentItemIds = itemComponentRelationships.map(rel => rel.componentItemId);
+      let componentMasterItems: any[] = [];
+      
       if (componentItemIds.length > 0) {
-        const componentMasterItems = await db.query.masterItems.findMany({
+        componentMasterItems = await db.query.masterItems.findMany({
           where: inArray(masterItems.id, componentItemIds)
         });
         
-        // Add these to the master items map
+        // Add to master items map
         componentMasterItems.forEach(item => {
           if (!masterItemsMap.has(item.id)) {
             masterItemsMap.set(item.id, item);
