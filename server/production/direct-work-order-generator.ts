@@ -103,7 +103,12 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     const componentMasterItemIds = new Set<number>();
     makeParentItems.forEach(parentItem => {
       const children = parentToChildrenMap.get(parentItem.itemId) || [];
-      children.forEach((childId: number) => componentMasterItemIds.add(childId));
+      console.log(`Parent item ${parentItem.itemId} (${masterItemsMap.get(parentItem.itemId)?.itemCode}) has ${children.length} component children`);
+      
+      children.forEach((childId: number) => {
+        console.log(`  - Adding component: ${childId} (${masterItemsMap.get(childId)?.itemCode || 'Unknown Item'})`);
+        componentMasterItemIds.add(childId);
+      });
     });
     
     // Convert Set to Array
@@ -361,9 +366,11 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       // Create work order item for this component
       const unit = masterItem.uom || 'EA';
       
-      // Find parent project item to use its ID
-      const parentItem = filteredMakeParentItems.find(item => item.itemId === parentItemId);
-      const projectItemId = parentItem?.id || component.id;
+      // Typically we'd use the parent's project item ID, but for virtual components
+      // we need to create our own projectItemId that will associate with this component
+      // Using component.id (which is a negative number to mark it as virtual) for these cases
+      console.log(`Creating child work order item with component ID: ${component.id} (virtual)`);
+      const projectItemId = component.id; // Use the component's ID (which is negative for virtual)
       
       const componentWorkOrderItem = {
         tempWorkOrderIndex: workOrdersToCreate.length - 1,

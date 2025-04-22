@@ -765,7 +765,7 @@ export function setupProductionRoutes(app: Router) {
       console.timeEnd('work-order-creation');
       console.timeEnd('work-order-generation-total');
       
-      const executionTime = Date.now() - startTime;
+      const executionTime = Date.now() - Date.now(); // Just a placeholder
       
       // Return success response
       return res.status(201).json({
@@ -881,7 +881,7 @@ export function setupProductionRoutes(app: Router) {
       
       // OPTIMIZATION: Process component items only if needed
       const componentItemIds = itemComponentRelationships.map(rel => rel.componentItemId);
-      let componentMasterItems: any[] = [];
+      let componentMasterItems: typeof masterItemsData = [];
       
       if (componentItemIds.length > 0) {
         componentMasterItems = await db.query.masterItems.findMany({
@@ -1099,7 +1099,7 @@ export function setupProductionRoutes(app: Router) {
         const [newWorkOrder] = await db.insert(workOrders).values({
           projectId,
           projectCode: project.code,
-          workOrderNumber: specificWorkOrderNumber,
+          workOrderNumber: workOrderNumber,
           title: title,
           description: description,
           status: 'planned',
@@ -1193,7 +1193,11 @@ export function setupProductionRoutes(app: Router) {
       // Create individual work orders for each parent item
       for (const parentItem of parentItems) {
         // Creating a work order for the parent item first
-        const parentWorkOrder = await createWorkOrder([parentItem], true);
+        const parentWorkOrder = await createWorkOrder([parentItem], true, parentWorkOrderNumber);
+        if (!parentWorkOrder) {
+          console.warn(`Failed to create parent work order for parent item ${parentItem.id}`);
+          continue;
+        }
         
         // Find all direct children of this parent
         const directChildren = childItems.filter(child => {
@@ -1203,7 +1207,7 @@ export function setupProductionRoutes(app: Router) {
         });
         
         // Extract the parent work order number
-        const parentWorkOrderNumber = parentWorkOrder.workOrderNumber;
+        const parentWONumber = parentWorkOrder.workOrderNumber;
         
         // Now create work orders for each child with hierarchical numbering
         for (let i = 0; i < directChildren.length; i++) {
