@@ -74,13 +74,16 @@ export function ItemComponentsImport({
       });
 
       // Send POST request to import API
-      const response = await apiRequest('POST', '/api/master-items/components/import-excel', formData);
-      const data = await response.json();
-
+      // Set parseJson to false to get the raw response object since we need to check response.ok
+      const response = await apiRequest('POST', '/api/master-items/components/import-excel', formData, true, false) as Response;
+      
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to import components');
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.message || 'Failed to import components');
       }
-
+      
+      // Now parse the JSON after confirming it's a successful response
+      const data = await response.json();
       console.log('Import results:', data);
       setResults(data.results);
       
