@@ -73,9 +73,12 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     
     console.log(`Found ${makeParentItems.length} 'Make' parent items`);
     
-    // Step 4: Get ALL component relationships from the database
+    // Step 4: Get component relationships for this project's items from the database
     console.log(`Getting component relationships from database`);
-    const allComponentRelationships = await db.query.itemComponents.findMany();
+    // Only get relationships for the master items in this project
+    const allComponentRelationships = await db.query.itemComponents.findMany({
+      where: inArray(itemComponents.parentItemId, masterItemIds)
+    });
     
     // Create maps for parent-child relationships
     const parentToChildrenMap = new Map<number, number[]>();
@@ -384,8 +387,14 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     console.log(`Ready to create ${workOrdersToCreate.length} work orders with ${workOrderItemsToCreate.length} items`);
     
     // Step 14: Insert all work orders in bulk
+    // Convert quantity to number to match schema
+    const workOrdersToCreateFixed = workOrdersToCreate.map(wo => ({
+      ...wo,
+      quantity: Number(wo.quantity) // Convert string to number for database
+    }));
+    
     const createdWorkOrders = await db.insert(workOrders)
-      .values(workOrdersToCreate)
+      .values(workOrdersToCreateFixed)
       .returning();
     
     // Step 15: Update work order IDs in items
