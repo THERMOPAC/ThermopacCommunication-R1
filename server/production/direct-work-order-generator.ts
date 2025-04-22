@@ -271,7 +271,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         priority: 'Medium',
         plannedStartDate: today,
         plannedEndDate: endDate,
-        quantity: validQuantity,
+        quantity: validQuantity.toString(), // Convert to string for database compatibility
         supervisorId: req.user!.id,
         createdBy: req.user!.id,
         createdAt: today,
@@ -342,7 +342,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         priority: 'Medium',
         plannedStartDate: today,
         plannedEndDate: endDate,
-        quantity: validQuantity,
+        quantity: validQuantity.toString(), // Convert to string for database compatibility
         supervisorId: req.user!.id,
         createdBy: req.user!.id,
         createdAt: today,
