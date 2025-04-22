@@ -36,8 +36,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      const res = await apiRequest("POST", "/api/login", credentials);
-      return await res.json();
+      // Set parseJson=true to directly get the parsed JSON response instead of Response object
+      const user = await apiRequest<SelectUser>("POST", "/api/login", credentials, false, true);
+      return user as SelectUser;
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
@@ -45,16 +46,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onError: (error: Error) => {
       toast({
         title: "Login failed",
-        description: error.message,
+        description: error.message || "Failed to authenticate. Please try again.",
         variant: "destructive",
       });
+      console.error("Login error:", error);
     },
   });
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
-      const res = await apiRequest("POST", "/api/register", credentials);
-      return await res.json();
+      // Set parseJson=true to directly get the parsed JSON response instead of Response object
+      const user = await apiRequest<SelectUser>("POST", "/api/register", credentials, false, true);
+      return user as SelectUser;
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
@@ -62,18 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onError: (error: Error) => {
       toast({
         title: "Registration failed",
-        description: error.message,
+        description: error.message || "Failed to create account. Please try again.",
         variant: "destructive",
       });
+      console.error("Registration error:", error);
     },
   });
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/logout");
-      if (!res.ok) {
-        throw new Error("Logout failed");
-      }
+      // Set parseJson=false to get the Response object (logout doesn't return JSON)
+      await apiRequest("POST", "/api/logout", undefined, false, false);
     },
     onSuccess: () => {
       // Clear user data first
@@ -81,13 +83,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear(); // Clear all queries
       // Then redirect
       setTimeout(() => setLocation("/auth"), 100);
+      
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out",
+        variant: "default",
+      });
     },
     onError: (error: Error) => {
       toast({
         title: "Logout failed",
-        description: error.message,
+        description: error.message || "Could not log out. Please try again.",
         variant: "destructive",
       });
+      console.error("Logout error:", error);
     },
   });
 
