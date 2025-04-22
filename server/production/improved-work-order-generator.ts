@@ -123,24 +123,82 @@ export async function generateImprovedWorkOrders(req: Request, res: Response) {
     
     console.time('item-processing');
     
-    // Filter for "Make" items AND their child components
+    // Create a set of all available project item IDs for quick lookups
+    const projectItemsSet = new Set(projectItemsList.map(item => item.itemId));
+    
+    // Get all master item IDs that have components
+    const masterItemsWithComponents = await db.query.itemComponents.findMany();
+    const masterItemWithComponentsMap = new Map();
+    
+    masterItemsWithComponents.forEach(comp => {
+      if (!masterItemWithComponentsMap.has(comp.parentItemId)) {
+        masterItemWithComponentsMap.set(comp.parentItemId, []);
+      }
+      masterItemWithComponentsMap.get(comp.parentItemId).push(comp.componentItemId);
+    });
+    
+    // Filter for "Make" items first
     const makeItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
-      
-      // Include items marked as "Make"
-      if (masterItem && masterItem.makeOrBuy === 'Make') {
-        return true;
-      }
-      
-      // Include child components of "Make" parent items
-      if (childToParentMap.has(item.itemId)) {
-        const parentItemId = childToParentMap.get(item.itemId);
-        const parentItem = masterItemsMap.get(parentItemId!);
-        return parentItem && parentItem.makeOrBuy === 'Make';
-      }
-      
-      return false;
+      return masterItem && masterItem.makeOrBuy === 'Make';
     });
+    
+    console.log(`Found ${makeItems.length} 'Make' items from project items`);
+    
+    // Now create virtual items for all components of the "Make" items
+    const virtualComponentItems = [];
+    
+    for (const makeItem of makeItems) {
+      // Check if this item has components
+      const components = masterItemWithComponentsMap.get(makeItem.itemId);
+      if (!components || components.length === 0) continue;
+      
+      console.log(`Item ${makeItem.itemId} has ${components.length} components`);
+      
+      for (const componentId of components) {
+        // Skip if this component is already a project item
+        if (projectItemsSet.has(componentId)) {
+          console.log(`Component ${componentId} already exists as project item`);
+          continue;
+        }
+        
+        const componentMasterItem = masterItemsMap.get(componentId);
+        if (!componentMasterItem) {
+          console.log(`Component ${componentId} not found in master items`);
+          continue;
+        }
+        
+        console.log(`Creating virtual component for ${componentId} - ${componentMasterItem.itemCode}`);
+        
+        // Create a virtual project item for this component
+        const quantity = typeof makeItem.quantity === 'string' 
+          ? parseFloat(makeItem.quantity) 
+          : makeItem.quantity;
+        
+        const validQuantity = !isNaN(quantity) && quantity > 0 
+          ? quantity 
+          : 1;
+        
+        virtualComponentItems.push({
+          id: -(Math.abs(componentId)), // Negative ID to mark as virtual
+          projectId: makeItem.projectId,
+          projectCode: project.code,
+          itemId: componentId,
+          quantity: validQuantity.toString(),
+          notes: `Virtual component of ${masterItemsMap.get(makeItem.itemId)?.itemCode || 'parent item'}`,
+          status: 'Not Started',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          actualCost: null,
+          estimatedCost: null
+        });
+      }
+    }
+    
+    console.log(`Created ${virtualComponentItems.length} virtual component items`);
+    
+    // Combine original make items with virtual component items
+    const allMakeItems = [...makeItems, ...virtualComponentItems];
     
     if (makeItems.length === 0) {
       return res.status(400).json({ error: 'No "Make" items found for this project' });
@@ -154,10 +212,21 @@ export async function generateImprovedWorkOrders(req: Request, res: Response) {
       : [];
     
     // Filter out items that already have work orders
-    let filteredItems = makeItems;
+    let filteredItems = allMakeItems;
     if (existingWorkOrderItems.length > 0) {
       const existingItemIds = new Set(existingWorkOrderItems.map(item => item.projectItemId));
-      filteredItems = makeItems.filter(item => !existingItemIds.has(item.id));
+      filteredItems = allMakeItems.filter(item => {
+        const id = item.id;
+        // For virtual items with negative IDs, we need to check differently
+        if (id < 0) {
+          // Check if any existing work order item references this master item
+          const masterItemId = item.itemId;
+          const hasWorkOrder = existingWorkOrderItems.some(wo => wo.itemId === masterItemId);
+          return !hasWorkOrder;
+        }
+        // For regular items, check by project item ID
+        return !existingItemIds.has(id);
+      });
       
       if (filteredItems.length === 0) {
         return res.status(200).json({ 
