@@ -36,7 +36,7 @@ export default function AuthPage() {
             <CardTitle>Communication System</CardTitle>
           </CardHeader>
           <CardContent>
-            <LoginForm />
+            <LoginForm loginMutation={loginMutation} />
           </CardContent>
         </Card>
       </div>
@@ -59,8 +59,8 @@ export default function AuthPage() {
   );
 }
 
-function LoginForm() {
-  const { loginMutation } = useAuth();
+// The LoginForm is now a component that receives the loginMutation as a prop
+function LoginForm({ loginMutation }: { loginMutation: any }) {
   const form = useForm({
     defaultValues: {
       username: "",
