@@ -558,7 +558,10 @@ const ItemMasterManagement: React.FC = () => {
   const { data: items, isLoading, error, refetch } = useQuery({
     queryKey: ['/api/master-items'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/master-items');
+      const response = await fetch('/api/master-items');
+      if (!response.ok) {
+        throw new Error('Failed to fetch master items');
+      }
       return response.json();
     }
   });
@@ -705,7 +708,7 @@ const ItemMasterManagement: React.FC = () => {
         // Fetch the master item details
         const fetchItemDetails = async () => {
           try {
-            const response = await apiRequest('GET', `/api/master-items/${itemId}`);
+            const response = await fetch(`/api/master-items/${itemId}`);
             if (!response.ok) {
               throw new Error('Failed to fetch item details');
             }
