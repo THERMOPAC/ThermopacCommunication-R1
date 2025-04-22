@@ -408,10 +408,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   // Submit handler for editing project
   const updateProjectMutation = useMutation({
     mutationFn: async (data: EditProjectValues) => {
-      const res = await apiRequest("PUT", `/api/projects/${projectId}`, data);
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "PUT",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+      });
+      
       if (!res.ok) {
-        throw new Error("Failed to update project");
+        const errorText = await res.text().catch(() => 'Unknown error');
+        throw new Error(errorText || "Failed to update project");
       }
+      
       return await res.json();
     },
     onSuccess: () => {
