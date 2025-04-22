@@ -310,33 +310,17 @@ export default function ProductionPlanningPage() {
         }
       );
       
+      const responseData = await response.json();
+      
       if (!response.ok) {
-        let errorMessage = "Failed to generate work orders";
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (e) {
-          console.error("Error parsing error response:", e);
-        }
+        let errorMessage = responseData.error || "Failed to generate work orders";
         throw new Error(errorMessage);
       }
       
-      let successData;
-      try {
-        successData = await response.json();
-        console.log("Work order generation response:", successData);
-      } catch (error) {
-        console.error("Failed to parse response JSON:", error);
-        successData = { 
-          workOrders: [], 
-          items: [],
-          message: "Created work orders successfully, but encountered an issue processing the response" 
-        };
-      }
-      
+      // At this point we have successful data, so display success message
       toast({
         title: "Work Orders Generated",
-        description: successData.message || `Successfully created work orders for the project`,
+        description: responseData.message || `Successfully created ${responseData.count || 'multiple'} work orders for the project`,
       });
       
       // Refresh the work orders list and reset states

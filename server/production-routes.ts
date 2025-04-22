@@ -1242,7 +1242,7 @@ export function setupProductionRoutes(app: Router) {
       const remainingChildren = childItems.filter(child => !processedChildItemIds.has(child.id));
       // Create a separate work order for each remaining child item
       for (const childItem of remainingChildren) {
-        await createWorkOrder([childItem], false);
+        await createWorkOrder([childItem], false, childWorkOrderNumber);
       }
       
       res.status(201).json({
