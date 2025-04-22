@@ -151,8 +151,11 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
       console.log(`Fetching files for path: ${currentPath}`);
       
       try {
-        const response = await apiRequest('GET', `/api/storage/files?path=${encodeURIComponent(currentPath)}`);
+        const response = await fetch(`/api/storage/files?path=${encodeURIComponent(currentPath)}`);
         console.log(`Files API response status: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch files: ${response.status} ${response.statusText}`);
+        }
         const data = await response.json();
         console.log(`Files data: ${JSON.stringify(data)}`);
         return data as FileItem[];
@@ -172,8 +175,20 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
       department: string; 
       subDirectory?: string;
     }) => {
-      const response = await apiRequest('POST', '/api/storage/directories', data);
-      return response.json();
+      const response = await fetch('/api/storage/directories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to create directory: ${response.status} ${response.statusText}`);
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -198,8 +213,20 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
   // Delete file mutation
   const deleteFileMutation = useMutation({
     mutationFn: async (filePath: string) => {
-      const response = await apiRequest('DELETE', '/api/storage/files', { filePath });
-      return response.json();
+      const response = await fetch('/api/storage/files', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filePath })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to delete file: ${response.status} ${response.statusText}`);
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -222,8 +249,11 @@ export default function FileStorage({ projectId, projectCode, financialYear }: F
   const generateDownloadUrlMutation = useMutation({
     mutationFn: async (filePath: string) => {
       try {
-        const response = await apiRequest('GET', `/api/storage/download-url?filePath=${encodeURIComponent(filePath)}`);
+        const response = await fetch(`/api/storage/download-url?filePath=${encodeURIComponent(filePath)}`);
         console.log("Download URL API response:", response);
+        if (!response.ok) {
+          throw new Error(`Failed to generate download URL: ${response.status} ${response.statusText}`);
+        }
         const data = await response.json();
         return data as { downloadUrl: string };
       } catch (error) {
