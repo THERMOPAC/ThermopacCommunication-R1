@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertCircle, ChevronRight, Check, Activity, Clock, Users, Settings, Search, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, AlertCircle, ChevronRight, Check, Activity, Clock, Users, Settings, Search, ChevronDown, ChevronUp, Download, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import * as XLSX from 'xlsx';
 
 // Define WorkOrder type
 interface WorkOrder {
@@ -50,9 +52,11 @@ const statusColors: Record<string, string> = {
 
 export default function ShopFloorPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("active");
   const [isExpanded, setIsExpanded] = useState(false); // Default collapsed
   const [searchTerm, setSearchTerm] = useState("");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   // Fetch all active work orders
   const { data: workOrders, isLoading, isError, error } = useQuery<WorkOrder[]>({
