@@ -378,11 +378,15 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       // Create work order item for this component
       const unit = masterItem.uom || 'EA';
       
-      // Typically we'd use the parent's project item ID, but for virtual components
-      // we need to create our own projectItemId that will associate with this component
-      // Using component.id (which is a negative number to mark it as virtual) for these cases
+      // For virtual components, we need to use a real project item ID
+      // We'll use the parent's project item ID instead of the virtual negative ID
       console.log(`Creating child work order item with component ID: ${component.id} (virtual)`);
-      const projectItemId = component.id; // Use the component's ID (which is negative for virtual)
+      
+      // Find parent project item for this component
+      const componentParentItemId = childToParentMap.get(component.itemId);
+      // Find a parent project item to use instead of the virtual negative ID
+      const parentProjectItem = projectItemsList.find(item => item.itemId === componentParentItemId);
+      const projectItemId = parentProjectItem?.id || projectItemsList[0].id; // Fallback to first project item if parent not found
       
       const componentWorkOrderItem = {
         tempWorkOrderIndex: workOrdersToCreate.length - 1,
@@ -395,7 +399,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         isVirtual: true,
         status: 'pending',
         sequenceNumber: 1,
-        notes: `Sub-assembly of ${masterItemsMap.get(parentItemId)?.itemCode}`,
+        notes: `Sub-assembly of ${masterItemsMap.get(componentParentItemId)?.itemCode}`,
         createdAt: today,
         updatedAt: today
       };
@@ -441,9 +445,9 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
   } catch (error: any) {
     console.error('Error generating direct work orders:', error);
     
-    // Special handling for PostgreSQL unique constraint violations
+    // Special handling for PostgreSQL constraint violations
     if (error.code === '23505') {
-      // Extract the duplicate key from the error detail
+      // Unique constraint violation
       const duplicateKey = error.detail ? error.detail.match(/\((.*?)\)=\((.*?)\)/) : null;
       const keyName = duplicateKey ? duplicateKey[1] : 'unknown';
       const keyValue = duplicateKey ? duplicateKey[2] : 'unknown';
@@ -454,6 +458,27 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
           error: 'Work order number conflict',
           details: `A work order with number ${keyValue} already exists. Please clean up existing work orders first.`,
           suggestion: 'Use the "Clean Up Existing Orders" button and try again.'
+        });
+      }
+    } else if (error.code === '23503') {
+      // Foreign key constraint violation
+      const match = error.detail ? error.detail.match(/Key \((.*?)\)=\((.*?)\) is not present in table "(.*?)"/) : null;
+      
+      if (match) {
+        const [_, keyName, keyValue, tableName] = match;
+        
+        if (keyName === 'project_item_id' && keyValue.startsWith('-')) {
+          return res.status(422).json({ 
+            error: 'Virtual component reference error',
+            details: `Cannot reference virtual component ID ${keyValue} directly. Please check the component linking.`,
+            suggestion: 'This is a system error. Contact your administrator.'
+          });
+        }
+        
+        return res.status(422).json({ 
+          error: 'Database reference error',
+          details: `The ${keyName} with value ${keyValue} does not exist in table ${tableName}.`,
+          suggestion: 'This is a system error. Contact your administrator.'
         });
       }
     }
