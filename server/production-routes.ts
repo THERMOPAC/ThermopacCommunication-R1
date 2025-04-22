@@ -8,6 +8,7 @@ import { insertWorkOrderSchema, workOrders, insertWorkOrderItemSchema,
 import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 import { generateWorkOrders } from './production/work-order-generator';
 import { generateWorkOrdersForProject } from './optimized-work-order-generation';
+import { generateImprovedWorkOrders } from './production/improved-work-order-generator';
 
 // Authentication middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
@@ -303,10 +304,11 @@ export function setupProductionRoutes(app: Router) {
   }
 });
   
-  // Generate work orders for a project with optimized implementation
-  app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, generateWorkOrdersForProject);
+  // Generate work orders for a project with improved implementation
+  app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, generateImprovedWorkOrders);
   
-  // Alternative implementation (kept as fallback)
+  // Alternative implementations (kept as fallback)
+  app.post('/api/production/work-orders/generate-for-project-optimized/:projectId', ensureAuthenticated, generateWorkOrdersForProject);
   app.post('/api/production/work-orders/generate-for-project-old/:projectId', ensureAuthenticated, generateWorkOrders);
   
   // Legacy implementation (kept for reference, will be removed later)
@@ -380,30 +382,23 @@ export function setupProductionRoutes(app: Router) {
       
       console.time('item-processing');
       
-      // Filter for "Make" items only once
-      const makeItems = projectItemsList.filter(item => {
-        const masterItem = masterItemsMap.get(item.itemId);
-        return masterItem && masterItem.makeOrBuy === 'Make';
+      // Get component relationships first before filtering items
+      // Get parent-child relationships from component table
+      const itemComponentRelationships = await db.query.itemComponents.findMany({
+        where: inArray(itemComponents.parentItemId, masterItemIds)
       });
       
-      if (makeItems.length === 0) {
-        return res.status(400).json({ error: 'No "Make" items found for this project' });
-      }
+      // Create lookup maps for parent-child relationships
+      const parentToChildMap = new Map<number, number[]>();
+      const childToParentMap = new Map<number, number>();
       
-      // OPTIMIZATION: Fetch existing work order items and component relationships in parallel
-      const [existingWorkOrderItems, itemComponentRelationships] = await Promise.all([
-        // Only fetch if we have existing work orders
-        existingWorkOrders.length > 0 
-          ? db.query.workOrderItems.findMany({
-              where: inArray(workOrderItems.workOrderId, existingWorkOrders.map(wo => wo.id))
-            })
-          : Promise.resolve([]),
-          
-        // Get parent-child relationships from component table
-        db.query.itemComponents.findMany({
-          where: inArray(itemComponents.parentItemId, masterItemIds)
-        })
-      ]);
+      itemComponentRelationships.forEach(rel => {
+        if (!parentToChildMap.has(rel.parentItemId)) {
+          parentToChildMap.set(rel.parentItemId, []);
+        }
+        parentToChildMap.get(rel.parentItemId)!.push(rel.componentItemId);
+        childToParentMap.set(rel.componentItemId, rel.parentItemId);
+      });
       
       // Get component master items if any
       const componentItemIds = itemComponentRelationships.map(rel => rel.componentItemId);
@@ -420,17 +415,35 @@ export function setupProductionRoutes(app: Router) {
         });
       }
       
-      // Create lookup maps for parent-child relationships
-      const parentToChildMap = new Map<number, number[]>();
-      const childToParentMap = new Map<number, number>();
-      
-      itemComponentRelationships.forEach(rel => {
-        if (!parentToChildMap.has(rel.parentItemId)) {
-          parentToChildMap.set(rel.parentItemId, []);
+      // Filter for "Make" items AND their child components
+      const makeItems = projectItemsList.filter(item => {
+        const masterItem = masterItemsMap.get(item.itemId);
+        
+        // Include items marked as "Make"
+        if (masterItem && masterItem.makeOrBuy === 'Make') {
+          return true;
         }
-        parentToChildMap.get(rel.parentItemId)!.push(rel.componentItemId);
-        childToParentMap.set(rel.componentItemId, rel.parentItemId);
+        
+        // Include child components of "Make" parent items
+        if (childToParentMap.has(item.itemId)) {
+          const parentItemId = childToParentMap.get(item.itemId);
+          const parentItem = masterItemsMap.get(parentItemId!);
+          return parentItem && parentItem.makeOrBuy === 'Make';
+        }
+        
+        return false;
       });
+      
+      if (makeItems.length === 0) {
+        return res.status(400).json({ error: 'No "Make" items found for this project' });
+      }
+      
+      // OPTIMIZATION: Fetch existing work order items
+      const existingWorkOrderItems = existingWorkOrders.length > 0 
+        ? await db.query.workOrderItems.findMany({
+            where: inArray(workOrderItems.workOrderId, existingWorkOrders.map(wo => wo.id))
+          })
+        : [];
       
       // Filter out items that already have work orders
       let filteredMakeItems = makeItems;
