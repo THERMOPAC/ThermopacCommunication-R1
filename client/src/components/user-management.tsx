@@ -47,8 +47,8 @@ export default function UserManagement() {
 
   const addUserMutation = useMutation({
     mutationFn: async (data: InsertUser) => {
-      const res = await apiRequest("POST", "/api/register", data);
-      return res.json();
+      // apiRequest already parses the JSON response
+      return await apiRequest("POST", "/api/register", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -70,7 +70,7 @@ export default function UserManagement() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
-      await apiRequest("DELETE", `/api/users/${userId}`);
+      return await apiRequest("DELETE", `/api/users/${userId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -99,11 +99,13 @@ export default function UserManagement() {
 
       try {
         const res = await apiRequest("PATCH", `/api/users/${id}`, data);
+        
+        // The apiRequest function already parses JSON, so we don't need to parse it again
         if (!res.ok) {
-          const error = await res.json();
-          throw new Error(error.message || 'Failed to update user');
+          throw new Error(res.message || 'Failed to update user');
         }
-        return await res.json();
+        
+        return res; // Return the response directly since apiRequest already parses the JSON
       } catch (error) {
         console.error('Error updating user:', error);
         throw error;
