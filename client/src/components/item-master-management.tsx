@@ -597,12 +597,8 @@ const ItemMasterManagement: React.FC = () => {
   // Handle update master item
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number, data: FormValues }) => {
-      const response = await apiRequest('PUT', `/api/master-items/${id}`, data);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update master item');
-      }
-      return response.json();
+      // Use the parseJson parameter set to true (default) to automatically parse the response
+      return await apiRequest('PUT', `/api/master-items/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/master-items'] });
@@ -626,11 +622,8 @@ const ItemMasterManagement: React.FC = () => {
   // Handle delete master item
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await apiRequest('DELETE', `/api/master-items/${id}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete master item');
-      }
+      // Use parseJson: false since we don't need to parse the response for DELETE
+      await apiRequest('DELETE', `/api/master-items/${id}`, undefined, false, false);
       return true;
     },
     onSuccess: () => {
@@ -653,11 +646,8 @@ const ItemMasterManagement: React.FC = () => {
   // Handle delete component
   const deleteComponentMutation = useMutation({
     mutationFn: async (componentId: number) => {
-      const response = await apiRequest('DELETE', `/api/item-components/${componentId}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete component');
-      }
+      // Use parseJson: false since we don't need to parse the response for DELETE
+      await apiRequest('DELETE', `/api/item-components/${componentId}`, undefined, false, false);
       return true;
     },
     onSuccess: () => {
