@@ -395,7 +395,7 @@ export default function UserManagement() {
                         <FormLabel>Reporting Manager</FormLabel>
                         <Select
                           onValueChange={(value) => field.onChange(Number(value))}
-                          defaultValue={field.value?.toString()}
+                          defaultValue={field.value ? field.value.toString() : undefined}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -538,7 +538,10 @@ export default function UserManagement() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Reporting Manager</FormLabel>
-                        <Select onValueChange={(value) => field.onChange(Number(value))}>
+                        <Select 
+                          onValueChange={(value) => field.onChange(Number(value))}
+                          defaultValue={field.value ? field.value.toString() : undefined}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select reporting manager" />
