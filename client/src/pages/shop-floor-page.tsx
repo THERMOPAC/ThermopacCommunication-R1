@@ -138,6 +138,90 @@ export default function ShopFloorPage() {
     { name: "Production Team-5", workload: 0, activeOrders: 0 },
   ];
   
+  // Function to generate and download work orders report
+  const generateReport = async () => {
+    try {
+      // Don't proceed if there's no data
+      if (!workOrders || workOrders.length === 0) {
+        toast({
+          title: "No data available",
+          description: "There are no work orders to include in the report.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsGeneratingReport(true);
+      
+      // Get filtered work orders based on current tab selection
+      const reportData = getFilteredWorkOrders();
+      
+      // Format data for Excel
+      const worksheetData = reportData.map(order => ({
+        "Work Order Number": order.workOrderNumber,
+        "Project ID": order.projectId,
+        "Title": order.title,
+        "Description": order.description || "",
+        "Status": order.status.charAt(0).toUpperCase() + order.status.slice(1).replace("_", " "),
+        "Priority": order.priority,
+        "Production Line": order.productionLine || "Unassigned",
+        "Batch Number": order.batchNumber || "",
+        "Planned Start Date": order.plannedStartDate ? format(new Date(order.plannedStartDate), 'dd/MM/yyyy') : "",
+        "Planned End Date": order.plannedEndDate ? format(new Date(order.plannedEndDate), 'dd/MM/yyyy') : "",
+        "Actual Start Date": order.actualStartDate ? format(new Date(order.actualStartDate), 'dd/MM/yyyy') : "",
+        "Actual End Date": order.actualEndDate ? format(new Date(order.actualEndDate), 'dd/MM/yyyy') : "",
+        "Created Date": format(new Date(order.createdAt), 'dd/MM/yyyy'),
+        "Progress": `${getWorkOrderProgress(order.status)}%`
+      }));
+      
+      // Create workbook and worksheet
+      const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Work Orders");
+      
+      // Format column widths for better readability
+      const columnWidths = [
+        { wch: 20 }, // Work Order Number
+        { wch: 10 }, // Project ID
+        { wch: 30 }, // Title
+        { wch: 40 }, // Description
+        { wch: 12 }, // Status
+        { wch: 10 }, // Priority
+        { wch: 15 }, // Production Line
+        { wch: 15 }, // Batch Number
+        { wch: 15 }, // Planned Start Date
+        { wch: 15 }, // Planned End Date
+        { wch: 15 }, // Actual Start Date
+        { wch: 15 }, // Actual End Date
+        { wch: 15 }, // Created Date
+        { wch: 10 }  // Progress
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Get current date for filename
+      const dateStr = format(new Date(), 'yyyy-MM-dd');
+      const tabName = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
+      const filename = `Thermopac_Work_Orders_${tabName}_${dateStr}.xlsx`;
+      
+      // Generate and download Excel file
+      XLSX.writeFile(workbook, filename);
+      
+      toast({
+        title: "Report generated successfully",
+        description: `${worksheetData.length} work orders exported to Excel.`,
+      });
+    } catch (err) {
+      console.error("Error generating report:", err);
+      toast({
+        title: "Error generating report",
+        description: "An error occurred while generating the report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
   // Log debugging information
   React.useEffect(() => {
     if (isError) {
@@ -221,8 +305,23 @@ export default function ShopFloorPage() {
               <TabsTrigger value="onhold">On Hold</TabsTrigger>
               <TabsTrigger value="all">All Orders</TabsTrigger>
             </TabsList>
-            <Button variant="outline">
-              Generate Report
+            <Button 
+              variant="outline" 
+              onClick={generateReport}
+              disabled={isLoading || isGeneratingReport}
+              className="flex items-center"
+            >
+              {isGeneratingReport ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Generate Report
+                </>
+              )}
             </Button>
           </div>
 
