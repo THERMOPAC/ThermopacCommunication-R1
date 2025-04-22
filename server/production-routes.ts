@@ -8,7 +8,6 @@ import { insertWorkOrderSchema, workOrders, insertWorkOrderItemSchema,
 import { eq, and, desc, asc, inArray } from 'drizzle-orm';
 import { generateWorkOrders } from './production/work-order-generator';
 import { generateWorkOrdersForProject } from './optimized-work-order-generation';
-import { generateWorkOrdersForProject } from './optimized-work-order-generation';
 
 // Authentication middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
@@ -305,7 +304,10 @@ export function setupProductionRoutes(app: Router) {
 });
   
   // Generate work orders for a project with optimized implementation
-  app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, generateWorkOrders);
+  app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, generateWorkOrdersForProject);
+  
+  // Alternative implementation (kept as fallback)
+  app.post('/api/production/work-orders/generate-for-project-old/:projectId', ensureAuthenticated, generateWorkOrders);
   
   // Legacy implementation (kept for reference, will be removed later)
   app.post('/api/production/work-orders/generate-for-project-legacy/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
