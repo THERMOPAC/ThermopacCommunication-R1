@@ -444,10 +444,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   // Mutation for updating a project item
   const updateProjectItemMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number, data: any }) => {
-      const res = await apiRequest("PUT", `/api/project-items/${id}`, data);
+      const res = await fetch(`/api/project-items/${id}`, {
+        method: "PUT",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+      });
+      
       if (!res.ok) {
-        throw new Error("Failed to update project item");
+        const errorText = await res.text().catch(() => 'Unknown error');
+        throw new Error(errorText || "Failed to update project item");
       }
+      
       return await res.json();
     },
     onSuccess: () => {
@@ -471,10 +480,18 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   // Mutation for deleting a project item
   const deleteProjectItemMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest("DELETE", `/api/project-items/${id}`);
+      const res = await fetch(`/api/project-items/${id}`, {
+        method: "DELETE",
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
       if (!res.ok) {
-        throw new Error("Failed to delete project item");
+        const errorText = await res.text().catch(() => 'Unknown error');
+        throw new Error(errorText || "Failed to delete project item");
       }
+      
       // For 204 No Content response, return empty object instead of trying to parse JSON
       return res.status === 204 ? {} : await res.json();
     },
@@ -499,10 +516,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   // Update project item status
   const updateProjectItemStatusMutation = useMutation({
     mutationFn: async ({ itemId, status }: { itemId: number, status: string }) => {
-      const res = await apiRequest("PUT", `/api/project-items/${itemId}`, { status });
+      const res = await fetch(`/api/project-items/${itemId}`, {
+        method: "PUT",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status })
+      });
+      
       if (!res.ok) {
-        throw new Error("Failed to update item status");
+        const errorText = await res.text().catch(() => 'Unknown error');
+        throw new Error(errorText || "Failed to update item status");
       }
+      
       return res.status === 204 ? { status } : await res.json();
     },
     onSuccess: (data) => {
