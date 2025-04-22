@@ -440,6 +440,24 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     });
   } catch (error: any) {
     console.error('Error generating direct work orders:', error);
+    
+    // Special handling for PostgreSQL unique constraint violations
+    if (error.code === '23505') {
+      // Extract the duplicate key from the error detail
+      const duplicateKey = error.detail ? error.detail.match(/\((.*?)\)=\((.*?)\)/) : null;
+      const keyName = duplicateKey ? duplicateKey[1] : 'unknown';
+      const keyValue = duplicateKey ? duplicateKey[2] : 'unknown';
+      
+      // Clear the work orders for this project first
+      if (keyName === 'work_order_number') {
+        return res.status(409).json({ 
+          error: 'Work order number conflict',
+          details: `A work order with number ${keyValue} already exists. Please clean up existing work orders first.`,
+          suggestion: 'Use the "Clean Up Existing Orders" button and try again.'
+        });
+      }
+    }
+    
     return res.status(500).json({ error: 'Failed to generate work orders', details: error.message || 'Unknown error' });
   }
 }

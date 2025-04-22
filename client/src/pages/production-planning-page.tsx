@@ -313,8 +313,15 @@ export default function ProductionPlanningPage() {
       const responseData = await response.json();
       
       if (!response.ok) {
-        let errorMessage = responseData.error || "Failed to generate work orders";
-        throw new Error(errorMessage);
+        // Handle specific error types
+        if (response.status === 409) {
+          // Conflict error - work order number already exists
+          throw new Error(responseData.details || responseData.error || "Work order conflict - try cleaning up existing orders first");
+        } else {
+          // Other errors
+          let errorMessage = responseData.details || responseData.error || "Failed to generate work orders";
+          throw new Error(errorMessage);
+        }
       }
       
       // At this point we have successful data, so display success message
