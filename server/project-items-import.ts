@@ -177,16 +177,24 @@ export function setupProjectItemsImportRoutes(app: Router) {
           if (!masterItem) {
             // Create new master item
             // Format makeOrBuy to match the expected enum values
-            let makeOrBuy = null;
+            // Default to 'Make' if not provided or invalid
+            let makeOrBuy = 'Make'; // Default value
+            
             if (rawItemData.make_or_buy) {
               // Normalize the value to match our enum
-              const normalizedValue = rawItemData.make_or_buy.trim();
-              if (normalizedValue.toLowerCase() === 'make' || normalizedValue.toLowerCase() === 'm') {
-                makeOrBuy = 'Make';
-              } else if (normalizedValue.toLowerCase() === 'buy' || normalizedValue.toLowerCase() === 'b') {
+              const normalizedValue = rawItemData.make_or_buy.toString().trim().toLowerCase();
+              
+              // Check for 'buy' variations first
+              if (normalizedValue === 'buy' || normalizedValue === 'b' || 
+                  normalizedValue === 'purchase' || normalizedValue === 'purchased') {
                 makeOrBuy = 'Buy';
-              }
+              } 
+              // If not explicitly buy, use 'Make' (our default)
+              // This covers 'make', 'm', etc.
             }
+            
+            console.log(`Processing item ${rawItemData.itemCode} with Make/Buy value: ${makeOrBuy}`);
+            
             
             const masterItemData = {
               itemCode: rawItemData.itemCode,
