@@ -100,6 +100,8 @@ export class DatabaseStorage implements IStorage {
         connectionString: process.env.DATABASE_URL,
       },
       createTableIfMissing: true,
+      tableName: 'session', // Explicit table name
+      ttl: 86400 * 30, // 30 days in seconds
     });
   }
 

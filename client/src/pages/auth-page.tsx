@@ -5,14 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { useLocation } from "wouter";
+import { useEffect } from "react";
 
 export default function AuthPage() {
   const { user, loginMutation } = useAuth();
   const [, setLocation] = useLocation();
 
+  // Use useEffect to handle redirection after render
+  useEffect(() => {
+    if (user) {
+      setLocation("/");
+    }
+  }, [user, setLocation]);
+  
+  // If user is already logged in, show a loading state
   if (user) {
-    setLocation("/");
-    return null;
+    return <div className="flex items-center justify-center h-screen">Redirecting...</div>;
   }
 
   return (
