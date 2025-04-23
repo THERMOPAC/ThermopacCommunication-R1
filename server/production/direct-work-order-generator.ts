@@ -388,14 +388,21 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     
     console.log(`Created ${virtualComponentItems.length} virtual component items`);
     
-    // If not confirmed, just return the count
+    // Get information about cross-project components if any
+    const crossProjectInfo = crossProjectWorkOrderItems.length > 0 ? {
+      count: crossProjectWorkOrderItems.length,
+      projectCodes: Array.from(new Set(crossProjectWorkOrderItems.map(item => item.projectCode))).join(', ')
+    } : null;
+    
+    // If not confirmed, just return the preview data
     if (!confirm) {
       return res.status(200).json({
         requiresConfirmation: true,
         message: 'Please confirm to generate work orders',
         itemCount: filteredMakeParentItems.length + virtualComponentItems.length,
         parentCount: filteredMakeParentItems.length,
-        componentCount: virtualComponentItems.length
+        componentCount: virtualComponentItems.length,
+        crossProjectComponents: crossProjectInfo
       });
     }
     
