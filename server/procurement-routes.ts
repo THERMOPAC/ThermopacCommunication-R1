@@ -67,7 +67,16 @@ export function setupProcurementRoutes(app: Router) {
       });
       
       if (buyItems.length === 0) {
-        return res.status(400).json({ error: 'No "Buy" items found for this project' });
+        return res.status(200).json({ 
+          error: 'No "Buy" items found for this project',
+          project: {
+            id: project.id,
+            code: project.code,
+            name: project.name
+          },
+          itemCount: 0,
+          items: []
+        });
       }
       
       // Get existing purchase orders to check for duplicates
@@ -92,83 +101,45 @@ export function setupProcurementRoutes(app: Router) {
       
       // Check if we have any buy items left after filtering
       if (filteredBuyItems.length === 0) {
-        return res.status(400).json({ error: 'All "Buy" items already have purchase orders' });
+        return res.status(200).json({ 
+          message: 'All "Buy" items already have purchase orders',
+          project: {
+            id: project.id,
+            code: project.code,
+            name: project.name
+          },
+          itemCount: 0,
+          existingPurchaseOrderCount: existingPurchaseOrders.length,
+          items: []
+        });
       }
       
-      // Get vendor information for grouping items by vendor
-      const vendorsList = await db.query.vendors.findMany({
-        where: eq(vendors.isActive, true)
-      });
-      
-      // Group items by vendor based on preferredVendorId in master items
-      const itemsByVendor: Record<number, typeof filteredBuyItems> = {};
-      
-      filteredBuyItems.forEach(item => {
+      // Format items for the frontend
+      const previewItems = filteredBuyItems.map(item => {
         const masterItem = masterItemsMap.get(item.itemId);
-        if (masterItem && masterItem.preferredVendorId) {
-          if (!itemsByVendor[masterItem.preferredVendorId]) {
-            itemsByVendor[masterItem.preferredVendorId] = [];
-          }
-          itemsByVendor[masterItem.preferredVendorId].push(item);
-        } else {
-          // Items without preferred vendor go to "unassigned" group
-          if (!itemsByVendor[0]) {
-            itemsByVendor[0] = [];
-          }
-          itemsByVendor[0].push(item);
-        }
-      });
-      
-      // Format preview data for frontend
-      type PreviewItem = {
-        id: number;
-        itemCode: string;
-        description: string;
-        quantity: number;
-        unit: string;
-        vendorId: number | null;
-        vendorName: string | null;
-        estimatedCost: number | null;
-      };
-      
-      const vendorNameMap = new Map<number, string>();
-      for (const vendor of vendorsList) {
-        vendorNameMap.set(vendor.id, vendor.name);
-      }
-      
-      // Create preview data structure
-      const preview: Record<string, any> = {
-        projectCode: project.code,
-        totalItems: filteredBuyItems.length,
-        vendorGroups: []
-      };
-      
-      // Process each vendor group
-      Object.entries(itemsByVendor).forEach(([vendorIdStr, items]) => {
-        const vendorId = parseInt(vendorIdStr);
-        const vendorPreview = {
-          vendorId: vendorId > 0 ? vendorId : null,
-          vendorName: vendorId > 0 ? vendorNameMap.get(vendorId) || 'Unknown Vendor' : 'Unassigned',
-          items: items.map(item => {
-            const masterItem = masterItemsMap.get(item.itemId)!;
-            const preview = {
-              id: item.id,
-              itemCode: masterItem?.itemCode || 'Unknown',
-              description: masterItem?.description || 'Unknown Item',
-              quantity: Number(item.quantity),
-              unit: masterItem?.unit || 'EA',
-              vendorId: masterItem?.preferredVendorId || null,
-              vendorName: masterItem?.preferredVendorId ? vendorNameMap.get(masterItem.preferredVendorId) || null : null,
-              estimatedCost: masterItem?.estimatedCost ? Number(masterItem.estimatedCost) : null
-            };
-            return preview as PreviewItem;
-          })
+        return {
+          id: item.id,
+          itemCode: masterItem?.itemCode || 'Unknown',
+          description: masterItem?.description || 'Unknown Item',
+          quantity: Number(item.quantity),
+          unit: masterItem?.unit || 'EA',
+          vendorId: masterItem?.preferredVendorId || null,
+          vendorName: masterItem?.preferredVendorId ? '' : 'Unassigned',
+          estimatedCost: masterItem?.estimatedCost ? Number(masterItem.estimatedCost) : 0
         };
-        
-        preview.vendorGroups.push(vendorPreview);
       });
-      
-      res.json(preview);
+
+      // Return preview data in a format similar to work order preview
+      return res.status(200).json({
+        project: {
+          id: project.id,
+          code: project.code,
+          name: project.name
+        },
+        itemCount: previewItems.length,
+        items: previewItems,
+        existingPurchaseOrderCount: existingPurchaseOrders.length
+      });
     } catch (error) {
       console.error('Error previewing purchase orders:', error);
       res.status(500).json({ error: 'Failed to preview purchase orders' });
@@ -177,17 +148,25 @@ export function setupProcurementRoutes(app: Router) {
   
   /**
    * Generate purchase orders for a project
-   * Creates purchase orders based on "Buy" items in the project, grouped by vendor
+   * Creates purchase orders based on "Buy" items in the project
    */
   app.post('/api/procurement/purchase-orders/generate-for-project/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      const { confirm, vendorAssignments } = req.body;
       const user = req.user!;
-      const { vendorAssignments } = req.body;
       
       // Check if project ID is valid
       if (isNaN(projectId)) {
         return res.status(400).json({ error: 'Invalid project ID' });
+      }
+      
+      // Check for confirmation flag
+      if (!confirm) {
+        return res.status(400).json({ 
+          requiresConfirmation: true,
+          message: 'Please confirm to generate purchase orders'
+        });
       }
       
       // Get project to ensure it exists

@@ -116,18 +116,14 @@ export default function ProcurementPlanningPage() {
   const { data: previewPurchaseOrders, isLoading: isLoadingPreview } = useQuery({
     queryKey: ["/api/procurement/purchase-orders/preview", selectedProjectId],
     enabled: !!selectedProjectId && showPreview,
-    onSuccess: (data) => {
-      setPreviewData(data);
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to preview purchase orders. Please try again.",
-        variant: "destructive",
-      });
-      setShowPreview(false);
-    }
   });
+
+  // Set preview data when it's available
+  React.useEffect(() => {
+    if (previewPurchaseOrders) {
+      setPreviewData(previewPurchaseOrders);
+    }
+  }, [previewPurchaseOrders]);
 
   // Create purchase orders for a project
   const generatePurchaseOrdersMutation = useMutation({
