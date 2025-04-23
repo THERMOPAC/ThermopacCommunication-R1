@@ -138,12 +138,46 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     // Get all work order numbers to ensure uniqueness
     const existingWorkOrderNumbers = new Set(existingWorkOrders.map(wo => wo.workOrderNumber));
     
-    // Step 8: Get existing work order items
+    // Step 8: Get existing work order items in the current project
     const existingWorkOrderItems = existingWorkOrders.length > 0 
       ? await db.query.workOrderItems.findMany({
           where: inArray(workOrderItems.workOrderId, existingWorkOrders.map(wo => wo.id))
         })
       : [];
+    
+    // Get related projects (projects from the same customer/client)
+    let relatedProjects: any[] = [];
+    if (project.customerId) {
+      // Use SQL to avoid TypeScript issues with column types
+      relatedProjects = await db.execute(
+        sql`SELECT id FROM projects WHERE customer_id = ${project.customerId}`
+      );
+    }
+    
+    const relatedProjectIds = relatedProjects
+      .map(p => p.id)
+      .filter(id => id !== projectId); // Exclude current project
+    
+    console.log(`Found ${relatedProjectIds.length} related projects for cross-project component check`);
+    
+    // Get work orders from related projects
+    let crossProjectWorkOrderItems: any[] = [];
+    if (relatedProjectIds.length > 0) {
+      const relatedWorkOrders = await db.query.workOrders.findMany({
+        where: inArray(workOrders.projectId, relatedProjectIds)
+      });
+      
+      if (relatedWorkOrders.length > 0) {
+        console.log(`Found ${relatedWorkOrders.length} work orders in related projects`);
+        
+        // Get work order items from related projects
+        crossProjectWorkOrderItems = await db.query.workOrderItems.findMany({
+          where: inArray(workOrderItems.workOrderId, relatedWorkOrders.map(wo => wo.id))
+        });
+        
+        console.log(`Found ${crossProjectWorkOrderItems.length} work order items in related projects`);
+      }
+    }
     
     const existingProjectItemIds = new Set(existingWorkOrderItems.map(item => item.projectItemId));
     
@@ -162,19 +196,22 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       const existingComponentIds = new Set<number>();
       
       // Identify components that already have work order items
-      for (const item of existingWorkOrderItems) {
-        if (item.isVirtual) {
-          // Try to identify the component by item code or description
-          // This is complex and will depend on how component data is stored
-          const itemDetails = await db.query.workOrderItems.findFirst({
-            where: eq(workOrderItems.id, item.id)
-          });
-          
-          if (itemDetails && itemDetails.itemCode) {
-            // Find the master item that matches this code
-            const masterItem = masterItemsArray.find(m => m.itemCode === itemDetails.itemCode);
+      // Using raw SQL to avoid TypeScript issues with schema
+      const existingWorkOrderItemDetails = await db.execute(
+        sql`SELECT * FROM work_order_items WHERE id IN (${existingWorkOrderItems.map(item => item.id).join(',')})`
+      );
+      
+      for (const item of existingWorkOrderItemDetails) {
+        // Cast to any to avoid TypeScript errors until we update the schema
+        const typedItem = item as any;
+        
+        if (typedItem.is_virtual) {
+          // Find master item corresponding to this work order item's code
+          if (typedItem.item_code) {
+            const masterItem = masterItemsArray.find(m => m.itemCode === typedItem.item_code);
             if (masterItem) {
               existingComponentIds.add(masterItem.id);
+              console.log(`Existing component identified: ${masterItem.itemCode} (${masterItem.id})`);
             }
           }
         }
@@ -222,25 +259,52 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     
     if (newComponentsOnly) {
       console.log('Identifying components that already have work orders...');
-      // Get the full work order items with all fields
-      const workOrderItemDetails = await db.query.workOrderItems.findMany({
-        where: inArray(workOrderItems.id, existingWorkOrderItems.map(item => item.id))
+      // Using raw SQL to avoid TypeScript issues with schema extensions
+    const allExistingWorkOrderItemIds = [
+      ...existingWorkOrderItems.map(item => item.id),
+      ...crossProjectWorkOrderItems.map(item => item.id)
+    ];
+    
+    if (allExistingWorkOrderItemIds.length > 0) {
+      // Get all work order items with a single SQL query to include both current and cross-project items
+      const workOrderItemDetailsRaw = await db.execute(
+        sql`SELECT * FROM work_order_items WHERE id IN (${allExistingWorkOrderItemIds.join(',')})`
+      );
+      
+      // Create a mapping of item codes to master items for faster lookup
+      const masterItemsByCode = new Map();
+      masterItemsArray.forEach(item => {
+        if (item.itemCode) masterItemsByCode.set(item.itemCode, item);
       });
       
-      for (const item of workOrderItemDetails) {
-        // Cast to any to avoid TypeScript errors until we update the schema
-        const typedItem = item as any;
+      // Check both current project and related project work orders
+      for (const rawItem of workOrderItemDetailsRaw) {
+        // Cast to any to work with raw SQL results
+        const item = rawItem as any;
+        
+        // Check for both camelCase and snake_case fields depending on how they're stored
+        const isVirtual = item.isVirtual || item.is_virtual;
+        const itemType = item.itemType || item.item_type;
+        const itemCode = item.itemCode || item.item_code;
         
         // We only care about virtual items (sub-assembly components)
-        if (typedItem.itemType === 'Child' && typedItem.itemCode) {
-          // Find master item corresponding to this work order item's code
-          const masterItem = masterItemsArray.find(m => m.itemCode === typedItem.itemCode);
+        if (isVirtual && itemType === 'Child' && itemCode) {
+          // Find master item by item code
+          const masterItem = masterItemsByCode.get(itemCode) || 
+                            masterItemsArray.find(m => m.itemCode === itemCode);
+                            
           if (masterItem) {
             existingComponentIds.add(masterItem.id);
-            console.log(`Existing component identified: ${masterItem.itemCode} (${masterItem.id})`);
+            
+            // Determine if this is from a related project or current project
+            const isFromRelatedProject = crossProjectWorkOrderItems.some(workOrderItem => workOrderItem.id === item.id);
+            const logPrefix = isFromRelatedProject ? 'Cross-project' : 'Current project';
+            
+            console.log(`${logPrefix} component identified: ${masterItem.itemCode} (${masterItem.id})`);
           }
         }
       }
+    }
     }
     
     for (const parentItem of filteredMakeParentItems) {
