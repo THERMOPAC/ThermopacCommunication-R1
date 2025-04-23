@@ -148,6 +148,14 @@ export default function ProcurementPlanningPage() {
   // Preview purchase orders for a selected project
   const { data: previewPurchaseOrders, isLoading: isLoadingPreview } = useQuery({
     queryKey: ["/api/procurement/purchase-orders/preview", selectedProjectId],
+    queryFn: async () => {
+      if (!selectedProjectId) return null;
+      const res = await fetch(`/api/procurement/purchase-orders/preview/${selectedProjectId}`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch purchase order preview');
+      }
+      return res.json();
+    },
     enabled: !!selectedProjectId && showPreview,
   });
 
