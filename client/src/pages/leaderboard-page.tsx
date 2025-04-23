@@ -140,7 +140,9 @@ export default function LeaderboardPage() {
     queryKey: ['/api/productivity'],
     queryFn: async () => {
       const res = await apiRequest('GET', '/api/productivity');
-      return res.json();
+      const data = await res.json();
+      console.log('Productivity metrics data:', data);
+      return data;
     },
     enabled: !!userId,
   });
@@ -226,6 +228,10 @@ export default function LeaderboardPage() {
     (a: Achievement) => !earnedAchievementIds.includes(a.id)
   ) || [];
 
+  console.log('Rendering dashboard with metrics:', metrics);
+  console.log('Rendering dashboard with rankData:', rankData);
+  console.log('Rendering dashboard with earnedAchievements:', earnedAchievements);
+  
   return (
     <Layout>
       <div className="py-10">
@@ -235,17 +241,17 @@ export default function LeaderboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <StatCard 
             title="Productivity Score" 
-            value={metrics?.weeklyScore || 0} 
+            value={metrics?.weeklyScore ?? 0} 
             icon={<TrendingUp className="h-5 w-5 text-primary" />} 
           />
           <StatCard 
             title="Tasks Completed" 
-            value={metrics?.tasksCompleted || 0} 
+            value={metrics?.tasksCompleted ?? 0} 
             icon={<Trophy className="h-5 w-5 text-primary" />} 
           />
           <StatCard 
             title="Achievements" 
-            value={earnedAchievements?.length || 0} 
+            value={earnedAchievements?.length ?? 0} 
             icon={<Award className="h-5 w-5 text-primary" />} 
           />
           <StatCard 
