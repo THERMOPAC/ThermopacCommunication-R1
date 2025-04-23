@@ -83,9 +83,23 @@ export default function ProcurementPlanningPage() {
     totalAmount: number;
   }
 
+  interface Vendor {
+    id: number;
+    name: string;
+    contactPerson?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+  }
+
   // Fetch projects for both filtering and selection
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
+  });
+
+  // Fetch vendors for dropdown
+  const { data: vendors = [] } = useQuery<Vendor[]>({
+    queryKey: ["/api/vendors"],
   });
 
   // Fetch purchase orders from the API
@@ -277,9 +291,11 @@ export default function ProcurementPlanningPage() {
                           <SelectValue placeholder="Select Vendor" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="vendor1">Steel Suppliers Ltd.</SelectItem>
-                          <SelectItem value="vendor2">Precision Instruments Inc.</SelectItem>
-                          <SelectItem value="vendor3">Flow Systems Corp.</SelectItem>
+                          {vendors?.map((vendor) => (
+                            <SelectItem key={vendor.id} value={vendor.id.toString()}>
+                              {vendor.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

@@ -16,6 +16,25 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
 }
 
 export function setupProcurementRoutes(app: Router) {
+  // ==================== VENDORS MANAGEMENT ====================
+  
+  /**
+   * Get all vendors
+   */
+  app.get('/api/vendors', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const vendorsList = await db.query.vendors.findMany({
+        where: eq(vendors.isActive, true),
+        orderBy: asc(vendors.name)
+      });
+      
+      res.status(200).json(vendorsList);
+    } catch (error) {
+      console.error('Error fetching vendors:', error);
+      res.status(500).json({ error: 'Failed to fetch vendors' });
+    }
+  });
+  
   // ==================== PURCHASE ORDERS ====================
   
   /**
