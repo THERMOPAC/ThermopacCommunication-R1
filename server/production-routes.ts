@@ -306,6 +306,55 @@ export function setupProductionRoutes(app: Router) {
   }
 });
   
+  // Clean up duplicate work orders for a project
+  app.post('/api/production/work-orders/cleanup-duplicates/:projectId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      
+      if (isNaN(projectId)) {
+        return res.status(400).json({ error: 'Invalid project ID' });
+      }
+      
+      // Check if project exists
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId)
+      });
+      
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      
+      console.log(`Manual cleanup of duplicate work orders requested for project ${projectId}`);
+      
+      // Run the cleanup
+      await cleanupDuplicateWorkOrders(projectId);
+      
+      // Get updated work orders after cleanup
+      const updatedWorkOrders = await db.query.workOrders.findMany({
+        where: eq(workOrders.projectId, projectId),
+        orderBy: [asc(workOrders.workOrderNumber)]
+      });
+      
+      return res.status(200).json({ 
+        message: 'Duplicate work orders cleanup completed',
+        project: {
+          id: project.id,
+          code: project.code,
+          name: project.name
+        },
+        workOrderCount: updatedWorkOrders.length,
+        workOrders: updatedWorkOrders.map(wo => ({
+          id: wo.id,
+          workOrderNumber: wo.workOrderNumber,
+          title: wo.title
+        }))
+      });
+    } catch (error) {
+      console.error('Error cleaning up duplicate work orders:', error);
+      return res.status(500).json({ error: 'An unexpected error occurred during duplicate cleanup' });
+    }
+  });
+  
   // Generate work orders for a project with direct implementation that properly handles sub-assemblies
   app.post('/api/production/work-orders/generate-for-project/:projectId', ensureAuthenticated, generateDirectWorkOrders);
   

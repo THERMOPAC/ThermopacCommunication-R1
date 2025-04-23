@@ -792,10 +792,56 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       });
     }
     
+    // NEW DIRECT PROJECT-ITEM RELATIONSHIP CHECK:
+    // Query to find which master items already have work orders in this project
+    const existingWorkOrderItemsQuery = await db.execute(sql`
+      SELECT DISTINCT mi.id as master_item_id, mi.item_code 
+      FROM work_orders wo
+      JOIN work_order_items wi ON wi.work_order_id = wo.id 
+      JOIN project_items pi ON wi.project_item_id = pi.id
+      JOIN master_items mi ON pi.item_id = mi.id
+      WHERE wo.project_id = ${projectId}
+    `);
+    
+    // Create a set of master item IDs that already have work orders in this project
+    const masterItemsWithWorkOrdersInProject = new Set<number>();
+    // Also track by item code for virtual components
+    const itemCodesWithWorkOrdersInProject = new Set<string>();
+    
+    if (existingWorkOrderItemsQuery.rows && Array.isArray(existingWorkOrderItemsQuery.rows)) {
+      existingWorkOrderItemsQuery.rows.forEach(row => {
+        if (row.master_item_id) {
+          masterItemsWithWorkOrdersInProject.add(row.master_item_id);
+        }
+        if (row.item_code) {
+          itemCodesWithWorkOrdersInProject.add(row.item_code);
+          // Also add to our existing tracking set
+          existingItemCodesWithWorkOrders.add(row.item_code);
+        }
+      });
+    }
+    
+    console.log(`Project ${projectId} already has work orders for ${masterItemsWithWorkOrdersInProject.size} master items and ${itemCodesWithWorkOrdersInProject.size} item codes`);
+    
     // Step 13: Create component work orders
     for (const component of virtualComponentItems) {
       const masterItem = masterItemsMap.get(component.itemId);
       const parentItemId = component.parentItemId;
+      
+      // CRITICAL CHECK: Does this master item already have a work order in this project?
+      if (masterItem) {
+        // Check by ID
+        if (masterItemsWithWorkOrdersInProject.has(masterItem.id)) {
+          console.log(`Skipping component ${masterItem.itemCode} (ID: ${masterItem.id}) - already has a work order in project ${projectId} (checked by ID)`);
+          continue;
+        }
+        
+        // Also check by item code (more reliable for virtual components)
+        if (masterItem.itemCode && itemCodesWithWorkOrdersInProject.has(masterItem.itemCode)) {
+          console.log(`Skipping component ${masterItem.itemCode} - already has a work order in project ${projectId} (checked by item code)`);
+          continue;
+        }
+      }
       
       // Find parent's work order - either from current session or existing orders
       let parentInfo = parentItemId ? workOrdersMap.get(parentItemId.toString()) : null;
