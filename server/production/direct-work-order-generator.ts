@@ -20,7 +20,7 @@ import {
 export async function generateDirectWorkOrders(req: Request, res: Response) {
   try {
     const projectId = parseInt(req.params.projectId);
-    const { confirm } = req.body;
+    const { confirm, newComponentsOnly = false } = req.body;
     
     if (isNaN(projectId)) {
       return res.status(400).json({ error: 'Invalid project ID' });
@@ -149,11 +149,57 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     
     // Step 9: Filter out project items that already have work orders
     console.log(`Filtering out items that already have work orders`);
-    const filteredMakeParentItems = makeParentItems.filter(item => 
+    let filteredMakeParentItems = makeParentItems.filter(item => 
       !existingProjectItemIds.has(item.id)
     );
     
-    if (filteredMakeParentItems.length === 0 && existingWorkOrderItems.length > 0) {
+    // If we're only handling new components and all parent items already have work orders,
+    // we need to find the parent items with existing work orders that have new components
+    if (newComponentsOnly && filteredMakeParentItems.length === 0 && existingWorkOrderItems.length > 0) {
+      console.log('Checking for new components on existing parent items...');
+      
+      // Get existing work order items to find which components already have work orders
+      const existingComponentIds = new Set<number>();
+      
+      // Identify components that already have work order items
+      for (const item of existingWorkOrderItems) {
+        if (item.isVirtual) {
+          // Try to identify the component by item code or description
+          // This is complex and will depend on how component data is stored
+          const itemDetails = await db.query.workOrderItems.findFirst({
+            where: eq(workOrderItems.id, item.id)
+          });
+          
+          if (itemDetails && itemDetails.itemCode) {
+            // Find the master item that matches this code
+            const masterItem = masterItemsArray.find(m => m.itemCode === itemDetails.itemCode);
+            if (masterItem) {
+              existingComponentIds.add(masterItem.id);
+            }
+          }
+        }
+      }
+      
+      // Find parent items that have new components
+      const parentsWithNewComponents = makeParentItems.filter(parentItem => {
+        const components = parentToChildrenMap.get(parentItem.itemId) || [];
+        
+        // Check if any component doesn't have a work order yet
+        return components.some(componentId => !existingComponentIds.has(componentId));
+      });
+      
+      // Use these parent items for creating work orders for their new components
+      if (parentsWithNewComponents.length > 0) {
+        console.log(`Found ${parentsWithNewComponents.length} parent items with new components`);
+        filteredMakeParentItems = parentsWithNewComponents;
+      } else {
+        return res.status(200).json({ 
+          message: 'No new components found for existing parent items', 
+          itemCount: 0,
+          items: []
+        });
+      }
+    } else if (filteredMakeParentItems.length === 0 && existingWorkOrderItems.length > 0) {
       return res.status(200).json({ 
         message: 'All parent items already have work orders', 
         itemCount: 0,
@@ -171,6 +217,32 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     const virtualComponentItems = [];
     const projectItemsSet = new Set(projectItemsList.map(item => item.itemId));
     
+    // Collect existing component IDs that already have work orders when in newComponentsOnly mode
+    const existingComponentIds = new Set<number>();
+    
+    if (newComponentsOnly) {
+      console.log('Identifying components that already have work orders...');
+      // Get the full work order items with all fields
+      const workOrderItemDetails = await db.query.workOrderItems.findMany({
+        where: inArray(workOrderItems.id, existingWorkOrderItems.map(item => item.id))
+      });
+      
+      for (const item of workOrderItemDetails) {
+        // Cast to any to avoid TypeScript errors until we update the schema
+        const typedItem = item as any;
+        
+        // We only care about virtual items (sub-assembly components)
+        if (typedItem.itemType === 'Child' && typedItem.itemCode) {
+          // Find master item corresponding to this work order item's code
+          const masterItem = masterItemsArray.find(m => m.itemCode === typedItem.itemCode);
+          if (masterItem) {
+            existingComponentIds.add(masterItem.id);
+            console.log(`Existing component identified: ${masterItem.itemCode} (${masterItem.id})`);
+          }
+        }
+      }
+    }
+    
     for (const parentItem of filteredMakeParentItems) {
       const components = parentToChildrenMap.get(parentItem.itemId) || [];
       console.log(`Parent ${masterItemsMap.get(parentItem.itemId)?.itemCode} has ${components.length} components`);
@@ -182,6 +254,12 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         // Skip if component already exists as a project item
         if (projectItemsSet.has(componentId)) {
           console.log(`Component ${componentId} already exists as project item`);
+          continue;
+        }
+        
+        // Skip components that already have work orders when in newComponentsOnly mode
+        if (newComponentsOnly && existingComponentIds.has(componentId)) {
+          console.log(`Component ${componentId} already has a work order - skipping`);
           continue;
         }
         
