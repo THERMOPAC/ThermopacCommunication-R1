@@ -85,6 +85,9 @@ const UserScoreCard = ({
     return <span className="w-5 text-center font-semibold">{rank}</span>;
   };
 
+  // For debugging
+  console.log('UserScoreCard rendering with metric:', metric);
+
   return (
     <div className={`flex items-center p-3 border-b last:border-b-0 ${isCurrentUser ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}>
       <div className="flex items-center justify-center w-8">
@@ -151,7 +154,9 @@ export default function LeaderboardPage() {
     queryKey: ['/api/leaderboard/team'],
     queryFn: async () => {
       const res = await apiRequest('GET', '/api/leaderboard/team');
-      return res.json();
+      const data = await res.json();
+      console.log('Team leaderboard data:', data);
+      return data;
     },
     enabled: !!userId,
   });
