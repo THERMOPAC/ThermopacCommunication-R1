@@ -566,24 +566,18 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
           continue;
         }
         
-        // Check if the item code exists in our global tracking set
-        // This is a CRITICAL ENHANCEMENT to prevent duplicate work orders
-        if (componentMasterItem.itemCode && existingItemCodesWithWorkOrders.has(componentMasterItem.itemCode)) {
-          console.log(`GLOBAL PREVENTION: Component ${componentMasterItem.itemCode} already has a work order in the system - skipping`);
-          continue;
-        }
+        // MODIFIED: All prevention is now project-specific to allow components across different projects
+        // This is a CRITICAL CHANGE to allow components to be created properly
         
-        // Also check in the global tracking set
-        if (componentMasterItem.itemCode && globalItemCodesWithWorkOrders && globalItemCodesWithWorkOrders.has(componentMasterItem.itemCode)) {
-          console.log(`GLOBAL PREVENTION (2): Component ${componentMasterItem.itemCode} found in global tracking - skipping`);
-          continue;
-        }
-        
-        // Additional check in current project tracking
+        // Project-specific prevention only
+        // This is a critical change to allow components to be created
         if (componentMasterItem.itemCode && currentProjectItemCodes && currentProjectItemCodes.has(componentMasterItem.itemCode)) {
-          console.log(`CURRENT PROJECT PREVENTION: Component ${componentMasterItem.itemCode} already has a work order in this project - skipping`);
+          console.log(`PROJECT-SPECIFIC PREVENTION: Component ${componentMasterItem.itemCode} found in current project tracking - skipping`);
           continue;
         }
+        
+        // Check only for project-specific duplicates
+        // We've already handled this check above, removing redundant check
         
         console.log(`Creating virtual component: ${componentMasterItem.itemCode}`);
         
@@ -991,9 +985,10 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       // Before going any further, check multiple sources to prevent duplicates
       
       if (masterItem) {
-        // Layer 1: Check all existing item codes from global scan
-        if (masterItem.itemCode && globalItemCodesWithWorkOrders && globalItemCodesWithWorkOrders.has(masterItem.itemCode)) {
-          console.log(`LAYER 1 PREVENTION: Component ${masterItem.itemCode} found in global work order database - skipping`);
+        // MODIFIED: Only check global database for CURRENT project items
+        // NOT for other projects (this was too restrictive and blocks legitimate components)
+        if (masterItem.itemCode && currentProjectItemCodes && currentProjectItemCodes.has(masterItem.itemCode)) {
+          console.log(`MODIFIED LAYER 1: Component ${masterItem.itemCode} found in current project work orders - skipping`);
           continue;
         }
         
