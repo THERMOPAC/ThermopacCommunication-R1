@@ -696,6 +696,46 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     // This is a set of "parentItemCode:componentItemCode" strings
     const processedComponentKeys = new Set<string>();
     
+    // CRITICAL ENHANCEMENT: Extract all item codes from work order titles
+    // This is the most reliable method to track what items already have work orders
+    const allExistingItemCodesFromTitles = new Set<string>();
+    
+    // Get all work order titles for this project
+    const workOrderTitlesQuery = await db.execute(sql`
+      SELECT title FROM work_orders WHERE project_id = ${projectId}
+    `);
+    
+    if (workOrderTitlesQuery.rows && Array.isArray(workOrderTitlesQuery.rows)) {
+      workOrderTitlesQuery.rows.forEach(row => {
+        if (row.title) {
+          // Extract item code from title (format: "ITEMCODE - Description")
+          const parts = row.title.split(' - ');
+          if (parts.length > 0) {
+            const itemCode = parts[0].trim();
+            if (itemCode) {
+              allExistingItemCodesFromTitles.add(itemCode);
+              existingItemCodesWithWorkOrders.add(itemCode);
+              console.log(`Item code extracted from work order title: ${itemCode}`);
+            }
+          }
+        }
+      });
+    }
+    
+    console.log(`Found ${allExistingItemCodesFromTitles.size} unique item codes from work order titles`);
+    
+    // IMPORTANT: Add a direct check for each item code we have in this session
+    // This is a CRITICAL prevention step
+    for (const component of virtualComponentItems) {
+      const masterItem = masterItemsMap.get(component.itemId);
+      if (masterItem && masterItem.itemCode) {
+        if (allExistingItemCodesFromTitles.has(masterItem.itemCode)) {
+          console.log(`CRITICAL PREVENTION: ${masterItem.itemCode} already has a work order (detected from titles)`);
+          existingItemCodesWithWorkOrders.add(masterItem.itemCode);
+        }
+      }
+    }
+    
     // Set default dates
     const today = new Date();
     const endDate = new Date();
@@ -792,8 +832,49 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       });
     }
     
-    // NEW DIRECT PROJECT-ITEM RELATIONSHIP CHECK:
-    // Query to find which master items already have work orders in this project
+    // NEW COMPREHENSIVE PROJECT-ITEM RELATIONSHIP CHECK:
+    // First, query all work order items in this project to find item codes
+    // This will identify virtual components that don't have proper project items
+    const existingWorkOrdersQuery = await db.execute(sql`
+      SELECT wo.id, wo.work_order_number, wo.title
+      FROM work_orders wo
+      WHERE wo.project_id = ${projectId}
+    `);
+    
+    const workOrderIds = [];
+    if (existingWorkOrdersQuery.rows && Array.isArray(existingWorkOrdersQuery.rows)) {
+      for (const row of existingWorkOrdersQuery.rows) {
+        if (row.id) {
+          workOrderIds.push(row.id);
+        }
+      }
+    }
+    
+    // Create a hashmap of existing work order IDs for faster lookup
+    const existingWorkOrderIds = new Set(workOrderIds);
+    
+    // Critical: Get ALL item codes from work order titles
+    // This catches virtual components that don't have direct master item links
+    const itemCodesInTitles = new Set<string>();
+    if (existingWorkOrdersQuery.rows && Array.isArray(existingWorkOrdersQuery.rows)) {
+      existingWorkOrdersQuery.rows.forEach(wo => {
+        if (wo.title) {
+          // Work order titles have format "ITEMCODE - Description"
+          const parts = wo.title.split(' - ');
+          if (parts.length > 0) {
+            const itemCode = parts[0].trim();
+            if (itemCode) {
+              itemCodesInTitles.add(itemCode);
+              // Also add to our existing tracking set
+              existingItemCodesWithWorkOrders.add(itemCode);
+              console.log(`Item code ${itemCode} found in work order title`);
+            }
+          }
+        }
+      });
+    }
+    
+    // Now, query to get master item IDs that have direct project item links
     const existingWorkOrderItemsQuery = await db.execute(sql`
       SELECT DISTINCT mi.id as master_item_id, mi.item_code 
       FROM work_orders wo
@@ -817,9 +898,15 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
           itemCodesWithWorkOrdersInProject.add(row.item_code);
           // Also add to our existing tracking set
           existingItemCodesWithWorkOrders.add(row.item_code);
+          console.log(`Item code ${row.item_code} has work order (via master item)`);
         }
       });
     }
+    
+    // Merge the item codes from the work order titles with the item codes from the master items
+    itemCodesInTitles.forEach(code => {
+      itemCodesWithWorkOrdersInProject.add(code);
+    });
     
     console.log(`Project ${projectId} already has work orders for ${masterItemsWithWorkOrdersInProject.size} master items and ${itemCodesWithWorkOrdersInProject.size} item codes`);
     
@@ -889,32 +976,67 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
           continue;
         }
         
-        // First check: Does this exact component already have a work order for this exact parent?
-        // This is a critical check for duplicate prevention
+        // MUCH MORE RELIABLE CHECK: Look directly at work order titles to find duplicates
+        // This is the most reliable check as item codes are in the title
         try {
-          // Use a direct query that finds ANY work order item for this specific component under this specific parent
-          const existingWorkOrderItemsQuery = await db.execute(sql`
-            SELECT wi.id, wo.work_order_number
-            FROM work_order_items wi
-            JOIN work_orders wo ON wi.work_order_id = wo.id
-            JOIN project_items pi ON wi.project_item_id = pi.id
-            JOIN master_items mi ON pi.item_id = mi.id
-            WHERE wo.project_id = ${projectId}
-              AND mi.item_code = ${masterItem.itemCode}
-              AND wo.work_order_number LIKE ${parentInfo.workOrderNumber + '%'}
+          // First check: Look for exact item code in work order titles
+          const titleCheckQuery = await db.execute(sql`
+            SELECT id, work_order_number, title
+            FROM work_orders 
+            WHERE project_id = ${projectId}
+              AND title LIKE ${masterItem.itemCode + ' - %'}
           `);
           
-          // Check if we found any matching items
-          const results = existingWorkOrderItemsQuery.rows || existingWorkOrderItemsQuery;
+          const titleResults = titleCheckQuery.rows || titleCheckQuery;
           
-          if (results && Array.isArray(results) && results.length > 0) {
-            const existingWorkOrder = results[0];
-            console.log(`DIRECT DATABASE CHECK: Found existing work order ${existingWorkOrder.work_order_number} for component ${masterItem.itemCode} under parent ${parentInfo.workOrderNumber}`);
-            console.log('Skipping duplicate component - already exists in database with work order ID:', existingWorkOrder.id);
+          if (titleResults && Array.isArray(titleResults) && titleResults.length > 0) {
+            const existingWorkOrder = titleResults[0];
+            console.log(`CRITICAL TITLE CHECK: Found existing work order ${existingWorkOrder.work_order_number} for component ${masterItem.itemCode} in title "${existingWorkOrder.title}"`);
+            console.log(`Skipping duplicate component - already exists with work order ID: ${existingWorkOrder.id}`);
+            continue;
+          }
+          
+          // Second check: Look for work orders under this specific parent (hierarchical relationship)
+          const parentChildQuery = await db.execute(sql`
+            SELECT id, work_order_number, title
+            FROM work_orders
+            WHERE project_id = ${projectId}
+              AND work_order_number LIKE ${parentInfo.workOrderNumber + '-%'}
+              AND title LIKE ${masterItem.itemCode + ' - %'} 
+          `);
+          
+          const parentChildResults = parentChildQuery.rows || parentChildQuery;
+          
+          if (parentChildResults && Array.isArray(parentChildResults) && parentChildResults.length > 0) {
+            const existingChildWorkOrder = parentChildResults[0];
+            console.log(`PARENT-CHILD CHECK: Found existing child work order ${existingChildWorkOrder.work_order_number} for component ${masterItem.itemCode} under parent ${parentInfo.workOrderNumber}`);
+            console.log(`Skipping duplicate component - already exists with work order ID: ${existingChildWorkOrder.id}`);
+            continue;
+          }
+          
+          // Third check: Look for any work order where this item code is part of the title
+          // This handles cases where the item might be a parent in one work order and a child in another
+          const fuzzyTitleCheck = await db.execute(sql`
+            SELECT id, work_order_number, title
+            FROM work_orders
+            WHERE project_id = ${projectId}
+              AND (
+                title LIKE ${'% ' + masterItem.itemCode + ' %'} OR
+                title LIKE ${masterItem.itemCode + ' %'} OR
+                title LIKE ${'% ' + masterItem.itemCode}
+              )
+          `);
+          
+          const fuzzyResults = fuzzyTitleCheck.rows || fuzzyTitleCheck;
+          
+          if (fuzzyResults && Array.isArray(fuzzyResults) && fuzzyResults.length > 0) {
+            const existingFuzzyWorkOrder = fuzzyResults[0];
+            console.log(`FUZZY TITLE CHECK: Found work order containing item code ${masterItem.itemCode} in title "${existingFuzzyWorkOrder.title}"`);
+            console.log(`Skipping duplicate component - found in work order: ${existingFuzzyWorkOrder.work_order_number}`);
             continue;
           }
         } catch (error) {
-          console.error('Error performing direct database check for duplicate components:', error);
+          console.error('Error performing direct database checks for duplicate components:', error);
           // Continue with other checks if this one fails
         }
         
