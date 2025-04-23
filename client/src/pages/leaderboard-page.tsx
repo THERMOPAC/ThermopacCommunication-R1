@@ -74,7 +74,7 @@ const UserScoreCard = ({
   isCurrentUser 
 }: { 
   rank: number; 
-  metric: ProductivityMetric & { userDetails?: any }; 
+  metric: any; 
   isCurrentUser: boolean 
 }) => {
   // Medal icons for top 3
@@ -88,21 +88,27 @@ const UserScoreCard = ({
   // For debugging
   console.log('UserScoreCard rendering with metric:', metric);
 
+  // Since the server returns different formats, we need to handle both
+  const username = metric.userDetails?.username || 'Unknown User';
+  const role = metric.userDetails?.role || '';
+  const score = metric.weeklyScore || 0;
+  const tasksCompleted = metric.tasksCompleted || 0;
+
   return (
     <div className={`flex items-center p-3 border-b last:border-b-0 ${isCurrentUser ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}>
       <div className="flex items-center justify-center w-8">
         {getMedalIcon()}
       </div>
       <div className="flex-grow ml-3">
-        <p className="font-medium">{metric.userDetails?.username || 'Unknown User'}</p>
+        <p className="font-medium">{username}</p>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          {metric.userDetails?.role}
+          {role}
         </p>
       </div>
       <div className="flex flex-col items-end">
-        <p className="font-semibold">{metric.weeklyScore} pts</p>
+        <p className="font-semibold">{score} pts</p>
         <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-          <span>{metric.tasksCompleted} tasks</span>
+          <span>{tasksCompleted} tasks</span>
         </div>
       </div>
     </div>
@@ -274,10 +280,11 @@ export default function LeaderboardPage() {
                   
                   <TabsContent value="team" className="space-y-4">
                     <div className="rounded-md border">
-                      {teamLeaderboard?.length > 0 ? (
-                        teamLeaderboard?.map((metric: ProductivityMetric, index: number) => (
+                      {/* Debug logs */}
+                      {Array.isArray(teamLeaderboard) && teamLeaderboard.length > 0 ? (
+                        teamLeaderboard.map((metric: any, index: number) => (
                           <UserScoreCard 
-                            key={metric.userId} 
+                            key={metric.userId || index} 
                             rank={index + 1} 
                             metric={metric} 
                             isCurrentUser={metric.userId === userId} 
@@ -293,10 +300,11 @@ export default function LeaderboardPage() {
                   
                   <TabsContent value="company" className="space-y-4">
                     <div className="rounded-md border">
-                      {companyLeaderboard?.length > 0 ? (
-                        companyLeaderboard?.map((metric: ProductivityMetric, index: number) => (
+                      {/* Debug logs for company leaderboard */}
+                      {Array.isArray(companyLeaderboard) && companyLeaderboard.length > 0 ? (
+                        companyLeaderboard.map((metric: any, index: number) => (
                           <UserScoreCard 
-                            key={metric.userId} 
+                            key={metric.userId || index} 
                             rank={index + 1} 
                             metric={metric} 
                             isCurrentUser={metric.userId === userId} 
