@@ -136,6 +136,10 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     // For current project item codes specifically
     const currentProjectItemCodes = new Set<string>();
     
+    // NEW: This set needs to be created from scratch for each project
+    // CRITICAL: Reset the tracking set to prevent issues between calls
+    let existingItemCodesWithWorkOrders = new Set<string>();
+    
     try {
       // Get ALL work orders in the system
       const allWorkOrdersQuery = await db.execute(sql`
@@ -313,8 +317,8 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         })
       : [];
       
-    // Create a set of item codes that already have work orders to avoid duplicates
-    const existingItemCodesWithWorkOrders = new Set<string>();
+    // Add to the existing tracking set for this project's items
+    // This is already declared at the top of the function
     
     // Create a deep tracking of what work orders already exist for each item code
     // This helps us track which specific work orders are assigned to which components
@@ -1010,11 +1014,9 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
           continue;
         }
         
-        // Layer 5: Check existing item codes with work orders
-        if (masterItem.itemCode && existingItemCodesWithWorkOrders.has(masterItem.itemCode)) {
-          console.log(`LAYER 5 PREVENTION: Component ${masterItem.itemCode} - already in tracking set - skipping`);
-          continue;
-        }
+        // REMOVED LAYER 5: We no longer check the existingItemCodesWithWorkOrders
+        // This was causing legitimate components to be blocked
+        // The tracking set should only be used for components within the same run
         
         // Layer 6: Check current project item codes
         if (masterItem.itemCode && currentProjectItemCodes && currentProjectItemCodes.has(masterItem.itemCode)) {
