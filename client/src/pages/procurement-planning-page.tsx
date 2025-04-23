@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Helmet } from "react-helmet";
 import { Loader2 } from "lucide-react";
 import Layout from "@/components/layout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   Table,
   TableBody,
@@ -32,6 +34,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -46,13 +59,15 @@ export default function ProcurementPlanningPage() {
   const [projectFilter, setProjectFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const { toast } = useToast();
 
-  // Mock data - will be replaced with actual data once API is implemented
-  const projects = [
-    { id: 1, code: "2526-1", name: "NTPC Ramagundam" },
-    { id: 2, code: "2526-2", name: "NTPC Simhadri" },
-    { id: 3, code: "2526-3", name: "ISGEC Heavy Engineering" },
-  ];
+  // Fetch projects for both filtering and selection
+  const { data: projects = [] } = useQuery({
+    queryKey: ["/api/projects"],
+  });
 
   // Fetch purchase orders from the API
   const { data: purchaseOrders, isLoading, error } = useQuery({
@@ -96,6 +111,68 @@ export default function ProcurementPlanningPage() {
 
   // Use real data from API if available, otherwise fall back to mock data for now
   const dataSource = purchaseOrders || mockPurchaseOrders || [];
+  
+  // Preview purchase orders for a selected project
+  const { data: previewPurchaseOrders, isLoading: isLoadingPreview } = useQuery({
+    queryKey: ["/api/procurement/purchase-orders/preview", selectedProjectId],
+    enabled: !!selectedProjectId && showPreview,
+    onSuccess: (data) => {
+      setPreviewData(data);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to preview purchase orders. Please try again.",
+        variant: "destructive",
+      });
+      setShowPreview(false);
+    }
+  });
+
+  // Create purchase orders for a project
+  const generatePurchaseOrdersMutation = useMutation({
+    mutationFn: async (data: { projectId: number, confirm: boolean }) => {
+      const res = await apiRequest(
+        "POST", 
+        `/api/procurement/purchase-orders/generate-for-project/${data.projectId}`,
+        { confirm: data.confirm }
+      );
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success",
+        description: `Successfully generated ${data.purchaseOrders?.length || 0} purchase orders.`,
+      });
+      setShowPreview(false);
+      setSelectedProjectId(null);
+      // Invalidate queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ["/api/procurement/purchase-orders"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate purchase orders.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Handle project selection for purchase order generation
+  const handleProjectSelect = (projectId: string) => {
+    setSelectedProjectId(Number(projectId));
+    setShowPreview(true);
+  };
+
+  // Handle generate purchase orders
+  const handleGeneratePurchaseOrders = () => {
+    if (selectedProjectId) {
+      generatePurchaseOrdersMutation.mutate({ 
+        projectId: selectedProjectId, 
+        confirm: true 
+      });
+    }
+  };
   
   // Filter function for purchase orders
   const filteredPurchaseOrders = dataSource.filter((po: any) => {
@@ -145,105 +222,218 @@ export default function ProcurementPlanningPage() {
               Generate and manage purchase orders for all your procurement needs
             </p>
           </div>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="mt-2 sm:mt-0">Create Purchase Order</Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Create New Purchase Order</DialogTitle>
-                <DialogDescription>
-                  Fill in the details to create a new purchase order request
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <label htmlFor="title" className="text-sm font-medium">Title</label>
-                  <Input id="title" placeholder="Purchase Order Title" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="mt-2 sm:mt-0">Create Purchase Order</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                  <DialogTitle>Create New Purchase Order</DialogTitle>
+                  <DialogDescription>
+                    Fill in the details to create a new purchase order request
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <label htmlFor="project" className="text-sm font-medium">Project</label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Project" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {projects.map((project) => (
-                          <SelectItem key={project.id} value={project.code}>
-                            {project.code} - {project.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <label htmlFor="title" className="text-sm font-medium">Title</label>
+                    <Input id="title" placeholder="Purchase Order Title" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <label htmlFor="project" className="text-sm font-medium">Project</label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Project" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {projects.map((project: any) => (
+                            <SelectItem key={project.id} value={project.code}>
+                              {project.code} - {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <label htmlFor="vendor" className="text-sm font-medium">Vendor</label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Vendor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="vendor1">Steel Suppliers Ltd.</SelectItem>
+                          <SelectItem value="vendor2">Precision Instruments Inc.</SelectItem>
+                          <SelectItem value="vendor3">Flow Systems Corp.</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Required By Date</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "justify-start text-left font-normal",
+                              !date && "text-muted-foreground"
+                            )}
+                          >
+                            {date ? format(date, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={date}
+                            onSelect={setDate}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="grid gap-2">
+                      <label htmlFor="priority" className="text-sm font-medium">Priority</label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Low">Low</SelectItem>
+                          <SelectItem value="Medium">Medium</SelectItem>
+                          <SelectItem value="High">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="grid gap-2">
-                    <label htmlFor="vendor" className="text-sm font-medium">Vendor</label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Vendor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="vendor1">Steel Suppliers Ltd.</SelectItem>
-                        <SelectItem value="vendor2">Precision Instruments Inc.</SelectItem>
-                        <SelectItem value="vendor3">Flow Systems Corp.</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <label htmlFor="description" className="text-sm font-medium">Description</label>
+                    <textarea 
+                      id="description" 
+                      className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      placeholder="Enter purchase order description..."
+                    ></textarea>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium">Required By Date</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "justify-start text-left font-normal",
-                            !date && "text-muted-foreground"
+                <DialogFooter>
+                  <Button type="submit">Create Purchase Order</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Project-Based Purchase Order Generation */}
+            <AlertDialog open={showPreview} onOpenChange={setShowPreview}>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="mt-2 sm:mt-0">
+                  Create Purchase Orders for Project
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="max-w-[700px]">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Generate Purchase Orders for Project</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Select a project to generate purchase orders for all "Buy" items in the project.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                
+                {!selectedProjectId ? (
+                  <div className="py-4">
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <label htmlFor="project-select" className="text-sm font-medium">
+                          Select Project
+                        </label>
+                        <Select onValueChange={handleProjectSelect}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a project" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {projects.map((project: any) => (
+                              <SelectItem key={project.id} value={project.id.toString()}>
+                                {project.code} - {project.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                ) : isLoadingPreview ? (
+                  <div className="py-6 flex justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : previewData ? (
+                  <div className="py-4">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-medium">
+                        Project: {previewData.project?.code} - {previewData.project?.name}
+                      </h3>
+                      <p className="text-muted-foreground mt-1">
+                        {previewData.itemCount} items will be included in purchase orders
+                      </p>
+                    </div>
+                    
+                    <div className="rounded-md border max-h-[300px] overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Item Code</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead>Quantity</TableHead>
+                            <TableHead>Unit</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {previewData.items?.length > 0 ? (
+                            previewData.items.map((item: any, index: number) => (
+                              <TableRow key={index}>
+                                <TableCell>{item.itemCode}</TableCell>
+                                <TableCell>{item.description}</TableCell>
+                                <TableCell>{item.quantity}</TableCell>
+                                <TableCell>{item.unit}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center py-4">
+                                No items found to generate purchase orders.
+                              </TableCell>
+                            </TableRow>
                           )}
-                        >
-                          {date ? format(date, "PPP") : "Pick a date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={date}
-                          onSelect={setDate}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
-                  <div className="grid gap-2">
-                    <label htmlFor="priority" className="text-sm font-medium">Priority</label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Low">Low</SelectItem>
-                        <SelectItem value="Medium">Medium</SelectItem>
-                        <SelectItem value="High">High</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <label htmlFor="description" className="text-sm font-medium">Description</label>
-                  <textarea 
-                    id="description" 
-                    className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    placeholder="Enter purchase order description..."
-                  ></textarea>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit">Create Purchase Order</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                ) : null}
+                
+                <AlertDialogFooter className="gap-2">
+                  <AlertDialogCancel onClick={() => {
+                    setSelectedProjectId(null);
+                    setShowPreview(false);
+                  }}>
+                    Cancel
+                  </AlertDialogCancel>
+                  {selectedProjectId && previewData && (
+                    <AlertDialogAction
+                      onClick={handleGeneratePurchaseOrders}
+                      disabled={generatePurchaseOrdersMutation.isPending || !previewData.items?.length}
+                    >
+                      {generatePurchaseOrdersMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        "Generate Purchase Orders"
+                      )}
+                    </AlertDialogAction>
+                  )}
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
         
         <Card>
