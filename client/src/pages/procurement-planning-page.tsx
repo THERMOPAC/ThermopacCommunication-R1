@@ -94,14 +94,20 @@ export default function ProcurementPlanningPage() {
     },
   ];
 
-  // Filter function for mock data
-  const filteredPurchaseOrders = mockPurchaseOrders.filter((po) => {
+  // Use real data from API if available, otherwise fall back to mock data for now
+  const dataSource = purchaseOrders || mockPurchaseOrders;
+  
+  // Filter function for purchase orders
+  const filteredPurchaseOrders = dataSource.filter((po) => {
     const matchesSearch = 
       po.purchaseOrderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       po.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      po.vendorName.toLowerCase().includes(searchTerm.toLowerCase());
+      (po.vendorName && po.vendorName.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesProject = projectFilter && projectFilter !== "all" ? po.projectCode === projectFilter : true;
+    const matchesProject = projectFilter && projectFilter !== "all" ? 
+      (po.projectCode === projectFilter || 
+      (po.project && po.project.code === projectFilter)) : true;
+    
     const matchesStatus = statusFilter && statusFilter !== "all" ? po.status === statusFilter : true;
     
     return matchesSearch && matchesProject && matchesStatus;
@@ -333,7 +339,7 @@ export default function ProcurementPlanningPage() {
           </CardContent>
           <CardFooter className="flex justify-between">
             <div className="text-sm text-muted-foreground">
-              Showing {filteredPurchaseOrders.length} of {mockPurchaseOrders.length} purchase orders
+              Showing {filteredPurchaseOrders.length} of {dataSource.length} purchase orders
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled>Previous</Button>

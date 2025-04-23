@@ -342,17 +342,17 @@ export function setupProcurementRoutes(app: Router) {
         // Create values for the db query with camelCase keys matching schema
         const purchaseOrderValues = {
           projectId: projectId,
-          vendorId: vendorId > 0 ? vendorId : null,
+          vendorId: vendorId > 0 ? vendorId : vendorId, // Must provide a value even if it's 0
           purchaseOrderNumber: poNumber,
           title: `Materials for ${project.name}`,
           description: `Purchase order for ${project.code} project materials`,
           status: 'draft',
           priority: 'Medium',
-          requestedDate: today.toISOString(),
-          requiredByDate: requiredDate.toISOString(),
+          requestedDate: today, // Use Date objects directly
+          requiredByDate: requiredDate,
           createdBy: user.id,
-          createdAt: now,
-          updatedAt: now
+          createdAt: new Date(),
+          updatedAt: new Date()
         };
         
         const [purchaseOrder] = await db.insert(purchaseOrders)
@@ -378,8 +378,8 @@ export function setupProcurementRoutes(app: Router) {
               totalPrice: totalPrice.toString(),
               deliveryStatus: 'pending',
               lineNumber: i + 1,
-              createdAt: now,
-              updatedAt: now
+              createdAt: new Date(),
+              updatedAt: new Date()
             };
             
           await db.insert(purchaseOrderItems)
@@ -392,7 +392,7 @@ export function setupProcurementRoutes(app: Router) {
           status: 'draft',
           comments: 'Purchase order generated from project items',
           changedBy: user.id,
-          changedAt: now
+          changedAt: new Date()
         };
           
         await db.insert(purchaseOrderHistory)
