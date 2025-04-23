@@ -433,8 +433,19 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         });
       }
       
+      // Filter parent items that already have work orders
+      const filteredPreviewParentItems = filteredMakeParentItems.filter(item => {
+        const masterItem = masterItemsMap.get(item.itemId);
+        // Skip if this parent already has a work order (by item code)
+        if (masterItem && masterItem.itemCode && existingItemCodesWithWorkOrders.has(masterItem.itemCode)) {
+          console.log(`Preview: Skipping parent preview for ${masterItem.itemCode} - already has a work order`);
+          return false;
+        }
+        return true;
+      });
+      
       // Prepare preview items for parent items
-      const parentPreviewItems = filteredMakeParentItems.map((item, index) => {
+      const parentPreviewItems = filteredPreviewParentItems.map((item, index) => {
         const masterItem = masterItemsMap.get(item.itemId);
         return {
           sequenceNumber: index + 1,
@@ -509,12 +520,12 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
           code: project.code,
           name: project.name
         },
-        itemCount: filteredMakeParentItems.length + filteredVirtualComponents.length,
-        parentCount: filteredMakeParentItems.length,
+        itemCount: filteredPreviewParentItems.length + filteredVirtualComponents.length,
+        parentCount: filteredPreviewParentItems.length,
         componentCount: filteredVirtualComponents.length,
         parentWorkOrderNumber,
         items: [...parentPreviewItems, ...componentPreviewItems],
-        willCreateSeparateOrders: filteredMakeParentItems.length > 0 && filteredVirtualComponents.length > 0,
+        willCreateSeparateOrders: filteredPreviewParentItems.length > 0 && filteredVirtualComponents.length > 0,
         crossProjectComponents: crossProjectInfo,
         newItemsFound: true, // Flag to indicate new items require work orders
         existingItemCount: virtualComponentItems.length - filteredVirtualComponents.length // Count of items with existing work orders
@@ -540,6 +551,12 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       const masterItem = masterItemsMap.get(parentItem.itemId);
       if (!masterItem) continue;
       
+      // Check if this parent item already has a work order - avoid duplicates
+      if (masterItem.itemCode && existingItemCodesWithWorkOrders.has(masterItem.itemCode)) {
+        console.log(`Skipping parent work order for ${masterItem.itemCode} - already has a work order`);
+        continue;
+      }
+      
       let workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
       
       // Ensure uniqueness
@@ -549,6 +566,10 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       }
       
       existingWorkOrderNumbers.add(workOrderNumber);
+      // Also mark this item code as having a work order now
+      if (masterItem.itemCode) {
+        existingItemCodesWithWorkOrders.add(masterItem.itemCode);
+      }
       seqNumberCounter++;
       
       // Create parent work order
