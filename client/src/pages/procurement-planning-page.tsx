@@ -54,10 +54,10 @@ export default function ProcurementPlanningPage() {
     { id: 3, code: "2526-3", name: "ISGEC Heavy Engineering" },
   ];
 
-  // Placeholder query - will be replaced with actual API call
+  // Fetch purchase orders from the API
   const { data: purchaseOrders, isLoading, error } = useQuery({
-    queryKey: ["/api/purchase-orders"],
-    enabled: false, // Disable the query for now until we implement the API
+    queryKey: ["/api/procurement/purchase-orders"],
+    enabled: true, // Enable the query to fetch real data
   });
 
   // Mock purchase orders data

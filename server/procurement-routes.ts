@@ -356,7 +356,7 @@ export function setupProcurementRoutes(app: Router) {
         };
         
         const [purchaseOrder] = await db.insert(purchaseOrders)
-          .values(purchaseOrderValues)
+          .values([purchaseOrderValues])
           .returning();
         
         // Create purchase order items
@@ -368,35 +368,35 @@ export function setupProcurementRoutes(app: Router) {
           const totalPrice = Number(unitPrice) * quantity;
           
           const poItemValues = {
-              purchase_order_id: purchaseOrder.id,
-              project_item_id: item.id,
-              item_id: item.itemId,
+              purchaseOrderId: purchaseOrder.id,
+              projectItemId: item.id,
+              itemId: item.itemId,
               description: masterItem?.description || 'Unknown Item',
               quantity: item.quantity.toString(),
               unit: masterItem?.unit || 'EA',
-              unit_price: unitPrice.toString(),
-              total_price: totalPrice.toString(),
-              delivery_status: 'pending',
-              line_number: i + 1,
-              created_at: now,
-              updated_at: now
+              unitPrice: unitPrice.toString(),
+              totalPrice: totalPrice.toString(),
+              deliveryStatus: 'pending',
+              lineNumber: i + 1,
+              createdAt: now,
+              updatedAt: now
             };
             
           await db.insert(purchaseOrderItems)
-            .values(poItemValues);
+            .values([poItemValues]);
         }
         
         // Create purchase order history entry
         const historyValues = {
-          purchase_order_id: purchaseOrder.id,
+          purchaseOrderId: purchaseOrder.id,
           status: 'draft',
           comments: 'Purchase order generated from project items',
-          changed_by: user.id,
-          changed_at: now
+          changedBy: user.id,
+          changedAt: now
         };
           
         await db.insert(purchaseOrderHistory)
-          .values(historyValues);
+          .values([historyValues]);
         
         createdPOs.push({
           id: purchaseOrder.id,
