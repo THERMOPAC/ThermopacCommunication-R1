@@ -39,6 +39,7 @@ export default function Layout({ children }: LayoutProps) {
   const { user } = useAuth();
   const [location] = useLocation();
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
+  const [isProcurementMenuOpen, setIsProcurementMenuOpen] = useState(false);
   const [isProductionMenuOpen, setIsProductionMenuOpen] = useState(false);
   const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
 
@@ -49,6 +50,10 @@ export default function Layout({ children }: LayoutProps) {
   const isOnProjectsPage = location.startsWith('/project') || 
                          location === '/customers' || 
                          location === '/item-master';
+  
+  // Check if we're on any procurement-related page
+  const isOnProcurementPage = location === '/procurement-planning' ||
+                            location === '/procurement-tracking';
   
   // Check if we're on any production-related page
   const isOnProductionPage = location === '/production-planning' ||
@@ -65,6 +70,10 @@ export default function Layout({ children }: LayoutProps) {
       setIsProjectMenuOpen(true);
     }
     
+    if (isOnProcurementPage && !isProcurementMenuOpen) {
+      setIsProcurementMenuOpen(true);
+    }
+    
     if (isOnProductionPage && !isProductionMenuOpen) {
       setIsProductionMenuOpen(true);
     }
@@ -72,7 +81,7 @@ export default function Layout({ children }: LayoutProps) {
     if (isOnQualityPage && !isQualityMenuOpen) {
       setIsQualityMenuOpen(true);
     }
-  }, [isOnProjectsPage, isOnProductionPage, isOnQualityPage]);
+  }, [isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -104,6 +113,17 @@ export default function Layout({ children }: LayoutProps) {
         { icon: Briefcase, label: "Projects", href: "/projects" },
         { icon: Users, label: "Customers", href: "/customers" },
         { icon: TrendingUp, label: "Item Master", href: "/item-master" }
+      ]
+    }] : []),
+    ...(hasViewPermission("Procurement Management") ? [{
+      icon: TrendingUp,
+      label: "Procurement Management",
+      isSubmenu: true,
+      isOpen: isProcurementMenuOpen,
+      toggle: () => setIsProcurementMenuOpen(!isProcurementMenuOpen),
+      children: [
+        { icon: Briefcase, label: "Procurement Planning", href: "/procurement-planning" },
+        { icon: TrendingUp, label: "Procurement Tracking", href: "/procurement-tracking" }
       ]
     }] : []),
     ...(hasViewPermission("Production Management") ? [{ 
