@@ -123,8 +123,55 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       return res.status(400).json({ error: 'Invalid project ID' });
     }
     
-    // Clean up any existing duplicate work orders first
+    // FIRST DEFENSE: Clean up any existing duplicate work orders first
     await cleanupDuplicateWorkOrders(projectId);
+    
+    // SECOND DEFENSE: Get all existing work order titles across the entire system
+    // This is to prevent components from being recreated even if they're already in other projects
+    console.log(`Building global work order title database for duplicate prevention`);
+    
+    // Create a set for item codes that already have work orders (across projects)
+    const globalItemCodesWithWorkOrders = new Set<string>();
+    
+    // For current project item codes specifically
+    const currentProjectItemCodes = new Set<string>();
+    
+    try {
+      // Get ALL work orders in the system
+      const allWorkOrdersQuery = await db.execute(sql`
+        SELECT id, title, work_order_number, project_id 
+        FROM work_orders 
+        ORDER BY id
+      `);
+      
+      if (allWorkOrdersQuery.rows && Array.isArray(allWorkOrdersQuery.rows)) {
+        console.log(`Found ${allWorkOrdersQuery.rows.length} total work orders in system`);
+        
+        allWorkOrdersQuery.rows.forEach(wo => {
+          if (wo.title) {
+            // Extract item code from title (format: "ITEMCODE - Description")
+            const parts = wo.title.split(' - ');
+            if (parts.length > 0) {
+              const itemCode = parts[0].trim();
+              if (itemCode) {
+                // Add to global tracking
+                globalItemCodesWithWorkOrders.add(itemCode);
+                
+                // If this is for current project, also add to current project tracking
+                if (wo.project_id === projectId) {
+                  currentProjectItemCodes.add(itemCode);
+                }
+              }
+            }
+          }
+        });
+        
+        console.log(`Indexed ${globalItemCodesWithWorkOrders.size} unique item codes (${currentProjectItemCodes.size} in current project)`);
+      }
+    } catch (error) {
+      console.error('Error building global work order title database:', error);
+      // Continue with original workflow even if this enhancement fails
+    }
     
     console.log(`Starting direct work order generation for project ${projectId}`);
     
@@ -519,6 +566,25 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
           continue;
         }
         
+        // Check if the item code exists in our global tracking set
+        // This is a CRITICAL ENHANCEMENT to prevent duplicate work orders
+        if (componentMasterItem.itemCode && existingItemCodesWithWorkOrders.has(componentMasterItem.itemCode)) {
+          console.log(`GLOBAL PREVENTION: Component ${componentMasterItem.itemCode} already has a work order in the system - skipping`);
+          continue;
+        }
+        
+        // Also check in the global tracking set
+        if (componentMasterItem.itemCode && globalItemCodesWithWorkOrders && globalItemCodesWithWorkOrders.has(componentMasterItem.itemCode)) {
+          console.log(`GLOBAL PREVENTION (2): Component ${componentMasterItem.itemCode} found in global tracking - skipping`);
+          continue;
+        }
+        
+        // Additional check in current project tracking
+        if (componentMasterItem.itemCode && currentProjectItemCodes && currentProjectItemCodes.has(componentMasterItem.itemCode)) {
+          console.log(`CURRENT PROJECT PREVENTION: Component ${componentMasterItem.itemCode} already has a work order in this project - skipping`);
+          continue;
+        }
+        
         console.log(`Creating virtual component: ${componentMasterItem.itemCode}`);
         
         // Create virtual component
@@ -527,6 +593,12 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
           : parentItem.quantity;
         
         const validQuantity = !isNaN(quantity) && quantity > 0 ? quantity : 1;
+        
+        // Add to tracking immediately to prevent duplicates
+        if (componentMasterItem.itemCode) {
+          existingItemCodesWithWorkOrders.add(componentMasterItem.itemCode);
+          console.log(`Added ${componentMasterItem.itemCode} to tracking set to prevent duplicates`);
+        }
         
         virtualComponentItems.push({
           id: -(Math.abs(componentId)), // Negative ID marks it as virtual
@@ -915,17 +987,43 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       const masterItem = masterItemsMap.get(component.itemId);
       const parentItemId = component.parentItemId;
       
-      // CRITICAL CHECK: Does this master item already have a work order in this project?
+      // ENHANCED MULTILAYER PREVENTION
+      // Before going any further, check multiple sources to prevent duplicates
+      
       if (masterItem) {
-        // Check by ID
-        if (masterItemsWithWorkOrdersInProject.has(masterItem.id)) {
-          console.log(`Skipping component ${masterItem.itemCode} (ID: ${masterItem.id}) - already has a work order in project ${projectId} (checked by ID)`);
+        // Layer 1: Check all existing item codes from global scan
+        if (masterItem.itemCode && globalItemCodesWithWorkOrders && globalItemCodesWithWorkOrders.has(masterItem.itemCode)) {
+          console.log(`LAYER 1 PREVENTION: Component ${masterItem.itemCode} found in global work order database - skipping`);
           continue;
         }
         
-        // Also check by item code (more reliable for virtual components)
+        // Layer 2: Check by current title extraction
+        if (masterItem.itemCode && allExistingItemCodesFromTitles && allExistingItemCodesFromTitles.has(masterItem.itemCode)) {
+          console.log(`LAYER 2 PREVENTION: Component ${masterItem.itemCode} found in title extraction - skipping`);
+          continue;
+        }
+        
+        // Layer 3: Check by ID in master items with work orders
+        if (masterItemsWithWorkOrdersInProject.has(masterItem.id)) {
+          console.log(`LAYER 3 PREVENTION: Component ${masterItem.itemCode} (ID: ${masterItem.id}) already has a work order in project ${projectId} (checked by ID)`);
+          continue;
+        }
+        
+        // Layer 4: Check by item code in current project
         if (masterItem.itemCode && itemCodesWithWorkOrdersInProject.has(masterItem.itemCode)) {
-          console.log(`Skipping component ${masterItem.itemCode} - already has a work order in project ${projectId} (checked by item code)`);
+          console.log(`LAYER 4 PREVENTION: Component ${masterItem.itemCode} - already has a work order in project ${projectId} (checked by item code)`);
+          continue;
+        }
+        
+        // Layer 5: Check existing item codes with work orders
+        if (masterItem.itemCode && existingItemCodesWithWorkOrders.has(masterItem.itemCode)) {
+          console.log(`LAYER 5 PREVENTION: Component ${masterItem.itemCode} - already in tracking set - skipping`);
+          continue;
+        }
+        
+        // Layer 6: Check current project item codes
+        if (masterItem.itemCode && currentProjectItemCodes && currentProjectItemCodes.has(masterItem.itemCode)) {
+          console.log(`LAYER 6 PREVENTION: Component ${masterItem.itemCode} already in current project tracking - skipping`);
           continue;
         }
       }
