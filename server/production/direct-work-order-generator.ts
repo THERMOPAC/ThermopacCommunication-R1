@@ -428,8 +428,10 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     
     // If not confirmed, prepare preview data with item details
     if (!confirm) {
+      console.log(`Preview mode: Filtered parent items: ${filteredMakeParentItems.length}, Virtual components: ${virtualComponentItems.length}`);
+      
       // Skip preview data generation if there are no new items to create work orders for
-      if (filteredMakeParentItems.length === 0 && virtualComponentItems.length === 0) {
+      if (filteredMakeParentItems.length === 0 || (filteredMakeParentItems.length === 0 && virtualComponentItems.length === 0)) {
         // Return an empty preview dataset when there are no new items
         return res.status(200).json({
           requiresConfirmation: true,
@@ -750,7 +752,18 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     
     console.log(`Ready to create ${workOrdersToCreate.length} work orders with ${workOrderItemsToCreate.length} items`);
     
-    // Step 14: Insert all work orders in bulk
+    // Step 14: Insert all work orders in bulk, but only if there are any to create
+    if (workOrdersToCreate.length === 0) {
+      return res.status(200).json({
+        message: 'No new work orders needed to be created', 
+        count: 0,
+        parentCount: 0,
+        componentCount: 0,
+        skippedItems: 0,
+        crossProjectComponents: null
+      });
+    }
+    
     // Convert quantity to number to match schema
     const workOrdersToCreateFixed = workOrdersToCreate.map(wo => ({
       ...wo,
@@ -772,11 +785,26 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       };
     });
     
-    // Step 16: Insert all work order items
-    await db.insert(workOrderItems)
-      .values(finalWorkOrderItems);
+    // Step 16: Insert all work order items, but only if there are any to create
+    if (finalWorkOrderItems.length > 0) {
+      await db.insert(workOrderItems)
+        .values(finalWorkOrderItems);
+    }
     
-    // Count skipped components (those that already had work orders)
+    // Count skipped components and add isVirtual field for tracking 
+    // Add the isVirtual property to each workOrderItem for proper filtering
+    workOrderItemsToCreate.forEach((item, index) => {
+      // For component items (child sequence), mark as virtual
+      if (index >= filteredMakeParentItems.length) {
+        (item as any).isVirtual = true;
+        (item as any).itemType = 'Child';
+      } else {
+        (item as any).isVirtual = false;
+        (item as any).itemType = 'Parent';
+      }
+    });
+    
+    // Now count properly
     const skippedComponentCount = virtualComponentItems.length - workOrderItemsToCreate.filter(item => (item as any).isVirtual).length;
     
     // Return success message with cross-project component info if any
