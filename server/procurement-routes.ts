@@ -335,48 +335,68 @@ export function setupProcurementRoutes(app: Router) {
         const poNumber = `PO-${financialYear}-${project.code}-${nextPOSequence}`;
         
         // Create purchase order
+        const today = new Date();
+        const requiredDate = new Date();
+        requiredDate.setDate(today.getDate() + 30); // Default delivery in 30 days
+        
+        // Create values for the db query with camelCase keys matching schema
+        const purchaseOrderValues = {
+          projectId: projectId,
+          vendorId: vendorId > 0 ? vendorId : null,
+          purchaseOrderNumber: poNumber,
+          title: `Materials for ${project.name}`,
+          description: `Purchase order for ${project.code} project materials`,
+          status: 'draft',
+          priority: 'Medium',
+          requestedDate: today.toISOString(),
+          requiredByDate: requiredDate.toISOString(),
+          createdBy: user.id,
+          createdAt: now,
+          updatedAt: now
+        };
+        
         const [purchaseOrder] = await db.insert(purchaseOrders)
-          .values({
-            projectId,
-            vendorId: vendorId > 0 ? vendorId : null,
-            purchaseOrderNumber: poNumber,
-            title: `Materials for ${project.name}`,
-            status: 'draft',
-            createdBy: user.id,
-            createdAt: now,
-            updatedBy: user.id,
-            updatedAt: now
-          })
+          .values(purchaseOrderValues)
           .returning();
         
         // Create purchase order items
-        for (const item of items) {
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
           const masterItem = masterItemsMap.get(item.itemId)!;
+          const unitPrice = masterItem?.estimatedCost || 0;
+          const quantity = Number(item.quantity);
+          const totalPrice = Number(unitPrice) * quantity;
           
-          await db.insert(purchaseOrderItems)
-            .values({
-              purchaseOrderId: purchaseOrder.id,
-              projectItemId: item.id,
-              itemId: item.itemId,
+          const poItemValues = {
+              purchase_order_id: purchaseOrder.id,
+              project_item_id: item.id,
+              item_id: item.itemId,
               description: masterItem?.description || 'Unknown Item',
-              quantity: item.quantity,
+              quantity: item.quantity.toString(),
               unit: masterItem?.unit || 'EA',
-              unitPrice: masterItem?.estimatedCost || 0,
-              status: 'pending',
-              createdAt: now,
-              updatedAt: now
-            });
+              unit_price: unitPrice.toString(),
+              total_price: totalPrice.toString(),
+              delivery_status: 'pending',
+              line_number: i + 1,
+              created_at: now,
+              updated_at: now
+            };
+            
+          await db.insert(purchaseOrderItems)
+            .values(poItemValues);
         }
         
         // Create purchase order history entry
+        const historyValues = {
+          purchase_order_id: purchaseOrder.id,
+          status: 'draft',
+          comments: 'Purchase order generated from project items',
+          changed_by: user.id,
+          changed_at: now
+        };
+          
         await db.insert(purchaseOrderHistory)
-          .values({
-            purchaseOrderId: purchaseOrder.id,
-            status: 'draft',
-            remarks: 'Purchase order generated from project items',
-            createdBy: user.id,
-            createdAt: now
-          });
+          .values(historyValues);
         
         createdPOs.push({
           id: purchaseOrder.id,
