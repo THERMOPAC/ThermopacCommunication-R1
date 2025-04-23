@@ -99,12 +99,14 @@ export default function ProductionPlanningPage() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [newComponentsOnly, setNewComponentsOnly] = useState(false);
   
   // Function to reset all work order generation states
   const resetWorkOrderGenerationState = () => {
     setIsGeneratingWorkOrders(false);
     setIsConfirmDialogOpen(false);
     setPreviewData(null);
+    setNewComponentsOnly(false);
   };
   
   // Function to clean up existing work orders for a project
@@ -306,7 +308,10 @@ export default function ProductionPlanningPage() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ confirm: true }),
+          body: JSON.stringify({ 
+            confirm: true,
+            newComponentsOnly: newComponentsOnly
+          }),
         }
       );
       
@@ -1192,6 +1197,20 @@ export default function ProductionPlanningPage() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
           )}
+          
+          <div className="my-4 flex items-center space-x-2 border-t pt-3 border-muted">
+            <input
+              type="checkbox"
+              id="newComponentsOnly"
+              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              checked={newComponentsOnly}
+              onChange={(e) => setNewComponentsOnly(e.target.checked)}
+              disabled={isGeneratingWorkOrders}
+            />
+            <label htmlFor="newComponentsOnly" className="text-sm font-medium text-gray-700">
+              Generate Work Orders for Newly Added Components Only
+            </label>
+          </div>
           
           <DialogFooter>
             <Button 
