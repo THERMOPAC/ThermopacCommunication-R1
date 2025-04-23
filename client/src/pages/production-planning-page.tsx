@@ -283,8 +283,21 @@ export default function ProductionPlanningPage() {
     }
   };
   
+  // Handle generating work orders only for new components
+  const handleGenerateNewComponentsClick = async () => {
+    if (!selectedProject) return;
+    
+    // Confirm with the user
+    if (!confirm("This will generate work orders only for newly added sub-assembly components. Continue?")) {
+      return;
+    }
+    
+    // Generate the work orders with the newComponentsOnly flag
+    await generateWorkOrders(selectedProject, true);
+  };
+  
   // Simplified function to generate work orders - separate from mutation to reduce complexity
-  const generateWorkOrders = async (projectId: number) => {
+  const generateWorkOrders = async (projectId: number, newComponentsOnly: boolean = false) => {
     if (!projectId || isNaN(projectId)) {
       toast({
         title: "Error",
@@ -297,7 +310,7 @@ export default function ProductionPlanningPage() {
 
     try {
       setIsGeneratingWorkOrders(true);
-      console.log("Generating work orders for project ID:", projectId);
+      console.log(`Generating work orders for project ID: ${projectId}${newComponentsOnly ? ' (new components only)' : ''}`);
       
       const response = await fetch(
         `/api/production/work-orders/generate-for-project/${projectId}`,
@@ -306,7 +319,10 @@ export default function ProductionPlanningPage() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ confirm: true }),
+          body: JSON.stringify({ 
+            confirm: true,
+            newComponentsOnly: newComponentsOnly 
+          }),
         }
       );
       
@@ -551,7 +567,7 @@ export default function ProductionPlanningPage() {
                     
                     <Button
                       variant="outline"
-                      onClick={() => handleGenerateNewComponentsClick()}
+                      onClick={handleGenerateNewComponentsClick}
                       disabled={isGeneratingWorkOrders || isLoadingPreview || isCleaningUp}
                       className="bg-gradient-to-r from-blue-500 to-teal-500 text-white hover:from-blue-600 hover:to-teal-600"
                     >
