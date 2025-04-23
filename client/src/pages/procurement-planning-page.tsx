@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { Loader2 } from "lucide-react";
 import Layout from "@/components/layout";
@@ -119,7 +119,7 @@ export default function ProcurementPlanningPage() {
   });
 
   // Set preview data when it's available
-  React.useEffect(() => {
+  useEffect(() => {
     if (previewPurchaseOrders) {
       setPreviewData(previewPurchaseOrders);
     }
