@@ -338,9 +338,14 @@ export default function ProductionPlanningPage() {
         description = `Successfully created ${responseData.count} work orders (${responseData.parentCount} parent item(s), ${responseData.componentCount} sub-assembly component(s))`;
       }
       
+      // Add info about items skipped because they already have work orders
+      if (responseData.skippedItems && responseData.skippedItems > 0) {
+        description += `. ${responseData.skippedItems} component(s) were skipped as they already have work orders.`;
+      }
+      
       // Add info about cross-project components if any were detected
       if (responseData.crossProjectComponents && responseData.crossProjectComponents.count > 0) {
-        description += `. ${responseData.crossProjectComponents.count} component(s) were skipped as they exist in related projects.`;
+        description += ` ${responseData.crossProjectComponents.count} component(s) were skipped as they exist in related projects.`;
       }
       
       toast({
@@ -1260,8 +1265,9 @@ export default function ProductionPlanningPage() {
                       <InfoIcon className="h-4 w-4 ml-1.5 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-sm">
-                      <p>When checked, the system will only generate work orders for newly added components and skip any that already have work orders in this project or related projects.</p>
-                      <p className="mt-1">When unchecked, the system attempts to create work orders for all components, which may fail if components already have work orders.</p>
+                      <p>When checked, the system will intelligently detect and skip components that already have work orders in this project or related projects.</p>
+                      <p className="mt-1">This prevents duplicate work orders when the same component is used in multiple parent items.</p>
+                      <p className="mt-1">The system tracks item codes to ensure each component gets exactly one work order, even across projects.</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -1269,7 +1275,7 @@ export default function ProductionPlanningPage() {
             </div>
             {!previewData?.noItemsToDisplay && (
               <p className="text-xs text-muted-foreground mt-1.5 ml-6">
-                This option helps avoid duplicate work orders when adding new components to a project that already has work orders.
+                Recommended option to prevent duplicate work orders when adding components to an existing project. The system will automatically identify and skip components that already have work orders.
               </p>
             )}
           </div>
