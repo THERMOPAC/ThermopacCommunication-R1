@@ -447,7 +447,18 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       });
       
       // Prepare preview items for virtual component items
-      const componentPreviewItems = virtualComponentItems.map((item, index) => {
+      // First filter out any components that already have work orders
+      const filteredVirtualComponents = virtualComponentItems.filter(item => {
+        const masterItem = masterItemsMap.get(item.itemId);
+        // Skip if this component already has a work order (by item code)
+        if (masterItem && existingItemCodesWithWorkOrders.has(masterItem.itemCode)) {
+          console.log(`Preview: Skipping component preview for ${masterItem.itemCode} - already has a work order`);
+          return false;
+        }
+        return true;
+      });
+      
+      const componentPreviewItems = filteredVirtualComponents.map((item, index) => {
         const masterItem = masterItemsMap.get(item.itemId);
         const parentMasterItem = item.parentItemId ? masterItemsMap.get(item.parentItemId) : null;
         return {
@@ -467,6 +478,27 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       const nextSeqNumber = existingWorkOrders.length + 1;
       const parentWorkOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
       
+      // If after filtering out existing work orders we have no components left, check if we should show a 'no items' message
+      if (filteredMakeParentItems.length === 0 && filteredVirtualComponents.length === 0) {
+        return res.status(200).json({
+          requiresConfirmation: true,
+          message: 'No new work orders need to be generated for this project',
+          project: {
+            id: project.id,
+            code: project.code,
+            name: project.name
+          },
+          itemCount: 0,
+          parentCount: 0,
+          componentCount: 0,
+          items: [],
+          willCreateSeparateOrders: false,
+          noItemsToDisplay: true, // Flag to indicate no new items need work orders
+          existingWorkOrderCount: existingWorkOrders.length,
+          crossProjectComponents: crossProjectInfo
+        });
+      }
+      
       return res.status(200).json({
         requiresConfirmation: true,
         message: 'Please confirm to generate work orders',
@@ -475,14 +507,15 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
           code: project.code,
           name: project.name
         },
-        itemCount: filteredMakeParentItems.length + virtualComponentItems.length,
+        itemCount: filteredMakeParentItems.length + filteredVirtualComponents.length,
         parentCount: filteredMakeParentItems.length,
-        componentCount: virtualComponentItems.length,
+        componentCount: filteredVirtualComponents.length,
         parentWorkOrderNumber,
         items: [...parentPreviewItems, ...componentPreviewItems],
-        willCreateSeparateOrders: filteredMakeParentItems.length > 0 && virtualComponentItems.length > 0,
+        willCreateSeparateOrders: filteredMakeParentItems.length > 0 && filteredVirtualComponents.length > 0,
         crossProjectComponents: crossProjectInfo,
-        newItemsFound: true // Flag to indicate new items require work orders
+        newItemsFound: true, // Flag to indicate new items require work orders
+        existingItemCount: virtualComponentItems.length - filteredVirtualComponents.length // Count of items with existing work orders
       });
     }
     
@@ -699,12 +732,16 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     await db.insert(workOrderItems)
       .values(finalWorkOrderItems);
     
+    // Count skipped components (those that already had work orders)
+    const skippedComponentCount = virtualComponentItems.length - workOrderItemsToCreate.filter(item => (item as any).isVirtual).length;
+    
     // Return success message with cross-project component info if any
     return res.status(201).json({
       message: 'Work orders created successfully', 
       count: createdWorkOrders.length,
       parentCount: filteredMakeParentItems.length,
       componentCount: virtualComponentItems.length,
+      skippedItems: skippedComponentCount,
       crossProjectComponents: crossProjectInfo
     });
   } catch (error: any) {
