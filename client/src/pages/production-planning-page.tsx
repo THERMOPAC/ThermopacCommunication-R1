@@ -100,14 +100,12 @@ export default function ProductionPlanningPage() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
-  const [newComponentsOnly, setNewComponentsOnly] = useState(false);
   
   // Function to reset all work order generation states
   const resetWorkOrderGenerationState = () => {
     setIsGeneratingWorkOrders(false);
     setIsConfirmDialogOpen(false);
     setPreviewData(null);
-    setNewComponentsOnly(false);
   };
   
   // Function to clean up existing work orders for a project
@@ -311,7 +309,7 @@ export default function ProductionPlanningPage() {
           },
           body: JSON.stringify({ 
             confirm: true,
-            newComponentsOnly: newComponentsOnly
+            newComponentsOnly: true // Always skip components that already have work orders
           }),
         }
       );
@@ -1248,36 +1246,22 @@ export default function ProductionPlanningPage() {
           )}
           
           <div className="my-4 border-t pt-3 border-muted">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="newComponentsOnly"
-                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                checked={newComponentsOnly}
-                onChange={(e) => setNewComponentsOnly(e.target.checked)}
-                disabled={isGeneratingWorkOrders}
-              />
-              <label htmlFor="newComponentsOnly" className="text-sm font-medium text-gray-700 flex items-center">
-                Skip components that already have work orders
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <InfoIcon className="h-4 w-4 ml-1.5 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-sm">
-                      <p>When checked, the system will intelligently detect and skip components that already have work orders in this project or related projects.</p>
-                      <p className="mt-1">This prevents duplicate work orders when the same component is used in multiple parent items.</p>
-                      <p className="mt-1">The system tracks item codes to ensure each component gets exactly one work order, even across projects.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </label>
+            <div className="flex items-center">
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 w-full">
+                <div className="flex items-start">
+                  <InfoIcon className="h-5 w-5 text-blue-500 mr-2 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">
+                      Automatic Duplicate Prevention
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      The system will automatically identify and skip components that already have work orders in this project or related projects.
+                      This prevents duplicate work orders when the same component is used in multiple parent items.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-            {!previewData?.noItemsToDisplay && (
-              <p className="text-xs text-muted-foreground mt-1.5 ml-6">
-                Recommended option to prevent duplicate work orders when adding components to an existing project. The system will automatically identify and skip components that already have work orders.
-              </p>
-            )}
           </div>
           
           <DialogFooter>

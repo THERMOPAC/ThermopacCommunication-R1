@@ -20,7 +20,9 @@ import {
 export async function generateDirectWorkOrders(req: Request, res: Response) {
   try {
     const projectId = parseInt(req.params.projectId);
-    const { confirm, newComponentsOnly = false } = req.body;
+    const { confirm } = req.body;
+    // Always skip components that already have work orders
+    const newComponentsOnly = true;
     
     if (isNaN(projectId)) {
       return res.status(400).json({ error: 'Invalid project ID' });
