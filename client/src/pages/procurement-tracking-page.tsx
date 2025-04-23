@@ -157,12 +157,12 @@ export default function ProcurementTrackingPage() {
   };
 
   return (
-    <>
+    <Layout>
       <Helmet>
         <title>Procurement Tracking | ThermoPac</title>
       </Helmet>
 
-      <div className="flex flex-col gap-6 p-4 lg:p-8">
+      <div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Procurement Tracking</h1>
@@ -497,6 +497,6 @@ export default function ProcurementTrackingPage() {
           ))}
         </Tabs>
       </div>
-    </>
+    </Layout>
   );
 }
