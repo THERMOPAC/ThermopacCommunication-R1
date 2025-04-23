@@ -5,8 +5,7 @@ import {
   purchaseOrders, purchaseOrderItems, purchaseOrderHistory,
   insertPurchaseOrderSchema, insertPurchaseOrderItemSchema, insertPurchaseOrderHistorySchema
 } from '@shared/schema';
-import { eq, and, desc, asc, inArray, SQL } from 'drizzle-orm';
-import { Placeholder } from 'drizzle-orm/pg-core';
+import { eq, and, desc, asc, inArray, sql } from 'drizzle-orm';
 
 // Authentication middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
@@ -97,7 +96,7 @@ export function setupProcurementRoutes(app: Router) {
       }
       
       // Get vendor information for grouping items by vendor
-      const vendors = await db.query.vendors.findMany({
+      const vendorsList = await db.query.vendors.findMany({
         where: eq(vendors.isActive, true)
       });
       
@@ -133,9 +132,9 @@ export function setupProcurementRoutes(app: Router) {
       };
       
       const vendorNameMap = new Map<number, string>();
-      vendors.forEach(vendor => {
+      for (const vendor of vendorsList) {
         vendorNameMap.set(vendor.id, vendor.name);
-      });
+      }
       
       // Create preview data structure
       const preview: Record<string, any> = {
@@ -152,16 +151,17 @@ export function setupProcurementRoutes(app: Router) {
           vendorName: vendorId > 0 ? vendorNameMap.get(vendorId) || 'Unknown Vendor' : 'Unassigned',
           items: items.map(item => {
             const masterItem = masterItemsMap.get(item.itemId)!;
-            return {
+            const preview = {
               id: item.id,
               itemCode: masterItem?.itemCode || 'Unknown',
               description: masterItem?.description || 'Unknown Item',
-              quantity: item.quantity,
+              quantity: Number(item.quantity),
               unit: masterItem?.unit || 'EA',
               vendorId: masterItem?.preferredVendorId || null,
               vendorName: masterItem?.preferredVendorId ? vendorNameMap.get(masterItem.preferredVendorId) || null : null,
-              estimatedCost: masterItem?.estimatedCost || null
-            } as PreviewItem;
+              estimatedCost: masterItem?.estimatedCost ? Number(masterItem.estimatedCost) : null
+            };
+            return preview as PreviewItem;
           })
         };
         

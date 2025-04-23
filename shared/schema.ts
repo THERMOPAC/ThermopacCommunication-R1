@@ -807,6 +807,11 @@ export const masterItems = pgTable('master_items', {
   supplier: text('supplier'),
   notes: text('notes'),
   
+  // Procurement information
+  preferredVendorId: integer('preferred_vendor_id').references(() => vendors.id),
+  estimatedCost: decimal('estimated_cost', { precision: 12, scale: 2 }),
+  unit: text('unit'), // Unit for procurement (can differ from UOM)
+  
   // Tracking
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
