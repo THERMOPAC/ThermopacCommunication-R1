@@ -426,12 +426,20 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       projectCodes: Array.from(new Set(crossProjectWorkOrderItems.map(item => item.projectCode))).join(', ')
     } : null;
     
+    // Get counts of components that already have work orders vs. new ones
+    const newComponents = virtualComponentItems.filter(component => {
+      const masterItem = masterItemsMap.get(component.itemId);
+      return !(masterItem && masterItem.itemCode && existingItemCodesWithWorkOrders.has(masterItem.itemCode));
+    });
+    
+    console.log(`Found ${newComponents.length} new components out of ${virtualComponentItems.length} total`);
+    
     // If not confirmed, prepare preview data with item details
     if (!confirm) {
-      console.log(`Preview mode: Filtered parent items: ${filteredMakeParentItems.length}, Virtual components: ${virtualComponentItems.length}`);
+      console.log(`Preview mode: Filtered parent items: ${filteredMakeParentItems.length}, Virtual components: ${virtualComponentItems.length}, New components: ${newComponents.length}`);
       
       // Skip preview data generation if there are no new items to create work orders for
-      if (filteredMakeParentItems.length === 0 || (filteredMakeParentItems.length === 0 && virtualComponentItems.length === 0)) {
+      if ((filteredMakeParentItems.length === 0 && newComponents.length === 0)) {
         // Return an empty preview dataset when there are no new items
         return res.status(200).json({
           requiresConfirmation: true,
@@ -657,15 +665,49 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     for (const component of virtualComponentItems) {
       const masterItem = masterItemsMap.get(component.itemId);
       const parentItemId = component.parentItemId;
-      const parentInfo = parentItemId ? workOrdersMap.get(parentItemId.toString()) : null;
       
-      if (!masterItem || !parentInfo) continue;
+      // Find parent's work order - either from current session or existing orders
+      let parentInfo = parentItemId ? workOrdersMap.get(parentItemId.toString()) : null;
+      
+      // If parent isn't in our current session map, try to look it up from existing work orders
+      if (!parentInfo && parentItemId) {
+        // Find the project item for this parent
+        const parentProjectItem = projectItemsList.find(item => item.itemId === parentItemId);
+        
+        if (parentProjectItem) {
+          // Look up work orders for this parent
+          const existingParentWorkOrder = existingWorkOrders.find(wo => {
+            // Find the corresponding work order item
+            const workOrderItem = existingWorkOrderItems.find(item => 
+              item.workOrderId === wo.id && item.projectItemId === parentProjectItem.id
+            );
+            return !!workOrderItem;
+          });
+          
+          if (existingParentWorkOrder) {
+            // Create a parentInfo entry similar to what we'd get from the current session
+            parentInfo = {
+              workOrderNumber: existingParentWorkOrder.workOrderNumber,
+              tempIndex: -1 // Not used when dealing with existing work orders
+            };
+            console.log(`Found existing parent work order ${existingParentWorkOrder.workOrderNumber} for component`);
+          }
+        }
+      }
+      
+      if (!masterItem || !parentInfo) {
+        console.log(`Skipping component - no master item or parent work order found`);
+        continue;
+      }
       
       // Check if this item code already has a work order - avoid duplicates
-      if (existingItemCodesWithWorkOrders.has(masterItem.itemCode)) {
+      if (masterItem.itemCode && existingItemCodesWithWorkOrders.has(masterItem.itemCode)) {
         console.log(`Skipping component work order for ${masterItem.itemCode} - already has a work order`);
         continue;
       }
+      
+      console.log(`Will create work order for component ${masterItem.itemCode}`);
+      
       
       // Use parent's work order number with a child sequence number (e.g., WO-2526-3-1-1)
       // Start with child sequence number 1
