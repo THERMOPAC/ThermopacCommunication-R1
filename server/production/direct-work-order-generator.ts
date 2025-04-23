@@ -170,11 +170,40 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       
     // Create a set of item codes that already have work orders to avoid duplicates
     const existingItemCodesWithWorkOrders = new Set<string>();
+    
+    // Create a deep tracking of what work orders already exist for each item code
+    // This helps us track which specific work orders are assigned to which components
+    const workOrdersByItemCode = new Map<string, Set<string>>();
+    
     masterItemsWithWorkOrders.forEach(item => {
       if (item.itemCode) {
         existingItemCodesWithWorkOrders.add(item.itemCode);
+        
+        // Initialize the set if it doesn't exist yet
+        if (!workOrdersByItemCode.has(item.itemCode)) {
+          workOrdersByItemCode.set(item.itemCode, new Set<string>());
+        }
       }
     });
+    
+    // Now populate the actual work order numbers for each item code
+    // This will let us check if a specific item code already has a work order with a specific parent
+    for (const workOrderItem of existingWorkOrderItems) {
+      const projectItem = projectItemsWithWorkOrders.find(item => item.id === workOrderItem.projectItemId);
+      if (projectItem) {
+        const masterItem = masterItemsWithWorkOrders.find(item => item.id === projectItem.itemId);
+        if (masterItem && masterItem.itemCode) {
+          const workOrder = existingWorkOrders.find(wo => wo.id === workOrderItem.workOrderId);
+          if (workOrder) {
+            const itemCodeSet = workOrdersByItemCode.get(masterItem.itemCode);
+            if (itemCodeSet) {
+              itemCodeSet.add(workOrder.workOrderNumber);
+              console.log(`Item code ${masterItem.itemCode} has work order ${workOrder.workOrderNumber}`);
+            }
+          }
+        }
+      }
+    }
     
     console.log(`Found ${existingWorkOrderItems.length} existing work order items`);
     console.log(`Found ${existingItemCodesWithWorkOrders.size} unique item codes with work orders`);
@@ -565,6 +594,9 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     const workOrderItemsToCreate = [];
     const workOrdersMap = new Map();
     
+    // Track work orders created in current session
+    const sessionItemCodesWithWorkOrders = new Map<string, Set<string>>();
+    
     // Set default dates
     const today = new Date();
     const endDate = new Date();
@@ -700,10 +732,52 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         continue;
       }
       
-      // Check if this item code already has a work order - avoid duplicates
-      if (masterItem.itemCode && existingItemCodesWithWorkOrders.has(masterItem.itemCode)) {
-        console.log(`Skipping component work order for ${masterItem.itemCode} - already has a work order`);
-        continue;
+      // Check if this item code already has a work order under this parent
+      // This prevents duplicates but still allows the same component to be used in different parents
+      if (masterItem.itemCode) {
+        // First, check session-level tracking (current API call) to avoid duplicates in the same session
+        const sessionWorkOrders = sessionItemCodesWithWorkOrders.get(masterItem.itemCode);
+        if (sessionWorkOrders) {
+          const hasParentWorkOrder = Array.from(sessionWorkOrders)
+            .some(woNumber => woNumber.startsWith(parentInfo.workOrderNumber));
+          
+          if (hasParentWorkOrder) {
+            console.log(`Skipping component work order for ${masterItem.itemCode} - already created in this session under parent ${parentInfo.workOrderNumber}`);
+            continue;
+          }
+        }
+        
+        // Next, check database-level tracking (previous API calls/existing work orders)
+        const existingWorkOrdersForItem = workOrdersByItemCode.get(masterItem.itemCode);
+        
+        // Check if this item code already has a work order under this parent's work order number
+        if (existingWorkOrdersForItem && 
+            Array.from(existingWorkOrdersForItem).some(woNumber => woNumber.startsWith(parentInfo.workOrderNumber))) {
+          console.log(`Skipping component work order for ${masterItem.itemCode} - already exists in database under parent ${parentInfo.workOrderNumber}`);
+          continue;
+        }
+        
+        // For thoroughness, also check composite keys to avoid duplicates with the same parent
+        if (existingWorkOrdersForItem && existingWorkOrdersForItem.has(parentInfo.workOrderNumber + "-" + masterItem.itemCode)) {
+          console.log(`Skipping duplicate component work order for ${masterItem.itemCode} with same parent (composite key check)`);
+          continue;
+        }
+        
+        // Add a check for duplicate virtual components with the same item code but different IDs
+        // This can happen when the same component is added multiple times to a parent
+        const componentsFromSameParent = virtualComponentItems.filter(c => 
+          c.parentItemId === component.parentItemId && 
+          masterItemsMap.get(c.itemId)?.itemCode === masterItem.itemCode
+        );
+        
+        if (componentsFromSameParent.length > 1) {
+          // Find component's index in the array to see if we've already processed one like it
+          const componentIndex = componentsFromSameParent.findIndex(c => c.id === component.id);
+          if (componentIndex > 0) {
+            console.log(`Skipping duplicate virtual component ${masterItem.itemCode} from same parent - only creating work order for first occurrence`);
+            continue;
+          }
+        }
       }
       
       console.log(`Will create work order for component ${masterItem.itemCode}`);
@@ -725,6 +799,18 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       existingWorkOrderNumbers.add(workOrderNumber);
       // Also mark this item code as having a work order now
       existingItemCodesWithWorkOrders.add(masterItem.itemCode);
+      
+      // Track this component in the session-level tracking to avoid duplicates within the same run
+      if (masterItem.itemCode) {
+        if (!sessionItemCodesWithWorkOrders.has(masterItem.itemCode)) {
+          sessionItemCodesWithWorkOrders.set(masterItem.itemCode, new Set());
+        }
+        const set = sessionItemCodesWithWorkOrders.get(masterItem.itemCode);
+        if (set) {
+          set.add(workOrderNumber);
+          console.log(`Added ${masterItem.itemCode} to session tracking under ${workOrderNumber}`);
+        }
+      }
       
       // Create sub-assembly work order
       const title = `${masterItem.itemCode} - ${masterItem.description || 'Component'}`;
