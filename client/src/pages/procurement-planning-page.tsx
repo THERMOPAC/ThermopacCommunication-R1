@@ -95,20 +95,28 @@ export default function ProcurementPlanningPage() {
   ];
 
   // Use real data from API if available, otherwise fall back to mock data for now
-  const dataSource = purchaseOrders || mockPurchaseOrders;
+  const dataSource = purchaseOrders || mockPurchaseOrders || [];
   
   // Filter function for purchase orders
-  const filteredPurchaseOrders = dataSource.filter((po) => {
+  const filteredPurchaseOrders = dataSource.filter((po: any) => {
+    // Handle potential undefined values safely
+    const poNumber = po.purchaseOrderNumber || '';
+    const poTitle = po.title || '';
+    const poVendorName = po.vendorName || '';
+    const poStatus = po.status || '';
+    const poProjectCode = po.projectCode || '';
+    const poProject = po.project || {};
+    
     const matchesSearch = 
-      po.purchaseOrderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      po.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (po.vendorName && po.vendorName.toLowerCase().includes(searchTerm.toLowerCase()));
+      poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      poTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      poVendorName.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesProject = projectFilter && projectFilter !== "all" ? 
-      (po.projectCode === projectFilter || 
-      (po.project && po.project.code === projectFilter)) : true;
+      (poProjectCode === projectFilter || 
+      (poProject && poProject.code === projectFilter)) : true;
     
-    const matchesStatus = statusFilter && statusFilter !== "all" ? po.status === statusFilter : true;
+    const matchesStatus = statusFilter && statusFilter !== "all" ? poStatus === statusFilter : true;
     
     return matchesSearch && matchesProject && matchesStatus;
   });
@@ -316,19 +324,23 @@ export default function ProcurementPlanningPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredPurchaseOrders.map((po) => (
+                      filteredPurchaseOrders.map((po: any) => (
                         <TableRow key={po.id}>
-                          <TableCell className="font-medium">{po.purchaseOrderNumber}</TableCell>
-                          <TableCell>{po.title}</TableCell>
-                          <TableCell>{po.projectCode}</TableCell>
-                          <TableCell>{po.vendorName}</TableCell>
+                          <TableCell className="font-medium">{po.purchaseOrderNumber || ''}</TableCell>
+                          <TableCell>{po.title || ''}</TableCell>
+                          <TableCell>{po.projectCode || (po.project ? po.project.code : '')}</TableCell>
+                          <TableCell>{po.vendorName || ''}</TableCell>
                           <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColorMap[po.status]}`}>
-                              {po.status.charAt(0).toUpperCase() + po.status.slice(1)}
-                            </span>
+                            {po.status && (
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColorMap[po.status] || 'bg-gray-100 text-gray-800'}`}>
+                                {po.status.charAt(0).toUpperCase() + po.status.slice(1)}
+                              </span>
+                            )}
                           </TableCell>
-                          <TableCell>{po.requiredByDate}</TableCell>
-                          <TableCell className="text-right">₹{po.totalAmount.toLocaleString()}</TableCell>
+                          <TableCell>{po.requiredByDate || ''}</TableCell>
+                          <TableCell className="text-right">
+                            {po.totalAmount !== undefined ? `₹${po.totalAmount.toLocaleString()}` : ''}
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
