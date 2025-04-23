@@ -394,14 +394,58 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       projectCodes: Array.from(new Set(crossProjectWorkOrderItems.map(item => item.projectCode))).join(', ')
     } : null;
     
-    // If not confirmed, just return the preview data
+    // If not confirmed, prepare preview data with item details
     if (!confirm) {
+      // Prepare preview items for parent items
+      const parentPreviewItems = filteredMakeParentItems.map((item, index) => {
+        const masterItem = masterItemsMap.get(item.itemId);
+        return {
+          sequenceNumber: index + 1,
+          itemCode: masterItem?.itemCode || 'Unknown',
+          description: masterItem?.description || 'No description',
+          quantity: item.quantity,
+          unit: masterItem?.uom || 'EA',
+          makeOrBuy: 'Make',
+          itemType: 'Parent',
+          parentItemCode: null
+        };
+      });
+      
+      // Prepare preview items for virtual component items
+      const componentPreviewItems = virtualComponentItems.map((item, index) => {
+        const masterItem = masterItemsMap.get(item.itemId);
+        const parentMasterItem = item.parentItemId ? masterItemsMap.get(item.parentItemId) : null;
+        return {
+          sequenceNumber: index + 1,
+          itemCode: masterItem?.itemCode || 'Unknown',
+          description: masterItem?.description || 'No description',
+          quantity: item.quantity,
+          unit: masterItem?.uom || 'EA',
+          makeOrBuy: 'Make',
+          itemType: 'Child',
+          parentItemCode: parentMasterItem?.itemCode || 'Unknown',
+          isVirtual: true
+        };
+      });
+      
+      // Generate sample work order numbers for preview
+      const nextSeqNumber = existingWorkOrders.length + 1;
+      const parentWorkOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
+      
       return res.status(200).json({
         requiresConfirmation: true,
         message: 'Please confirm to generate work orders',
+        project: {
+          id: project.id,
+          code: project.code,
+          name: project.name
+        },
         itemCount: filteredMakeParentItems.length + virtualComponentItems.length,
         parentCount: filteredMakeParentItems.length,
         componentCount: virtualComponentItems.length,
+        parentWorkOrderNumber,
+        items: [...parentPreviewItems, ...componentPreviewItems],
+        willCreateSeparateOrders: filteredMakeParentItems.length > 0 && virtualComponentItems.length > 0,
         crossProjectComponents: crossProjectInfo
       });
     }
