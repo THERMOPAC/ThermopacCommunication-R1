@@ -17,6 +17,101 @@ import {
   workOrders, workOrderItems, projects, projectItems, masterItems, itemComponents 
 } from '@shared/schema';
 
+/**
+ * Add a dedicated function to clean up any duplicate work orders before creating new ones
+ * @param projectId The project ID to clean duplicate work orders for
+ */
+export async function cleanupDuplicateWorkOrders(projectId: number) {
+  try {
+    console.log('Checking for duplicate work orders to clean up...');
+    
+    // Find all duplicate work orders for components in this project
+    const duplicatesQuery = await db.execute(sql`
+      WITH component_work_orders AS (
+        SELECT 
+          wo.id,
+          wo.work_order_number,
+          wo.title,
+          SUBSTRING(wo.work_order_number FROM 1 FOR POSITION('-' IN SUBSTRING(wo.work_order_number FROM 4))) as parent_wo_base
+        FROM work_orders wo
+        WHERE wo.project_id = ${projectId}
+          AND wo.work_order_number LIKE 'WO-%-%-%'  -- This matches child work orders
+      )
+      SELECT 
+        title,
+        parent_wo_base,
+        array_agg(id) as duplicate_ids,
+        array_agg(work_order_number) as duplicate_numbers
+      FROM component_work_orders
+      GROUP BY title, parent_wo_base
+      HAVING COUNT(*) > 1
+    `);
+    
+    const duplicates = duplicatesQuery.rows || duplicatesQuery;
+    
+    if (!Array.isArray(duplicates) || duplicates.length === 0) {
+      console.log('No duplicate work orders found.');
+      return;
+    }
+    
+    console.log(`Found ${duplicates.length} groups of duplicate work orders to clean up.`);
+    
+    // For each set of duplicates, keep the one with the lowest sequence number and delete others
+    for (const duplicate of duplicates) {
+      if (!duplicate.duplicate_ids || !Array.isArray(duplicate.duplicate_ids)) {
+        continue;
+      }
+      
+      console.log(`Processing duplicates for ${duplicate.title} under parent base ${duplicate.parent_wo_base}`);
+      console.log(`Duplicate work order numbers: ${duplicate.duplicate_numbers.join(', ')}`);
+      
+      // Sort the work order IDs by their sequence number (extracted from work_order_number)
+      const sortedIds = [...duplicate.duplicate_ids];
+      const sortedNumbers = [...duplicate.duplicate_numbers];
+      
+      // Sort arrays together based on the work order number
+      const combined = sortedNumbers.map((num, index) => ({
+        number: num,
+        id: sortedIds[index]
+      }));
+      
+      combined.sort((a, b) => {
+        // Extract the sequence number from the end of the work order number
+        const seqA = parseInt(a.number.split('-').pop() || '0');
+        const seqB = parseInt(b.number.split('-').pop() || '0');
+        return seqA - seqB;
+      });
+      
+      // Keep the first one (lowest sequence) and delete the rest
+      const toKeep = combined[0].id;
+      const toDelete = combined.slice(1).map(item => item.id);
+      
+      console.log(`Keeping work order ID ${toKeep}, deleting IDs: ${toDelete.join(', ')}`);
+      
+      if (toDelete.length > 0) {
+        // First delete the work order items
+        await db.execute(sql`
+          DELETE FROM work_order_items
+          WHERE work_order_id IN (${sql.join(toDelete)})
+        `);
+        
+        // Then delete the work orders
+        await db.execute(sql`
+          DELETE FROM work_orders
+          WHERE id IN (${sql.join(toDelete)})
+        `);
+        
+        console.log(`Successfully deleted ${toDelete.length} duplicate work orders.`);
+      }
+    }
+    
+    console.log('Duplicate work order cleanup completed.');
+  } catch (error) {
+    console.error('Error cleaning up duplicate work orders:', error);
+    // Don't throw - just log and continue with the main process
+  }
+}
+
 export async function generateDirectWorkOrders(req: Request, res: Response) {
   try {
     const projectId = parseInt(req.params.projectId);
@@ -27,6 +122,9 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     if (isNaN(projectId)) {
       return res.status(400).json({ error: 'Invalid project ID' });
     }
+    
+    // Clean up any existing duplicate work orders first
+    await cleanupDuplicateWorkOrders(projectId);
     
     console.log(`Starting direct work order generation for project ${projectId}`);
     
@@ -57,7 +155,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     });
     
     // Create a map for faster lookups
-    const masterItemsMap = new Map();
+    const masterItemsMap = new Map<number, typeof masterItems.$inferSelect>();
     masterItemsArray.forEach(item => {
       masterItemsMap.set(item.id, item);
     });

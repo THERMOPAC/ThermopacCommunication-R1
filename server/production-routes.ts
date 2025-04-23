@@ -10,6 +10,7 @@ import { generateWorkOrders } from './production/work-order-generator';
 import { generateWorkOrdersForProject } from './optimized-work-order-generation';
 import { generateImprovedWorkOrders } from './production/improved-work-order-generator';
 import { generateDirectWorkOrders } from './production/direct-work-order-generator';
+import { cleanupDuplicateWorkOrders } from './production/direct-work-order-generator';
 
 // Authentication middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
