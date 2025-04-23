@@ -147,13 +147,32 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         })
       : [];
       
+    // Get project item IDs from existing work order items
+    const existingProjectItemIdsArray = existingWorkOrderItems.map(item => item.projectItemId);
+    
+    // Create a set for faster lookups
+    const existingProjectItemIdSet = new Set<number>(existingProjectItemIdsArray);
+    
+    // Get project items that already have work orders
+    const projectItemsWithWorkOrders = existingProjectItemIdsArray.length > 0
+      ? await db.query.projectItems.findMany({
+          where: inArray(projectItems.id, existingProjectItemIdsArray)
+        })
+      : [];
+    
+    // Find the corresponding master items to get their item codes
+    const masterItemIdsWithWorkOrders = projectItemsWithWorkOrders.map(item => item.itemId);
+    const masterItemsWithWorkOrders = masterItemIdsWithWorkOrders.length > 0
+      ? await db.query.masterItems.findMany({
+          where: inArray(masterItems.id, masterItemIdsWithWorkOrders)
+        })
+      : [];
+      
     // Create a set of item codes that already have work orders to avoid duplicates
     const existingItemCodesWithWorkOrders = new Set<string>();
-    existingWorkOrderItems.forEach(item => {
-      // Cast to any to handle extended schema with itemCode
-      const typedItem = item as any;
-      if (typedItem.itemCode) {
-        existingItemCodesWithWorkOrders.add(typedItem.itemCode);
+    masterItemsWithWorkOrders.forEach(item => {
+      if (item.itemCode) {
+        existingItemCodesWithWorkOrders.add(item.itemCode);
       }
     });
     
@@ -204,12 +223,10 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       }
     }
     
-    const existingProjectItemIds = new Set(existingWorkOrderItems.map(item => item.projectItemId));
-    
     // Step 9: Filter out project items that already have work orders
     console.log(`Filtering out items that already have work orders`);
     let filteredMakeParentItems = makeParentItems.filter(item => 
-      !existingProjectItemIds.has(item.id)
+      !existingProjectItemIdSet.has(item.id)
     );
     
     // If we're only handling new components and all parent items already have work orders,
@@ -607,15 +624,17 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       // Create work order item for this parent
       const unit = masterItem.uom || 'EA';
       
+      // Store the item code in the tracking set for duplicate prevention
+      if (masterItem.itemCode) {
+        existingItemCodesWithWorkOrders.add(masterItem.itemCode);
+      }
+      
+      // Create the work order item with only fields in the database schema
       const workOrderItem = {
         tempWorkOrderIndex: workOrdersToCreate.length - 1,
         projectItemId: parentItem.id,
-        itemCode: masterItem.itemCode,
-        description: masterItem.description || 'No description',
         quantity: validQuantity.toString(), // Convert to string for database compatibility
         unit,
-        itemType: 'Parent',
-        isVirtual: false,
         status: 'pending',
         sequenceNumber: 1,
         notes: `Auto-generated for project ${project.code}`,
@@ -708,15 +727,17 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       const parentProjectItem = projectItemsList.find(item => item.itemId === componentParentItemId);
       const projectItemId = parentProjectItem?.id || projectItemsList[0].id; // Fallback to first project item if parent not found
       
+      // Store the component item code in the tracking set for duplicate prevention
+      if (masterItem.itemCode) {
+        existingItemCodesWithWorkOrders.add(masterItem.itemCode);
+      }
+      
+      // Create work order item with only fields in the database schema
       const componentWorkOrderItem = {
         tempWorkOrderIndex: workOrdersToCreate.length - 1,
         projectItemId: projectItemId,
-        itemCode: masterItem.itemCode,
-        description: masterItem.description || 'No description',
         quantity: validQuantity.toString(), // Convert to string for database compatibility
         unit,
-        itemType: 'Child',
-        isVirtual: true,
         status: 'pending',
         sequenceNumber: 1,
         notes: `Sub-assembly of ${masterItemsMap.get(componentParentItemId)?.itemCode}`,
