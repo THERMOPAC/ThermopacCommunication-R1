@@ -55,6 +55,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Plus, ClipboardList, Calendar as CalendarIcon, CheckCircle2, Hourglass, AlertTriangle, XCircle, Trash2, Loader2, Search, Info as InfoIcon } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -1208,7 +1209,28 @@ export default function ProductionPlanningPage() {
                 </div>
               )}
               
-              {previewData.items && previewData.items.length === 0 && (
+              {previewData.noItemsToDisplay && (
+                <div>
+                  <div className="p-4 border rounded border-dashed text-center bg-amber-50">
+                    <AlertTriangle className="h-4 w-4 inline-block mr-2 text-amber-600" />
+                    <p className="text-amber-800 inline-block">
+                      No new items require work orders. All items in this project already have work orders.
+                    </p>
+                  </div>
+                  {previewData.existingWorkOrderCount > 0 && (
+                    <div className="mt-3 p-3 border rounded text-sm">
+                      <p className="font-medium mb-2">Information:</p>
+                      <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                        <li>This project already has {previewData.existingWorkOrderCount} work orders.</li>
+                        <li>If you need to regenerate all work orders, first clean up existing work orders.</li>
+                        <li>If you want to continue, click "Confirm & Generate Work Orders" to proceed.</li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {previewData.items && previewData.items.length === 0 && !previewData.noItemsToDisplay && (
                 <div className="p-4 border rounded border-dashed text-center">
                   <p className="text-muted-foreground">No items to display</p>
                 </div>
@@ -1220,18 +1242,36 @@ export default function ProductionPlanningPage() {
             </div>
           )}
           
-          <div className="my-4 flex items-center space-x-2 border-t pt-3 border-muted">
-            <input
-              type="checkbox"
-              id="newComponentsOnly"
-              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-              checked={newComponentsOnly}
-              onChange={(e) => setNewComponentsOnly(e.target.checked)}
-              disabled={isGeneratingWorkOrders}
-            />
-            <label htmlFor="newComponentsOnly" className="text-sm font-medium text-gray-700">
-              Generate Work Orders for Newly Added Components Only
-            </label>
+          <div className="my-4 border-t pt-3 border-muted">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="newComponentsOnly"
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                checked={newComponentsOnly}
+                onChange={(e) => setNewComponentsOnly(e.target.checked)}
+                disabled={isGeneratingWorkOrders}
+              />
+              <label htmlFor="newComponentsOnly" className="text-sm font-medium text-gray-700 flex items-center">
+                Skip components that already have work orders
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <InfoIcon className="h-4 w-4 ml-1.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm">
+                      <p>When checked, the system will only generate work orders for newly added components and skip any that already have work orders in this project or related projects.</p>
+                      <p className="mt-1">When unchecked, the system attempts to create work orders for all components, which may fail if components already have work orders.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </label>
+            </div>
+            {!previewData?.noItemsToDisplay && (
+              <p className="text-xs text-muted-foreground mt-1.5 ml-6">
+                This option helps avoid duplicate work orders when adding new components to a project that already has work orders.
+              </p>
+            )}
           </div>
           
           <DialogFooter>

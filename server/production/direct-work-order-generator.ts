@@ -396,6 +396,28 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     
     // If not confirmed, prepare preview data with item details
     if (!confirm) {
+      // Skip preview data generation if there are no new items to create work orders for
+      if (filteredMakeParentItems.length === 0 && virtualComponentItems.length === 0) {
+        // Return an empty preview dataset when there are no new items
+        return res.status(200).json({
+          requiresConfirmation: true,
+          message: 'No new work orders need to be generated for this project',
+          project: {
+            id: project.id,
+            code: project.code,
+            name: project.name
+          },
+          itemCount: 0,
+          parentCount: 0,
+          componentCount: 0,
+          items: [],
+          willCreateSeparateOrders: false,
+          noItemsToDisplay: true, // Flag to indicate no new items need work orders
+          existingWorkOrderCount: existingWorkOrders.length,
+          crossProjectComponents: crossProjectInfo
+        });
+      }
+      
       // Prepare preview items for parent items
       const parentPreviewItems = filteredMakeParentItems.map((item, index) => {
         const masterItem = masterItemsMap.get(item.itemId);
@@ -446,7 +468,8 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         parentWorkOrderNumber,
         items: [...parentPreviewItems, ...componentPreviewItems],
         willCreateSeparateOrders: filteredMakeParentItems.length > 0 && virtualComponentItems.length > 0,
-        crossProjectComponents: crossProjectInfo
+        crossProjectComponents: crossProjectInfo,
+        newItemsFound: true // Flag to indicate new items require work orders
       });
     }
     
