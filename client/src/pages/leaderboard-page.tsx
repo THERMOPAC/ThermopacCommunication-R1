@@ -139,10 +139,15 @@ export default function LeaderboardPage() {
   const { data: metrics, isLoading: isMetricsLoading } = useQuery({
     queryKey: ['/api/productivity'],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/productivity');
-      const data = await res.json();
-      console.log('Productivity metrics data:', data);
-      return data;
+      try {
+        console.log('Fetching productivity metrics data...');
+        const data = await apiRequest('GET', '/api/productivity');
+        console.log('Productivity metrics data received:', data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching productivity metrics:', error);
+        return null;
+      }
     },
     enabled: !!userId,
   });
@@ -151,8 +156,15 @@ export default function LeaderboardPage() {
   const { data: rankData, isLoading: isRankLoading } = useQuery({
     queryKey: ['/api/leaderboard/my-rank'],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/leaderboard/my-rank');
-      return res.json();
+      try {
+        console.log('Fetching user rank data...');
+        const data = await apiRequest('GET', '/api/leaderboard/my-rank');
+        console.log('User rank data received:', data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching user rank:', error);
+        return null;
+      }
     },
     enabled: !!userId,
   });
@@ -161,10 +173,15 @@ export default function LeaderboardPage() {
   const { data: teamLeaderboard, isLoading: isTeamLoading } = useQuery({
     queryKey: ['/api/leaderboard/team'],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/leaderboard/team');
-      const data = await res.json();
-      console.log('Team leaderboard data:', data);
-      return data;
+      try {
+        console.log('Fetching team leaderboard data...');
+        const data = await apiRequest('GET', '/api/leaderboard/team');
+        console.log('Team leaderboard data received:', data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching team leaderboard:', error);
+        return [];
+      }
     },
     enabled: !!userId,
   });
@@ -173,8 +190,15 @@ export default function LeaderboardPage() {
   const { data: companyLeaderboard, isLoading: isCompanyLoading } = useQuery({
     queryKey: ['/api/leaderboard/company'],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/leaderboard/company');
-      return res.json();
+      try {
+        console.log('Fetching company leaderboard data...');
+        const data = await apiRequest('GET', '/api/leaderboard/company');
+        console.log('Company leaderboard data received:', data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching company leaderboard:', error);
+        return [];
+      }
     },
     enabled: !!userId,
   });
@@ -183,8 +207,15 @@ export default function LeaderboardPage() {
   const { data: userAchievements, isLoading: isAchievementsLoading } = useQuery({
     queryKey: ['/api/my-achievements'],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/my-achievements');
-      return res.json();
+      try {
+        console.log('Fetching user achievements data...');
+        const data = await apiRequest('GET', '/api/my-achievements');
+        console.log('User achievements data received:', data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching user achievements:', error);
+        return [];
+      }
     },
     enabled: !!userId,
   });
@@ -193,8 +224,15 @@ export default function LeaderboardPage() {
   const { data: allAchievements, isLoading: isAllAchievementsLoading } = useQuery({
     queryKey: ['/api/achievements'],
     queryFn: async () => {
-      const res = await apiRequest('GET', '/api/achievements');
-      return res.json();
+      try {
+        console.log('Fetching all achievements data...');
+        const data = await apiRequest('GET', '/api/achievements');
+        console.log('All achievements data received:', data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching all achievements:', error);
+        return [];
+      }
     },
     enabled: !!userId,
   });
