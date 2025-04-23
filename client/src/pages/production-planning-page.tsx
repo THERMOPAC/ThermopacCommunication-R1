@@ -332,6 +332,11 @@ export default function ProductionPlanningPage() {
       // At this point we have successful data, so display success message
       let description = responseData.message || `Successfully created ${responseData.count || 'multiple'} work orders for the project`;
       
+      // Add detailed information about the generated work orders
+      if (responseData.parentCount > 0 || responseData.componentCount > 0) {
+        description = `Successfully created ${responseData.count} work orders (${responseData.parentCount} parent item(s), ${responseData.componentCount} sub-assembly component(s))`;
+      }
+      
       // Add info about cross-project components if any were detected
       if (responseData.crossProjectComponents && responseData.crossProjectComponents.count > 0) {
         description += `. ${responseData.crossProjectComponents.count} component(s) were skipped as they exist in related projects.`;
@@ -1105,7 +1110,7 @@ export default function ProductionPlanningPage() {
                 )}
               </div>
               
-              {previewData.parentItemCount > 0 && (
+              {previewData.parentCount > 0 && previewData.items && previewData.items.filter((item: any) => item.itemType === 'Parent').length > 0 && (
                 <div className="border rounded-md p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="bg-blue-100 p-1 rounded-md">
@@ -1120,7 +1125,7 @@ export default function ProductionPlanningPage() {
                     </div>
                     <div>
                       <Label className="text-sm text-muted-foreground">Item Count</Label>
-                      <p className="font-medium">{previewData.parentItemCount || 0}</p>
+                      <p className="font-medium">{previewData.items.filter((item: any) => item.itemType === 'Parent').length || 0}</p>
                     </div>
                   </div>
                   
@@ -1138,9 +1143,9 @@ export default function ProductionPlanningPage() {
                       <TableBody>
                         {previewData.items
                           .filter((item: any) => item.itemType === 'Parent')
-                          .map((item: any) => (
-                            <TableRow key={`parent-${item.sequenceNumber}`}>
-                              <TableCell>{item.sequenceNumber}</TableCell>
+                          .map((item: any, index: number) => (
+                            <TableRow key={`parent-${index}`}>
+                              <TableCell>{index + 1}</TableCell>
                               <TableCell className="font-medium">{item.itemCode}</TableCell>
                               <TableCell className="break-words">{item.description}</TableCell>
                               <TableCell>{item.quantity}</TableCell>
@@ -1153,22 +1158,22 @@ export default function ProductionPlanningPage() {
                 </div>
               )}
               
-              {previewData.childItemCount > 0 && (
+              {previewData.componentCount > 0 && previewData.items && previewData.items.filter((item: any) => item.itemType === 'Child').length > 0 && (
                 <div className="border rounded-md p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="bg-purple-100 p-1 rounded-md">
                       <ClipboardList className="h-4 w-4 text-purple-800" />
                     </div>
-                    <h3 className="text-lg font-medium">Child Components Work Order</h3>
+                    <h3 className="text-lg font-medium">Sub-Assembly Components</h3>
                   </div>
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div>
-                      <Label className="text-sm text-muted-foreground">Work Order Number</Label>
-                      <p className="font-medium">{previewData.childWorkOrderNumber}</p>
+                      <Label className="text-sm text-muted-foreground">Work Order Format</Label>
+                      <p className="font-medium">[Parent Work Order Number]-[Sequence]</p>
                     </div>
                     <div>
-                      <Label className="text-sm text-muted-foreground">Item Count</Label>
-                      <p className="font-medium">{previewData.childItemCount || 0}</p>
+                      <Label className="text-sm text-muted-foreground">Component Count</Label>
+                      <p className="font-medium">{previewData.items.filter((item: any) => item.itemType === 'Child').length || 0}</p>
                     </div>
                   </div>
                   
@@ -1187,9 +1192,9 @@ export default function ProductionPlanningPage() {
                       <TableBody>
                         {previewData.items
                           .filter((item: any) => item.itemType === 'Child')
-                          .map((item: any) => (
-                            <TableRow key={`child-${item.sequenceNumber}`}>
-                              <TableCell>{item.sequenceNumber}</TableCell>
+                          .map((item: any, index: number) => (
+                            <TableRow key={`child-${index}`}>
+                              <TableCell>{index + 1}</TableCell>
                               <TableCell className="font-medium">{item.itemCode}</TableCell>
                               <TableCell className="break-words">{item.description}</TableCell>
                               <TableCell>{item.parentItemCode}</TableCell>
