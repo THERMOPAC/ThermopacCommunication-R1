@@ -114,17 +114,37 @@ export function setupProcurementRoutes(app: Router) {
         });
       }
       
+      // Get vendor information for all items with preferred vendors
+      const vendorIds = masterItemsList
+        .filter(item => item.preferredVendorId !== null)
+        .map(item => item.preferredVendorId!);
+      
+      // Fetch vendor data
+      const vendorsList = vendorIds.length > 0 ? 
+        await db.query.vendors.findMany({
+          where: inArray(vendors.id, vendorIds)
+        }) : [];
+      
+      // Create vendor map for quick lookup
+      const vendorsMap = new Map<number, typeof vendors.$inferSelect>();
+      vendorsList.forEach(vendor => {
+        vendorsMap.set(vendor.id, vendor);
+      });
+      
       // Format items for the frontend
       const previewItems = filteredBuyItems.map(item => {
         const masterItem = masterItemsMap.get(item.itemId);
+        const vendorId = masterItem?.preferredVendorId || null;
+        const vendor = vendorId ? vendorsMap.get(vendorId) : null;
+        
         return {
           id: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
           description: masterItem?.description || 'Unknown Item',
           quantity: Number(item.quantity),
           unit: masterItem?.unit || 'EA',
-          vendorId: masterItem?.preferredVendorId || null,
-          vendorName: masterItem?.preferredVendorId ? '' : 'Unassigned',
+          vendorId: vendorId,
+          vendorName: vendor ? vendor.name : 'Unassigned',
           estimatedCost: masterItem?.estimatedCost ? Number(masterItem.estimatedCost) : 0
         };
       });

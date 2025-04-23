@@ -64,13 +64,32 @@ export default function ProcurementPlanningPage() {
   const [previewData, setPreviewData] = useState<any>(null);
   const { toast } = useToast();
 
+  // Define project and purchase order types
+  interface Project {
+    id: number;
+    code: string;
+    name: string;
+    description?: string;
+  }
+
+  interface PurchaseOrder {
+    id: number;
+    purchaseOrderNumber: string;
+    title: string;
+    projectCode: string;
+    vendorName: string;
+    status: string;
+    requiredByDate: string;
+    totalAmount: number;
+  }
+
   // Fetch projects for both filtering and selection
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });
 
   // Fetch purchase orders from the API
-  const { data: purchaseOrders, isLoading, error } = useQuery({
+  const { data: purchaseOrders, isLoading, error } = useQuery<PurchaseOrder[]>({
     queryKey: ["/api/procurement/purchase-orders"],
     enabled: true, // Enable the query to fetch real data
   });
@@ -171,14 +190,14 @@ export default function ProcurementPlanningPage() {
   };
   
   // Filter function for purchase orders
-  const filteredPurchaseOrders = dataSource.filter((po: any) => {
+  const filteredPurchaseOrders = Array.isArray(dataSource) ? dataSource.filter((po: PurchaseOrder) => {
     // Handle potential undefined values safely
     const poNumber = po.purchaseOrderNumber || '';
     const poTitle = po.title || '';
     const poVendorName = po.vendorName || '';
     const poStatus = po.status || '';
     const poProjectCode = po.projectCode || '';
-    const poProject = po.project || {};
+    const poProject = (po as any).project || {};
     
     const matchesSearch = 
       poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -192,7 +211,7 @@ export default function ProcurementPlanningPage() {
     const matchesStatus = statusFilter && statusFilter !== "all" ? poStatus === statusFilter : true;
     
     return matchesSearch && matchesProject && matchesStatus;
-  });
+  }) : [];
 
   const statusColorMap: Record<string, string> = {
     draft: "bg-gray-100 text-gray-800",
