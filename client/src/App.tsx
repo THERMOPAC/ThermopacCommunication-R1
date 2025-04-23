@@ -28,6 +28,8 @@ import ViewEditQAPPage from "@/pages/view-edit-qap-page";
 import ProjectCommissioningPage from "@/pages/project-commissioning-page";
 import DispatchShippingPage from "@/pages/dispatch-shipping-page";
 import AfterSalesPage from "@/pages/after-sales-page";
+import ProcurementPlanningPage from "@/pages/procurement-planning-page";
+import ProcurementTrackingPage from "@/pages/procurement-tracking-page";
 import ModulePermissionsPage from "@/pages/module-permissions-page";
 import DiagnosticsPage from "@/pages/diagnostics-page";
 import { useAuth } from "@/hooks/use-auth";
@@ -89,6 +91,8 @@ function Router() {
       <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />
       <ProtectedRoute path="/customers" component={CustomersPage} />
       <ProtectedRoute path="/item-master" component={ItemMasterPage} />
+      <ProtectedRoute path="/procurement-planning" component={ProcurementPlanningPage} />
+      <ProtectedRoute path="/procurement-tracking" component={ProcurementTrackingPage} />
       <ProtectedRoute path="/production-planning" component={ProductionPlanningPage} />
       <ProtectedRoute path="/production/work-orders/:id" component={WorkOrderDetailPage} />
       <ProtectedRoute path="/production/work-orders/:id/edit" component={WorkOrderEditPage} />
