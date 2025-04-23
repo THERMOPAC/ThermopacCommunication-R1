@@ -745,17 +745,33 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
           continue;
         }
         
-        // Also check if this component already has a work order under this parent in the database
-        const existingWorkOrdersForItem = workOrdersByItemCode.get(masterItem.itemCode);
-        if (existingWorkOrdersForItem) {
-          const hasExistingWorkOrder = Array.from(existingWorkOrdersForItem).some(
-            (woNumber: string) => woNumber.startsWith(parentInfo.workOrderNumber)
-          );
+        // First check: Does this exact component already have a work order for this exact parent?
+        // This is a critical check for duplicate prevention
+        try {
+          // Use a direct query that finds ANY work order item for this specific component under this specific parent
+          const existingWorkOrderItemsQuery = await db.execute(sql`
+            SELECT wi.id, wo.work_order_number
+            FROM work_order_items wi
+            JOIN work_orders wo ON wi.work_order_id = wo.id
+            JOIN project_items pi ON wi.project_item_id = pi.id
+            JOIN master_items mi ON pi.item_id = mi.id
+            WHERE wo.project_id = ${projectId}
+              AND mi.item_code = ${masterItem.itemCode}
+              AND wo.work_order_number LIKE ${parentInfo.workOrderNumber + '%'}
+          `);
           
-          if (hasExistingWorkOrder) {
-            console.log(`Skipping component work order for ${masterItem.itemCode} - already exists in database under parent ${parentInfo.workOrderNumber}`);
+          // Check if we found any matching items
+          const results = existingWorkOrderItemsQuery.rows || existingWorkOrderItemsQuery;
+          
+          if (results && Array.isArray(results) && results.length > 0) {
+            const existingWorkOrder = results[0];
+            console.log(`DIRECT DATABASE CHECK: Found existing work order ${existingWorkOrder.work_order_number} for component ${masterItem.itemCode} under parent ${parentInfo.workOrderNumber}`);
+            console.log('Skipping duplicate component - already exists in database with work order ID:', existingWorkOrder.id);
             continue;
           }
+        } catch (error) {
+          console.error('Error performing direct database check for duplicate components:', error);
+          // Continue with other checks if this one fails
         }
         
         // Mark this parent+component combination as processed
@@ -858,6 +874,54 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     }
     
     console.log(`Ready to create ${workOrdersToCreate.length} work orders with ${workOrderItemsToCreate.length} items`);
+    
+    // Debug: Log all work orders that will be created
+    console.log('Final check before creating work orders:');
+    const componentWorkOrdersToCreate = workOrdersToCreate.filter((wo, index) => index >= filteredMakeParentItems.length);
+    
+    // Detect duplicates in what we're about to create
+    const workOrderTitles = componentWorkOrdersToCreate.map(wo => wo.title);
+    const duplicateTitles = workOrderTitles.filter((title, index) => workOrderTitles.indexOf(title) !== index);
+    
+    if (duplicateTitles.length > 0) {
+      console.error('!!! DUPLICATE DETECTION: Found duplicate component work orders about to be created !!!');
+      console.error('Duplicate titles:', Array.from(new Set(duplicateTitles)));
+      
+      // Log all work orders to debug the issue
+      componentWorkOrdersToCreate.forEach(wo => {
+        console.log(`Work order to create: ${wo.workOrderNumber} - ${wo.title}`);
+      });
+      
+      // Remove duplicates from the array - Keep only the first occurrence of each title
+      const uniqueTitles = new Set();
+      const deduplicatedWorkOrders = [];
+      const deduplicatedWorkOrderItems = [];
+      
+      workOrdersToCreate.forEach((wo, index) => {
+        if (index < filteredMakeParentItems.length) {
+          // Always keep parent work orders
+          deduplicatedWorkOrders.push(wo);
+          deduplicatedWorkOrderItems.push(workOrderItemsToCreate[index]);
+        } else {
+          // For components, check for duplicates
+          if (!uniqueTitles.has(wo.title)) {
+            uniqueTitles.add(wo.title);
+            deduplicatedWorkOrders.push(wo);
+            deduplicatedWorkOrderItems.push(workOrderItemsToCreate[index]);
+          } else {
+            console.log(`Removing duplicate work order: ${wo.workOrderNumber} - ${wo.title}`);
+          }
+        }
+      });
+      
+      // Replace the arrays with deduplicated versions
+      workOrdersToCreate.length = 0;
+      workOrderItemsToCreate.length = 0;
+      workOrdersToCreate.push(...deduplicatedWorkOrders);
+      workOrderItemsToCreate.push(...deduplicatedWorkOrderItems);
+      
+      console.log(`After deduplication: ${workOrdersToCreate.length} work orders (${workOrdersToCreate.length - filteredMakeParentItems.length} components)`);
+    }
     
     // Step 14: Insert all work orders in bulk, but only if there are any to create
     if (workOrdersToCreate.length === 0) {
