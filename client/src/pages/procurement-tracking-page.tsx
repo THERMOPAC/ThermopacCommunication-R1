@@ -129,8 +129,8 @@ export default function ProcurementTrackingPage() {
       po.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       po.vendorName.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesProject = projectFilter ? po.projectCode === projectFilter : true;
-    const matchesStatus = statusFilter ? po.status === statusFilter : true;
+    const matchesProject = projectFilter && projectFilter !== "all" ? po.projectCode === projectFilter : true;
+    const matchesStatus = statusFilter && statusFilter !== "all" ? po.status === statusFilter : true;
     
     return matchesSearch && matchesProject && matchesStatus;
   });
@@ -204,7 +204,7 @@ export default function ProcurementTrackingPage() {
                         <SelectValue placeholder="All Projects" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Projects</SelectItem>
+                        <SelectItem value="all">All Projects</SelectItem>
                         {projects.map((project) => (
                           <SelectItem key={project.id} value={project.code}>
                             {project.code}
@@ -217,7 +217,7 @@ export default function ProcurementTrackingPage() {
                         <SelectValue placeholder="All Statuses" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Statuses</SelectItem>
+                        <SelectItem value="all">All Statuses</SelectItem>
                         <SelectItem value="ordered">Ordered</SelectItem>
                         <SelectItem value="shipped">Shipped</SelectItem>
                         <SelectItem value="partially_received">Partially Received</SelectItem>
