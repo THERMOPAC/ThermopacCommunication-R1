@@ -283,21 +283,8 @@ export default function ProductionPlanningPage() {
     }
   };
   
-  // Handle generating work orders only for new components
-  const handleGenerateNewComponentsClick = async () => {
-    if (!selectedProject) return;
-    
-    // Confirm with the user
-    if (!confirm("This will generate work orders only for newly added sub-assembly components. Continue?")) {
-      return;
-    }
-    
-    // Generate the work orders with the newComponentsOnly flag
-    await generateWorkOrders(selectedProject, true);
-  };
-  
   // Simplified function to generate work orders - separate from mutation to reduce complexity
-  const generateWorkOrders = async (projectId: number, newComponentsOnly: boolean = false) => {
+  const generateWorkOrders = async (projectId: number) => {
     if (!projectId || isNaN(projectId)) {
       toast({
         title: "Error",
@@ -310,7 +297,7 @@ export default function ProductionPlanningPage() {
 
     try {
       setIsGeneratingWorkOrders(true);
-      console.log(`Generating work orders for project ID: ${projectId}${newComponentsOnly ? ' (new components only)' : ''}`);
+      console.log("Generating work orders for project ID:", projectId);
       
       const response = await fetch(
         `/api/production/work-orders/generate-for-project/${projectId}`,
@@ -319,10 +306,7 @@ export default function ProductionPlanningPage() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ 
-            confirm: true,
-            newComponentsOnly: newComponentsOnly 
-          }),
+          body: JSON.stringify({ confirm: true }),
         }
       );
       
@@ -548,39 +532,21 @@ export default function ProductionPlanningPage() {
                     </Button>
                   )}
                   
-                  <div className="space-x-2">
-                    <Button
-                      variant="outline"
-                      onClick={handleGenerateWorkOrdersClick}
-                      disabled={isGeneratingWorkOrders || isLoadingPreview || isCleaningUp}
-                      className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700"
-                    >
-                      {isGeneratingWorkOrders || isLoadingPreview ? (
-                        <>
-                          <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
-                          {isLoadingPreview ? "Loading Preview..." : "Generating..."}
-                        </>
-                      ) : (
-                        <>Create Work Orders for Project</>
-                      )}
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      onClick={handleGenerateNewComponentsClick}
-                      disabled={isGeneratingWorkOrders || isLoadingPreview || isCleaningUp}
-                      className="bg-gradient-to-r from-blue-500 to-teal-500 text-white hover:from-blue-600 hover:to-teal-600"
-                    >
-                      {isGeneratingWorkOrders || isLoadingPreview ? (
-                        <>
-                          <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
-                          {isLoadingPreview ? "Loading Preview..." : "Generating..."}
-                        </>
-                      ) : (
-                        <>Create Work Orders for New Components</>
-                      )}
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleGenerateWorkOrdersClick}
+                    disabled={isGeneratingWorkOrders || isLoadingPreview || isCleaningUp}
+                    className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700"
+                  >
+                    {isGeneratingWorkOrders || isLoadingPreview ? (
+                      <>
+                        <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
+                        {isLoadingPreview ? "Loading Preview..." : "Generating..."}
+                      </>
+                    ) : (
+                      <>Create Work Orders for Project</>
+                    )}
+                  </Button>
                 </div>
               )}
             </div>
