@@ -144,6 +144,19 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
           where: inArray(workOrderItems.workOrderId, existingWorkOrders.map(wo => wo.id))
         })
       : [];
+      
+    // Create a set of item codes that already have work orders to avoid duplicates
+    const existingItemCodesWithWorkOrders = new Set<string>();
+    existingWorkOrderItems.forEach(item => {
+      // Cast to any to handle extended schema with itemCode
+      const typedItem = item as any;
+      if (typedItem.itemCode) {
+        existingItemCodesWithWorkOrders.add(typedItem.itemCode);
+      }
+    });
+    
+    console.log(`Found ${existingWorkOrderItems.length} existing work order items`);
+    console.log(`Found ${existingItemCodesWithWorkOrders.size} unique item codes with work orders`);
     
     // Get related projects (projects from the same customer/client)
     let relatedProjectIds: number[] = [];
@@ -571,6 +584,12 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       
       if (!masterItem || !parentInfo) continue;
       
+      // Check if this item code already has a work order - avoid duplicates
+      if (existingItemCodesWithWorkOrders.has(masterItem.itemCode)) {
+        console.log(`Skipping component work order for ${masterItem.itemCode} - already has a work order`);
+        continue;
+      }
+      
       // Use parent's work order number with a child sequence number (e.g., WO-2526-3-1-1)
       // Start with child sequence number 1
       let childSequence = 1;
@@ -585,6 +604,8 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       
       // Add to our tracking set
       existingWorkOrderNumbers.add(workOrderNumber);
+      // Also mark this item code as having a work order now
+      existingItemCodesWithWorkOrders.add(masterItem.itemCode);
       
       // Create sub-assembly work order
       const title = `${masterItem.itemCode} - ${masterItem.description || 'Component'}`;
