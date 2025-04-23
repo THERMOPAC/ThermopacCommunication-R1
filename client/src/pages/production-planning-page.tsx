@@ -532,21 +532,39 @@ export default function ProductionPlanningPage() {
                     </Button>
                   )}
                   
-                  <Button
-                    variant="outline"
-                    onClick={handleGenerateWorkOrdersClick}
-                    disabled={isGeneratingWorkOrders || isLoadingPreview || isCleaningUp}
-                    className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700"
-                  >
-                    {isGeneratingWorkOrders || isLoadingPreview ? (
-                      <>
-                        <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
-                        {isLoadingPreview ? "Loading Preview..." : "Generating..."}
-                      </>
-                    ) : (
-                      <>Create Work Orders for Project</>
-                    )}
-                  </Button>
+                  <div className="space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleGenerateWorkOrdersClick}
+                      disabled={isGeneratingWorkOrders || isLoadingPreview || isCleaningUp}
+                      className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700"
+                    >
+                      {isGeneratingWorkOrders || isLoadingPreview ? (
+                        <>
+                          <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
+                          {isLoadingPreview ? "Loading Preview..." : "Generating..."}
+                        </>
+                      ) : (
+                        <>Create Work Orders for Project</>
+                      )}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      onClick={() => handleGenerateNewComponentsClick()}
+                      disabled={isGeneratingWorkOrders || isLoadingPreview || isCleaningUp}
+                      className="bg-gradient-to-r from-blue-500 to-teal-500 text-white hover:from-blue-600 hover:to-teal-600"
+                    >
+                      {isGeneratingWorkOrders || isLoadingPreview ? (
+                        <>
+                          <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
+                          {isLoadingPreview ? "Loading Preview..." : "Generating..."}
+                        </>
+                      ) : (
+                        <>Create Work Orders for New Components</>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
