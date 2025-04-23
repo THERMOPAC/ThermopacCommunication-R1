@@ -100,8 +100,8 @@ export default function ProcurementPlanningPage() {
       po.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       po.vendorName.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesProject = projectFilter ? po.projectCode === projectFilter : true;
-    const matchesStatus = statusFilter ? po.status === statusFilter : true;
+    const matchesProject = projectFilter && projectFilter !== "all" ? po.projectCode === projectFilter : true;
+    const matchesStatus = statusFilter && statusFilter !== "all" ? po.status === statusFilter : true;
     
     return matchesSearch && matchesProject && matchesStatus;
   });
