@@ -611,12 +611,13 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     await db.insert(workOrderItems)
       .values(finalWorkOrderItems);
     
-    // Return success message
+    // Return success message with cross-project component info if any
     return res.status(201).json({
       message: 'Work orders created successfully', 
       count: createdWorkOrders.length,
       parentCount: filteredMakeParentItems.length,
-      componentCount: virtualComponentItems.length
+      componentCount: virtualComponentItems.length,
+      crossProjectComponents: crossProjectInfo
     });
   } catch (error: any) {
     console.error('Error generating direct work orders:', error);

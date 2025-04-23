@@ -54,7 +54,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ClipboardList, Calendar as CalendarIcon, CheckCircle2, Hourglass, AlertTriangle, XCircle, Trash2, Loader2, Search } from "lucide-react";
+import { Plus, ClipboardList, Calendar as CalendarIcon, CheckCircle2, Hourglass, AlertTriangle, XCircle, Trash2, Loader2, Search, Info as InfoIcon } from "lucide-react";
 import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -330,9 +330,16 @@ export default function ProductionPlanningPage() {
       }
       
       // At this point we have successful data, so display success message
+      let description = responseData.message || `Successfully created ${responseData.count || 'multiple'} work orders for the project`;
+      
+      // Add info about cross-project components if any were detected
+      if (responseData.crossProjectComponents && responseData.crossProjectComponents.count > 0) {
+        description += `. ${responseData.crossProjectComponents.count} component(s) were skipped as they exist in related projects.`;
+      }
+      
       toast({
         title: "Work Orders Generated",
-        description: responseData.message || `Successfully created ${responseData.count || 'multiple'} work orders for the project`,
+        description: description,
       });
       
       // Refresh the work orders list and reset states
@@ -1084,6 +1091,16 @@ export default function ProductionPlanningPage() {
                   <div className="mt-4 p-2 bg-amber-50 border border-amber-200 rounded-md text-amber-800">
                     <AlertTriangle className="h-4 w-4 inline-block mr-2" />
                     <span className="text-sm">This will create separate work orders for parent and child items.</span>
+                  </div>
+                )}
+                
+                {previewData.crossProjectComponents && (
+                  <div className="mt-4 p-2 bg-blue-50 border border-blue-200 rounded-md text-blue-800">
+                    <InfoIcon className="h-4 w-4 inline-block mr-2" />
+                    <span className="text-sm">
+                      <strong>{previewData.crossProjectComponents.count}</strong> component(s) already have work orders in related project(s): <strong>{previewData.crossProjectComponents.projectCodes}</strong>. 
+                      These components will be skipped to prevent duplication.
+                    </span>
                   </div>
                 )}
               </div>
