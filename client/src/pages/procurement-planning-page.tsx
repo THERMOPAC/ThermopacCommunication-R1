@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Helmet } from "react-helmet";
 import { Loader2 } from "lucide-react";
+import Layout from "@/components/layout";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -117,12 +118,12 @@ export default function ProcurementPlanningPage() {
   };
 
   return (
-    <>
+    <Layout>
       <Helmet>
         <title>Procurement Planning | ThermoPac</title>
       </Helmet>
 
-      <div className="flex flex-col gap-6 p-4 lg:p-8">
+      <div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Procurement Planning</h1>
@@ -341,6 +342,6 @@ export default function ProcurementPlanningPage() {
           </CardFooter>
         </Card>
       </div>
-    </>
+    </Layout>
   );
 }
