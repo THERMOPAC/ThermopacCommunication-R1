@@ -17,6 +17,7 @@ import { setupMasterItemsImportRoutes } from "./master-items-import";
 import { setupFileStorageRoutes } from "./file-storage-routes";
 import { setupItemComponentsImportRoutes } from "./item-components-import";
 import { setupProductionRoutes } from "./production-routes";
+import { setupProcurementRoutes } from "./procurement-routes";
 import { setupQualityRoutes } from "./quality-routes";
 import { setupDispatchRoutes } from "./dispatch-routes";
 import { setupEngineeringChangeRoutes } from "./engineering-change-routes";
@@ -74,6 +75,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up production management routes
   setupProductionRoutes(app);
+  
+  // Set up procurement management routes
+  setupProcurementRoutes(app);
   
   // Set up quality management routes
   setupQualityRoutes(app);
