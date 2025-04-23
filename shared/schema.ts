@@ -971,6 +971,127 @@ export type InsertProjectDocument = z.infer<typeof insertProjectDocumentSchema>;
 export type ProjectKeyStage = typeof projectKeyStages.$inferSelect;
 export type InsertProjectKeyStage = z.infer<typeof insertProjectKeyStageSchema>;
 
+// ==================== PROCUREMENT MANAGEMENT MODULE ====================
+
+// Vendors table
+export const vendors = pgTable('vendors', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  contactPerson: text('contact_person'),
+  email: text('email'),
+  phone: text('phone'),
+  address: text('address'),
+  city: text('city'),
+  state: text('state'),
+  country: text('country'),
+  postalCode: text('postal_code'),
+  taxId: text('tax_id'),
+  paymentTerms: text('payment_terms'),
+  deliveryTerms: text('delivery_terms'),
+  performanceRating: integer('performance_rating'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+});
+
+// Purchase Orders table
+export const purchaseOrders = pgTable('purchase_orders', {
+  id: serial('id').primaryKey(),
+  purchaseOrderNumber: text('purchase_order_number').notNull().unique(),
+  title: text('title').notNull(),
+  description: text('description'),
+  projectId: integer('project_id').references(() => projects.id).notNull(),
+  vendorId: integer('vendor_id').references(() => vendors.id).notNull(),
+  status: text('status').notNull().default('draft'), // draft, submitted, approved, ordered, shipped, received, on_hold, cancelled
+  priority: text('priority').notNull().default('Medium'), // Low, Medium, High
+  requestedDate: timestamp('requested_date').notNull(),
+  requiredByDate: timestamp('required_by_date').notNull(),
+  estimatedDeliveryDate: timestamp('estimated_delivery_date'),
+  actualDeliveryDate: timestamp('actual_delivery_date'),
+  paymentTerms: text('payment_terms'),
+  shippingTerms: text('shipping_terms'),
+  totalAmount: decimal('total_amount', { precision: 12, scale: 2 }),
+  currency: text('currency').default('INR'),
+  trackingNumber: text('tracking_number'),
+  notes: text('notes'),
+  createdBy: integer('created_by').references(() => users.id).notNull(),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Purchase Order Items table
+export const purchaseOrderItems = pgTable('purchase_order_items', {
+  id: serial('id').primaryKey(),
+  purchaseOrderId: integer('purchase_order_id').references(() => purchaseOrders.id, { onDelete: 'cascade' }).notNull(),
+  itemId: integer('item_id').references(() => masterItems.id).notNull(),
+  projectItemId: integer('project_item_id').references(() => projectItems.id),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+  unit: text('unit').notNull(),
+  unitPrice: decimal('unit_price', { precision: 10, scale: 2 }).notNull(),
+  totalPrice: decimal('total_price', { precision: 12, scale: 2 }).notNull(),
+  description: text('description'),
+  deliveryStatus: text('delivery_status').default('pending'), // pending, partial, complete
+  receivedQuantity: decimal('received_quantity', { precision: 10, scale: 2 }).default('0'),
+  qualityStatus: text('quality_status'), // pending, passed, failed, conditional
+  lineNumber: integer('line_number').notNull(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Purchase Order Documents table
+export const purchaseOrderDocuments = pgTable('purchase_order_documents', {
+  id: serial('id').primaryKey(),
+  purchaseOrderId: integer('purchase_order_id').references(() => purchaseOrders.id, { onDelete: 'cascade' }).notNull(),
+  documentType: text('document_type').notNull(), // quote, po, invoice, receipt, shipping, quality
+  documentName: text('document_name').notNull(),
+  documentPath: text('document_path').notNull(),
+  uploadedBy: integer('uploaded_by').references(() => users.id).notNull(),
+  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
+  storagePath: text('storage_path'),
+  storageUrl: text('storage_url'),
+  storageUrlExpiry: timestamp('storage_url_expiry'),
+});
+
+// Purchase Order History table
+export const purchaseOrderHistory = pgTable('purchase_order_history', {
+  id: serial('id').primaryKey(),
+  purchaseOrderId: integer('purchase_order_id').references(() => purchaseOrders.id, { onDelete: 'cascade' }).notNull(),
+  status: text('status').notNull(),
+  comments: text('comments'),
+  changedBy: integer('changed_by').references(() => users.id).notNull(),
+  changedAt: timestamp('changed_at').defaultNow().notNull(),
+  additionalData: jsonb('additional_data'),
+});
+
+// Define insert schemas for procurement tables
+export const insertVendorSchema = createInsertSchema(vendors);
+export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).extend({
+  priority: z.enum(['Low', 'Medium', 'High']),
+  status: z.enum(['draft', 'submitted', 'approved', 'ordered', 'shipped', 'received', 'on_hold', 'cancelled']),
+});
+export const insertPurchaseOrderItemSchema = createInsertSchema(purchaseOrderItems);
+export const insertPurchaseOrderDocumentSchema = createInsertSchema(purchaseOrderDocuments);
+export const insertPurchaseOrderHistorySchema = createInsertSchema(purchaseOrderHistory);
+
+// Export procurement types
+export type Vendor = typeof vendors.$inferSelect;
+export type InsertVendor = z.infer<typeof insertVendorSchema>;
+
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type InsertPurchaseOrder = z.infer<typeof insertPurchaseOrderSchema>;
+
+export type PurchaseOrderItem = typeof purchaseOrderItems.$inferSelect;
+export type InsertPurchaseOrderItem = z.infer<typeof insertPurchaseOrderItemSchema>;
+
+export type PurchaseOrderDocument = typeof purchaseOrderDocuments.$inferSelect;
+export type InsertPurchaseOrderDocument = z.infer<typeof insertPurchaseOrderDocumentSchema>;
+
+export type PurchaseOrderHistory = typeof purchaseOrderHistory.$inferSelect;
+export type InsertPurchaseOrderHistory = z.infer<typeof insertPurchaseOrderHistorySchema>;
+
 // ==================== PRODUCTION MANAGEMENT MODULE ====================
 
 // Work Orders table
