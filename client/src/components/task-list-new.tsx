@@ -215,16 +215,21 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: Omit<Task, "id">) => {
-      const taskData = {
-        ...data,
-        createdAt: new Date().toISOString(),
-        completedAt: null,
-        category: null
-      };
-      const res = await apiRequest("POST", "/api/tasks", taskData);
-      return await res.json();
+      try {
+        const taskData = {
+          ...data,
+          createdAt: new Date().toISOString(),
+          completedAt: null,
+          category: null
+        };
+        // Use our enhanced apiRequest that handles empty responses better
+        return await apiRequest("POST", "/api/tasks", taskData);
+      } catch (error) {
+        console.error("Task creation error:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setOpen(false);
       form.reset();
@@ -244,10 +249,15 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
 
   const forwardTaskMutation = useMutation({
     mutationFn: async ({ taskId, newAssignee }: { taskId: number; newAssignee: number }) => {
-      const res = await apiRequest("POST", `/api/tasks/${taskId}/forward`, { newAssignee });
-      return await res.json();
+      try {
+        // Use our enhanced apiRequest that handles empty responses better
+        return await apiRequest("POST", `/api/tasks/${taskId}/forward`, { newAssignee });
+      } catch (error) {
+        console.error("Task forwarding error:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       // Invalidate all task-related queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
@@ -284,10 +294,15 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
   // Mutation for editing tasks
   const editTaskMutation = useMutation({
     mutationFn: async ({ taskId, taskData }: { taskId: number; taskData: z.infer<typeof editTaskSchema> }) => {
-      const res = await apiRequest("PATCH", `/api/tasks/${taskId}`, taskData);
-      return await res.json();
+      try {
+        // Use our enhanced apiRequest that handles empty responses better
+        return await apiRequest("PATCH", `/api/tasks/${taskId}`, taskData);
+      } catch (error) {
+        console.error("Task update error:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Success",

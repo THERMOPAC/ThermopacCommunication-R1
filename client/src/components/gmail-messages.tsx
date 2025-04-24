@@ -356,10 +356,15 @@ export default function GmailMessages() {
   // Create task from email mutation
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: InsertTask) => {
-      const res = await apiRequest("POST", "/api/tasks", taskData);
-      return await res.json();
+      try {
+        // Use our enhanced apiRequest that handles empty responses better
+        return await apiRequest("POST", "/api/tasks", taskData);
+      } catch (error) {
+        console.error("Task creation error:", error);
+        throw error;
+      }
     },
-    onSuccess: (data) => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Success",
