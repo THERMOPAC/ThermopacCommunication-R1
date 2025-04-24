@@ -638,36 +638,27 @@ export function setupProcurementRoutes(app: Router) {
         
         await client.query('COMMIT');
         
-        // Set explicit content-type and ensure we're sending valid JSON
-        res.setHeader('Content-Type', 'application/json');
-        res.status(200).send(JSON.stringify({ 
+        // Return a standard JSON response
+        return res.status(200).json({ 
           success: true, 
           message: 'Purchase order deleted successfully' 
-        }));
+        });
       } catch (error) {
         console.error('Error deleting purchase order:', error);
         await client.query('ROLLBACK');
-        // Make sure to check if res.json is a function before calling it
-        if (typeof res.json === 'function') {
-          res.status(500).json({ 
-            error: 'Failed to delete purchase order',
-            message: error instanceof Error ? error.message : 'Unknown error'
-          });
-        } else {
-          console.error('res.json is not a function in delete purchase order route');
-          res.status(500).send('Internal server error');
-        }
+        return res.status(500).json({ 
+          error: 'Failed to delete purchase order',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
       } finally {
         client.release();
       }
     } catch (error) {
       console.error('Error in delete purchase order route:', error);
-      if (typeof res.json === 'function') {
-        res.status(500).json({ error: 'An unexpected error occurred' });
-      } else {
-        console.error('res.json is not a function in delete purchase order outer catch block');
-        res.status(500).send('Internal server error');
-      }
+      return res.status(500).json({ 
+        error: 'An unexpected error occurred',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
   
@@ -741,36 +732,28 @@ export function setupProcurementRoutes(app: Router) {
           WHERE po.id = $1
         `, [purchaseOrderId]);
         
-        // Set explicit content-type and ensure we're sending valid JSON
-        res.setHeader('Content-Type', 'application/json');
-        res.status(200).send(JSON.stringify({
+        // Return a standard JSON response
+        return res.status(200).json({
           success: true,
           message: 'Purchase order updated successfully',
           purchaseOrder: updatedPoResult.rows[0]
-        }));
+        });
       } catch (error) {
         console.error('Error updating purchase order:', error);
         await client.query('ROLLBACK');
-        if (typeof res.json === 'function') {
-          res.status(500).json({ 
-            error: 'Failed to update purchase order',
-            message: error instanceof Error ? error.message : 'Unknown error'
-          });
-        } else {
-          console.error('res.json is not a function in update purchase order route');
-          res.status(500).send('Internal server error');
-        }
+        return res.status(500).json({ 
+          error: 'Failed to update purchase order',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
       } finally {
         client.release();
       }
     } catch (error) {
       console.error('Error in update purchase order route:', error);
-      if (typeof res.json === 'function') {
-        res.status(500).json({ error: 'An unexpected error occurred' });
-      } else {
-        console.error('res.json is not a function in update purchase order outer catch block');
-        res.status(500).send('Internal server error');
-      }
+      return res.status(500).json({ 
+        error: 'An unexpected error occurred',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 }
