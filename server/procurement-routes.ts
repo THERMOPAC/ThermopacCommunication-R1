@@ -326,7 +326,7 @@ export function setupProcurementRoutes(app: Router) {
             itemCode: item.item_code || 'Unknown',
             description: item.description || 'Unknown Item',
             quantity: Number(item.quantity || 0),
-            unit: item.unit || 'EA',
+            uom: item.uom || item.unit || 'EA',
             vendorId: vendorId,
             vendorName: vendor ? vendor.name : 'Unassigned',
             estimatedCost: item.estimated_cost ? Number(item.estimated_cost) : 0
@@ -602,7 +602,7 @@ export function setupProcurementRoutes(app: Router) {
               item.master_item_id,
               item.description || 'Unknown Item',
               quantity.toString(),
-              item.unit || 'EA', /* Stored as unit in DB, used as uom in client */
+              item.uom || item.unit || 'EA', /* Use uom first, fall back to unit */
               unitPrice.toString(),
               totalPrice.toString(),
               'pending',
