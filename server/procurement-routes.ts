@@ -448,9 +448,9 @@ export function setupProcurementRoutes(app: Router) {
               INSERT INTO purchase_order_items (
                 purchase_order_id, project_item_id, item_id, description, 
                 quantity, unit, unit_price, total_price, delivery_status, 
-                line_number, created_at, updated_at
+                line_number, created_at, updated_at, item_code
               ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), $11
               )
             `, [
               purchaseOrder.id,
@@ -462,7 +462,8 @@ export function setupProcurementRoutes(app: Router) {
               unitPrice.toString(),
               totalPrice.toString(),
               'pending',
-              i + 1
+              i + 1,
+              item.item_code || 'UNKNOWN-ITEM'
             ]);
           }
           
