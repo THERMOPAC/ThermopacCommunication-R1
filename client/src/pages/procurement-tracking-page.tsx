@@ -928,12 +928,11 @@ export default function ProcurementTrackingPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-1/6">Item Code</TableHead>
-                        <TableHead className="w-2/6">Description</TableHead>
-                        <TableHead className="w-1/12">Quantity</TableHead>
-                        <TableHead className="w-1/12">UOM</TableHead>
-                        <TableHead className="w-1/6">Drawing No</TableHead>
-                        <TableHead className="w-1/12">Actions</TableHead>
+                        <TableHead className="w-1/5">Item Code</TableHead>
+                        <TableHead className="w-2/5">Description</TableHead>
+                        <TableHead className="w-1/10">Quantity</TableHead>
+                        <TableHead className="w-1/10">UOM</TableHead>
+                        <TableHead className="w-1/5">Drawing No</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -943,23 +942,15 @@ export default function ProcurementTrackingPage() {
                             <TableCell>
                               <Input 
                                 value={item.item_code || item.code || ''} 
-                                onChange={(e) => {
-                                  const updatedItems = [...editingPO.items];
-                                  updatedItems[index] = {...updatedItems[index], item_code: e.target.value};
-                                  setEditingPO({...editingPO, items: updatedItems});
-                                }}
-                                className="w-full"
+                                className="w-full text-red-600"
+                                disabled
                               />
                             </TableCell>
                             <TableCell>
                               <Input 
                                 value={item.description || item.name || ''} 
-                                onChange={(e) => {
-                                  const updatedItems = [...editingPO.items];
-                                  updatedItems[index] = {...updatedItems[index], description: e.target.value, name: e.target.value};
-                                  setEditingPO({...editingPO, items: updatedItems});
-                                }}
-                                className="w-full"
+                                className="w-full text-red-600"
+                                disabled
                               />
                             </TableCell>
                             <TableCell>
@@ -967,55 +958,29 @@ export default function ProcurementTrackingPage() {
                                 type="number"
                                 min="1"
                                 value={item.quantity || 0} 
-                                onChange={(e) => {
-                                  const updatedItems = [...editingPO.items];
-                                  updatedItems[index] = {...updatedItems[index], quantity: parseInt(e.target.value) || 0};
-                                  setEditingPO({...editingPO, items: updatedItems});
-                                }}
-                                className="w-full"
+                                className="w-full text-red-600"
+                                disabled
                               />
                             </TableCell>
                             <TableCell>
                               <Input 
                                 value={item.uom || item.unit || ''} 
-                                onChange={(e) => {
-                                  const updatedItems = [...editingPO.items];
-                                  updatedItems[index] = {...updatedItems[index], uom: e.target.value, unit: e.target.value};
-                                  setEditingPO({...editingPO, items: updatedItems});
-                                }}
-                                className="w-full"
+                                className="w-full text-red-600"
+                                disabled
                               />
                             </TableCell>
                             <TableCell>
                               <Input 
                                 value={item.drawing_no || ''} 
-                                onChange={(e) => {
-                                  const updatedItems = [...editingPO.items];
-                                  updatedItems[index] = {...updatedItems[index], drawing_no: e.target.value};
-                                  setEditingPO({...editingPO, items: updatedItems});
-                                }}
-                                className="w-full"
+                                className="w-full text-red-600"
+                                disabled
                               />
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-600 hover:text-red-800 p-0 h-8 w-8"
-                                onClick={() => {
-                                  const updatedItems = [...editingPO.items];
-                                  updatedItems.splice(index, 1);
-                                  setEditingPO({...editingPO, items: updatedItems});
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
                             </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={6} className="h-12 text-center text-muted-foreground">
+                          <TableCell colSpan={5} className="h-12 text-center text-muted-foreground">
                             No items available for this purchase order
                           </TableCell>
                         </TableRow>
@@ -1023,29 +988,6 @@ export default function ProcurementTrackingPage() {
                     </TableBody>
                   </Table>
                 </div>
-                
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const newItem = {
-                      id: `temp_${Date.now()}`, // temporary ID for new items
-                      item_code: '',
-                      description: '',
-                      quantity: 1,
-                      uom: 'EA', // default unit
-                      drawing_no: '',
-                      status: 'pending'
-                    };
-                    
-                    const updatedItems = editingPO.items && Array.isArray(editingPO.items) 
-                      ? [...editingPO.items, newItem] 
-                      : [newItem];
-                    
-                    setEditingPO({...editingPO, items: updatedItems});
-                  }}
-                >
-                  <span className="mr-2">+</span> Add Item
-                </Button>
               </div>
             </>
           )}
