@@ -74,8 +74,29 @@ export default function ProcurementTrackingPage() {
   // Delete purchase order mutation
   const deletePOMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await apiRequest("DELETE", `/api/procurement/purchase-orders/${id}`);
-      return await response.json();
+      try {
+        const response = await apiRequest("DELETE", `/api/procurement/purchase-orders/${id}`);
+        
+        // Check if the response is valid before trying to parse JSON
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+        
+        // Try-catch for JSON parsing
+        try {
+          return await response.json();
+        } catch (jsonError) {
+          console.log("Response could not be parsed as JSON:", response);
+          // If JSON parsing fails but the request was successful, still consider it a success
+          if (response.ok) {
+            return { success: true, message: "Purchase order deleted successfully" };
+          }
+          throw new Error("Invalid response format from server");
+        }
+      } catch (err) {
+        console.error("Delete PO error:", err);
+        throw err;
+      }
     },
     onSuccess: () => {
       toast({
@@ -98,8 +119,29 @@ export default function ProcurementTrackingPage() {
   // Update purchase order status mutation
   const updatePOStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      const response = await apiRequest("PUT", `/api/procurement/purchase-orders/${id}`, { status });
-      return await response.json();
+      try {
+        const response = await apiRequest("PUT", `/api/procurement/purchase-orders/${id}`, { status });
+        
+        // Check if the response is valid before trying to parse JSON
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+        
+        // Try-catch for JSON parsing
+        try {
+          return await response.json();
+        } catch (jsonError) {
+          console.log("Response could not be parsed as JSON:", response);
+          // If JSON parsing fails but the request was successful, still consider it a success
+          if (response.ok) {
+            return { success: true, message: "Purchase order updated successfully" };
+          }
+          throw new Error("Invalid response format from server");
+        }
+      } catch (err) {
+        console.error("Update PO error:", err);
+        throw err;
+      }
     },
     onSuccess: () => {
       toast({
