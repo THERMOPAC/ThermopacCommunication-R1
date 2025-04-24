@@ -37,6 +37,78 @@ export function setupProcurementRoutes(app: Router) {
   // ==================== PURCHASE ORDERS ====================
   
   /**
+   * Get all purchase orders
+   */
+  app.get('/api/procurement/purchase-orders', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const client = await pool.connect();
+      try {
+        // Get purchase orders with project and vendor information
+        const result = await client.query(`
+          SELECT 
+            po.id, 
+            po.purchase_order_number, 
+            po.title,
+            po.project_id,
+            po.project_code,
+            po.vendor_id,
+            po.status,
+            po.total_amount,
+            po.required_by_date,
+            po.currency,
+            v.name as vendor_name,
+            p.name as project_name
+          FROM 
+            purchase_orders po
+          LEFT JOIN
+            projects p ON po.project_id = p.id
+          LEFT JOIN
+            vendors v ON po.vendor_id = v.id
+          ORDER BY 
+            po.created_at DESC
+        `);
+        
+        const purchaseOrders = result.rows;
+        
+        // Get counts of items for each purchase order
+        if (purchaseOrders.length > 0) {
+          const poIds = purchaseOrders.map(po => po.id);
+          
+          const itemCountsResult = await client.query(`
+            SELECT 
+              purchase_order_id, 
+              COUNT(*) as item_count
+            FROM 
+              purchase_order_items
+            WHERE 
+              purchase_order_id = ANY($1)
+            GROUP BY 
+              purchase_order_id
+          `, [poIds]);
+          
+          // Create a map of PO ID to item count
+          const itemCountMap = new Map();
+          itemCountsResult.rows.forEach(row => {
+            itemCountMap.set(row.purchase_order_id, parseInt(row.item_count));
+          });
+          
+          // Add item count to each purchase order
+          purchaseOrders.forEach(po => {
+            po.itemCount = itemCountMap.get(po.id) || 0;
+          });
+        }
+        
+        return res.status(200).json(purchaseOrders);
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error fetching purchase orders:', error);
+      res.status(500).json({ error: 'Failed to fetch purchase orders' });
+    }
+  });
+  
+  /**
    * Preview purchase orders for a project
    * This endpoint identifies all "Buy" items in a project and prepares them for purchase order generation
    */
