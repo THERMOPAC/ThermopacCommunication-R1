@@ -401,7 +401,7 @@ export function setupProcurementRoutes(app: Router) {
           if (items.length === 0) continue;
           
           // Generate purchase order number: PO-{Financial Year}-{Project Code}-{Sequence}
-          const poNumber = `PO-${financialYear}-${project.code}-${nextPOSequence}`;
+          const poNumber = `PO-${project.code}-${nextPOSequence}`;
           
           // Create purchase order
           const today = new Date();
