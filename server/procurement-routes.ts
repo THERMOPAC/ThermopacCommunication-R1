@@ -572,13 +572,19 @@ export function setupProcurementRoutes(app: Router) {
           purchaseOrders: createdPOs
         });
       } catch (error) {
+        console.error('Transaction error:', error);
         await client.query('ROLLBACK');
-        throw error;
+        // Handle the error here instead of re-throwing
+        return res.status(500).json({ 
+          error: 'Failed to generate purchase orders', 
+          message: error instanceof Error ? error.message : 'Unknown error' 
+        });
       } finally {
         client.release();
       }
     } catch (error) {
       console.error('Error generating purchase orders:', error);
+      // Only reaches here if an error occurs before the transaction begins
       res.status(500).json({ error: 'Failed to generate purchase orders' });
     }
   });
