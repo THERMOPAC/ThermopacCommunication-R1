@@ -591,139 +591,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Task Management Routes
   app.post("/api/tasks", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    const taskData = insertTaskSchema.parse({
-      ...req.body,
-      createdBy: req.user!.id,
-      createdAt: new Date().toISOString(),
-    });
+      const taskData = insertTaskSchema.parse({
+        ...req.body,
+        createdBy: req.user!.id,
+        createdAt: new Date().toISOString(),
+      });
 
-    console.log('Creating new task:', taskData);
-    const task = await storage.createTask(taskData);
-    console.log('Created task:', task);
-    return res.status(201).json(task);
+      console.log('Creating new task:', taskData);
+      const task = await storage.createTask(taskData);
+      console.log('Created task:', task);
+      res.status(201).json(task);
+    } catch (error) {
+      console.error('Error creating task:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to create task" 
+      });
+    }
   });
 
   app.patch("/api/tasks/:id", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    const taskId = parseInt(req.params.id);
-    const task = await storage.getTask(taskId);
+      const taskId = parseInt(req.params.id);
+      const task = await storage.getTask(taskId);
 
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
-    }
-
-    // Task completion and task editing are separate operations with different permissions
-    const isTaskCompletion = req.body.status === 'completed';
-    const isTaskEditing = !isTaskCompletion;
-
-    if (isTaskCompletion) {
-      // Only allow completing a task if user is the assignee or a superuser
-      if (task.assignedTo !== req.user!.id && req.user!.role !== "Superuser") {
-        return res.status(403).json({ message: "Only the assigned user or a Superuser can complete this task" });
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
       }
 
-      const updateData = {
-        status: 'completed',
-        completedAt: new Date().toISOString()
-      };
+      // Task completion and task editing are separate operations with different permissions
+      const isTaskCompletion = req.body.status === 'completed';
+      const isTaskEditing = !isTaskCompletion;
 
-      const updatedTask = await storage.updateTask(taskId, updateData);
-      
-      console.log(`Task ${taskId} completed by user ${req.user!.id}`);
-      
-      // Update productivity metrics
-      let productivityMetric = await storage.getProductivityMetric(req.user!.id);
-      
-      if (!productivityMetric) {
-        // Create new metric if it doesn't exist
-        productivityMetric = await storage.createProductivityMetric({
-          userId: req.user!.id,
-          tasksCompleted: 1,
-          tasksCreated: 0,
-          recommendationsAccepted: 0,
-          averageCompletionTime: 0,
-          onTimeCompletion: 0,
-          weeklyScore: 10, // Initial score for completing a task
-          monthlyScore: 10, // Initial score for completing a task
-          totalPoints: 10, // Initial points for completing a task
-          lastUpdated: new Date().toISOString()
-        });
-      } else {
-        // Update existing metric
-        productivityMetric = await storage.updateProductivityMetric(req.user!.id, {
-          tasksCompleted: productivityMetric.tasksCompleted + 1,
-          weeklyScore: productivityMetric.weeklyScore + 10,
-          monthlyScore: productivityMetric.monthlyScore + 10,
-          totalPoints: productivityMetric.totalPoints + 10,
-          lastUpdated: new Date().toISOString()
-        });
-      }
-      
-      // Check and award achievements
-      await storage.checkAndAwardAchievements(req.user!.id);
-      
-      // Add task history entry
-      await storage.createTaskHistory({
-        taskId: taskId,
-        userId: req.user!.id,
-        action: 'status_changed',
-        timestamp: new Date().toISOString(),
-        oldValue: task.status || 'pending',
-        newValue: 'completed'
-      });
-      
-      return res.json(updatedTask);
-    }
-    
-    if (isTaskEditing) {
-      // Only allow editing a task if user is the creator or a superuser
-      if (task.createdBy !== req.user!.id && req.user!.role !== "Superuser") {
-        return res.status(403).json({ 
-          message: "Only the task creator or a Superuser can edit this task"
-        });
-      }
-      
-      // Prepare task update data (only allowed fields)
-      const allowedFields = ['title', 'description', 'priority', 'finishDate', 'assignedTo'];
-      const updateData: Record<string, any> = {};
-      
-      for (const field of allowedFields) {
-        if (field in req.body) {
-          updateData[field] = req.body[field];
+      if (isTaskCompletion) {
+        // Only allow completing a task if user is the assignee or a superuser
+        if (task.assignedTo !== req.user!.id && req.user!.role !== "Superuser") {
+          return res.status(403).json({ message: "Only the assigned user or a Superuser can complete this task" });
         }
-      }
-      
-      // If assignee is being changed, log it in task history
-      if ('assignedTo' in updateData && updateData.assignedTo !== task.assignedTo) {
+
+        const updateData = {
+          status: 'completed',
+          completedAt: new Date().toISOString()
+        };
+
+        const updatedTask = await storage.updateTask(taskId, updateData);
+        
+        console.log(`Task ${taskId} completed by user ${req.user!.id}`);
+        
+        // Update productivity metrics
+        let productivityMetric = await storage.getProductivityMetric(req.user!.id);
+        
+        if (!productivityMetric) {
+          // Create new metric if it doesn't exist
+          productivityMetric = await storage.createProductivityMetric({
+            userId: req.user!.id,
+            tasksCompleted: 1,
+            tasksCreated: 0,
+            recommendationsAccepted: 0,
+            averageCompletionTime: 0,
+            onTimeCompletion: 0,
+            weeklyScore: 10, // Initial score for completing a task
+            monthlyScore: 10, // Initial score for completing a task
+            totalPoints: 10, // Initial points for completing a task
+            lastUpdated: new Date().toISOString()
+          });
+        } else {
+          // Update existing metric
+          productivityMetric = await storage.updateProductivityMetric(req.user!.id, {
+            tasksCompleted: productivityMetric.tasksCompleted + 1,
+            weeklyScore: productivityMetric.weeklyScore + 10,
+            monthlyScore: productivityMetric.monthlyScore + 10,
+            totalPoints: productivityMetric.totalPoints + 10,
+            lastUpdated: new Date().toISOString()
+          });
+        }
+        
+        // Check and award achievements
+        await storage.checkAndAwardAchievements(req.user!.id);
+        
+        // Add task history entry
         await storage.createTaskHistory({
           taskId: taskId,
           userId: req.user!.id,
-          action: 'assignee_changed',
+          action: 'status_changed',
           timestamp: new Date().toISOString(),
-          oldValue: JSON.stringify({ assignedTo: task.assignedTo }),
-          newValue: JSON.stringify({ assignedTo: updateData.assignedTo })
+          oldValue: task.status || 'pending',
+          newValue: 'completed'
         });
+        
+        res.json(updatedTask);
+        return;
       }
       
-      const updatedTask = await storage.updateTask(taskId, updateData);
-      console.log(`Task ${taskId} edited by user ${req.user!.id}`);
+      if (isTaskEditing) {
+        // Only allow editing a task if user is the creator or a superuser
+        if (task.createdBy !== req.user!.id && req.user!.role !== "Superuser") {
+          return res.status(403).json({ 
+            message: "Only the task creator or a Superuser can edit this task"
+          });
+        }
+        
+        // Prepare task update data (only allowed fields)
+        const allowedFields = ['title', 'description', 'priority', 'finishDate', 'assignedTo'];
+        const updateData: Record<string, any> = {};
+        
+        for (const field of allowedFields) {
+          if (field in req.body) {
+            updateData[field] = req.body[field];
+          }
+        }
+        
+        // If assignee is being changed, log it in task history
+        if ('assignedTo' in updateData && updateData.assignedTo !== task.assignedTo) {
+          await storage.createTaskHistory({
+            taskId: taskId,
+            userId: req.user!.id,
+            action: 'assignee_changed',
+            timestamp: new Date().toISOString(),
+            oldValue: JSON.stringify({ assignedTo: task.assignedTo }),
+            newValue: JSON.stringify({ assignedTo: updateData.assignedTo })
+          });
+        }
+        
+        const updatedTask = await storage.updateTask(taskId, updateData);
+        console.log(`Task ${taskId} edited by user ${req.user!.id}`);
+        
+        res.json(updatedTask);
+        return;
+      }
       
-      return res.json(updatedTask);
+      res.status(400).json({ message: "Invalid task update request" });
+    } catch (error) {
+      console.error('Error updating task:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to update task" 
+      });
     }
-    
-    res.status(400).json({ message: "Invalid task update request" });
   });
 
   app.get("/api/tasks", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    console.log(`Getting tasks for authenticated user: ${req.user!.username} (${req.user!.role})`);
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      console.log(`Getting tasks for authenticated user: ${req.user!.username} (${req.user!.role})`);
 
-    const tasks = await storage.getTasksForUser(req.user!.id);
-    console.log(`Returning ${tasks.length} tasks for user ${req.user!.username}`);
-    res.json(tasks);
+      const tasks = await storage.getTasksForUser(req.user!.id);
+      console.log(`Returning ${tasks.length} tasks for user ${req.user!.username}`);
+      res.json(tasks);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch tasks" 
+      });
+    }
   });
 
   app.post("/api/tasks/:id/forward", async (req, res) => {
