@@ -561,7 +561,7 @@ export default function ProcurementPlanningPage() {
                                 <TableCell>{item.itemCode}</TableCell>
                                 <TableCell>{item.description || 'No description'}</TableCell>
                                 <TableCell>{item.quantity}</TableCell>
-                                <TableCell>{item.unit || '-'}</TableCell>
+                                <TableCell>{item.uom || item.unit || '-'}</TableCell>
                               </TableRow>
                             ))
                           ) : (
