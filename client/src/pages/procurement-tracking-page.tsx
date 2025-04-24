@@ -58,6 +58,8 @@ export default function ProcurementTrackingPage() {
   const [projectFilter, setProjectFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [poToDelete, setPoToDelete] = useState<number | null>(null);
+  const [editingPO, setEditingPO] = useState<any>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -159,6 +161,52 @@ export default function ProcurementTrackingPage() {
       });
     },
   });
+  
+  // Full purchase order update mutation
+  const updatePOMutation = useMutation({
+    mutationFn: async (updatedPO: any) => {
+      try {
+        const response = await apiRequest("PUT", `/api/procurement/purchase-orders/${updatedPO.id}`, updatedPO);
+        
+        // Check if the response is valid before trying to parse JSON
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+        
+        // Try-catch for JSON parsing
+        try {
+          return await response.json();
+        } catch (jsonError) {
+          console.log("Response could not be parsed as JSON:", response);
+          // If JSON parsing fails but the request was successful, still consider it a success
+          if (response.ok) {
+            return { success: true, message: "Purchase order updated successfully" };
+          }
+          throw new Error("Invalid response format from server");
+        }
+      } catch (err) {
+        console.error("Update PO error:", err);
+        throw err;
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "Purchase order updated",
+        description: "The purchase order has been successfully updated.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/procurement/purchase-orders"] });
+      setIsEditModalOpen(false);
+      setEditingPO(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to update purchase order",
+        description: error.message || "An error occurred while updating the purchase order.",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Placeholder for purchase order data from the API
   const purchaseOrdersData = purchaseOrders || [];
@@ -187,6 +235,19 @@ export default function ProcurementTrackingPage() {
   const handleDeleteConfirm = () => {
     if (poToDelete) {
       deletePOMutation.mutate(poToDelete);
+    }
+  };
+  
+  // Handle edit button click
+  const handleEditPO = (po: any) => {
+    setEditingPO({...po});
+    setIsEditModalOpen(true);
+  };
+  
+  // Handle save edit 
+  const handleSaveEdit = () => {
+    if (editingPO) {
+      updatePOMutation.mutate(editingPO);
     }
   };
 
