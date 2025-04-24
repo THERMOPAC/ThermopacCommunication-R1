@@ -151,7 +151,7 @@ export function setupProcurementRoutes(app: Router) {
             item_code, 
             description, 
             quantity, 
-            uom, 
+            unit, 
             drawing_no, 
             status,
             created_at, 
@@ -324,7 +324,7 @@ export function setupProcurementRoutes(app: Router) {
             itemCode: item.item_code || 'Unknown',
             description: item.description || 'Unknown Item',
             quantity: Number(item.quantity || 0),
-            unit: item.uom || item.unit || 'EA',
+            unit: item.unit || 'EA',
             vendorId: vendorId,
             vendorName: vendor ? vendor.name : 'Unassigned',
             estimatedCost: item.estimated_cost ? Number(item.estimated_cost) : 0
@@ -822,7 +822,7 @@ export function setupProcurementRoutes(app: Router) {
                   item_code = $1,
                   description = $2,
                   quantity = $3,
-                  uom = $4,
+                  unit = $4,
                   drawing_no = $5,
                   status = $6,
                   updated_at = NOW()
@@ -841,7 +841,7 @@ export function setupProcurementRoutes(app: Router) {
               // Insert new item
               await client.query(`
                 INSERT INTO purchase_order_items (
-                  purchase_order_id, item_code, description, quantity, uom, drawing_no, status, created_at, updated_at
+                  purchase_order_id, item_code, description, quantity, unit, drawing_no, status, created_at, updated_at
                 ) VALUES (
                   $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
                 )
@@ -909,7 +909,7 @@ export function setupProcurementRoutes(app: Router) {
         
         // Get purchase order items
         const itemsResult = await client.query(`
-          SELECT id, purchase_order_id, item_code, description, quantity, uom, drawing_no, status, 
+          SELECT id, purchase_order_id, item_code, description, quantity, unit, drawing_no, status, 
                  created_at, updated_at
           FROM purchase_order_items
           WHERE purchase_order_id = $1
