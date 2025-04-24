@@ -415,9 +415,9 @@ export function setupProcurementRoutes(app: Router) {
             INSERT INTO purchase_orders (
               project_id, vendor_id, purchase_order_number, title, notes, 
               status, priority, requested_date, required_by_date, created_by, 
-              created_at, updated_at
+              created_at, updated_at, project_code, currency, total_amount
             ) VALUES (
-              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), $11, $12, $13
             ) RETURNING id, purchase_order_number, vendor_id
           `, [
             projectId,
@@ -429,7 +429,10 @@ export function setupProcurementRoutes(app: Router) {
             'Medium',
             today,
             requiredDate,
-            user.id
+            user.id,
+            project.code,
+            'INR',
+            '0.00'
           ]);
           
           const purchaseOrder = poResult.rows[0];
