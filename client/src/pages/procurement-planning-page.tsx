@@ -150,18 +150,30 @@ export default function ProcurementPlanningPage() {
     queryKey: ["/api/procurement/purchase-orders/preview", selectedProjectId],
     queryFn: async () => {
       if (!selectedProjectId) return null;
-      const res = await fetch(`/api/procurement/purchase-orders/preview/${selectedProjectId}`);
-      if (!res.ok) {
-        throw new Error('Failed to fetch purchase order preview');
+      try {
+        console.log("Fetching preview for project ID:", selectedProjectId);
+        const res = await fetch(`/api/procurement/purchase-orders/preview/${selectedProjectId}`);
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("API error:", errorText);
+          throw new Error(`Failed to fetch purchase order preview: ${errorText}`);
+        }
+        const data = await res.json();
+        console.log("Preview data:", data);
+        return data;
+      } catch (error) {
+        console.error("Error fetching preview:", error);
+        throw error;
       }
-      return res.json();
     },
-    enabled: !!selectedProjectId && showPreview,
+    enabled: !!selectedProjectId,
+    staleTime: 0, // Don't cache this request
   });
 
   // Set preview data when it's available
   useEffect(() => {
     if (previewPurchaseOrders) {
+      console.log("Setting preview data:", previewPurchaseOrders);
       setPreviewData(previewPurchaseOrders);
     }
   }, [previewPurchaseOrders]);
@@ -197,8 +209,10 @@ export default function ProcurementPlanningPage() {
 
   // Handle project selection for purchase order generation
   const handleProjectSelect = (projectId: string) => {
+    console.log("Project selected:", projectId);
     setSelectedProjectId(Number(projectId));
-    setShowPreview(true);
+    // No longer need this with the new Dialog component
+    // setShowPreview(true);
   };
 
   // Handle generate purchase orders
@@ -362,20 +376,20 @@ export default function ProcurementPlanningPage() {
               </DialogContent>
             </Dialog>
 
-            {/* Project-Based Purchase Order Generation */}
-            <AlertDialog open={showPreview} onOpenChange={setShowPreview}>
-              <AlertDialogTrigger asChild>
+            {/* Project-Based Purchase Order Generation - Simplified to use Dialog instead of AlertDialog */}
+            <Dialog>
+              <DialogTrigger asChild>
                 <Button variant="outline" className="mt-2 sm:mt-0">
                   Create Purchase Orders for Project
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="max-w-[700px]">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Generate Purchase Orders for Project</AlertDialogTitle>
-                  <AlertDialogDescription>
+              </DialogTrigger>
+              <DialogContent className="max-w-[700px]">
+                <DialogHeader>
+                  <DialogTitle>Generate Purchase Orders for Project</DialogTitle>
+                  <DialogDescription>
                     Select a project to generate purchase orders for all "Buy" items in the project.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
+                  </DialogDescription>
+                </DialogHeader>
                 
                 {!selectedProjectId ? (
                   <div className="py-4">
@@ -447,17 +461,17 @@ export default function ProcurementPlanningPage() {
                   </div>
                 ) : null}
                 
-                <AlertDialogFooter className="gap-2">
-                  <AlertDialogCancel onClick={() => {
+                <DialogFooter className="gap-2">
+                  <Button variant="outline" onClick={() => {
+                    // Reset state when dialog is closed
                     setSelectedProjectId(null);
-                    setShowPreview(false);
                   }}>
                     Cancel
-                  </AlertDialogCancel>
+                  </Button>
                   {selectedProjectId && previewData && (
-                    <AlertDialogAction
+                    <Button
                       onClick={handleGeneratePurchaseOrders}
-                      disabled={generatePurchaseOrdersMutation.isPending || !previewData.items?.length}
+                      disabled={generatePurchaseOrdersMutation.isPending || !previewData?.items?.length}
                     >
                       {generatePurchaseOrdersMutation.isPending ? (
                         <>
@@ -467,11 +481,11 @@ export default function ProcurementPlanningPage() {
                       ) : (
                         "Generate Purchase Orders"
                       )}
-                    </AlertDialogAction>
+                    </Button>
                   )}
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
         
