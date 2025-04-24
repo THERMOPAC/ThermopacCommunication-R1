@@ -490,10 +490,20 @@ function Messages() {
   // Create task from email mutation
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: InsertTask) => {
-      const res = await apiRequest("POST", "/api/tasks", taskData);
-      return await res.json();
+      try {
+        // Don't parse JSON in the mutationFn, just return the Response
+        const res = await apiRequest("POST", "/api/tasks", taskData, false, false);
+        if (!res.ok) {
+          throw new Error(`Server error: ${res.status} ${res.statusText}`);
+        }
+        // Return the response object, not the parsed JSON
+        return res;
+      } catch (error) {
+        console.error("Task creation error:", error);
+        throw error;
+      }
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Success",
@@ -501,6 +511,7 @@ function Messages() {
       });
     },
     onError: (error: any) => {
+      console.error("Task mutation error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create task from email",

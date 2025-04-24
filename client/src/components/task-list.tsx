@@ -176,12 +176,22 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: Omit<Task, "id">) => {
-      const taskData = {
-        ...data,
-        createdAt: new Date().toISOString()
-      };
-      const res = await apiRequest("POST", "/api/tasks", taskData);
-      return await res.json();
+      try {
+        const taskData = {
+          ...data,
+          createdAt: new Date().toISOString()
+        };
+        // Don't parse JSON in the mutationFn, just return the Response
+        const res = await apiRequest("POST", "/api/tasks", taskData, false, false);
+        if (!res.ok) {
+          throw new Error(`Server error: ${res.status} ${res.statusText}`);
+        }
+        // Return the response object, not the parsed JSON
+        return res;
+      } catch (error) {
+        console.error("Task creation error:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -193,6 +203,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       });
     },
     onError: (error: Error) => {
+      console.error("Task mutation error:", error);
       toast({
         title: "Error",
         description: error.message,
