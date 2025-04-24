@@ -76,13 +76,13 @@ export default function ProcurementPlanningPage() {
 
   interface PurchaseOrder {
     id: number;
-    purchaseOrderNumber: string;
+    purchase_order_number: string;  // Updated to match API snake_case naming
     title: string;
-    projectCode: string;
-    vendorName: string;
+    project_code: string;           // Updated to match API snake_case naming
+    vendor_name: string;            // Updated to match API snake_case naming
     status: string;
-    requiredByDate: string;
-    totalAmount: number;
+    required_by_date: string;       // Updated to match API snake_case naming
+    total_amount: number;           // Updated to match API snake_case naming
   }
 
   interface Vendor {
@@ -263,11 +263,11 @@ export default function ProcurementPlanningPage() {
   // Filter function for purchase orders
   const filteredPurchaseOrders = Array.isArray(dataSource) ? dataSource.filter((po: PurchaseOrder) => {
     // Handle potential undefined values safely
-    const poNumber = po.purchaseOrderNumber || '';
+    const poNumber = po.purchase_order_number || '';
     const poTitle = po.title || '';
-    const poVendorName = po.vendorName || '';
+    const poVendorName = po.vendor_name || '';
     const poStatus = po.status || '';
-    const poProjectCode = po.projectCode || '';
+    const poProjectCode = po.project_code || '';
     const poProject = (po as any).project || {};
     
     const matchesSearch = 
@@ -673,10 +673,10 @@ export default function ProcurementPlanningPage() {
                     ) : (
                       filteredPurchaseOrders.map((po: any) => (
                         <TableRow key={po.id}>
-                          <TableCell className="font-medium">{po.purchaseOrderNumber || ''}</TableCell>
+                          <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
                           <TableCell>{po.title || ''}</TableCell>
-                          <TableCell>{po.projectCode || (po.project ? po.project.code : '')}</TableCell>
-                          <TableCell>{po.vendorName || ''}</TableCell>
+                          <TableCell>{po.project_code || (po.project ? po.project.code : '')}</TableCell>
+                          <TableCell>{po.vendor_name || ''}</TableCell>
                           <TableCell>
                             {po.status && (
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColorMap[po.status] || 'bg-gray-100 text-gray-800'}`}>
@@ -684,9 +684,9 @@ export default function ProcurementPlanningPage() {
                               </span>
                             )}
                           </TableCell>
-                          <TableCell>{po.requiredByDate || ''}</TableCell>
+                          <TableCell>{po.required_by_date || ''}</TableCell>
                           <TableCell className="text-right">
-                            {po.totalAmount !== undefined ? `₹${po.totalAmount.toLocaleString()}` : ''}
+                            {po.total_amount !== undefined ? `₹${po.total_amount.toLocaleString()}` : ''}
                           </TableCell>
                         </TableRow>
                       ))

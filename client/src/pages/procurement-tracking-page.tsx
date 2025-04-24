@@ -66,74 +66,29 @@ export default function ProcurementTrackingPage() {
     enabled: false, 
   });
 
-  // Mock purchase orders data
-  const mockPurchaseOrders = [
-    {
-      id: 1,
-      purchaseOrderNumber: "PO-2526-1-001",
-      title: "Raw Materials for Heat Exchanger",
-      projectCode: "2526-1",
-      vendorName: "Steel Suppliers Ltd.",
-      status: "ordered",
-      estimatedDeliveryDate: "2025-05-15",
-      actualDeliveryDate: null,
-      trackingNumber: "ST123456789",
-      progress: 25,
-      totalAmount: 125000,
-      items: [
-        { id: 1, name: "Steel Plates", quantity: 20, unit: "EA", status: "in_production", receivedQuantity: 0 },
-        { id: 2, name: "Copper Tubes", quantity: 50, unit: "MTR", status: "shipped", receivedQuantity: 0 },
-      ]
-    },
-    {
-      id: 2,
-      purchaseOrderNumber: "PO-2526-1-002",
-      title: "Pressure Gauges and Sensors",
-      projectCode: "2526-1",
-      vendorName: "Precision Instruments Inc.",
-      status: "shipped",
-      estimatedDeliveryDate: "2025-05-10",
-      actualDeliveryDate: null,
-      trackingNumber: "PI987654321",
-      progress: 75,
-      totalAmount: 42500,
-      items: [
-        { id: 3, name: "Pressure Gauges", quantity: 10, unit: "EA", status: "shipped", receivedQuantity: 0 },
-        { id: 4, name: "Temperature Sensors", quantity: 15, unit: "EA", status: "shipped", receivedQuantity: 0 },
-      ]
-    },
-    {
-      id: 3,
-      purchaseOrderNumber: "PO-2526-2-001",
-      title: "Pump Components",
-      projectCode: "2526-2",
-      vendorName: "Flow Systems Corp.",
-      status: "partially_received",
-      estimatedDeliveryDate: "2025-04-20",
-      actualDeliveryDate: "2025-04-22",
-      trackingNumber: "FS567891234",
-      progress: 60,
-      totalAmount: 78900,
-      items: [
-        { id: 5, name: "Pump Impellers", quantity: 5, unit: "EA", status: "received", receivedQuantity: 5 },
-        { id: 6, name: "Shaft Seals", quantity: 10, unit: "EA", status: "partial", receivedQuantity: 6 },
-        { id: 7, name: "Bearings", quantity: 20, unit: "EA", status: "pending", receivedQuantity: 0 },
-      ]
-    },
-  ];
-
-  // Filter function for mock data
-  const filteredPurchaseOrders = mockPurchaseOrders.filter((po) => {
-    const matchesSearch = 
-      po.purchaseOrderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      po.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      po.vendorName.toLowerCase().includes(searchTerm.toLowerCase());
+  // Placeholder for purchase order data from the API
+  // This will be populated once the tracking endpoint is fully implemented
+  const purchaseOrdersData = purchaseOrders || [];
+  
+  // Filter function for purchase orders (will use real API data when enabled)
+  const filteredPurchaseOrders = Array.isArray(purchaseOrdersData) ? purchaseOrdersData.filter((po: any) => {
+    // Handle potential undefined values safely
+    const poNumber = po.purchase_order_number || '';
+    const poTitle = po.title || '';
+    const poVendorName = po.vendor_name || '';
+    const poStatus = po.status || '';
+    const poProjectCode = po.project_code || '';
     
-    const matchesProject = projectFilter && projectFilter !== "all" ? po.projectCode === projectFilter : true;
-    const matchesStatus = statusFilter && statusFilter !== "all" ? po.status === statusFilter : true;
+    const matchesSearch = 
+      poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      poTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      poVendorName.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesProject = projectFilter && projectFilter !== "all" ? poProjectCode === projectFilter : true;
+    const matchesStatus = statusFilter && statusFilter !== "all" ? poStatus === statusFilter : true;
     
     return matchesSearch && matchesProject && matchesStatus;
-  });
+  }) : [];
 
   const statusBadgeMap: Record<string, JSX.Element> = {
     draft: <Badge variant="outline" className="bg-gray-100 text-gray-800">Draft</Badge>,
@@ -260,24 +215,24 @@ export default function ProcurementTrackingPage() {
                         ) : (
                           filteredPurchaseOrders.map((po) => (
                             <TableRow key={po.id}>
-                              <TableCell className="font-medium">{po.purchaseOrderNumber}</TableCell>
-                              <TableCell>{po.title}</TableCell>
-                              <TableCell>{po.vendorName}</TableCell>
+                              <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
+                              <TableCell>{po.title || ''}</TableCell>
+                              <TableCell>{po.vendor_name || ''}</TableCell>
                               <TableCell>
-                                {statusBadgeMap[po.status]}
+                                {statusBadgeMap[po.status] || '-'}
                               </TableCell>
                               <TableCell>
-                                {po.estimatedDeliveryDate}
-                                {po.actualDeliveryDate && (
+                                {po.required_by_date || ''}
+                                {po.actual_delivery_date && (
                                   <div className="text-xs text-muted-foreground mt-1">
-                                    Actual: {po.actualDeliveryDate}
+                                    Actual: {po.actual_delivery_date}
                                   </div>
                                 )}
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  <Progress value={po.progress} className="h-2 w-[100px]" />
-                                  <span className="text-xs">{po.progress}%</span>
+                                  <Progress value={po.progress || 0} className="h-2 w-[100px]" />
+                                  <span className="text-xs">{po.progress || 0}%</span>
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -291,34 +246,34 @@ export default function ProcurementTrackingPage() {
                                     <SheetHeader>
                                       <SheetTitle>Purchase Order Details</SheetTitle>
                                       <SheetDescription>
-                                        {po.purchaseOrderNumber} - {po.title}
+                                        {po.purchase_order_number || ''} - {po.title || ''}
                                       </SheetDescription>
                                     </SheetHeader>
                                     <div className="py-4">
                                       <div className="grid grid-cols-2 gap-4 mb-4">
                                         <div>
                                           <h4 className="text-sm font-medium">Project</h4>
-                                          <p className="text-sm">{po.projectCode}</p>
+                                          <p className="text-sm">{po.project_code || ''}</p>
                                         </div>
                                         <div>
                                           <h4 className="text-sm font-medium">Vendor</h4>
-                                          <p className="text-sm">{po.vendorName}</p>
+                                          <p className="text-sm">{po.vendor_name || ''}</p>
                                         </div>
                                         <div>
                                           <h4 className="text-sm font-medium">Status</h4>
-                                          <div className="mt-1">{statusBadgeMap[po.status]}</div>
+                                          <div className="mt-1">{statusBadgeMap[po.status] || '-'}</div>
                                         </div>
                                         <div>
                                           <h4 className="text-sm font-medium">Tracking Number</h4>
-                                          <p className="text-sm">{po.trackingNumber || "N/A"}</p>
+                                          <p className="text-sm">{po.tracking_number || "N/A"}</p>
                                         </div>
                                         <div>
                                           <h4 className="text-sm font-medium">Est. Delivery</h4>
-                                          <p className="text-sm">{po.estimatedDeliveryDate}</p>
+                                          <p className="text-sm">{po.required_by_date || ''}</p>
                                         </div>
                                         <div>
                                           <h4 className="text-sm font-medium">Actual Delivery</h4>
-                                          <p className="text-sm">{po.actualDeliveryDate || "Pending"}</p>
+                                          <p className="text-sm">{po.actual_delivery_date || "Pending"}</p>
                                         </div>
                                       </div>
                                       
@@ -398,7 +353,7 @@ export default function ProcurementTrackingPage() {
               </CardContent>
               <CardFooter className="flex justify-between">
                 <div className="text-sm text-muted-foreground">
-                  Showing {filteredPurchaseOrders.length} of {mockPurchaseOrders.length} purchase orders
+                  Showing {filteredPurchaseOrders.length} of {purchaseOrdersData.length || 0} purchase orders
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" disabled>Previous</Button>
@@ -462,21 +417,21 @@ export default function ProcurementTrackingPage() {
                             )
                             .map((po) => (
                               <TableRow key={po.id}>
-                                <TableCell className="font-medium">{po.purchaseOrderNumber}</TableCell>
-                                <TableCell>{po.title}</TableCell>
-                                <TableCell>{po.vendorName}</TableCell>
+                                <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
+                                <TableCell>{po.title || ''}</TableCell>
+                                <TableCell>{po.vendor_name || ''}</TableCell>
                                 <TableCell>
-                                  {po.estimatedDeliveryDate}
-                                  {po.actualDeliveryDate && (
+                                  {po.required_by_date || ''}
+                                  {po.actual_delivery_date && (
                                     <div className="text-xs text-muted-foreground mt-1">
-                                      Actual: {po.actualDeliveryDate}
+                                      Actual: {po.actual_delivery_date}
                                     </div>
                                   )}
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center gap-2">
-                                    <Progress value={po.progress} className="h-2 w-[100px]" />
-                                    <span className="text-xs">{po.progress}%</span>
+                                    <Progress value={po.progress || 0} className="h-2 w-[100px]" />
+                                    <span className="text-xs">{po.progress || 0}%</span>
                                   </div>
                                 </TableCell>
                                 <TableCell>
