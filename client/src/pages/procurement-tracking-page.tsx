@@ -188,19 +188,51 @@ export default function ProcurementTrackingPage() {
   const updatePOMutation = useMutation({
     mutationFn: async (updatedPO: any) => {
       try {
+        console.log("Updating PO with data:", JSON.stringify(updatedPO, null, 2));
+        
+        // Create a clean version of the PO for the API
+        const cleanPO = {
+          id: updatedPO.id,
+          title: updatedPO.title,
+          notes: updatedPO.notes,
+          vendor_id: updatedPO.vendor_id,
+          status: updatedPO.status,
+          priority: updatedPO.priority,
+          required_by_date: updatedPO.required_by_date,
+          tracking_number: updatedPO.tracking_number,
+          actual_delivery_date: updatedPO.actual_delivery_date,
+          progress: updatedPO.progress,
+          items: Array.isArray(updatedPO.items) ? updatedPO.items.map((item: any) => ({
+            id: typeof item.id === 'number' ? item.id : undefined,
+            item_code: item.item_code || item.code || '',
+            description: item.description || item.name || '',
+            quantity: item.quantity || 0,
+            uom: item.uom || item.unit || 'EA',
+            drawing_no: item.drawing_no || '',
+            status: item.status || 'pending'
+          })) : []
+        };
+        
+        console.log("Sending cleaned PO data:", JSON.stringify(cleanPO, null, 2));
+        
         // Use parseJson=false to get the Response object directly
-        const response = await apiRequest("PUT", `/api/procurement/purchase-orders/${updatedPO.id}`, updatedPO, false, false) as Response;
+        const response = await apiRequest("PUT", `/api/procurement/purchase-orders/${updatedPO.id}`, cleanPO, false, false) as Response;
         
         // Check if the response is valid before trying to parse JSON
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Server error response:", errorText);
           throw new Error(`Server returned ${response.status}: ${response.statusText}`);
         }
         
         // Try-catch for JSON parsing
         try {
           const responseText = await response.text();
-          // If empty response, return a default success object
+          console.log("Server response:", responseText);
+          
+          // Check if the response is empty
           if (!responseText.trim()) {
+            console.log("Response was empty, treating as success");
             return { success: true, message: "Purchase order updated successfully" };
           }
           
@@ -977,14 +1009,11 @@ export default function ProcurementTrackingPage() {
                   variant="outline"
                   onClick={() => {
                     const newItem = {
-                      id: Date.now(), // temporary ID for new items
+                      id: `temp_${Date.now()}`, // temporary ID for new items
                       item_code: '',
-                      code: '',
-                      name: '',
                       description: '',
                       quantity: 1,
-                      unit: 'EA', // default unit
-                      uom: 'EA',
+                      uom: 'EA', // default unit
                       drawing_no: '',
                       status: 'pending'
                     };
