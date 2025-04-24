@@ -413,7 +413,7 @@ export function setupProcurementRoutes(app: Router) {
           // Create purchase order
           const poResult = await client.query(`
             INSERT INTO purchase_orders (
-              project_id, vendor_id, purchase_order_number, title, description, 
+              project_id, vendor_id, purchase_order_number, title, notes, 
               status, priority, requested_date, required_by_date, created_by, 
               created_at, updated_at
             ) VALUES (
