@@ -146,21 +146,24 @@ export function setupProcurementRoutes(app: Router) {
         // Get the purchase order items
         const itemsResult = await client.query(`
           SELECT 
-            id, 
-            purchase_order_id, 
-            item_code, 
-            description, 
-            quantity, 
-            unit as uom, 
-            status,
-            created_at, 
-            updated_at
+            poi.id, 
+            poi.purchase_order_id, 
+            poi.item_code, 
+            poi.description, 
+            poi.quantity, 
+            poi.unit as uom, 
+            poi.status,
+            poi.created_at, 
+            poi.updated_at,
+            mi.drawing_no
           FROM 
-            purchase_order_items
+            purchase_order_items poi
+          LEFT JOIN
+            master_items mi ON poi.item_code = mi.item_code
           WHERE 
-            purchase_order_id = $1
+            poi.purchase_order_id = $1
           ORDER BY 
-            id
+            poi.id
         `, [purchaseOrderId]);
         
         // Add items to the purchase order

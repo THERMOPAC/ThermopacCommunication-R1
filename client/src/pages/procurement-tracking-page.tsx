@@ -806,7 +806,7 @@ export default function ProcurementTrackingPage() {
       
       {/* Edit PO Dialog */}
       <Dialog open={isEditModalOpen} onOpenChange={(open) => !open && setIsEditModalOpen(false)}>
-        <DialogContent className="max-w-5xl">
+        <DialogContent className="max-w-6xl">
           <DialogHeader>
             <DialogTitle>Edit Purchase Order</DialogTitle>
             <DialogDescription>
