@@ -798,7 +798,7 @@ export function setupProcurementRoutes(app: Router) {
         if (Array.isArray(items)) {
           // First fetch existing items to compare
           const existingItemsResult = await client.query(`
-            SELECT id, purchase_order_id, item_code, description, quantity, unit as uom, drawing_no, status
+            SELECT id, purchase_order_id, item_code, description, quantity, unit as uom, status
             FROM purchase_order_items
             WHERE purchase_order_id = $1
           `, [purchaseOrderId]);
@@ -823,16 +823,14 @@ export function setupProcurementRoutes(app: Router) {
                   description = $2,
                   quantity = $3,
                   unit = $4, /* stored as unit in DB, but used as uom in client */
-                  drawing_no = $5,
-                  status = $6,
+                  status = $5,
                   updated_at = NOW()
-                WHERE id = $7 AND purchase_order_id = $8
+                WHERE id = $6 AND purchase_order_id = $7
               `, [
                 item.item_code || item.code || '',
                 item.description || item.name || '',
                 item.quantity || 1,
                 item.uom || item.unit || 'EA', /* Client sends as uom, DB stores as unit */
-                item.drawing_no || '',
                 item.status || 'pending',
                 item.id,
                 purchaseOrderId
@@ -841,9 +839,9 @@ export function setupProcurementRoutes(app: Router) {
               // Insert new item
               await client.query(`
                 INSERT INTO purchase_order_items (
-                  purchase_order_id, item_code, description, quantity, unit /* stored as unit in DB, but used as uom in client */, drawing_no, status, created_at, updated_at
+                  purchase_order_id, item_code, description, quantity, unit /* stored as unit in DB, but used as uom in client */, status, created_at, updated_at
                 ) VALUES (
-                  $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+                  $1, $2, $3, $4, $5, $6, NOW(), NOW()
                 )
               `, [
                 purchaseOrderId,
@@ -851,7 +849,6 @@ export function setupProcurementRoutes(app: Router) {
                 item.description || item.name || '',
                 item.quantity || 1,
                 item.uom || item.unit || 'EA', /* Client sends as uom, DB stores as unit */
-                item.drawing_no || '',
                 item.status || 'pending'
               ]);
             }
@@ -909,7 +906,7 @@ export function setupProcurementRoutes(app: Router) {
         
         // Get purchase order items
         const itemsResult = await client.query(`
-          SELECT id, purchase_order_id, item_code, description, quantity, unit as uom, drawing_no, status, 
+          SELECT id, purchase_order_id, item_code, description, quantity, unit as uom, status, 
                  created_at, updated_at
           FROM purchase_order_items
           WHERE purchase_order_id = $1
