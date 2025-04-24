@@ -73,6 +73,7 @@ export function setupProcurementRoutes(app: Router) {
             mi.item_code, 
             mi.description, 
             mi.unit, 
+            mi.uom,
             mi.make_or_buy,
             mi.preferred_vendor_id, 
             mi.estimated_cost
@@ -182,7 +183,7 @@ export function setupProcurementRoutes(app: Router) {
             itemCode: item.item_code || 'Unknown',
             description: item.description || 'Unknown Item',
             quantity: Number(item.quantity || 0),
-            unit: item.unit || 'EA',
+            unit: item.uom || item.unit || 'EA',
             vendorId: vendorId,
             vendorName: vendor ? vendor.name : 'Unassigned',
             estimatedCost: item.estimated_cost ? Number(item.estimated_cost) : 0
@@ -256,6 +257,7 @@ export function setupProcurementRoutes(app: Router) {
             mi.item_code, 
             mi.description, 
             mi.unit, 
+            mi.uom,
             mi.make_or_buy,
             mi.preferred_vendor_id, 
             mi.estimated_cost
@@ -453,7 +455,7 @@ export function setupProcurementRoutes(app: Router) {
               item.master_item_id,
               item.description || 'Unknown Item',
               quantity.toString(),
-              item.unit || 'EA',
+              item.uom || item.unit || 'EA',
               unitPrice.toString(),
               totalPrice.toString(),
               'pending',
