@@ -91,13 +91,14 @@ export function setupProcurementRoutes(app: Router) {
         });
         
         if (masterItem && masterItem.makeOrBuy === 'Buy') {
+          // Using the database column names (snake_case) instead of the ORM property names (camelCase)
           itemDetails.push({
             project_item_id: projItem.id,
             quantity: projItem.quantity,
             master_item_id: masterItem.id,
             item_code: masterItem.itemCode,
-            description: masterItem.description,
-            unit: masterItem.unit,
+            description: masterItem.description || 'No description available',
+            unit: masterItem.unit || 'EA',
             make_or_buy: masterItem.makeOrBuy,
             preferred_vendor_id: masterItem.preferredVendorId,
             estimated_cost: masterItem.estimatedCost
@@ -266,8 +267,8 @@ export function setupProcurementRoutes(app: Router) {
             quantity: projItem.quantity,
             master_item_id: masterItem.id,
             item_code: masterItem.itemCode,
-            description: masterItem.description,
-            unit: masterItem.unit,
+            description: masterItem.description || 'No description available',
+            unit: masterItem.unit || 'EA',
             make_or_buy: masterItem.makeOrBuy,
             preferred_vendor_id: masterItem.preferredVendorId,
             estimated_cost: masterItem.estimatedCost
