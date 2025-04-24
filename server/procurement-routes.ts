@@ -600,7 +600,7 @@ export function setupProcurementRoutes(app: Router) {
               item.master_item_id,
               item.description || 'Unknown Item',
               quantity.toString(),
-              item.unit || 'EA',
+              item.uom || item.unit || 'EA',
               unitPrice.toString(),
               totalPrice.toString(),
               'pending',
@@ -831,7 +831,7 @@ export function setupProcurementRoutes(app: Router) {
                 item.item_code || item.code || '',
                 item.description || item.name || '',
                 item.quantity || 1,
-                item.unit || 'EA',
+                item.uom || item.unit || 'EA',
                 item.drawing_no || '',
                 item.status || 'pending',
                 item.id,
@@ -850,7 +850,7 @@ export function setupProcurementRoutes(app: Router) {
                 item.item_code || item.code || '',
                 item.description || item.name || '',
                 item.quantity || 1,
-                item.unit || 'EA',
+                item.uom || item.unit || 'EA',
                 item.drawing_no || '',
                 item.status || 'pending'
               ]);
