@@ -525,6 +525,7 @@ export default function ProcurementTrackingPage() {
                                     variant="ghost" 
                                     size="sm"
                                     className="text-blue-600 hover:text-blue-800"
+                                    onClick={() => handleEditPO(po)}
                                   >
                                     <Edit className="h-4 w-4 mr-1" />
                                     Edit
@@ -641,6 +642,7 @@ export default function ProcurementTrackingPage() {
                                       variant="ghost" 
                                       size="sm"
                                       className="text-blue-600 hover:text-blue-800"
+                                      onClick={() => handleEditPO(po)}
                                     >
                                       <Edit className="h-4 w-4 mr-1" />
                                       Edit
@@ -697,6 +699,147 @@ export default function ProcurementTrackingPage() {
                 <Trash2 className="h-4 w-4 mr-2" />
               )}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit PO Dialog */}
+      <Dialog open={isEditModalOpen} onOpenChange={(open) => !open && setIsEditModalOpen(false)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Edit Purchase Order</DialogTitle>
+            <DialogDescription>
+              Make changes to the purchase order details below.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingPO && (
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">PO Number</label>
+                <Input 
+                  value={editingPO.purchase_order_number || ''} 
+                  onChange={(e) => setEditingPO({...editingPO, purchase_order_number: e.target.value})}
+                  disabled
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Project</label>
+                <Input 
+                  value={editingPO.project_code || ''} 
+                  onChange={(e) => setEditingPO({...editingPO, project_code: e.target.value})}
+                  disabled
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Title</label>
+                <Input 
+                  value={editingPO.title || ''} 
+                  onChange={(e) => setEditingPO({...editingPO, title: e.target.value})}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Vendor</label>
+                <Input 
+                  value={editingPO.vendor_name || ''} 
+                  onChange={(e) => setEditingPO({...editingPO, vendor_name: e.target.value})}
+                  disabled
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Status</label>
+                <Select 
+                  value={editingPO.status || ''}
+                  onValueChange={(value) => setEditingPO({...editingPO, status: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="submitted">Submitted</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="ordered">Ordered</SelectItem>
+                    <SelectItem value="shipped">Shipped</SelectItem>
+                    <SelectItem value="partially_received">Partially Received</SelectItem>
+                    <SelectItem value="received">Received</SelectItem>
+                    <SelectItem value="on_hold">On Hold</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Required By Date</label>
+                <Input 
+                  type="date"
+                  value={editingPO.required_by_date || ''} 
+                  onChange={(e) => setEditingPO({...editingPO, required_by_date: e.target.value})}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Actual Delivery Date</label>
+                <Input 
+                  type="date"
+                  value={editingPO.actual_delivery_date || ''} 
+                  onChange={(e) => setEditingPO({...editingPO, actual_delivery_date: e.target.value})}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tracking Number</label>
+                <Input 
+                  value={editingPO.tracking_number || ''} 
+                  onChange={(e) => setEditingPO({...editingPO, tracking_number: e.target.value})}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Progress (%)</label>
+                <Input 
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={editingPO.progress || 0} 
+                  onChange={(e) => setEditingPO({...editingPO, progress: parseInt(e.target.value) || 0})}
+                />
+              </div>
+              
+              <div className="space-y-2 col-span-2">
+                <label className="text-sm font-medium">Notes</label>
+                <Input 
+                  value={editingPO.notes || ''} 
+                  onChange={(e) => setEditingPO({...editingPO, notes: e.target.value})}
+                />
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="flex justify-between">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsEditModalOpen(false)}
+              disabled={updatePOMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={handleSaveEdit}
+              disabled={updatePOMutation.isPending}
+            >
+              {updatePOMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
