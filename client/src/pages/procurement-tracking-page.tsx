@@ -715,110 +715,242 @@ export default function ProcurementTrackingPage() {
           </DialogHeader>
           
           {editingPO && (
-            <div className="grid grid-cols-2 gap-4 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">PO Number</label>
-                <Input 
-                  value={editingPO.purchase_order_number || ''} 
-                  onChange={(e) => setEditingPO({...editingPO, purchase_order_number: e.target.value})}
-                  disabled
-                />
+            <>
+              <div className="grid grid-cols-2 gap-4 py-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">PO Number</label>
+                  <Input 
+                    value={editingPO.purchase_order_number || ''} 
+                    onChange={(e) => setEditingPO({...editingPO, purchase_order_number: e.target.value})}
+                    disabled
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Project</label>
+                  <Input 
+                    value={editingPO.project_code || ''} 
+                    onChange={(e) => setEditingPO({...editingPO, project_code: e.target.value})}
+                    disabled
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Title</label>
+                  <Input 
+                    value={editingPO.title || ''} 
+                    onChange={(e) => setEditingPO({...editingPO, title: e.target.value})}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Vendor</label>
+                  <Input 
+                    value={editingPO.vendor_name || ''} 
+                    onChange={(e) => setEditingPO({...editingPO, vendor_name: e.target.value})}
+                    disabled
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Status</label>
+                  <Select 
+                    value={editingPO.status || ''}
+                    onValueChange={(value) => setEditingPO({...editingPO, status: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="submitted">Submitted</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="ordered">Ordered</SelectItem>
+                      <SelectItem value="shipped">Shipped</SelectItem>
+                      <SelectItem value="partially_received">Partially Received</SelectItem>
+                      <SelectItem value="received">Received</SelectItem>
+                      <SelectItem value="on_hold">On Hold</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Required By Date</label>
+                  <Input 
+                    type="date"
+                    value={editingPO.required_by_date || ''} 
+                    onChange={(e) => setEditingPO({...editingPO, required_by_date: e.target.value})}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Actual Delivery Date</label>
+                  <Input 
+                    type="date"
+                    value={editingPO.actual_delivery_date || ''} 
+                    onChange={(e) => setEditingPO({...editingPO, actual_delivery_date: e.target.value})}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Tracking Number</label>
+                  <Input 
+                    value={editingPO.tracking_number || ''} 
+                    onChange={(e) => setEditingPO({...editingPO, tracking_number: e.target.value})}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Progress (%)</label>
+                  <Input 
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={editingPO.progress || 0} 
+                    onChange={(e) => setEditingPO({...editingPO, progress: parseInt(e.target.value) || 0})}
+                  />
+                </div>
+                
+                <div className="space-y-2 col-span-2">
+                  <label className="text-sm font-medium">Notes</label>
+                  <Input 
+                    value={editingPO.notes || ''} 
+                    onChange={(e) => setEditingPO({...editingPO, notes: e.target.value})}
+                  />
+                </div>
               </div>
               
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Project</label>
-                <Input 
-                  value={editingPO.project_code || ''} 
-                  onChange={(e) => setEditingPO({...editingPO, project_code: e.target.value})}
-                  disabled
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Title</label>
-                <Input 
-                  value={editingPO.title || ''} 
-                  onChange={(e) => setEditingPO({...editingPO, title: e.target.value})}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Vendor</label>
-                <Input 
-                  value={editingPO.vendor_name || ''} 
-                  onChange={(e) => setEditingPO({...editingPO, vendor_name: e.target.value})}
-                  disabled
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Status</label>
-                <Select 
-                  value={editingPO.status || ''}
-                  onValueChange={(value) => setEditingPO({...editingPO, status: value})}
+              {/* Purchase Order Items */}
+              <div className="mt-6">
+                <h3 className="text-lg font-medium mb-4">Purchase Order Items</h3>
+                <div className="rounded-md border mb-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item Code</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>UOM</TableHead>
+                        <TableHead>Drawing No</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {editingPO.items && Array.isArray(editingPO.items) && editingPO.items.length > 0 ? (
+                        editingPO.items.map((item: any, index: number) => (
+                          <TableRow key={item.id || index}>
+                            <TableCell>
+                              <Input 
+                                value={item.item_code || item.code || ''} 
+                                onChange={(e) => {
+                                  const updatedItems = [...editingPO.items];
+                                  updatedItems[index] = {...updatedItems[index], item_code: e.target.value};
+                                  setEditingPO({...editingPO, items: updatedItems});
+                                }}
+                                className="w-full"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                value={item.description || item.name || ''} 
+                                onChange={(e) => {
+                                  const updatedItems = [...editingPO.items];
+                                  updatedItems[index] = {...updatedItems[index], description: e.target.value, name: e.target.value};
+                                  setEditingPO({...editingPO, items: updatedItems});
+                                }}
+                                className="w-full"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                type="number"
+                                min="1"
+                                value={item.quantity || 0} 
+                                onChange={(e) => {
+                                  const updatedItems = [...editingPO.items];
+                                  updatedItems[index] = {...updatedItems[index], quantity: parseInt(e.target.value) || 0};
+                                  setEditingPO({...editingPO, items: updatedItems});
+                                }}
+                                className="w-full"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                value={item.uom || item.unit || ''} 
+                                onChange={(e) => {
+                                  const updatedItems = [...editingPO.items];
+                                  updatedItems[index] = {...updatedItems[index], uom: e.target.value, unit: e.target.value};
+                                  setEditingPO({...editingPO, items: updatedItems});
+                                }}
+                                className="w-full"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                value={item.drawing_no || ''} 
+                                onChange={(e) => {
+                                  const updatedItems = [...editingPO.items];
+                                  updatedItems[index] = {...updatedItems[index], drawing_no: e.target.value};
+                                  setEditingPO({...editingPO, items: updatedItems});
+                                }}
+                                className="w-full"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-800 p-0 h-8 w-8"
+                                onClick={() => {
+                                  const updatedItems = [...editingPO.items];
+                                  updatedItems.splice(index, 1);
+                                  setEditingPO({...editingPO, items: updatedItems});
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="h-12 text-center text-muted-foreground">
+                            No items available for this purchase order
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const newItem = {
+                      id: Date.now(), // temporary ID for new items
+                      item_code: '',
+                      code: '',
+                      name: '',
+                      description: '',
+                      quantity: 1,
+                      unit: 'EA', // default unit
+                      uom: 'EA',
+                      drawing_no: '',
+                      status: 'pending'
+                    };
+                    
+                    const updatedItems = editingPO.items && Array.isArray(editingPO.items) 
+                      ? [...editingPO.items, newItem] 
+                      : [newItem];
+                    
+                    setEditingPO({...editingPO, items: updatedItems});
+                  }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="submitted">Submitted</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="ordered">Ordered</SelectItem>
-                    <SelectItem value="shipped">Shipped</SelectItem>
-                    <SelectItem value="partially_received">Partially Received</SelectItem>
-                    <SelectItem value="received">Received</SelectItem>
-                    <SelectItem value="on_hold">On Hold</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <span className="mr-2">+</span> Add Item
+                </Button>
               </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Required By Date</label>
-                <Input 
-                  type="date"
-                  value={editingPO.required_by_date || ''} 
-                  onChange={(e) => setEditingPO({...editingPO, required_by_date: e.target.value})}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Actual Delivery Date</label>
-                <Input 
-                  type="date"
-                  value={editingPO.actual_delivery_date || ''} 
-                  onChange={(e) => setEditingPO({...editingPO, actual_delivery_date: e.target.value})}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Tracking Number</label>
-                <Input 
-                  value={editingPO.tracking_number || ''} 
-                  onChange={(e) => setEditingPO({...editingPO, tracking_number: e.target.value})}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Progress (%)</label>
-                <Input 
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={editingPO.progress || 0} 
-                  onChange={(e) => setEditingPO({...editingPO, progress: parseInt(e.target.value) || 0})}
-                />
-              </div>
-              
-              <div className="space-y-2 col-span-2">
-                <label className="text-sm font-medium">Notes</label>
-                <Input 
-                  value={editingPO.notes || ''} 
-                  onChange={(e) => setEditingPO({...editingPO, notes: e.target.value})}
-                />
-              </div>
-            </div>
+            </>
           )}
           
           <DialogFooter className="flex justify-between">
