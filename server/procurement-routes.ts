@@ -109,6 +109,75 @@ export function setupProcurementRoutes(app: Router) {
   });
   
   /**
+   * Get a specific purchase order by ID with its items
+   */
+  app.get('/api/procurement/purchase-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const purchaseOrderId = parseInt(req.params.id);
+      
+      if (isNaN(purchaseOrderId)) {
+        return res.status(400).json({ error: 'Invalid purchase order ID' });
+      }
+      
+      const client = await pool.connect();
+      try {
+        // Get the purchase order details
+        const poResult = await client.query(`
+          SELECT 
+            po.*,
+            v.name as vendor_name,
+            p.name as project_name
+          FROM 
+            purchase_orders po
+          LEFT JOIN
+            projects p ON po.project_id = p.id
+          LEFT JOIN
+            vendors v ON po.vendor_id = v.id
+          WHERE 
+            po.id = $1
+        `, [purchaseOrderId]);
+        
+        if (poResult.rows.length === 0) {
+          return res.status(404).json({ error: 'Purchase order not found' });
+        }
+        
+        const purchaseOrder = poResult.rows[0];
+        
+        // Get the purchase order items
+        const itemsResult = await client.query(`
+          SELECT 
+            id, 
+            purchase_order_id, 
+            item_code, 
+            description, 
+            quantity, 
+            uom, 
+            drawing_no, 
+            status,
+            created_at, 
+            updated_at
+          FROM 
+            purchase_order_items
+          WHERE 
+            purchase_order_id = $1
+          ORDER BY 
+            id
+        `, [purchaseOrderId]);
+        
+        // Add items to the purchase order
+        purchaseOrder.items = itemsResult.rows;
+        
+        return res.status(200).json(purchaseOrder);
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error fetching purchase order:', error);
+      res.status(500).json({ error: 'Failed to fetch purchase order' });
+    }
+  });
+  
+  /**
    * Preview purchase orders for a project
    * This endpoint identifies all "Buy" items in a project and prepares them for purchase order generation
    */

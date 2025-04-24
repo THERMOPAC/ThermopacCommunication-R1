@@ -272,9 +272,25 @@ export default function ProcurementTrackingPage() {
   };
   
   // Handle edit button click
-  const handleEditPO = (po: any) => {
-    setEditingPO({...po});
-    setIsEditModalOpen(true);
+  const handleEditPO = async (po: any) => {
+    try {
+      // Fetch the full purchase order with items
+      const response = await fetch(`/api/procurement/purchase-orders/${po.id}`);
+      if (!response.ok) {
+        throw new Error(`Error fetching purchase order: ${response.statusText}`);
+      }
+      
+      const fullPO = await response.json();
+      setEditingPO(fullPO);
+      setIsEditModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching purchase order details:", error);
+      toast({
+        title: "Error",
+        description: "Could not fetch purchase order details. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
   
   // Handle save edit 
