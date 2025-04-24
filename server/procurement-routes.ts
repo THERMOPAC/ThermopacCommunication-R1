@@ -402,34 +402,29 @@ export function setupProcurementRoutes(app: Router) {
           nextPOSequence = Math.max(...poSequences) + 1;
         }
         
-        // Group items by vendorId
-        const itemsByVendor: Record<number, any[]> = {};
+        // Create one purchase order per item instead of grouping by vendor
+        const itemsByIndividual: Record<number, any[]> = {};
         
-        if (vendorAssignments && Object.keys(vendorAssignments).length > 0) {
-          // If vendor assignments are provided, use them to group items
-          for (const [itemIdStr, vendorIdStr] of Object.entries(vendorAssignments)) {
-            const itemId = parseInt(itemIdStr);
-            const vendorId = parseInt(vendorIdStr as string);
-            
-            const item = availableBuyItems.find(i => i.project_item_id === itemId);
-            if (item) {
-              if (!itemsByVendor[vendorId]) {
-                itemsByVendor[vendorId] = [];
-              }
-              itemsByVendor[vendorId].push(item);
-            }
+        // Assign each item to its own "group" with a unique ID
+        availableBuyItems.forEach((item, index) => {
+          // Use negative numbers as keys to avoid collisions with real vendor IDs
+          const uniqueKey = -(index + 1);
+          
+          // Each item gets its own "group"
+          itemsByIndividual[uniqueKey] = [item];
+          
+          // Store the vendor ID information for later use
+          if (vendorAssignments && vendorAssignments[item.project_item_id]) {
+            // If vendor assignment is provided, use it
+            item.vendorId = parseInt(vendorAssignments[item.project_item_id] as string);
+          } else {
+            // Otherwise use preferred vendor
+            item.vendorId = item.preferred_vendor_id || 0;
           }
-        } else {
-          // Otherwise, use preferred vendors from master items
-          for (const item of availableBuyItems) {
-            const vendorId = item.preferred_vendor_id || 0;
-            
-            if (!itemsByVendor[vendorId]) {
-              itemsByVendor[vendorId] = [];
-            }
-            itemsByVendor[vendorId].push(item);
-          }
-        }
+        });
+        
+        // Replace the itemsByVendor with our individual item groups
+        const itemsByVendor = itemsByIndividual;
         
         // Get vendors information
         const vendorIds = Object.keys(itemsByVendor)
@@ -470,9 +465,15 @@ export function setupProcurementRoutes(app: Router) {
         }
         
         for (const [vendorIdStr, items] of Object.entries(itemsByVendor)) {
-          const vendorId = parseInt(vendorIdStr);
+          const groupId = parseInt(vendorIdStr);
           
           if (items.length === 0) continue;
+          
+          // Get the first (and only) item in this group
+          const item = items[0];
+          
+          // Use the stored vendorId from the item
+          const vendorId = item.vendorId || 0;
           
           // Generate purchase order number: PO-{Project Code}-{Sequence}
           const poNumber = `PO-${project.code}-${nextPOSequence}`;
@@ -558,7 +559,8 @@ export function setupProcurementRoutes(app: Router) {
             purchaseOrderNumber: purchaseOrder.purchase_order_number,
             vendorId: purchaseOrder.vendor_id,
             vendorName: vendorId > 0 ? vendorsMap.get(vendorId)?.name || 'Unknown Vendor' : 'Unassigned',
-            itemCount: items.length
+            itemCount: items.length,
+            itemDescription: item.description || 'Unknown Item'
           });
           
           nextPOSequence++;
@@ -568,7 +570,7 @@ export function setupProcurementRoutes(app: Router) {
         
         res.status(201).json({
           success: true,
-          message: `Successfully created ${createdPOs.length} purchase orders`,
+          message: `Successfully created ${createdPOs.length} purchase orders (one per item)`,
           purchaseOrders: createdPOs
         });
       } catch (error) {
