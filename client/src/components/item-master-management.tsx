@@ -137,6 +137,9 @@ const ItemMasterManagement: React.FC = () => {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<MasterItem | null>(null);
@@ -566,6 +569,22 @@ const ItemMasterManagement: React.FC = () => {
     }
   });
   
+  // Filter items based on search query
+  const filteredItems = items ? items.filter((item: MasterItem) => {
+    if (!searchQuery) return true; // If no search query, show all items
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      item.itemCode.toLowerCase().includes(query) ||
+      item.description.toLowerCase().includes(query) ||
+      (item.specification && item.specification.toLowerCase().includes(query)) ||
+      item.uom.toLowerCase().includes(query) ||
+      (item.makeOrBuy && item.makeOrBuy.toLowerCase().includes(query)) ||
+      (item.drawingNo && item.drawingNo.toLowerCase().includes(query)) ||
+      (item.supplier && item.supplier.toLowerCase().includes(query))
+    );
+  }) : [];
+  
   // Handle create master item
   const createMutation = useMutation({
     mutationFn: async (data: FormValues) => {
@@ -804,6 +823,30 @@ const ItemMasterManagement: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Search field */}
+          <div className="mb-4 flex">
+            <div className="relative w-full max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                type="search"
+                placeholder="Search items by code, description, make/buy..."
+                className="pl-8 w-full"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            {searchQuery && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="ml-2" 
+                onClick={() => setSearchQuery('')}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          
           {isLoading ? (
             <div className="flex justify-center p-4">
               <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-primary rounded-full"></div>
@@ -822,8 +865,8 @@ const ItemMasterManagement: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items && items.length > 0 ? (
-                  items.map((item: MasterItem) => (
+                {filteredItems.length > 0 ? (
+                  filteredItems.map((item: MasterItem) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.itemCode}</TableCell>
                       <TableCell>{item.description}</TableCell>
@@ -856,8 +899,24 @@ const ItemMasterManagement: React.FC = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center">
-                      No items found. Create your first item to get started.
+                    <TableCell colSpan={6} className="text-center py-6">
+                      {searchQuery ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <Search className="h-12 w-12 text-muted-foreground mb-2" />
+                          <p className="text-lg font-medium">No items match your search</p>
+                          <p className="text-muted-foreground">
+                            Try adjusting your search query or clear the search to see all items.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <Package className="h-12 w-12 text-muted-foreground mb-2" />
+                          <p className="text-lg font-medium">No items found</p>
+                          <p className="text-muted-foreground">
+                            Create your first item to get started.
+                          </p>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 )}
