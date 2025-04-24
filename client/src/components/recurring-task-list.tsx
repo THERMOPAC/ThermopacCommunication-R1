@@ -178,11 +178,16 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
   // Mutation for completing tasks
   const completeTaskMutation = useMutation({
     mutationFn: async ({ taskId, completed }: { taskId: number; completed: boolean }) => {
-      const status = completed ? "completed" : "pending";
-      const res = await apiRequest("PATCH", `/api/recurring-tasks/${taskId}`, { status });
-      return await res.json();
+      try {
+        const status = completed ? "completed" : "pending";
+        // Use our enhanced apiRequest that handles empty responses better
+        return await apiRequest("PATCH", `/api/recurring-tasks/${taskId}`, { status });
+      } catch (error) {
+        console.error("Recurring task completion error:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["/api/recurring-tasks"] });
       toast({
         title: "Success",
@@ -202,10 +207,15 @@ export default function RecurringTaskList({ recurringTasks, subordinates }: Recu
 
   const forwardTaskMutation = useMutation({
     mutationFn: async ({ taskId, newAssignee }: { taskId: number; newAssignee: number }) => {
-      const res = await apiRequest("POST", `/api/recurring-tasks/${taskId}/forward`, { newAssignee });
-      return await res.json();
+      try {
+        // Use our enhanced apiRequest that handles empty responses better
+        return await apiRequest("POST", `/api/recurring-tasks/${taskId}/forward`, { newAssignee });
+      } catch (error) {
+        console.error("Recurring task forwarding error:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       // Invalidate all task-related queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/recurring-tasks"] });
       toast({

@@ -152,11 +152,16 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
   // Mutation for completing tasks
   const completeTaskMutation = useMutation({
     mutationFn: async ({ taskId, completed }: { taskId: number; completed: boolean }) => {
-      const status = completed ? "completed" : "pending";
-      const res = await apiRequest("PATCH", `/api/tasks/${taskId}`, { status });
-      return await res.json();
+      try {
+        const status = completed ? "completed" : "pending";
+        // Use our enhanced apiRequest that handles empty responses better
+        return await apiRequest("PATCH", `/api/tasks/${taskId}`, { status });
+      } catch (error) {
+        console.error("Task completion error:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Success",
@@ -209,10 +214,15 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
 
   const forwardTaskMutation = useMutation({
     mutationFn: async ({ taskId, newAssignee }: { taskId: number; newAssignee: number }) => {
-      const res = await apiRequest("POST", `/api/tasks/${taskId}/forward`, { newAssignee });
-      return await res.json();
+      try {
+        // Use our enhanced apiRequest that handles empty responses better
+        return await apiRequest("POST", `/api/tasks/${taskId}/forward`, { newAssignee });
+      } catch (error) {
+        console.error("Task forwarding error:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       // Invalidate all task-related queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({

@@ -191,11 +191,16 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
   // Mutation for completing tasks
   const completeTaskMutation = useMutation({
     mutationFn: async ({ taskId, completed }: { taskId: number; completed: boolean }) => {
-      const status = completed ? "completed" : "pending";
-      const res = await apiRequest("PATCH", `/api/tasks/${taskId}`, { status });
-      return await res.json();
+      try {
+        const status = completed ? "completed" : "pending";
+        // Use our enhanced apiRequest that handles empty responses better
+        return await apiRequest("PATCH", `/api/tasks/${taskId}`, { status });
+      } catch (error) {
+        console.error("Task completion error:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Success",
