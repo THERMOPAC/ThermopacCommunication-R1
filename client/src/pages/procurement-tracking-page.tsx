@@ -77,7 +77,8 @@ export default function ProcurementTrackingPage() {
   const deletePOMutation = useMutation({
     mutationFn: async (id: number) => {
       try {
-        const response = await apiRequest("DELETE", `/api/procurement/purchase-orders/${id}`);
+        // Use parseJson=false to get the Response object directly
+        const response = await apiRequest("DELETE", `/api/procurement/purchase-orders/${id}`, undefined, false, false) as Response;
         
         // Check if the response is valid before trying to parse JSON
         if (!response.ok) {
@@ -86,14 +87,24 @@ export default function ProcurementTrackingPage() {
         
         // Try-catch for JSON parsing
         try {
-          return await response.json();
-        } catch (jsonError) {
-          console.log("Response could not be parsed as JSON:", response);
-          // If JSON parsing fails but the request was successful, still consider it a success
-          if (response.ok) {
+          const responseText = await response.text();
+          // If empty response, return a default success object
+          if (!responseText.trim()) {
             return { success: true, message: "Purchase order deleted successfully" };
           }
-          throw new Error("Invalid response format from server");
+          
+          try {
+            // Try to parse as JSON
+            return JSON.parse(responseText);
+          } catch (jsonError) {
+            console.log("Could not parse response as JSON:", responseText);
+            // If JSON parsing fails but request was successful, still count as success
+            return { success: true, message: "Purchase order deleted successfully" };
+          }
+        } catch (textError) {
+          console.error("Error reading response text:", textError);
+          // If we couldn't even read the response text, but the request succeeded
+          return { success: true, message: "Purchase order deleted successfully" };
         }
       } catch (err) {
         console.error("Delete PO error:", err);
@@ -122,7 +133,8 @@ export default function ProcurementTrackingPage() {
   const updatePOStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
       try {
-        const response = await apiRequest("PUT", `/api/procurement/purchase-orders/${id}`, { status });
+        // Use parseJson=false to get the Response object directly
+        const response = await apiRequest("PUT", `/api/procurement/purchase-orders/${id}`, { status }, false, false) as Response;
         
         // Check if the response is valid before trying to parse JSON
         if (!response.ok) {
@@ -131,14 +143,24 @@ export default function ProcurementTrackingPage() {
         
         // Try-catch for JSON parsing
         try {
-          return await response.json();
-        } catch (jsonError) {
-          console.log("Response could not be parsed as JSON:", response);
-          // If JSON parsing fails but the request was successful, still consider it a success
-          if (response.ok) {
-            return { success: true, message: "Purchase order updated successfully" };
+          const responseText = await response.text();
+          // If empty response, return a default success object
+          if (!responseText.trim()) {
+            return { success: true, message: "Purchase order status updated successfully" };
           }
-          throw new Error("Invalid response format from server");
+          
+          try {
+            // Try to parse as JSON
+            return JSON.parse(responseText);
+          } catch (jsonError) {
+            console.log("Could not parse response as JSON:", responseText);
+            // If JSON parsing fails but request was successful, still count as success
+            return { success: true, message: "Purchase order status updated successfully" };
+          }
+        } catch (textError) {
+          console.error("Error reading response text:", textError);
+          // If we couldn't even read the response text, but the request succeeded
+          return { success: true, message: "Purchase order status updated successfully" };
         }
       } catch (err) {
         console.error("Update PO error:", err);
@@ -166,7 +188,8 @@ export default function ProcurementTrackingPage() {
   const updatePOMutation = useMutation({
     mutationFn: async (updatedPO: any) => {
       try {
-        const response = await apiRequest("PUT", `/api/procurement/purchase-orders/${updatedPO.id}`, updatedPO);
+        // Use parseJson=false to get the Response object directly
+        const response = await apiRequest("PUT", `/api/procurement/purchase-orders/${updatedPO.id}`, updatedPO, false, false) as Response;
         
         // Check if the response is valid before trying to parse JSON
         if (!response.ok) {
@@ -175,14 +198,24 @@ export default function ProcurementTrackingPage() {
         
         // Try-catch for JSON parsing
         try {
-          return await response.json();
-        } catch (jsonError) {
-          console.log("Response could not be parsed as JSON:", response);
-          // If JSON parsing fails but the request was successful, still consider it a success
-          if (response.ok) {
+          const responseText = await response.text();
+          // If empty response, return a default success object
+          if (!responseText.trim()) {
             return { success: true, message: "Purchase order updated successfully" };
           }
-          throw new Error("Invalid response format from server");
+          
+          try {
+            // Try to parse as JSON
+            return JSON.parse(responseText);
+          } catch (jsonError) {
+            console.log("Could not parse response as JSON:", responseText);
+            // If JSON parsing fails but request was successful, still count as success
+            return { success: true, message: "Purchase order updated successfully" };
+          }
+        } catch (textError) {
+          console.error("Error reading response text:", textError);
+          // If we couldn't even read the response text, but the request succeeded
+          return { success: true, message: "Purchase order updated successfully" };
         }
       } catch (err) {
         console.error("Update PO error:", err);
