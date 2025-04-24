@@ -54,17 +54,16 @@ export default function ProcurementTrackingPage() {
   const [projectFilter, setProjectFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
-  // Mock data - will be replaced with actual data once API is implemented
-  const projects = [
-    { id: 1, code: "2526-1", name: "NTPC Ramagundam" },
-    { id: 2, code: "2526-2", name: "NTPC Simhadri" },
-    { id: 3, code: "2526-3", name: "ISGEC Heavy Engineering" },
-  ];
+  // Fetch projects from the API
+  const { data: projects = [] } = useQuery({
+    queryKey: ["/api/projects"],
+  });
 
-  // Placeholder query - will be replaced with actual API call
+  // Fetch purchase orders from the API once endpoint is available
   const { data: purchaseOrders, isLoading, error } = useQuery({
-    queryKey: ["/api/purchase-orders/tracking"],
-    enabled: false, // Disable the query for now until we implement the API
+    queryKey: ["/api/procurement/purchase-orders"],
+    // Will be enabled when the tracking endpoint is fully implemented
+    enabled: false, 
   });
 
   // Mock purchase orders data

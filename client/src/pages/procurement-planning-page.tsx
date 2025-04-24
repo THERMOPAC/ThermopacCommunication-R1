@@ -108,44 +108,16 @@ export default function ProcurementPlanningPage() {
   const { data: purchaseOrders, isLoading, error } = useQuery<PurchaseOrder[]>({
     queryKey: ["/api/procurement/purchase-orders"],
     enabled: true, // Enable the query to fetch real data
+    onSuccess: (data) => {
+      console.log("Fetched purchase orders:", data);
+    },
+    onError: (err) => {
+      console.error("Error fetching purchase orders:", err);
+    }
   });
 
-  // Mock purchase orders data
-  const mockPurchaseOrders = [
-    {
-      id: 1,
-      purchaseOrderNumber: "PO-2526-1-001",
-      title: "Raw Materials for Heat Exchanger",
-      projectCode: "2526-1",
-      vendorName: "Steel Suppliers Ltd.",
-      status: "draft",
-      requiredByDate: "2025-05-15",
-      totalAmount: 125000,
-    },
-    {
-      id: 2,
-      purchaseOrderNumber: "PO-2526-1-002",
-      title: "Pressure Gauges and Sensors",
-      projectCode: "2526-1",
-      vendorName: "Precision Instruments Inc.",
-      status: "submitted",
-      requiredByDate: "2025-05-10",
-      totalAmount: 42500,
-    },
-    {
-      id: 3,
-      purchaseOrderNumber: "PO-2526-2-001",
-      title: "Pump Components",
-      projectCode: "2526-2",
-      vendorName: "Flow Systems Corp.",
-      status: "approved",
-      requiredByDate: "2025-06-05",
-      totalAmount: 78900,
-    },
-  ];
-
-  // Use real data from API if available, otherwise fall back to mock data for now
-  const dataSource = purchaseOrders || mockPurchaseOrders || [];
+  // Use the API data
+  const dataSource = purchaseOrders || [];
   
   // Preview purchase orders for a selected project
   const { 
