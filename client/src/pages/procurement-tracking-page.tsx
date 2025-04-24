@@ -298,24 +298,32 @@ export default function ProcurementTrackingPage() {
                                             </TableRow>
                                           </TableHeader>
                                           <TableBody>
-                                            {po.items.map((item) => (
-                                              <TableRow key={item.id}>
-                                                <TableCell className="font-medium">{item.name}</TableCell>
-                                                <TableCell>{item.quantity}</TableCell>
-                                                <TableCell>{item.unit}</TableCell>
-                                                <TableCell>
-                                                  <div className="flex items-center gap-1">
-                                                    {itemStatusIconMap[item.status]}
-                                                    <span className="text-xs capitalize">
-                                                      {item.status.replace("_", " ")}
-                                                    </span>
-                                                  </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                  {item.receivedQuantity}/{item.quantity}
+                                            {po.items && Array.isArray(po.items) && po.items.length > 0 ? (
+                                              po.items.map((item) => (
+                                                <TableRow key={item.id}>
+                                                  <TableCell className="font-medium">{item.name}</TableCell>
+                                                  <TableCell>{item.quantity}</TableCell>
+                                                  <TableCell>{item.unit}</TableCell>
+                                                  <TableCell>
+                                                    <div className="flex items-center gap-1">
+                                                      {itemStatusIconMap[item.status]}
+                                                      <span className="text-xs capitalize">
+                                                        {item.status?.replace("_", " ") || "pending"}
+                                                      </span>
+                                                    </div>
+                                                  </TableCell>
+                                                  <TableCell>
+                                                    {item.receivedQuantity || 0}/{item.quantity || 0}
+                                                  </TableCell>
+                                                </TableRow>
+                                              ))
+                                            ) : (
+                                              <TableRow>
+                                                <TableCell colSpan={5} className="h-12 text-center text-muted-foreground">
+                                                  No items available for this purchase order
                                                 </TableCell>
                                               </TableRow>
-                                            ))}
+                                            )}
                                           </TableBody>
                                         </Table>
                                       </div>
