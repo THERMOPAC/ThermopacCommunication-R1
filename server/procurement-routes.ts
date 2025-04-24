@@ -159,7 +159,7 @@ export function setupProcurementRoutes(app: Router) {
         return {
           id: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
-          description: masterItem?.description || 'Unknown Item',
+          description: masterItem ? masterItem.description : 'Unknown Item',
           quantity: Number(item.quantity),
           unit: masterItem?.unit || 'EA',
           vendorId: vendorId,
@@ -389,7 +389,7 @@ export function setupProcurementRoutes(app: Router) {
               purchaseOrderId: purchaseOrder.id,
               projectItemId: item.id,
               itemId: item.itemId,
-              description: masterItem?.description || 'Unknown Item',
+              description: masterItem ? masterItem.description : 'Unknown Item',
               quantity: item.quantity.toString(),
               unit: masterItem?.unit || 'EA',
               unitPrice: unitPrice.toString(),
