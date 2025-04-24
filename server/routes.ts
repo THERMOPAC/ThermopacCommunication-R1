@@ -599,8 +599,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       createdAt: new Date().toISOString(),
     });
 
+    console.log('Creating new task:', taskData);
     const task = await storage.createTask(taskData);
-    res.status(201).json(task);
+    console.log('Created task:', task);
+    return res.status(201).json(task);
   });
 
   app.patch("/api/tasks/:id", async (req, res) => {
