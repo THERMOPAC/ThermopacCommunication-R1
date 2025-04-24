@@ -148,37 +148,100 @@ export default function ProcurementPlanningPage() {
   const dataSource = purchaseOrders || mockPurchaseOrders || [];
   
   // Preview purchase orders for a selected project
-  const { data: previewPurchaseOrders, isLoading: isLoadingPreview } = useQuery({
+  const { 
+    data: previewPurchaseOrders, 
+    isLoading: isLoadingPreview,
+    error: previewError,
+    refetch: refetchPreview
+  } = useQuery({
     queryKey: ["/api/procurement/purchase-orders/preview", selectedProjectId],
     queryFn: async () => {
       if (!selectedProjectId) return null;
       try {
         console.log("Fetching preview for project ID:", selectedProjectId);
         const res = await fetch(`/api/procurement/purchase-orders/preview/${selectedProjectId}`);
+        
+        // Always parse the response as JSON first, regardless of status code
+        const data = await res.json().catch(e => {
+          console.error("Failed to parse JSON response:", e);
+          return { error: "Invalid response format" };
+        });
+        
+        console.log("Preview data response:", data);
+        
+        // Check if the response was not ok
         if (!res.ok) {
-          const errorText = await res.text();
-          console.error("API error:", errorText);
-          throw new Error(`Failed to fetch purchase order preview: ${errorText}`);
+          console.error("API error:", data);
+          
+          // Return a properly formatted response object even for errors
+          // This ensures we don't get undefined/null values in the UI
+          return {
+            success: false,
+            error: data.error || "Failed to fetch purchase order preview",
+            message: data.message || "An error occurred when fetching purchase order data",
+            project: { id: selectedProjectId, code: "Unknown", name: "Unknown" },
+            items: [],
+            itemCount: 0
+          };
         }
-        const data = await res.json();
-        console.log("Preview data:", data);
+        
+        // For empty item lists, ensure we return a valid data structure
+        if (data.message && data.message.includes("No")) {
+          return {
+            ...data,
+            items: data.items || [],
+            itemCount: data.itemCount || 0
+          };
+        }
+        
         return data;
       } catch (error) {
         console.error("Error fetching preview:", error);
-        throw error;
+        
+        // Return a formatted error response instead of throwing
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+          message: "Failed to communicate with the server",
+          project: { id: selectedProjectId, code: "Unknown", name: "Unknown" },
+          items: [],
+          itemCount: 0
+        };
       }
     },
     enabled: !!selectedProjectId,
     staleTime: 0, // Don't cache this request
+    retry: 1, // Only retry once to prevent excessive requests
+    retryDelay: 1000, // Wait 1 second before retrying
   });
 
   // Set preview data when it's available
   useEffect(() => {
     if (previewPurchaseOrders) {
       console.log("Setting preview data:", previewPurchaseOrders);
-      setPreviewData(previewPurchaseOrders);
+      
+      // Even if we have an empty response or error message, make it accessible to the UI
+      // This ensures we show appropriate messages for projects with no Buy items
+      if (previewPurchaseOrders.message) {
+        // Response contains a message - could be "No Buy items found" or similar
+        setPreviewData({
+          project: previewPurchaseOrders.project,
+          items: previewPurchaseOrders.items || [],
+          itemCount: previewPurchaseOrders.itemCount || 0,
+          message: previewPurchaseOrders.message
+        });
+        
+        // Show toast for informational messages
+        toast({
+          title: "Information",
+          description: previewPurchaseOrders.message,
+        });
+      } else {
+        // Standard response with items
+        setPreviewData(previewPurchaseOrders);
+      }
     }
-  }, [previewPurchaseOrders]);
+  }, [previewPurchaseOrders, toast]);
 
   // Create purchase orders for a project
   const generatePurchaseOrdersMutation = useMutation({
@@ -405,7 +468,7 @@ export default function ProcurementPlanningPage() {
                   </DialogDescription>
                 </DialogHeader>
                 
-                {!selectedProjectId ? (
+                {!selectedProjectId || (!isLoadingPreview && !previewData) ? (
                   <div className="py-4">
                     <div className="grid gap-4">
                       <div className="grid gap-2">
@@ -426,6 +489,31 @@ export default function ProcurementPlanningPage() {
                         </Select>
                       </div>
                     </div>
+                    
+                    {selectedProjectId && (
+                      <div className="mt-4">
+                        <Button 
+                          variant="secondary" 
+                          onClick={() => {
+                            // Force refetch the preview data
+                            queryClient.invalidateQueries({ 
+                              queryKey: ["/api/procurement/purchase-orders/preview", selectedProjectId] 
+                            });
+                          }}
+                          className="mr-2"
+                        >
+                          Refresh Data
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            setSelectedProjectId(null);
+                          }}
+                        >
+                          Reset Selection
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ) : isLoadingPreview ? (
                   <div className="py-6 flex justify-center">
@@ -438,8 +526,21 @@ export default function ProcurementPlanningPage() {
                         Project: {previewData.project?.code} - {previewData.project?.name}
                       </h3>
                       <p className="text-muted-foreground mt-1">
-                        {previewData.itemCount} items will be included in purchase orders
+                        {previewData.message || `${previewData.itemCount || 0} items will be included in purchase orders`}
                       </p>
+                      
+                      <div className="mt-4 mb-2">
+                        <Button 
+                          variant="secondary" 
+                          size="sm"
+                          onClick={() => {
+                            setSelectedProjectId(null);
+                            setPreviewData(null);
+                          }}
+                        >
+                          Change Project
+                        </Button>
+                      </div>
                     </div>
                     
                     <div className="rounded-md border max-h-[300px] overflow-y-auto">
@@ -465,7 +566,7 @@ export default function ProcurementPlanningPage() {
                           ) : (
                             <TableRow>
                               <TableCell colSpan={4} className="text-center py-4">
-                                No items found to generate purchase orders.
+                                {previewData.message || "No items found to generate purchase orders."}
                               </TableCell>
                             </TableRow>
                           )}
@@ -473,7 +574,20 @@ export default function ProcurementPlanningPage() {
                       </Table>
                     </div>
                   </div>
-                ) : null}
+                ) : (
+                  <div className="py-4 text-center text-muted-foreground">
+                    <p>Unable to load preview data. Please try selecting a different project.</p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setSelectedProjectId(null);
+                      }}
+                      className="mt-2"
+                    >
+                      Reset Selection
+                    </Button>
+                  </div>
+                )}
                 
                 <DialogFooter className="gap-2">
                   <Button 
