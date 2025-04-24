@@ -218,12 +218,41 @@ export default function ProcurementPlanningPage() {
   // Create purchase orders for a project
   const generatePurchaseOrdersMutation = useMutation({
     mutationFn: async (data: { projectId: number, confirm: boolean }) => {
-      const res = await apiRequest(
-        "POST", 
-        `/api/procurement/purchase-orders/generate-for-project/${data.projectId}`,
-        { confirm: data.confirm }
-      );
-      return await res.json();
+      try {
+        console.log("Generating purchase orders for project:", data.projectId);
+        const res = await apiRequest(
+          "POST", 
+          `/api/procurement/purchase-orders/generate-for-project/${data.projectId}`,
+          { confirm: data.confirm },
+          true // Skip error throw to handle it manually
+        );
+        
+        // Check if the response is already parsed
+        if (typeof res !== 'object' || res === null) {
+          throw new Error("Invalid response from server");
+        }
+        
+        // If it's a Response object, try to parse it
+        if (res instanceof Response) {
+          console.log("Got Response object, parsing...");
+          const text = await res.text();
+          try {
+            const data = JSON.parse(text);
+            console.log("Successfully parsed JSON from response:", data);
+            return data;
+          } catch (e) {
+            console.error("Failed to parse JSON response:", text);
+            throw new Error("Invalid JSON response from server");
+          }
+        }
+        
+        // Already parsed JSON data
+        console.log("Successfully got parsed data:", res);
+        return res;
+      } catch (error) {
+        console.error("Error generating purchase orders:", error);
+        throw error;
+      }
     },
     onSuccess: (data) => {
       toast({

@@ -568,26 +568,33 @@ export function setupProcurementRoutes(app: Router) {
         
         await client.query('COMMIT');
         
-        res.status(201).json({
+        // Set explicit content-type and ensure we're sending valid JSON
+        res.setHeader('Content-Type', 'application/json');
+        res.status(201).send(JSON.stringify({
           success: true,
           message: `Successfully created ${createdPOs.length} purchase orders (one per item)`,
           purchaseOrders: createdPOs
-        });
+        }));
       } catch (error) {
         console.error('Transaction error:', error);
         await client.query('ROLLBACK');
         // Handle the error here instead of re-throwing
-        return res.status(500).json({ 
+        res.setHeader('Content-Type', 'application/json');
+        return res.status(500).send(JSON.stringify({ 
           error: 'Failed to generate purchase orders', 
           message: error instanceof Error ? error.message : 'Unknown error' 
-        });
+        }));
       } finally {
         client.release();
       }
     } catch (error) {
       console.error('Error generating purchase orders:', error);
       // Only reaches here if an error occurs before the transaction begins
-      res.status(500).json({ error: 'Failed to generate purchase orders' });
+      res.setHeader('Content-Type', 'application/json');
+      res.status(500).send(JSON.stringify({ 
+        error: 'Failed to generate purchase orders',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }));
     }
   });
   
