@@ -152,7 +152,6 @@ export function setupProcurementRoutes(app: Router) {
             description, 
             quantity, 
             unit as uom, 
-            drawing_no, 
             status,
             created_at, 
             updated_at
