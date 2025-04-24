@@ -806,7 +806,7 @@ export default function ProcurementTrackingPage() {
       
       {/* Edit PO Dialog */}
       <Dialog open={isEditModalOpen} onOpenChange={(open) => !open && setIsEditModalOpen(false)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>Edit Purchase Order</DialogTitle>
             <DialogDescription>
@@ -924,16 +924,16 @@ export default function ProcurementTrackingPage() {
               {/* Purchase Order Items */}
               <div className="mt-6">
                 <h3 className="text-lg font-medium mb-4">Purchase Order Items</h3>
-                <div className="rounded-md border mb-4">
+                <div className="rounded-md border mb-4 overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Item Code</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>UOM</TableHead>
-                        <TableHead>Drawing No</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead className="w-1/6">Item Code</TableHead>
+                        <TableHead className="w-2/6">Description</TableHead>
+                        <TableHead className="w-1/12">Quantity</TableHead>
+                        <TableHead className="w-1/12">UOM</TableHead>
+                        <TableHead className="w-1/6">Drawing No</TableHead>
+                        <TableHead className="w-1/12">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
