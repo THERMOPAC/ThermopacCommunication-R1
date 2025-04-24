@@ -631,10 +631,12 @@ export function setupProcurementRoutes(app: Router) {
         
         await client.query('COMMIT');
         
-        res.status(200).json({ 
+        // Set explicit content-type and ensure we're sending valid JSON
+        res.setHeader('Content-Type', 'application/json');
+        res.status(200).send(JSON.stringify({ 
           success: true, 
           message: 'Purchase order deleted successfully' 
-        });
+        }));
       } catch (error) {
         console.error('Error deleting purchase order:', error);
         await client.query('ROLLBACK');
@@ -732,11 +734,13 @@ export function setupProcurementRoutes(app: Router) {
           WHERE po.id = $1
         `, [purchaseOrderId]);
         
-        res.status(200).json({
+        // Set explicit content-type and ensure we're sending valid JSON
+        res.setHeader('Content-Type', 'application/json');
+        res.status(200).send(JSON.stringify({
           success: true,
           message: 'Purchase order updated successfully',
           purchaseOrder: updatedPoResult.rows[0]
-        });
+        }));
       } catch (error) {
         console.error('Error updating purchase order:', error);
         await client.query('ROLLBACK');
