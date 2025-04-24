@@ -666,7 +666,18 @@ export function setupProcurementRoutes(app: Router) {
   app.put('/api/procurement/purchase-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const purchaseOrderId = parseInt(req.params.id);
-      const { title, notes, vendor_id, status, priority, required_by_date } = req.body;
+      const { 
+        title, 
+        notes, 
+        vendor_id, 
+        status, 
+        priority, 
+        required_by_date,
+        tracking_number,
+        actual_delivery_date,
+        progress,
+        items 
+      } = req.body;
       
       if (isNaN(purchaseOrderId)) {
         return res.status(400).json({ error: 'Invalid purchase order ID' });
@@ -696,8 +707,11 @@ export function setupProcurementRoutes(app: Router) {
             status = COALESCE($4, status),
             priority = COALESCE($5, priority),
             required_by_date = COALESCE($6, required_by_date),
+            tracking_number = COALESCE($7, tracking_number),
+            actual_delivery_date = COALESCE($8, actual_delivery_date),
+            progress = COALESCE($9, progress),
             updated_at = NOW()
-          WHERE id = $7
+          WHERE id = $10
         `, [
           title, 
           notes,
@@ -705,8 +719,88 @@ export function setupProcurementRoutes(app: Router) {
           status, 
           priority,
           required_by_date ? new Date(required_by_date) : null,
+          tracking_number,
+          actual_delivery_date ? new Date(actual_delivery_date) : null,
+          progress,
           purchaseOrderId
         ]);
+        
+        // Handle purchase order items if provided
+        if (Array.isArray(items)) {
+          // First fetch existing items to compare
+          const existingItemsResult = await client.query(`
+            SELECT id, purchase_order_id, item_code, description, quantity, uom, drawing_no, status
+            FROM purchase_order_items
+            WHERE purchase_order_id = $1
+          `, [purchaseOrderId]);
+          
+          const existingItems = existingItemsResult.rows;
+          const existingItemIds = existingItems.map(item => item.id);
+          
+          // Process each item in the request
+          for (const item of items) {
+            if (item.id && existingItemIds.includes(item.id)) {
+              // Update existing item
+              await client.query(`
+                UPDATE purchase_order_items
+                SET 
+                  item_code = $1,
+                  description = $2,
+                  quantity = $3,
+                  uom = $4,
+                  drawing_no = $5,
+                  status = $6,
+                  updated_at = NOW()
+                WHERE id = $7 AND purchase_order_id = $8
+              `, [
+                item.item_code || item.code,
+                item.description || item.name,
+                item.quantity,
+                item.uom || item.unit,
+                item.drawing_no,
+                item.status || 'pending',
+                item.id,
+                purchaseOrderId
+              ]);
+            } else if (!item.id || (typeof item.id === 'string' && item.id.startsWith('temp_'))) {
+              // Insert new item
+              await client.query(`
+                INSERT INTO purchase_order_items (
+                  purchase_order_id, item_code, description, quantity, uom, drawing_no, status, created_at, updated_at
+                ) VALUES (
+                  $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+                )
+              `, [
+                purchaseOrderId,
+                item.item_code || item.code,
+                item.description || item.name,
+                item.quantity,
+                item.uom || item.unit,
+                item.drawing_no,
+                item.status || 'pending'
+              ]);
+            }
+          }
+          
+          // Get IDs from request
+          const itemIdsToKeep = items
+            .filter(item => item.id && !String(item.id).startsWith('temp_') && typeof item.id === 'number')
+            .map(item => item.id);
+          
+          // Delete items that are no longer in the request
+          if (itemIdsToKeep.length > 0) {
+            await client.query(`
+              DELETE FROM purchase_order_items 
+              WHERE purchase_order_id = $1 AND id NOT IN (${itemIdsToKeep.join(',')})
+            `, [purchaseOrderId]);
+          } else if (items.length === 0) {
+            // If empty array was sent, delete all items
+            await client.query(`
+              DELETE FROM purchase_order_items 
+              WHERE purchase_order_id = $1
+            `, [purchaseOrderId]);
+          }
+        }
         
         // Add a history entry for the update
         await client.query(`
@@ -724,7 +818,7 @@ export function setupProcurementRoutes(app: Router) {
         
         await client.query('COMMIT');
         
-        // Fetch the updated purchase order
+        // Fetch the updated purchase order with items
         const updatedPoResult = await client.query(`
           SELECT po.*, v.name as vendor_name
           FROM purchase_orders po
@@ -732,11 +826,23 @@ export function setupProcurementRoutes(app: Router) {
           WHERE po.id = $1
         `, [purchaseOrderId]);
         
+        // Get purchase order items
+        const itemsResult = await client.query(`
+          SELECT id, purchase_order_id, item_code, description, quantity, uom, drawing_no, status, 
+                 created_at, updated_at
+          FROM purchase_order_items
+          WHERE purchase_order_id = $1
+          ORDER BY id
+        `, [purchaseOrderId]);
+        
+        const updatedPO = updatedPoResult.rows[0];
+        updatedPO.items = itemsResult.rows;
+        
         // Return a standard JSON response
         return res.status(200).json({
           success: true,
           message: 'Purchase order updated successfully',
-          purchaseOrder: updatedPoResult.rows[0]
+          purchaseOrder: updatedPO
         });
       } catch (error) {
         console.error('Error updating purchase order:', error);
