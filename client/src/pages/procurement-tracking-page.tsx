@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Helmet } from "react-helmet";
-import { Loader2, CheckCircle, Clock, AlertTriangle, Search, FileText } from "lucide-react";
+import { Loader2, CheckCircle, Clock, AlertTriangle, Search, FileText, Edit, Trash2, AlertCircle } from "lucide-react";
 import Layout from "@/components/layout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -29,6 +30,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Tabs,
@@ -48,11 +51,15 @@ import {
 } from "@/components/ui/sheet";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function ProcurementTrackingPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [poToDelete, setPoToDelete] = useState<number | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Fetch projects from the API
   const { data: projects = [] } = useQuery({
@@ -62,21 +69,59 @@ export default function ProcurementTrackingPage() {
   // Fetch purchase orders from the API 
   const { data: purchaseOrders, isLoading, error } = useQuery({
     queryKey: ["/api/procurement/purchase-orders"],
-    // Enable fetching real data from the API
-    enabled: true,
-    onSuccess: (data) => {
-      console.log("Fetched purchase orders for tracking:", data);
+  });
+
+  // Delete purchase order mutation
+  const deletePOMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/procurement/purchase-orders/${id}`);
+      return await response.json();
     },
-    onError: (err) => {
-      console.error("Error fetching purchase orders for tracking:", err);
-    }
+    onSuccess: () => {
+      toast({
+        title: "Purchase order deleted",
+        description: "The purchase order has been successfully deleted.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/procurement/purchase-orders"] });
+      setPoToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete purchase order",
+        description: error.message || "An error occurred while deleting the purchase order.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update purchase order status mutation
+  const updatePOStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      const response = await apiRequest("PUT", `/api/procurement/purchase-orders/${id}`, { status });
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Status updated",
+        description: "Purchase order status has been updated successfully.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/procurement/purchase-orders"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to update status",
+        description: error.message || "An error occurred while updating the purchase order.",
+        variant: "destructive",
+      });
+    },
   });
 
   // Placeholder for purchase order data from the API
-  // This will be populated once the tracking endpoint is fully implemented
   const purchaseOrdersData = purchaseOrders || [];
   
-  // Filter function for purchase orders (will use real API data when enabled)
+  // Filter function for purchase orders
   const filteredPurchaseOrders = Array.isArray(purchaseOrdersData) ? purchaseOrdersData.filter((po: any) => {
     // Handle potential undefined values safely
     const poNumber = po.purchase_order_number || '';
@@ -95,6 +140,13 @@ export default function ProcurementTrackingPage() {
     
     return matchesSearch && matchesProject && matchesStatus;
   }) : [];
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = () => {
+    if (poToDelete) {
+      deletePOMutation.mutate(poToDelete);
+    }
+  };
 
   const statusBadgeMap: Record<string, JSX.Element> = {
     draft: <Badge variant="outline" className="bg-gray-100 text-gray-800">Draft</Badge>,
@@ -166,7 +218,7 @@ export default function ProcurementTrackingPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Projects</SelectItem>
-                        {projects.map((project) => (
+                        {Array.isArray(projects) && projects.map((project: any) => (
                           <SelectItem key={project.id} value={project.code}>
                             {project.code}
                           </SelectItem>
@@ -219,7 +271,7 @@ export default function ProcurementTrackingPage() {
                             </TableCell>
                           </TableRow>
                         ) : (
-                          filteredPurchaseOrders.map((po) => (
+                          filteredPurchaseOrders.map((po: any) => (
                             <TableRow key={po.id}>
                               <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
                               <TableCell>{po.title || ''}</TableCell>
@@ -242,120 +294,149 @@ export default function ProcurementTrackingPage() {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <Sheet>
-                                  <SheetTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                      Details
-                                    </Button>
-                                  </SheetTrigger>
-                                  <SheetContent>
-                                    <SheetHeader>
-                                      <SheetTitle>Purchase Order Details</SheetTitle>
-                                      <SheetDescription>
-                                        {po.purchase_order_number || ''} - {po.title || ''}
-                                      </SheetDescription>
-                                    </SheetHeader>
-                                    <div className="py-4">
-                                      <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <div>
-                                          <h4 className="text-sm font-medium">Project</h4>
-                                          <p className="text-sm">{po.project_code || ''}</p>
+                                <div className="flex space-x-2">
+                                  <Sheet>
+                                    <SheetTrigger asChild>
+                                      <Button variant="ghost" size="sm">
+                                        Details
+                                      </Button>
+                                    </SheetTrigger>
+                                    <SheetContent>
+                                      <SheetHeader>
+                                        <SheetTitle>Purchase Order Details</SheetTitle>
+                                        <SheetDescription>
+                                          {po.purchase_order_number || ''} - {po.title || ''}
+                                        </SheetDescription>
+                                      </SheetHeader>
+                                      <div className="py-4">
+                                        <div className="grid grid-cols-2 gap-4 mb-4">
+                                          <div>
+                                            <h4 className="text-sm font-medium">Project</h4>
+                                            <p className="text-sm">{po.project_code || ''}</p>
+                                          </div>
+                                          <div>
+                                            <h4 className="text-sm font-medium">Vendor</h4>
+                                            <p className="text-sm">{po.vendor_name || ''}</p>
+                                          </div>
+                                          <div>
+                                            <h4 className="text-sm font-medium">Status</h4>
+                                            <div className="mt-1">{statusBadgeMap[po.status] || '-'}</div>
+                                          </div>
+                                          <div>
+                                            <h4 className="text-sm font-medium">Tracking Number</h4>
+                                            <p className="text-sm">{po.tracking_number || "N/A"}</p>
+                                          </div>
+                                          <div>
+                                            <h4 className="text-sm font-medium">Est. Delivery</h4>
+                                            <p className="text-sm">{po.required_by_date || ''}</p>
+                                          </div>
+                                          <div>
+                                            <h4 className="text-sm font-medium">Actual Delivery</h4>
+                                            <p className="text-sm">{po.actual_delivery_date || "Pending"}</p>
+                                          </div>
                                         </div>
-                                        <div>
-                                          <h4 className="text-sm font-medium">Vendor</h4>
-                                          <p className="text-sm">{po.vendor_name || ''}</p>
-                                        </div>
-                                        <div>
-                                          <h4 className="text-sm font-medium">Status</h4>
-                                          <div className="mt-1">{statusBadgeMap[po.status] || '-'}</div>
-                                        </div>
-                                        <div>
-                                          <h4 className="text-sm font-medium">Tracking Number</h4>
-                                          <p className="text-sm">{po.tracking_number || "N/A"}</p>
-                                        </div>
-                                        <div>
-                                          <h4 className="text-sm font-medium">Est. Delivery</h4>
-                                          <p className="text-sm">{po.required_by_date || ''}</p>
-                                        </div>
-                                        <div>
-                                          <h4 className="text-sm font-medium">Actual Delivery</h4>
-                                          <p className="text-sm">{po.actual_delivery_date || "Pending"}</p>
-                                        </div>
-                                      </div>
-                                      
-                                      <Separator className="my-4" />
-                                      
-                                      <h4 className="text-sm font-medium mb-2">Order Items</h4>
-                                      <div className="rounded-md border mb-4">
-                                        <Table>
-                                          <TableHeader>
-                                            <TableRow>
-                                              <TableHead>Item</TableHead>
-                                              <TableHead>Qty</TableHead>
-                                              <TableHead>Unit</TableHead>
-                                              <TableHead>Status</TableHead>
-                                              <TableHead>Received</TableHead>
-                                            </TableRow>
-                                          </TableHeader>
-                                          <TableBody>
-                                            {po.items && Array.isArray(po.items) && po.items.length > 0 ? (
-                                              po.items.map((item) => (
-                                                <TableRow key={item.id}>
-                                                  <TableCell className="font-medium">{item.name}</TableCell>
-                                                  <TableCell>{item.quantity}</TableCell>
-                                                  <TableCell>{item.unit}</TableCell>
-                                                  <TableCell>
-                                                    <div className="flex items-center gap-1">
-                                                      {itemStatusIconMap[item.status]}
-                                                      <span className="text-xs capitalize">
-                                                        {item.status?.replace("_", " ") || "pending"}
-                                                      </span>
-                                                    </div>
-                                                  </TableCell>
-                                                  <TableCell>
-                                                    {item.receivedQuantity || 0}/{item.quantity || 0}
+                                        
+                                        <Separator className="my-4" />
+                                        
+                                        <h4 className="text-sm font-medium mb-2">Order Items</h4>
+                                        <div className="rounded-md border mb-4">
+                                          <Table>
+                                            <TableHeader>
+                                              <TableRow>
+                                                <TableHead>Item</TableHead>
+                                                <TableHead>Qty</TableHead>
+                                                <TableHead>Unit</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>Received</TableHead>
+                                              </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                              {po.items && Array.isArray(po.items) && po.items.length > 0 ? (
+                                                po.items.map((item: any) => (
+                                                  <TableRow key={item.id}>
+                                                    <TableCell className="font-medium">{item.name}</TableCell>
+                                                    <TableCell>{item.quantity}</TableCell>
+                                                    <TableCell>{item.unit}</TableCell>
+                                                    <TableCell>
+                                                      <div className="flex items-center gap-1">
+                                                        {itemStatusIconMap[item.status]}
+                                                        <span className="text-xs capitalize">
+                                                          {item.status?.replace("_", " ") || "pending"}
+                                                        </span>
+                                                      </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                      {item.receivedQuantity || 0}/{item.quantity || 0}
+                                                    </TableCell>
+                                                  </TableRow>
+                                                ))
+                                              ) : (
+                                                <TableRow>
+                                                  <TableCell colSpan={5} className="h-12 text-center text-muted-foreground">
+                                                    No items available for this purchase order
                                                   </TableCell>
                                                 </TableRow>
-                                              ))
-                                            ) : (
-                                              <TableRow>
-                                                <TableCell colSpan={5} className="h-12 text-center text-muted-foreground">
-                                                  No items available for this purchase order
-                                                </TableCell>
-                                              </TableRow>
-                                            )}
-                                          </TableBody>
-                                        </Table>
-                                      </div>
-                                      
-                                      <div className="flex flex-col gap-2">
-                                        <Button size="sm" variant="outline" className="flex gap-2 justify-center">
-                                          <FileText className="h-4 w-4" />
-                                          View Documents
-                                        </Button>
+                                              )}
+                                            </TableBody>
+                                          </Table>
+                                        </div>
                                         
-                                        {po.status === "shipped" && (
-                                          <Button size="sm" className="flex gap-2 justify-center">
-                                            <CheckCircle className="h-4 w-4" />
-                                            Mark as Received
+                                        <div className="flex flex-col gap-2">
+                                          <Button size="sm" variant="outline" className="flex gap-2 justify-center">
+                                            <FileText className="h-4 w-4" />
+                                            View Documents
                                           </Button>
-                                        )}
-                                        
-                                        {po.status === "partially_received" && (
-                                          <Button size="sm" className="flex gap-2 justify-center">
-                                            <CheckCircle className="h-4 w-4" />
-                                            Update Received Items
-                                          </Button>
-                                        )}
+                                          
+                                          {po.status === "shipped" && (
+                                            <Button 
+                                              size="sm" 
+                                              className="flex gap-2 justify-center"
+                                              onClick={() => updatePOStatusMutation.mutate({ id: po.id, status: "received" })}
+                                            >
+                                              <CheckCircle className="h-4 w-4" />
+                                              Mark as Received
+                                            </Button>
+                                          )}
+                                          
+                                          {po.status === "partially_received" && (
+                                            <Button 
+                                              size="sm" 
+                                              className="flex gap-2 justify-center"
+                                              onClick={() => updatePOStatusMutation.mutate({ id: po.id, status: "received" })}
+                                            >
+                                              <CheckCircle className="h-4 w-4" />
+                                              Update Received Items
+                                            </Button>
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                    <SheetFooter>
-                                      <SheetClose asChild>
-                                        <Button variant="outline">Close</Button>
-                                      </SheetClose>
-                                    </SheetFooter>
-                                  </SheetContent>
-                                </Sheet>
+                                      <SheetFooter>
+                                        <SheetClose asChild>
+                                          <Button variant="outline">Close</Button>
+                                        </SheetClose>
+                                      </SheetFooter>
+                                    </SheetContent>
+                                  </Sheet>
+
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="text-blue-600 hover:text-blue-800"
+                                  >
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    Edit
+                                  </Button>
+
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-800"
+                                    onClick={() => setPoToDelete(po.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Delete
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))
@@ -367,7 +448,7 @@ export default function ProcurementTrackingPage() {
               </CardContent>
               <CardFooter className="flex justify-between">
                 <div className="text-sm text-muted-foreground">
-                  Showing {filteredPurchaseOrders.length} of {purchaseOrdersData.length || 0} purchase orders
+                  Showing {filteredPurchaseOrders.length} of {Array.isArray(purchaseOrdersData) ? purchaseOrdersData.length : 0} purchase orders
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" disabled>Previous</Button>
@@ -411,7 +492,7 @@ export default function ProcurementTrackingPage() {
                       </TableHeader>
                       <TableBody>
                         {filteredPurchaseOrders
-                          .filter(po => 
+                          .filter((po: any) => 
                             tab === "ordered" ? po.status === "ordered" : 
                             tab === "shipped" ? po.status === "shipped" : 
                             ["received", "partially_received"].includes(po.status)
@@ -424,12 +505,12 @@ export default function ProcurementTrackingPage() {
                           </TableRow>
                         ) : (
                           filteredPurchaseOrders
-                            .filter(po => 
+                            .filter((po: any) => 
                               tab === "ordered" ? po.status === "ordered" : 
                               tab === "shipped" ? po.status === "shipped" : 
                               ["received", "partially_received"].includes(po.status)
                             )
-                            .map((po) => (
+                            .map((po: any) => (
                               <TableRow key={po.id}>
                                 <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
                                 <TableCell>{po.title || ''}</TableCell>
@@ -449,9 +530,28 @@ export default function ProcurementTrackingPage() {
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  <Button variant="ghost" size="sm">
-                                    Details
-                                  </Button>
+                                  <div className="flex space-x-2">
+                                    <Button variant="ghost" size="sm">
+                                      Details
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      className="text-blue-600 hover:text-blue-800"
+                                    >
+                                      <Edit className="h-4 w-4 mr-1" />
+                                      Edit
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      className="text-red-600 hover:text-red-800"
+                                      onClick={() => setPoToDelete(po.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" />
+                                      Delete
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))
@@ -465,6 +565,39 @@ export default function ProcurementTrackingPage() {
           ))}
         </Tabs>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={poToDelete !== null} onOpenChange={(open) => !open && setPoToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this purchase order? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex justify-between">
+            <Button 
+              variant="outline" 
+              onClick={() => setPoToDelete(null)}
+              disabled={deletePOMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteConfirm}
+              disabled={deletePOMutation.isPending}
+            >
+              {deletePOMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

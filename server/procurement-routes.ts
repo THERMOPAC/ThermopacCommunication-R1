@@ -590,4 +590,155 @@ export function setupProcurementRoutes(app: Router) {
       res.status(500).json({ error: 'Failed to generate purchase orders' });
     }
   });
+  
+  // Delete a purchase order
+  app.delete('/api/procurement/purchase-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const purchaseOrderId = parseInt(req.params.id);
+      
+      if (isNaN(purchaseOrderId)) {
+        return res.status(400).json({ error: 'Invalid purchase order ID' });
+      }
+      
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        
+        // First check if purchase order exists
+        const poResult = await client.query(`
+          SELECT id, status FROM purchase_orders WHERE id = $1
+        `, [purchaseOrderId]);
+        
+        if (poResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Purchase order not found' });
+        }
+        
+        // Delete the purchase order items first (due to foreign key constraint)
+        await client.query(`
+          DELETE FROM purchase_order_items WHERE purchase_order_id = $1
+        `, [purchaseOrderId]);
+        
+        // Delete the purchase order history 
+        await client.query(`
+          DELETE FROM purchase_order_history WHERE purchase_order_id = $1
+        `, [purchaseOrderId]);
+        
+        // Delete the purchase order
+        await client.query(`
+          DELETE FROM purchase_orders WHERE id = $1
+        `, [purchaseOrderId]);
+        
+        await client.query('COMMIT');
+        
+        res.status(200).json({ 
+          success: true, 
+          message: 'Purchase order deleted successfully' 
+        });
+      } catch (error) {
+        console.error('Error deleting purchase order:', error);
+        await client.query('ROLLBACK');
+        res.status(500).json({ 
+          error: 'Failed to delete purchase order',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error in delete purchase order route:', error);
+      res.status(500).json({ error: 'An unexpected error occurred' });
+    }
+  });
+  
+  // Update a purchase order
+  app.put('/api/procurement/purchase-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const purchaseOrderId = parseInt(req.params.id);
+      const { title, notes, vendor_id, status, priority, required_by_date } = req.body;
+      
+      if (isNaN(purchaseOrderId)) {
+        return res.status(400).json({ error: 'Invalid purchase order ID' });
+      }
+      
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        
+        // Check if purchase order exists
+        const poResult = await client.query(`
+          SELECT id FROM purchase_orders WHERE id = $1
+        `, [purchaseOrderId]);
+        
+        if (poResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Purchase order not found' });
+        }
+        
+        // Update the purchase order
+        await client.query(`
+          UPDATE purchase_orders
+          SET 
+            title = COALESCE($1, title),
+            notes = COALESCE($2, notes),
+            vendor_id = COALESCE($3, vendor_id),
+            status = COALESCE($4, status),
+            priority = COALESCE($5, priority),
+            required_by_date = COALESCE($6, required_by_date),
+            updated_at = NOW()
+          WHERE id = $7
+        `, [
+          title, 
+          notes,
+          vendor_id, 
+          status, 
+          priority,
+          required_by_date ? new Date(required_by_date) : null,
+          purchaseOrderId
+        ]);
+        
+        // Add a history entry for the update
+        await client.query(`
+          INSERT INTO purchase_order_history (
+            purchase_order_id, status, comments, changed_by, changed_at
+          ) VALUES (
+            $1, $2, $3, $4, NOW()
+          )
+        `, [
+          purchaseOrderId,
+          status || 'updated',
+          'Purchase order updated',
+          req.user!.id
+        ]);
+        
+        await client.query('COMMIT');
+        
+        // Fetch the updated purchase order
+        const updatedPoResult = await client.query(`
+          SELECT po.*, v.name as vendor_name
+          FROM purchase_orders po
+          LEFT JOIN vendors v ON po.vendor_id = v.id
+          WHERE po.id = $1
+        `, [purchaseOrderId]);
+        
+        res.status(200).json({
+          success: true,
+          message: 'Purchase order updated successfully',
+          purchaseOrder: updatedPoResult.rows[0]
+        });
+      } catch (error) {
+        console.error('Error updating purchase order:', error);
+        await client.query('ROLLBACK');
+        res.status(500).json({ 
+          error: 'Failed to update purchase order',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error in update purchase order route:', error);
+      res.status(500).json({ error: 'An unexpected error occurred' });
+    }
+  });
 }
