@@ -600,7 +600,7 @@ export function setupProcurementRoutes(app: Router) {
               item.master_item_id,
               item.description || 'Unknown Item',
               quantity.toString(),
-              item.uom || item.unit || 'EA',
+              item.unit || 'EA', /* Stored as unit in DB, used as uom in client */
               unitPrice.toString(),
               totalPrice.toString(),
               'pending',
@@ -798,7 +798,7 @@ export function setupProcurementRoutes(app: Router) {
         if (Array.isArray(items)) {
           // First fetch existing items to compare
           const existingItemsResult = await client.query(`
-            SELECT id, purchase_order_id, item_code, description, quantity, uom, drawing_no, status
+            SELECT id, purchase_order_id, item_code, description, quantity, unit as uom, drawing_no, status
             FROM purchase_order_items
             WHERE purchase_order_id = $1
           `, [purchaseOrderId]);
@@ -831,7 +831,7 @@ export function setupProcurementRoutes(app: Router) {
                 item.item_code || item.code || '',
                 item.description || item.name || '',
                 item.quantity || 1,
-                item.uom || item.unit || 'EA',
+                item.uom || item.unit || 'EA', /* Client sends as uom, DB stores as unit */
                 item.drawing_no || '',
                 item.status || 'pending',
                 item.id,
@@ -850,7 +850,7 @@ export function setupProcurementRoutes(app: Router) {
                 item.item_code || item.code || '',
                 item.description || item.name || '',
                 item.quantity || 1,
-                item.uom || item.unit || 'EA',
+                item.uom || item.unit || 'EA', /* Client sends as uom, DB stores as unit */
                 item.drawing_no || '',
                 item.status || 'pending'
               ]);
