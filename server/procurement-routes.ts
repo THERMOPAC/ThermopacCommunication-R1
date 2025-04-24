@@ -808,6 +808,12 @@ export function setupProcurementRoutes(app: Router) {
           
           // Process each item in the request
           for (const item of items) {
+            // Skip items with no item_code/description
+            if ((!item.item_code && !item.code) || (!item.description && !item.name)) {
+              console.log('Skipping empty item:', item);
+              continue;
+            }
+            
             if (item.id && existingItemIds.includes(item.id)) {
               // Update existing item
               await client.query(`
@@ -822,11 +828,11 @@ export function setupProcurementRoutes(app: Router) {
                   updated_at = NOW()
                 WHERE id = $7 AND purchase_order_id = $8
               `, [
-                item.item_code || item.code,
-                item.description || item.name,
-                item.quantity,
-                item.uom || item.unit,
-                item.drawing_no,
+                item.item_code || item.code || '',
+                item.description || item.name || '',
+                item.quantity || 1,
+                item.uom || item.unit || 'EA',
+                item.drawing_no || '',
                 item.status || 'pending',
                 item.id,
                 purchaseOrderId
@@ -841,11 +847,11 @@ export function setupProcurementRoutes(app: Router) {
                 )
               `, [
                 purchaseOrderId,
-                item.item_code || item.code,
-                item.description || item.name,
-                item.quantity,
-                item.uom || item.unit,
-                item.drawing_no,
+                item.item_code || item.code || '',
+                item.description || item.name || '',
+                item.quantity || 1,
+                item.uom || item.unit || 'EA',
+                item.drawing_no || '',
                 item.status || 'pending'
               ]);
             }
@@ -864,6 +870,12 @@ export function setupProcurementRoutes(app: Router) {
             `, [purchaseOrderId]);
           } else if (items.length === 0) {
             // If empty array was sent, delete all items
+            await client.query(`
+              DELETE FROM purchase_order_items 
+              WHERE purchase_order_id = $1
+            `, [purchaseOrderId]);
+          } else if (items.every(item => !item.id || (typeof item.id === 'string' && item.id.startsWith('temp_')))) {
+            // If all items are new (have temp IDs), delete existing items
             await client.query(`
               DELETE FROM purchase_order_items 
               WHERE purchase_order_id = $1

@@ -328,7 +328,26 @@ export default function ProcurementTrackingPage() {
   // Handle save edit 
   const handleSaveEdit = () => {
     if (editingPO) {
+      console.log("Submitting for update:", editingPO);
+      // Add basic validation
+      const items = editingPO.items || [];
+      if (Array.isArray(items)) {
+        const invalidItems = items.filter(item => 
+          !item.item_code && !item.description && !item.quantity
+        );
+        if (invalidItems.length > 0) {
+          console.warn("Found invalid items:", invalidItems);
+          toast({
+            title: "Invalid items",
+            description: "Please complete all item fields or remove empty items",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
       updatePOMutation.mutate(editingPO);
+    } else {
+      console.error("No PO selected for editing");
     }
   };
 
