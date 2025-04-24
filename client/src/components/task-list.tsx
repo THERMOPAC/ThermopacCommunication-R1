@@ -181,19 +181,14 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
           ...data,
           createdAt: new Date().toISOString()
         };
-        // Don't parse JSON in the mutationFn, just return the Response
-        const res = await apiRequest("POST", "/api/tasks", taskData, false, false);
-        if (!res.ok) {
-          throw new Error(`Server error: ${res.status} ${res.statusText}`);
-        }
-        // Return the response object, not the parsed JSON
-        return res;
+        // Use our enhanced apiRequest that handles empty responses better
+        return await apiRequest("POST", "/api/tasks", taskData);
       } catch (error) {
         console.error("Task creation error:", error);
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setOpen(false);
       form.reset();

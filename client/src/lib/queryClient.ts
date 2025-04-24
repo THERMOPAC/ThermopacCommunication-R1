@@ -39,7 +39,18 @@ export async function apiRequest<T = any>(
   }
   
   // Return parsed JSON data if requested, otherwise return Response object
-  return parseJson ? await res.json() : res;
+  if (parseJson) {
+    try {
+      // Some endpoints might return empty response
+      const text = await res.text();
+      return text ? JSON.parse(text) : null;
+    } catch (error) {
+      console.error('Error parsing response:', error);
+      return null;
+    }
+  } else {
+    return res;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -57,7 +68,15 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    
+    try {
+      // Some endpoints might return empty response
+      const text = await res.text();
+      return text ? JSON.parse(text) : null;
+    } catch (error) {
+      console.error('Error parsing response:', error);
+      return null;
+    }
   };
 
 export const queryClient = new QueryClient({
