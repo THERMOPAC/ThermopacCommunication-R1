@@ -600,7 +600,7 @@ export function setupProcurementRoutes(app: Router) {
               item.master_item_id,
               item.description || 'Unknown Item',
               quantity.toString(),
-              item.uom || item.unit || 'EA',
+              item.unit || 'EA',
               unitPrice.toString(),
               totalPrice.toString(),
               'pending',
