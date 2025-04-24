@@ -59,8 +59,10 @@ export default function ProcurementPlanningPage() {
   const [projectFilter, setProjectFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [date, setDate] = useState<Date | undefined>(new Date());
+  
+  // State for project purchase orders dialog
+  const [poGenerationDialogOpen, setPoGenerationDialogOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const { toast } = useToast();
 
@@ -193,7 +195,7 @@ export default function ProcurementPlanningPage() {
         title: "Success",
         description: `Successfully generated ${data.purchaseOrders?.length || 0} purchase orders.`,
       });
-      setShowPreview(false);
+      setPoGenerationDialogOpen(false);
       setSelectedProjectId(null);
       // Invalidate queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ["/api/procurement/purchase-orders"] });
@@ -211,8 +213,6 @@ export default function ProcurementPlanningPage() {
   const handleProjectSelect = (projectId: string) => {
     console.log("Project selected:", projectId);
     setSelectedProjectId(Number(projectId));
-    // No longer need this with the new Dialog component
-    // setShowPreview(true);
   };
 
   // Handle generate purchase orders
@@ -376,10 +376,24 @@ export default function ProcurementPlanningPage() {
               </DialogContent>
             </Dialog>
 
-            {/* Project-Based Purchase Order Generation - Simplified to use Dialog instead of AlertDialog */}
-            <Dialog>
+            {/* Project-Based Purchase Order Generation */}
+            <Dialog 
+              open={poGenerationDialogOpen} 
+              onOpenChange={(open) => {
+                setPoGenerationDialogOpen(open);
+                if (!open) {
+                  // Reset state when dialog is closed
+                  setSelectedProjectId(null);
+                  setPreviewData(null);
+                }
+              }}
+            >
               <DialogTrigger asChild>
-                <Button variant="outline" className="mt-2 sm:mt-0">
+                <Button 
+                  variant="outline" 
+                  className="mt-2 sm:mt-0"
+                  onClick={() => setPoGenerationDialogOpen(true)}
+                >
                   Create Purchase Orders for Project
                 </Button>
               </DialogTrigger>
@@ -399,7 +413,7 @@ export default function ProcurementPlanningPage() {
                           Select Project
                         </label>
                         <Select onValueChange={handleProjectSelect}>
-                          <SelectTrigger>
+                          <SelectTrigger id="project-select">
                             <SelectValue placeholder="Select a project" />
                           </SelectTrigger>
                           <SelectContent>
@@ -443,9 +457,9 @@ export default function ProcurementPlanningPage() {
                             previewData.items.map((item: any, index: number) => (
                               <TableRow key={index}>
                                 <TableCell>{item.itemCode}</TableCell>
-                                <TableCell>{item.description}</TableCell>
+                                <TableCell>{item.description || 'No description'}</TableCell>
                                 <TableCell>{item.quantity}</TableCell>
-                                <TableCell>{item.unit}</TableCell>
+                                <TableCell>{item.unit || '-'}</TableCell>
                               </TableRow>
                             ))
                           ) : (
@@ -462,10 +476,14 @@ export default function ProcurementPlanningPage() {
                 ) : null}
                 
                 <DialogFooter className="gap-2">
-                  <Button variant="outline" onClick={() => {
-                    // Reset state when dialog is closed
-                    setSelectedProjectId(null);
-                  }}>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setPoGenerationDialogOpen(false);
+                      setSelectedProjectId(null);
+                      setPreviewData(null);
+                    }}
+                  >
                     Cancel
                   </Button>
                   {selectedProjectId && previewData && (
