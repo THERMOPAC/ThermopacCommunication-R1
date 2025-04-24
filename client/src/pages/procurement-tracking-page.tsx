@@ -59,11 +59,17 @@ export default function ProcurementTrackingPage() {
     queryKey: ["/api/projects"],
   });
 
-  // Fetch purchase orders from the API once endpoint is available
+  // Fetch purchase orders from the API 
   const { data: purchaseOrders, isLoading, error } = useQuery({
     queryKey: ["/api/procurement/purchase-orders"],
-    // Will be enabled when the tracking endpoint is fully implemented
-    enabled: false, 
+    // Enable fetching real data from the API
+    enabled: true,
+    onSuccess: (data) => {
+      console.log("Fetched purchase orders for tracking:", data);
+    },
+    onError: (err) => {
+      console.error("Error fetching purchase orders for tracking:", err);
+    }
   });
 
   // Placeholder for purchase order data from the API
