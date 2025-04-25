@@ -11,3 +11,9 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+@layer components {
+  .form-field-blue {
+    @apply text-blue-600 font-medium;
+  }
+}
