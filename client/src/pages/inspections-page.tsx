@@ -112,6 +112,17 @@ export default function InspectionsPage() {
     data: workOrders 
   } = useQuery({
     queryKey: ['/api/production/work-orders/project', selectedProject],
+    queryFn: async ({ queryKey }) => {
+      const [_, projectId] = queryKey;
+      if (!projectId) throw new Error("Project ID is required");
+      
+      const response = await fetch(`/api/production/work-orders/project/${projectId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch work orders");
+      }
+      return response.json();
+    },
     enabled: !!selectedProject,
   });
   
@@ -122,6 +133,17 @@ export default function InspectionsPage() {
     refetch: refetchInspectionOrders
   } = useQuery<any[]>({
     queryKey: ['/api/quality/inspection-orders/project', selectedProject],
+    queryFn: async ({ queryKey }) => {
+      const [_, projectId] = queryKey;
+      if (!projectId) throw new Error("Project ID is required");
+      
+      const response = await fetch(`/api/quality/inspection-orders/project/${projectId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch inspection orders");
+      }
+      return response.json();
+    },
     enabled: !!selectedProject,
   });
   
