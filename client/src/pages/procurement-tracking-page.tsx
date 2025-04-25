@@ -475,7 +475,7 @@ export default function ProcurementTrackingPage() {
                       <TableBody>
                         {filteredPurchaseOrders.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">
+                            <TableCell colSpan={5} className="h-24 text-center">
                               No purchase orders found.
                             </TableCell>
                           </TableRow>
@@ -710,7 +710,7 @@ export default function ProcurementTrackingPage() {
                           )
                           .length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
+                            <TableCell colSpan={5} className="h-24 text-center">
                               No {tab} purchase orders found.
                             </TableCell>
                           </TableRow>
