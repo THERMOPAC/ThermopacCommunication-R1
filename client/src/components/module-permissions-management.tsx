@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, getQueryFn } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,47 +45,37 @@ const ModulePermissionsManagement: React.FC = () => {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   
   // Fetch all modules
-  const { data: modules, isLoading: isLoadingModules } = useQuery({
+  const { data: modules, isLoading: isLoadingModules } = useQuery<string[], Error>({
     queryKey: ['/api/modules'],
-    queryFn: async () => {
-      // apiRequest automatically parses JSON when parseJson=true (default)
-      return await apiRequest('GET', '/api/modules');
-    }
+    queryFn: getQueryFn()
   });
   
   // Fetch all users
-  const { data: users, isLoading: isLoadingUsers } = useQuery({
+  const { data: users, isLoading: isLoadingUsers } = useQuery<User[], Error>({
     queryKey: ['/api/users'],
-    queryFn: async () => {
-      // apiRequest automatically parses JSON when parseJson=true (default)
-      return await apiRequest('GET', '/api/users');
-    }
+    queryFn: getQueryFn()
   });
   
   // Fetch role-based module permissions
-  const { data: rolePermissions, isLoading: isLoadingRolePermissions } = useQuery({
+  const { data: rolePermissions, isLoading: isLoadingRolePermissions } = useQuery<Record<string, Record<string, ModulePermission>>, Error>({
     queryKey: ['/api/role-module-permissions'],
-    queryFn: async () => {
-      // apiRequest automatically parses JSON when parseJson=true (default)
-      return await apiRequest('GET', '/api/role-module-permissions');
-    },
+    queryFn: getQueryFn(),
     enabled: selectedTab === 'roles',
   });
   
   // Fetch user-specific module permissions
-  const { data: userPermissions, isLoading: isLoadingUserPermissions } = useQuery({
+  const { data: userPermissions, isLoading: isLoadingUserPermissions } = useQuery<Record<string, ModulePermission>, Error>({
     queryKey: ['/api/users', selectedUser, 'module-permissions'],
     queryFn: async () => {
-      // apiRequest automatically parses JSON when parseJson=true (default)
-      return await apiRequest('GET', `/api/users/${selectedUser}/module-permissions`);
+      return await getQueryFn()({ queryKey: [`/api/users/${selectedUser}/module-permissions`] });
     },
     enabled: !!selectedUser && selectedTab === 'users',
   });
   
   // Set custom permissions for a user
-  const updatePermissionMutation = useMutation({
+  const updatePermissionMutation = useMutation<any, Error, { userId: number, moduleName: string, permissions: Partial<ModulePermission> }>({
     mutationFn: async ({ userId, moduleName, permissions }: { userId: number, moduleName: string, permissions: Partial<ModulePermission> }) => {
-      // apiRequest automatically parses JSON when parseJson=true (default)
+      // apiRequest automatically handles response properly
       return await apiRequest('POST', `/api/users/${userId}/module-permissions/${moduleName}`, permissions);
     },
     onSuccess: () => {
@@ -105,9 +95,9 @@ const ModulePermissionsManagement: React.FC = () => {
   });
   
   // Reset permissions for a user
-  const resetPermissionMutation = useMutation({
+  const resetPermissionMutation = useMutation<any, Error, { userId: number, moduleName: string }>({
     mutationFn: async ({ userId, moduleName }: { userId: number, moduleName: string }) => {
-      // apiRequest automatically parses JSON when parseJson=true (default)
+      // apiRequest automatically handles response properly
       return await apiRequest('DELETE', `/api/users/${userId}/module-permissions/${moduleName}`);
     },
     onSuccess: () => {
