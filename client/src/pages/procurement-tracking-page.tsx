@@ -471,7 +471,7 @@ export default function ProcurementTrackingPage() {
                           <TableHead>Status</TableHead>
                           <TableHead>Est. Delivery</TableHead>
                           <TableHead>Progress</TableHead>
-                          <TableHead className="w-[70px]">Actions</TableHead>
+                          <TableHead className="max-w-[50px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -703,7 +703,7 @@ export default function ProcurementTrackingPage() {
                           <TableHead>Vendor</TableHead>
                           <TableHead>Est. Delivery</TableHead>
                           <TableHead>Progress</TableHead>
-                          <TableHead className="w-[70px]">Actions</TableHead>
+                          <TableHead className="max-w-[50px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
