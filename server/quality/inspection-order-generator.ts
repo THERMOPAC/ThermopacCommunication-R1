@@ -411,7 +411,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
-          quantity: item.quantity,
+          quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
           makeOrBuy: 'Make',
           sequenceNumber: index + 1
@@ -453,7 +453,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
-          quantity: item.quantity,
+          quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
           makeOrBuy: 'Buy',
           sequenceNumber: index + 1
@@ -496,7 +496,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
           description: `${masterItem?.description || 'No description'} (for ${parentMasterItem?.itemCode || 'Unknown'})`,
-          quantity: item.quantity,
+          quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
           makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
           sequenceNumber: index + 1
