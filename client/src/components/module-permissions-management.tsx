@@ -285,6 +285,17 @@ const ModulePermissionsManagement: React.FC = () => {
               
               {selectedUser && (
                 <div className="space-y-6">
+                  {/* Show special info for Superuser */}
+                  {users?.find(u => u.id === selectedUser)?.role === 'Superuser' && (
+                    <Alert className="bg-green-50 border-green-200">
+                      <AlertCircle className="h-4 w-4 text-green-600" />
+                      <AlertTitle className="text-green-800">Superuser Permissions</AlertTitle>
+                      <AlertDescription className="text-green-700">
+                        Superusers automatically have full access to all modules. Their permissions cannot be modified.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
                   {isLoadingUserPermissions ? (
                     <div className="flex justify-center my-8">
                       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -293,21 +304,41 @@ const ModulePermissionsManagement: React.FC = () => {
                     modules
                       ?.filter((module: string) => !selectedModule || selectedModule === "all_modules" || module === selectedModule)
                       .map((module: string) => {
-                        // Get existing permission or create a default one
-                        const permission = userPermissions?.[module] || {
-                          canView: false,
-                          canCreate: false,
-                          canEdit: false,
-                          canDelete: false,
-                          isCustom: false
-                        };
+                        // Handle Superuser special case - Superusers have full access to all modules
+                        let permission;
+                        const selectedUserData = users?.find(u => u.id === selectedUser);
+                        const isSuperUser = selectedUserData?.role === 'Superuser';
+                        
+                        if (isSuperUser) {
+                          // For Superusers, display all permissions as enabled by default
+                          permission = {
+                            canView: true, 
+                            canCreate: true,
+                            canEdit: true,
+                            canDelete: true,
+                            isCustom: false
+                          };
+                        } else {
+                          // For other users, get existing permission or create a default one
+                          permission = userPermissions?.[module] || {
+                            canView: false,
+                            canCreate: false, 
+                            canEdit: false,
+                            canDelete: false,
+                            isCustom: false
+                          };
+                        }
                         
                         return (
                           <Card key={module} className="overflow-hidden">
                             <CardHeader className="bg-muted/50 py-3">
                               <div className="flex justify-between items-center">
                                 <CardTitle className="text-lg">{module}</CardTitle>
-                                {permission.isCustom ? (
+                                {isSuperUser ? (
+                                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+                                    Superuser
+                                  </Badge>
+                                ) : permission.isCustom ? (
                                   <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
                                     Custom
                                   </Badge>
@@ -327,7 +358,7 @@ const ModulePermissionsManagement: React.FC = () => {
                                     onCheckedChange={(checked) => 
                                       handlePermissionChange(module, 'canView', !!checked)
                                     }
-                                    disabled={updatePermissionMutation.isPending}
+                                    disabled={updatePermissionMutation.isPending || isSuperUser}
                                   />
                                   <Label htmlFor={`${module}-view`}>View</Label>
                                 </div>
@@ -338,7 +369,7 @@ const ModulePermissionsManagement: React.FC = () => {
                                     onCheckedChange={(checked) => 
                                       handlePermissionChange(module, 'canCreate', !!checked)
                                     }
-                                    disabled={updatePermissionMutation.isPending}
+                                    disabled={updatePermissionMutation.isPending || isSuperUser}
                                   />
                                   <Label htmlFor={`${module}-create`}>Create</Label>
                                 </div>
@@ -349,7 +380,7 @@ const ModulePermissionsManagement: React.FC = () => {
                                     onCheckedChange={(checked) => 
                                       handlePermissionChange(module, 'canEdit', !!checked)
                                     }
-                                    disabled={updatePermissionMutation.isPending}
+                                    disabled={updatePermissionMutation.isPending || isSuperUser}
                                   />
                                   <Label htmlFor={`${module}-edit`}>Edit</Label>
                                 </div>
@@ -360,7 +391,7 @@ const ModulePermissionsManagement: React.FC = () => {
                                     onCheckedChange={(checked) => 
                                       handlePermissionChange(module, 'canDelete', !!checked)
                                     }
-                                    disabled={updatePermissionMutation.isPending}
+                                    disabled={updatePermissionMutation.isPending || isSuperUser}
                                   />
                                   <Label htmlFor={`${module}-delete`}>Delete</Label>
                                 </div>
@@ -372,7 +403,7 @@ const ModulePermissionsManagement: React.FC = () => {
                                   variant="outline" 
                                   size="sm"
                                   onClick={() => handlePermissionReset(module)}
-                                  disabled={resetPermissionMutation.isPending || !permission.isCustom}
+                                  disabled={resetPermissionMutation.isPending || !permission.isCustom || isSuperUser}
                                   className="text-xs"
                                 >
                                   <RefreshCw className="h-3 w-3 mr-1" />
