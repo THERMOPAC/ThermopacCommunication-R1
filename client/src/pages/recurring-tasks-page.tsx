@@ -22,13 +22,21 @@ export default function RecurringTasksPage() {
   // Process recurring patterns mutation
   const processPatternsMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/process-recurring-patterns");
-      return res.json();
+      try {
+        // The apiRequest function already handles JSON parsing
+        const response = await apiRequest("POST", "/api/process-recurring-patterns");
+        console.log("Process response:", response);
+        return response || {};
+      } catch (error) {
+        console.error("Error in processPatternsMutation:", error);
+        throw error;
+      }
     },
     onSuccess: (data) => {
+      const tasksGenerated = data?.tasksGenerated || 0;
       toast({
         title: "Success",
-        description: `Recurring patterns processed successfully. ${data.tasksGenerated} tasks were generated.`,
+        description: `Recurring patterns processed successfully. ${tasksGenerated} tasks were generated.`,
         variant: "default",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/recurring-tasks"] });

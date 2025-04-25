@@ -810,18 +810,20 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                   description: "Generating tasks from active patterns",
                 });
                 
+                console.log("Processing recurring patterns...");
                 const response = await apiRequest("POST", "/api/process-recurring-patterns", {});
+                console.log("Process response:", response);
                 
-                if (!response.ok) {
-                  throw new Error("Failed to process recurring patterns");
+                // Since our apiRequest already handles response parsing, we can use it directly
+                // Only try to parse JSON if there's actual content to parse
+                let tasksGenerated = 0;
+                if (response && typeof response === 'object' && 'tasksGenerated' in response) {
+                  tasksGenerated = response.tasksGenerated || 0;
                 }
-                
-                const result = await response.json();
-                console.log("Process result:", result);
                 
                 toast({
                   title: "Patterns processed successfully",
-                  description: `${result.tasksGenerated || 0} new tasks were generated.`,
+                  description: `${tasksGenerated} new tasks were generated.`,
                 });
                 
                 // Refresh the patterns and tasks lists
