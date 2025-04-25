@@ -88,6 +88,9 @@ export default function InspectionsPage() {
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [isGeneratingOrders, setIsGeneratingOrders] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
   
   // Fetch projects for dropdown
   const { data: projects, isLoading: isLoadingProjects } = useQuery({
@@ -111,6 +114,44 @@ export default function InspectionsPage() {
     queryKey: ['/api/production/work-orders/project', selectedProject],
     enabled: !!selectedProject,
   });
+  
+  // Fetch inspection orders for the selected project
+  const {
+    data: inspectionOrders = [],
+    isLoading: isLoadingInspectionOrders,
+    refetch: refetchInspectionOrders
+  } = useQuery<any[]>({
+    queryKey: ['/api/quality/inspection-orders/project', selectedProject],
+    enabled: !!selectedProject,
+  });
+  
+  // Query for inspection order preview data
+  const { 
+    data: previewApiData, 
+    isLoading: isLoadingPreview,
+    refetch: refetchPreview
+  } = useQuery<any>({
+    queryKey: ['/api/quality/inspection-orders/preview', selectedProject],
+    queryFn: async ({ queryKey }) => {
+      const [_, projectId] = queryKey;
+      if (!projectId) throw new Error("Project ID is required");
+      
+      const response = await fetch(`/api/quality/inspection-orders/preview/${projectId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch preview data");
+      }
+      return response.json();
+    },
+    enabled: false, // We'll trigger this manually
+  });
+  
+  // Reset dialog and generation states
+  const resetInspectionOrderGenerationState = () => {
+    setIsConfirmDialogOpen(false);
+    setIsGeneratingOrders(false);
+    setPreviewData(null);
+  };
 
   // Form for creating new inspection report
   const form = useForm<InspectionReportFormValues>({
@@ -123,6 +164,96 @@ export default function InspectionsPage() {
     },
   });
 
+  // Get preview data before generating inspection orders
+  const handleGenerateInspectionOrdersClick = async () => {
+    if (!selectedProject) return;
+    
+    try {
+      const { data } = await refetchPreview();
+      setPreviewData(data);
+      setIsConfirmDialogOpen(true);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Could not retrieve inspection order preview data",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Generate inspection orders for the selected project
+  const generateInspectionOrders = async (projectId: number) => {
+    if (!projectId || isNaN(projectId)) {
+      toast({
+        title: "Error",
+        description: "Invalid project ID",
+        variant: "destructive"
+      });
+      resetInspectionOrderGenerationState();
+      return;
+    }
+
+    try {
+      setIsGeneratingOrders(true);
+      console.log("Generating inspection orders for project ID:", projectId);
+      
+      const response = await fetch(
+        `/api/quality/inspection-orders/generate-for-project/${projectId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            confirm: true
+          }),
+        }
+      );
+      
+      // Handle empty responses or 204 No Content
+      let responseData;
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        responseData = { message: "Inspection orders processed successfully" };
+      } else {
+        responseData = await response.json();
+      }
+      
+      if (!response.ok) {
+        // Handle specific error types
+        if (response.status === 409) {
+          throw new Error(responseData.details || responseData.error || "Inspection order conflict - try cleaning up existing orders first");
+        } else {
+          throw new Error(responseData.details || responseData.error || "Failed to generate inspection orders");
+        }
+      }
+      
+      // Success message with detailed information
+      let description = responseData.message || `Successfully created ${responseData.count || 'multiple'} inspection orders for the project`;
+      
+      if (responseData.buyItemsCount > 0 || responseData.componentItemsCount > 0) {
+        description = `Successfully created ${responseData.count} inspection orders (${responseData.buyItemsCount} buy item(s), ${responseData.componentItemsCount} component item(s))`;
+      }
+      
+      toast({
+        title: "Inspection Orders Generated",
+        description: description,
+      });
+      
+      // Refresh the inspection orders list and reset states
+      await refetchInspectionOrders();
+      resetInspectionOrderGenerationState();
+      
+    } catch (error: any) {
+      console.error("Error generating inspection orders:", error);
+      toast({
+        title: "Error Generating Inspection Orders",
+        description: error.message || "There was an error generating inspection orders for this project. Please try again.",
+        variant: "destructive",
+      });
+      resetInspectionOrderGenerationState();
+    }
+  };
+  
   const onSubmit = async (data: InspectionReportFormValues) => {
     try {
       // This would call the API
@@ -153,11 +284,17 @@ export default function InspectionsPage() {
       case "pending":
         return <Badge variant="outline" className="flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Pending</Badge>;
       case "passed":
-        return <Badge variant="success" className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Passed</Badge>;
+        return <Badge className="flex items-center gap-1 bg-green-600 hover:bg-green-700"><CheckCircle2 className="h-3 w-3" /> Passed</Badge>;
       case "failed":
         return <Badge variant="destructive" className="flex items-center gap-1"><XCircle className="h-3 w-3" /> Failed</Badge>;
       case "conditionally_passed":
-        return <Badge variant="warning" className="flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Conditional</Badge>;
+        return <Badge className="flex items-center gap-1 bg-yellow-500 hover:bg-yellow-600"><AlertCircle className="h-3 w-3" /> Conditional</Badge>;
+      case "in_progress":
+        return <Badge className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600"><Hourglass className="h-3 w-3" /> In Progress</Badge>;
+      case "completed":
+        return <Badge className="flex items-center gap-1 bg-green-600 hover:bg-green-700"><CheckCircle2 className="h-3 w-3" /> Completed</Badge>;
+      case "cancelled":
+        return <Badge variant="destructive" className="flex items-center gap-1"><XCircle className="h-3 w-3" /> Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -179,6 +316,113 @@ export default function InspectionsPage() {
             <Plus className="mr-2 h-4 w-4" /> Create Inspection Report
           </Button>
         </div>
+        
+        {/* Inspection Orders Preview Dialog */}
+        <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+          <DialogContent className="max-w-5xl">
+            <DialogHeader>
+              <DialogTitle>Inspection Orders Preview</DialogTitle>
+              <DialogDescription>
+                Review the inspection orders that will be generated for the project.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {isLoadingPreview ? (
+              <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              </div>
+            ) : previewData && previewData.items && previewData.items.length > 0 ? (
+              <>
+                <Alert className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Important</AlertTitle>
+                  <AlertDescription>
+                    This will generate {previewData.items.length} inspection orders for project {previewData.projectCode}.
+                    Please review the items below before confirming.
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="overflow-y-auto max-h-[400px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Seq #</TableHead>
+                        <TableHead>Item Code</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Make/Buy</TableHead>
+                        <TableHead>Item Type</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {previewData.items.map((item: any, index: number) => (
+                        <TableRow key={index}>
+                          <TableCell>{item.sequenceNumber}</TableCell>
+                          <TableCell className="font-medium">{item.itemCode}</TableCell>
+                          <TableCell>{item.description}</TableCell>
+                          <TableCell>{item.quantity} {item.unit}</TableCell>
+                          <TableCell>{item.makeOrBuy}</TableCell>
+                          <TableCell>
+                            {item.itemType === 'Parent' ? (
+                              <Badge className="bg-blue-500">Parent</Badge>
+                            ) : (
+                              <Badge className="bg-purple-500">Child</Badge>
+                            )}
+                            {item.isVirtual && (
+                              <Badge variant="outline" className="ml-1">Virtual</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                <DialogFooter className="mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      resetInspectionOrderGenerationState();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (selectedProject) {
+                        generateInspectionOrders(selectedProject);
+                      }
+                    }}
+                    disabled={isGeneratingOrders}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700"
+                  >
+                    {isGeneratingOrders ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      "Confirm & Generate"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </>
+            ) : (
+              <div className="py-8 text-center">
+                <p className="text-muted-foreground">No items available for inspection order generation.</p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    resetInspectionOrderGenerationState();
+                  }}
+                  className="mt-4"
+                >
+                  Close
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         <Card>
           <CardHeader>
@@ -332,6 +576,92 @@ export default function InspectionsPage() {
                     </div>
                   </CardContent>
                 </Card>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Inspection Orders</CardTitle>
+              <CardDescription>
+                Manage and track inspection orders for quality checks during production.
+              </CardDescription>
+            </div>
+            {selectedProject && (
+              <Button
+                onClick={handleGenerateInspectionOrdersClick}
+                disabled={isGeneratingOrders || isLoadingPreview}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700"
+              >
+                {isGeneratingOrders || isLoadingPreview ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {isLoadingPreview ? "Loading Preview..." : "Generating..."}
+                  </>
+                ) : (
+                  <>
+                    <FileText className="mr-2 h-4 w-4" /> Generate Inspection Orders
+                  </>
+                )}
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {!selectedProject ? (
+              <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <FileText className="h-16 w-16 text-gray-400 mb-2" />
+                <h3 className="text-lg font-medium">No Project Selected</h3>
+                <p className="text-muted-foreground mt-2">
+                  Please select a project to view or create inspection orders.
+                </p>
+              </div>
+            ) : isLoadingInspectionOrders ? (
+              <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              </div>
+            ) : inspectionOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <FileText className="h-16 w-16 text-gray-400 mb-2" />
+                <h3 className="text-lg font-medium">No Inspection Orders Found</h3>
+                <p className="text-muted-foreground mt-2">
+                  There are no inspection orders for this project yet. Generate inspection orders using the button above.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableCaption>Inspection orders for the selected project.</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order #</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date Created</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {inspectionOrders.map((order: any) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-medium">{order.inspectionOrderNumber}</TableCell>
+                        <TableCell>{order.title}</TableCell>
+                        <TableCell>{order.inspectionType}</TableCell>
+                        <TableCell>{getStatusBadge(order.status)}</TableCell>
+                        <TableCell>{format(new Date(order.createdAt), 'dd MMM yyyy')}</TableCell>
+                        <TableCell>{order.quantity} {order.unit}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm">View Details</Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
