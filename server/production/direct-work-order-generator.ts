@@ -862,7 +862,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         priority: 'Medium',
         plannedStartDate: today,
         plannedEndDate: endDate,
-        quantity: validQuantity.toString(), // Convert to string for database compatibility
+        quantity: validQuantity, // Keep as number for decimal compatibility
         supervisorId: req.user!.id,
         createdBy: req.user!.id,
         createdAt: today,
@@ -884,7 +884,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       const workOrderItem = {
         tempWorkOrderIndex: workOrdersToCreate.length - 1,
         projectItemId: parentItem.id,
-        quantity: validQuantity.toString(), // Convert to string for database compatibility
+        quantity: validQuantity, // Keep as number for decimal compatibility
         unit,
         status: 'pending',
         sequenceNumber: 1,
@@ -1190,7 +1190,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         priority: 'Medium',
         plannedStartDate: today,
         plannedEndDate: endDate,
-        quantity: validQuantity.toString(), // Convert to string for database compatibility
+        quantity: validQuantity, // Keep as number for decimal compatibility
         supervisorId: req.user!.id,
         createdBy: req.user!.id,
         createdAt: today,
@@ -1222,7 +1222,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       const componentWorkOrderItem = {
         tempWorkOrderIndex: workOrdersToCreate.length - 1,
         projectItemId: projectItemId,
-        quantity: validQuantity.toString(), // Convert to string for database compatibility
+        quantity: validQuantity, // Keep as number for decimal compatibility
         unit,
         status: 'pending',
         sequenceNumber: 1,
@@ -1296,14 +1296,9 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       });
     }
     
-    // Convert quantity to number to match schema
-    const workOrdersToCreateFixed = workOrdersToCreate.map(wo => ({
-      ...wo,
-      quantity: Number(wo.quantity) // Convert string to number for database
-    }));
-    
+    // Quantities are already kept as numbers throughout the process
     const createdWorkOrders = await db.insert(workOrders)
-      .values(workOrdersToCreateFixed)
+      .values(workOrdersToCreate)
       .returning();
     
     // Step 15: Update work order IDs in items
