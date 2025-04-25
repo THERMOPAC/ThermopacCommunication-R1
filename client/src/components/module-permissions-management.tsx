@@ -76,20 +76,32 @@ const ModulePermissionsManagement: React.FC = () => {
   // Set custom permissions for a user
   const updatePermissionMutation = useMutation<any, Error, { userId: number, moduleName: string, permissions: Partial<ModulePermission> }>({
     mutationFn: async ({ userId, moduleName, permissions }: { userId: number, moduleName: string, permissions: Partial<ModulePermission> }) => {
-      // apiRequest automatically handles response properly
-      return await apiRequest('POST', `/api/users/${userId}/module-permissions/${moduleName}`, permissions);
+      // Create a proper permissions object to send to the API
+      // Include isCustom field to ensure server knows this is a custom permission
+      const permissionsToSend = {
+        ...permissions,
+        isCustom: true
+      };
+      
+      // Using apiRequest to handle the response
+      return await apiRequest('POST', `/api/users/${userId}/module-permissions/${moduleName}`, permissionsToSend);
     },
     onSuccess: () => {
+      // Force reload permissions after update
       queryClient.invalidateQueries({ queryKey: ['/api/users', selectedUser, 'module-permissions'] });
-      toast({
-        title: "Permissions updated",
-        description: "The user's permissions have been successfully updated.",
-      });
+      
+      // Add a small delay before showing success message to let the UI update
+      setTimeout(() => {
+        toast({
+          title: "Permissions updated",
+          description: "The user's permissions have been successfully updated.",
+        });
+      }, 300);
     },
     onError: (error: Error) => {
       toast({
         title: "Error updating permissions",
-        description: error.message,
+        description: error.message || "Failed to update permissions. Please try again.",
         variant: "destructive",
       });
     }
@@ -121,12 +133,27 @@ const ModulePermissionsManagement: React.FC = () => {
   const handlePermissionChange = (moduleName: string, permissionType: keyof ModulePermission, value: boolean) => {
     if (!selectedUser) return;
     
+    // Get current permissions for this module or use default empty permission object
+    const currentPermissions = userPermissions?.[moduleName] || {
+      canView: false,
+      canCreate: false,
+      canEdit: false,
+      canDelete: false,
+      isCustom: false
+    };
+    
+    // Create new permissions object with all current values plus the changed one
+    const updatedPermissions = {
+      ...currentPermissions,
+      [permissionType]: value,
+      isCustom: true // Make sure to mark as custom
+    };
+    
+    // Send the complete permissions object
     updatePermissionMutation.mutate({
       userId: selectedUser,
       moduleName,
-      permissions: {
-        [permissionType]: value
-      }
+      permissions: updatedPermissions
     });
   };
   
