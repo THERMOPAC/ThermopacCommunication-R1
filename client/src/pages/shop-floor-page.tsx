@@ -635,7 +635,7 @@ export default function ShopFloorPage() {
                               className="flex items-center" 
                               onClick={() => {
                                 // Navigate to work order edit page
-                                window.location.href = `/production/work-orders/${workOrder.id}`;
+                                window.location.href = `/production/work-orders/details/${workOrder.id}`;
                               }}
                             >
                               Edit Work Order <ChevronRight className="h-4 w-4 ml-1" />
@@ -749,7 +749,7 @@ export default function ShopFloorPage() {
                           size="sm"
                           className="h-7 px-2"
                           onClick={() => {
-                            window.location.href = `/production/work-orders/${wo.id}`;
+                            window.location.href = `/production/work-orders/details/${wo.id}`;
                           }}
                         >
                           Edit
