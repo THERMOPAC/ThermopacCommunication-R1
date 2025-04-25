@@ -117,9 +117,7 @@ export default function DispatchShippingPage() {
   const { data: projects, isLoading: isLoadingProjects } = useQuery({
     queryKey: ['/api/projects'],
     queryFn: async () => {
-      const response = await fetch('/api/projects');
-      const data = await response.json();
-      return data;
+      return await apiRequest('GET', '/api/projects');
     }
   });
   
@@ -127,9 +125,7 @@ export default function DispatchShippingPage() {
   const { data: transporters, isLoading: isLoadingTransporters } = useQuery({
     queryKey: ['/api/transporters'],
     queryFn: async () => {
-      const response = await fetch('/api/transporters');
-      const data = await response.json();
-      return data;
+      return await apiRequest('GET', '/api/transporters');
     }
   });
   
@@ -141,9 +137,7 @@ export default function DispatchShippingPage() {
   } = useQuery({
     queryKey: ['/api/dispatch'],
     queryFn: async () => {
-      const response = await fetch('/api/dispatch');
-      const data = await response.json();
-      return data;
+      return await apiRequest('GET', '/api/dispatch');
     }
   });
   
@@ -175,7 +169,8 @@ export default function DispatchShippingPage() {
   // Mutation for creating new dispatch
   const createDispatchMutation = useMutation({
     mutationFn: async (values: z.infer<typeof dispatchFormSchema>) => {
-      const res = await apiRequest("POST", "/api/dispatch", {
+      // apiRequest already handles response.json() internally
+      return await apiRequest("POST", "/api/dispatch", {
         project_id: parseInt(values.projectId),
         dispatch_date: values.dispatch_date,
         expected_delivery_date: values.expected_delivery_date || null,
@@ -184,7 +179,6 @@ export default function DispatchShippingPage() {
         delivery_status: values.delivery_status,
         notes: values.notes || null,
       });
-      return await res.json();
     },
     onSuccess: () => {
       toast({
@@ -213,9 +207,7 @@ export default function DispatchShippingPage() {
     queryKey: ['/api/dispatch/project-items', selectedDispatch?.project_id],
     queryFn: async () => {
       if (!selectedDispatch?.project_id) return [];
-      const response = await fetch(`/api/project-items/${selectedDispatch.project_id}`);
-      const data = await response.json();
-      return data;
+      return await apiRequest('GET', `/api/project-items/${selectedDispatch.project_id}`);
     },
     enabled: !!selectedDispatch?.project_id,
   });
@@ -229,9 +221,7 @@ export default function DispatchShippingPage() {
     queryKey: ['/api/dispatch', selectedDispatch?.id, 'items'],
     queryFn: async () => {
       if (!selectedDispatch?.id) return [];
-      const response = await fetch(`/api/dispatch/${selectedDispatch.id}/items`);
-      const data = await response.json();
-      return data;
+      return await apiRequest('GET', `/api/dispatch/${selectedDispatch.id}/items`);
     },
     enabled: !!selectedDispatch?.id,
   });
@@ -245,9 +235,7 @@ export default function DispatchShippingPage() {
     queryKey: ['/api/dispatch', selectedDispatch?.id, 'documents'],
     queryFn: async () => {
       if (!selectedDispatch?.id) return [];
-      const response = await fetch(`/api/dispatch/${selectedDispatch.id}/documents`);
-      const data = await response.json();
-      return data;
+      return await apiRequest('GET', `/api/dispatch/${selectedDispatch.id}/documents`);
     },
     enabled: !!selectedDispatch?.id,
   });
@@ -257,13 +245,13 @@ export default function DispatchShippingPage() {
     mutationFn: async (values: z.infer<typeof dispatchItemFormSchema>) => {
       if (!selectedDispatch) throw new Error("No dispatch selected");
       
-      const res = await apiRequest("POST", `/api/dispatch/${selectedDispatch.id}/items`, {
+      // apiRequest already handles response.json() internally
+      return await apiRequest("POST", `/api/dispatch/${selectedDispatch.id}/items`, {
         item_id: parseInt(values.item_id),
         quantity: values.quantity,
         uom: values.uom,
         remarks: values.remarks || null,
       });
-      return await res.json();
     },
     onSuccess: () => {
       toast({
@@ -305,11 +293,12 @@ export default function DispatchShippingPage() {
     },
   });
   
-  // Mutation for uploading document
+  // Mutation for uploading document - not using apiRequest because we need to send FormData
   const uploadDocumentMutation = useMutation({
     mutationFn: async (formData: FormData) => {
       if (!selectedDispatch) throw new Error("No dispatch selected");
       
+      // We need to use fetch directly because FormData requires different Content-Type handling
       const res = await fetch(`/api/dispatch/${selectedDispatch.id}/documents`, {
         method: "POST",
         body: formData,
@@ -318,6 +307,11 @@ export default function DispatchShippingPage() {
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to upload document");
+      }
+      
+      // Check if response has content before parsing
+      if (res.headers.get('content-length') === '0') {
+        return null;
       }
       
       return await res.json();
@@ -342,8 +336,8 @@ export default function DispatchShippingPage() {
   // Mutation for deleting document
   const deleteDocumentMutation = useMutation({
     mutationFn: async (documentId: number) => {
-      const res = await apiRequest("DELETE", `/api/dispatch/documents/${documentId}`);
-      return res;
+      // DELETE requests with 204 status don't need json parsing
+      return await apiRequest("DELETE", `/api/dispatch/documents/${documentId}`);
     },
     onSuccess: () => {
       toast({
@@ -364,10 +358,10 @@ export default function DispatchShippingPage() {
   // Mutation for updating dispatch status
   const updateDispatchStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      const res = await apiRequest("PUT", `/api/dispatch/${id}`, {
+      // apiRequest already handles response.json() internally
+      return await apiRequest("PUT", `/api/dispatch/${id}`, {
         delivery_status: status,
       });
-      return await res.json();
     },
     onSuccess: () => {
       toast({
@@ -395,8 +389,7 @@ export default function DispatchShippingPage() {
   // Function to download document
   const downloadDocument = async (documentId: number) => {
     try {
-      const response = await fetch(`/api/dispatch/documents/${documentId}/download`);
-      const data = await response.json();
+      const data = await apiRequest('GET', `/api/dispatch/documents/${documentId}/download`);
       
       if (data.url) {
         window.open(data.url, '_blank');
@@ -408,9 +401,10 @@ export default function DispatchShippingPage() {
         });
       }
     } catch (error) {
+      console.error('Download document error:', error);
       toast({
         title: "Error",
-        description: "Failed to download document",
+        description: error instanceof Error ? error.message : "Failed to download document",
         variant: "destructive",
       });
     }
