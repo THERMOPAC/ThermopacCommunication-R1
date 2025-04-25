@@ -91,16 +91,58 @@ const ModulePermissionsManagement: React.FC = () => {
       // Using apiRequest to handle the response
       return await apiRequest('POST', `/api/users/${userId}/module-permissions/${moduleName}`, permissionsToSend);
     },
-    onSuccess: async (data) => {
-      // Directly refetch user permissions instead of invalidating the cache
-      await refetchUserPermissions();
+    onMutate: async ({ userId, moduleName, permissions }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users', userId, 'module-permissions'] });
+      
+      // Snapshot the previous value
+      const previousPermissions = queryClient.getQueryData<Record<string, ModulePermission>>(
+        ['/api/users', userId, 'module-permissions']
+      );
+      
+      // Optimistically update to the new value
+      if (previousPermissions) {
+        queryClient.setQueryData<Record<string, ModulePermission>>(
+          ['/api/users', userId, 'module-permissions'],
+          {
+            ...previousPermissions,
+            [moduleName]: {
+              ...(previousPermissions[moduleName] || {
+                canView: false,
+                canCreate: false,
+                canEdit: false,
+                canDelete: false,
+              }),
+              ...permissions,
+              isCustom: true
+            }
+          }
+        );
+      }
+      
+      // Return a context object with the snapshot
+      return { previousPermissions };
+    },
+    onSuccess: async (data, variables) => {
+      // Use an immediate invalidation instead of refetch to ensure fresh data
+      queryClient.invalidateQueries({
+        queryKey: ['/api/users', variables.userId, 'module-permissions'],
+      });
       
       toast({
         title: "Permissions updated",
         description: "The user's permissions have been successfully updated.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error, variables, context) => {
+      // Rollback to the previous value
+      if (context?.previousPermissions) {
+        queryClient.setQueryData(
+          ['/api/users', variables.userId, 'module-permissions'],
+          context.previousPermissions
+        );
+      }
+      
       toast({
         title: "Error updating permissions",
         description: error.message || "Failed to update permissions. Please try again.",
@@ -115,16 +157,50 @@ const ModulePermissionsManagement: React.FC = () => {
       // apiRequest automatically handles response properly
       return await apiRequest('DELETE', `/api/users/${userId}/module-permissions/${moduleName}`);
     },
-    onSuccess: async () => {
-      // Directly refetch user permissions instead of invalidating the cache
-      await refetchUserPermissions();
+    onMutate: async ({ userId, moduleName }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/users', userId, 'module-permissions'] });
+      
+      // Snapshot the previous value
+      const previousPermissions = queryClient.getQueryData<Record<string, ModulePermission>>(
+        ['/api/users', userId, 'module-permissions']
+      );
+      
+      // Optimistically update to the new value
+      if (previousPermissions) {
+        const newPermissions = { ...previousPermissions };
+        // Delete the module permissions to simulate returning to defaults
+        delete newPermissions[moduleName];
+        
+        queryClient.setQueryData<Record<string, ModulePermission>>(
+          ['/api/users', userId, 'module-permissions'],
+          newPermissions
+        );
+      }
+      
+      // Return a context object with the snapshot
+      return { previousPermissions };
+    },
+    onSuccess: async (data, variables) => {
+      // Use an immediate invalidation instead of refetch to ensure fresh data
+      queryClient.invalidateQueries({
+        queryKey: ['/api/users', variables.userId, 'module-permissions'],
+      });
       
       toast({
         title: "Permissions reset",
         description: "The user's permissions have been reset to role defaults.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error, variables, context) => {
+      // Rollback to the previous value
+      if (context?.previousPermissions) {
+        queryClient.setQueryData(
+          ['/api/users', variables.userId, 'module-permissions'],
+          context.previousPermissions
+        );
+      }
+      
       toast({
         title: "Error resetting permissions",
         description: error.message,
