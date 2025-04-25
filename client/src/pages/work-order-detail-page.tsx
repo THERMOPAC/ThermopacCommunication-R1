@@ -164,7 +164,7 @@ export default function WorkOrderDetailPage() {
   return (
     <Layout>
       <Helmet>
-        <title>{workOrder?.workOrderNumber || "Work Order"} | Thermopac</title>
+        <title>Work Order Details: {workOrder?.workOrderNumber || ""} | Thermopac</title>
       </Helmet>
       
       <div className="space-y-6">
@@ -177,7 +177,10 @@ export default function WorkOrderDetailPage() {
             >
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-            <h1 className="text-3xl font-bold">{workOrder?.workOrderNumber}</h1>
+            <div>
+              <h1 className="text-3xl font-bold">Work Order Details</h1>
+              <p className="text-lg text-muted-foreground">{workOrder?.workOrderNumber}</p>
+            </div>
             {workOrder?.status && getStatusBadge(workOrder.status)}
           </div>
           
