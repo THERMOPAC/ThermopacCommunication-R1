@@ -261,8 +261,14 @@ const ModulePermissionsManagement: React.FC = () => {
                     modules
                       ?.filter((module: string) => !selectedModule || selectedModule === "all_modules" || module === selectedModule)
                       .map((module: string) => {
-                        const permission = userPermissions?.[module];
-                        if (!permission) return null;
+                        // Get existing permission or create a default one
+                        const permission = userPermissions?.[module] || {
+                          canView: false,
+                          canCreate: false,
+                          canEdit: false,
+                          canDelete: false,
+                          isCustom: false
+                        };
                         
                         return (
                           <Card key={module} className="overflow-hidden">
@@ -382,9 +388,18 @@ const ModulePermissionsManagement: React.FC = () => {
                         {modules
                           ?.filter((module: string) => !selectedModule || selectedModule === "all_modules" || module === selectedModule)
                           .map((module: string) => {
+                            // Find existing permission or create default
                             const permission = rolePermissions?.find(
                               (p: RolePermission) => p.moduleName === module && p.role === role
-                            );
+                            ) || {
+                              id: 0,
+                              role,
+                              moduleName: module,
+                              canView: false,
+                              canCreate: false,
+                              canEdit: false,
+                              canDelete: false
+                            };
                             
                             return (
                               <Card key={`${role}-${module}`} className="overflow-hidden">
