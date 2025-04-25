@@ -280,14 +280,14 @@ export default function ProcurementTrackingPage() {
   const filteredPurchaseOrders = Array.isArray(purchaseOrdersData) ? purchaseOrdersData.filter((po: any) => {
     // Handle potential undefined values safely
     const poNumber = po.purchase_order_number || '';
-    const poTitle = po.title || '';
+    const poDescription = po.description || '';
     const poVendorName = po.vendor_name || '';
     const poStatus = po.status || '';
     const poProjectCode = po.project_code || '';
     
     const matchesSearch = 
       poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      poTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      poDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
       poVendorName.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesProject = projectFilter && projectFilter !== "all" ? poProjectCode === projectFilter : true;
@@ -458,7 +458,7 @@ export default function ProcurementTrackingPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-[180px]">PO Number</TableHead>
-                          <TableHead>Title</TableHead>
+                          <TableHead>Description</TableHead>
                           <TableHead>Vendor</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Est. Delivery</TableHead>
@@ -477,7 +477,7 @@ export default function ProcurementTrackingPage() {
                           filteredPurchaseOrders.map((po: any) => (
                             <TableRow key={po.id}>
                               <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
-                              <TableCell>{po.title || ''}</TableCell>
+                              <TableCell>{po.description || ''}</TableCell>
                               <TableCell>{po.vendor_name || ''}</TableCell>
                               <TableCell>
                                 {statusBadgeMap[po.status] || '-'}
@@ -508,7 +508,7 @@ export default function ProcurementTrackingPage() {
                                       <SheetHeader>
                                         <SheetTitle>Purchase Order Details</SheetTitle>
                                         <SheetDescription>
-                                          {po.purchase_order_number || ''} - {po.title || ''}
+                                          {po.purchase_order_number || ''} - {po.description || ''}
                                         </SheetDescription>
                                       </SheetHeader>
                                       <div className="py-4">
@@ -686,12 +686,12 @@ export default function ProcurementTrackingPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>PO Number</TableHead>
-                          <TableHead>Title</TableHead>
+                          <TableHead className="w-[180px]">PO Number</TableHead>
+                          <TableHead>Description</TableHead>
                           <TableHead>Vendor</TableHead>
                           <TableHead>Est. Delivery</TableHead>
                           <TableHead>Progress</TableHead>
-                          <TableHead>Actions</TableHead>
+                          <TableHead className="w-[100px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -717,7 +717,7 @@ export default function ProcurementTrackingPage() {
                             .map((po: any) => (
                               <TableRow key={po.id}>
                                 <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
-                                <TableCell>{po.title || ''}</TableCell>
+                                <TableCell>{po.description || ''}</TableCell>
                                 <TableCell>{po.vendor_name || ''}</TableCell>
                                 <TableCell>
                                   {po.required_by_date || ''}
@@ -836,10 +836,10 @@ export default function ProcurementTrackingPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Title</label>
+                  <label className="text-sm font-medium">Description</label>
                   <Input 
-                    value={editingPO.title || ''} 
-                    onChange={(e) => setEditingPO({...editingPO, title: e.target.value})}
+                    value={editingPO.description || ''} 
+                    onChange={(e) => setEditingPO({...editingPO, description: e.target.value})}
                   />
                 </div>
                 
