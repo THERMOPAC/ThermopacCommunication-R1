@@ -696,7 +696,6 @@ export default function ProcurementTrackingPage() {
                         <TableRow>
                           <TableHead className="w-[180px]">PO Number</TableHead>
                           <TableHead>Description</TableHead>
-                          <TableHead>Vendor</TableHead>
                           <TableHead>Est. Delivery</TableHead>
                           <TableHead>Progress</TableHead>
                           <TableHead className="max-w-[50px]">Actions</TableHead>
@@ -730,7 +729,6 @@ export default function ProcurementTrackingPage() {
                                     ? po.items[0].description || ''
                                     : po.title || ''}
                                 </TableCell>
-                                <TableCell>{po.vendor_name || ''}</TableCell>
                                 <TableCell>
                                   {po.required_by_date ? format(new Date(po.required_by_date), 'yyyy-MM-dd') : ''}
                                   {po.actual_delivery_date && (
