@@ -262,7 +262,7 @@ export default function WorkOrderEditPage() {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 work-order-edit-form">
                 <Tabs defaultValue="basic" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="basic">Basic Information</TabsTrigger>
@@ -352,7 +352,7 @@ export default function WorkOrderEditPage() {
                       {/* UOM is fetched from work order items */}
                       <div className="space-y-2">
                         <div className="font-medium">Unit of Measurement</div>
-                        <div className="px-3 py-2 border rounded-md bg-muted/50">
+                        <div className="px-3 py-2 border rounded-md bg-muted/50 text-blue-600 font-medium">
                           {workOrderItems?.length > 0 && workOrderItems[0].unit ? 
                             workOrderItems[0].unit : 
                             (workOrder?.workOrderItems?.[0]?.unit || 'No UOM')}

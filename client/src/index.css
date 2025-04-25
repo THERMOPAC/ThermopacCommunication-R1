@@ -16,4 +16,22 @@
   .form-field-blue {
     @apply text-blue-600 font-medium;
   }
+  
+  /* Apply blue text to all form inputs in work order edit page */
+  .work-order-edit-form input, 
+  .work-order-edit-form textarea,
+  .work-order-edit-form select,
+  .work-order-edit-form [class*="SelectTrigger"],
+  .work-order-edit-form .SelectValue,
+  .work-order-edit-form .select-value,
+  .work-order-edit-form .border.rounded-md.bg-muted\/50,
+  .work-order-edit-form button[variant="outline"] {
+    @apply text-blue-600 font-medium;
+  }
+  
+  /* Additional specific selectors for date pickers */
+  .work-order-edit-form button[class*="outline"] span,
+  .work-order-edit-form [role="combobox"] span {
+    @apply text-blue-600 font-medium;
+  }
 }
