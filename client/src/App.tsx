@@ -95,7 +95,7 @@ function Router() {
       <ProtectedRoute path="/procurement-tracking" component={ProcurementTrackingPage} />
       <ProtectedRoute path="/production-planning" component={ProductionPlanningPage} />
       <ProtectedRoute path="/production/work-orders/details/:id" component={WorkOrderDetailPage} />
-      <ProtectedRoute path="/production/work-orders/:id/edit" component={WorkOrderEditPage} />
+      <ProtectedRoute path="/production/work-orders/edit/:id" component={WorkOrderEditPage} />
       <ProtectedRoute path="/shop-floor" component={ShopFloorPage} />
       <ProtectedRoute path="/inspections" component={InspectionsPage} />
       <ProtectedRoute path="/quality-reports" component={QualityReportsPage} />

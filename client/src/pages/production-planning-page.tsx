@@ -638,7 +638,7 @@ export default function ProductionPlanningPage() {
                                 <Button 
                                   variant="outline" 
                                   size="sm"
-                                  onClick={() => window.location.href = `/production/work-orders/${workOrder.id}/edit`}
+                                  onClick={() => window.location.href = `/production/work-orders/edit/${workOrder.id}`}
                                 >
                                   Edit
                                 </Button>
@@ -723,7 +723,7 @@ export default function ProductionPlanningPage() {
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => window.location.href = `/production/work-orders/${workOrder.id}/edit`}
+                              onClick={() => window.location.href = `/production/work-orders/edit/${workOrder.id}`}
                             >
                               Edit
                             </Button>
