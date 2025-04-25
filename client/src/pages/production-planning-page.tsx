@@ -147,7 +147,13 @@ export default function ProductionPlanningPage() {
         throw new Error(errorMessage);
       }
       
-      const result = await response.json();
+      // Handle empty responses or 204 No Content
+      let result;
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        result = { message: "Work orders cleaned up successfully" };
+      } else {
+        result = await response.json();
+      }
       
       toast({
         title: "Work Orders Cleaned Up",
@@ -314,7 +320,13 @@ export default function ProductionPlanningPage() {
         }
       );
       
-      const responseData = await response.json();
+      // Handle empty responses or 204 No Content
+      let responseData;
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        responseData = { message: "Work orders processed successfully" };
+      } else {
+        responseData = await response.json();
+      }
       
       if (!response.ok) {
         // Handle specific error types
