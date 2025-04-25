@@ -124,10 +124,28 @@ const ModulePermissionsManagement: React.FC = () => {
       return { previousPermissions };
     },
     onSuccess: async (data, variables) => {
-      // Use an immediate invalidation instead of refetch to ensure fresh data
-      queryClient.invalidateQueries({
-        queryKey: ['/api/users', variables.userId, 'module-permissions'],
-      });
+      // Update the cached permissions directly instead of invalidating
+      const cachedPermissions = queryClient.getQueryData<Record<string, ModulePermission>>(
+        ['/api/users', variables.userId, 'module-permissions']
+      );
+      
+      if (cachedPermissions) {
+        // Create a new permissions object with the updated module permissions
+        const updatedPermissions = {
+          ...cachedPermissions,
+          [variables.moduleName]: {
+            ...(cachedPermissions[variables.moduleName] || {}),
+            ...variables.permissions,
+            isCustom: true
+          }
+        };
+        
+        // Update the query cache with the new permissions
+        queryClient.setQueryData(
+          ['/api/users', variables.userId, 'module-permissions'],
+          updatedPermissions
+        );
+      }
       
       toast({
         title: "Permissions updated",
@@ -182,10 +200,22 @@ const ModulePermissionsManagement: React.FC = () => {
       return { previousPermissions };
     },
     onSuccess: async (data, variables) => {
-      // Use an immediate invalidation instead of refetch to ensure fresh data
-      queryClient.invalidateQueries({
-        queryKey: ['/api/users', variables.userId, 'module-permissions'],
-      });
+      // Get the current cached permissions
+      const cachedPermissions = queryClient.getQueryData<Record<string, ModulePermission>>(
+        ['/api/users', variables.userId, 'module-permissions']
+      );
+      
+      if (cachedPermissions) {
+        // Create a new object without the reset module
+        const updatedPermissions = { ...cachedPermissions };
+        delete updatedPermissions[variables.moduleName];
+        
+        // Update the cache directly
+        queryClient.setQueryData(
+          ['/api/users', variables.userId, 'module-permissions'],
+          updatedPermissions
+        );
+      }
       
       toast({
         title: "Permissions reset",
