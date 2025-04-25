@@ -557,7 +557,7 @@ export default function ProcurementTrackingPage() {
                                               {po.items && Array.isArray(po.items) && po.items.length > 0 ? (
                                                 po.items.map((item: any) => (
                                                   <TableRow key={item.id}>
-                                                    <TableCell className="font-medium">{item.name}</TableCell>
+                                                    <TableCell className="font-medium">{item.description || item.name || item.item_code || ''}</TableCell>
                                                     <TableCell>{item.quantity}</TableCell>
                                                     <TableCell>{item.unit}</TableCell>
                                                     <TableCell>
