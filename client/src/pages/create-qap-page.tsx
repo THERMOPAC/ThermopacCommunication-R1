@@ -634,8 +634,8 @@ export default function CreateQAPPage() {
   // Get project details
   const getProjectDetails = async (projectId: string) => {
     try {
-      const project = await apiRequest('GET', `api/projects/${projectId}`, null);
-      return project;
+      // Fixed URL path with leading slash and improved error handling for empty responses
+      return await apiRequest('GET', `/api/projects/${projectId}`);
     } catch (error) {
       console.error("Error fetching project details:", error);
       return null;
