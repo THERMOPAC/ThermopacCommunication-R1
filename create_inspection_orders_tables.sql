@@ -1,65 +1,49 @@
--- Inspection Orders tables
--- For creating and tracking inspection orders for projects
+-- Create Inspection Orders tables
 
 -- Inspection Orders table
 CREATE TABLE IF NOT EXISTS inspection_orders (
   id SERIAL PRIMARY KEY,
+  inspection_order_number VARCHAR(50) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
   project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  project_code TEXT NOT NULL,
-  
-  -- Order identifiers
-  inspection_order_number TEXT NOT NULL UNIQUE,
-  title TEXT NOT NULL,
-  
-  -- Related items
-  item_id INTEGER REFERENCES project_items(id) ON DELETE SET NULL,
-  item_code TEXT,
-  description TEXT NOT NULL,
-  work_order_id INTEGER REFERENCES work_orders(id) ON DELETE SET NULL,
-  
-  -- Order details
-  status TEXT NOT NULL DEFAULT 'pending', -- pending, in_progress, completed, cancelled
-  inspection_type TEXT NOT NULL, -- incoming, in-process, final, dimensional, visual
-  quantity INTEGER NOT NULL DEFAULT 1,
-  unit TEXT NOT NULL DEFAULT 'Nos',
-  make_or_buy TEXT,
-  parent_inspection_order_id INTEGER REFERENCES inspection_orders(id) ON DELETE SET NULL,
-  sequence_number INTEGER NOT NULL,
-  
-  -- Timing
-  planned_date TIMESTAMP,
-  completed_date TIMESTAMP,
-  
-  -- Tracking
-  created_by INTEGER NOT NULL REFERENCES users(id),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  project_code VARCHAR(50) NOT NULL,
+  item_id INTEGER NOT NULL REFERENCES master_items(id),
+  item_code VARCHAR(100) NOT NULL,
+  parent_item_id INTEGER REFERENCES master_items(id),
+  parent_item_code VARCHAR(100),
+  inspection_type VARCHAR(50) DEFAULT 'incoming',
+  quantity DECIMAL(10, 2) NOT NULL,
+  unit VARCHAR(20) DEFAULT 'pcs',
+  status VARCHAR(50) DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  user_id INTEGER REFERENCES users(id),
+  is_virtual BOOLEAN DEFAULT FALSE,
+  sequence_number INTEGER,
+  reference_number VARCHAR(100),
+  notes TEXT
 );
 
--- Inspection Order Items table (for component items under a parent inspection order)
+-- Inspection Order Items table
 CREATE TABLE IF NOT EXISTS inspection_order_items (
   id SERIAL PRIMARY KEY,
   inspection_order_id INTEGER NOT NULL REFERENCES inspection_orders(id) ON DELETE CASCADE,
-  
-  -- Related items
-  item_id INTEGER REFERENCES project_items(id) ON DELETE SET NULL,
-  item_code TEXT,
-  description TEXT NOT NULL,
-  work_order_item_id INTEGER REFERENCES work_order_items(id) ON DELETE SET NULL,
-  
-  -- Item details
-  quantity INTEGER NOT NULL DEFAULT 1,
-  unit TEXT NOT NULL DEFAULT 'Nos',
-  make_or_buy TEXT,
-  sequence_number INTEGER NOT NULL,
-  
-  -- Tracking
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  characteristic VARCHAR(255) NOT NULL,
+  specification TEXT,
+  tolerance TEXT,
+  measurement_method VARCHAR(255),
+  result TEXT,
+  status VARCHAR(50) DEFAULT 'pending',
+  is_critical BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  inspector_id INTEGER REFERENCES users(id),
+  notes TEXT
 );
 
--- Create indexes for performance
-CREATE INDEX idx_inspection_orders_project_id ON inspection_orders(project_id);
-CREATE INDEX idx_inspection_orders_work_order_id ON inspection_orders(work_order_id);
-CREATE INDEX idx_inspection_orders_parent_id ON inspection_orders(parent_inspection_order_id);
-CREATE INDEX idx_inspection_order_items_order_id ON inspection_order_items(inspection_order_id);
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_inspection_orders_project_id ON inspection_orders(project_id);
+CREATE INDEX IF NOT EXISTS idx_inspection_orders_item_id ON inspection_orders(item_id);
+CREATE INDEX IF NOT EXISTS idx_inspection_orders_status ON inspection_orders(status);
+CREATE INDEX IF NOT EXISTS idx_inspection_order_items_order_id ON inspection_order_items(inspection_order_id);
