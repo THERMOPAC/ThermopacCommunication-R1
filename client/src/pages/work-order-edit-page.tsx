@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 import { 
   Card, 
   CardContent, 
