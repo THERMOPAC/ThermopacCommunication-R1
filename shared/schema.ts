@@ -2236,3 +2236,114 @@ export type InsertItpVersion = z.infer<typeof insertItpVersionSchema>;
 
 export type ItpActivity = typeof itpActivities.$inferSelect;
 export type InsertItpActivity = z.infer<typeof insertItpActivitySchema>;
+
+// Inspection Orders
+export const inspectionOrders = pgTable('inspection_orders', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectCode: text('project_code').notNull(),
+  
+  // Order identifiers
+  inspectionOrderNumber: text('inspection_order_number').notNull().unique(),
+  title: text('title').notNull(),
+  
+  // Related items
+  itemId: integer('item_id').references(() => projectItems.id, { onDelete: 'set null' }),
+  itemCode: text('item_code'),
+  description: text('description').notNull(),
+  workOrderId: integer('work_order_id').references(() => workOrders.id, { onDelete: 'set null' }),
+  
+  // Order details
+  status: text('status').notNull().default('pending'), // pending, in_progress, completed, cancelled
+  inspectionType: text('inspection_type').notNull(), // incoming, in-process, final, dimensional, visual
+  quantity: integer('quantity').notNull().default(1),
+  unit: text('unit').notNull().default('Nos'),
+  makeOrBuy: text('make_or_buy'),
+  parentInspectionOrderId: integer('parent_inspection_order_id').references(() => inspectionOrders.id, { onDelete: 'set null' }),
+  sequenceNumber: integer('sequence_number').notNull(),
+  
+  // Timing
+  plannedDate: timestamp('planned_date'),
+  completedDate: timestamp('completed_date'),
+  
+  // Tracking
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Inspection Order Items
+export const inspectionOrderItems = pgTable('inspection_order_items', {
+  id: serial('id').primaryKey(),
+  inspectionOrderId: integer('inspection_order_id').notNull().references(() => inspectionOrders.id, { onDelete: 'cascade' }),
+  
+  // Related items
+  itemId: integer('item_id').references(() => projectItems.id, { onDelete: 'set null' }),
+  itemCode: text('item_code'),
+  description: text('description').notNull(),
+  workOrderItemId: integer('work_order_item_id').references(() => workOrderItems.id, { onDelete: 'set null' }),
+  
+  // Item details
+  quantity: integer('quantity').notNull().default(1),
+  unit: text('unit').notNull().default('Nos'),
+  makeOrBuy: text('make_or_buy'),
+  sequenceNumber: integer('sequence_number').notNull(),
+  
+  // Tracking
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Define relations for inspection orders
+export const inspectionOrdersRelations = relations(inspectionOrders, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [inspectionOrders.projectId],
+    references: [projects.id],
+  }),
+  workOrder: one(workOrders, {
+    fields: [inspectionOrders.workOrderId],
+    references: [workOrders.id],
+  }),
+  parentInspectionOrder: one(inspectionOrders, {
+    fields: [inspectionOrders.parentInspectionOrderId],
+    references: [inspectionOrders.id],
+  }),
+  items: many(inspectionOrderItems),
+  creator: one(users, {
+    fields: [inspectionOrders.createdBy],
+    references: [users.id],
+  }),
+}));
+
+// Define relations for inspection order items
+export const inspectionOrderItemsRelations = relations(inspectionOrderItems, ({ one }) => ({
+  inspectionOrder: one(inspectionOrders, {
+    fields: [inspectionOrderItems.inspectionOrderId],
+    references: [inspectionOrders.id],
+  }),
+  workOrderItem: one(workOrderItems, {
+    fields: [inspectionOrderItems.workOrderItemId],
+    references: [workOrderItems.id],
+  }),
+}));
+
+// Create Zod schemas for data validation
+export const insertInspectionOrderSchema = createInsertSchema(inspectionOrders)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']),
+    inspectionType: z.enum(['incoming', 'in-process', 'final', 'dimensional', 'visual']),
+    makeOrBuy: z.enum(['Make', 'Buy']).optional(),
+    plannedDate: z.string().optional().transform(dateStringToDate),
+    completedDate: z.string().optional().transform(dateStringToDate),
+  });
+
+export const insertInspectionOrderItemSchema = createInsertSchema(inspectionOrderItems)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+// Export types
+export type InspectionOrder = typeof inspectionOrders.$inferSelect;
+export type InsertInspectionOrder = z.infer<typeof insertInspectionOrderSchema>;
+
+export type InspectionOrderItem = typeof inspectionOrderItems.$inferSelect;
+export type InsertInspectionOrderItem = z.infer<typeof insertInspectionOrderItemSchema>;

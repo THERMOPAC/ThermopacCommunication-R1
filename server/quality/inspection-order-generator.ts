@@ -18,7 +18,7 @@ import {
   workOrderItems,
   inspectionOrders,
   inspectionOrderItems
-} from '../schema';
+} from '../../shared/schema';
 
 // Type for the data sent to the preview
 interface PreviewItem {
