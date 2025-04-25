@@ -240,7 +240,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         throw new Error("Failed to update key stage completion status");
       }
       
-      return await response.json();
+      // Handle empty responses or 204 No Content
+      return response.status === 204 || response.headers.get('content-length') === '0' 
+        ? { id: stageId, isCompleted } // Return minimal data if no response
+        : await response.json();
     },
     onSuccess: () => {
       // Refresh the key stages data
@@ -421,7 +424,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         throw new Error(errorText || "Failed to update project");
       }
       
-      return await res.json();
+      // Handle empty responses or 204 No Content
+      return res.status === 204 || res.headers.get('content-length') === '0' 
+        ? data // Return the original data if no content
+        : await res.json();
     },
     onSuccess: () => {
       setIsEditProjectOpen(false);
@@ -457,7 +463,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         throw new Error(errorText || "Failed to update project item");
       }
       
-      return await res.json();
+      // Handle empty responses or 204 No Content
+      return res.status === 204 || res.headers.get('content-length') === '0' 
+        ? data // Return the original data
+        : await res.json();
     },
     onSuccess: () => {
       setIsEditItemOpen(false);

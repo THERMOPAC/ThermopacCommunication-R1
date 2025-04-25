@@ -120,7 +120,23 @@ export function ProjectItemsImport({
         }
       }
       
-      const data = await response.json();
+      // Check if there's actual content to parse before trying to parse JSON
+      const contentLength = response.headers.get('content-length');
+      const hasContent = contentLength && parseInt(contentLength) > 0;
+      
+      let data;
+      if (response.status === 204 || !hasContent) {
+        // No content response
+        data = { results: { imported: 0, skipped: 0 } };
+      } else {
+        try {
+          data = await response.json();
+        } catch (error) {
+          console.error('Error parsing successful response:', error);
+          // Provide a default response if JSON parsing fails
+          data = { results: { imported: 0, skipped: 0 } };
+        }
+      }
       setResults(data.results);
       
       if (data.results.imported > 0) {
