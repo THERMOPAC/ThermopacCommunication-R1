@@ -285,10 +285,17 @@ export default function ProcurementTrackingPage() {
     const poStatus = po.status || '';
     const poProjectCode = po.project_code || '';
     
+    // Check if any item description matches the search term
+    const itemDescriptionMatches = po.items && Array.isArray(po.items) && po.items.some((item: any) => {
+      const itemDescription = item.description || item.name || '';
+      return itemDescription.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+    
     const matchesSearch = 
       poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       poTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      poVendorName.toLowerCase().includes(searchTerm.toLowerCase());
+      poVendorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      itemDescriptionMatches; // Add item description matching
     
     const matchesProject = projectFilter && projectFilter !== "all" ? poProjectCode === projectFilter : true;
     const matchesStatus = statusFilter && statusFilter !== "all" ? poStatus === statusFilter : true;
