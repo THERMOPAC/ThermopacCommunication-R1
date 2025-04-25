@@ -299,10 +299,17 @@ export default function ProcurementPlanningPage() {
     const poProjectCode = po.project_code || '';
     const poProject = (po as any).project || {};
     
+    // Check if any item description matches the search term
+    const itemDescriptionMatches = po.items && Array.isArray(po.items) && po.items.some((item: any) => {
+      const itemDescription = item.description || item.name || '';
+      return itemDescription.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+    
     const matchesSearch = 
       poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       poTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      poVendorName.toLowerCase().includes(searchTerm.toLowerCase());
+      poVendorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      itemDescriptionMatches; // Add item description matching
     
     const matchesProject = projectFilter && projectFilter !== "all" ? 
       (poProjectCode === projectFilter || 
@@ -684,7 +691,7 @@ export default function ProcurementPlanningPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>PO Number</TableHead>
-                      <TableHead>Title</TableHead>
+                      <TableHead>Description</TableHead>
                       <TableHead>Project</TableHead>
                       <TableHead>Vendor</TableHead>
                       <TableHead>Status</TableHead>
@@ -703,7 +710,11 @@ export default function ProcurementPlanningPage() {
                       filteredPurchaseOrders.map((po: any) => (
                         <TableRow key={po.id}>
                           <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
-                          <TableCell>{po.title || ''}</TableCell>
+                          <TableCell>
+                            {po.items && Array.isArray(po.items) && po.items.length > 0 
+                              ? po.items[0].description || po.title || ''
+                              : po.title || ''}
+                          </TableCell>
                           <TableCell>{po.project_code || (po.project ? po.project.code : '')}</TableCell>
                           <TableCell>{po.vendor_name || ''}</TableCell>
                           <TableCell>
