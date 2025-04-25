@@ -69,13 +69,13 @@ function InternalMessages() {
   // Get users for the recipient dropdown
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[], Error>({
     queryKey: ["/api/users"],
-    queryFn: getQueryFn()
+    queryFn: getQueryFn({ on401: "throw" })
   });
 
   // Fetch internal messages
   const { data: messages = [], isLoading: isLoadingMessages } = useQuery<InternalMessage[], Error>({
     queryKey: ["/api/internal-messages", activeTab, searchTerm],
-    queryFn: async ({ queryKey }) => {
+    queryFn: async ({ queryKey, signal }) => {
       try {
         const queryParams = new URLSearchParams();
         
@@ -87,7 +87,8 @@ function InternalMessages() {
           queryParams.set("search", searchTerm);
         }
         
-        return await getQueryFn()({ queryKey: [`/api/internal-messages?${queryParams.toString()}`] });
+        // Use apiRequest to get a clean result
+        return await apiRequest("GET", `/api/internal-messages?${queryParams.toString()}`);
       } catch (error) {
         console.error('Error fetching internal messages:', error);
         throw error;

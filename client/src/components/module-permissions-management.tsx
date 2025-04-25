@@ -47,19 +47,19 @@ const ModulePermissionsManagement: React.FC = () => {
   // Fetch all modules
   const { data: modules, isLoading: isLoadingModules } = useQuery<string[], Error>({
     queryKey: ['/api/modules'],
-    queryFn: getQueryFn()
+    queryFn: getQueryFn({ on401: "throw" })
   });
   
   // Fetch all users
   const { data: users, isLoading: isLoadingUsers } = useQuery<User[], Error>({
     queryKey: ['/api/users'],
-    queryFn: getQueryFn()
+    queryFn: getQueryFn({ on401: "throw" })
   });
   
   // Fetch role-based module permissions
   const { data: rolePermissions, isLoading: isLoadingRolePermissions } = useQuery<Record<string, Record<string, ModulePermission>>, Error>({
     queryKey: ['/api/role-module-permissions'],
-    queryFn: getQueryFn(),
+    queryFn: getQueryFn({ on401: "throw" }),
     enabled: selectedTab === 'roles',
   });
   
@@ -67,7 +67,8 @@ const ModulePermissionsManagement: React.FC = () => {
   const { data: userPermissions, isLoading: isLoadingUserPermissions } = useQuery<Record<string, ModulePermission>, Error>({
     queryKey: ['/api/users', selectedUser, 'module-permissions'],
     queryFn: async () => {
-      return await getQueryFn()({ queryKey: [`/api/users/${selectedUser}/module-permissions`] });
+      if (!selectedUser) return {};
+      return await apiRequest("GET", `/api/users/${selectedUser}/module-permissions`);
     },
     enabled: !!selectedUser && selectedTab === 'users',
   });
