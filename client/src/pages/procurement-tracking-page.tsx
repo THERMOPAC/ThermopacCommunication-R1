@@ -495,10 +495,10 @@ export default function ProcurementTrackingPage() {
                                 {statusBadgeMap[po.status] || '-'}
                               </TableCell>
                               <TableCell>
-                                {po.required_by_date || ''}
+                                {po.required_by_date ? format(new Date(po.required_by_date), 'yyyy-MM-dd') : ''}
                                 {po.actual_delivery_date && (
                                   <div className="text-xs text-muted-foreground mt-1">
-                                    Actual: {po.actual_delivery_date}
+                                    Actual: {format(new Date(po.actual_delivery_date), 'yyyy-MM-dd')}
                                   </div>
                                 )}
                               </TableCell>
@@ -543,11 +543,11 @@ export default function ProcurementTrackingPage() {
                                           </div>
                                           <div>
                                             <h4 className="text-sm font-medium">Est. Delivery</h4>
-                                            <p className="text-sm">{po.required_by_date || ''}</p>
+                                            <p className="text-sm">{po.required_by_date ? format(new Date(po.required_by_date), 'yyyy-MM-dd') : ''}</p>
                                           </div>
                                           <div>
                                             <h4 className="text-sm font-medium">Actual Delivery</h4>
-                                            <p className="text-sm">{po.actual_delivery_date || "Pending"}</p>
+                                            <p className="text-sm">{po.actual_delivery_date ? format(new Date(po.actual_delivery_date), 'yyyy-MM-dd') : "Pending"}</p>
                                           </div>
                                         </div>
                                         
@@ -736,10 +736,10 @@ export default function ProcurementTrackingPage() {
                                 </TableCell>
                                 <TableCell>{po.vendor_name || ''}</TableCell>
                                 <TableCell>
-                                  {po.required_by_date || ''}
+                                  {po.required_by_date ? format(new Date(po.required_by_date), 'yyyy-MM-dd') : ''}
                                   {po.actual_delivery_date && (
                                     <div className="text-xs text-muted-foreground mt-1">
-                                      Actual: {po.actual_delivery_date}
+                                      Actual: {format(new Date(po.actual_delivery_date), 'yyyy-MM-dd')}
                                     </div>
                                   )}
                                 </TableCell>
