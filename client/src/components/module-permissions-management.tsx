@@ -64,11 +64,16 @@ const ModulePermissionsManagement: React.FC = () => {
   });
   
   // Fetch user-specific module permissions
-  const { data: userPermissions, isLoading: isLoadingUserPermissions } = useQuery<Record<string, ModulePermission>, Error>({
+  const { 
+    data: userPermissions = {}, // Provide empty object as default
+    isLoading: isLoadingUserPermissions,
+    refetch: refetchUserPermissions
+  } = useQuery<Record<string, ModulePermission>, Error>({
     queryKey: ['/api/users', selectedUser, 'module-permissions'],
-    queryFn: async () => {
+    queryFn: async ({ queryKey }) => {
       if (!selectedUser) return {};
-      return await apiRequest("GET", `/api/users/${selectedUser}/module-permissions`);
+      const response = await apiRequest("GET", `/api/users/${selectedUser}/module-permissions`);
+      return response as Record<string, ModulePermission>;
     },
     enabled: !!selectedUser && selectedTab === 'users',
   });
@@ -86,17 +91,14 @@ const ModulePermissionsManagement: React.FC = () => {
       // Using apiRequest to handle the response
       return await apiRequest('POST', `/api/users/${userId}/module-permissions/${moduleName}`, permissionsToSend);
     },
-    onSuccess: () => {
-      // Force reload permissions after update
-      queryClient.invalidateQueries({ queryKey: ['/api/users', selectedUser, 'module-permissions'] });
+    onSuccess: async (data) => {
+      // Directly refetch user permissions instead of invalidating the cache
+      await refetchUserPermissions();
       
-      // Add a small delay before showing success message to let the UI update
-      setTimeout(() => {
-        toast({
-          title: "Permissions updated",
-          description: "The user's permissions have been successfully updated.",
-        });
-      }, 300);
+      toast({
+        title: "Permissions updated",
+        description: "The user's permissions have been successfully updated.",
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -113,8 +115,10 @@ const ModulePermissionsManagement: React.FC = () => {
       // apiRequest automatically handles response properly
       return await apiRequest('DELETE', `/api/users/${userId}/module-permissions/${moduleName}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users', selectedUser, 'module-permissions'] });
+    onSuccess: async () => {
+      // Directly refetch user permissions instead of invalidating the cache
+      await refetchUserPermissions();
+      
       toast({
         title: "Permissions reset",
         description: "The user's permissions have been reset to role defaults.",
