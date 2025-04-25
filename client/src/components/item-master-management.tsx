@@ -1292,6 +1292,9 @@ const ItemMasterManagement: React.FC = () => {
                               placeholder="Enter drawing number"
                               {...field}
                               value={field.value || ''}
+                              readOnly
+                              disabled
+                              className="bg-muted"
                             />
                           </FormControl>
                           <FormMessage />
