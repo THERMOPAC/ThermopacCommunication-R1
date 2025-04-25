@@ -487,7 +487,7 @@ export default function ProcurementTrackingPage() {
                               <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
                               <TableCell>
                                 {po.items && Array.isArray(po.items) && po.items.length > 0 
-                                  ? po.items[0].description || po.title || ''
+                                  ? po.items[0].description || ''
                                   : po.title || ''}
                               </TableCell>
                               <TableCell>{po.vendor_name || ''}</TableCell>
@@ -520,7 +520,9 @@ export default function ProcurementTrackingPage() {
                                       <SheetHeader>
                                         <SheetTitle>Purchase Order Details</SheetTitle>
                                         <SheetDescription>
-                                          {po.purchase_order_number || ''} - {po.title || ''}
+                                          {po.purchase_order_number || ''} - {po.items && Array.isArray(po.items) && po.items.length > 0 
+                                            ? po.items[0].description || ''
+                                            : po.title || ''}
                                         </SheetDescription>
                                       </SheetHeader>
                                       <div className="py-4">
@@ -731,7 +733,7 @@ export default function ProcurementTrackingPage() {
                                 <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
                                 <TableCell>
                                   {po.items && Array.isArray(po.items) && po.items.length > 0 
-                                    ? po.items[0].description || po.title || ''
+                                    ? po.items[0].description || ''
                                     : po.title || ''}
                                 </TableCell>
                                 <TableCell>{po.vendor_name || ''}</TableCell>

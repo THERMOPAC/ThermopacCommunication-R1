@@ -712,7 +712,7 @@ export default function ProcurementPlanningPage() {
                           <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
                           <TableCell>
                             {po.items && Array.isArray(po.items) && po.items.length > 0 
-                              ? po.items[0].description || po.title || ''
+                              ? po.items[0].description || ''
                               : po.title || ''}
                           </TableCell>
                           <TableCell>{po.project_code || (po.project ? po.project.code : '')}</TableCell>
