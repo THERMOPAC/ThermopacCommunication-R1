@@ -110,11 +110,8 @@ export default function ViewEditQAPPage() {
       
       try {
         console.log(`Fetching QAP with ID: ${qapId}`);
-        // Get the API response
-        const response = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
-        
-        // Convert response to JSON
-        const jsonData = await response.json();
+        // Get the API response - apiRequest already parses JSON
+        const jsonData = await apiRequest('GET', `/api/quality/generated-qaps/${qapId}`);
         
         console.log("Raw API response data:", jsonData);
         
