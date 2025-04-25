@@ -70,8 +70,7 @@ function InternalMessages() {
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/users");
-      return await res.json();
+      return await apiRequest("GET", "/api/users");
     }
   });
 
@@ -90,8 +89,7 @@ function InternalMessages() {
           queryParams.set("search", searchTerm);
         }
         
-        const res = await apiRequest("GET", `/api/internal-messages?${queryParams.toString()}`);
-        return await res.json();
+        return await apiRequest("GET", `/api/internal-messages?${queryParams.toString()}`);
       } catch (error) {
         console.error('Error fetching internal messages:', error);
         throw error;
@@ -115,8 +113,7 @@ function InternalMessages() {
     { recipientId: number, subject: string, content: string }
   >({
     mutationFn: async (message) => {
-      const res = await apiRequest("POST", "/api/internal-messages", message);
-      return await res.json();
+      return await apiRequest("POST", "/api/internal-messages", message);
     },
     onSuccess: () => {
       toast({
@@ -138,8 +135,7 @@ function InternalMessages() {
   // Mark message as read
   const markAsReadMutation = useMutation<InternalMessage, Error, number>({
     mutationFn: async (messageId) => {
-      const res = await apiRequest("PATCH", `/api/internal-messages/${messageId}/read`);
-      return await res.json();
+      return await apiRequest("PATCH", `/api/internal-messages/${messageId}/read`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/internal-messages"] });
