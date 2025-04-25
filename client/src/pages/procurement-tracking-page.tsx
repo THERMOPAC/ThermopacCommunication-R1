@@ -477,7 +477,11 @@ export default function ProcurementTrackingPage() {
                           filteredPurchaseOrders.map((po: any) => (
                             <TableRow key={po.id}>
                               <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
-                              <TableCell>{po.title || ''}</TableCell>
+                              <TableCell>
+                                {po.items && Array.isArray(po.items) && po.items.length > 0 
+                                  ? po.items[0].description || po.title || ''
+                                  : po.title || ''}
+                              </TableCell>
                               <TableCell>{po.vendor_name || ''}</TableCell>
                               <TableCell>
                                 {statusBadgeMap[po.status] || '-'}
@@ -717,7 +721,11 @@ export default function ProcurementTrackingPage() {
                             .map((po: any) => (
                               <TableRow key={po.id}>
                                 <TableCell className="font-medium">{po.purchase_order_number || ''}</TableCell>
-                                <TableCell>{po.title || ''}</TableCell>
+                                <TableCell>
+                                  {po.items && Array.isArray(po.items) && po.items.length > 0 
+                                    ? po.items[0].description || po.title || ''
+                                    : po.title || ''}
+                                </TableCell>
                                 <TableCell>{po.vendor_name || ''}</TableCell>
                                 <TableCell>
                                   {po.required_by_date || ''}
