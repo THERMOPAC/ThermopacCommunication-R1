@@ -52,8 +52,7 @@ export default function GmailMessages() {
   const { data: connectionStatus, isLoading: isLoadingStatus } = useQuery({
     queryKey: ["/api/gmail/status"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/gmail/status");
-      return await res.json();
+      return await apiRequest("GET", "/api/gmail/status");
     }
   });
 
@@ -61,8 +60,7 @@ export default function GmailMessages() {
   const { data: settings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ["/api/gmail/settings"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/gmail/settings");
-      return await res.json();
+      return await apiRequest("GET", "/api/gmail/settings");
     },
     enabled: connectionStatus?.connected === true
   });
@@ -71,8 +69,7 @@ export default function GmailMessages() {
   const { data: users } = useQuery<User[]>({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/users");
-      return await res.json();
+      return await apiRequest("GET", "/api/users");
     }
   });
   
@@ -88,7 +85,7 @@ export default function GmailMessages() {
     }, {} as Record<string, User[]>) : {};
 
   // Gmail messages
-  const { data: messages, isLoading: isLoadingMessages, error: messagesError } = useQuery({
+  const { data: messages, isLoading: isLoadingMessages, error: messagesError } = useQuery<GmailMessage[]>({
     queryKey: ["/api/gmail/messages", filterStatus, filterImportance, searchTerm],
     queryFn: async () => {
       try {
@@ -121,27 +118,24 @@ export default function GmailMessages() {
         
         const queryString = queryParams.toString();
         console.log('Final query string:', queryString);
-        const res = await apiRequest("GET", `/api/gmail/messages?${queryString}`);
-        let data = await res.json();
+        const data = await apiRequest("GET", `/api/gmail/messages?${queryString}`);
         console.log('Messages fetched successfully:', data.length);
         
         // Add client-side filtering as a backup if the server filter didn't work
         if (filterStatus === "unread") {
-          const readCount = data.filter((m: any) => m.isRead).length;
-          const unreadCount = data.filter((m: any) => !m.isRead).length;
+          const readCount = data.filter((m: GmailMessage) => m.isRead).length;
+          const unreadCount = data.filter((m: GmailMessage) => !m.isRead).length;
           console.log(`Results should be unread only. Got: ${unreadCount} unread, ${readCount} read messages`);
           
           // Apply client-side filter if we see read messages in the results
           if (readCount > 0) {
             console.log('Applying client-side filter for unread messages');
-            data = data.filter((m: any) => !m.isRead);
-            console.log(`After client-side filtering: ${data.length} messages`);
+            return data.filter((m: GmailMessage) => !m.isRead);
           }
         } else if (filterStatus === "read") {
           // Also apply client-side filtering for read messages
           console.log('Applying client-side filter for read messages');
-          data = data.filter((m: any) => m.isRead);
-          console.log(`After client-side filtering: ${data.length} messages`);
+          return data.filter((m: GmailMessage) => m.isRead);
         }
         
         // Apply client-side search filtering
@@ -150,15 +144,13 @@ export default function GmailMessages() {
           const lowercaseSearch = searchTerm.toLowerCase();
           
           // Filter by subject or from email address
-          data = data.filter((m: any) => {
+          return data.filter((m: GmailMessage) => {
             const subject = (m.subject || '').toLowerCase();
             const from = (m.from || '').toLowerCase();
             
             return subject.includes(lowercaseSearch) || 
                    from.includes(lowercaseSearch);
           });
-          
-          console.log(`After client-side search filtering: ${data.length} messages`);
         }
         
         return data;
@@ -176,11 +168,10 @@ export default function GmailMessages() {
     : null;
 
   // Mark message as read
-  const markAsReadMutation = useMutation({
+  const markAsReadMutation = useMutation<GmailMessage, Error, { messageId: number, isRead: boolean }>({
     mutationFn: async ({ messageId, isRead }: { messageId: number, isRead: boolean }) => {
       console.log(`Marking message ${messageId} as ${isRead ? 'read' : 'unread'}`);
-      const res = await apiRequest("PATCH", `/api/gmail/messages/${messageId}/read`, { isRead });
-      return await res.json();
+      return await apiRequest("PATCH", `/api/gmail/messages/${messageId}/read`, { isRead });
     },
     onSuccess: (data, variables) => {
       console.log(`Successfully marked message ${variables.messageId} as ${variables.isRead ? 'read' : 'unread'}`);
@@ -206,12 +197,11 @@ export default function GmailMessages() {
   });
 
   // Toggle message importance
-  const toggleImportanceMutation = useMutation({
+  const toggleImportanceMutation = useMutation<GmailMessage, Error, { messageId: number, important: boolean }>({
     mutationFn: async ({ messageId, important }: { messageId: number, important: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/gmail/messages/${messageId}/important`, {
+      return await apiRequest("PATCH", `/api/gmail/messages/${messageId}/important`, {
         important
       });
-      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
