@@ -486,7 +486,7 @@ export default function ProductionPlanningPage() {
         <title>Production Planning | Thermopac</title>
       </Helmet>
       
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight">Production Planning</h1>
           <Button 
@@ -741,7 +741,7 @@ export default function ProductionPlanningPage() {
 
       {/* Create Work Order Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Create New Work Order</DialogTitle>
             <DialogDescription>
@@ -1086,7 +1086,7 @@ export default function ProductionPlanningPage() {
 
       {/* Work Order Confirmation Dialog */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent className="max-w-5xl w-full">
+        <DialogContent className="max-w-6xl w-full">
           <DialogHeader>
             <DialogTitle>Confirm Work Order Generation</DialogTitle>
             <DialogDescription>
