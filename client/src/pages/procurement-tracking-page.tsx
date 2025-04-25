@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Helmet } from "react-helmet";
 import { Loader2, CheckCircle, Clock, AlertTriangle, Search, FileText, Edit, Trash2, AlertCircle } from "lucide-react";
+import { format } from "date-fns";
 import Layout from "@/components/layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -470,7 +471,7 @@ export default function ProcurementTrackingPage() {
                           <TableHead>Status</TableHead>
                           <TableHead>Est. Delivery</TableHead>
                           <TableHead>Progress</TableHead>
-                          <TableHead className="w-[100px]">Actions</TableHead>
+                          <TableHead className="w-[70px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -702,7 +703,7 @@ export default function ProcurementTrackingPage() {
                           <TableHead>Vendor</TableHead>
                           <TableHead>Est. Delivery</TableHead>
                           <TableHead>Progress</TableHead>
-                          <TableHead className="w-[100px]">Actions</TableHead>
+                          <TableHead className="w-[70px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
