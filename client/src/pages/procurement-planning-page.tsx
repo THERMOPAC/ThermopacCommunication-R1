@@ -724,7 +724,7 @@ export default function ProcurementPlanningPage() {
                               </span>
                             )}
                           </TableCell>
-                          <TableCell>{po.required_by_date || ''}</TableCell>
+                          <TableCell>{po.required_by_date ? format(new Date(po.required_by_date), 'yyyy-MM-dd') : ''}</TableCell>
                           <TableCell className="text-right">
                             {po.total_amount !== undefined ? `₹${po.total_amount.toLocaleString()}` : ''}
                           </TableCell>

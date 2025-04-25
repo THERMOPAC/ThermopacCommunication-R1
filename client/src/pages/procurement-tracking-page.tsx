@@ -508,7 +508,7 @@ export default function ProcurementTrackingPage() {
                                   <span className="text-xs">{po.progress || 0}%</span>
                                 </div>
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="max-w-[50px]">
                                 <div className="flex space-x-2">
                                   <Sheet>
                                     <SheetTrigger asChild>
@@ -751,7 +751,7 @@ export default function ProcurementTrackingPage() {
                                     <span className="text-xs">{po.progress || 0}%</span>
                                   </div>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="max-w-[50px]">
                                   <div className="flex space-x-2">
                                     <Button variant="ghost" size="sm">
                                       Details
