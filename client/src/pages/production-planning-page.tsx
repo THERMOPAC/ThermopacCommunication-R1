@@ -602,11 +602,11 @@ export default function ProductionPlanningPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Work Order #</TableHead>
-                          <TableHead>Title</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Priority</TableHead>
-                          <TableHead>Actions</TableHead>
+                          <TableHead className="w-auto whitespace-nowrap">Work Order #</TableHead>
+                          <TableHead className="w-auto">Title</TableHead>
+                          <TableHead className="w-auto whitespace-nowrap">Status</TableHead>
+                          <TableHead className="w-auto whitespace-nowrap">Priority</TableHead>
+                          <TableHead className="w-[100px] whitespace-nowrap">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -686,13 +686,13 @@ export default function ProductionPlanningPage() {
                   <TableCaption>List of work orders for the selected project.</TableCaption>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Work Order #</TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Start Date</TableHead>
-                      <TableHead>End Date</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="w-auto whitespace-nowrap">Work Order #</TableHead>
+                      <TableHead className="w-auto">Title</TableHead>
+                      <TableHead className="w-auto whitespace-nowrap">Status</TableHead>
+                      <TableHead className="w-auto whitespace-nowrap">Priority</TableHead>
+                      <TableHead className="w-auto whitespace-nowrap">Start Date</TableHead>
+                      <TableHead className="w-auto whitespace-nowrap">End Date</TableHead>
+                      <TableHead className="w-[100px] whitespace-nowrap">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
