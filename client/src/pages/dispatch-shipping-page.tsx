@@ -286,8 +286,8 @@ export default function DispatchShippingPage() {
   // Mutation for deleting dispatch item
   const deleteItemMutation = useMutation({
     mutationFn: async (itemId: number) => {
-      const res = await apiRequest("DELETE", `/api/dispatch/items/${itemId}`);
-      return res;
+      // DELETE requests with 204 status don't need json parsing
+      return await apiRequest("DELETE", `/api/dispatch/items/${itemId}`);
     },
     onSuccess: () => {
       toast({
