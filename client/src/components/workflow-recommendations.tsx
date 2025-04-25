@@ -67,7 +67,8 @@ export default function WorkflowRecommendations() {
   const updateRecommendationMutation = useMutation({
     mutationFn: async ({ id, updateData }: { id: number; updateData: Partial<WorkflowRecommendation> }) => {
       const response = await apiRequest('PATCH', `/api/recommendations/${id}`, updateData);
-      return await response.json();
+      // apiRequest already returns the parsed JSON response, so no need to call .json()
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/recommendations'] });

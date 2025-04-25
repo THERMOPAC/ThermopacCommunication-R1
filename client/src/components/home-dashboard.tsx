@@ -44,15 +44,16 @@ export default function HomeDashboard() {
   });
   
   // Fetch Gmail messages (excluding spam)
-  const { data: gmailMessages = [] } = useQuery<GmailMessage[]>({
+  const { data: gmailMessages = [] } = useQuery({
     queryKey: ["/api/gmail/messages"],
     queryFn: async () => {
       // Add excludeSpam filter parameter to ensure spam messages are not included in counts
       const queryParams = new URLSearchParams();
       queryParams.set("excludeSpam", "true");
       
-      const res = await apiRequest("GET", `/api/gmail/messages?${queryParams.toString()}`);
-      return await res.json();
+      // apiRequest already returns the parsed JSON data, no need to call .json() on it
+      const data = await apiRequest("GET", `/api/gmail/messages?${queryParams.toString()}`);
+      return data as GmailMessage[];
     }
   });
   
