@@ -1319,8 +1319,15 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     
     // Step 16: Insert all work order items, but only if there are any to create
     if (finalWorkOrderItems.length > 0) {
+      // Make sure all quantities are properly formatted as decimals
+      const formattedWorkOrderItems = finalWorkOrderItems.map(item => ({
+        ...item,
+        // Convert quantity to number, ensuring it's a decimal (not an integer)
+        quantity: typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity
+      }));
+      
       await db.insert(workOrderItems)
-        .values(finalWorkOrderItems);
+        .values(formattedWorkOrderItems);
     }
     
     // Count skipped components and add isVirtual field for tracking 
