@@ -44,10 +44,9 @@ export default function UserPasswordChange() {
     },
   });
 
-  const changePasswordMutation = useMutation({
+  const changePasswordMutation = useMutation<any, Error, { currentPassword: string, newPassword: string }>({
     mutationFn: async (data: { currentPassword: string, newPassword: string }) => {
-      const res = await apiRequest("POST", "/api/change-password", data);
-      return res.json();
+      return await apiRequest("POST", "/api/change-password", data);
     },
     onSuccess: () => {
       toast({
