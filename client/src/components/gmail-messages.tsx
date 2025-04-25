@@ -216,10 +216,9 @@ export default function GmailMessages() {
   });
   
   // Delete message
-  const deleteMessageMutation = useMutation({
+  const deleteMessageMutation = useMutation<void, Error, number>({
     mutationFn: async (messageId: number) => {
-      const res = await apiRequest("DELETE", `/api/gmail/messages/${messageId}`);
-      return await res.json();
+      return await apiRequest("DELETE", `/api/gmail/messages/${messageId}`);
     },
     onSuccess: () => {
       setSelectedMessageId(null); // Return to message list after deletion
@@ -254,32 +253,11 @@ export default function GmailMessages() {
   };
 
   // Sync Gmail messages
-  const syncMutation = useMutation({
+  const syncMutation = useMutation<any, Error, void>({
     mutationFn: async () => {
       console.log('Starting sync mutation');
       try {
-        const res = await apiRequest("POST", "/api/gmail/sync");
-        
-        if (!res.ok) {
-          // Get the error message from the response
-          const errorData = await res.json();
-          console.error('Sync error:', errorData);
-          
-          if (errorData.error === 'Gmail API not enabled or still activating') {
-            throw new Error(errorData.message || 'The Gmail API needs to be enabled in your Google Cloud project. If already enabled, please wait 5-10 minutes for the changes to propagate.');
-          } else if (errorData.error === 'Gmail API not enabled') {
-            throw new Error(errorData.message || 'The Gmail API needs to be enabled in your Google Cloud project. Please visit the Google Cloud Console to enable it.');
-          } else if (errorData.error === 'Gmail API error') {
-            throw new Error(`Gmail API error: ${errorData.message || 'Unknown API error'}`);
-          } else {
-            throw new Error(errorData.error || 'Failed to sync Gmail messages');
-          }
-        }
-        
-        console.log('Sync request successful, parsing response');
-        const data = await res.json();
-        console.log('Sync response data:', data);
-        return data;
+        return await apiRequest("POST", "/api/gmail/sync");
       } catch (error) {
         console.error('Sync mutation error:', error);
         throw error;
@@ -293,7 +271,7 @@ export default function GmailMessages() {
         description: data.message || `Synced ${data.messageCount} messages from Gmail`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       console.error('Sync mutation error in callback:', error);
       
       // Handle specific error cases
@@ -344,7 +322,7 @@ export default function GmailMessages() {
   };
   
   // Create task from email mutation
-  const createTaskMutation = useMutation({
+  const createTaskMutation = useMutation<any, Error, InsertTask>({
     mutationFn: async (taskData: InsertTask) => {
       try {
         // Use our enhanced apiRequest that handles empty responses better
@@ -354,14 +332,14 @@ export default function GmailMessages() {
         throw error;
       }
     },
-    onSuccess: (response) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Success",
         description: "Email converted to task successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message || "Failed to create task from email",
@@ -439,10 +417,9 @@ export default function GmailMessages() {
   };
   
   // Manual auth mutation
-  const manualAuthMutation = useMutation({
+  const manualAuthMutation = useMutation<any, Error, string>({
     mutationFn: async (code: string) => {
-      const res = await apiRequest("POST", "/api/gmail/manual-auth", { code });
-      return await res.json();
+      return await apiRequest("POST", "/api/gmail/manual-auth", { code });
     },
     onSuccess: () => {
       toast({
@@ -453,7 +430,7 @@ export default function GmailMessages() {
       setManualMode(false);
       setAuthCode("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Authentication Failed",
         description: error.message || "Failed to authenticate with Google. Please try again with a new code.",
@@ -635,10 +612,9 @@ export default function GmailMessages() {
   };
 
   // Disconnect from Gmail
-  const disconnectMutation = useMutation({
+  const disconnectMutation = useMutation<any, Error, void>({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/gmail/disconnect");
-      return await res.json();
+      return await apiRequest("POST", "/api/gmail/disconnect");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
@@ -657,10 +633,9 @@ export default function GmailMessages() {
   });
   
   // Update Gmail settings
-  const updateSettingsMutation = useMutation({
+  const updateSettingsMutation = useMutation<any, Error, { autoSyncEnabled?: boolean, syncFrequencyMinutes?: number }>({
     mutationFn: async (updateData: { autoSyncEnabled?: boolean, syncFrequencyMinutes?: number }) => {
-      const res = await apiRequest("PATCH", "/api/gmail/settings", updateData);
-      return await res.json();
+      return await apiRequest("PATCH", "/api/gmail/settings", updateData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/settings"] });
