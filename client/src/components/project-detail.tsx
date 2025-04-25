@@ -134,9 +134,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const { data: project, isLoading: isLoadingProject, error: projectError } = useQuery({
     queryKey: [`/api/projects/${projectId}`],
     queryFn: async () => {
-      const response = await fetch(`/api/projects/${projectId}`);
-      if (!response.ok) {
-        if (response.status === 400) {
+      try {
+        const data = await apiRequest('GET', `/api/projects/${projectId}`);
+        return data;
+      } catch (error) {
+        if (error.status === 400) {
           toast({
             title: "Invalid Project ID",
             description: "The project ID is not valid. Redirecting to the projects list.",
@@ -147,18 +149,18 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         }
         throw new Error("Failed to fetch project details");
       }
-      return response.json();
     }
   });
 
   const { data: phases, isLoading: isLoadingPhases } = useQuery({
     queryKey: [`/api/projects/${projectId}/phases`],
     queryFn: async () => {
-      const response = await fetch(`/api/projects/${projectId}/phases`);
-      if (!response.ok) {
+      try {
+        const data = await apiRequest('GET', `/api/projects/${projectId}/phases`);
+        return data;
+      } catch (error) {
         throw new Error("Failed to fetch project phases");
       }
-      return response.json();
     },
     enabled: !!project
   });
@@ -166,11 +168,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const { data: members, isLoading: isLoadingMembers } = useQuery({
     queryKey: [`/api/projects/${projectId}/members`],
     queryFn: async () => {
-      const response = await fetch(`/api/projects/${projectId}/members`);
-      if (!response.ok) {
+      try {
+        const data = await apiRequest('GET', `/api/projects/${projectId}/members`);
+        return data;
+      } catch (error) {
         throw new Error("Failed to fetch project members");
       }
-      return response.json();
     },
     enabled: !!project
   });
@@ -178,11 +181,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const { data: tasks, isLoading: isLoadingTasks } = useQuery({
     queryKey: [`/api/projects/${projectId}/tasks`],
     queryFn: async () => {
-      const response = await fetch(`/api/projects/${projectId}/tasks`);
-      if (!response.ok) {
+      try {
+        const data = await apiRequest('GET', `/api/projects/${projectId}/tasks`);
+        return data;
+      } catch (error) {
         throw new Error("Failed to fetch project tasks");
       }
-      return response.json();
     },
     enabled: !!project
   });
@@ -192,13 +196,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     queryFn: async () => {
       console.log(`Fetching items for project ID: ${projectId}`);
       try {
-        const response = await fetch(`/api/projects/${projectId}/items`);
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Error fetching project items: ${errorText}`);
-          throw new Error("Failed to fetch project items");
-        }
-        const data = await response.json();
+        const data = await apiRequest('GET', `/api/projects/${projectId}/items`);
         console.log(`Successfully fetched ${data.length} project items`);
         return data;
       } catch (error) {
@@ -214,11 +212,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     queryKey: ['/api/customers'],
     queryFn: async () => {
       try {
-        const response = await fetch('/api/customers');
-        if (!response.ok) {
-          throw new Error('Failed to fetch customers');
-        }
-        return await response.json();
+        const data = await apiRequest('GET', '/api/customers');
+        return data;
       } catch (error) {
         console.error('Error fetching customers:', error);
         throw error;
@@ -359,11 +354,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   // Submit handler for editing project
   const updateProjectMutation = useMutation({
     mutationFn: async (data: EditProjectValues) => {
-      const res = await apiRequest("PUT", `/api/projects/${projectId}`, data);
-      if (!res.ok) {
-        throw new Error("Failed to update project");
-      }
-      return await res.json();
+      return await apiRequest("PUT", `/api/projects/${projectId}`, data);
     },
     onSuccess: () => {
       setIsEditProjectOpen(false);
