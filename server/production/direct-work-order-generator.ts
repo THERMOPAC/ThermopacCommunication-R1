@@ -603,7 +603,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
           projectId: parentItem.projectId,
           projectCode: project.code,
           itemId: componentId,
-          quantity: validQuantity.toString(),
+          quantity: validQuantity, // Keep as number for decimal compatibility
           parentItemId: parentItem.itemId, // Keep track of parent
           notes: `Sub-assembly of ${masterItemsMap.get(parentItem.itemId)?.itemCode}`,
           status: 'Not Started',
