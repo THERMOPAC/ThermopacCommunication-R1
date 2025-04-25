@@ -315,10 +315,15 @@ export default function WorkOrderEditPage() {
                           <FormControl>
                             <Textarea 
                               {...field} 
-                              placeholder="Enter work order description"
+                              placeholder="Work order description"
                               rows={3}
+                              className="text-blue-600 font-medium"
+                              readOnly
                             />
                           </FormControl>
+                          <FormDescription>
+                            Description cannot be modified
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
