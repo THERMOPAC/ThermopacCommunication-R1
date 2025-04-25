@@ -70,10 +70,11 @@ export function setupProcurementRoutes(app: Router) {
         
         const purchaseOrders = result.rows;
         
-        // Get counts of items for each purchase order
+        // Get counts of items and first item description for each purchase order
         if (purchaseOrders.length > 0) {
           const poIds = purchaseOrders.map(po => po.id);
           
+          // Get item counts
           const itemCountsResult = await client.query(`
             SELECT 
               purchase_order_id, 
@@ -92,9 +93,35 @@ export function setupProcurementRoutes(app: Router) {
             itemCountMap.set(row.purchase_order_id, parseInt(row.item_count));
           });
           
-          // Add item count to each purchase order
+          // Get items for each purchase order
+          const itemsResult = await client.query(`
+            SELECT 
+              poi.purchase_order_id, 
+              poi.item_code, 
+              poi.description, 
+              poi.quantity, 
+              poi.unit,
+              poi.status,
+              ROW_NUMBER() OVER (PARTITION BY poi.purchase_order_id ORDER BY poi.id) as row_num
+            FROM 
+              purchase_order_items poi
+            WHERE 
+              poi.purchase_order_id = ANY($1)
+          `, [poIds]);
+          
+          // Group items by purchase order ID
+          const poItemsMap = new Map();
+          itemsResult.rows.forEach(item => {
+            if (!poItemsMap.has(item.purchase_order_id)) {
+              poItemsMap.set(item.purchase_order_id, []);
+            }
+            poItemsMap.get(item.purchase_order_id).push(item);
+          });
+          
+          // Add item count and items to each purchase order
           purchaseOrders.forEach(po => {
             po.itemCount = itemCountMap.get(po.id) || 0;
+            po.items = poItemsMap.get(po.id) || [];
           });
         }
         
