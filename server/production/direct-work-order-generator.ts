@@ -851,6 +851,9 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       
       const validQuantity = !isNaN(quantity) && quantity > 0 ? quantity : 1;
       
+      // Convert to integer for work orders table (which is defined as integer in the schema)
+      const integerQuantity = Math.ceil(validQuantity);
+      
       // Create work order object
       const workOrder = {
         projectId,
@@ -862,7 +865,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         priority: 'Medium',
         plannedStartDate: today,
         plannedEndDate: endDate,
-        quantity: validQuantity, // Keep as number for decimal compatibility
+        quantity: integerQuantity, // Must be integer for work_orders table
         supervisorId: req.user!.id,
         createdBy: req.user!.id,
         createdAt: today,
