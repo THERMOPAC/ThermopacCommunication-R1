@@ -693,16 +693,14 @@ export default function ProcurementPlanningPage() {
                       <TableHead>PO Number</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Project</TableHead>
-                      <TableHead>Vendor</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Required By</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredPurchaseOrders.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center">
+                        <TableCell colSpan={5} className="h-24 text-center">
                           No purchase orders found.
                         </TableCell>
                       </TableRow>
@@ -716,7 +714,6 @@ export default function ProcurementPlanningPage() {
                               : po.title || ''}
                           </TableCell>
                           <TableCell>{po.project_code || (po.project ? po.project.code : '')}</TableCell>
-                          <TableCell>{po.vendor_name || ''}</TableCell>
                           <TableCell>
                             {po.status && (
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColorMap[po.status] || 'bg-gray-100 text-gray-800'}`}>
@@ -725,9 +722,6 @@ export default function ProcurementPlanningPage() {
                             )}
                           </TableCell>
                           <TableCell>{po.required_by_date ? format(new Date(po.required_by_date), 'yyyy-MM-dd') : ''}</TableCell>
-                          <TableCell className="text-right">
-                            {po.total_amount !== undefined ? `₹${po.total_amount.toLocaleString()}` : ''}
-                          </TableCell>
                         </TableRow>
                       ))
                     )}
