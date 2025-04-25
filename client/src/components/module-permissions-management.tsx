@@ -73,7 +73,7 @@ const ModulePermissionsManagement: React.FC = () => {
     queryFn: async ({ queryKey }) => {
       if (!selectedUser) return {};
       const response = await apiRequest("GET", `/api/users/${selectedUser}/module-permissions`);
-      return response as Record<string, ModulePermission>;
+      return response;
     },
     enabled: !!selectedUser && selectedTab === 'users',
   });
@@ -91,76 +91,17 @@ const ModulePermissionsManagement: React.FC = () => {
       // Using apiRequest to handle the response
       return await apiRequest('POST', `/api/users/${userId}/module-permissions/${moduleName}`, permissionsToSend);
     },
-    onMutate: async ({ userId, moduleName, permissions }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['/api/users', userId, 'module-permissions'] });
-      
-      // Snapshot the previous value
-      const previousPermissions = queryClient.getQueryData<Record<string, ModulePermission>>(
-        ['/api/users', userId, 'module-permissions']
-      );
-      
-      // Optimistically update to the new value
-      if (previousPermissions) {
-        queryClient.setQueryData<Record<string, ModulePermission>>(
-          ['/api/users', userId, 'module-permissions'],
-          {
-            ...previousPermissions,
-            [moduleName]: {
-              ...(previousPermissions[moduleName] || {
-                canView: false,
-                canCreate: false,
-                canEdit: false,
-                canDelete: false,
-              }),
-              ...permissions,
-              isCustom: true
-            }
-          }
-        );
-      }
-      
-      // Return a context object with the snapshot
-      return { previousPermissions };
-    },
+    // We're removing the optimistic update as it might be causing issues
     onSuccess: async (data, variables) => {
-      // Update the cached permissions directly instead of invalidating
-      const cachedPermissions = queryClient.getQueryData<Record<string, ModulePermission>>(
-        ['/api/users', variables.userId, 'module-permissions']
-      );
-      
-      if (cachedPermissions) {
-        // Create a new permissions object with the updated module permissions
-        const updatedPermissions = {
-          ...cachedPermissions,
-          [variables.moduleName]: {
-            ...(cachedPermissions[variables.moduleName] || {}),
-            ...variables.permissions,
-            isCustom: true
-          }
-        };
-        
-        // Update the query cache with the new permissions
-        queryClient.setQueryData(
-          ['/api/users', variables.userId, 'module-permissions'],
-          updatedPermissions
-        );
-      }
+      // After successful update, get the latest permissions from server
+      await refetchUserPermissions();
       
       toast({
         title: "Permissions updated",
         description: "The user's permissions have been successfully updated.",
       });
     },
-    onError: (error, variables, context) => {
-      // Rollback to the previous value
-      if (context?.previousPermissions) {
-        queryClient.setQueryData(
-          ['/api/users', variables.userId, 'module-permissions'],
-          context.previousPermissions
-        );
-      }
-      
+    onError: (error) => {
       toast({
         title: "Error updating permissions",
         description: error.message || "Failed to update permissions. Please try again.",
@@ -175,62 +116,16 @@ const ModulePermissionsManagement: React.FC = () => {
       // apiRequest automatically handles response properly
       return await apiRequest('DELETE', `/api/users/${userId}/module-permissions/${moduleName}`);
     },
-    onMutate: async ({ userId, moduleName }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['/api/users', userId, 'module-permissions'] });
-      
-      // Snapshot the previous value
-      const previousPermissions = queryClient.getQueryData<Record<string, ModulePermission>>(
-        ['/api/users', userId, 'module-permissions']
-      );
-      
-      // Optimistically update to the new value
-      if (previousPermissions) {
-        const newPermissions = { ...previousPermissions };
-        // Delete the module permissions to simulate returning to defaults
-        delete newPermissions[moduleName];
-        
-        queryClient.setQueryData<Record<string, ModulePermission>>(
-          ['/api/users', userId, 'module-permissions'],
-          newPermissions
-        );
-      }
-      
-      // Return a context object with the snapshot
-      return { previousPermissions };
-    },
-    onSuccess: async (data, variables) => {
-      // Get the current cached permissions
-      const cachedPermissions = queryClient.getQueryData<Record<string, ModulePermission>>(
-        ['/api/users', variables.userId, 'module-permissions']
-      );
-      
-      if (cachedPermissions) {
-        // Create a new object without the reset module
-        const updatedPermissions = { ...cachedPermissions };
-        delete updatedPermissions[variables.moduleName];
-        
-        // Update the cache directly
-        queryClient.setQueryData(
-          ['/api/users', variables.userId, 'module-permissions'],
-          updatedPermissions
-        );
-      }
+    onSuccess: async () => {
+      // After successful reset, get the latest permissions from server
+      await refetchUserPermissions();
       
       toast({
         title: "Permissions reset",
         description: "The user's permissions have been reset to role defaults.",
       });
     },
-    onError: (error, variables, context) => {
-      // Rollback to the previous value
-      if (context?.previousPermissions) {
-        queryClient.setQueryData(
-          ['/api/users', variables.userId, 'module-permissions'],
-          context.previousPermissions
-        );
-      }
-      
+    onError: (error) => {
       toast({
         title: "Error resetting permissions",
         description: error.message,
@@ -432,6 +327,7 @@ const ModulePermissionsManagement: React.FC = () => {
                                     onCheckedChange={(checked) => 
                                       handlePermissionChange(module, 'canView', !!checked)
                                     }
+                                    disabled={updatePermissionMutation.isPending}
                                   />
                                   <Label htmlFor={`${module}-view`}>View</Label>
                                 </div>
@@ -442,6 +338,7 @@ const ModulePermissionsManagement: React.FC = () => {
                                     onCheckedChange={(checked) => 
                                       handlePermissionChange(module, 'canCreate', !!checked)
                                     }
+                                    disabled={updatePermissionMutation.isPending}
                                   />
                                   <Label htmlFor={`${module}-create`}>Create</Label>
                                 </div>
@@ -452,6 +349,7 @@ const ModulePermissionsManagement: React.FC = () => {
                                     onCheckedChange={(checked) => 
                                       handlePermissionChange(module, 'canEdit', !!checked)
                                     }
+                                    disabled={updatePermissionMutation.isPending}
                                   />
                                   <Label htmlFor={`${module}-edit`}>Edit</Label>
                                 </div>
@@ -462,36 +360,37 @@ const ModulePermissionsManagement: React.FC = () => {
                                     onCheckedChange={(checked) => 
                                       handlePermissionChange(module, 'canDelete', !!checked)
                                     }
+                                    disabled={updatePermissionMutation.isPending}
                                   />
                                   <Label htmlFor={`${module}-delete`}>Delete</Label>
                                 </div>
                               </div>
                               
-                              {permission.isCustom && (
-                                <div className="mt-4 text-right">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handlePermissionReset(module)}
-                                    className="gap-1"
-                                  >
-                                    <RefreshCw className="h-4 w-4" />
-                                    Reset to Default
-                                  </Button>
-                                </div>
-                              )}
+                              {/* Reset button */}
+                              <div className="flex justify-end mt-4">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handlePermissionReset(module)}
+                                  disabled={resetPermissionMutation.isPending || !permission.isCustom}
+                                  className="text-xs"
+                                >
+                                  <RefreshCw className="h-3 w-3 mr-1" />
+                                  Reset to defaults
+                                </Button>
+                              </div>
                             </CardContent>
                           </Card>
                         );
                       })
                   )}
-                
-                  {!isLoadingUserPermissions && modules?.length > 0 && !Object.keys(userPermissions || {}).length && (
+                  
+                  {modules?.length === 0 && (
                     <Alert>
                       <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>No permissions found</AlertTitle>
+                      <AlertTitle>No modules found</AlertTitle>
                       <AlertDescription>
-                        The selected user has no customized permissions.
+                        There are no modules configured in the system.
                       </AlertDescription>
                     </Alert>
                   )}
@@ -503,7 +402,7 @@ const ModulePermissionsManagement: React.FC = () => {
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>No user selected</AlertTitle>
                   <AlertDescription>
-                    Please select a user to view and manage their permissions.
+                    Please select a user to manage their module permissions.
                   </AlertDescription>
                 </Alert>
               )}
@@ -515,72 +414,66 @@ const ModulePermissionsManagement: React.FC = () => {
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <div className="space-y-8">
-                  {['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'].map(role => (
-                    <div key={role} className="space-y-4">
-                      <h3 className="text-xl font-medium">{role}</h3>
-                      <Separator />
-                      
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {modules
-                          ?.filter((module: string) => !selectedModule || selectedModule === "all_modules" || module === selectedModule)
-                          .map((module: string) => {
-                            // Find existing permission or create default
-                            const permission = rolePermissions?.find(
-                              (p: RolePermission) => p.moduleName === module && p.role === role
-                            ) || {
-                              id: 0,
-                              role,
-                              moduleName: module,
-                              canView: false,
-                              canCreate: false,
-                              canEdit: false,
-                              canDelete: false
-                            };
-                            
-                            return (
-                              <Card key={`${role}-${module}`} className="overflow-hidden">
-                                <CardHeader className="bg-muted/50 py-3">
-                                  <CardTitle className="text-lg">{module}</CardTitle>
-                                </CardHeader>
-                                <CardContent className="pt-4">
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div className="flex items-center space-x-2">
-                                      <div className={`w-4 h-4 rounded ${permission?.canView ? 'bg-green-500' : 'bg-red-500'}`} />
-                                      <span>View: {permission?.canView ? 'Yes' : 'No'}</span>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                      <div className={`w-4 h-4 rounded ${permission?.canCreate ? 'bg-green-500' : 'bg-red-500'}`} />
-                                      <span>Create: {permission?.canCreate ? 'Yes' : 'No'}</span>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                      <div className={`w-4 h-4 rounded ${permission?.canEdit ? 'bg-green-500' : 'bg-red-500'}`} />
-                                      <span>Edit: {permission?.canEdit ? 'Yes' : 'No'}</span>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                      <div className={`w-4 h-4 rounded ${permission?.canDelete ? 'bg-green-500' : 'bg-red-500'}`} />
-                                      <span>Delete: {permission?.canDelete ? 'Yes' : 'No'}</span>
-                                    </div>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            );
-                          })
-                        }
+                <div>
+                  <Alert className="mb-6">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Read-only view</AlertTitle>
+                    <AlertDescription>
+                      Role-based default permissions can only be modified by database administrators.
+                    </AlertDescription>
+                  </Alert>
+                  
+                  {rolePermissions && Object.entries(rolePermissions).map(([role, modules]) => (
+                    <div key={role} className="mb-8">
+                      <h3 className="text-xl font-bold mb-4">{role}</h3>
+                      <div className="grid gap-4">
+                        {Object.entries(modules).map(([moduleName, permissions]) => (
+                          <Card key={`${role}-${moduleName}`}>
+                            <CardHeader className="py-3">
+                              <CardTitle className="text-lg">{moduleName}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`${role}-${moduleName}-view`} 
+                                    checked={permissions.canView}
+                                    disabled={true}
+                                  />
+                                  <Label htmlFor={`${role}-${moduleName}-view`}>View</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`${role}-${moduleName}-create`} 
+                                    checked={permissions.canCreate}
+                                    disabled={true}
+                                  />
+                                  <Label htmlFor={`${role}-${moduleName}-create`}>Create</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`${role}-${moduleName}-edit`} 
+                                    checked={permissions.canEdit}
+                                    disabled={true}
+                                  />
+                                  <Label htmlFor={`${role}-${moduleName}-edit`}>Edit</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`${role}-${moduleName}-delete`} 
+                                    checked={permissions.canDelete}
+                                    disabled={true}
+                                  />
+                                  <Label htmlFor={`${role}-${moduleName}-delete`}>Delete</Label>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-              
-              {!isLoadingRolePermissions && (!rolePermissions || rolePermissions.length === 0) && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>No role permissions defined</AlertTitle>
-                  <AlertDescription>
-                    Role-based permissions have not been configured.
-                  </AlertDescription>
-                </Alert>
               )}
             </TabsContent>
           </Tabs>
