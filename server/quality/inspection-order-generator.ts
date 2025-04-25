@@ -204,9 +204,10 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     
     // Generate sample inspection order numbers for preview
     const nextSeqNumber = existingInspectionOrders.length + 1;
-    const makeInspectionOrderNumber = `IO-${project.code}-M-${nextSeqNumber}`;
-    const buyInspectionOrderNumber = `IO-${project.code}-B-${nextSeqNumber + 1}`;
-    const componentInspectionOrderNumber = `IO-${project.code}-C-${nextSeqNumber + 2}`;
+    const [financialYear, projectNumber] = project.code.split('-');
+    const makeInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-${nextSeqNumber}`;
+    const buyInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-${nextSeqNumber + 1}`;
+    const componentInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-${nextSeqNumber + 2}`;
     
     // Combine all preview items
     const allPreviewItems = [
@@ -381,7 +382,9 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     
     // Create inspection orders for Make parent items
     if (filteredMakeParentItems.length > 0) {
-      const makeInspectionOrderNumber = `IO-${project.code}-M-${nextSeqNumber}`;
+      // Extract project number from the project code
+      const [financialYear, projectNumber] = project.code.split('-');
+      const makeInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-${nextSeqNumber}`;
       
       // Create parent inspection order
       const makeParentOrder = await db.insert(inspectionOrders).values({
@@ -423,7 +426,9 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     
     // Create inspection orders for Buy parent items
     if (filteredBuyParentItems.length > 0) {
-      const buyInspectionOrderNumber = `IO-${project.code}-B-${nextSeqNumber + 1}`;
+      // Extract project number from the project code
+      const [financialYear, projectNumber] = project.code.split('-');
+      const buyInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-${nextSeqNumber + 1}`;
       
       // Create parent inspection order
       const buyParentOrder = await db.insert(inspectionOrders).values({
@@ -465,7 +470,9 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     
     // Create inspection orders for component items
     if (filteredComponentItems.length > 0) {
-      const componentInspectionOrderNumber = `IO-${project.code}-C-${nextSeqNumber + 2}`;
+      // Extract project number from the project code
+      const [financialYear, projectNumber] = project.code.split('-');
+      const componentInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-${nextSeqNumber + 2}`;
       
       // Create parent inspection order
       const componentParentOrder = await db.insert(inspectionOrders).values({
