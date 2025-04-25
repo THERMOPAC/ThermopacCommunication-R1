@@ -457,13 +457,13 @@ export default function ProcurementTrackingPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>PO Number</TableHead>
+                          <TableHead className="w-[180px]">PO Number</TableHead>
                           <TableHead>Title</TableHead>
                           <TableHead>Vendor</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Est. Delivery</TableHead>
                           <TableHead>Progress</TableHead>
-                          <TableHead>Actions</TableHead>
+                          <TableHead className="w-[100px]">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
