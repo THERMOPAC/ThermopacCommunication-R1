@@ -9,9 +9,11 @@ import {
  * Preview inspection orders for a project
  */
 export const previewInspectionOrders = async (req: Request, res: Response) => {
+  console.log("previewInspectionOrders called with projectId:", req.params.projectId);
   try {
     const projectId = parseInt(req.params.projectId);
     const { newItemsOnly } = req.body;
+    console.log("Parsed projectId:", projectId, "newItemsOnly:", newItemsOnly);
     
     if (isNaN(projectId)) {
       return res.status(400).json({ error: 'Invalid project ID' });
@@ -222,9 +224,12 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
  * Generate inspection orders for a project
  */
 export const generateInspectionOrders = async (req: Request, res: Response) => {
+  console.log("generateInspectionOrders called with projectId:", req.params.projectId);
+  console.log("Request body:", req.body);
   try {
     const projectId = parseInt(req.params.projectId);
     const { newItemsOnly } = req.body;
+    console.log("Parsed projectId:", projectId, "newItemsOnly:", newItemsOnly);
     
     if (isNaN(projectId)) {
       return res.status(400).json({ error: 'Invalid project ID' });
