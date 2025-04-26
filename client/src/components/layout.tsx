@@ -60,7 +60,8 @@ export default function Layout({ children }: LayoutProps) {
                            location === '/shop-floor';
                            
   // Check if we're on any quality-related page
-  const isOnQualityPage = location === '/inspections' ||
+  const isOnQualityPage = location === '/material-identification' ||
+                        location === '/inspections' ||
                         location === '/inspection-management' ||
                         location.startsWith('/quality-reports') ||
                         location === '/quality-assurance-plan';
@@ -145,6 +146,7 @@ export default function Layout({ children }: LayoutProps) {
       isOpen: isQualityMenuOpen,
       toggle: () => setIsQualityMenuOpen(!isQualityMenuOpen),
       children: [
+        { icon: CheckSquare, label: "Material Identification", href: "/material-identification" },
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
         { icon: FileCheck, label: "Inspection Management", href: "/inspection-management" },
         { icon: Award, label: "Quality Reports", href: "/quality-reports" },
