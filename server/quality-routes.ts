@@ -84,6 +84,36 @@ export const setupQualityRoutes = (app: Router) => {
         return res.status(404).json({ error: 'Inspection order not found' });
       }
       
+      // Get the drawing number from master_items if we have an itemId
+      if (inspectionOrder.itemId) {
+        try {
+          // Get the project item which links to the master item
+          const projectItem = await db.query.projectItems.findFirst({
+            where: eq(sql`project_items.id`, inspectionOrder.itemId),
+          });
+          
+          if (projectItem) {
+            // Get the master item which has the drawing_no field
+            const masterItem = await db.query.masterItems.findFirst({
+              where: eq(sql`master_items.id`, projectItem.itemId),
+              columns: {
+                drawingNo: true,
+                uom: true
+              }
+            });
+            
+            if (masterItem) {
+              // Add drawingNo and uom to inspection order response
+              inspectionOrder.drawingNo = masterItem.drawingNo;
+              inspectionOrder.uom = masterItem.uom;
+            }
+          }
+        } catch (masterItemError) {
+          console.error('Error fetching master item drawing number:', masterItemError);
+          // Continue without drawing number rather than failing the whole request
+        }
+      }
+      
       res.status(200).json(inspectionOrder);
     } catch (error) {
       console.error('Error fetching inspection order details:', error);
