@@ -1216,7 +1216,7 @@ export default function InspectionsPage() {
       
       {/* Edit Inspection Order Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl w-8/12 max-h-[90vh]">
+        <DialogContent className="max-w-5xl w-10/12 max-h-[95vh]">
           <DialogHeader>
             <DialogTitle>Edit Inspection Order</DialogTitle>
             <DialogDescription>
@@ -1229,11 +1229,11 @@ export default function InspectionsPage() {
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
             </div>
           ) : editInspectionOrderDetails ? (
-            <ScrollArea className="h-[calc(90vh-14rem)] overflow-auto px-4">
+            <ScrollArea className="h-[calc(95vh-14rem)] overflow-auto px-6">
               <div className="pb-6">
                   <Form {...editForm}>
-                    <form onSubmit={editForm.handleSubmit(handleUpdateInspectionOrder)} className="space-y-2 mb-4">
-                <div className="grid grid-cols-12 gap-2">
+                    <form onSubmit={editForm.handleSubmit(handleUpdateInspectionOrder)} className="space-y-4 mb-6">
+                <div className="grid grid-cols-12 gap-4">
                   {/* First line: Item Code, Description, and Drawing No with custom widths */}
                   <div className="col-span-3">
                     <FormField
@@ -1308,7 +1308,7 @@ export default function InspectionsPage() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-12 gap-2">
+                <div className="grid grid-cols-12 gap-4">
                   {/* Second line: Quantity, Unit, and Status */}
                   <div className="col-span-3">
                     <FormField
@@ -1392,7 +1392,7 @@ export default function InspectionsPage() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-12 gap-2">
+                <div className="grid grid-cols-12 gap-4">
                   {/* Third line: Title and Inspection Type */}
                   <div className="col-span-6">
                     <FormField
@@ -1442,9 +1442,9 @@ export default function InspectionsPage() {
                 </div>
                 
                 {/* Inspection Tabs */}
-                <Tabs defaultValue="material" className="w-full mt-2">
+                <Tabs defaultValue="material" className="w-full mt-6">
                   <ScrollArea className="w-full whitespace-nowrap">
-                    <TabsList className="flex w-full">
+                    <TabsList className="flex w-full space-x-2">
                       <TabsTrigger value="material">Material Traceability</TabsTrigger>
                       <TabsTrigger value="welding">Welding & Weld Maps</TabsTrigger>
                       <TabsTrigger value="ndt">NDT</TabsTrigger>
@@ -1456,7 +1456,7 @@ export default function InspectionsPage() {
                   </ScrollArea>
                   
                   {/* Material Traceability Tab */}
-                  <TabsContent value="material" className="p-4 border rounded-md mt-2">
+                  <TabsContent value="material" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Material Traceability</h3>
                       <div className="grid grid-cols-12 gap-4">
@@ -1552,7 +1552,7 @@ export default function InspectionsPage() {
                   </TabsContent>
                   
                   {/* Welding & Weld Maps Tab */}
-                  <TabsContent value="welding" className="p-4 border rounded-md mt-2">
+                  <TabsContent value="welding" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Welding & Weld Maps</h3>
                       <div className="grid grid-cols-12 gap-4">
