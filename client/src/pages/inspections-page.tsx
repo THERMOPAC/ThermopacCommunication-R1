@@ -1160,7 +1160,7 @@ export default function InspectionsPage() {
       
       {/* Edit Inspection Order Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl w-8/12">
           <DialogHeader>
             <DialogTitle>Edit Inspection Order</DialogTitle>
             <DialogDescription>
