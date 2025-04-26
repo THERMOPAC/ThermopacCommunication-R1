@@ -1,7 +1,14 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
-import { ensureAuthenticated } from '../auth-middleware';
+
+// Define ensureAuthenticated middleware
+function ensureAuthenticated(req: Request, res: Response, next: Function) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: 'Unauthorized' });
+}
 
 // Helper function to generate next Welder ID
 async function generateNextWelderId() {
@@ -10,7 +17,7 @@ async function generateNextWelderId() {
     FROM welders
   `);
   
-  const maxId = result.rows[0]?.max_id || 0;
+  const maxId = parseInt(result.rows[0]?.max_id) || 0;
   const nextId = maxId + 1;
   return `W-${nextId.toString().padStart(3, '0')}`;
 }
@@ -22,7 +29,7 @@ async function generateNextCertificateNo() {
     FROM welders
   `);
   
-  const maxId = result.rows[0]?.max_id || 0;
+  const maxId = parseInt(result.rows[0]?.max_id) || 0;
   const nextId = maxId + 1;
   return `WQC-${nextId.toString().padStart(3, '0')}`;
 }

@@ -55,7 +55,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, PlusCircle, Search, UserCheck, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { CalendarIcon, PlusCircle, Search, UserCheck, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import Layout from "@/components/layout";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
@@ -137,15 +137,18 @@ export default function WelderManagementPage() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   
   // Fetch WPS data for dropdown
-  const { data: wpsData = [] } = useQuery({
+  const { data: wpsData = [] } = useQuery<any[]>({
     queryKey: ["/api/quality/wps"],
     staleTime: 60000, // 1 minute
   });
   
   // Fetch welders data
-  const { data: welders = [], isLoading, refetch } = useQuery({
+  const { data: welders = [], isLoading, refetch } = useQuery<any[]>({
     queryKey: ["/api/quality/welders"],
-    onError: (error: Error) => {
+    onSuccess: () => {
+      console.log("Welders data loaded successfully");
+    },
+    onError: (error) => {
       toast({
         title: "Error loading welders",
         description: error.message,
