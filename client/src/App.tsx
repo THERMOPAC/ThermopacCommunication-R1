@@ -24,6 +24,7 @@ import InspectionsPage from "@/pages/inspections-page";
 import InspectionManagementPage from "@/pages/inspection-management-page";
 import MaterialIdentificationPage from "@/pages/material-identification-page";
 import WpsPqrPage from "@/pages/wps-pqr-page";
+import WelderManagementPage from "@/pages/welder-management-page";
 import QualityReportsPage from "@/pages/quality-reports-page";
 import QualityAssurancePlanPage from "@/pages/quality-assurance-plan-page";
 import CreateQAPPage from "@/pages/create-qap-page";
@@ -101,6 +102,7 @@ function Router() {
       <ProtectedRoute path="/production/work-orders/edit/:id" component={WorkOrderEditPage} />
       <ProtectedRoute path="/shop-floor" component={ShopFloorPage} />
       <ProtectedRoute path="/wps-pqr" component={WpsPqrPage} />
+      <ProtectedRoute path="/welder-management" component={WelderManagementPage} />
       <ProtectedRoute path="/material-identification" component={MaterialIdentificationPage} />
       <ProtectedRoute path="/inspections" component={InspectionsPage} />
       <ProtectedRoute path="/inspection-management" component={InspectionManagementPage} />

@@ -1,0 +1,90 @@
+Create a "Welder Management" sub-tab under "WPS and PQR", inside the "Quality Management" main tab.
+Build a new "Welder Management" module to manage welder qualification and certification records.
+
+The module must allow users to create, view, edit, and search welder qualification records.
+
+1. Page Setup
+Page Name: Welder Management
+
+Location: Quality Management > WPS and PQR > Welder Management
+
+Action Buttons:
+
+Add New Welder
+
+Search Welders
+
+Export to PDF/Excel (optional)
+
+2. Form for "Add New Welder"
+
+Field Name	Field Type	Notes
+Welder ID	Auto-generated	Format: W-001, W-002, etc.
+Welder Name	Text Input	Mandatory
+Trade	Dropdown	Options: Welder, Fitter, Fabricator
+Process Qualified	Dropdown (Multi-select)	Options: SMAW, GTAW, FCAW, SAW
+Material Group Qualified	Dropdown (Multi-select)	Example: Carbon Steel, Stainless Steel, Alloy Steel
+Thickness Range	Text Input	Example: 3mm - 20mm
+Position Qualified	Dropdown (Multi-select)	Options: 1G, 2G, 3G, 4G, 5G, 6G
+WPS Number	Dropdown	List available WPS numbers from WPS Management
+Test Date	Date Picker	Mandatory
+Test Results	Dropdown	Options: Passed, Failed
+Certificate No.	Auto-generated	Format: WQC-001, WQC-002
+Certificate Expiry Date	Date Picker	Mandatory
+Status	Dropdown	Options: Active, Expired, Revoked
+Remarks	Text Area	Optional
+3. Important Features to Implement
+Auto-generation of Welder ID and Certificate No.
+
+Validation Rules:
+
+All mandatory fields must be filled before saving.
+
+Certificate Expiry Date must be later than Test Date.
+
+Auto-reminder feature:
+
+Notification 30 days before Certificate Expiry to requalify welder.
+
+WPS Linking:
+
+Each Welder record must be linked to a WPS Number.
+
+When viewing a WPS, show associated qualified welders.
+
+File Uploads (Optional):
+
+Allow users to attach scanned Welder Certificates (PDF/JPG).
+
+Advanced Search:
+
+Search welders by Welder Name, WPS Number, Process, Status, Expiry Date.
+
+Filtering Options:
+
+Active
+
+Expiring Soon
+
+Expired
+
+4. UI/UX Design Suggestions
+Use Tabs or Accordions for organizing form sections.
+
+Top Section: Basic Welder Information
+
+Second Section: Qualification Details
+
+Visual Indicators:
+
+Display Expiring Certificates in Red Warning Color.
+
+Dashboard Statistics:
+
+Total Welders
+
+Active Welders
+
+Expiring Soon
+
+Expired

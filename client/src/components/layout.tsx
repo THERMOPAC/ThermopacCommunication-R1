@@ -9,6 +9,7 @@ import {
   MessageSquare,
   UserCog,
   User as UserIcon,
+  UserCheck,
   Lightbulb,
   Award,
   TrendingUp,
@@ -63,6 +64,7 @@ export default function Layout({ children }: LayoutProps) {
   const isOnQualityPage = location === '/wps-pqr' ||
                         location === '/wps-pqr/wps' ||
                         location === '/wps-pqr/pqr' ||
+                        location === '/welder-management' ||
                         location === '/material-identification' ||
                         location === '/inspections' ||
                         location === '/inspection-management' ||
@@ -150,6 +152,7 @@ export default function Layout({ children }: LayoutProps) {
       toggle: () => setIsQualityMenuOpen(!isQualityMenuOpen),
       children: [
         { icon: FileCheck, label: "WPS and PQR", href: "/wps-pqr" },
+        { icon: UserCheck, label: "Welder Management", href: "/welder-management" },
         { icon: CheckSquare, label: "Material Identification", href: "/material-identification" },
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
         { icon: FileCheck, label: "Inspection Management", href: "/inspection-management" },
