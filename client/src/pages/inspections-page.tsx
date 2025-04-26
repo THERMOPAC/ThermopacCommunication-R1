@@ -350,8 +350,12 @@ export default function InspectionsPage() {
       // Success message with detailed information
       let description = responseData.message || `Successfully created ${responseData.count || 'multiple'} inspection orders for the project`;
       
-      if (responseData.buyItemsCount > 0 || responseData.componentItemsCount > 0) {
-        description = `Successfully created ${responseData.count} inspection orders (${responseData.buyItemsCount} buy item(s), ${responseData.componentItemsCount} component item(s))`;
+      // Show detailed breakdown of what was created
+      if (responseData.makeParentCount > 0 || responseData.buyParentCount > 0 || responseData.componentCount > 0) {
+        description = `Successfully created ${responseData.count} inspection orders:\n` +
+          `${responseData.makeParentCount > 0 ? `- ${responseData.makeParentCount} Make item(s)\n` : ''}` +
+          `${responseData.buyParentCount > 0 ? `- ${responseData.buyParentCount} Buy item(s)\n` : ''}` +
+          `${responseData.componentCount > 0 ? `- ${responseData.componentCount} Component item(s)` : ''}`;
       }
       
       toast({
