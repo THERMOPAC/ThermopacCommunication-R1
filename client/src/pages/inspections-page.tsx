@@ -59,6 +59,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -1382,6 +1383,70 @@ export default function InspectionsPage() {
                     />
                   </div>
                 </div>
+                
+                {/* Inspection Tabs */}
+                <Tabs defaultValue="material" className="w-full mt-2">
+                  <ScrollArea className="w-full whitespace-nowrap">
+                    <TabsList className="flex w-full">
+                      <TabsTrigger value="material">Material Traceability</TabsTrigger>
+                      <TabsTrigger value="welding">Welding & Weld Maps</TabsTrigger>
+                      <TabsTrigger value="ndt">NDT</TabsTrigger>
+                      <TabsTrigger value="visual">Visual Inspection</TabsTrigger>
+                      <TabsTrigger value="hydrotest">Hydrotest</TabsTrigger>
+                      <TabsTrigger value="non-conformance">Non-Conformance</TabsTrigger>
+                      <TabsTrigger value="final-dossier">Final Dossier</TabsTrigger>
+                    </TabsList>
+                  </ScrollArea>
+                  
+                  {/* Material Traceability Tab */}
+                  <TabsContent value="material" className="p-4 border rounded-md mt-2">
+                    <div className="text-center text-muted-foreground text-sm">
+                      Material traceability content will be added here
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Welding & Weld Maps Tab */}
+                  <TabsContent value="welding" className="p-4 border rounded-md mt-2">
+                    <div className="text-center text-muted-foreground text-sm">
+                      Welding & weld maps content will be added here
+                    </div>
+                  </TabsContent>
+                  
+                  {/* NDT Tab */}
+                  <TabsContent value="ndt" className="p-4 border rounded-md mt-2">
+                    <div className="text-center text-muted-foreground text-sm">
+                      NDT inspection content will be added here
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Visual Inspection Tab */}
+                  <TabsContent value="visual" className="p-4 border rounded-md mt-2">
+                    <div className="text-center text-muted-foreground text-sm">
+                      Visual inspection content will be added here
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Hydrotest Tab */}
+                  <TabsContent value="hydrotest" className="p-4 border rounded-md mt-2">
+                    <div className="text-center text-muted-foreground text-sm">
+                      Hydrotest content will be added here
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Non-Conformance Tab */}
+                  <TabsContent value="non-conformance" className="p-4 border rounded-md mt-2">
+                    <div className="text-center text-muted-foreground text-sm">
+                      Non-conformance content will be added here
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Final Dossier Tab */}
+                  <TabsContent value="final-dossier" className="p-4 border rounded-md mt-2">
+                    <div className="text-center text-muted-foreground text-sm">
+                      Final dossier content will be added here
+                    </div>
+                  </TabsContent>
+                </Tabs>
                 
                 <DialogFooter>
                   <Button 
