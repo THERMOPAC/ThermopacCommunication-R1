@@ -87,26 +87,27 @@ export const setupQualityRoutes = (app: Router) => {
       // Get the drawing number from master_items if we have an itemId
       if (inspectionOrder.itemId) {
         try {
-          // Get the project item which links to the master item
-          const projectItem = await db.query.projectItems.findFirst({
-            where: eq(sql`project_items.id`, inspectionOrder.itemId),
-          });
+          // Execute a truly raw SQL query to get the drawing number directly
+          const result = await db.execute(sql`
+            SELECT mi.drawing_no, mi.uom 
+            FROM master_items mi 
+            JOIN project_items pi ON mi.id = pi.item_id 
+            WHERE pi.id = ${inspectionOrder.itemId};
+          `);
           
-          if (projectItem) {
-            // Get the master item which has the drawing_no field
-            const masterItem = await db.query.masterItems.findFirst({
-              where: eq(sql`master_items.id`, projectItem.itemId),
-              columns: {
-                drawingNo: true,
-                uom: true
-              }
-            });
+          // The result is an array of rows
+          if (result && result.rows && result.rows.length > 0) {
+            const masterItemData = result.rows[0];
             
-            if (masterItem) {
-              // Add drawingNo and uom to inspection order response
-              inspectionOrder.drawingNo = masterItem.drawingNo;
-              inspectionOrder.uom = masterItem.uom;
-            }
+            // Add drawingNo and uom to inspection order response
+            // These field names should match the database column names
+            inspectionOrder.drawingNo = masterItemData.drawing_no;
+            inspectionOrder.uom = masterItemData.uom;
+            
+            // Log the drawing number being added
+            console.log(`Adding drawing number: ${masterItemData.drawing_no} for inspection order ${inspectionOrderId}`);
+          } else {
+            console.log(`No master item found for inspection order item ID ${inspectionOrder.itemId}`);
           }
         } catch (masterItemError) {
           console.error('Error fetching master item drawing number:', masterItemError);
