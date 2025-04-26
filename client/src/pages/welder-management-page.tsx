@@ -132,6 +132,11 @@ export default function WelderManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   
+  // Handle status filter selection
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value === "all_statuses" ? null : value);
+  };
+  
   // Fetch WPS data for dropdown
   const { data: wpsData = [] } = useQuery<any[]>({
     queryKey: ["/api/quality/wps"],
@@ -808,14 +813,14 @@ export default function WelderManagementPage() {
             />
           </div>
           <Select
-            value={statusFilter || ""}
-            onValueChange={(value) => setStatusFilter(value || null)}
+            value={statusFilter || "all_statuses"}
+            onValueChange={handleStatusFilterChange}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
+              <SelectItem value="all_statuses">All Statuses</SelectItem>
               {statusOptions.map((status) => (
                 <SelectItem key={status} value={status}>
                   {status}
