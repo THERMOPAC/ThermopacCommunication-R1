@@ -702,7 +702,7 @@ export default function InspectionsPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableCaption>
-                    Showing {inspections.filter((i: any) => i.reportType !== 'work_order').length} inspection reports
+                    Showing {Array.isArray(inspections) ? inspections.filter((i: any) => i.reportType !== 'work_order').length : 0} inspection reports
                   </TableCaption>
                   <TableHeader>
                     <TableRow>
@@ -715,7 +715,7 @@ export default function InspectionsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {inspections
+                    {Array.isArray(inspections) && inspections
                       .filter((inspection: any) => inspection.reportType !== 'work_order')
                       .map((inspection: any) => (
                         <TableRow key={inspection.id}>
