@@ -61,6 +61,7 @@ export default function Layout({ children }: LayoutProps) {
                            
   // Check if we're on any quality-related page
   const isOnQualityPage = location === '/inspections' ||
+                        location === '/inspection-management' ||
                         location.startsWith('/quality-reports') ||
                         location === '/quality-assurance-plan';
   
@@ -145,6 +146,7 @@ export default function Layout({ children }: LayoutProps) {
       toggle: () => setIsQualityMenuOpen(!isQualityMenuOpen),
       children: [
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
+        { icon: FileCheck, label: "Inspection Management", href: "/inspection-management" },
         { icon: Award, label: "Quality Reports", href: "/quality-reports" },
         { icon: FileCheck, label: "Quality Assurance Plan", href: "/quality-assurance-plan" }
       ]
