@@ -1174,8 +1174,156 @@ export default function InspectionsPage() {
             </div>
           ) : editInspectionOrderDetails ? (
             <Form {...editForm}>
-              <form onSubmit={editForm.handleSubmit(handleUpdateInspectionOrder)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <form onSubmit={editForm.handleSubmit(handleUpdateInspectionOrder)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* First line: Item Code, Description, and Drawing No */}
+                  <FormField
+                    control={editForm.control}
+                    name="itemCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Item Code</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            readOnly
+                            className="bg-gray-50"
+                            placeholder="Item code" 
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Read-only
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            readOnly
+                            className="bg-gray-50"
+                            placeholder="Item description" 
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Read-only
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="drawingNo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Drawing No.</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            readOnly
+                            className="bg-gray-50"
+                            placeholder="Drawing number" 
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Read-only
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Second line: Quantity, Unit, and Status */}
+                  <FormField
+                    control={editForm.control}
+                    name="quantity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantity</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            readOnly
+                            className="bg-gray-50"
+                            placeholder="Quantity" 
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Read-only
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="unit"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Unit</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            readOnly
+                            className="bg-gray-50"
+                            placeholder="Unit of measurement" 
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Read-only
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="passed">Passed</SelectItem>
+                            <SelectItem value="failed">Failed</SelectItem>
+                            <SelectItem value="conditionally_passed">Conditionally Passed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Third line: Title and Inspection Type */}
                   <FormField
                     control={editForm.control}
                     name="title"
@@ -1213,147 +1361,6 @@ export default function InspectionsPage() {
                             <SelectItem value="customer">Customer</SelectItem>
                           </SelectContent>
                         </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="in_progress">In Progress</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="passed">Passed</SelectItem>
-                            <SelectItem value="failed">Failed</SelectItem>
-                            <SelectItem value="conditionally_passed">Conditionally Passed</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="quantity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quantity</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            {...field} 
-                            readOnly
-                            className="bg-gray-50"
-                            placeholder="Quantity" 
-                          />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          This field is read-only
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="unit"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Unit</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            readOnly
-                            className="bg-gray-50"
-                            placeholder="Unit of measurement" 
-                          />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          This field is read-only
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="itemCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Item Code</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            readOnly
-                            className="bg-gray-50"
-                            placeholder="Item code" 
-                          />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          This field is read-only
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            readOnly
-                            className="bg-gray-50"
-                            placeholder="Item description" 
-                          />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          This field is read-only
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="drawingNo"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Drawing No.</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            readOnly
-                            className="bg-gray-50"
-                            placeholder="Drawing number" 
-                          />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          This field is read-only
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
