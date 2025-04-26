@@ -95,7 +95,7 @@ export default function InspectionManagementPage() {
       (order.itemCode && order.itemCode.toLowerCase().includes(searchText.toLowerCase())) ||
       (order.description && order.description.toLowerCase().includes(searchText.toLowerCase()));
     
-    const matchesStatus = !statusFilter || order.status === statusFilter;
+    const matchesStatus = !statusFilter || statusFilter === "all" || order.status === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
@@ -193,7 +193,7 @@ export default function InspectionManagementPage() {
                         <SelectValue placeholder="Filter by status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Statuses</SelectItem>
+                        <SelectItem value="all">All Statuses</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="in_progress">In Progress</SelectItem>
                         <SelectItem value="approved">Approved</SelectItem>
