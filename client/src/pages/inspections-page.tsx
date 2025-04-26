@@ -1174,8 +1174,8 @@ export default function InspectionsPage() {
             </div>
           ) : editInspectionOrderDetails ? (
             <Form {...editForm}>
-              <form onSubmit={editForm.handleSubmit(handleUpdateInspectionOrder)} className="space-y-4">
-                <div className="grid grid-cols-12 gap-3">
+              <form onSubmit={editForm.handleSubmit(handleUpdateInspectionOrder)} className="space-y-2 mb-4">
+                <div className="grid grid-cols-12 gap-2">
                   {/* First line: Item Code, Description, and Drawing No with custom widths */}
                   <div className="col-span-3">
                     <FormField
@@ -1250,7 +1250,7 @@ export default function InspectionsPage() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-12 gap-3">
+                <div className="grid grid-cols-12 gap-2">
                   {/* Second line: Quantity, Unit, and Status */}
                   <div className="col-span-3">
                     <FormField
@@ -1334,7 +1334,7 @@ export default function InspectionsPage() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-12 gap-3">
+                <div className="grid grid-cols-12 gap-2">
                   {/* Third line: Title and Inspection Type */}
                   <div className="col-span-6">
                     <FormField
