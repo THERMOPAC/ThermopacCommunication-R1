@@ -140,6 +140,9 @@ export default function WelderManagementPage() {
   const { data: wpsData = [] } = useQuery<any[]>({
     queryKey: ["/api/quality/wps"],
     staleTime: 60000, // 1 minute
+    onError: (error) => {
+      console.error("Error fetching WPS data:", error);
+    }
   });
   
   // Fetch welders data
