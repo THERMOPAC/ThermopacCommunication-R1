@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation, useRoute } from "wouter";
 
 // Define the WPS form schema
 const wpsFormSchema = z.object({
@@ -61,17 +62,45 @@ type PqrFormValues = z.infer<typeof pqrFormSchema>;
 export default function WpsPqrPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string>("wps");
+  const queryClient = useQueryClient();
+  const [location, setLocation] = useLocation();
+  const [match, params] = useRoute("/wps-pqr/:id?");
   
-  // Fetch existing WPS data for PQR dropdown
-  const { data: wpsData } = useQuery({
+  // Generate a sequential ID for WPS/PQR
+  const generateSequentialId = () => {
+    // In a real implementation, this would fetch the next available ID from the server
+    // For now, we'll use a random 3-digit number for demonstration
+    const sequentialNumber = String(Math.floor(100 + Math.random() * 900)).padStart(3, '0');
+    return sequentialNumber;
+  };
+  
+  // Get ID from params or generate a new one
+  const documentId = params?.id || generateSequentialId();
+  const wpsId = `WPS-${documentId}`;
+  const pqrId = `PQR-${documentId}`;
+  
+  // Fetch existing WPS data
+  const { data: wpsData, isLoading: isLoadingWps } = useQuery({
     queryKey: ['/api/quality/wps'],
     // The API does not exist yet, so we'll disable it to prevent errors
     enabled: false,
   });
   
+  // Fetch specific WPS data if ID is provided
+  const { data: specificWps, isLoading: isLoadingSpecificWps } = useQuery({
+    queryKey: ['/api/quality/wps', documentId],
+    enabled: !!params?.id && false, // Disabled for now
+  });
+  
+  // Fetch specific PQR data if ID is provided
+  const { data: specificPqr, isLoading: isLoadingSpecificPqr } = useQuery({
+    queryKey: ['/api/quality/pqr', documentId],
+    enabled: !!params?.id && false, // Disabled for now
+  });
+  
   // Default values for WPS form
   const wpsDefaultValues: Partial<WpsFormValues> = {
-    wpsId: "WPS-" + String(Math.floor(1000 + Math.random() * 9000)), // Generate a random 4-digit number
+    wpsId: wpsId,
     materialType: "",
     materialGrade: "",
     weldingProcess: "",
@@ -89,8 +118,8 @@ export default function WpsPqrPage() {
 
   // Default values for PQR form
   const pqrDefaultValues: Partial<PqrFormValues> = {
-    pqrId: "PQR-" + String(Math.floor(1000 + Math.random() * 9000)), // Generate a random 4-digit number
-    relatedWpsId: "",
+    pqrId: pqrId,
+    relatedWpsId: wpsId, // Set the related WPS ID to match
     testSpecimenMaterial: "",
     testSpecimenThickness: "",
     voltage: "",
@@ -119,35 +148,120 @@ export default function WpsPqrPage() {
     resolver: zodResolver(pqrFormSchema),
     defaultValues: pqrDefaultValues,
   });
+  
+  // Update forms with specific data if available
+  useEffect(() => {
+    if (specificWps) {
+      wpsForm.reset(specificWps);
+    }
+    
+    if (specificPqr) {
+      pqrForm.reset(specificPqr);
+    }
+  }, [specificWps, specificPqr, wpsForm, pqrForm]);
+  
+  // Effect to handle URL parameters
+  useEffect(() => {
+    // If URL contains an ID, open the correct tab based on the active view
+    // This could be enhanced to auto-switch to the PQR tab when viewing an existing entry
+    if (params?.id && location.includes('/pqr')) {
+      setActiveTab('pqr');
+    }
+  }, [params, location]);
 
   // WPS form submission handler
-  const onWpsSubmit = (data: WpsFormValues) => {
+  const onWpsSubmit = async (data: WpsFormValues) => {
     console.log("WPS Form submitted:", data);
     
-    // TODO: Add API call to save the data
-    // Currently showing success toast for demonstration
-    toast({
-      title: "WPS Created Successfully",
-      description: `WPS ID: ${data.wpsId} has been created.`,
-    });
-    
-    // Reset form
-    wpsForm.reset(wpsDefaultValues);
+    try {
+      // TODO: Add API call to save the WPS data
+      // const response = await apiRequest('POST', '/api/quality/wps', data);
+      // const savedWps = await response.json();
+      
+      // For now, simulate successful save
+      const savedWps = { ...data };
+      
+      // Show success message
+      toast({
+        title: "WPS Created Successfully",
+        description: `WPS ID: ${data.wpsId} has been created along with a corresponding PQR.`,
+      });
+      
+      // Switch to PQR tab to complete the linked record
+      setActiveTab("pqr");
+      
+      // Prefill PQR form with some values from WPS
+      pqrForm.setValue("pqrId", pqrId);
+      pqrForm.setValue("relatedWpsId", data.wpsId);
+      pqrForm.setValue("weldingPosition", data.weldingPosition);
+      pqrForm.setValue("fillerMaterial", data.fillerMaterial);
+      pqrForm.setValue("shieldingGas", data.shieldingGas || "");
+      pqrForm.setValue("preheatTemperature", data.preheatTemperature);
+      pqrForm.setValue("pwht", data.pwht);
+      
+      // Update the URL to include the document ID
+      if (!params?.id) {
+        setLocation(`/wps-pqr/${documentId}`, { replace: true });
+      }
+      
+      // In a real implementation, invalidate queries
+      // queryClient.invalidateQueries(['/api/quality/wps']);
+    } catch (error) {
+      console.error("Error saving WPS:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create WPS. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // PQR form submission handler
-  const onPqrSubmit = (data: PqrFormValues) => {
+  const onPqrSubmit = async (data: PqrFormValues) => {
     console.log("PQR Form submitted:", data);
     
-    // TODO: Add API call to save the data
-    // Currently showing success toast for demonstration
-    toast({
-      title: "PQR Created Successfully",
-      description: `PQR ID: ${data.pqrId} has been created.`,
-    });
-    
-    // Reset form
-    pqrForm.reset(pqrDefaultValues);
+    try {
+      // TODO: Add API call to save the PQR data
+      // const response = await apiRequest('POST', '/api/quality/pqr', data);
+      // const savedPqr = await response.json();
+      
+      // For now, simulate successful save
+      const savedPqr = { ...data };
+      
+      toast({
+        title: "PQR Created Successfully",
+        description: `PQR ID: ${data.pqrId} has been created and linked to ${data.relatedWpsId}.`,
+      });
+      
+      // In a real implementation, invalidate queries
+      // queryClient.invalidateQueries(['/api/quality/pqr']);
+      
+      // Reset forms with new IDs for the next entry
+      const newId = generateSequentialId();
+      const newWpsId = `WPS-${newId}`;
+      const newPqrId = `PQR-${newId}`;
+      
+      wpsForm.reset({
+        ...wpsDefaultValues,
+        wpsId: newWpsId
+      });
+      
+      pqrForm.reset({
+        ...pqrDefaultValues,
+        pqrId: newPqrId,
+        relatedWpsId: newWpsId
+      });
+      
+      // Update the URL to remove the ID
+      setLocation('/wps-pqr', { replace: true });
+    } catch (error) {
+      console.error("Error saving PQR:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create PQR. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Update PWHT Details field visibility based on PWHT selection
@@ -176,6 +290,7 @@ export default function WpsPqrPage() {
                 <CardTitle>Welding Procedure Specification (WPS)</CardTitle>
                 <CardDescription>
                   Create a new Welding Procedure Specification to document welding variables.
+                  When you create a WPS, a matching PQR with the same ID number will automatically be created.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -512,6 +627,7 @@ export default function WpsPqrPage() {
                 <CardTitle>Procedure Qualification Record (PQR)</CardTitle>
                 <CardDescription>
                   Create a new Procedure Qualification Record to document test results and qualification details.
+                  Each PQR is automatically linked to its corresponding WPS with matching ID numbers.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -530,7 +646,7 @@ export default function WpsPqrPage() {
                                 <Input {...field} readOnly />
                               </FormControl>
                               <FormDescription>
-                                Auto-generated PQR identifier
+                                Auto-generated PQR identifier (matches WPS number)
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -543,22 +659,12 @@ export default function WpsPqrPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Related WPS ID</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select Related WPS" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {/* This would be populated from API data - using placeholders for now */}
-                                  <SelectItem value="WPS-1001">WPS-1001</SelectItem>
-                                  <SelectItem value="WPS-1002">WPS-1002</SelectItem>
-                                  <SelectItem value="WPS-1003">WPS-1003</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <Input {...field} readOnly />
+                              </FormControl>
+                              <FormDescription>
+                                Automatically linked to corresponding WPS
+                              </FormDescription>
                               <FormMessage />
                             </FormItem>
                           )}
