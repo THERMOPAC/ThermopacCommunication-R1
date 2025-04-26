@@ -1229,8 +1229,8 @@ export default function InspectionsPage() {
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
             </div>
           ) : editInspectionOrderDetails ? (
-            <ScrollArea className="max-h-[calc(90vh-12rem)]">
-              <div className="px-4 pb-6">
+            <ScrollArea className="h-[calc(90vh-14rem)] overflow-auto px-4">
+              <div className="pb-6">
                   <Form {...editForm}>
                     <form onSubmit={editForm.handleSubmit(handleUpdateInspectionOrder)} className="space-y-2 mb-4">
                 <div className="grid grid-cols-12 gap-2">
