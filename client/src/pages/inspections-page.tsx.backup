@@ -1216,8 +1216,8 @@ export default function InspectionsPage() {
       
       {/* Edit Inspection Order Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl w-8/12 max-h-[90vh] p-0">
-          <DialogHeader className="px-6 pt-6 pb-2">
+        <DialogContent className="max-w-4xl w-8/12 max-h-[90vh]">
+          <DialogHeader>
             <DialogTitle>Edit Inspection Order</DialogTitle>
             <DialogDescription>
               Update the details of this inspection order.
@@ -1229,9 +1229,8 @@ export default function InspectionsPage() {
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
             </div>
           ) : editInspectionOrderDetails ? (
-            <div className="px-6">
-              <ScrollArea className="max-h-[calc(90vh-15rem)] pr-4">
-                <div className="pb-6">
+            <ScrollArea className="max-h-[calc(90vh-12rem)]">
+              <div className="px-4 pb-6">
                   <Form {...editForm}>
                     <form onSubmit={editForm.handleSubmit(handleUpdateInspectionOrder)} className="space-y-2 mb-4">
                 <div className="grid grid-cols-12 gap-2">
@@ -2346,26 +2345,25 @@ export default function InspectionsPage() {
                   </TabsContent>
                 </Tabs>
                 
-                    <div className="flex justify-end gap-2 mt-6">
-                      <Button 
-                        variant="outline" 
-                        type="button"
-                        onClick={() => {
-                          setIsEditDialogOpen(false);
-                          setEditingInspectionOrder(null);
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit">
-                        Update Inspection Order
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </div>
-            </ScrollArea>
+                <div className="flex justify-end gap-2 mt-6">
+                  <Button 
+                    variant="outline" 
+                    type="button"
+                    onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setEditingInspectionOrder(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    Update Inspection Order
+                  </Button>
+                </div>
+              </form>
+            </Form>
           </div>
+        </ScrollArea>
           ) : (
             <div className="flex flex-col items-center justify-center h-64">
               <AlertCircle className="h-16 w-16 text-destructive mb-4" />
