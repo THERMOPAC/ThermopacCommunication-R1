@@ -707,7 +707,27 @@ export default function InspectionsPage() {
                                 setIsDetailsDialogOpen(true);
                               }}
                             >
-                              View Details
+                              <Eye className="h-4 w-4 mr-1" /> View
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                toast({
+                                  title: "Edit Inspection Order",
+                                  description: "This feature will be implemented in a future update.",
+                                });
+                              }}
+                            >
+                              <Edit2 className="h-4 w-4 mr-1" /> Edit
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="text-red-500 hover:text-red-700"
+                              onClick={() => handleDeleteInspectionOrder(order.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" /> Delete
                             </Button>
                           </div>
                         </TableCell>

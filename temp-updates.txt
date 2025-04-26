@@ -1,0 +1,54 @@
+1. Add imports at the top of the file right after the existing imports:
+
+import { 
+  Eye,
+  Edit2,
+  Trash2,
+  Plus,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  ClipboardCheck,
+  FileText,
+  Loader2,
+  CalendarIcon,
+  Hourglass
+} from "lucide-react";
+
+2. Add the delete function before the return statement:
+
+// Delete an inspection order
+const handleDeleteInspectionOrder = async (orderId: number) => {
+  if (!orderId) return;
+  
+  try {
+    const response = await fetch(`/api/quality/inspection-orders/${orderId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to delete inspection order");
+    }
+    
+    // Success message
+    toast({
+      title: "Inspection Order Deleted",
+      description: "The inspection order has been deleted successfully.",
+    });
+    
+    // Refresh the inspection orders list
+    await refetchInspectionOrders();
+    
+  } catch (error: any) {
+    console.error("Error deleting inspection order:", error);
+    toast({
+      title: "Error Deleting Inspection Order",
+      description: error.message || "There was an error deleting the inspection order. Please try again.",
+      variant: "destructive",
+    });
+  }
+};
