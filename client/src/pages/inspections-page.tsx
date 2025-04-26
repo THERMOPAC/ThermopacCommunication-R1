@@ -426,18 +426,30 @@ export default function InspectionsPage() {
       inspectionType: "",
       quantity: 0,
       unit: "",
+      itemCode: "",
+      description: "",
+      drawingNo: "",
     }
   });
 
   // Update form values when inspection order details are loaded
   useEffect(() => {
     if (editInspectionOrderDetails) {
+      // Get the item code and description from the first item if available
+      const firstItem = editInspectionOrderDetails.items && editInspectionOrderDetails.items.length > 0 
+        ? editInspectionOrderDetails.items[0] 
+        : null;
+        
       editForm.reset({
         title: editInspectionOrderDetails.title,
         status: editInspectionOrderDetails.status,
         inspectionType: editInspectionOrderDetails.inspectionType,
         quantity: editInspectionOrderDetails.quantity,
         unit: editInspectionOrderDetails.unit,
+        // Use properties from the inspection order details or its first item
+        itemCode: editInspectionOrderDetails.itemCode || (firstItem ? firstItem.itemCode : ""),
+        description: editInspectionOrderDetails.description || (firstItem ? firstItem.description : ""),
+        drawingNo: editInspectionOrderDetails.drawingNo || "",
       });
     }
   }, [editInspectionOrderDetails, editForm]);
@@ -1233,6 +1245,48 @@ export default function InspectionsPage() {
                             <SelectItem value="unit">Units</SelectItem>
                           </SelectContent>
                         </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="itemCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Item Code</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter item code" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter item description" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="drawingNo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Drawing No.</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter drawing number (optional)" />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
