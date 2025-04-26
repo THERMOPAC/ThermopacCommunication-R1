@@ -133,7 +133,16 @@ export default function InspectionsPage() {
     data: inspectionOrders = [],
     isLoading: isLoadingInspectionOrders,
     refetch: refetchInspectionOrders
-  } = useQuery<any[]>({
+  } = useQuery<Array<{
+    id: number;
+    inspectionOrderNumber: string;
+    title: string;
+    inspectionType: string;
+    status: string;
+    createdAt: string;
+    quantity: number;
+    unit: string;
+  }>>({
     queryKey: ['/api/quality/inspection-orders/project', selectedProject],
     queryFn: async ({ queryKey }) => {
       const [_, projectId] = queryKey;
@@ -153,7 +162,24 @@ export default function InspectionsPage() {
   const {
     data: inspectionOrderDetails,
     isLoading: isLoadingOrderDetails,
-  } = useQuery({
+  } = useQuery<{
+    id: number;
+    inspectionOrderNumber: string;
+    title: string;
+    inspectionType: string;
+    status: string;
+    createdAt: string;
+    quantity: number;
+    unit: string;
+    items: Array<{
+      id: number;
+      itemCode: string;
+      description: string;
+      quantity: number;
+      unit: string;
+      status: string;
+    }>;
+  }>({
     queryKey: ['/api/quality/inspection-orders', selectedInspectionOrder],
     queryFn: async ({ queryKey }) => {
       const [_, orderId] = queryKey;
