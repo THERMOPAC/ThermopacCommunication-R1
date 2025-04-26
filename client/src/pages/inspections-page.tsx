@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
 import { 
@@ -62,6 +62,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+// Schema for Inspection Order Edit
+const inspectionOrderEditSchema = z.object({
+  title: z.string().min(1, { message: "Title is required" }),
+  status: z.string().min(1, { message: "Status is required" }),
+  inspectionType: z.string().min(1, { message: "Inspection type is required" }),
+  quantity: z.number().positive({ message: "Quantity must be a positive number" }),
+  unit: z.string().min(1, { message: "Unit is required" }),
+});
+
+type InspectionOrderEditFormValues = z.infer<typeof inspectionOrderEditSchema>;
+
 // Placeholder schema for Inspection Reports
 const inspectionReportSchema = z.object({
   projectId: z.number().positive({ message: "Please select a project" }),
@@ -93,6 +104,8 @@ export default function InspectionsPage() {
   const [previewData, setPreviewData] = useState<any>(null);
   const [selectedInspectionOrder, setSelectedInspectionOrder] = useState<number | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingInspectionOrder, setEditingInspectionOrder] = useState<number | null>(null);
   
   // Fetch projects for dropdown
   const { data: projects, isLoading: isLoadingProjects } = useQuery({
@@ -158,7 +171,44 @@ export default function InspectionsPage() {
     enabled: !!selectedProject,
   });
   
-  // Fetch details for a specific inspection order
+  // Fetch details for a specific inspection order for editing
+  const {
+    data: editInspectionOrderDetails,
+    isLoading: isLoadingEditDetails,
+  } = useQuery<{
+    id: number;
+    inspectionOrderNumber: string;
+    title: string;
+    inspectionType: string;
+    status: string;
+    createdAt: string;
+    quantity: number;
+    unit: string;
+    items: Array<{
+      id: number;
+      itemCode: string;
+      description: string;
+      quantity: number;
+      unit: string;
+      status: string;
+    }>;
+  }>({
+    queryKey: ['/api/quality/inspection-orders', editingInspectionOrder],
+    queryFn: async ({ queryKey }) => {
+      const [_, orderId] = queryKey;
+      if (!orderId) throw new Error("Inspection Order ID is required");
+      
+      const response = await fetch(`/api/quality/inspection-orders/${orderId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch inspection order details");
+      }
+      return response.json();
+    },
+    enabled: !!editingInspectionOrder,
+  });
+
+  // Fetch details for a specific inspection order for viewing
   const {
     data: inspectionOrderDetails,
     isLoading: isLoadingOrderDetails,
@@ -360,6 +410,70 @@ export default function InspectionsPage() {
     }
   };
   
+  // Form for editing inspection order
+  const editForm = useForm<InspectionOrderEditFormValues>({
+    resolver: zodResolver(inspectionOrderEditSchema),
+    defaultValues: {
+      title: "",
+      status: "",
+      inspectionType: "",
+      quantity: 0,
+      unit: "",
+    }
+  });
+
+  // Update form values when inspection order details are loaded
+  useEffect(() => {
+    if (editInspectionOrderDetails) {
+      editForm.reset({
+        title: editInspectionOrderDetails.title,
+        status: editInspectionOrderDetails.status,
+        inspectionType: editInspectionOrderDetails.inspectionType,
+        quantity: editInspectionOrderDetails.quantity,
+        unit: editInspectionOrderDetails.unit,
+      });
+    }
+  }, [editInspectionOrderDetails, editForm]);
+
+  // Handle inspection order update
+  const handleUpdateInspectionOrder = async (data: InspectionOrderEditFormValues) => {
+    if (!editingInspectionOrder) return;
+    
+    try {
+      const response = await fetch(`/api/quality/inspection-orders/${editingInspectionOrder}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update inspection order");
+      }
+      
+      // Success message
+      toast({
+        title: "Inspection Order Updated",
+        description: "The inspection order has been updated successfully.",
+      });
+      
+      // Close edit dialog and refresh the inspection orders list
+      setIsEditDialogOpen(false);
+      setEditingInspectionOrder(null);
+      await refetchInspectionOrders();
+      
+    } catch (error: any) {
+      console.error("Error updating inspection order:", error);
+      toast({
+        title: "Error Updating Inspection Order",
+        description: error.message || "There was an error updating the inspection order. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const onSubmit = async (data: InspectionReportFormValues) => {
     try {
       // This would call the API
@@ -587,101 +701,44 @@ export default function InspectionsPage() {
             ) : (
               <div className="overflow-x-auto">
                 <Table>
-                  <TableCaption>List of inspection reports for the selected project.</TableCaption>
+                  <TableCaption>
+                    Showing {inspections.filter((i: any) => i.reportType !== 'work_order').length} inspection reports
+                  </TableCaption>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Report #</TableHead>
+                      <TableHead className="w-[120px]">Report #</TableHead>
                       <TableHead>Title</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead>Inspector</TableHead>
-                      <TableHead>Qty Inspected</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {inspections?.map((inspection: any) => (
-                      <TableRow key={inspection.id}>
-                        <TableCell className="font-medium">{inspection.reportNumber}</TableCell>
-                        <TableCell>{inspection.title}</TableCell>
-                        <TableCell>{inspection.reportType}</TableCell>
-                        <TableCell>{getStatusBadge(inspection.status)}</TableCell>
-                        <TableCell>{format(new Date(inspection.inspectionDate), 'dd MMM yyyy')}</TableCell>
-                        <TableCell>{inspection.inspectorId === user?.id ? "You" : "Other Inspector"}</TableCell>
-                        <TableCell>
-                          {inspection.quantityInspected} 
-                          {inspection.quantityAccepted || inspection.quantityRejected ? 
-                            ` (${inspection.quantityAccepted} passed, ${inspection.quantityRejected} failed)` : 
-                            ''}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm">View</Button>
-                            <Button variant="outline" size="sm">Edit</Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {inspections
+                      .filter((inspection: any) => inspection.reportType !== 'work_order')
+                      .map((inspection: any) => (
+                        <TableRow key={inspection.id}>
+                          <TableCell className="font-medium">
+                            {inspection.reportNumber}
+                          </TableCell>
+                          <TableCell>{inspection.title}</TableCell>
+                          <TableCell>{inspection.reportType}</TableCell>
+                          <TableCell>
+                            {inspection.inspectionDate && format(new Date(inspection.inspectionDate), 'dd MMM yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(inspection.status)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm">
+                              <FileText className="h-4 w-4 mr-1" /> View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Quality Metrics</CardTitle>
-            <CardDescription>
-              Overview of quality performance metrics for the selected project.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {!selectedProject ? (
-              <div className="flex items-center justify-center h-32 text-muted-foreground">
-                Please select a project to view quality metrics.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Pass Rate</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {inspections?.length > 0 ? 
-                        Math.round(
-                          (inspections.reduce((acc: number, curr: any) => acc + (curr.quantityAccepted || 0), 0) / 
-                           inspections.reduce((acc: number, curr: any) => acc + (curr.quantityInspected || 0), 0)) * 100
-                        ) + '%' : 
-                        'N/A'
-                      }
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Total Inspections</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {inspections?.length || 0}
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">NCRs</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {inspections?.filter((inspection: any) => inspection.status === 'failed').length || 0}
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             )}
           </CardContent>
@@ -701,35 +758,26 @@ export default function InspectionsPage() {
                 disabled={isGeneratingOrders || isLoadingPreview}
                 className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700"
               >
-                {isGeneratingOrders || isLoadingPreview ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isLoadingPreview ? "Loading Preview..." : "Generating..."}
-                  </>
-                ) : (
-                  <>
-                    <FileText className="mr-2 h-4 w-4" /> Generate Inspection Orders
-                  </>
-                )}
+                <Plus className="mr-2 h-4 w-4" /> Generate Inspection Orders
               </Button>
             )}
           </CardHeader>
           <CardContent>
             {!selectedProject ? (
               <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 rounded-lg p-4">
-                <FileText className="h-16 w-16 text-gray-400 mb-2" />
+                <ClipboardCheck className="h-16 w-16 text-gray-400 mb-2" />
                 <h3 className="text-lg font-medium">No Project Selected</h3>
                 <p className="text-muted-foreground mt-2">
-                  Please select a project to view or create inspection orders.
+                  Please select a project to view or generate inspection orders.
                 </p>
               </div>
             ) : isLoadingInspectionOrders ? (
               <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
             ) : inspectionOrders.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 rounded-lg p-4">
-                <FileText className="h-16 w-16 text-gray-400 mb-2" />
+                <ClipboardCheck className="h-16 w-16 text-gray-400 mb-2" />
                 <h3 className="text-lg font-medium">No Inspection Orders Found</h3>
                 <p className="text-muted-foreground mt-2">
                   There are no inspection orders for this project yet. Generate inspection orders using the button above.
@@ -775,10 +823,8 @@ export default function InspectionsPage() {
                               variant="outline" 
                               size="sm"
                               onClick={() => {
-                                toast({
-                                  title: "Edit Inspection Order",
-                                  description: "This feature will be implemented in a future update.",
-                                });
+                                setEditingInspectionOrder(order.id);
+                                setIsEditDialogOpen(true);
                               }}
                             >
                               <Edit2 className="h-4 w-4 mr-1" /> Edit
@@ -845,7 +891,7 @@ export default function InspectionsPage() {
                       <div className="text-sm">{format(new Date(inspectionOrderDetails.createdAt), 'dd MMM yyyy')}</div>
                       
                       <div className="text-sm font-medium">Created By:</div>
-                      <div className="text-sm">{inspectionOrderDetails.creator?.username || 'N/A'}</div>
+                      <div className="text-sm">{inspectionOrderDetails?.creator?.username || 'N/A'}</div>
                     </div>
                   </CardContent>
                 </Card>
@@ -857,25 +903,25 @@ export default function InspectionsPage() {
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-2">
                       <div className="text-sm font-medium">Project:</div>
-                      <div className="text-sm">{inspectionOrderDetails.project?.name || 'N/A'}</div>
+                      <div className="text-sm">{inspectionOrderDetails?.project?.name || 'N/A'}</div>
                       
                       <div className="text-sm font-medium">Project Code:</div>
-                      <div className="text-sm">{inspectionOrderDetails.projectCode}</div>
+                      <div className="text-sm">{inspectionOrderDetails?.projectCode || 'N/A'}</div>
                       
                       <div className="text-sm font-medium">Item Code:</div>
-                      <div className="text-sm">{inspectionOrderDetails.itemCode || 'N/A'}</div>
+                      <div className="text-sm">{inspectionOrderDetails?.itemCode || 'N/A'}</div>
                       
                       <div className="text-sm font-medium">Description:</div>
-                      <div className="text-sm">{inspectionOrderDetails.description}</div>
+                      <div className="text-sm">{inspectionOrderDetails?.description || 'N/A'}</div>
                       
                       <div className="text-sm font-medium">Make/Buy:</div>
-                      <div className="text-sm">{inspectionOrderDetails.makeOrBuy || 'N/A'}</div>
+                      <div className="text-sm">{inspectionOrderDetails?.makeOrBuy || 'N/A'}</div>
                       
                       <div className="text-sm font-medium">Sequence Number:</div>
-                      <div className="text-sm">{inspectionOrderDetails.sequenceNumber}</div>
+                      <div className="text-sm">{inspectionOrderDetails?.sequenceNumber || 'N/A'}</div>
                       
                       <div className="text-sm font-medium">Parent Order:</div>
-                      <div className="text-sm">{inspectionOrderDetails.parentInspectionOrderId ? 'Yes' : 'No (Parent Item)'}</div>
+                      <div className="text-sm">{inspectionOrderDetails?.parentInspectionOrderId ? 'Yes' : 'No (Parent Item)'}</div>
                     </div>
                   </CardContent>
                 </Card>
@@ -958,6 +1004,186 @@ export default function InspectionsPage() {
         </DialogContent>
       </Dialog>
       
+      {/* Edit Inspection Order Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Edit Inspection Order</DialogTitle>
+            <DialogDescription>
+              Update the details of this inspection order.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoadingEditDetails ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+          ) : editInspectionOrderDetails ? (
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(handleUpdateInspectionOrder)} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Title</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter order title" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="inspectionType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Inspection Type</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select inspection type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="incoming">Incoming</SelectItem>
+                            <SelectItem value="in_process">In-Process</SelectItem>
+                            <SelectItem value="final">Final</SelectItem>
+                            <SelectItem value="vendor">Vendor</SelectItem>
+                            <SelectItem value="customer">Customer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="passed">Passed</SelectItem>
+                            <SelectItem value="failed">Failed</SelectItem>
+                            <SelectItem value="conditionally_passed">Conditionally Passed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="quantity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantity</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            onChange={e => field.onChange(parseFloat(e.target.value))}
+                            placeholder="Enter quantity" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="unit"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Unit</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select unit" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="pcs">Pieces</SelectItem>
+                            <SelectItem value="sets">Sets</SelectItem>
+                            <SelectItem value="kg">Kilograms</SelectItem>
+                            <SelectItem value="m">Meters</SelectItem>
+                            <SelectItem value="sq.m">Square Meters</SelectItem>
+                            <SelectItem value="cu.m">Cubic Meters</SelectItem>
+                            <SelectItem value="liters">Liters</SelectItem>
+                            <SelectItem value="unit">Units</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <DialogFooter>
+                  <Button 
+                    variant="outline" 
+                    type="button"
+                    onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setEditingInspectionOrder(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    Update Inspection Order
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64">
+              <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+              <h3 className="text-lg font-medium">Error Loading Details</h3>
+              <p className="text-muted-foreground text-center mt-2">
+                Could not load inspection order details. The order may have been deleted or you may not have permission to view it.
+              </p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => {
+                  setIsEditDialogOpen(false);
+                  setEditingInspectionOrder(null);
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      
       {/* Create Inspection Report Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-3xl">
@@ -1007,317 +1233,20 @@ export default function InspectionsPage() {
                         </FormItem>
                       )}
                     />
-                    
-                    <FormField
-                      control={form.control}
-                      name="projectCode"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Project Code</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Enter project code" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="workOrderId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Work Order (Optional)</FormLabel>
-                        <Select 
-                          onValueChange={(value) => field.onChange(parseInt(value))}
-                          defaultValue={field.value?.toString()}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a work order" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {workOrders?.map((workOrder: any) => (
-                              <SelectItem key={workOrder.id} value={workOrder.id.toString()}>
-                                {workOrder.workOrderNumber}: {workOrder.title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Link this inspection to a specific work order if applicable.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="reportNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Report Number</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="QC-2023-001" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Title</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Enter inspection title" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="reportType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Report Type</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select report type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="incoming">Incoming Inspection</SelectItem>
-                            <SelectItem value="in-process">In-Process Inspection</SelectItem>
-                            <SelectItem value="final">Final Inspection</SelectItem>
-                            <SelectItem value="customer">Customer Inspection</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </TabsContent>
-                
-                {/* Inspection Details Tab */}
-                <TabsContent value="details" className="space-y-4 pt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="inspectionDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Inspection Date</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className="pl-3 text-left font-normal flex justify-between"
-                                >
-                                  {field.value ? (
-                                    format(field.value, "PPP")
-                                  ) : (
-                                    <span>Pick a date</span>
-                                  )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) => date > new Date()}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="location"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Location</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Enter inspection location" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="inspectorId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Inspector</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="hidden" 
-                            {...field} 
-                            value={user?.id} 
-                          />
-                        </FormControl>
-                        <div className="p-2 border rounded-md bg-muted/50">
-                          {user?.username} ({user?.role})
-                        </div>
-                        <FormDescription>
-                          The current user is set as the inspector by default.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="quantityInspected"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Quantity Inspected</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              type="number" 
-                              min="1"
-                              onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                              placeholder="Enter quantity" 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="quantityAccepted"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Quantity Accepted</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              type="number" 
-                              min="0"
-                              onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                              placeholder="Enter quantity" 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="quantityRejected"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Quantity Rejected</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              type="number" 
-                              min="0"
-                              onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                              placeholder="Enter quantity" 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </div>
                 </TabsContent>
                 
-                {/* Findings & Results Tab */}
-                <TabsContent value="findings" className="space-y-4 pt-4">
-                  <FormField
-                    control={form.control}
-                    name="findings"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Findings</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            {...field} 
-                            placeholder="Enter inspection findings"
-                            rows={4}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="recommendations"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Recommendations</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            {...field} 
-                            placeholder="Enter recommendations"
-                            rows={4}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="passed">Passed</SelectItem>
-                            <SelectItem value="failed">Failed</SelectItem>
-                            <SelectItem value="conditionally_passed">Conditionally Passed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                {/* Other tabs would go here */}
+                <TabsContent value="details">
+                  <div className="p-4 text-center text-muted-foreground">
+                    This section is under development.
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="findings">
+                  <div className="p-4 text-center text-muted-foreground">
+                    This section is under development.
+                  </div>
                 </TabsContent>
               </Tabs>
               
