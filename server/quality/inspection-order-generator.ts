@@ -373,6 +373,8 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       allComponentItems.filter(item => !itemsWithInspectionOrders.has(item.id)) : 
       allComponentItems;
     
+    console.log(`After filtering: ${filteredMakeParentItems.length} make parents, ${filteredBuyParentItems.length} buy parents, ${filteredComponentItems.length} components`);
+    
     // Arrays to store created inspection orders
     const createdInspectionOrders = [];
     const createdInspectionOrderItems = [];
@@ -389,8 +391,11 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       // Extract project number from the project code
       const [financialYear, projectNumber] = project.code.split('-');
       
+      console.log(`Creating ${filteredMakeParentItems.length} make item inspection orders`);
+      
       // Create individual inspection orders for each make item
       for (const [index, item] of filteredMakeParentItems.entries()) {
+        console.log(`Creating make item order ${index + 1}/${filteredMakeParentItems.length}: Item ID ${item.id}`);
         const masterItem = masterItemsMap.get(item.itemId);
         const makeInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-M-${index + 1}`;
         
@@ -435,8 +440,11 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       // Extract project number from the project code
       const [financialYear, projectNumber] = project.code.split('-');
       
+      console.log(`Creating ${filteredBuyParentItems.length} buy item inspection orders`);
+      
       // Create individual inspection orders for each buy item
       for (const [index, item] of filteredBuyParentItems.entries()) {
+        console.log(`Creating buy item order ${index + 1}/${filteredBuyParentItems.length}: Item ID ${item.id}`);
         const masterItem = masterItemsMap.get(item.itemId);
         const buyInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-B-${index + 1}`;
         
@@ -481,8 +489,11 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       // Extract project number from the project code
       const [financialYear, projectNumber] = project.code.split('-');
       
+      console.log(`Creating ${filteredComponentItems.length} component inspection orders`);
+      
       // Create individual inspection orders for each component item
       for (const [index, item] of filteredComponentItems.entries()) {
+        console.log(`Creating component order ${index + 1}/${filteredComponentItems.length}: Item ID ${item.id}`);
         const masterItem = masterItemsMap.get(item.itemId);
         const parentItem = projectItemsList.find(parent => parent.id === item.parentItemId);
         const parentMasterItem = parentItem ? masterItemsMap.get(parentItem.itemId) : null;
@@ -526,6 +537,8 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     }
     
     // Return success response with created inspection orders information
+    console.log(`Orders generation complete: Created ${createdInspectionOrders.length} orders from ${filteredMakeParentItems.length} make items, ${filteredBuyParentItems.length} buy items, and ${filteredComponentItems.length} component items.`);
+    
     return res.status(200).json({
       message: 'Inspection orders generated successfully',
       count: createdInspectionOrders.length,
