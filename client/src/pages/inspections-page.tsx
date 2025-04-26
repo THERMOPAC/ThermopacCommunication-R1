@@ -69,6 +69,9 @@ const inspectionOrderEditSchema = z.object({
   inspectionType: z.string().min(1, { message: "Inspection type is required" }),
   quantity: z.number().positive({ message: "Quantity must be a positive number" }),
   unit: z.string().min(1, { message: "Unit is required" }),
+  itemCode: z.string().min(1, { message: "Item code is required" }),
+  description: z.string().min(1, { message: "Description is required" }),
+  drawingNo: z.string().optional(),
 });
 
 type InspectionOrderEditFormValues = z.infer<typeof inspectionOrderEditSchema>;
