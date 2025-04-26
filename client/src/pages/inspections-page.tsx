@@ -52,6 +52,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Eye, Edit2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
@@ -65,6 +66,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 
 // Schema for Inspection Order Edit
 const inspectionOrderEditSchema = z.object({
+  // Basic inspection order info
   title: z.string().min(1, { message: "Title is required" }),
   status: z.string().min(1, { message: "Status is required" }),
   inspectionType: z.string().min(1, { message: "Inspection type is required" }),
@@ -73,6 +75,59 @@ const inspectionOrderEditSchema = z.object({
   itemCode: z.string().min(1, { message: "Item code is required" }),
   description: z.string().min(1, { message: "Description is required" }),
   drawingNo: z.string().optional(),
+  
+  // Material traceability fields
+  materialCertificateNumber: z.string().optional(),
+  heatNumber: z.string().optional(),
+  materialGrade: z.string().optional(),
+  materialSpecification: z.string().optional(),
+  materialSupplier: z.string().optional(),
+  
+  // Welding fields
+  weldingProcedure: z.string().optional(),
+  welderId: z.string().optional(),
+  numberOfWelds: z.number().optional(),
+  weldType: z.string().optional(),
+  weldProcess: z.string().optional(),
+  weldingNotes: z.string().optional(),
+  
+  // NDT fields
+  ndtMethod: z.string().optional(),
+  ndtStandard: z.string().optional(),
+  ndtExtent: z.number().optional(),
+  ndtTechnician: z.string().optional(),
+  ndtDate: z.string().optional(),
+  ndtResults: z.string().optional(),
+  
+  // Visual inspection fields
+  visualInspectionStandard: z.string().optional(),
+  visualInspector: z.string().optional(),
+  dimensionalChecks: z.string().optional(),
+  surfaceCondition: z.string().optional(),
+  visualInspectionDate: z.string().optional(),
+  visualInspectionObservations: z.string().optional(),
+  
+  // Hydrotest fields
+  hydrotestPressure: z.number().optional(),
+  hydrotestDuration: z.number().optional(),
+  hydrotestMedium: z.string().optional(),
+  hydrotestOperator: z.string().optional(),
+  hydrotestDate: z.string().optional(),
+  hydrotestResult: z.string().optional(),
+  hydrotestNotes: z.string().optional(),
+  
+  // NCR fields
+  ncrNumber: z.string().optional(),
+  ncrDate: z.string().optional(),
+  ncrStatus: z.string().optional(),
+  ncrDescription: z.string().optional(),
+  ncrDisposition: z.string().optional(),
+  ncrCorrectiveAction: z.string().optional(),
+  
+  // Dossier fields
+  dossierNumber: z.string().optional(),
+  dossierCompletionDate: z.string().optional(),
+  dossierNotes: z.string().optional(),
 });
 
 type InspectionOrderEditFormValues = z.infer<typeof inspectionOrderEditSchema>;
@@ -1400,50 +1455,890 @@ export default function InspectionsPage() {
                   
                   {/* Material Traceability Tab */}
                   <TabsContent value="material" className="p-4 border rounded-md mt-2">
-                    <div className="text-center text-muted-foreground text-sm">
-                      Material traceability content will be added here
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Material Traceability</h3>
+                      <div className="grid grid-cols-12 gap-4">
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="materialCertificateNumber"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Material Certificate Number</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter certificate number" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="heatNumber"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Heat Number</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter heat number" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="materialGrade"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Material Grade</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter material grade" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="materialSpecification"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Material Specification</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter specification" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="materialSupplier"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Material Supplier</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter supplier name" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <div className="flex items-center gap-2 mt-4">
+                            <Button type="button" variant="outline" size="sm">
+                              <FileText className="h-4 w-4 mr-2" />
+                              Upload Certificate
+                            </Button>
+                            <Button type="button" variant="outline" size="sm">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Attachments
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </TabsContent>
                   
                   {/* Welding & Weld Maps Tab */}
                   <TabsContent value="welding" className="p-4 border rounded-md mt-2">
-                    <div className="text-center text-muted-foreground text-sm">
-                      Welding & weld maps content will be added here
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Welding & Weld Maps</h3>
+                      <div className="grid grid-cols-12 gap-4">
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="weldingProcedure"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Welding Procedure Specification (WPS)</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter WPS reference" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="welderId"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Welder ID / Name</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter welder ID" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="numberOfWelds"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Number of Welds</FormLabel>
+                                <FormControl>
+                                  <Input {...field} type="number" min="0" placeholder="Enter number of welds" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="weldType"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Weld Type</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select weld type" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="butt">Butt Weld</SelectItem>
+                                    <SelectItem value="fillet">Fillet Weld</SelectItem>
+                                    <SelectItem value="spot">Spot Weld</SelectItem>
+                                    <SelectItem value="seam">Seam Weld</SelectItem>
+                                    <SelectItem value="lap">Lap Weld</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="weldProcess"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Weld Process</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select process" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="smaw">SMAW (Shielded Metal Arc Welding)</SelectItem>
+                                    <SelectItem value="gtaw">GTAW (TIG Welding)</SelectItem>
+                                    <SelectItem value="gmaw">GMAW (MIG Welding)</SelectItem>
+                                    <SelectItem value="fcaw">FCAW (Flux-Cored Arc Welding)</SelectItem>
+                                    <SelectItem value="saw">SAW (Submerged Arc Welding)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <FormField
+                            control={editForm.control}
+                            name="weldingNotes"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Welding Notes & Observations</FormLabel>
+                                <FormControl>
+                                  <Textarea {...field} placeholder="Enter welding notes and observations" rows={3} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <div className="flex items-center gap-2 mt-2">
+                            <Button type="button" variant="outline" size="sm">
+                              <FileText className="h-4 w-4 mr-2" />
+                              Upload Weld Map
+                            </Button>
+                            <Button type="button" variant="outline" size="sm">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Attachments
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </TabsContent>
                   
                   {/* NDT Tab */}
                   <TabsContent value="ndt" className="p-4 border rounded-md mt-2">
-                    <div className="text-center text-muted-foreground text-sm">
-                      NDT inspection content will be added here
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Non-Destructive Testing (NDT)</h3>
+                      <div className="grid grid-cols-12 gap-4">
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="ndtMethod"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>NDT Method</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select NDT method" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="rt">RT (Radiographic Testing)</SelectItem>
+                                    <SelectItem value="ut">UT (Ultrasonic Testing)</SelectItem>
+                                    <SelectItem value="mt">MT (Magnetic Particle Testing)</SelectItem>
+                                    <SelectItem value="pt">PT (Penetrant Testing)</SelectItem>
+                                    <SelectItem value="et">ET (Eddy Current Testing)</SelectItem>
+                                    <SelectItem value="vt">VT (Visual Testing)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="ndtStandard"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>NDT Standard</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter applicable standard" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="ndtExtent"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Extent of Examination (%)</FormLabel>
+                                <FormControl>
+                                  <Input {...field} type="number" min="0" max="100" placeholder="Enter percentage" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="ndtTechnician"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>NDT Technician</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter technician name" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="ndtDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>NDT Date</FormLabel>
+                                <FormControl>
+                                  <Input {...field} type="date" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <FormField
+                            control={editForm.control}
+                            name="ndtResults"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>NDT Results & Findings</FormLabel>
+                                <FormControl>
+                                  <Textarea {...field} placeholder="Enter NDT results and findings" rows={3} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <div className="flex items-center gap-2 mt-2">
+                            <Button type="button" variant="outline" size="sm">
+                              <FileText className="h-4 w-4 mr-2" />
+                              Upload NDT Reports
+                            </Button>
+                            <Button type="button" variant="outline" size="sm">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Reports
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </TabsContent>
                   
                   {/* Visual Inspection Tab */}
                   <TabsContent value="visual" className="p-4 border rounded-md mt-2">
-                    <div className="text-center text-muted-foreground text-sm">
-                      Visual inspection content will be added here
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Visual Inspection</h3>
+                      <div className="grid grid-cols-12 gap-4">
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="visualInspectionStandard"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Inspection Standard</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter applicable standard" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="visualInspector"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Inspector Name</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter inspector name" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <FormField
+                            control={editForm.control}
+                            name="dimensionalChecks"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Dimensional Checks</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select result" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="acceptable">Acceptable</SelectItem>
+                                    <SelectItem value="notAcceptable">Not Acceptable</SelectItem>
+                                    <SelectItem value="conditionallyAcceptable">Conditionally Acceptable</SelectItem>
+                                    <SelectItem value="notApplicable">Not Applicable</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="surfaceCondition"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Surface Condition</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select condition" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="acceptable">Acceptable</SelectItem>
+                                    <SelectItem value="notAcceptable">Not Acceptable</SelectItem>
+                                    <SelectItem value="conditionallyAcceptable">Conditionally Acceptable</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="visualInspectionDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Inspection Date</FormLabel>
+                                <FormControl>
+                                  <Input {...field} type="date" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <FormField
+                            control={editForm.control}
+                            name="visualInspectionObservations"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Observations & Findings</FormLabel>
+                                <FormControl>
+                                  <Textarea {...field} placeholder="Enter visual inspection observations" rows={3} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <div className="flex items-center gap-2 mt-2">
+                            <Button type="button" variant="outline" size="sm">
+                              <FileText className="h-4 w-4 mr-2" />
+                              Upload Photos
+                            </Button>
+                            <Button type="button" variant="outline" size="sm">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Photos
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </TabsContent>
                   
                   {/* Hydrotest Tab */}
                   <TabsContent value="hydrotest" className="p-4 border rounded-md mt-2">
-                    <div className="text-center text-muted-foreground text-sm">
-                      Hydrotest content will be added here
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Hydrotest</h3>
+                      <div className="grid grid-cols-12 gap-4">
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="hydrotestPressure"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Test Pressure (bar)</FormLabel>
+                                <FormControl>
+                                  <Input {...field} type="number" step="0.1" min="0" placeholder="Enter test pressure" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="hydrotestDuration"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Test Duration (minutes)</FormLabel>
+                                <FormControl>
+                                  <Input {...field} type="number" min="0" placeholder="Enter test duration" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="hydrotestMedium"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Test Medium</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select medium" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="water">Water</SelectItem>
+                                    <SelectItem value="air">Air</SelectItem>
+                                    <SelectItem value="nitrogen">Nitrogen</SelectItem>
+                                    <SelectItem value="other">Other</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="hydrotestOperator"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Test Operator</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter operator name" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="hydrotestDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Test Date</FormLabel>
+                                <FormControl>
+                                  <Input {...field} type="date" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <FormField
+                            control={editForm.control}
+                            name="hydrotestResult"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Test Result</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select result" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="pass">Pass</SelectItem>
+                                    <SelectItem value="fail">Fail</SelectItem>
+                                    <SelectItem value="conditionalPass">Conditional Pass</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <FormField
+                            control={editForm.control}
+                            name="hydrotestNotes"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Notes & Observations</FormLabel>
+                                <FormControl>
+                                  <Textarea {...field} placeholder="Enter hydrotest notes and observations" rows={3} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <div className="flex items-center gap-2 mt-2">
+                            <Button type="button" variant="outline" size="sm">
+                              <FileText className="h-4 w-4 mr-2" />
+                              Upload Hydrotest Certificate
+                            </Button>
+                            <Button type="button" variant="outline" size="sm">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Certificate
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </TabsContent>
                   
                   {/* Non-Conformance Tab */}
                   <TabsContent value="non-conformance" className="p-4 border rounded-md mt-2">
-                    <div className="text-center text-muted-foreground text-sm">
-                      Non-conformance content will be added here
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Non-Conformance Report</h3>
+                      <div className="grid grid-cols-12 gap-4">
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="ncrNumber"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>NCR Number</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter NCR number" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="ncrDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>NCR Date</FormLabel>
+                                <FormControl>
+                                  <Input {...field} type="date" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <FormField
+                            control={editForm.control}
+                            name="ncrStatus"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>NCR Status</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="open">Open</SelectItem>
+                                    <SelectItem value="closed">Closed</SelectItem>
+                                    <SelectItem value="pending">Pending Approval</SelectItem>
+                                    <SelectItem value="void">Void</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <FormField
+                            control={editForm.control}
+                            name="ncrDescription"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Non-Conformance Description</FormLabel>
+                                <FormControl>
+                                  <Textarea {...field} placeholder="Describe the non-conformance" rows={3} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <FormField
+                            control={editForm.control}
+                            name="ncrDisposition"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Disposition / Corrective Action</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select disposition" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="rework">Rework</SelectItem>
+                                    <SelectItem value="repair">Repair</SelectItem>
+                                    <SelectItem value="useAsIs">Use As Is</SelectItem>
+                                    <SelectItem value="scrap">Scrap / Reject</SelectItem>
+                                    <SelectItem value="return">Return to Vendor</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <FormField
+                            control={editForm.control}
+                            name="ncrCorrectiveAction"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Corrective Action Description</FormLabel>
+                                <FormControl>
+                                  <Textarea {...field} placeholder="Describe the corrective action taken" rows={3} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <div className="flex items-center gap-2 mt-2">
+                            <Button type="button" variant="outline" size="sm">
+                              <FileText className="h-4 w-4 mr-2" />
+                              Upload NCR Documents
+                            </Button>
+                            <Button type="button" variant="outline" size="sm">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Documents
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </TabsContent>
                   
                   {/* Final Dossier Tab */}
                   <TabsContent value="final-dossier" className="p-4 border rounded-md mt-2">
-                    <div className="text-center text-muted-foreground text-sm">
-                      Final dossier content will be added here
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Final Documentation Dossier</h3>
+                      <div className="grid grid-cols-12 gap-4">
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="dossierNumber"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Dossier Number</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="Enter dossier number" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-6">
+                          <FormField
+                            control={editForm.control}
+                            name="dossierCompletionDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Completion Date</FormLabel>
+                                <FormControl>
+                                  <Input {...field} type="date" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <h4 className="text-md font-medium mb-2">Documentation Checklist</h4>
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox id="materialCerts" />
+                              <Label htmlFor="materialCerts">Material Certificates</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox id="weldingDocs" />
+                              <Label htmlFor="weldingDocs">Welding Documentation</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox id="ndtReports" />
+                              <Label htmlFor="ndtReports">NDT Reports</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox id="hydroCerts" />
+                              <Label htmlFor="hydroCerts">Hydrotest Certificates</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox id="dimReports" />
+                              <Label htmlFor="dimReports">Dimensional Reports</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox id="ncrReports" />
+                              <Label htmlFor="ncrReports">NCR Reports</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox id="inspectionReports" />
+                              <Label htmlFor="inspectionReports">Final Inspection Reports</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox id="coa" />
+                              <Label htmlFor="coa">Certificate of Conformity</Label>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-span-12">
+                          <FormField
+                            control={editForm.control}
+                            name="dossierNotes"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Dossier Notes</FormLabel>
+                                <FormControl>
+                                  <Textarea {...field} placeholder="Enter notes about the documentation dossier" rows={3} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="col-span-12">
+                          <div className="flex items-center gap-2 mt-2">
+                            <Button type="button" variant="outline" size="sm">
+                              <FileText className="h-4 w-4 mr-2" />
+                              Upload Dossier
+                            </Button>
+                            <Button type="button" variant="outline" size="sm">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Dossier
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </TabsContent>
                 </Tabs>
