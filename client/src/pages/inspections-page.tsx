@@ -1691,7 +1691,7 @@ export default function InspectionsPage() {
                   </TabsContent>
                   
                   {/* NDT Tab */}
-                  <TabsContent value="ndt" className="p-4 border rounded-md mt-2">
+                  <TabsContent value="ndt" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Non-Destructive Testing (NDT)</h3>
                       <div className="grid grid-cols-12 gap-4">
@@ -1817,7 +1817,7 @@ export default function InspectionsPage() {
                   </TabsContent>
                   
                   {/* Visual Inspection Tab */}
-                  <TabsContent value="visual" className="p-4 border rounded-md mt-2">
+                  <TabsContent value="visual" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Visual Inspection</h3>
                       <div className="grid grid-cols-12 gap-4">
@@ -1953,7 +1953,7 @@ export default function InspectionsPage() {
                   </TabsContent>
                   
                   {/* Hydrotest Tab */}
-                  <TabsContent value="hydrotest" className="p-4 border rounded-md mt-2">
+                  <TabsContent value="hydrotest" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Hydrotest</h3>
                       <div className="grid grid-cols-12 gap-4">
@@ -2104,7 +2104,7 @@ export default function InspectionsPage() {
                   </TabsContent>
                   
                   {/* Non-Conformance Tab */}
-                  <TabsContent value="non-conformance" className="p-4 border rounded-md mt-2">
+                  <TabsContent value="non-conformance" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Non-Conformance Report</h3>
                       <div className="grid grid-cols-12 gap-4">
@@ -2242,7 +2242,7 @@ export default function InspectionsPage() {
                   </TabsContent>
                   
                   {/* Final Dossier Tab */}
-                  <TabsContent value="final-dossier" className="p-4 border rounded-md mt-2">
+                  <TabsContent value="final-dossier" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Final Documentation Dossier</h3>
                       <div className="grid grid-cols-12 gap-4">
@@ -2345,7 +2345,7 @@ export default function InspectionsPage() {
                   </TabsContent>
                 </Tabs>
                 
-                <div className="flex justify-end gap-2 mt-6">
+                <div className="flex justify-end gap-4 mt-8">
                   <Button 
                     variant="outline" 
                     type="button"
@@ -2397,7 +2397,7 @@ export default function InspectionsPage() {
           </DialogHeader>
           
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <Tabs defaultValue="basic" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="basic">Basic Information</TabsTrigger>
@@ -2406,7 +2406,7 @@ export default function InspectionsPage() {
                 </TabsList>
                 
                 {/* Basic Information Tab */}
-                <TabsContent value="basic" className="space-y-4 pt-4">
+                <TabsContent value="basic" className="space-y-6 pt-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -2439,14 +2439,14 @@ export default function InspectionsPage() {
                 </TabsContent>
                 
                 {/* Other tabs would go here */}
-                <TabsContent value="details">
-                  <div className="p-4 text-center text-muted-foreground">
+                <TabsContent value="details" className="pt-6">
+                  <div className="p-6 text-center text-muted-foreground border rounded-md">
                     This section is under development.
                   </div>
                 </TabsContent>
                 
-                <TabsContent value="findings">
-                  <div className="p-4 text-center text-muted-foreground">
+                <TabsContent value="findings" className="pt-6">
+                  <div className="p-6 text-center text-muted-foreground border rounded-md">
                     This section is under development.
                   </div>
                 </TabsContent>
