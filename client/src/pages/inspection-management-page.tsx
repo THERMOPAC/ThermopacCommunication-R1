@@ -40,8 +40,12 @@ import {
   PlusCircle,
   Eye,
   Edit2,
-  Loader2
+  Loader2,
+  BarChart3,
+  FileOutput
 } from "lucide-react";
+import InspectionDashboard from "@/components/inspection/dashboard";
+import InspectionExport from "@/components/inspection/export";
 
 export default function InspectionManagementPage() {
   const { user } = useAuth();
@@ -136,8 +140,16 @@ export default function InspectionManagementPage() {
       <Tabs defaultValue="orders" className="mb-6">
         <TabsList>
           <TabsTrigger value="orders">Inspection Orders</TabsTrigger>
+          <TabsTrigger value="dashboard">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Dashboard
+          </TabsTrigger>
           <TabsTrigger value="schedule">Inspection Schedule</TabsTrigger>
           <TabsTrigger value="reports">Inspection Reports</TabsTrigger>
+          <TabsTrigger value="export">
+            <FileOutput className="h-4 w-4 mr-2" />
+            Export
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="orders">
@@ -318,6 +330,50 @@ export default function InspectionManagementPage() {
                 <h3 className="text-lg font-medium mb-2">Inspection Reports Coming Soon</h3>
                 <p>This feature is currently under development.</p>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="dashboard">
+          <Card>
+            <CardHeader>
+              <CardTitle>Inspection Analytics Dashboard</CardTitle>
+              <CardDescription>
+                Key metrics and analytics for inspection management
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!selectedProject ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <BarChart3 className="mx-auto h-12 w-12 mb-4 text-muted-foreground/80" />
+                  <h3 className="text-lg font-medium mb-2">No Project Selected</h3>
+                  <p>Select a project to view its inspection analytics.</p>
+                </div>
+              ) : (
+                <InspectionDashboard projectId={selectedProject} />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="export">
+          <Card>
+            <CardHeader>
+              <CardTitle>Export & Reporting</CardTitle>
+              <CardDescription>
+                Generate and export inspection reports and documents
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!selectedProject ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileOutput className="mx-auto h-12 w-12 mb-4 text-muted-foreground/80" />
+                  <h3 className="text-lg font-medium mb-2">No Project Selected</h3>
+                  <p>Select a project to export inspection data and reports.</p>
+                </div>
+              ) : (
+                <InspectionExport projectId={selectedProject} />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
