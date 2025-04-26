@@ -202,12 +202,14 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     const buyParentPreviewItems = mapItemsToPreview(filteredBuyParentItems, true);
     const componentPreviewItems = mapItemsToPreview(filteredComponentItems, false);
     
-    // Generate sample inspection order numbers for preview
+    // Generate sample inspection order number formats for preview
     const nextSeqNumber = existingInspectionOrders.length + 1;
     const [financialYear, projectNumber] = project.code.split('-');
-    const makeInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-${nextSeqNumber}`;
-    const buyInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-${nextSeqNumber + 1}`;
-    const componentInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-${nextSeqNumber + 2}`;
+    
+    // Format for individual orders
+    const makeInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-M-[1..${filteredMakeParentItems.length}]`;
+    const buyInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-B-[1..${filteredBuyParentItems.length}]`;
+    const componentInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-C-[1..${filteredComponentItems.length}]`;
     
     // Combine all preview items
     const allPreviewItems = [
@@ -235,6 +237,8 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       willCreateSeparateOrders: 
         (filteredMakeParentItems.length > 0 || filteredBuyParentItems.length > 0) && 
         filteredComponentItems.length > 0,
+      willCreateIndividualOrders: true,
+      totalOrderCount: filteredMakeParentItems.length + filteredBuyParentItems.length + filteredComponentItems.length,
       newItemsFound: true,
       existingInspectionOrderCount: existingInspectionOrders.length
     });
@@ -380,133 +384,141 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     // Generate unique inspection order numbers
     const nextSeqNumber = existingInspectionOrders.length + 1;
     
-    // Create inspection orders for Make parent items
+    // Create individual inspection orders for each Make parent item
     if (filteredMakeParentItems.length > 0) {
       // Extract project number from the project code
       const [financialYear, projectNumber] = project.code.split('-');
-      const makeInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-${nextSeqNumber}`;
       
-      // Create parent inspection order
-      const makeParentOrder = await db.insert(inspectionOrders).values({
-        projectId: project.id,
-        projectCode: project.code,
-        inspectionOrderNumber: makeInspectionOrderNumber,
-        title: `Make Items Inspection - ${project.code}`,
-        description: `Inspection order for Make items in project ${project.code}`,
-        status: 'pending',
-        inspectionType: 'in-process',
-        quantity: filteredMakeParentItems.length,
-        unit: 'Nos',
-        makeOrBuy: 'Make',
-        sequenceNumber: nextSeqNumber,
-        createdBy: req.user.id
-      }).returning();
-      
-      createdInspectionOrders.push(makeParentOrder[0]);
-      
-      // Create individual inspection order items for each make item
+      // Create individual inspection orders for each make item
       for (const [index, item] of filteredMakeParentItems.entries()) {
         const masterItem = masterItemsMap.get(item.itemId);
+        const makeInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-M-${index + 1}`;
         
-        // Create inspection order item
+        // Create individual inspection order for this item
+        const makeItemOrder = await db.insert(inspectionOrders).values({
+          projectId: project.id,
+          projectCode: project.code,
+          inspectionOrderNumber: makeInspectionOrderNumber,
+          title: `Make Item Inspection - ${masterItem?.itemCode || 'Unknown'}`,
+          description: masterItem?.description || 'No description',
+          status: 'pending',
+          inspectionType: 'in-process',
+          quantity: parseInt(String(item.quantity)),
+          unit: masterItem?.uom || 'Nos',
+          makeOrBuy: 'Make',
+          itemId: item.id,
+          itemCode: masterItem?.itemCode || 'Unknown',
+          sequenceNumber: nextSeqNumber + index,
+          createdBy: req.user.id
+        }).returning();
+        
+        createdInspectionOrders.push(makeItemOrder[0]);
+        
+        // Create inspection order item record
         const orderItem = await db.insert(inspectionOrderItems).values({
-          inspectionOrderId: makeParentOrder[0].id,
+          inspectionOrderId: makeItemOrder[0].id,
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
           quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
           makeOrBuy: 'Make',
-          sequenceNumber: index + 1
+          sequenceNumber: 1 // Only one item per order
         }).returning();
         
         createdInspectionOrderItems.push(orderItem[0]);
       }
     }
     
-    // Create inspection orders for Buy parent items
+    // Create individual inspection orders for each Buy parent item
     if (filteredBuyParentItems.length > 0) {
       // Extract project number from the project code
       const [financialYear, projectNumber] = project.code.split('-');
-      const buyInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-${nextSeqNumber + 1}`;
       
-      // Create parent inspection order
-      const buyParentOrder = await db.insert(inspectionOrders).values({
-        projectId: project.id,
-        projectCode: project.code,
-        inspectionOrderNumber: buyInspectionOrderNumber,
-        title: `Buy Items Inspection - ${project.code}`,
-        description: `Inspection order for Buy items in project ${project.code}`,
-        status: 'pending',
-        inspectionType: 'incoming',
-        quantity: filteredBuyParentItems.length,
-        unit: 'Nos',
-        makeOrBuy: 'Buy',
-        sequenceNumber: nextSeqNumber + 1,
-        createdBy: req.user.id
-      }).returning();
-      
-      createdInspectionOrders.push(buyParentOrder[0]);
-      
-      // Create individual inspection order items for each buy item
+      // Create individual inspection orders for each buy item
       for (const [index, item] of filteredBuyParentItems.entries()) {
         const masterItem = masterItemsMap.get(item.itemId);
+        const buyInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-B-${index + 1}`;
         
-        // Create inspection order item
+        // Create individual inspection order for this item
+        const buyItemOrder = await db.insert(inspectionOrders).values({
+          projectId: project.id,
+          projectCode: project.code,
+          inspectionOrderNumber: buyInspectionOrderNumber,
+          title: `Buy Item Inspection - ${masterItem?.itemCode || 'Unknown'}`,
+          description: masterItem?.description || 'No description',
+          status: 'pending',
+          inspectionType: 'incoming',
+          quantity: parseInt(String(item.quantity)),
+          unit: masterItem?.uom || 'Nos',
+          makeOrBuy: 'Buy',
+          itemId: item.id,
+          itemCode: masterItem?.itemCode || 'Unknown',
+          sequenceNumber: nextSeqNumber + filteredMakeParentItems.length + index,
+          createdBy: req.user.id
+        }).returning();
+        
+        createdInspectionOrders.push(buyItemOrder[0]);
+        
+        // Create inspection order item record
         const orderItem = await db.insert(inspectionOrderItems).values({
-          inspectionOrderId: buyParentOrder[0].id,
+          inspectionOrderId: buyItemOrder[0].id,
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
           quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
           makeOrBuy: 'Buy',
-          sequenceNumber: index + 1
+          sequenceNumber: 1 // Only one item per order
         }).returning();
         
         createdInspectionOrderItems.push(orderItem[0]);
       }
     }
     
-    // Create inspection orders for component items
+    // Create individual inspection orders for each component item
     if (filteredComponentItems.length > 0) {
       // Extract project number from the project code
       const [financialYear, projectNumber] = project.code.split('-');
-      const componentInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-${nextSeqNumber + 2}`;
       
-      // Create parent inspection order
-      const componentParentOrder = await db.insert(inspectionOrders).values({
-        projectId: project.id,
-        projectCode: project.code,
-        inspectionOrderNumber: componentInspectionOrderNumber,
-        title: `Component Items Inspection - ${project.code}`,
-        description: `Inspection order for Component items in project ${project.code}`,
-        status: 'pending',
-        inspectionType: 'in-process',
-        quantity: filteredComponentItems.length,
-        unit: 'Nos',
-        sequenceNumber: nextSeqNumber + 2,
-        createdBy: req.user.id
-      }).returning();
-      
-      createdInspectionOrders.push(componentParentOrder[0]);
-      
-      // Create individual inspection order items for each component
+      // Create individual inspection orders for each component item
       for (const [index, item] of filteredComponentItems.entries()) {
         const masterItem = masterItemsMap.get(item.itemId);
         const parentItem = projectItemsList.find(parent => parent.id === item.parentItemId);
         const parentMasterItem = parentItem ? masterItemsMap.get(parentItem.itemId) : null;
+        const componentInspectionOrderNumber = `IO-${financialYear}-${projectNumber}-C-${index + 1}`;
         
-        // Create inspection order item
+        // Create individual inspection order for this component
+        const componentItemOrder = await db.insert(inspectionOrders).values({
+          projectId: project.id,
+          projectCode: project.code,
+          inspectionOrderNumber: componentInspectionOrderNumber,
+          title: `Component Inspection - ${masterItem?.itemCode || 'Unknown'}`,
+          description: `${masterItem?.description || 'No description'} (for ${parentMasterItem?.itemCode || 'Unknown'})`,
+          status: 'pending',
+          inspectionType: 'in-process',
+          quantity: parseInt(String(item.quantity)),
+          unit: masterItem?.uom || 'Nos',
+          makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
+          itemId: item.id,
+          itemCode: masterItem?.itemCode || 'Unknown',
+          parentItemId: item.parentItemId,
+          sequenceNumber: nextSeqNumber + filteredMakeParentItems.length + filteredBuyParentItems.length + index,
+          createdBy: req.user.id
+        }).returning();
+        
+        createdInspectionOrders.push(componentItemOrder[0]);
+        
+        // Create inspection order item record
         const orderItem = await db.insert(inspectionOrderItems).values({
-          inspectionOrderId: componentParentOrder[0].id,
+          inspectionOrderId: componentItemOrder[0].id,
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
           description: `${masterItem?.description || 'No description'} (for ${parentMasterItem?.itemCode || 'Unknown'})`,
           quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
           makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
-          sequenceNumber: index + 1
+          sequenceNumber: 1 // Only one item per order
         }).returning();
         
         createdInspectionOrderItems.push(orderItem[0]);

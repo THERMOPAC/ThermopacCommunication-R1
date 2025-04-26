@@ -561,12 +561,20 @@ export default function InspectionsPage() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Important</AlertTitle>
                   <AlertDescription>
-                    This will generate {previewData.count || previewData.items.length} inspection items for project {previewData.project?.code || ''}, 
-                    organized into separate orders:
-                    {previewData.makeParentCount > 0 && (<div>- Make Items Order: {previewData.makeInspectionOrderNumber}</div>)}
-                    {previewData.buyParentCount > 0 && (<div>- Buy Items Order: {previewData.buyInspectionOrderNumber}</div>)}
-                    {previewData.componentCount > 0 && (<div>- Component Items Order: {previewData.componentInspectionOrderNumber}</div>)}
-                    Please review the items below before confirming.
+                    <p className="mb-2">
+                      This will generate {previewData.totalOrderCount || previewData.items?.length} individual inspection orders
+                      for project {previewData.project?.code || ''}:
+                    </p>
+                    {previewData.makeParentCount > 0 && (
+                      <div>- {previewData.makeParentCount} Make item order{previewData.makeParentCount > 1 ? 's' : ''} with format: {previewData.makeInspectionOrderNumber}</div>
+                    )}
+                    {previewData.buyParentCount > 0 && (
+                      <div>- {previewData.buyParentCount} Buy item order{previewData.buyParentCount > 1 ? 's' : ''} with format: {previewData.buyInspectionOrderNumber}</div>
+                    )}
+                    {previewData.componentCount > 0 && (
+                      <div>- {previewData.componentCount} Component item order{previewData.componentCount > 1 ? 's' : ''} with format: {previewData.componentInspectionOrderNumber}</div>
+                    )}
+                    <p className="mt-2">Please review the items below before confirming.</p>
                   </AlertDescription>
                 </Alert>
                 
