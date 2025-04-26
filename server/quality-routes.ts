@@ -14,7 +14,7 @@ import {
 import {
   previewInspectionOrders,
   generateInspectionOrders
-} from './quality/inspection-order-generator';
+} from './quality/fixed-inspection-order-generator';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
