@@ -187,6 +187,23 @@ export default function InspectionsPage() {
     createdAt: string;
     quantity: number;
     unit: string;
+    // Additional fields from our API update
+    itemCode?: string;
+    description?: string;
+    drawingNo?: string;
+    uom?: string;
+    makeOrBuy?: string;
+    sequenceNumber?: number;
+    parentInspectionOrderId?: number;
+    projectCode?: string;
+    creator?: {
+      id: number;
+      username: string;
+    };
+    project?: {
+      id: number;
+      name: string;
+    };
     items: Array<{
       id: number;
       itemCode: string;
@@ -194,6 +211,8 @@ export default function InspectionsPage() {
       quantity: number;
       unit: string;
       status: string;
+      drawingNo?: string;
+      drawingNumber?: string;
     }>;
   }>({
     queryKey: ['/api/quality/inspection-orders', editingInspectionOrder],
@@ -224,6 +243,23 @@ export default function InspectionsPage() {
     createdAt: string;
     quantity: number;
     unit: string;
+    // Additional fields from our API update
+    itemCode?: string;
+    description?: string;
+    drawingNo?: string;
+    uom?: string;
+    makeOrBuy?: string;
+    sequenceNumber?: number;
+    parentInspectionOrderId?: number;
+    projectCode?: string;
+    creator?: {
+      id: number;
+      username: string;
+    };
+    project?: {
+      id: number;
+      name: string;
+    };
     items: Array<{
       id: number;
       itemCode: string;
@@ -231,6 +267,8 @@ export default function InspectionsPage() {
       quantity: number;
       unit: string;
       status: string;
+      drawingNo?: string;
+      drawingNumber?: string;
     }>;
   }>({
     queryKey: ['/api/quality/inspection-orders', selectedInspectionOrder],
