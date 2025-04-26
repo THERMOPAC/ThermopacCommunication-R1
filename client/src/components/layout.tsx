@@ -60,7 +60,10 @@ export default function Layout({ children }: LayoutProps) {
                            location === '/shop-floor';
                            
   // Check if we're on any quality-related page
-  const isOnQualityPage = location === '/material-identification' ||
+  const isOnQualityPage = location === '/wps-pqr' ||
+                        location === '/wps-pqr/wps' ||
+                        location === '/wps-pqr/pqr' ||
+                        location === '/material-identification' ||
                         location === '/inspections' ||
                         location === '/inspection-management' ||
                         location.startsWith('/quality-reports') ||
@@ -146,6 +149,7 @@ export default function Layout({ children }: LayoutProps) {
       isOpen: isQualityMenuOpen,
       toggle: () => setIsQualityMenuOpen(!isQualityMenuOpen),
       children: [
+        { icon: FileCheck, label: "WPS and PQR", href: "/wps-pqr" },
         { icon: CheckSquare, label: "Material Identification", href: "/material-identification" },
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
         { icon: FileCheck, label: "Inspection Management", href: "/inspection-management" },
