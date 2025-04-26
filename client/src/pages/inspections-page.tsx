@@ -53,7 +53,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2 } from "lucide-react";
+import { Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Eye, Edit2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -295,6 +295,42 @@ export default function InspectionsPage() {
         variant: "destructive",
       });
       resetInspectionOrderGenerationState();
+    }
+  };
+  
+  // Delete an inspection order
+  const handleDeleteInspectionOrder = async (orderId: number) => {
+    if (!orderId) return;
+    
+    try {
+      const response = await fetch(`/api/quality/inspection-orders/${orderId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete inspection order");
+      }
+      
+      // Success message
+      toast({
+        title: "Inspection Order Deleted",
+        description: "The inspection order has been deleted successfully.",
+      });
+      
+      // Refresh the inspection orders list
+      await refetchInspectionOrders();
+      
+    } catch (error: any) {
+      console.error("Error deleting inspection order:", error);
+      toast({
+        title: "Error Deleting Inspection Order",
+        description: error.message || "There was an error deleting the inspection order. Please try again.",
+        variant: "destructive",
+      });
     }
   };
   
