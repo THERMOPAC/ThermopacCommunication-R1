@@ -545,12 +545,12 @@ export default function WelderManagementPage() {
                                 <SelectContent>
                                   {Array.isArray(wpsData) && wpsData.length > 0 ? (
                                     wpsData.map((wps: any) => (
-                                      <SelectItem key={wps.wpsNumber} value={wps.wpsNumber}>
-                                        {wps.wpsNumber}
+                                      <SelectItem key={wps.wpsNumber} value={wps.wpsNumber || "no_number"}>
+                                        {wps.wpsNumber || "No Number"}
                                       </SelectItem>
                                     ))
                                   ) : (
-                                    <SelectItem value="default" disabled>No WPS available</SelectItem>
+                                    <SelectItem value="no_wps_available" disabled>No WPS available</SelectItem>
                                   )}
                                 </SelectContent>
                               </Select>
@@ -1114,12 +1114,12 @@ export default function WelderManagementPage() {
                               <SelectContent>
                                 {Array.isArray(wpsData) && wpsData.length > 0 ? (
                                   wpsData.map((wps: any) => (
-                                    <SelectItem key={wps.wpsNumber} value={wps.wpsNumber}>
-                                      {wps.wpsNumber}
+                                    <SelectItem key={wps.wpsNumber} value={wps.wpsNumber || "no_number"}>
+                                      {wps.wpsNumber || "No Number"}
                                     </SelectItem>
                                   ))
                                 ) : (
-                                  <SelectItem value="default" disabled>No WPS available</SelectItem>
+                                  <SelectItem value="no_wps_available" disabled>No WPS available</SelectItem>
                                 )}
                               </SelectContent>
                             </Select>
