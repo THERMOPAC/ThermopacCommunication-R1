@@ -561,45 +561,124 @@ export default function InspectionsPage() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Important</AlertTitle>
                   <AlertDescription>
-                    This will generate {previewData.items.length} inspection orders for project {previewData.projectCode}.
+                    This will generate {previewData.count || previewData.items.length} inspection items for project {previewData.project?.code || ''}, 
+                    organized into separate orders:
+                    {previewData.makeParentCount > 0 && (<div>- Make Items Order: {previewData.makeInspectionOrderNumber}</div>)}
+                    {previewData.buyParentCount > 0 && (<div>- Buy Items Order: {previewData.buyInspectionOrderNumber}</div>)}
+                    {previewData.componentCount > 0 && (<div>- Component Items Order: {previewData.componentInspectionOrderNumber}</div>)}
                     Please review the items below before confirming.
                   </AlertDescription>
                 </Alert>
                 
                 <div className="overflow-y-auto max-h-[400px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Seq #</TableHead>
-                        <TableHead>Item Code</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Make/Buy</TableHead>
-                        <TableHead>Item Type</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {previewData.items.map((item: any, index: number) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.sequenceNumber}</TableCell>
-                          <TableCell className="font-medium">{item.itemCode}</TableCell>
-                          <TableCell>{item.description}</TableCell>
-                          <TableCell>{item.quantity} {item.unit}</TableCell>
-                          <TableCell>{item.makeOrBuy}</TableCell>
-                          <TableCell>
-                            {item.itemType === 'Parent' ? (
-                              <Badge className="bg-blue-500">Parent</Badge>
-                            ) : (
-                              <Badge className="bg-purple-500">Child</Badge>
-                            )}
-                            {item.isVirtual && (
-                              <Badge variant="outline" className="ml-1">Virtual</Badge>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <div className="space-y-6">
+                    {/* Make Items Group */}
+                    {previewData.makeParentCount > 0 && (
+                      <div>
+                        <h3 className="font-medium text-md pb-2 border-b mb-2 flex items-center">
+                          <Badge className="mr-2 bg-green-600">Make</Badge> 
+                          Make Items ({previewData.makeParentCount})
+                          <div className="ml-2 text-sm text-muted-foreground">Order #: {previewData.makeInspectionOrderNumber}</div>
+                        </h3>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Seq #</TableHead>
+                              <TableHead>Item Code</TableHead>
+                              <TableHead>Description</TableHead>
+                              <TableHead>Quantity</TableHead>
+                              <TableHead>Type</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {previewData.items
+                              .filter((item: any) => item.makeOrBuy === 'Make' && item.itemType === 'Parent')
+                              .map((item: any, index: number) => (
+                                <TableRow key={`make-${index}`}>
+                                  <TableCell>{item.sequenceNumber}</TableCell>
+                                  <TableCell className="font-medium">{item.itemCode}</TableCell>
+                                  <TableCell>{item.description}</TableCell>
+                                  <TableCell>{item.quantity} {item.unit}</TableCell>
+                                  <TableCell><Badge className="bg-blue-500">Parent</Badge></TableCell>
+                                </TableRow>
+                              ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+
+                    {/* Buy Items Group */}
+                    {previewData.buyParentCount > 0 && (
+                      <div>
+                        <h3 className="font-medium text-md pb-2 border-b mb-2 flex items-center">
+                          <Badge className="mr-2 bg-yellow-600">Buy</Badge> 
+                          Buy Items ({previewData.buyParentCount})
+                          <div className="ml-2 text-sm text-muted-foreground">Order #: {previewData.buyInspectionOrderNumber}</div>
+                        </h3>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Seq #</TableHead>
+                              <TableHead>Item Code</TableHead>
+                              <TableHead>Description</TableHead>
+                              <TableHead>Quantity</TableHead>
+                              <TableHead>Type</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {previewData.items
+                              .filter((item: any) => item.makeOrBuy === 'Buy' && item.itemType === 'Parent')
+                              .map((item: any, index: number) => (
+                                <TableRow key={`buy-${index}`}>
+                                  <TableCell>{item.sequenceNumber}</TableCell>
+                                  <TableCell className="font-medium">{item.itemCode}</TableCell>
+                                  <TableCell>{item.description}</TableCell>
+                                  <TableCell>{item.quantity} {item.unit}</TableCell>
+                                  <TableCell><Badge className="bg-blue-500">Parent</Badge></TableCell>
+                                </TableRow>
+                              ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+
+                    {/* Component Items Group */}
+                    {previewData.componentCount > 0 && (
+                      <div>
+                        <h3 className="font-medium text-md pb-2 border-b mb-2 flex items-center">
+                          <Badge className="mr-2 bg-purple-600">Component</Badge> 
+                          Component Items ({previewData.componentCount})
+                          <div className="ml-2 text-sm text-muted-foreground">Order #: {previewData.componentInspectionOrderNumber}</div>
+                        </h3>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Seq #</TableHead>
+                              <TableHead>Item Code</TableHead>
+                              <TableHead>Description</TableHead>
+                              <TableHead>Quantity</TableHead>
+                              <TableHead>Parent Item</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {previewData.items
+                              .filter((item: any) => item.itemType === 'Child')
+                              .map((item: any, index: number) => (
+                                <TableRow key={`component-${index}`}>
+                                  <TableCell>{item.sequenceNumber}</TableCell>
+                                  <TableCell className="font-medium">{item.itemCode}</TableCell>
+                                  <TableCell>{item.description}</TableCell>
+                                  <TableCell>{item.quantity} {item.unit}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline">{item.parentItemCode || 'N/A'}</Badge>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 <DialogFooter className="mt-4">
