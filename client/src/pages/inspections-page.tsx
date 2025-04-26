@@ -440,16 +440,26 @@ export default function InspectionsPage() {
         ? editInspectionOrderDetails.items[0] 
         : null;
         
+      // Use the database UOM field for unit
+      const unitValue = editInspectionOrderDetails.uom || editInspectionOrderDetails.unit || (firstItem ? firstItem.unit : "");
+      
+      // Use drawingNumber from the details or first item
+      const drawingNumber = editInspectionOrderDetails.drawingNumber || 
+                           editInspectionOrderDetails.drawingNo || 
+                           (firstItem && firstItem.drawingNumber) || 
+                           (firstItem && firstItem.drawingNo) || 
+                           "";
+        
       editForm.reset({
         title: editInspectionOrderDetails.title,
         status: editInspectionOrderDetails.status,
         inspectionType: editInspectionOrderDetails.inspectionType,
         quantity: editInspectionOrderDetails.quantity,
-        unit: editInspectionOrderDetails.unit,
+        unit: unitValue,
         // Use properties from the inspection order details or its first item
         itemCode: editInspectionOrderDetails.itemCode || (firstItem ? firstItem.itemCode : ""),
         description: editInspectionOrderDetails.description || (firstItem ? firstItem.description : ""),
-        drawingNo: editInspectionOrderDetails.drawingNo || "",
+        drawingNo: drawingNumber,
       });
     }
   }, [editInspectionOrderDetails, editForm]);
@@ -1210,10 +1220,14 @@ export default function InspectionsPage() {
                           <Input 
                             type="number" 
                             {...field} 
-                            onChange={e => field.onChange(parseFloat(e.target.value))}
-                            placeholder="Enter quantity" 
+                            readOnly
+                            className="bg-gray-50"
+                            placeholder="Quantity" 
                           />
                         </FormControl>
+                        <FormDescription className="text-xs">
+                          This field is read-only
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1225,26 +1239,17 @@ export default function InspectionsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Unit</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select unit" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="pcs">Pieces</SelectItem>
-                            <SelectItem value="sets">Sets</SelectItem>
-                            <SelectItem value="kg">Kilograms</SelectItem>
-                            <SelectItem value="m">Meters</SelectItem>
-                            <SelectItem value="sq.m">Square Meters</SelectItem>
-                            <SelectItem value="cu.m">Cubic Meters</SelectItem>
-                            <SelectItem value="liters">Liters</SelectItem>
-                            <SelectItem value="unit">Units</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            readOnly
+                            className="bg-gray-50"
+                            placeholder="Unit of measurement" 
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          This field is read-only
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1257,8 +1262,16 @@ export default function InspectionsPage() {
                       <FormItem>
                         <FormLabel>Item Code</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Enter item code" />
+                          <Input 
+                            {...field} 
+                            readOnly
+                            className="bg-gray-50"
+                            placeholder="Item code" 
+                          />
                         </FormControl>
+                        <FormDescription className="text-xs">
+                          This field is read-only
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1271,8 +1284,16 @@ export default function InspectionsPage() {
                       <FormItem>
                         <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Enter item description" />
+                          <Input 
+                            {...field} 
+                            readOnly
+                            className="bg-gray-50"
+                            placeholder="Item description" 
+                          />
                         </FormControl>
+                        <FormDescription className="text-xs">
+                          This field is read-only
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1285,8 +1306,16 @@ export default function InspectionsPage() {
                       <FormItem>
                         <FormLabel>Drawing No.</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Enter drawing number (optional)" />
+                          <Input 
+                            {...field} 
+                            readOnly
+                            className="bg-gray-50"
+                            placeholder="Drawing number" 
+                          />
                         </FormControl>
+                        <FormDescription className="text-xs">
+                          This field is read-only
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
