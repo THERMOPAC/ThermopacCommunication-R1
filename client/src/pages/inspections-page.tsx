@@ -91,6 +91,8 @@ export default function InspectionsPage() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isGeneratingOrders, setIsGeneratingOrders] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
+  const [selectedInspectionOrder, setSelectedInspectionOrder] = useState<number | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   
   // Fetch projects for dropdown
   const { data: projects, isLoading: isLoadingProjects } = useQuery({
@@ -145,6 +147,26 @@ export default function InspectionsPage() {
       return response.json();
     },
     enabled: !!selectedProject,
+  });
+  
+  // Fetch details for a specific inspection order
+  const {
+    data: inspectionOrderDetails,
+    isLoading: isLoadingOrderDetails,
+  } = useQuery({
+    queryKey: ['/api/quality/inspection-orders', selectedInspectionOrder],
+    queryFn: async ({ queryKey }) => {
+      const [_, orderId] = queryKey;
+      if (!orderId) throw new Error("Inspection Order ID is required");
+      
+      const response = await fetch(`/api/quality/inspection-orders/${orderId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch inspection order details");
+      }
+      return response.json();
+    },
+    enabled: !!selectedInspectionOrder,
   });
   
   // Query for inspection order preview data
@@ -677,7 +699,16 @@ export default function InspectionsPage() {
                         <TableCell>{order.quantity} {order.unit}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm">View Details</Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedInspectionOrder(order.id);
+                                setIsDetailsDialogOpen(true);
+                              }}
+                            >
+                              View Details
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -690,6 +721,161 @@ export default function InspectionsPage() {
         </Card>
       </div>
 
+      {/* Inspection Order Details Dialog */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Inspection Order Details</DialogTitle>
+            <DialogDescription>
+              View detailed information about this inspection order.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoadingOrderDetails ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+          ) : inspectionOrderDetails ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Order Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="text-sm font-medium">Order Number:</div>
+                      <div className="text-sm">{inspectionOrderDetails.inspectionOrderNumber}</div>
+                      
+                      <div className="text-sm font-medium">Title:</div>
+                      <div className="text-sm">{inspectionOrderDetails.title}</div>
+                      
+                      <div className="text-sm font-medium">Status:</div>
+                      <div className="text-sm">{getStatusBadge(inspectionOrderDetails.status)}</div>
+                      
+                      <div className="text-sm font-medium">Type:</div>
+                      <div className="text-sm">{inspectionOrderDetails.inspectionType}</div>
+                      
+                      <div className="text-sm font-medium">Quantity:</div>
+                      <div className="text-sm">{inspectionOrderDetails.quantity} {inspectionOrderDetails.unit}</div>
+                      
+                      <div className="text-sm font-medium">Date Created:</div>
+                      <div className="text-sm">{format(new Date(inspectionOrderDetails.createdAt), 'dd MMM yyyy')}</div>
+                      
+                      <div className="text-sm font-medium">Created By:</div>
+                      <div className="text-sm">{inspectionOrderDetails.creator?.username || 'N/A'}</div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Project Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="text-sm font-medium">Project:</div>
+                      <div className="text-sm">{inspectionOrderDetails.project?.name || 'N/A'}</div>
+                      
+                      <div className="text-sm font-medium">Project Code:</div>
+                      <div className="text-sm">{inspectionOrderDetails.projectCode}</div>
+                      
+                      <div className="text-sm font-medium">Item Code:</div>
+                      <div className="text-sm">{inspectionOrderDetails.itemCode || 'N/A'}</div>
+                      
+                      <div className="text-sm font-medium">Description:</div>
+                      <div className="text-sm">{inspectionOrderDetails.description}</div>
+                      
+                      <div className="text-sm font-medium">Make/Buy:</div>
+                      <div className="text-sm">{inspectionOrderDetails.makeOrBuy || 'N/A'}</div>
+                      
+                      <div className="text-sm font-medium">Sequence Number:</div>
+                      <div className="text-sm">{inspectionOrderDetails.sequenceNumber}</div>
+                      
+                      <div className="text-sm font-medium">Parent Order:</div>
+                      <div className="text-sm">{inspectionOrderDetails.parentInspectionOrderId ? 'Yes' : 'No (Parent Item)'}</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              {inspectionOrderDetails.items && inspectionOrderDetails.items.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Child Components</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Order #</TableHead>
+                          <TableHead>Item Code</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {inspectionOrderDetails.items.map((item: any) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">{item.inspectionOrderNumber}</TableCell>
+                            <TableCell>{item.itemCode}</TableCell>
+                            <TableCell>{item.description}</TableCell>
+                            <TableCell>{item.quantity} {item.unit}</TableCell>
+                            <TableCell>{getStatusBadge(item.status)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+              
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsDetailsDialogOpen(false);
+                    setSelectedInspectionOrder(null);
+                  }}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    // Future implementation: Allow editing the inspection order
+                    toast({
+                      title: "Feature coming soon",
+                      description: "Editing inspection orders will be available in a future update.",
+                    });
+                  }}
+                >
+                  Update Status
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64">
+              <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+              <h3 className="text-lg font-medium">Error Loading Details</h3>
+              <p className="text-muted-foreground text-center mt-2">
+                Could not load inspection order details. The order may have been deleted or you may not have permission to view it.
+              </p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => {
+                  setIsDetailsDialogOpen(false);
+                  setSelectedInspectionOrder(null);
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      
       {/* Create Inspection Report Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-3xl">
