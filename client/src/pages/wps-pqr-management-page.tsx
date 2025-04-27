@@ -589,11 +589,16 @@ export default function WpsPqrManagementPage() {
                 <TabsTrigger value="documents">Documents</TabsTrigger>
               </TabsList>
             </div>
-            {activeTab === "wps" && (
-              <Button onClick={() => setIsAddWpsOpen(true)}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add New WPS
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsReportOpen(true)}>
+                <FileBarChart className="mr-2 h-4 w-4" /> Generate Report
               </Button>
-            )}
+              {activeTab === "wps" && (
+                <Button onClick={() => setIsAddWpsOpen(true)}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add New WPS
+                </Button>
+              )}
+            </div>
             {activeTab === "pqr" && (
               <Button onClick={() => {
                 // Show the PQR creation dialog directly from PQR tab
@@ -1811,6 +1816,12 @@ export default function WpsPqrManagementPage() {
             <PqrForm wps={selectedWps} onClose={() => setIsAddPqrOpen(false)} />
           </DialogContent>
         </Dialog>
+
+        {/* WPS & PQR Report Dialog */}
+        <WpsPqrReport 
+          open={isReportOpen}
+          onOpenChange={setIsReportOpen}
+        />
       </div>
     </Layout>
   );
