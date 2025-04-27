@@ -903,14 +903,14 @@ export default function WpsPqrManagementPage() {
         
         {/* Add WPS Dialog */}
         <Dialog open={isAddWpsOpen} onOpenChange={setIsAddWpsOpen}>
-          <DialogContent className="sm:max-w-[800px]">
+          <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New WPS Document</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <Tabs defaultValue="details" className="w-full">
-                  <TabsList className="mb-4">
+                  <TabsList className="mb-4 sticky top-0 z-10 bg-background">
                     <TabsTrigger value="details">Details</TabsTrigger>
                     <TabsTrigger value="document">Document</TabsTrigger>
                   </TabsList>
@@ -1165,7 +1165,7 @@ export default function WpsPqrManagementPage() {
         
         {/* Edit WPS Dialog */}
         <Dialog open={isEditWpsOpen} onOpenChange={setIsEditWpsOpen}>
-          <DialogContent className="sm:max-w-[800px]">
+          <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 Edit WPS Document {selectedWps?.wpsId}
@@ -1174,7 +1174,7 @@ export default function WpsPqrManagementPage() {
             <Form {...editForm}>
               <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6">
                 <Tabs defaultValue="details" className="w-full">
-                  <TabsList className="mb-4">
+                  <TabsList className="mb-4 sticky top-0 z-10 bg-background">
                     <TabsTrigger value="details">Details</TabsTrigger>
                     <TabsTrigger value="document">Document</TabsTrigger>
                   </TabsList>
@@ -1486,7 +1486,7 @@ export default function WpsPqrManagementPage() {
         
         {/* Add PQR Dialog */}
         <Dialog open={isAddPqrOpen} onOpenChange={setIsAddPqrOpen}>
-          <DialogContent className="sm:max-w-[800px]">
+          <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create PQR for WPS {selectedWps?.wpsId}</DialogTitle>
             </DialogHeader>
@@ -1588,7 +1588,7 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
     <Form {...pqrForm}>
       <form onSubmit={pqrForm.handleSubmit(onSubmit)} className="space-y-6">
         <Tabs defaultValue="details" className="w-full">
-          <TabsList className="mb-4">
+          <TabsList className="mb-4 sticky top-0 z-10 bg-background">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="document">Document</TabsTrigger>
           </TabsList>
