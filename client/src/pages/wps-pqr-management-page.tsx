@@ -100,18 +100,20 @@ const jointTypeOptions = [
 ];
 
 const weldPositionOptions = [
-  "1G",
-  "2G",
-  "3G",
-  "4G",
-  "5G",
-  "6G"
+  "1G (Flat)",
+  "2G (Horizontal)",
+  "3G (Vertical)",
+  "4G (Overhead)",
+  "5G (Horizontal Fixed)",
+  "6G (Inclined)"
 ];
 
 const statusOptions = [
   "Draft",
   "Pending Approval",
+  "In Review",
   "Approved",
+  "Rejected",
   "Obsolete"
 ];
 
@@ -122,6 +124,8 @@ const testTypeOptions = [
   "Hardness Test",
   "Radiographic Test",
   "Ultrasonic Test",
+  "Magnetic Particle Test",
+  "Penetrant Test",
   "Visual Examination"
 ];
 
