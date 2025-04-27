@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { db } from '../db';
 import { ensureAuthenticated } from '../middleware/auth-middleware';
 import { eq, sql, and, or, desc } from 'drizzle-orm';
+import { wpsDocuments, users } from '@shared/schema';
 import { 
   uploadWpsPqrDocument, 
   uploadWpsDocument,
