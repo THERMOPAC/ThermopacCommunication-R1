@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Search, Download, FileSpreadsheet, CalendarClock, AlertTriangle } from "lucide-react";
+import { PlusCircle, Search, Download, FileSpreadsheet, FileText, CalendarClock, AlertTriangle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1065,7 +1065,7 @@ export default function CalibrationManagementPage() {
                                 onClick={() => handleDownloadCertificate(selectedInstrument.id)}
                                 className="ml-2"
                               >
-                                <FileText className="mr-2 h-4 w-4" />
+                                <Download className="mr-2 h-4 w-4" />
                                 View Certificate
                               </Button>
                             </div>
