@@ -15,9 +15,8 @@ import {
   previewInspectionOrders,
   generateInspectionOrders
 } from './quality/fixed-inspection-order-generator';
+import { setupWelderRoutes } from './quality/welder-routes';
 import calibrationRoutes from './quality/calibration-routes';
-import wpsPqrRoutes from './quality/wps-pqr-routes';
-import welderRoutes from './quality/welder-routes';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
@@ -28,13 +27,10 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
 
 export const setupQualityRoutes = (app: Router) => {
   // Set up welder management routes
-  app.use('/api/quality/welders', welderRoutes);
+  setupWelderRoutes(app);
   
   // Set up calibration management routes
   app.use('/api/quality/calibration', calibrationRoutes);
-  
-  // Set up WPS/PQR management routes
-  app.use('/api/quality/wps-pqr', wpsPqrRoutes);
   
   // Existing quality routes should be kept...
 

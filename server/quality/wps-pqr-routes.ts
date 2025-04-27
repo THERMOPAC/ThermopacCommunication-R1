@@ -259,7 +259,7 @@ router.post('/wps', ensureAuthenticated, upload.single('document'), async (req: 
       document_file_path,
       status || 'Draft',
       remarks || null,
-      req.user?.id
+      req.user.id
     ]);
     
     // Add the document URL to the response for immediate display
@@ -367,7 +367,7 @@ router.put('/wps/:id', ensureAuthenticated, upload.single('document'), async (re
     }
     
     // Add approval fields if status changed to Approved
-    if (status === 'Approved' && req.user) {
+    if (status === 'Approved') {
       updateFields['approvedBy'] = req.user.id;
       updateFields['approvalDate'] = new Date();
     }

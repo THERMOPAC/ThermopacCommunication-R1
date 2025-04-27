@@ -1,57 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Helmet } from "react-helmet";
-import { Search, Plus, FileText, MoreHorizontal, AlertTriangle, CheckCircle } from "lucide-react";
-import Layout from "@/components/layout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { apiRequest } from "@/lib/queryClient";
-import { format } from "date-fns";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Table,
   TableBody,
@@ -60,519 +8,940 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { CalendarIcon, PlusCircle, Search, UserCheck, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import Layout from "@/components/layout";
+import { useToast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 
-// Types
+// Define interfaces for our data
 interface Welder {
   id: number;
   welderId: string;
-  welderName: string;
+  name: string;
   trade: string;
   processQualified: string[];
   materialGroupQualified: string[];
   thicknessRange: string;
   positionQualified: string[];
+  wpsNumber: string;
+  testDate: string;
+  testResults: string;
   certificateNo: string;
+  certificateExpiryDate: string;
+  status: string;
+  remarks: string;
+}
+
+interface WelderFormData {
+  name: string;
+  trade: string;
+  processQualified: string[];
+  materialGroupQualified: string[];
+  thicknessRange: string;
+  positionQualified: string[];
+  wpsNumber: string;
   testDate: string;
   testResults: string;
   certificateExpiryDate: string;
-  status: 'Active' | 'Expired' | 'Revoked';
-  remarks?: string;
-  createdBy?: number;
-  createdAt: string;
-  updatedAt: string;
+  status: string;
+  remarks: string;
 }
 
-// Form schema for adding/editing welders
+// Form validation schema
 const welderFormSchema = z.object({
-  welderName: z.string().min(1, "Welder name is required"),
-  trade: z.string().min(1, "Trade is required"),
-  processQualified: z.array(z.string()).min(1, "At least one process must be selected"),
-  materialGroupQualified: z.array(z.string()).min(1, "At least one material group must be selected"),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  trade: z.string().min(1, "Please select a trade"),
+  processQualified: z.array(z.string()).min(1, "Select at least one process"),
+  materialGroupQualified: z.array(z.string()).min(1, "Select at least one material group"),
   thicknessRange: z.string().min(1, "Thickness range is required"),
-  positionQualified: z.array(z.string()).min(1, "At least one position must be selected"),
-  wpsId: z.string().min(1, "WPS number is required"),
-  testDate: z.date({
-    required_error: "Test date is required",
-  }),
+  positionQualified: z.array(z.string()).min(1, "Select at least one position"),
+  wpsNumber: z.string().min(1, "WPS number is required"),
+  testDate: z.string().min(1, "Test date is required"),
   testResults: z.string().min(1, "Test result is required"),
-  certificateExpiryDate: z.date({
-    required_error: "Certificate expiry date is required",
-  }).refine(date => {
-    const today = new Date();
-    return date > today;
-  }, {
-    message: "Expiry date must be in the future",
-  }),
+  certificateExpiryDate: z.string().min(1, "Certificate expiry date is required"),
   status: z.string().min(1, "Status is required"),
-  remarks: z.string().optional(),
+  remarks: z.string().optional().or(z.literal("")),
 });
 
-type WelderFormValues = z.infer<typeof welderFormSchema>;
+const processOptions = ["SMAW", "GTAW", "FCAW", "SAW"];
+const materialGroupOptions = ["Carbon Steel", "Stainless Steel", "Alloy Steel"];
+const positionOptions = ["1G", "2G", "3G", "4G", "5G", "6G"];
+const tradeOptions = ["Welder", "Fitter", "Fabricator"];
+const testResultOptions = ["Passed", "Failed"];
+const statusOptions = ["Active", "Expired", "Revoked"];
 
 export default function WelderManagementPage() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  
-  // State
   const [isAddWelderOpen, setIsAddWelderOpen] = useState(false);
   const [isEditWelderOpen, setIsEditWelderOpen] = useState(false);
   const [selectedWelder, setSelectedWelder] = useState<Welder | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("all_welders");
   
-  // Form for adding/editing welders
-  const form = useForm<WelderFormValues>({
+  // Handle status filter selection
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value === "all_statuses" ? null : value);
+  };
+  
+  // Fetch WPS data for dropdown
+  const { data: wpsData = [] } = useQuery<any[]>({
+    queryKey: ["/api/quality/wps"],
+    staleTime: 60000, // 1 minute
+    onError: (error) => {
+      console.error("Error fetching WPS data:", error);
+    }
+  });
+  
+  // Fetch welders data
+  const { data: welders = [], isLoading, refetch } = useQuery<any[]>({
+    queryKey: ["/api/quality/welders"],
+    onSuccess: () => {
+      console.log("Welders data loaded successfully");
+    },
+    onError: (error) => {
+      toast({
+        title: "Error loading welders",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create new welder mutation
+  const createWelderMutation = useMutation({
+    mutationFn: async (data: WelderFormData) => {
+      const response = await apiRequest("POST", "/api/quality/welders", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Welder record created successfully",
+      });
+      setIsAddWelderOpen(false);
+      form.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/welders"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error creating welder record",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update welder mutation
+  const updateWelderMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: WelderFormData }) => {
+      const response = await apiRequest("PUT", `/api/quality/welders/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Welder record updated successfully",
+      });
+      setIsEditWelderOpen(false);
+      editForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/welders"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error updating welder record",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Form setup for adding a new welder
+  const form = useForm<z.infer<typeof welderFormSchema>>({
     resolver: zodResolver(welderFormSchema),
     defaultValues: {
-      welderName: "",
+      name: "",
       trade: "",
       processQualified: [],
       materialGroupQualified: [],
       thicknessRange: "",
       positionQualified: [],
-      wpsId: "",
-      testResults: "Passed",
+      wpsNumber: "",
+      testDate: "",
+      testResults: "",
+      certificateExpiryDate: "",
       status: "Active",
       remarks: "",
     },
   });
-  
-  // Update form values when editing a welder
+
+  // Form setup for editing a welder
+  const editForm = useForm<z.infer<typeof welderFormSchema>>({
+    resolver: zodResolver(welderFormSchema),
+    defaultValues: {
+      name: "",
+      trade: "",
+      processQualified: [],
+      materialGroupQualified: [],
+      thicknessRange: "",
+      positionQualified: [],
+      wpsNumber: "",
+      testDate: "",
+      testResults: "",
+      certificateExpiryDate: "",
+      status: "",
+      remarks: "",
+    },
+  });
+
+  // Calculate dashboard statistics
+  const totalWelders = Array.isArray(welders) ? welders.length : 0;
+  const activeWelders = Array.isArray(welders) ? welders.filter((w: any) => w.status === "Active").length : 0;
+  const expiringWelders = Array.isArray(welders) ? welders.filter((w: any) => {
+    if (w.status !== "Active") return false;
+    const expiryDate = new Date(w.certificateExpiryDate);
+    const today = new Date();
+    const thirtyDaysLater = new Date();
+    thirtyDaysLater.setDate(today.getDate() + 30);
+    return expiryDate <= thirtyDaysLater && expiryDate > today;
+  }).length : 0;
+  const expiredWelders = Array.isArray(welders) ? welders.filter((w: any) => w.status === "Expired").length : 0;
+
+  // Filter welders based on search term and status filter
+  const filteredWelders = Array.isArray(welders) ? welders.filter((welder: any) => {
+    const matchesSearch = 
+      welder.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      welder.welderId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      welder.wpsNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (Array.isArray(welder.processQualified) && welder.processQualified.some((p: string) => p.toLowerCase().includes(searchTerm.toLowerCase())));
+    
+    const matchesStatusFilter = statusFilter === null || welder.status === statusFilter;
+    
+    return matchesSearch && matchesStatusFilter;
+  }) : [];
+
+  // Submit handler for adding a new welder
+  const onSubmit = (values: z.infer<typeof welderFormSchema>) => {
+    createWelderMutation.mutate({
+      ...values,
+      remarks: values.remarks || ""
+    });
+  };
+
+  // Submit handler for editing a welder
+  const onEditSubmit = (values: z.infer<typeof welderFormSchema>) => {
+    if (selectedWelder) {
+      updateWelderMutation.mutate({ 
+        id: selectedWelder.id, 
+        data: {
+          ...values,
+          remarks: values.remarks || ""
+        }
+      });
+    }
+  };
+
+  // Set up the edit form when a welder is selected for editing
   useEffect(() => {
-    if (selectedWelder && isEditWelderOpen) {
-      form.reset({
-        welderName: selectedWelder.welderName,
+    if (selectedWelder) {
+      editForm.reset({
+        name: selectedWelder.name,
         trade: selectedWelder.trade,
         processQualified: selectedWelder.processQualified,
         materialGroupQualified: selectedWelder.materialGroupQualified,
         thicknessRange: selectedWelder.thicknessRange,
         positionQualified: selectedWelder.positionQualified,
-        wpsId: "", // This needs to be fetched separately
-        testDate: new Date(selectedWelder.testDate),
+        wpsNumber: selectedWelder.wpsNumber,
+        testDate: selectedWelder.testDate,
         testResults: selectedWelder.testResults,
-        certificateExpiryDate: new Date(selectedWelder.certificateExpiryDate),
+        certificateExpiryDate: selectedWelder.certificateExpiryDate,
         status: selectedWelder.status,
-        remarks: selectedWelder.remarks || "",
+        remarks: selectedWelder.remarks,
       });
     }
-  }, [selectedWelder, isEditWelderOpen, form]);
-  
-  // Handle status filter selection
-  const handleStatusFilterChange = (value: string) => {
-    setStatusFilter(value === "all_status" ? null : value);
+  }, [selectedWelder, editForm]);
+
+  // Handle edit button click
+  const handleEditClick = (welder: Welder) => {
+    setSelectedWelder(welder);
+    setIsEditWelderOpen(true);
   };
-  
-  // Fetch welders data
-  const {
-    data: welders = [],
-    isLoading,
-    refetch
-  } = useQuery<Welder[]>({
-    queryKey: ["/api/quality/welders"],
-  });
-  
-  // Fetch WPS documents for dropdown
-  const { data: wpsDocuments = [] } = useQuery<any[]>({
-    queryKey: ["/api/quality/wps-pqr/wps"],
-  });
-  
-  // Create new welder mutation
-  const createWelderMutation = useMutation({
-    mutationFn: async (data: WelderFormValues) => {
-      const response = await apiRequest("POST", "/api/quality/welders", data);
-      return await response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Welder Added",
-        description: "New welder qualification record has been created",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/welders"] });
-      setIsAddWelderOpen(false);
-      form.reset();
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: `Failed to add welder: ${error.message}`,
-        variant: "destructive",
-      });
-    },
-  });
-  
-  // Update welder mutation
-  const updateWelderMutation = useMutation({
-    mutationFn: async (data: WelderFormValues & { id: number }) => {
-      const response = await apiRequest(
-        "PUT",
-        `/api/quality/welders/${data.id}`,
-        data
-      );
-      return await response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Welder Updated",
-        description: "Welder qualification record has been updated",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/welders"] });
-      setIsEditWelderOpen(false);
-      setSelectedWelder(null);
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: `Failed to update welder: ${error.message}`,
-        variant: "destructive",
-      });
-    },
-  });
-  
-  // Delete welder mutation
-  const deleteWelderMutation = useMutation({
-    mutationFn: async (welderId: number) => {
-      const response = await apiRequest(
-        "DELETE",
-        `/api/quality/welders/${welderId}`,
-        {}
-      );
-      return await response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Welder Deleted",
-        description: "Welder qualification record has been deleted",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/welders"] });
-      setIsDeleteDialogOpen(false);
-      setSelectedWelder(null);
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: `Failed to delete welder: ${error.message}`,
-        variant: "destructive",
-      });
-    },
-  });
-  
-  // Form submit handlers
-  const onAddWelderSubmit = (data: WelderFormValues) => {
-    createWelderMutation.mutate(data);
-  };
-  
-  const onEditWelderSubmit = (data: WelderFormValues) => {
-    if (selectedWelder) {
-      updateWelderMutation.mutate({
-        ...data,
-        id: selectedWelder.id,
-      });
+
+  // Get status badge color
+  const getStatusBadge = (status: string) => {
+    switch(status) {
+      case "Active":
+        return <Badge className="bg-green-500">{status}</Badge>;
+      case "Expired":
+        return <Badge variant="destructive">{status}</Badge>;
+      case "Revoked":
+        return <Badge variant="outline" className="border-red-500 text-red-500">{status}</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
-  
-  // Delete welder handler
-  const handleDeleteWelder = () => {
-    if (selectedWelder) {
-      deleteWelderMutation.mutate(selectedWelder.id);
-    }
-  };
-  
-  // Filter welders based on search term and status
-  const filteredWelders = welders.filter((welder) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      welder.welderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      welder.welderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      welder.certificateNo.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === null || welder.status === statusFilter;
-    
-    // Filter by tab
-    if (activeTab === "all_welders") {
-      return matchesSearch && matchesStatus;
-    } else if (activeTab === "active_welders") {
-      return matchesSearch && welder.status === "Active";
-    } else if (activeTab === "expiring_soon") {
-      const expiryDate = new Date(welder.certificateExpiryDate);
-      const today = new Date();
-      const daysDifference = Math.floor(
-        (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      return matchesSearch && daysDifference <= 30 && daysDifference > 0;
-    } else if (activeTab === "expired") {
-      return matchesSearch && welder.status === "Expired";
-    }
-    
-    return matchesSearch && matchesStatus;
-  });
-  
-  // Dashboard statistics
-  const totalWelders = welders.length;
-  const activeWelders = welders.filter(welder => welder.status === "Active").length;
-  const expiringSoon = welders.filter(welder => {
-    const expiryDate = new Date(welder.certificateExpiryDate);
+
+  // Check if certificate is expiring soon (within 30 days)
+  const isExpiringSoon = (expiryDateStr: string) => {
+    const expiryDate = new Date(expiryDateStr);
     const today = new Date();
-    const daysDifference = Math.floor(
-      (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    return daysDifference <= 30 && daysDifference > 0;
-  }).length;
-  const expiredWelders = welders.filter(welder => welder.status === "Expired").length;
-  
+    const thirtyDaysLater = new Date();
+    thirtyDaysLater.setDate(today.getDate() + 30);
+    return expiryDate <= thirtyDaysLater && expiryDate > today;
+  };
+
   return (
     <Layout>
-      <Helmet>
-        <title>Welder Management | Thermopac</title>
-      </Helmet>
-      
       <div className="space-y-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold">Welder Management</h1>
-            <p className="text-muted-foreground mt-1">
-              Track welder qualification records and certification status
-            </p>
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold tracking-tight">Welder Management</h1>
+          <Dialog open={isAddWelderOpen} onOpenChange={setIsAddWelderOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add New Welder
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Add New Welder</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <Tabs defaultValue="basic" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="basic">Basic Information</TabsTrigger>
+                      <TabsTrigger value="qualification">Qualification Details</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="basic" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Welder Name*</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Enter welder's full name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="trade"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Trade*</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select trade" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {tradeOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="processQualified"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Process Qualified*</FormLabel>
+                              <div className="space-y-2">
+                                {processOptions.map((process) => (
+                                  <div className="flex items-center space-x-2" key={process}>
+                                    <Checkbox
+                                      id={`process-${process}`}
+                                      checked={field.value?.includes(process)}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          field.onChange([...field.value, process]);
+                                        } else {
+                                          field.onChange(
+                                            field.value?.filter((value) => value !== process)
+                                          );
+                                        }
+                                      }}
+                                    />
+                                    <label
+                                      htmlFor={`process-${process}`}
+                                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                      {process}
+                                    </label>
+                                  </div>
+                                ))}
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="materialGroupQualified"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Material Group Qualified*</FormLabel>
+                              <div className="space-y-2">
+                                {materialGroupOptions.map((material) => (
+                                  <div className="flex items-center space-x-2" key={material}>
+                                    <Checkbox
+                                      id={`material-${material}`}
+                                      checked={field.value?.includes(material)}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          field.onChange([...field.value, material]);
+                                        } else {
+                                          field.onChange(
+                                            field.value?.filter((value) => value !== material)
+                                          );
+                                        }
+                                      }}
+                                    />
+                                    <label
+                                      htmlFor={`material-${material}`}
+                                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                      {material}
+                                    </label>
+                                  </div>
+                                ))}
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="thicknessRange"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Thickness Range*</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g. 5-10mm" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="positionQualified"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Position Qualified*</FormLabel>
+                              <div className="space-y-2">
+                                {positionOptions.map((position) => (
+                                  <div className="flex items-center space-x-2" key={position}>
+                                    <Checkbox
+                                      id={`position-${position}`}
+                                      checked={field.value?.includes(position)}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          field.onChange([...field.value, position]);
+                                        } else {
+                                          field.onChange(
+                                            field.value?.filter((value) => value !== position)
+                                          );
+                                        }
+                                      }}
+                                    />
+                                    <label
+                                      htmlFor={`position-${position}`}
+                                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                      {position}
+                                    </label>
+                                  </div>
+                                ))}
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="qualification" className="space-y-4 mt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="wpsNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>WPS Number*</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select WPS number" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {Array.isArray(wpsData) && wpsData.length > 0 ? (
+                                    wpsData.map((wps: any) => (
+                                      <SelectItem key={wps.wpsNumber} value={wps.wpsNumber || "no_number"}>
+                                        {wps.wpsNumber || "No Number"}
+                                      </SelectItem>
+                                    ))
+                                  ) : (
+                                    <SelectItem value="no_wps_available" disabled>No WPS available</SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="testDate"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                              <FormLabel>Test Date*</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                        "pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                      )}
+                                    >
+                                      {field.value ? (
+                                        format(new Date(field.value), "PPP")
+                                      ) : (
+                                        <span>Pick a date</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    onSelect={(date) => {
+                                      field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                                    }}
+                                    disabled={(date) =>
+                                      date > new Date() || date < new Date("1900-01-01")
+                                    }
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="testResults"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Test Results*</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select test result" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {testResultOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="certificateExpiryDate"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                              <FormLabel>Certificate Expiry Date*</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                        "pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                      )}
+                                    >
+                                      {field.value ? (
+                                        format(new Date(field.value), "PPP")
+                                      ) : (
+                                        <span>Pick a date</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    onSelect={(date) => {
+                                      field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                                    }}
+                                    disabled={(date) =>
+                                      date < new Date("1900-01-01")
+                                    }
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="status"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Status*</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select status" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {statusOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="remarks"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Remarks</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Optional notes" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsAddWelderOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={createWelderMutation.isPending}>
+                          {createWelderMutation.isPending ? (
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</>
+                          ) : (
+                            "Create Welder"
+                          )}
+                        </Button>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Dashboard Cards */}
+        <div className="grid grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Welders
+              </CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalWelders}</div>
+              <p className="text-xs text-muted-foreground">
+                Registered welders
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Active Welders
+              </CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{activeWelders}</div>
+              <p className="text-xs text-muted-foreground">
+                With valid certification
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Expiring Soon
+              </CardTitle>
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{expiringWelders}</div>
+              <p className="text-xs text-muted-foreground">
+                Expiring within 30 days
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Expired Certifications
+              </CardTitle>
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{expiredWelders}</div>
+              <p className="text-xs text-muted-foreground">
+                Need recertification
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search and Filter */}
+        <div className="flex items-center space-x-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, welder ID, WPS number..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          
-          <Button onClick={() => setIsAddWelderOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Add New Welder
-          </Button>
+          <Select
+            value={statusFilter || "all_statuses"}
+            onValueChange={handleStatusFilterChange}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all_statuses">All Statuses</SelectItem>
+              {statusOptions.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        
-        {/* Dashboard stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex flex-col items-center">
-                <span className="text-muted-foreground">Total Welders</span>
-                <span className="text-4xl font-bold mt-2">{totalWelders}</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex flex-col items-center">
-                <span className="text-muted-foreground">Active Welders</span>
-                <span className="text-4xl font-bold mt-2 text-green-500">{activeWelders}</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex flex-col items-center">
-                <span className="text-muted-foreground">Expiring Soon</span>
-                <span className="text-4xl font-bold mt-2 text-amber-500">{expiringSoon}</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex flex-col items-center">
-                <span className="text-muted-foreground">Expired</span>
-                <span className="text-4xl font-bold mt-2 text-red-500">{expiredWelders}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Tabs and Filters */}
-        <div className="flex flex-col md:flex-row md:justify-between gap-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList>
-              <TabsTrigger value="all_welders">All Welders</TabsTrigger>
-              <TabsTrigger value="active_welders">Active</TabsTrigger>
-              <TabsTrigger value="expiring_soon">Expiring Soon</TabsTrigger>
-              <TabsTrigger value="expired">Expired</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          
-          <div className="flex gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or ID..."
-                className="pl-8 w-[250px]"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-        
+
         {/* Welders Table */}
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Welder ID</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Processes</TableHead>
+                <TableHead>WPS Number</TableHead>
+                <TableHead>Certificate No.</TableHead>
+                <TableHead>Expiry Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
                 <TableRow>
-                  <TableHead>Welder ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Trade</TableHead>
-                  <TableHead>Process Qualified</TableHead>
-                  <TableHead>Certificate No.</TableHead>
-                  <TableHead>Expiry Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableCell colSpan={8} className="h-24 text-center">
+                    <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                    <span className="mt-2 block text-sm text-muted-foreground">Loading welder data...</span>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredWelders.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      {isLoading ? (
-                        <div className="flex justify-center items-center">
-                          <svg
-                            className="animate-spin h-6 w-6 text-primary mr-2"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                          <span>Loading welders...</span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center">
-                          <p className="text-muted-foreground">No welders found</p>
-                          <Button
-                            variant="link"
-                            onClick={() => setIsAddWelderOpen(true)}
-                          >
-                            Add your first welder
+              ) : filteredWelders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-24 text-center">
+                    {searchTerm || statusFilter ? (
+                      <span className="text-sm text-muted-foreground">No welders found matching your search criteria.</span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No welders have been added yet.</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredWelders.map((welder: any) => (
+                  <TableRow key={welder.id}>
+                    <TableCell className="font-medium">{welder.welderId}</TableCell>
+                    <TableCell>{welder.name}</TableCell>
+                    <TableCell>
+                      {Array.isArray(welder.processQualified) ? welder.processQualified.join(", ") : ""}
+                    </TableCell>
+                    <TableCell>{welder.wpsNumber}</TableCell>
+                    <TableCell>{welder.certificateNo}</TableCell>
+                    <TableCell className={isExpiringSoon(welder.certificateExpiryDate) ? "text-amber-500 font-medium" : ""}>
+                      {new Date(welder.certificateExpiryDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(welder.status)}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <svg 
+                              xmlns="http://www.w3.org/2000/svg" 
+                              width="16" 
+                              height="16" 
+                              fill="currentColor" 
+                              className="bi bi-three-dots-vertical" 
+                              viewBox="0 0 16 16"
+                            >
+                              <path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                            </svg>
                           </Button>
-                        </div>
-                      )}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditClick(welder)}>
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => {
+                              // Delete functionality would go here
+                              toast({
+                                title: "Not implemented",
+                                description: "Delete functionality is not yet implemented",
+                                variant: "destructive",
+                              });
+                            }}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  filteredWelders.map((welder) => {
-                    // Check if certificate is expiring soon (within 30 days)
-                    const expiryDate = new Date(welder.certificateExpiryDate);
-                    const today = new Date();
-                    const daysDifference = Math.floor(
-                      (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-                    );
-                    const isExpiringSoon = daysDifference <= 30 && daysDifference > 0;
-                    const isExpired = daysDifference <= 0;
-                    
-                    return (
-                      <TableRow key={welder.id}>
-                        <TableCell className="font-medium">{welder.welderId}</TableCell>
-                        <TableCell>{welder.welderName}</TableCell>
-                        <TableCell>{welder.trade}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {welder.processQualified.map((process) => (
-                              <Badge key={process} variant="outline">
-                                {process}
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell>{welder.certificateNo}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            {isExpiringSoon && (
-                              <AlertTriangle className="h-4 w-4 text-amber-500 mr-1.5" />
-                            )}
-                            {isExpired && (
-                              <AlertTriangle className="h-4 w-4 text-red-500 mr-1.5" />
-                            )}
-                            {format(new Date(welder.certificateExpiryDate), "MMM dd, yyyy")}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              welder.status === "Active"
-                                ? "default"
-                                : welder.status === "Expired"
-                                ? "destructive"
-                                : "outline"
-                            }
-                          >
-                            {welder.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Open menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedWelder(welder);
-                                  setIsEditWelderOpen(true);
-                                }}
-                              >
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-red-600"
-                                onClick={() => {
-                                  setSelectedWelder(welder);
-                                  setIsDeleteDialogOpen(true);
-                                }}
-                              >
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-        
-        {/* Add Welder Dialog */}
-        <Dialog open={isAddWelderOpen} onOpenChange={setIsAddWelderOpen}>
-          <DialogContent className="sm:max-w-[600px]">
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Edit Welder Dialog */}
+        <Dialog open={isEditWelderOpen} onOpenChange={setIsEditWelderOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add New Welder</DialogTitle>
-              <DialogDescription>
-                Create a new welder qualification record. Fields marked with * are required.
-              </DialogDescription>
+              <DialogTitle>Edit Welder</DialogTitle>
             </DialogHeader>
-            
-            <ScrollArea className="max-h-[65vh]">
-              <div className="p-1">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onAddWelderSubmit)} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Welder Name */}
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6">
+                <Tabs defaultValue="basic" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="basic">Basic Information</TabsTrigger>
+                    <TabsTrigger value="qualification">Qualification Details</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="basic" className="space-y-4 mt-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField
-                        control={form.control}
-                        name="welderName"
+                        control={editForm.control}
+                        name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Welder Name *</FormLabel>
+                            <FormLabel>Welder Name*</FormLabel>
                             <FormControl>
                               <Input placeholder="Enter welder's full name" {...field} />
                             </FormControl>
@@ -580,17 +949,16 @@ export default function WelderManagementPage() {
                           </FormItem>
                         )}
                       />
-                      
-                      {/* Trade */}
                       <FormField
-                        control={form.control}
+                        control={editForm.control}
                         name="trade"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Trade *</FormLabel>
+                            <FormLabel>Trade*</FormLabel>
                             <Select
                               onValueChange={field.onChange}
                               defaultValue={field.value}
+                              value={field.value}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -598,260 +966,207 @@ export default function WelderManagementPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="Welder">Welder</SelectItem>
-                                <SelectItem value="Fitter">Fitter</SelectItem>
-                                <SelectItem value="Fabricator">Fabricator</SelectItem>
+                                {tradeOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    </div>
-                    
-                    {/* Process Qualified */}
-                    <FormField
-                      control={form.control}
-                      name="processQualified"
-                      render={() => (
-                        <FormItem>
-                          <div className="mb-4">
-                            <FormLabel>Process Qualified *</FormLabel>
-                            <FormDescription>
-                              Select all welding processes the welder is qualified for.
-                            </FormDescription>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            {["SMAW", "GTAW", "FCAW", "SAW"].map((process) => (
-                              <FormField
-                                key={process}
-                                control={form.control}
-                                name="processQualified"
-                                render={({ field }) => {
-                                  return (
-                                    <FormItem
-                                      key={process}
-                                      className="flex flex-row items-start space-x-3 space-y-0"
-                                    >
-                                      <FormControl>
-                                        <Checkbox
-                                          checked={field.value?.includes(process)}
-                                          onCheckedChange={(checked) => {
-                                            return checked
-                                              ? field.onChange([...field.value, process])
-                                              : field.onChange(
-                                                  field.value?.filter(
-                                                    (value) => value !== process
-                                                  )
-                                                );
-                                          }}
-                                        />
-                                      </FormControl>
-                                      <FormLabel className="font-normal">
-                                        {process}
-                                      </FormLabel>
-                                    </FormItem>
-                                  );
-                                }}
-                              />
-                            ))}
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    {/* Material Group Qualified */}
-                    <FormField
-                      control={form.control}
-                      name="materialGroupQualified"
-                      render={() => (
-                        <FormItem>
-                          <div className="mb-4">
-                            <FormLabel>Material Group Qualified *</FormLabel>
-                            <FormDescription>
-                              Select all material groups the welder is qualified for.
-                            </FormDescription>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            {["Carbon Steel", "Stainless Steel", "Alloy Steel"].map((material) => (
-                              <FormField
-                                key={material}
-                                control={form.control}
-                                name="materialGroupQualified"
-                                render={({ field }) => {
-                                  return (
-                                    <FormItem
-                                      key={material}
-                                      className="flex flex-row items-start space-x-3 space-y-0"
-                                    >
-                                      <FormControl>
-                                        <Checkbox
-                                          checked={field.value?.includes(material)}
-                                          onCheckedChange={(checked) => {
-                                            return checked
-                                              ? field.onChange([...field.value, material])
-                                              : field.onChange(
-                                                  field.value?.filter(
-                                                    (value) => value !== material
-                                                  )
-                                                );
-                                          }}
-                                        />
-                                      </FormControl>
-                                      <FormLabel className="font-normal">
-                                        {material}
-                                      </FormLabel>
-                                    </FormItem>
-                                  );
-                                }}
-                              />
-                            ))}
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    {/* Thickness Range */}
-                    <FormField
-                      control={form.control}
-                      name="thicknessRange"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Thickness Range *</FormLabel>
-                          <FormControl>
-                            <Input placeholder="E.g., 3mm - 20mm" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            Enter the range of material thickness the welder is qualified for.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    {/* Position Qualified */}
-                    <FormField
-                      control={form.control}
-                      name="positionQualified"
-                      render={() => (
-                        <FormItem>
-                          <div className="mb-4">
-                            <FormLabel>Position Qualified *</FormLabel>
-                            <FormDescription>
-                              Select all welding positions the welder is qualified for.
-                            </FormDescription>
-                          </div>
-                          <div className="grid grid-cols-3 gap-4">
-                            {["1G", "2G", "3G", "4G", "5G", "6G"].map((position) => (
-                              <FormField
-                                key={position}
-                                control={form.control}
-                                name="positionQualified"
-                                render={({ field }) => {
-                                  return (
-                                    <FormItem
-                                      key={position}
-                                      className="flex flex-row items-start space-x-3 space-y-0"
-                                    >
-                                      <FormControl>
-                                        <Checkbox
-                                          checked={field.value?.includes(position)}
-                                          onCheckedChange={(checked) => {
-                                            return checked
-                                              ? field.onChange([...field.value, position])
-                                              : field.onChange(
-                                                  field.value?.filter(
-                                                    (value) => value !== position
-                                                  )
-                                                );
-                                          }}
-                                        />
-                                      </FormControl>
-                                      <FormLabel className="font-normal">
-                                        {position}
-                                      </FormLabel>
-                                    </FormItem>
-                                  );
-                                }}
-                              />
-                            ))}
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    {/* WPS Number */}
-                    <FormField
-                      control={form.control}
-                      name="wpsId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>WPS Number *</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select WPS" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {wpsDocuments.length === 0 ? (
-                                <SelectItem value="" disabled>
-                                  No WPS documents found
-                                </SelectItem>
-                              ) : (
-                                wpsDocuments.map((wps: any) => (
-                                  <SelectItem key={wps.id} value={wps.wpsId}>
-                                    {wps.wpsId}
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>
-                            WPS number this welder is qualified under.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Test Date */}
                       <FormField
-                        control={form.control}
+                        control={editForm.control}
+                        name="processQualified"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Process Qualified*</FormLabel>
+                            <div className="space-y-2">
+                              {processOptions.map((process) => (
+                                <div className="flex items-center space-x-2" key={process}>
+                                  <Checkbox
+                                    id={`edit-process-${process}`}
+                                    checked={field.value?.includes(process)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        field.onChange([...field.value, process]);
+                                      } else {
+                                        field.onChange(
+                                          field.value?.filter((value) => value !== process)
+                                        );
+                                      }
+                                    }}
+                                  />
+                                  <label
+                                    htmlFor={`edit-process-${process}`}
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                  >
+                                    {process}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="materialGroupQualified"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Material Group Qualified*</FormLabel>
+                            <div className="space-y-2">
+                              {materialGroupOptions.map((material) => (
+                                <div className="flex items-center space-x-2" key={material}>
+                                  <Checkbox
+                                    id={`edit-material-${material}`}
+                                    checked={field.value?.includes(material)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        field.onChange([...field.value, material]);
+                                      } else {
+                                        field.onChange(
+                                          field.value?.filter((value) => value !== material)
+                                        );
+                                      }
+                                    }}
+                                  />
+                                  <label
+                                    htmlFor={`edit-material-${material}`}
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                  >
+                                    {material}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={editForm.control}
+                        name="thicknessRange"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Thickness Range*</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. 5-10mm" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="positionQualified"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Position Qualified*</FormLabel>
+                            <div className="space-y-2">
+                              {positionOptions.map((position) => (
+                                <div className="flex items-center space-x-2" key={position}>
+                                  <Checkbox
+                                    id={`edit-position-${position}`}
+                                    checked={field.value?.includes(position)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        field.onChange([...field.value, position]);
+                                      } else {
+                                        field.onChange(
+                                          field.value?.filter((value) => value !== position)
+                                        );
+                                      }
+                                    }}
+                                  />
+                                  <label
+                                    htmlFor={`edit-position-${position}`}
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                  >
+                                    {position}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="qualification" className="space-y-4 mt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={editForm.control}
+                        name="wpsNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>WPS Number*</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select WPS number" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {Array.isArray(wpsData) && wpsData.length > 0 ? (
+                                  wpsData.map((wps: any) => (
+                                    <SelectItem key={wps.wpsNumber} value={wps.wpsNumber || "no_number"}>
+                                      {wps.wpsNumber || "No Number"}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="no_wps_available" disabled>No WPS available</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
                         name="testDate"
                         render={({ field }) => (
                           <FormItem className="flex flex-col">
-                            <FormLabel>Test Date *</FormLabel>
+                            <FormLabel>Test Date*</FormLabel>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <FormControl>
                                   <Button
                                     variant={"outline"}
                                     className={cn(
-                                      "w-full pl-3 text-left font-normal",
+                                      "pl-3 text-left font-normal",
                                       !field.value && "text-muted-foreground"
                                     )}
                                   >
                                     {field.value ? (
-                                      format(field.value, "PPP")
+                                      format(new Date(field.value), "PPP")
                                     ) : (
                                       <span>Pick a date</span>
                                     )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0" align="start">
                                 <Calendar
                                   mode="single"
-                                  selected={field.value}
-                                  onSelect={field.onChange}
+                                  selected={field.value ? new Date(field.value) : undefined}
+                                  onSelect={(date) => {
+                                    field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                                  }}
+                                  disabled={(date) =>
+                                    date > new Date() || date < new Date("1900-01-01")
+                                  }
                                   initialFocus
                                 />
                               </PopoverContent>
@@ -860,17 +1175,15 @@ export default function WelderManagementPage() {
                           </FormItem>
                         )}
                       />
-                      
-                      {/* Test Results */}
                       <FormField
-                        control={form.control}
+                        control={editForm.control}
                         name="testResults"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Test Results *</FormLabel>
+                            <FormLabel>Test Results*</FormLabel>
                             <Select
                               onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              value={field.value}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -878,49 +1191,50 @@ export default function WelderManagementPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="Passed">Passed</SelectItem>
-                                <SelectItem value="Failed">Failed</SelectItem>
+                                {testResultOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Certificate Expiry Date */}
                       <FormField
-                        control={form.control}
+                        control={editForm.control}
                         name="certificateExpiryDate"
                         render={({ field }) => (
                           <FormItem className="flex flex-col">
-                            <FormLabel>Certificate Expiry Date *</FormLabel>
+                            <FormLabel>Certificate Expiry Date*</FormLabel>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <FormControl>
                                   <Button
                                     variant={"outline"}
                                     className={cn(
-                                      "w-full pl-3 text-left font-normal",
+                                      "pl-3 text-left font-normal",
                                       !field.value && "text-muted-foreground"
                                     )}
                                   >
                                     {field.value ? (
-                                      format(field.value, "PPP")
+                                      format(new Date(field.value), "PPP")
                                     ) : (
                                       <span>Pick a date</span>
                                     )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0" align="start">
                                 <Calendar
                                   mode="single"
-                                  selected={field.value}
-                                  onSelect={field.onChange}
+                                  selected={field.value ? new Date(field.value) : undefined}
+                                  onSelect={(date) => {
+                                    field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                                  }}
                                   disabled={(date) =>
-                                    date < new Date() ||
                                     date < new Date("1900-01-01")
                                   }
                                   initialFocus
@@ -931,17 +1245,15 @@ export default function WelderManagementPage() {
                           </FormItem>
                         )}
                       />
-                      
-                      {/* Status */}
                       <FormField
-                        control={form.control}
+                        control={editForm.control}
                         name="status"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Status *</FormLabel>
+                            <FormLabel>Status*</FormLabel>
                             <Select
                               onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              value={field.value}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -949,121 +1261,58 @@ export default function WelderManagementPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="Active">Active</SelectItem>
-                                <SelectItem value="Expired">Expired</SelectItem>
-                                <SelectItem value="Revoked">Revoked</SelectItem>
+                                {statusOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                      <FormField
+                        control={editForm.control}
+                        name="remarks"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Remarks</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Optional notes" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                    
-                    {/* Remarks */}
-                    <FormField
-                      control={form.control}
-                      name="remarks"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Remarks</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Additional notes (optional)" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <DialogFooter>
+                    <div className="flex justify-end space-x-2">
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => setIsAddWelderOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={createWelderMutation.isPending}>
-                        {createWelderMutation.isPending ? "Saving..." : "Save Welder"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </div>
-            </ScrollArea>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Edit Welder Dialog */}
-        <Dialog open={isEditWelderOpen} onOpenChange={setIsEditWelderOpen}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Edit Welder</DialogTitle>
-              <DialogDescription>
-                Update the welder qualification record.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <ScrollArea className="max-h-[65vh]">
-              <div className="p-1">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onEditWelderSubmit)} className="space-y-6">
-                    {/* The form fields are identical to the Add Welder form */}
-                    {/* ... Same fields as Add Welder Dialog ... */}
-                    
-                    <DialogFooter>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setIsEditWelderOpen(false);
-                          setSelectedWelder(null);
-                        }}
+                        onClick={() => setIsEditWelderOpen(false)}
                       >
                         Cancel
                       </Button>
                       <Button type="submit" disabled={updateWelderMutation.isPending}>
-                        {updateWelderMutation.isPending ? "Updating..." : "Update Welder"}
+                        {updateWelderMutation.isPending ? (
+                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...</>
+                        ) : (
+                          "Update Welder"
+                        )}
                       </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </div>
-            </ScrollArea>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Confirm Deletion</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete this welder record? This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsDeleteDialogOpen(false);
-                  setSelectedWelder(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDeleteWelder}
-                disabled={deleteWelderMutation.isPending}
-              >
-                {deleteWelderMutation.isPending ? "Deleting..." : "Delete"}
-              </Button>
-            </DialogFooter>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
     </Layout>
   );
 }
+
+// Helper function to format date
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
