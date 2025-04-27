@@ -14,6 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
+import { FileText, Upload, X, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 
@@ -65,6 +68,13 @@ export default function WpsPqrPage() {
   const queryClient = useQueryClient();
   const [location, setLocation] = useLocation();
   const [match, params] = useRoute("/wps-pqr/:id?");
+  
+  // File upload states
+  const [wpsFile, setWpsFile] = useState<File | null>(null);
+  const [pqrFile, setPqrFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   
   // Generate a sequential ID for WPS/PQR
   const generateSequentialId = () => {
@@ -267,6 +277,85 @@ export default function WpsPqrPage() {
   // Update PWHT Details field visibility based on PWHT selection
   const showPwhtDetails = wpsForm.watch("pwht") === "Yes";
   
+  // File upload handler for WPS and PQR documents
+  const handleDocumentUpload = async () => {
+    if (!wpsFile && !pqrFile) {
+      toast({
+        title: "Error",
+        description: "Please select at least one file to upload.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      setIsUploading(true);
+      setUploadProgress(10);
+      
+      // Create form data for the upload
+      const formData = new FormData();
+      
+      if (wpsFile) {
+        formData.append('wpsFile', wpsFile);
+        formData.append('wpsId', wpsId);
+      }
+      
+      if (pqrFile) {
+        formData.append('pqrFile', pqrFile);
+        formData.append('pqrId', pqrId);
+      }
+      
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          const newProgress = prev + 15;
+          if (newProgress >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return newProgress;
+        });
+      }, 500);
+      
+      // TODO: Implement actual file upload API call
+      // const response = await apiRequest('POST', '/api/quality/wps-pqr/documents', formData, { 
+      //   isFormData: true 
+      // });
+      
+      // For demo, simulate a successful upload after 2 seconds
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      setUploadStatus('success');
+      
+      toast({
+        title: "Files Uploaded Successfully",
+        description: "Your WPS and PQR documents have been uploaded.",
+      });
+      
+      // Reset form after successful upload
+      setTimeout(() => {
+        setWpsFile(null);
+        setPqrFile(null);
+        setUploadProgress(0);
+        setIsUploading(false);
+        setUploadStatus('idle');
+      }, 1500);
+      
+    } catch (error) {
+      console.error("Error uploading documents:", error);
+      setUploadStatus('error');
+      setIsUploading(false);
+      
+      toast({
+        title: "Upload Failed",
+        description: "There was an error uploading your documents. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
   return (
     <Layout>
       <div className="space-y-6">
@@ -278,10 +367,238 @@ export default function WpsPqrPage() {
         </div>
         
         <Tabs defaultValue="wps" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-[400px] grid-cols-2">
+          <TabsList className="grid w-[600px] grid-cols-3">
             <TabsTrigger value="wps">WPS</TabsTrigger>
             <TabsTrigger value="pqr">PQR</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
           </TabsList>
+          
+          {/* Documents Tab Content (Add this new tab) */}
+          <TabsContent value="documents" className="mt-6">
+            <Card className="max-w-4xl">
+              <CardHeader>
+                <CardTitle>Document Management</CardTitle>
+                <CardDescription>
+                  Upload and manage WPS and PQR documents. Files will be stored securely and linked to their respective records.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-8">
+                  <div className="border rounded-lg p-6 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-medium">Document Information</h3>
+                        <p className="text-sm text-muted-foreground">
+                          These documents will be linked using the following IDs
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="wps-id">WPS ID</Label>
+                        <Input
+                          id="wps-id"
+                          value={wpsId}
+                          readOnly
+                          className="bg-muted"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="pqr-id">PQR ID</Label>
+                        <Input
+                          id="pqr-id"
+                          value={pqrId}
+                          readOnly
+                          className="bg-muted"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Link Pattern</p>
+                      <p className="text-sm text-muted-foreground">
+                        These documents follow the one-to-one relationship pattern: <strong>{wpsId}</strong> LINKED TO <strong>{pqrId}</strong>
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="border rounded-lg p-6 space-y-6">
+                    <div>
+                      <h3 className="text-lg font-medium">Upload Documents</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Select and upload WPS and PQR document files (PDF format recommended)
+                      </p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* WPS Document Upload */}
+                      <div className="space-y-4">
+                        <Label htmlFor="wps-file">WPS Document ({wpsId})</Label>
+                        <div className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center">
+                          <div className="mb-4">
+                            <FileText className="h-10 w-10 text-muted-foreground" />
+                          </div>
+                          
+                          {wpsFile ? (
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium">{wpsFile.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {(wpsFile.size / 1024).toFixed(1)} KB
+                              </p>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => setWpsFile(null)}
+                              >
+                                <X className="mr-2 h-4 w-4" /> Remove
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="space-y-2">
+                                <p className="text-sm font-medium">Click to upload or drag and drop</p>
+                                <p className="text-xs text-muted-foreground">PDF, DOC up to 10MB</p>
+                              </div>
+                              <Input 
+                                id="wps-file" 
+                                type="file" 
+                                className="hidden"
+                                accept=".pdf,.doc,.docx" 
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    setWpsFile(e.target.files[0]);
+                                  }
+                                }}
+                              />
+                              <Label 
+                                htmlFor="wps-file"
+                                className="mt-4 inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 cursor-pointer"
+                              >
+                                <Upload className="mr-2 h-4 w-4" /> Select WPS File
+                              </Label>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* PQR Document Upload */}
+                      <div className="space-y-4">
+                        <Label htmlFor="pqr-file">PQR Document ({pqrId})</Label>
+                        <div className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center">
+                          <div className="mb-4">
+                            <FileText className="h-10 w-10 text-muted-foreground" />
+                          </div>
+                          
+                          {pqrFile ? (
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium">{pqrFile.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {(pqrFile.size / 1024).toFixed(1)} KB
+                              </p>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => setPqrFile(null)}
+                              >
+                                <X className="mr-2 h-4 w-4" /> Remove
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="space-y-2">
+                                <p className="text-sm font-medium">Click to upload or drag and drop</p>
+                                <p className="text-xs text-muted-foreground">PDF, DOC up to 10MB</p>
+                              </div>
+                              <Input 
+                                id="pqr-file" 
+                                type="file" 
+                                className="hidden"
+                                accept=".pdf,.doc,.docx" 
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    setPqrFile(e.target.files[0]);
+                                  }
+                                }}
+                              />
+                              <Label 
+                                htmlFor="pqr-file"
+                                className="mt-4 inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 cursor-pointer"
+                              >
+                                <Upload className="mr-2 h-4 w-4" /> Select PQR File
+                              </Label>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Upload Progress and Button */}
+                    <div className="space-y-4">
+                      {isUploading && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label>Upload Progress</Label>
+                            <span className="text-sm">{uploadProgress}%</span>
+                          </div>
+                          <Progress value={uploadProgress} />
+                        </div>
+                      )}
+                      
+                      {uploadStatus === 'success' && (
+                        <div className="bg-green-50 text-green-700 px-4 py-3 rounded-md flex items-center">
+                          <CheckCircle className="h-5 w-5 mr-2" />
+                          <span>Documents uploaded successfully!</span>
+                        </div>
+                      )}
+                      
+                      {uploadStatus === 'error' && (
+                        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-md flex items-center">
+                          <AlertCircle className="h-5 w-5 mr-2" />
+                          <span>Error uploading documents. Please try again.</span>
+                        </div>
+                      )}
+                      
+                      <Button 
+                        onClick={handleDocumentUpload}
+                        disabled={isUploading || (!wpsFile && !pqrFile)}
+                        className="w-full"
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Upload Documents
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Document Management Section */}
+                  <div className="border rounded-lg p-6 space-y-6">
+                    <div>
+                      <h3 className="text-lg font-medium">Document Library</h3>
+                      <p className="text-sm text-muted-foreground">
+                        View and manage your WPS and PQR documents
+                      </p>
+                    </div>
+                    
+                    {/* This would typically be populated from an API call */}
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground text-center py-10">
+                        No documents have been uploaded yet.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
           
           {/* WPS Form Tab */}
           <TabsContent value="wps" className="mt-6">
