@@ -11,7 +11,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { CalendarIcon, Info } from "lucide-react";
@@ -47,19 +47,36 @@ export default function MaterialIdentificationPage() {
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
   
+  // Define types for the API responses
+  interface Project {
+    id: number;
+    projectNumber: string;
+    name: string;
+  }
+  
+  interface InspectionOrder {
+    id: number;
+    inspectionOrderNumber: string;
+    title: string;
+  }
+  
+  interface NextIdResponse {
+    nextId: string;
+  }
+  
   // Fetch projects
-  const { data: projects } = useQuery({
+  const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ['/api/projects'],
   });
   
   // Fetch inspection orders for the selected project
-  const { data: inspectionOrders } = useQuery({
+  const { data: inspectionOrders = [] } = useQuery<InspectionOrder[]>({
     queryKey: ['/api/quality/inspection-orders/project', selectedProject],
     enabled: !!selectedProject,
   });
   
   // Fetch the next auto-generated MI ID
-  const { data: nextIdData, refetch: refetchNextId } = useQuery({
+  const { data: nextIdData, refetch: refetchNextId } = useQuery<NextIdResponse>({
     queryKey: ['/api/quality/material-identification/next-id'],
   });
 
@@ -91,11 +108,12 @@ export default function MaterialIdentificationPage() {
     defaultValues,
   });
 
-  // Function to generate a new MI ID when selecting a project
-  const generateMaterialIdentificationId = (projectNo: string) => {
-    if (!projectNo) return '';
-    return `MI-${projectNo}`;
-  };
+  // Set next MI ID from API 
+  useEffect(() => {
+    if (nextIdData?.nextId) {
+      form.setValue('materialIdentificationId', nextIdData.nextId);
+    }
+  }, [nextIdData, form]);
 
   // Handle project selection
   const handleProjectSelect = (projectId: string) => {
@@ -103,36 +121,75 @@ export default function MaterialIdentificationPage() {
     setSelectedProject(id);
     
     // Find project by ID
-    const project = projects?.find((p: any) => p.id === id);
+    const project = projects.find(p => p.id === id);
     if (project) {
-      form.setValue('projectName', project.name);
       form.setValue('projectNumber', project.projectNumber);
+      form.setValue('projectName', project.name);
       
-      // Generate MI ID based on project number
-      const miId = generateMaterialIdentificationId(project.projectNumber);
-      form.setValue('materialIdentificationId', miId);
+      // MI ID is now auto-generated from the server and already set
     }
   };
 
+  // Type for API response
+  interface MaterialIdentificationResponse {
+    id: number;
+    materialIdentificationId: string;
+    // other fields as needed
+  }
+
+  // Create a mutation for submitting the form
+  const submitMutation = useMutation<
+    MaterialIdentificationResponse, 
+    Error, 
+    Omit<MaterialIdentificationFormValues, 'inspectionDate'> & { inspectionDate: string }
+  >({
+    mutationFn: async (formData) => {
+      const response = await fetch('/api/quality/material-identification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create material identification record');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Material Identification Submitted",
+        description: `MI ID: ${form.getValues().materialIdentificationId} has been created successfully.`,
+      });
+      
+      // Reset form
+      form.reset(defaultValues);
+      
+      // Refetch the next MI ID for the next record
+      refetchNextId();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Submission Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
   // Handle form submission
   const onSubmit = (data: MaterialIdentificationFormValues) => {
-    console.log("Form submitted:", data);
-    
     // Format the inspection date
     const formattedData = {
       ...data,
       inspectionDate: format(data.inspectionDate, "yyyy-MM-dd"),
     };
     
-    // TODO: Add API call to save the data
-    // Currently showing success toast for demonstration
-    toast({
-      title: "Material Identification Submitted",
-      description: `MI ID: ${data.materialIdentificationId} has been created.`,
-    });
-    
-    // Reset form
-    form.reset(defaultValues);
+    // Submit the data
+    submitMutation.mutate(formattedData);
   };
 
   return (
@@ -155,27 +212,27 @@ export default function MaterialIdentificationPage() {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* First row: Project selector, Project details, and MI ID */}
+                {/* First row: Project No, Project Name, and MI ID */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
-                    name="projectName"
+                    name="projectNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Project</FormLabel>
+                        <FormLabel>Project No.</FormLabel>
                         <Select
                           onValueChange={(value) => handleProjectSelect(value)}
                           defaultValue=""
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a project" />
+                              <SelectValue placeholder="Select project number" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {projects?.map((project: any) => (
+                            {projects.map((project) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
-                                {project.name} ({project.projectNumber})
+                                {project.projectNumber}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -187,10 +244,10 @@ export default function MaterialIdentificationPage() {
                   
                   <FormField
                     control={form.control}
-                    name="projectNumber"
+                    name="projectName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Project No.</FormLabel>
+                        <FormLabel>Project Name</FormLabel>
                         <FormControl>
                           <Input {...field} readOnly />
                         </FormControl>
@@ -209,7 +266,7 @@ export default function MaterialIdentificationPage() {
                           <Input {...field} readOnly />
                         </FormControl>
                         <FormDescription>
-                          Automatically generated
+                          Format: MI-YYYY-N (Year-Sequence)
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -236,7 +293,7 @@ export default function MaterialIdentificationPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {inspectionOrders?.map((order: any) => (
+                            {inspectionOrders.map((order) => (
                               <SelectItem key={order.id} value={order.inspectionOrderNumber}>
                                 {order.inspectionOrderNumber} - {order.title}
                               </SelectItem>
