@@ -1,5 +1,5 @@
 import express from 'express';
-import { ensureAuthenticated } from '../middleware/auth';
+import { ensureAuthenticated } from '../middleware/auth-middleware';
 import { db } from '../db';
 import { materialIdentification, materialIdentificationCounter } from '@shared/schema';
 import { eq } from 'drizzle-orm';

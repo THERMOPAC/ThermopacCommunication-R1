@@ -57,6 +57,11 @@ export default function MaterialIdentificationPage() {
     queryKey: ['/api/quality/inspection-orders/project', selectedProject],
     enabled: !!selectedProject,
   });
+  
+  // Fetch the next auto-generated MI ID
+  const { data: nextIdData, refetch: refetchNextId } = useQuery({
+    queryKey: ['/api/quality/material-identification/next-id'],
+  });
 
   // Default values for the form
   const defaultValues: Partial<MaterialIdentificationFormValues> = {
