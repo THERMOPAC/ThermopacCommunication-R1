@@ -182,6 +182,26 @@ const shieldingGasOptions = [
   "None"
 ];
 
+const fillerMaterialOptions = [
+  "E6010",
+  "E6013",
+  "E7018",
+  "E7018-1",
+  "E7010-P1",
+  "ER70S-6",
+  "ER80S-D2",
+  "E308L-16",
+  "ER308L",
+  "E309L-16",
+  "ER309L",
+  "E316L-16",
+  "ER316L",
+  "E71T-1",
+  "E71T-8",
+  "ERNiCr-3",
+  "E8018-C3"
+];
+
 export default function WpsPqrManagementPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1158,9 +1178,23 @@ export default function WpsPqrManagementPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Filler Material</FormLabel>
-                            <FormControl>
-                              <Input placeholder="e.g. ER70S-6" {...field} />
-                            </FormControl>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select filler material" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {fillerMaterialOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1450,9 +1484,23 @@ export default function WpsPqrManagementPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Filler Material</FormLabel>
-                            <FormControl>
-                              <Input placeholder="e.g. ER70S-6" {...field} />
-                            </FormControl>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select filler material" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {fillerMaterialOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
