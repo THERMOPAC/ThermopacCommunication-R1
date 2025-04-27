@@ -56,6 +56,7 @@ type CalibrationInstrument = {
   calibration_status: string;
   certificate_number?: string;
   certificate_file_path?: string;
+  certificate_url?: string; // Added for GCS signed URLs
   remarks?: string;
   created_at: string;
   updated_at: string;
@@ -636,7 +637,11 @@ export default function CalibrationManagementPage() {
                             onChange={handleCertificateFileChange}
                             className="mt-1"
                           />
-                          <p className="text-sm text-muted-foreground mt-1">Upload certificate file (PDF or image)</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {certificateFile ? 
+                              `Selected file: ${certificateFile.name}` : 
+                              "Select a PDF or image file (.pdf, .jpg, .png)"}
+                          </p>
                         </div>
                         <div className="col-span-2">
                           <FormField
@@ -1040,20 +1045,53 @@ export default function CalibrationManagementPage() {
                           </FormItem>
                         )}
                       />
-                      <div className="col-span-2">
-                        <Label htmlFor="edit_certificate_file">Certificate Upload</Label>
-                        <Input
-                          id="edit_certificate_file"
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={handleCertificateFileChange}
-                          className="mt-1"
-                        />
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {selectedInstrument?.certificate_file_path ? 
-                            "Replace existing certificate file (PDF or image)" : 
-                            "Upload certificate file (PDF or image)"}
-                        </p>
+                      <div className="col-span-2 space-y-4">
+                        {/* Display current certificate if available */}
+                        {(selectedInstrument?.certificate_url || selectedInstrument?.certificate_file_path) && (
+                          <div className="p-4 border rounded-md bg-gray-50">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium">Current Certificate</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {selectedInstrument.certificate_number ? 
+                                    `Certificate #${selectedInstrument.certificate_number}` : 
+                                    'Certificate file available'}
+                                </p>
+                              </div>
+                              <Button 
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadCertificate(selectedInstrument.id)}
+                                className="ml-2"
+                              >
+                                <FileText className="mr-2 h-4 w-4" />
+                                View Certificate
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Upload new certificate */}
+                        <div>
+                          <Label htmlFor="edit_certificate_file">
+                            {selectedInstrument?.certificate_file_path ? 
+                              "Replace Certificate" : 
+                              "Upload Certificate"}
+                          </Label>
+                          <Input
+                            id="edit_certificate_file"
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={handleCertificateFileChange}
+                            className="mt-1"
+                          />
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {certificateFile ? 
+                              `Selected file: ${certificateFile.name}` : 
+                              "Select a PDF or image file (.pdf, .jpg, .png)"}
+                          </p>
+                        </div>
                       </div>
                       <div className="col-span-2">
                         <FormField
