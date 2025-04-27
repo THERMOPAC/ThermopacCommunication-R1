@@ -2,7 +2,25 @@ import { Router } from "express";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { validateSchema } from "../utils/validate-schema";
+import { Request, Response, NextFunction } from "express";
+import { AnyZodObject } from "zod";
+
+// Inline middleware to validate request body against a Zod schema
+const validateSchema = (schema: AnyZodObject) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const validatedData = schema.parse(req.body);
+      req.body = validatedData;
+      next();
+    } catch (error) {
+      console.error("Validation error:", error);
+      return res.status(400).json({
+        error: "Validation failed",
+        details: error
+      });
+    }
+  };
+};
 
 const router = Router();
 
@@ -37,14 +55,22 @@ router.get("/", async (req, res) => {
     const materialIdentifications = await db.execute(sql`
       SELECT * FROM material_identification
       ORDER BY created_at DESC
-    `);
+    `) as any;
     
-    res.json(materialIdentifications);
+    res.json(materialIdentifications.rows || []);
   } catch (error) {
     console.error("Error getting material identifications:", error);
     res.status(500).json({ error: "Failed to get material identifications" });
   }
 });
+
+// Define the type for the counter table rows
+interface MaterialIdentificationCounter {
+  id: number;
+  year: number;
+  sequence: number;
+  updated_at: Date;
+}
 
 // Get next Material Identification ID (format: MI-YYYY-N)
 router.get("/next-id", async (req, res) => {
@@ -56,11 +82,11 @@ router.get("/next-id", async (req, res) => {
     const counterResult = await db.execute(sql`
       SELECT * FROM material_identification_counter
       WHERE year = ${currentYear}
-    `);
+    `) as any;
     
     let sequence = 1;
     
-    if (!counterResult || counterResult.length === 0) {
+    if (!counterResult || !counterResult.rows || counterResult.rows.length === 0) {
       // Insert new counter for current year
       await db.execute(sql`
         INSERT INTO material_identification_counter (year, sequence)
@@ -68,7 +94,7 @@ router.get("/next-id", async (req, res) => {
       `);
     } else {
       // Use existing counter
-      sequence = counterResult[0].sequence;
+      sequence = counterResult.rows[0].sequence;
     }
     
     // Format next ID
@@ -80,6 +106,34 @@ router.get("/next-id", async (req, res) => {
     res.status(500).json({ error: "Failed to generate next ID" });
   }
 });
+
+// Define the interface for Material Identification records
+interface MaterialIdentification {
+  id: number;
+  material_identification_id: string;
+  project_id: number;
+  project_number: string;
+  project_name: string;
+  inspection_order_number: string;
+  material_description: string;
+  material_code: string;
+  specification: string;
+  material_grade: string;
+  heat_number: string;
+  batch_number: string | null;
+  mill_name: string;
+  mill_test_certificate_number: string;
+  quantity: string;
+  dimensions: string;
+  material_status: string;
+  inspector_name: string;
+  inspection_date: string;
+  remarks: string | null;
+  created_at: Date;
+  updated_at: Date;
+  created_by: number | null;
+  updated_by: number | null;
+}
 
 // Create new material identification
 router.post("/", validateSchema(materialIdentificationSchema), async (req, res) => {
@@ -149,7 +203,11 @@ router.post("/", validateSchema(materialIdentificationSchema), async (req, res) 
       WHERE year = ${currentYear}
     `);
     
-    res.status(201).json(result[0]);
+    if (result && result.rows && result.rows.length > 0) {
+      res.status(201).json(result.rows[0]);
+    } else {
+      throw new Error("No data returned from insert operation");
+    }
   } catch (error) {
     console.error("Error creating material identification:", error);
     res.status(500).json({ error: "Failed to create material identification" });
@@ -164,13 +222,13 @@ router.get("/:id", async (req, res) => {
     const materialIdentification = await db.execute(sql`
       SELECT * FROM material_identification
       WHERE id = ${id}
-    `);
+    `) as any;
     
-    if (materialIdentification.length === 0) {
+    if (!materialIdentification || !materialIdentification.rows || materialIdentification.rows.length === 0) {
       return res.status(404).json({ error: "Material identification not found" });
     }
     
-    res.json(materialIdentification[0]);
+    res.json(materialIdentification.rows[0]);
   } catch (error) {
     console.error("Error getting material identification:", error);
     res.status(500).json({ error: "Failed to get material identification" });
@@ -186,9 +244,9 @@ router.get("/project/:projectId", async (req, res) => {
       SELECT * FROM material_identification
       WHERE project_id = ${projectId}
       ORDER BY created_at DESC
-    `);
+    `) as any;
     
-    res.json(materialIdentifications);
+    res.json(materialIdentifications.rows || []);
   } catch (error) {
     console.error("Error getting material identifications for project:", error);
     res.status(500).json({ error: "Failed to get material identifications for project" });
