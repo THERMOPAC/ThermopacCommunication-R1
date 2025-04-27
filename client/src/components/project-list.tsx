@@ -100,20 +100,8 @@ function getCurrentFinancialYear(): string {
 
 // Function to convert financial year to the format used for project codes
 function convertFinancialYearToCode(financialYear: string): string {
-  if (financialYear.startsWith('FY')) {
-    // Extract year digits from FY format: FY25-26 -> 2526
-    const matches = financialYear.match(/FY(\d{2})-(\d{2})/);
-    if (matches && matches.length === 3) {
-      return matches[1] + matches[2];
-    }
-  } else {
-    // If direct format like 2025-2026, extract last two digits of each year
-    const matches = financialYear.match(/(\d{4})-(\d{4})/);
-    if (matches && matches.length === 3) {
-      return matches[1].slice(-2) + matches[2].slice(-2);
-    }
-  }
-  return '';
+  // Return the current year as a string (YYYY format)
+  return new Date().getFullYear().toString();
 }
 
 // Function to get the next project code from the server
@@ -408,7 +396,7 @@ export default function ProjectList() {
                             </FormControl>
                             <FormMessage />
                             <div className="text-xs text-muted-foreground">
-                              Auto-generated based on financial year
+                              Auto-generated based on current year (yyyy-n)
                             </div>
                           </FormItem>
                         )}

@@ -42,26 +42,11 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const financialYear = req.params.financialYear;
       
-      // Format the financial year for the code: "2526" for FY 2025-2026
-      let yearCode: string;
+      // Get the current year (YYYY format)
+      const currentYear = new Date().getFullYear().toString();
       
-      if (financialYear.startsWith('FY')) {
-        // Extract year digits from FY format: FY25-26 -> 2526
-        const matches = financialYear.match(/FY(\d{2})-(\d{2})/);
-        if (matches && matches.length === 3) {
-          yearCode = matches[1] + matches[2];
-        } else {
-          return res.status(400).json({ error: 'Invalid financial year format' });
-        }
-      } else {
-        // If direct format like 2025-2026, extract last two digits of each year
-        const matches = financialYear.match(/(\d{4})-(\d{4})/);
-        if (matches && matches.length === 3) {
-          yearCode = matches[1].slice(-2) + matches[2].slice(-2);
-        } else {
-          return res.status(400).json({ error: 'Invalid financial year format' });
-        }
-      }
+      // Use current year for the project code instead of financial year
+      const yearCode = currentYear;
       
       // Get all projects and filter by those starting with the year code
       const userId = req.user!.id;
