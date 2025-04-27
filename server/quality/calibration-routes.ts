@@ -160,6 +160,8 @@ router.post('/instruments', ensureAuthenticated, upload.single('certificate'), a
       calibration_frequency
     );
     
+    console.log(`Creating new instrument with ID: ${instrument_id}`);
+    
     // Handle certificate file upload to GCS if present
     let certificate_file_path = null;
     let certificate_url = null;
