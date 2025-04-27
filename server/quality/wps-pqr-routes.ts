@@ -356,4 +356,71 @@ router.get('/wps/:id/combined-document', ensureAuthenticated, async (req: Reques
   }
 });
 
+// Endpoint to fetch WPS and linked PQR data for reporting
+router.get('/report', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { wpsId, pqrId } = req.query;
+    
+    let query = db.select()
+      .from(sql`wps_documents w`)
+      .leftJoin(sql`users wu`, sql`w.created_by = wu.id`)
+      .leftJoin(sql`users wau`, sql`w.approved_by = wau.id`);
+    
+    if (wpsId) {
+      query = query.where(eq(sql`w.wps_id`, wpsId as string));
+    }
+    
+    if (pqrId) {
+      query = query.where(eq(sql`w.pqr_id`, pqrId as string));
+    }
+    
+    const results = await query.orderBy(sql`w.wps_id`);
+    
+    // Format the data for reporting
+    const reportData = results.map(record => {
+      const { w: wpsRecord, wu: createdByUser, wau: approvedByUser } = record;
+      
+      return {
+        wps_id: wpsRecord.id,
+        wps_number: wpsRecord.wps_id,
+        pqr_number: wpsRecord.pqr_id,
+        revision_no: wpsRecord.revision_no,
+        welder_process: wpsRecord.welder_process,
+        base_metal_grade: wpsRecord.base_metal_grade,
+        base_metal_thickness: wpsRecord.base_metal_thickness,
+        filler_material: wpsRecord.filler_material,
+        joint_type: wpsRecord.joint_type,
+        weld_position: wpsRecord.weld_position,
+        preheating_temp: wpsRecord.preheating_temp,
+        post_weld_heat_treatment: wpsRecord.post_weld_heat_treatment,
+        shielding_gas: wpsRecord.shielding_gas,
+        wps_status: wpsRecord.status,
+        wps_remarks: wpsRecord.remarks,
+        wps_created_at: wpsRecord.created_at,
+        wps_updated_at: wpsRecord.updated_at,
+        wps_approved_by: wpsRecord.approved_by,
+        wps_approval_date: wpsRecord.approval_date,
+        wps_created_by_user: createdByUser?.username,
+        wps_approved_by_user: approvedByUser?.username,
+        has_pqr: wpsRecord.has_pqr,
+        // Include PQR data if available
+        pqr_test_date: wpsRecord.pqr_test_date,
+        pqr_test_laboratory: wpsRecord.pqr_test_laboratory,
+        pqr_test_type: wpsRecord.pqr_test_type,
+        pqr_test_results: wpsRecord.pqr_test_results,
+        pqr_status: wpsRecord.pqr_status,
+        pqr_remarks: wpsRecord.pqr_remarks
+      };
+    });
+    
+    res.status(200).json(reportData);
+  } catch (error) {
+    console.error('Error fetching report data:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch report data',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;

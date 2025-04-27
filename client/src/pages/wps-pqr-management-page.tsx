@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
+import WpsPqrReport from "@/components/wps-pqr-report";
 import { 
   AlertCircle,
   CheckCircle,
@@ -22,7 +23,8 @@ import {
   Edit, 
   Trash2,
   InfoIcon,
-  Loader2 
+  Loader2,
+  FileBarChart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
@@ -224,6 +226,7 @@ export default function WpsPqrManagementPage() {
   const [isAddWpsOpen, setIsAddWpsOpen] = useState(false);
   const [isEditWpsOpen, setIsEditWpsOpen] = useState(false);
   const [isAddPqrOpen, setIsAddPqrOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
   const [selectedWps, setSelectedWps] = useState<WpsDocument | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
