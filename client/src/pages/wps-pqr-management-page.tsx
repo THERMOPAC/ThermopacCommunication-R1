@@ -979,10 +979,10 @@ export default function WpsPqrManagementPage() {
                         Document Numbering
                       </h3>
                       <p className="text-sm text-blue-700 mt-2">
-                        Document will receive the following ID: <span className="font-semibold">WPS-{wpsDocuments.length + 1}</span>
+                        Document will receive the following ID: <span className="font-semibold">WPS-{wpsDocuments ? wpsDocuments.length + 1 : 1}</span>
                       </p>
                       <p className="text-sm text-blue-700 mt-1">
-                        Associated PQR ID will be: <span className="font-semibold">PQR-{wpsDocuments.length + 1}</span>
+                        Associated PQR ID will be: <span className="font-semibold">PQR-{wpsDocuments ? wpsDocuments.length + 1 : 1}</span>
                       </p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
