@@ -152,7 +152,7 @@ export default function WpsPqrManagementPage() {
         formData.append("document", documentFile);
       }
       
-      const response = await fetch("/api/quality/wps-pqr/wps", {
+      const response = await fetch("/api/quality/wps", {
         method: "POST",
         body: formData,
       });
@@ -200,7 +200,7 @@ export default function WpsPqrManagementPage() {
         formData.append("document", documentFile);
       }
       
-      const response = await fetch(`/api/quality/wps-pqr/wps/${id}`, {
+      const response = await fetch(`/api/quality/wps/${id}`, {
         method: "PUT",
         body: formData,
       });
@@ -235,7 +235,7 @@ export default function WpsPqrManagementPage() {
   // Delete WPS document mutation
   const deleteWpsMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/quality/wps-pqr/wps/${id}`, {
+      const response = await fetch(`/api/quality/wps/${id}`, {
         method: "DELETE",
       });
       
@@ -377,7 +377,7 @@ export default function WpsPqrManagementPage() {
   // Download document
   const handleDownloadDocument = async (wpsId: number) => {
     try {
-      window.open(`/api/quality/wps-pqr/wps/${wpsId}/document`, '_blank');
+      window.open(`/api/quality/wps/${wpsId}/document`, '_blank');
     } catch (error) {
       toast({
         title: "Error downloading document",
@@ -390,7 +390,7 @@ export default function WpsPqrManagementPage() {
   // Download combined document
   const handleDownloadCombinedDocument = async (wpsId: number) => {
     try {
-      window.open(`/api/quality/wps-pqr/wps/${wpsId}/combined-document`, '_blank');
+      window.open(`/api/quality/wps/${wpsId}/combined-document`, '_blank');
     } catch (error) {
       toast({
         title: "Error downloading combined document",
@@ -412,7 +412,7 @@ export default function WpsPqrManagementPage() {
       formData.append("wpsId", wpsId);
       formData.append("pqrId", pqrId);
       
-      const response = await fetch(`/api/quality/wps-pqr/combined-document`, {
+      const response = await fetch(`/api/quality/wps/combined-document`, {
         method: "POST",
         body: formData,
       });
