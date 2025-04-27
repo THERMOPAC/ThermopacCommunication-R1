@@ -938,7 +938,7 @@ export default function WpsPqrManagementPage() {
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
                       ) : selectedWpsId && selectedPqrId && combinedDocumentFile ? (
                         <>
-                          <CheckCircle2 className="mr-2 h-4 w-4" /> Upload Combined Document
+                          <CheckCircle className="mr-2 h-4 w-4" /> Upload Combined Document
                         </>
                       ) : (
                         <>
