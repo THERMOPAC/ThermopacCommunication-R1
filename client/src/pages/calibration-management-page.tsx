@@ -1139,6 +1139,12 @@ export default function CalibrationManagementPage() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* Calibration Report Dialog */}
+        <CalibrationReport 
+          open={isReportOpen} 
+          onOpenChange={setIsReportOpen} 
+        />
       </div>
     </Layout>
   );
