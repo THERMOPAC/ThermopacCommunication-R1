@@ -1535,7 +1535,7 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
   });
   
   // Filter WPS documents that don't already have a PQR
-  const availableWps = wpsDocuments.filter(doc => !doc.pqrId);
+  const availableWps = wpsDocuments ? wpsDocuments.filter(doc => !doc.pqrId) : [];
   
   // Form setup for adding a new PQR document
   const pqrForm = useForm<PqrDocumentFormData>({
@@ -1653,7 +1653,7 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
                 </Select>
                 {selectedWpsId ? (
                   <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-                    <InfoIcon className="inline-block mr-1 h-4 w-4" /> 
+                    <FileText className="inline-block mr-1 h-4 w-4" /> 
                     Selected WPS will be linked with a matching PQR ID sequence.
                   </div>
                 ) : (
@@ -1665,17 +1665,27 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
               </div>
             )}
             
-            {(wps || selectedWpsId) && (
+            {(wps || (selectedWpsId && selectedWpsId > 0)) && (
               <div className="mb-6 border rounded-md p-4 bg-green-50 border-green-100">
                 <h3 className="font-medium text-green-700 flex items-center">
                   <CheckCircle className="mr-2 h-5 w-5" />
                   WPS Document Selected
                 </h3>
                 <p className="text-sm text-green-600 mt-1">
-                  Creating PQR for WPS: <span className="font-semibold">{wps?.wpsId || availableWps.find(doc => doc.id === selectedWpsId)?.wpsId}</span>
+                  Creating PQR for WPS: <span className="font-semibold">
+                    {wps?.wpsId || 
+                     (availableWps && selectedWpsId ? 
+                      availableWps.find(doc => doc.id === selectedWpsId)?.wpsId : 
+                      "Unknown")}
+                  </span>
                 </p>
                 <p className="text-sm text-green-600 mt-1">
-                  PQR ID will be: <span className="font-semibold">{wps?.pqrId || availableWps.find(doc => doc.id === selectedWpsId)?.pqrId}</span>
+                  PQR ID will be: <span className="font-semibold">
+                    {wps?.pqrId || 
+                     (availableWps && selectedWpsId ? 
+                      availableWps.find(doc => doc.id === selectedWpsId)?.pqrId : 
+                      "Unknown")}
+                  </span>
                 </p>
               </div>
             )}
