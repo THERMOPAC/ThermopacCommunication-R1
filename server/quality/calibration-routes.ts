@@ -5,6 +5,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { uploadCalibrationCertificate, getCertificateUrl } from '../utils/calibration-certificate-upload';
 
 // Authentication middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
@@ -14,8 +15,11 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
   res.status(401).json({ error: 'Unauthorized' });
 }
 
-// Set up multer for file uploads
-const storage = multer.diskStorage({
+// Set up multer for memory storage (for GCS upload)
+const memoryStorage = multer.memoryStorage();
+
+// Also keep local storage option for fallback
+const diskStorage = multer.diskStorage({
   destination: function (req, file, cb) {
     const dir = './uploads/calibration';
     if (!fs.existsSync(dir)) {
@@ -30,7 +34,7 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ 
-  storage,
+  storage: memoryStorage, // Use memory storage for GCS uploads
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
     const allowedFileTypes = ['.pdf', '.jpg', '.jpeg', '.png'];
@@ -156,8 +160,31 @@ router.post('/instruments', ensureAuthenticated, upload.single('certificate'), a
       calibration_frequency
     );
     
-    // Get certificate file path if uploaded
-    const certificate_file_path = req.file ? req.file.path : null;
+    // Handle certificate file upload to GCS if present
+    let certificate_file_path = null;
+    let certificate_url = null;
+    
+    if (req.file) {
+      try {
+        // Upload file to GCS
+        const uploadResult = await uploadCalibrationCertificate(
+          req.file.buffer,
+          req.file.originalname,
+          req.file.mimetype
+        );
+        
+        if (uploadResult.success && uploadResult.filePath) {
+          certificate_file_path = uploadResult.filePath;
+          certificate_url = uploadResult.url;
+          console.log(`Certificate uploaded to GCS: ${certificate_file_path}`);
+        } else {
+          console.error('Failed to upload certificate to GCS:', uploadResult.error);
+        }
+      } catch (uploadError) {
+        console.error('Error uploading certificate:', uploadError);
+        // Continue without certificate if upload fails
+      }
+    }
     
     const result = await pool.query(`
       INSERT INTO calibration_instruments (
@@ -193,7 +220,13 @@ router.post('/instruments', ensureAuthenticated, upload.single('certificate'), a
       remarks || null
     ]);
     
-    res.status(201).json(result.rows[0]);
+    // Add the certificate URL to the response for immediate display
+    const response = {
+      ...result.rows[0],
+      certificate_url: certificate_url
+    };
+    
+    res.status(201).json(response);
   } catch (error) {
     console.error('Error creating calibration instrument:', error);
     res.status(500).json({ error: 'Failed to create calibration instrument' });
@@ -226,9 +259,6 @@ router.put('/instruments/:id', ensureAuthenticated, upload.single('certificate')
       );
     }
     
-    // Get certificate file path if uploaded
-    const certificate_file_path = req.file ? req.file.path : undefined;
-    
     // Get current instrument data to check if we need to delete an old certificate file
     const currentResult = await pool.query(`
       SELECT certificate_file_path FROM calibration_instruments
@@ -240,6 +270,32 @@ router.put('/instruments/:id', ensureAuthenticated, upload.single('certificate')
     }
     
     const currentFilePath = currentResult.rows[0].certificate_file_path;
+    
+    // Handle certificate file upload to GCS if present
+    let certificate_file_path = undefined;
+    let certificate_url = null;
+    
+    if (req.file) {
+      try {
+        // Upload file to GCS
+        const uploadResult = await uploadCalibrationCertificate(
+          req.file.buffer,
+          req.file.originalname,
+          req.file.mimetype
+        );
+        
+        if (uploadResult.success && uploadResult.filePath) {
+          certificate_file_path = uploadResult.filePath;
+          certificate_url = uploadResult.url;
+          console.log(`Certificate uploaded to GCS: ${certificate_file_path}`);
+        } else {
+          console.error('Failed to upload certificate to GCS:', uploadResult.error);
+        }
+      } catch (uploadError) {
+        console.error('Error uploading certificate:', uploadError);
+        // Continue without certificate if upload fails
+      }
+    }
     
     // Build update query dynamically
     let queryParts = [];
@@ -289,12 +345,24 @@ router.put('/instruments/:id', ensureAuthenticated, upload.single('certificate')
       RETURNING *
     `, values);
     
-    // Delete old certificate file if a new one was uploaded
-    if (certificate_file_path && currentFilePath && fs.existsSync(currentFilePath)) {
-      fs.unlinkSync(currentFilePath);
+    // We don't need to delete local files for GCS paths
+    // But we may need to handle old local file paths during the transition
+    if (currentFilePath && !currentFilePath.startsWith('QMS/') && fs.existsSync(currentFilePath)) {
+      try {
+        fs.unlinkSync(currentFilePath);
+        console.log(`Deleted old local certificate file: ${currentFilePath}`);
+      } catch (deleteError) {
+        console.error(`Error deleting old certificate file: ${deleteError}`);
+      }
     }
     
-    res.json(result.rows[0]);
+    // Add the certificate URL to the response for immediate display
+    const response = {
+      ...result.rows[0],
+      certificate_url: certificate_url
+    };
+    
+    res.json(response);
   } catch (error) {
     console.error('Error updating calibration instrument:', error);
     res.status(500).json({ error: 'Failed to update calibration instrument' });
@@ -386,7 +454,7 @@ router.get('/instruments/stats/dashboard', ensureAuthenticated, async (req: Requ
   }
 });
 
-// Download certificate file
+// Download or redirect to certificate file
 router.get('/instruments/:id/certificate', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -406,14 +474,28 @@ router.get('/instruments/:id/certificate', ensureAuthenticated, async (req: Requ
       return res.status(404).json({ error: 'No certificate file found for this instrument' });
     }
     
-    if (!fs.existsSync(certificateFilePath)) {
-      return res.status(404).json({ error: 'Certificate file not found on server' });
+    // Check if it's a GCS path
+    if (certificateFilePath.startsWith('QMS/')) {
+      // Get signed URL for GCS file
+      const signedUrl = await getCertificateUrl(certificateFilePath);
+      
+      if (!signedUrl) {
+        return res.status(404).json({ error: 'Certificate file not found in cloud storage' });
+      }
+      
+      // Redirect to the signed URL
+      return res.redirect(signedUrl);
+    } else {
+      // Handle legacy local file paths
+      if (!fs.existsSync(certificateFilePath)) {
+        return res.status(404).json({ error: 'Certificate file not found on server' });
+      }
+      
+      res.download(certificateFilePath);
     }
-    
-    res.download(certificateFilePath);
   } catch (error) {
-    console.error('Error downloading certificate file:', error);
-    res.status(500).json({ error: 'Failed to download certificate file' });
+    console.error('Error accessing certificate file:', error);
+    res.status(500).json({ error: 'Failed to access certificate file' });
   }
 });
 
