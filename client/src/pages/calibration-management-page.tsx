@@ -76,7 +76,8 @@ const instrumentTypeOptions = [
   "Vernier Caliper",
   "Torque Wrench",
   "Coating Thickness Gauge",
-  "Level / Spirit Level"
+  "Level / Spirit Level",
+  "Pressure Gauge"
 ];
 
 const calibrationFrequencyOptions = [
