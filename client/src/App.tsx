@@ -103,7 +103,7 @@ function Router() {
       <ProtectedRoute path="/production/work-orders/:id" component={WorkOrderDetailPage} />
       <ProtectedRoute path="/production/work-orders/edit/:id" component={WorkOrderEditPage} />
       <ProtectedRoute path="/shop-floor" component={ShopFloorPage} />
-      <ProtectedRoute path="/wps-pqr" component={WpsPqrPage} />
+      <ProtectedRoute path="/wps-pqr" component={WpsPqrManagementPage} />
       <ProtectedRoute path="/welder-management" component={WelderManagementPage} />
       <ProtectedRoute path="/calibration-management" component={CalibrationManagementPage} />
       <ProtectedRoute path="/material-identification" component={MaterialIdentificationPage} />
