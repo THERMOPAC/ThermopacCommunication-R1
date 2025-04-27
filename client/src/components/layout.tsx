@@ -154,7 +154,7 @@ export default function Layout({ children }: LayoutProps) {
       toggle: () => setIsQualityMenuOpen(!isQualityMenuOpen),
       children: [
         { icon: CalendarClock, label: "Calibration Management", href: "/calibration-management" },
-        { icon: FileCheck, label: "WPS and PQR", href: "/wps-pqr" },
+        { icon: FileCheck, label: "WPS and PQR", href: "/wps-pqr-management" },
         { icon: UserCheck, label: "Welder Management", href: "/welder-management" },
         { icon: CheckSquare, label: "Material Identification", href: "/material-identification" },
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
