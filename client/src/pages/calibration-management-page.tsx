@@ -71,17 +71,12 @@ type DashboardStats = {
 
 // Options for dropdowns
 const instrumentTypeOptions = [
-  "Gauge",
-  "Meter",
-  "Indicator",
-  "Tester",
-  "Analyzer",
-  "Sensor",
-  "Camera",
-  "Scanner",
-  "Measuring Tool",
-  "Calibrator",
-  "Other"
+  "Welding Machine",
+  "Micrometer",
+  "Vernier Caliper",
+  "Torque Wrench",
+  "Coating Thickness Gauge",
+  "Level / Spirit Level"
 ];
 
 const calibrationFrequencyOptions = [
