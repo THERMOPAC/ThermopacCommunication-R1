@@ -166,11 +166,12 @@ router.post('/instruments', ensureAuthenticated, upload.single('certificate'), a
     
     if (req.file) {
       try {
-        // Upload file to GCS
+        // Upload file to GCS with the instrument ID
         const uploadResult = await uploadCalibrationCertificate(
           req.file.buffer,
           req.file.originalname,
-          req.file.mimetype
+          req.file.mimetype,
+          instrument_id
         );
         
         if (uploadResult.success && uploadResult.filePath) {
@@ -261,7 +262,7 @@ router.put('/instruments/:id', ensureAuthenticated, upload.single('certificate')
     
     // Get current instrument data to check if we need to delete an old certificate file
     const currentResult = await pool.query(`
-      SELECT certificate_file_path FROM calibration_instruments
+      SELECT instrument_id, certificate_file_path FROM calibration_instruments
       WHERE id = $1
     `, [id]);
     
@@ -270,6 +271,7 @@ router.put('/instruments/:id', ensureAuthenticated, upload.single('certificate')
     }
     
     const currentFilePath = currentResult.rows[0].certificate_file_path;
+    const instrumentId = currentResult.rows[0].instrument_id;
     
     // Handle certificate file upload to GCS if present
     let certificate_file_path = undefined;
@@ -277,11 +279,12 @@ router.put('/instruments/:id', ensureAuthenticated, upload.single('certificate')
     
     if (req.file) {
       try {
-        // Upload file to GCS
+        // Upload file to GCS using the instrument ID for consistent naming
         const uploadResult = await uploadCalibrationCertificate(
           req.file.buffer,
           req.file.originalname,
-          req.file.mimetype
+          req.file.mimetype,
+          instrumentId
         );
         
         if (uploadResult.success && uploadResult.filePath) {
@@ -376,7 +379,7 @@ router.delete('/instruments/:id', ensureAuthenticated, async (req: Request, res:
     
     // Get current instrument data to check if we need to delete a certificate file
     const currentResult = await pool.query(`
-      SELECT certificate_file_path FROM calibration_instruments
+      SELECT instrument_id, certificate_file_path FROM calibration_instruments
       WHERE id = $1
     `, [id]);
     
@@ -385,6 +388,7 @@ router.delete('/instruments/:id', ensureAuthenticated, async (req: Request, res:
     }
     
     const currentFilePath = currentResult.rows[0].certificate_file_path;
+    const instrumentId = currentResult.rows[0].instrument_id;
     
     const result = await pool.query(`
       DELETE FROM calibration_instruments
@@ -392,9 +396,17 @@ router.delete('/instruments/:id', ensureAuthenticated, async (req: Request, res:
       RETURNING *
     `, [id]);
     
-    // Delete certificate file if it exists
-    if (currentFilePath && fs.existsSync(currentFilePath)) {
-      fs.unlinkSync(currentFilePath);
+    // Handle file deletion based on storage location
+    if (currentFilePath) {
+      if (currentFilePath.startsWith('QMS/')) {
+        // It's a GCS file - we don't delete GCS files in this version
+        // Just log it for now
+        console.log(`GCS certificate file will be retained: ${currentFilePath}`);
+      } else if (fs.existsSync(currentFilePath)) {
+        // It's a local file
+        fs.unlinkSync(currentFilePath);
+        console.log(`Deleted local certificate file: ${currentFilePath}`);
+      }
     }
     
     res.json(result.rows[0]);
@@ -460,7 +472,7 @@ router.get('/instruments/:id/certificate', ensureAuthenticated, async (req: Requ
     const { id } = req.params;
     
     const result = await pool.query(`
-      SELECT certificate_file_path FROM calibration_instruments
+      SELECT instrument_id, certificate_file_path FROM calibration_instruments
       WHERE id = $1
     `, [id]);
     
@@ -469,6 +481,7 @@ router.get('/instruments/:id/certificate', ensureAuthenticated, async (req: Requ
     }
     
     const certificateFilePath = result.rows[0].certificate_file_path;
+    const instrumentId = result.rows[0].instrument_id;
     
     if (!certificateFilePath) {
       return res.status(404).json({ error: 'No certificate file found for this instrument' });

@@ -9,12 +9,14 @@ import path from 'path';
  * @param buffer - The file buffer to upload
  * @param originalFilename - The original filename
  * @param mimeType - The MIME type of the file
+ * @param instrumentId - The instrument ID for the certificate (e.g., INST-00001)
  * @returns Object containing upload result, file path, and download URL
  */
 export async function uploadCalibrationCertificate(
   buffer: Buffer,
   originalFilename: string,
-  mimeType: string
+  mimeType: string,
+  instrumentId: string = ''
 ): Promise<{
   success: boolean;
   filePath?: string;
@@ -22,12 +24,14 @@ export async function uploadCalibrationCertificate(
   error?: any;
 }> {
   try {
-    // Generate a unique filename
-    const fileExtension = path.extname(originalFilename);
-    const uniqueFilename = `${uuidv4()}${fileExtension}`;
+    // Use instrument ID for filename if provided, otherwise use a UUID
+    const fileExtension = '.pdf'; // Always use .pdf extension as required
+    const filename = instrumentId ? 
+      `${instrumentId}.pdf` : 
+      `${uuidv4()}${fileExtension}`;
     
     // Set the GCS path in the QMS/Instrument directory
-    const gcsPath = `QMS/Instrument/${uniqueFilename}`;
+    const gcsPath = `QMS/Instrument/${filename}`;
     
     console.log(`Uploading calibration certificate to: ${gcsPath}`);
     
