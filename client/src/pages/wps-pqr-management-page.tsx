@@ -37,8 +37,19 @@ const wpsDocumentSchema = z.object({
   remarks: z.string().optional(),
 });
 
+// Form schema for PQR documents
+const pqrDocumentSchema = z.object({
+  testDate: z.string().min(1, { message: "Test date is required" }),
+  testLaboratory: z.string().min(1, { message: "Test laboratory is required" }),
+  testType: z.string().min(1, { message: "Test type is required" }),
+  testResults: z.string().min(1, { message: "Test results are required" }),
+  status: z.string().min(1, { message: "Status is required" }),
+  remarks: z.string().optional(),
+});
+
 // Type for the form data
 type WpsDocumentFormData = z.infer<typeof wpsDocumentSchema>;
+type PqrDocumentFormData = z.infer<typeof pqrDocumentSchema>;
 
 // Type for WPS document data received from API
 type WpsDocument = {
@@ -104,6 +115,16 @@ const statusOptions = [
   "Obsolete"
 ];
 
+const testTypeOptions = [
+  "Tensile Test",
+  "Bend Test",
+  "Impact Test",
+  "Hardness Test",
+  "Radiographic Test",
+  "Ultrasonic Test",
+  "Visual Examination"
+];
+
 export default function WpsPqrManagementPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -111,10 +132,12 @@ export default function WpsPqrManagementPage() {
   // State for UI
   const [isAddWpsOpen, setIsAddWpsOpen] = useState(false);
   const [isEditWpsOpen, setIsEditWpsOpen] = useState(false);
+  const [isAddPqrOpen, setIsAddPqrOpen] = useState(false);
   const [selectedWps, setSelectedWps] = useState<WpsDocument | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [pqrDocumentFile, setPqrDocumentFile] = useState<File | null>(null);
   const [combinedDocumentFile, setCombinedDocumentFile] = useState<File | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("wps");
@@ -593,14 +616,128 @@ export default function WpsPqrManagementPage() {
           </TabsContent>
           
           <TabsContent value="pqr" className="mt-0">
+            {/* Filter and search */}
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="w-full md:w-1/3">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search PQR documents..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="w-full md:w-1/3">
+                <Select
+                  value={statusFilter || "all_statuses"}
+                  onValueChange={handleStatusFilterChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all_statuses">All Statuses</SelectItem>
+                    {statusOptions.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>PQR Documents</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  PQR management functionality coming soon.
-                </div>
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : filteredWpsDocuments.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No WPS documents found. Create a WPS first before adding PQRs.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>WPS ID</TableHead>
+                          <TableHead>Process</TableHead>
+                          <TableHead>Base Metal</TableHead>
+                          <TableHead>Joint Type</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>PQR Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredWpsDocuments.map((wps) => (
+                          <TableRow key={wps.id}>
+                            <TableCell className="font-medium">{wps.wpsId}</TableCell>
+                            <TableCell>{wps.welderProcess}</TableCell>
+                            <TableCell>
+                              {wps.baseMetalGrade}
+                              <span className="text-xs text-muted-foreground block">
+                                {wps.baseMetalThickness} mm
+                              </span>
+                            </TableCell>
+                            <TableCell>{wps.jointType}</TableCell>
+                            <TableCell>{getStatusBadge(wps.status)}</TableCell>
+                            <TableCell>
+                              {wps.pqrId ? (
+                                <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                                  PQR {wps.pqrId} Created
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                                  No PQR
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {!wps.pqrId && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedWps(wps);
+                                      setIsAddPqrOpen(true);
+                                    }}
+                                  >
+                                    <PlusCircle className="h-4 w-4 mr-1" /> Create PQR
+                                  </Button>
+                                )}
+                                {wps.pqrId && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      // View PQR details
+                                      toast({
+                                        title: "Coming Soon",
+                                        description: "PQR details viewing will be available soon.",
+                                      });
+                                    }}
+                                  >
+                                    <FileText className="h-4 w-4 mr-1" /> View PQR
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
