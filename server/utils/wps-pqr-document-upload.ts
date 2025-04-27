@@ -1,197 +1,222 @@
-import storage from './storage-config';
-import { format } from 'util';
-import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
-import fs from 'fs';
-import { Request } from 'express';
 import multer from 'multer';
+import path from 'path';
+import { Storage } from '@google-cloud/storage';
+import { Request } from 'express';
 
-// Set up multer storage for temporary file uploads
-const multerStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const tempDir = './temp';
-    // Ensure temp directory exists
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    cb(null, tempDir);
-  },
-  filename: (req, file, cb) => {
-    const tempFilename = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
-    cb(null, tempFilename);
-  }
-});
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
 
-// Configure multer upload middleware
+// Set up multer for WPS/PQR document uploads
 export const uploadWpsPqrDocument = multer({
-  storage: multerStorage,
+  storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req, file, cb) => {
-    // Accept only PDFs and images
-    const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-    if (allowedMimeTypes.includes(file.mimetype)) {
+    // Only allow PDF files
+    const allowedFileTypes = ['.pdf'];
+    const fileExt = path.extname(file.originalname).toLowerCase();
+    
+    if (allowedFileTypes.includes(fileExt)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only PDF, JPG, and PNG files are allowed.'));
+      cb(new Error('Only PDF files are allowed'));
     }
   }
 });
 
-/**
- * Uploads a WPS document to Google Cloud Storage
- * @param req Express request object with file data
- * @returns Object with file path and public URL
- */
-export const uploadWpsDocument = async (req: Request) => {
-  try {
-    if (!req.file) {
-      return { error: 'No file uploaded' };
+// Get Google Cloud Storage instance
+const getGcsClient = () => {
+  const gcsCredentialsJson = process.env.GCS_CREDENTIALS;
+  const bucketName = process.env.GCS_BUCKET || 'thermopac_storage';
+  
+  let storageOptions = {};
+  
+  if (gcsCredentialsJson) {
+    try {
+      // Parse the JSON credentials string
+      const credentials = JSON.parse(gcsCredentialsJson);
+      storageOptions = { credentials };
+    } catch (error) {
+      console.error('Error parsing GCS credentials:', error);
+      throw new Error('Invalid GCS credentials format');
     }
+  }
+  
+  return {
+    storage: new Storage(storageOptions),
+    bucketName
+  };
+};
 
-    const wpsId = req.body.wpsId || 'unknown';
-    const gcsBucket = storage.bucket(process.env.GCS_BUCKET_NAME || 'thermopac_storage');
-    
-    // Path in GCS: QMS/WPS_PQR/[wpsId].pdf
-    const gcsFilename = `${wpsId}.pdf`;
-    const gcsFilePath = `QMS/WPS_PQR/${gcsFilename}`;
-    
-    const file = gcsBucket.file(gcsFilePath);
-    
-    // Upload file to GCS
-    const fileStream = fs.createReadStream(req.file.path);
-    const writeStream = file.createWriteStream({
-      resumable: false,
-      contentType: req.file.mimetype,
-      metadata: {
-        contentType: req.file.mimetype,
-        metadata: {
-          originalFilename: req.file.originalname,
-          wpsId: wpsId
-        }
-      }
-    });
-    
-    // Handle upload completion
-    await new Promise((resolve, reject) => {
-      fileStream.pipe(writeStream)
-        .on('error', (err) => {
-          reject(`Error uploading to GCS: ${err}`);
-        })
-        .on('finish', () => {
-          // Make the file publicly accessible
-          file.makePublic()
-            .then(() => resolve(true))
-            .catch(err => reject(`Error making file public: ${err}`));
-        });
-    });
-    
-    // Generate public URL
-    const publicUrl = format(`https://storage.googleapis.com/${gcsBucket.name}/${file.name}`);
-    
-    // Delete temporary file
-    fs.unlinkSync(req.file.path);
-    
+/**
+ * Upload a WPS document to Google Cloud Storage
+ * @param req Express request object with file attached
+ * @returns Object with upload result
+ */
+export const uploadWpsDocument = async (req: Request): Promise<{
+  success: boolean;
+  document_file_path?: string;
+  document_url?: string;
+  error?: string;
+}> => {
+  if (!req.file) {
     return {
-      success: true,
-      document_file_path: gcsFilePath,
-      document_url: publicUrl
+      error: 'No file was uploaded',
+      success: false
     };
-  } catch (error) {
-    console.error('WPS document upload error:', error);
+  }
+  
+  try {
+    const { storage, bucketName } = getGcsClient();
+    const bucket = storage.bucket(bucketName);
     
-    // Cleanup temp file if it exists
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+    // Get WPS ID from request body
+    const wpsId = req.body.wpsId;
+    if (!wpsId) {
+      return {
+        error: 'WPS ID is required for document upload',
+        success: false
+      };
     }
     
+    // Format file path - store in QMS/WPS_PQR directory
+    const filePath = `QMS/WPS_PQR/${wpsId}.pdf`;
+    
+    // Create a new blob in the bucket and upload the file data
+    const blob = bucket.file(filePath);
+    const blobStream = blob.createWriteStream({
+      resumable: false,
+      contentType: 'application/pdf'
+    });
+    
+    // Return a promise that resolves when the file is uploaded
+    return new Promise((resolve, reject) => {
+      blobStream.on('error', (err) => {
+        console.error('Error uploading WPS document:', err);
+        reject({
+          error: 'Failed to upload WPS document',
+          success: false
+        });
+      });
+      
+      blobStream.on('finish', async () => {
+        // Make the file public and get the URL
+        try {
+          await blob.makePublic();
+          const publicUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
+          
+          resolve({
+            success: true,
+            document_file_path: filePath,
+            document_url: publicUrl
+          });
+        } catch (err) {
+          console.error('Error making WPS document public:', err);
+          reject({
+            error: 'Failed to make WPS document public',
+            success: false
+          });
+        }
+      });
+      
+      // Send the file buffer to the blob stream
+      blobStream.end(req.file.buffer);
+    });
+  } catch (error) {
+    console.error('Error in WPS document upload process:', error);
     return {
-      error: `Failed to upload document: ${error instanceof Error ? error.message : String(error)}`
+      error: error instanceof Error ? error.message : 'Unknown error during upload',
+      success: false
     };
   }
 };
 
 /**
- * Uploads a combined WPS/PQR document to Google Cloud Storage
- * @param req Express request object with file data
- * @returns Object with file path and public URL
+ * Upload a combined WPS/PQR document to Google Cloud Storage
+ * @param req Express request object with file attached
+ * @returns Object with upload result
  */
-export const uploadCombinedDocument = async (req: Request) => {
+export const uploadCombinedDocument = async (req: Request): Promise<{
+  success: boolean;
+  wpsId?: string;
+  pqrId?: string;
+  combined_document_file_path?: string;
+  combined_document_url?: string;
+  error?: string;
+}> => {
+  if (!req.file) {
+    return {
+      error: 'No file was uploaded',
+      success: false
+    };
+  }
+  
   try {
-    if (!req.file) {
-      return { error: 'No file uploaded' };
-    }
-
+    const { storage, bucketName } = getGcsClient();
+    const bucket = storage.bucket(bucketName);
+    
     // Get WPS ID and PQR ID from request body
     const wpsId = req.body.wpsId;
     const pqrId = req.body.pqrId;
     
     if (!wpsId || !pqrId) {
-      return { error: 'WPS ID and PQR ID are required' };
+      return {
+        error: 'Both WPS ID and PQR ID are required for combined document upload',
+        success: false
+      };
     }
-
-    const gcsBucket = storage.bucket(process.env.GCS_BUCKET_NAME || 'thermopac_storage');
     
-    // Path in GCS: QMS/WPS_PQR/[wpsId]_[pqrId].pdf
-    const gcsFilename = `${wpsId}_${pqrId}.pdf`;
-    const gcsFilePath = `QMS/WPS_PQR/${gcsFilename}`;
+    // Format file path - store in QMS/WPS_PQR directory with combined filename
+    const filePath = `QMS/WPS_PQR/${wpsId}_${pqrId}_combined.pdf`;
     
-    const file = gcsBucket.file(gcsFilePath);
-    
-    // Upload file to GCS
-    const fileStream = fs.createReadStream(req.file.path);
-    const writeStream = file.createWriteStream({
+    // Create a new blob in the bucket and upload the file data
+    const blob = bucket.file(filePath);
+    const blobStream = blob.createWriteStream({
       resumable: false,
-      contentType: req.file.mimetype,
-      metadata: {
-        contentType: req.file.mimetype,
-        metadata: {
-          originalFilename: req.file.originalname,
-          wpsId: wpsId,
-          pqrId: pqrId,
-          documentType: 'combined'
-        }
-      }
+      contentType: 'application/pdf'
     });
     
-    // Handle upload completion
-    await new Promise((resolve, reject) => {
-      fileStream.pipe(writeStream)
-        .on('error', (err) => {
-          reject(`Error uploading to GCS: ${err}`);
-        })
-        .on('finish', () => {
-          // Make the file publicly accessible
-          file.makePublic()
-            .then(() => resolve(true))
-            .catch(err => reject(`Error making file public: ${err}`));
+    // Return a promise that resolves when the file is uploaded
+    return new Promise((resolve, reject) => {
+      blobStream.on('error', (err) => {
+        console.error('Error uploading combined WPS/PQR document:', err);
+        reject({
+          error: 'Failed to upload combined WPS/PQR document',
+          success: false
         });
+      });
+      
+      blobStream.on('finish', async () => {
+        // Make the file public and get the URL
+        try {
+          await blob.makePublic();
+          const publicUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
+          
+          resolve({
+            success: true,
+            wpsId,
+            pqrId,
+            combined_document_file_path: filePath,
+            combined_document_url: publicUrl
+          });
+        } catch (err) {
+          console.error('Error making combined WPS/PQR document public:', err);
+          reject({
+            error: 'Failed to make combined WPS/PQR document public',
+            success: false
+          });
+        }
+      });
+      
+      // Send the file buffer to the blob stream
+      blobStream.end(req.file.buffer);
     });
-    
-    // Generate public URL
-    const publicUrl = format(`https://storage.googleapis.com/${gcsBucket.name}/${file.name}`);
-    
-    // Delete temporary file
-    fs.unlinkSync(req.file.path);
-    
-    return {
-      success: true,
-      wpsId,
-      pqrId,
-      combined_document_file_path: gcsFilePath,
-      combined_document_url: publicUrl
-    };
   } catch (error) {
-    console.error('Combined document upload error:', error);
-    
-    // Cleanup temp file if it exists
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
-    
+    console.error('Error in combined WPS/PQR document upload process:', error);
     return {
-      error: `Failed to upload combined document: ${error instanceof Error ? error.message : String(error)}`
+      error: error instanceof Error ? error.message : 'Unknown error during upload',
+      success: false
     };
   }
 };
