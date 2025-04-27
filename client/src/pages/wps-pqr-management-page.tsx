@@ -590,8 +590,23 @@ export default function WpsPqrManagementPage() {
                       <TableBody>
                         {filteredWpsDocuments.map((wps) => (
                           <TableRow key={wps.id}>
-                            <TableCell className="font-medium">{wps.wpsId}</TableCell>
-                            <TableCell>{wps.pqrId}</TableCell>
+                            <TableCell>
+                              <span className="text-sm font-bold bg-blue-50 border border-blue-200 rounded px-2 py-1 text-blue-700">
+                                {wps.wpsId}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {wps.pqrId && (
+                                <span className="text-sm font-bold bg-green-50 border border-green-200 rounded px-2 py-1 text-green-700">
+                                  {wps.pqrId}
+                                </span>
+                              )}
+                              {!wps.pqrId && (
+                                <span className="text-xs text-muted-foreground">
+                                  No PQR linked
+                                </span>
+                              )}
+                            </TableCell>
                             <TableCell>{wps.welderProcess}</TableCell>
                             <TableCell>
                               {wps.baseMetalGrade}
@@ -707,7 +722,18 @@ export default function WpsPqrManagementPage() {
                       <TableBody>
                         {filteredWpsDocuments.map((wps) => (
                           <TableRow key={wps.id}>
-                            <TableCell className="font-medium">{wps.wpsId}</TableCell>
+                            <TableCell>
+                              <span className="text-sm font-bold bg-blue-50 border border-blue-200 rounded px-2 py-1 text-blue-700">
+                                {wps.wpsId}
+                              </span>
+                              {wps.pqrId && (
+                                <div className="mt-1">
+                                  <span className="text-sm font-bold bg-green-50 border border-green-200 rounded px-2 py-1 text-green-700">
+                                    {wps.pqrId}
+                                  </span>
+                                </div>
+                              )}
+                            </TableCell>
                             <TableCell>{wps.welderProcess}</TableCell>
                             <TableCell>
                               {wps.baseMetalGrade}
@@ -888,8 +914,16 @@ export default function WpsPqrManagementPage() {
                               .filter(doc => doc.combined_document_file_path)
                               .map((wps) => (
                                 <TableRow key={`${wps.id}-combined`}>
-                                  <TableCell className="font-medium">{wps.wpsId}</TableCell>
-                                  <TableCell>{wps.pqrId}</TableCell>
+                                  <TableCell>
+                                    <span className="text-sm font-bold bg-blue-50 border border-blue-200 rounded px-2 py-1 text-blue-700">
+                                      {wps.wpsId}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="text-sm font-bold bg-green-50 border border-green-200 rounded px-2 py-1 text-green-700">
+                                      {wps.pqrId}
+                                    </span>
+                                  </TableCell>
                                   <TableCell>{getStatusBadge(wps.status)}</TableCell>
                                   <TableCell>
                                     {wps.combined_document_file_path ? (
