@@ -1479,7 +1479,283 @@ export default function WpsPqrManagementPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        
+        {/* Add PQR Dialog */}
+        <Dialog open={isAddPqrOpen} onOpenChange={setIsAddPqrOpen}>
+          <DialogContent className="sm:max-w-[800px]">
+            <DialogHeader>
+              <DialogTitle>Create PQR for WPS {selectedWps?.wpsId}</DialogTitle>
+            </DialogHeader>
+            <PqrForm wps={selectedWps} onClose={() => setIsAddPqrOpen(false)} />
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
+  );
+}
+
+// PQR Form Component
+function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [pqrDocumentFile, setPqrDocumentFile] = useState<File | null>(null);
+  
+  // Form setup for adding a new PQR document
+  const pqrForm = useForm<PqrDocumentFormData>({
+    resolver: zodResolver(pqrDocumentSchema),
+    defaultValues: {
+      testDate: new Date().toISOString().split('T')[0],
+      testLaboratory: "",
+      testType: "",
+      testResults: "",
+      status: "Draft",
+      remarks: "",
+    },
+  });
+  
+  // Handle PQR document file selection
+  const handlePqrDocumentFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setPqrDocumentFile(event.target.files[0]);
+    }
+  };
+  
+  // Create PQR mutation
+  const createPqrMutation = useMutation({
+    mutationFn: async (data: PqrDocumentFormData) => {
+      if (!wps) {
+        throw new Error("No WPS selected");
+      }
+      
+      const formData = new FormData();
+      
+      // Add WPS ID reference
+      formData.append("wpsId", wps.id.toString());
+      
+      // Append form fields to FormData
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value.toString());
+        }
+      });
+      
+      // Append document file if available
+      if (pqrDocumentFile) {
+        formData.append("document", pqrDocumentFile);
+      }
+      
+      const response = await fetch("/api/quality/wps/pqr", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create PQR document");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "PQR document created successfully",
+      });
+      onClose();
+      pqrForm.reset();
+      setPqrDocumentFile(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error creating PQR document",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Submit handler for adding a new PQR document
+  const onSubmit = (values: PqrDocumentFormData) => {
+    createPqrMutation.mutate(values);
+  };
+  
+  return (
+    <Form {...pqrForm}>
+      <form onSubmit={pqrForm.handleSubmit(onSubmit)} className="space-y-6">
+        <Tabs defaultValue="details" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="document">Document</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="details" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={pqrForm.control}
+                name="testDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Test Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={pqrForm.control}
+                name="testLaboratory"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Test Laboratory</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. ABC Testing Labs" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={pqrForm.control}
+                name="testType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Test Type</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select test type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {testTypeOptions.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={pqrForm.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {statusOptions.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="col-span-2">
+                <FormField
+                  control={pqrForm.control}
+                  name="testResults"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Test Results</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Enter test results and findings" 
+                          rows={4} 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="col-span-2">
+                <FormField
+                  control={pqrForm.control}
+                  name="remarks"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Remarks</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Any additional notes or remarks" 
+                          rows={2} 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="document" className="space-y-4">
+            <div>
+              <Label htmlFor="pqr_document_file">Upload PQR Document</Label>
+              <Input
+                id="pqr_document_file"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handlePqrDocumentFileChange}
+                className="mt-1"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                {pqrDocumentFile ? 
+                  `Selected file: ${pqrDocumentFile.name}` : 
+                  "Select a PDF or image file (.pdf, .jpg, .png)"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Note: The file will be stored with the filename "PQR ID.pdf" in Google Cloud Storage.
+              </p>
+            </div>
+          </TabsContent>
+        </Tabs>
+        
+        <div className="flex justify-end space-x-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={createPqrMutation.isPending}>
+            {createPqrMutation.isPending ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</>
+            ) : (
+              "Create PQR"
+            )}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 }
