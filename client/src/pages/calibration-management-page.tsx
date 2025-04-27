@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Search, Download, FileSpreadsheet, FileText, CalendarClock, AlertTriangle } from "lucide-react";
+import { PlusCircle, Search, Download, FileSpreadsheet, FileText, CalendarClock, AlertTriangle, FileBarChart } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
+import CalibrationReport from "@/components/calibration-report";
 
 // Form schema for calibration instruments
 const calibrationInstrumentSchema = z.object({
@@ -105,6 +106,7 @@ export default function CalibrationManagementPage() {
   // State for UI
   const [isAddInstrumentOpen, setIsAddInstrumentOpen] = useState(false);
   const [isEditInstrumentOpen, setIsEditInstrumentOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState<CalibrationInstrument | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -749,10 +751,16 @@ export default function CalibrationManagementPage() {
               </SelectContent>
             </Select>
           </div>
-          <Button variant="outline" onClick={handleExportData}>
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Export Data
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsReportOpen(true)}>
+              <FileBarChart className="mr-2 h-4 w-4" />
+              Generate Report
+            </Button>
+            <Button variant="outline" onClick={handleExportData}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Export Data
+            </Button>
+          </div>
         </div>
         
         {/* Instruments Table */}
