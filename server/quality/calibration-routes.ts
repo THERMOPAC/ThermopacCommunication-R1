@@ -1,11 +1,18 @@
 import { Request, Response, Router } from 'express';
 import { pool } from '../db';
-import { ensureAuthenticated } from '../auth-middleware';
 import { format } from 'date-fns';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+
+// Authentication middleware
+function ensureAuthenticated(req: Request, res: Response, next: Function) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: 'Unauthorized' });
+}
 
 // Set up multer for file uploads
 const storage = multer.diskStorage({
@@ -91,7 +98,7 @@ function calculateNextCalibrationDate(lastCalibrationDate: string, frequency: st
 // Get all calibration instruments
 router.get('/instruments', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const result = await db.query(`
+    const result = await pool.query(`
       SELECT * FROM calibration_instruments
       ORDER BY next_calibration_date ASC
     `);
@@ -108,7 +115,7 @@ router.get('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
   try {
     const { id } = req.params;
     
-    const result = await db.query(`
+    const result = await pool.query(`
       SELECT * FROM calibration_instruments
       WHERE id = $1
     `, [id]);
@@ -152,7 +159,7 @@ router.post('/instruments', ensureAuthenticated, upload.single('certificate'), a
     // Get certificate file path if uploaded
     const certificate_file_path = req.file ? req.file.path : null;
     
-    const result = await db.query(`
+    const result = await pool.query(`
       INSERT INTO calibration_instruments (
         instrument_id,
         instrument_name,
@@ -223,7 +230,7 @@ router.put('/instruments/:id', ensureAuthenticated, upload.single('certificate')
     const certificate_file_path = req.file ? req.file.path : undefined;
     
     // Get current instrument data to check if we need to delete an old certificate file
-    const currentResult = await db.query(`
+    const currentResult = await pool.query(`
       SELECT certificate_file_path FROM calibration_instruments
       WHERE id = $1
     `, [id]);
@@ -239,7 +246,7 @@ router.put('/instruments/:id', ensureAuthenticated, upload.single('certificate')
     let values = [];
     let paramIndex = 1;
     
-    const updateFields = {
+    const updateFields: Record<string, any> = {
       instrument_name,
       instrument_type,
       manufacturer,
@@ -255,12 +262,12 @@ router.put('/instruments/:id', ensureAuthenticated, upload.single('certificate')
     
     // Add next_calibration_date if it was calculated
     if (next_calibration_date) {
-      updateFields.next_calibration_date = next_calibration_date;
+      updateFields['next_calibration_date'] = next_calibration_date;
     }
     
     // Add certificate_file_path if a new file was uploaded
     if (certificate_file_path) {
-      updateFields.certificate_file_path = certificate_file_path;
+      updateFields['certificate_file_path'] = certificate_file_path;
     }
     
     // Build the query parts and values array
@@ -275,7 +282,7 @@ router.put('/instruments/:id', ensureAuthenticated, upload.single('certificate')
     // Add the ID as the last parameter
     values.push(id);
     
-    const result = await db.query(`
+    const result = await pool.query(`
       UPDATE calibration_instruments
       SET ${queryParts.join(', ')}
       WHERE id = $${paramIndex}
@@ -300,7 +307,7 @@ router.delete('/instruments/:id', ensureAuthenticated, async (req: Request, res:
     const { id } = req.params;
     
     // Get current instrument data to check if we need to delete a certificate file
-    const currentResult = await db.query(`
+    const currentResult = await pool.query(`
       SELECT certificate_file_path FROM calibration_instruments
       WHERE id = $1
     `, [id]);
@@ -311,7 +318,7 @@ router.delete('/instruments/:id', ensureAuthenticated, async (req: Request, res:
     
     const currentFilePath = currentResult.rows[0].certificate_file_path;
     
-    const result = await db.query(`
+    const result = await pool.query(`
       DELETE FROM calibration_instruments
       WHERE id = $1
       RETURNING *
@@ -340,26 +347,26 @@ router.get('/instruments/stats/dashboard', ensureAuthenticated, async (req: Requ
     const thirtyDaysLaterFormatted = format(thirtyDaysLater, 'yyyy-MM-dd');
     
     // Get total count
-    const totalResult = await db.query(`
+    const totalResult = await pool.query(`
       SELECT COUNT(*) FROM calibration_instruments
     `);
     
     // Get calibrated (valid) count
-    const calibratedResult = await db.query(`
+    const calibratedResult = await pool.query(`
       SELECT COUNT(*) FROM calibration_instruments
       WHERE next_calibration_date > $1
       AND calibration_status = 'Calibrated'
     `, [todayFormatted]);
     
     // Get due soon count (due within 30 days)
-    const dueSoonResult = await db.query(`
+    const dueSoonResult = await pool.query(`
       SELECT COUNT(*) FROM calibration_instruments
       WHERE next_calibration_date BETWEEN $1 AND $2
       AND calibration_status = 'Calibrated'
     `, [todayFormatted, thirtyDaysLaterFormatted]);
     
     // Get overdue count
-    const overdueResult = await db.query(`
+    const overdueResult = await pool.query(`
       SELECT COUNT(*) FROM calibration_instruments
       WHERE next_calibration_date < $1
       OR calibration_status = 'Overdue'
@@ -384,7 +391,7 @@ router.get('/instruments/:id/certificate', ensureAuthenticated, async (req: Requ
   try {
     const { id } = req.params;
     
-    const result = await db.query(`
+    const result = await pool.query(`
       SELECT certificate_file_path FROM calibration_instruments
       WHERE id = $1
     `, [id]);
