@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -2347,3 +2347,56 @@ export type InsertInspectionOrder = z.infer<typeof insertInspectionOrderSchema>;
 
 export type InspectionOrderItem = typeof inspectionOrderItems.$inferSelect;
 export type InsertInspectionOrderItem = z.infer<typeof insertInspectionOrderItemSchema>;
+
+// WPS Documents schema
+export const wpsDocuments = pgTable('wps_documents', {
+  id: serial('id').primaryKey(),
+  wpsId: varchar('wps_id', { length: 50 }).notNull().unique(),
+  pqrId: varchar('pqr_id', { length: 50 }).notNull().unique(),
+  revisionNo: varchar('revision_no', { length: 10 }).notNull().default('0'),
+  welderProcess: varchar('welder_process', { length: 20 }).notNull(),
+  baseMetalGrade: varchar('base_metal_grade', { length: 100 }).notNull(),
+  baseMetalThickness: varchar('base_metal_thickness', { length: 50 }).notNull(),
+  fillerMaterial: varchar('filler_material', { length: 100 }).notNull(),
+  jointType: varchar('joint_type', { length: 50 }).notNull(),
+  weldPosition: varchar('weld_position', { length: 50 }).notNull(),
+  preheatingTemp: varchar('preheating_temp', { length: 50 }),
+  postWeldHeatTreatment: varchar('post_weld_heat_treatment', { length: 100 }),
+  electricalParameters: jsonb('electrical_parameters'),
+  shieldingGas: varchar('shielding_gas', { length: 100 }),
+  documentFilePath: varchar('document_file_path', { length: 255 }),
+  documentUrl: text('document_url'),
+  combinedDocumentFilePath: varchar('combined_document_file_path', { length: 255 }),
+  combinedDocumentUrl: text('combined_document_url'),
+  status: varchar('status', { length: 20 }).notNull().default('Draft'),
+  remarks: text('remarks'),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvalDate: timestamp('approval_date'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// WPS Documents relations
+export const wpsDocumentsRelations = relations(wpsDocuments, ({ one }) => ({
+  creator: one(users, {
+    fields: [wpsDocuments.createdBy],
+    references: [users.id],
+  }),
+  approver: one(users, {
+    fields: [wpsDocuments.approvedBy],
+    references: [users.id],
+  }),
+}));
+
+// WPS Document schema for validation
+export const wpsDocumentSchema = createInsertSchema(wpsDocuments)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    welderProcess: z.enum(['SMAW', 'GMAW', 'GTAW', 'FCAW', 'SAW']),
+    status: z.enum(['Draft', 'Pending Approval', 'Approved', 'Obsolete']).default('Draft'),
+  });
+
+// Export WPS document types
+export type WpsDocument = typeof wpsDocuments.$inferSelect;
+export type InsertWpsDocument = z.infer<typeof wpsDocumentSchema>;

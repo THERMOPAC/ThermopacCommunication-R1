@@ -1,496 +1,301 @@
 import express, { Request, Response } from 'express';
-import multer from 'multer';
-import { pool } from '../db';
-import fs from 'fs';
-import path from 'path';
-import { format } from 'date-fns';
-import { uploadWpsPqrDocument, getWpsPqrDocumentUrl } from '../utils/wps-pqr-document-upload';
+import { db } from '../db';
+import { ensureAuthenticated } from '../middleware/auth-middleware';
+import { eq, sql, and, or, desc } from 'drizzle-orm';
+import { 
+  uploadWpsPqrDocument, 
+  uploadWpsDocument,
+  uploadCombinedDocument 
+} from '../utils/wps-pqr-document-upload';
 
 const router = express.Router();
-
-// Configure multer for file uploads
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10 MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Accept only PDFs and images
-    if (
-      file.mimetype === 'application/pdf' ||
-      file.mimetype === 'image/jpeg' ||
-      file.mimetype === 'image/png'
-    ) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF, JPEG, and PNG files are allowed'));
-    }
-  },
-});
-
-// Middleware to check if user is authenticated
-function ensureAuthenticated(req: Request, res: Response, next: Function) {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  console.log('Unauthenticated user tried to access', req.path);
-  res.status(401).json({ error: 'Authentication required' });
-}
-
-// Helper function to generate WPS ID
-async function generateWpsId(): Promise<string> {
-  try {
-    const result = await pool.query(`
-      SELECT "wpsId" FROM wps_documents 
-      ORDER BY "wpsId" DESC 
-      LIMIT 1
-    `);
-
-    let nextNumber = 1;
-    if (result.rows.length > 0) {
-      const lastId = result.rows[0].wpsId;
-      const match = lastId.match(/WPS-(\d+)/);
-      if (match && match[1]) {
-        nextNumber = parseInt(match[1], 10) + 1;
-      }
-    }
-
-    return `WPS-${nextNumber.toString().padStart(3, '0')}`;
-  } catch (error) {
-    console.error('Error generating WPS ID:', error);
-    return `WPS-${Date.now()}`;
-  }
-}
-
-// Helper function to generate PQR ID matching WPS ID
-function generatePqrId(wpsId: string): string {
-  const wpsNumberMatch = wpsId.match(/WPS-(\d+)/);
-  if (wpsNumberMatch && wpsNumberMatch[1]) {
-    return `PQR-${wpsNumberMatch[1]}`;
-  }
-  return `PQR-${Date.now()}`;
-}
 
 // Get all WPS documents
 router.get('/wps', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        w.id,
-        w."wpsId",
-        w."pqrId",
-        w."revisionNo",
-        w."welderProcess",
-        w."baseMetalGrade",
-        w."baseMetalThickness",
-        w."fillerMaterial",
-        w."jointType",
-        w."weldPosition",
-        w.status,
-        w."createdAt",
-        w."updatedAt",
-        w."document_file_path",
-        u.username AS "createdByUser",
-        au.username AS "approvedByUser"
-      FROM wps_documents w
-      LEFT JOIN users u ON w."createdBy" = u.id
-      LEFT JOIN users au ON w."approvedBy" = au.id
-      ORDER BY w."wpsId" DESC
-    `);
-
-    // Add signed URLs for documents where available
-    const wpsWithUrls = await Promise.all(
-      result.rows.map(async (row) => {
-        if (row.document_file_path) {
-          try {
-            const docUrl = await getWpsPqrDocumentUrl(row.document_file_path);
-            return { ...row, document_url: docUrl };
-          } catch (error) {
-            console.error(`Error getting document URL for WPS ${row.wpsId}:`, error);
-            return { ...row, document_url: null };
-          }
-        }
-        return { ...row, document_url: null };
-      })
-    );
-
-    res.json(wpsWithUrls);
+    // Query wps_documents table with user information
+    const wpsDocuments = await db.query.wpsDocuments.findMany({
+      orderBy: [desc(sql`created_at`)]
+    });
+    
+    res.json(wpsDocuments);
   } catch (error) {
     console.error('Error fetching WPS documents:', error);
-    res.status(500).json({ error: 'Failed to fetch WPS documents' });
+    res.status(500).json({ 
+      error: 'Failed to fetch WPS documents',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
-// Get a specific WPS document
+// Get WPS document by ID
 router.get('/wps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const wpsId = parseInt(req.params.id);
     
-    const result = await pool.query(`
-      SELECT 
-        w.*,
-        u.username AS "createdByUser",
-        au.username AS "approvedByUser"
-      FROM wps_documents w
-      LEFT JOIN users u ON w."createdBy" = u.id
-      LEFT JOIN users au ON w."approvedBy" = au.id
-      WHERE w.id = $1
-    `, [id]);
+    const [wpsDocument] = await db.query.wpsDocuments.findMany({
+      where: eq(sql`id`, wpsId)
+    });
     
-    if (result.rows.length === 0) {
+    if (!wpsDocument) {
       return res.status(404).json({ error: 'WPS document not found' });
     }
     
-    // Add signed URL if document exists
-    let wpsData = result.rows[0];
-    if (wpsData.document_file_path) {
-      try {
-        const docUrl = await getWpsPqrDocumentUrl(wpsData.document_file_path);
-        wpsData = { ...wpsData, document_url: docUrl };
-      } catch (error) {
-        console.error(`Error getting document URL for WPS ${wpsData.wpsId}:`, error);
-        wpsData = { ...wpsData, document_url: null };
-      }
-    } else {
-      wpsData = { ...wpsData, document_url: null };
-    }
-    
-    res.json(wpsData);
+    res.json(wpsDocument);
   } catch (error) {
-    console.error('Error fetching WPS document:', error);
-    res.status(500).json({ error: 'Failed to fetch WPS document' });
+    console.error(`Error fetching WPS document ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to fetch WPS document',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
-// Create a new WPS document
-router.post('/wps', ensureAuthenticated, upload.single('document'), async (req: Request, res: Response) => {
+// Create new WPS document
+router.post('/wps', ensureAuthenticated, uploadWpsPqrDocument.single('document'), async (req: Request, res: Response) => {
   try {
-    const {
-      welderProcess,
-      baseMetalGrade,
-      baseMetalThickness,
-      fillerMaterial,
-      jointType,
-      weldPosition,
-      preheatingTemp,
-      postWeldHeatTreatment,
-      electricalParameters,
-      shieldingGas,
-      status,
-      remarks
-    } = req.body;
+    // Generate WPS ID
+    const currentYear = new Date().getFullYear();
     
-    // Generate WPS and PQR IDs
-    const wpsId = await generateWpsId();
-    const pqrId = generatePqrId(wpsId);
+    // Query for the highest existing WPS sequence for the current year
+    const result = await db.execute(sql`
+      SELECT MAX(CAST(SUBSTRING(wps_id, POSITION('-' IN wps_id) + 1) AS INTEGER)) as max_seq
+      FROM wps_documents
+      WHERE wps_id LIKE ${`WPS-${currentYear}-%`}
+    `);
     
-    console.log(`Creating new WPS with ID: ${wpsId} and PQR ID: ${pqrId}`);
+    const maxSeq = result[0]?.max_seq || 0;
+    const nextSeq = maxSeq + 1;
+    const wpsId = `WPS-${currentYear}-${nextSeq}`;
+    const pqrId = `PQR-${currentYear}-${nextSeq}`;
     
-    // Handle document file upload to GCS if present
-    let document_file_path = null;
-    let document_url = null;
-    
+    // If a document was uploaded, process it with Google Cloud Storage
+    let documentUploadResult = { success: true };
     if (req.file) {
-      try {
-        // Upload file to GCS with the WPS ID
-        const uploadResult = await uploadWpsPqrDocument(
-          req.file.buffer,
-          req.file.originalname,
-          req.file.mimetype,
-          wpsId
-        );
-        
-        if (uploadResult.success && uploadResult.filePath) {
-          document_file_path = uploadResult.filePath;
-          document_url = uploadResult.url;
-          console.log(`WPS document uploaded to GCS: ${document_file_path}`);
-        } else {
-          console.error('Failed to upload WPS document to GCS:', uploadResult.error);
-        }
-      } catch (uploadError) {
-        console.error('Error uploading WPS document:', uploadError);
-        // Continue without document if upload fails
+      req.body.wpsId = wpsId; // Set WPS ID for file naming
+      documentUploadResult = await uploadWpsDocument(req);
+      
+      if ('error' in documentUploadResult) {
+        return res.status(400).json({ error: documentUploadResult.error });
       }
     }
     
-    // Parse JSON parameters if provided as strings
-    const parsedElectricalParams = electricalParameters ? 
-      (typeof electricalParameters === 'string' ? 
-        JSON.parse(electricalParameters) : electricalParameters) : 
-      null;
+    // Insert new WPS document into database
+    const [newWpsDocument] = await db.insert(sql`wps_documents`).values({
+      wps_id: wpsId,
+      pqr_id: pqrId,
+      revision_no: '0',
+      welder_process: req.body.welderProcess,
+      base_metal_grade: req.body.baseMetalGrade,
+      base_metal_thickness: req.body.baseMetalThickness,
+      filler_material: req.body.fillerMaterial,
+      joint_type: req.body.jointType,
+      weld_position: req.body.weldPosition,
+      preheating_temp: req.body.preheatingTemp || null,
+      post_weld_heat_treatment: req.body.postWeldHeatTreatment || null,
+      shielding_gas: req.body.shieldingGas || null,
+      document_file_path: documentUploadResult.document_file_path || null,
+      document_url: documentUploadResult.document_url || null,
+      status: req.body.status || 'Draft',
+      remarks: req.body.remarks || null,
+      created_by: req.user!.id,
+      created_at: new Date(),
+      updated_at: new Date()
+    }).returning();
     
-    const result = await pool.query(`
-      INSERT INTO wps_documents (
-        "wpsId",
-        "pqrId",
-        "welderProcess",
-        "baseMetalGrade",
-        "baseMetalThickness",
-        "fillerMaterial",
-        "jointType",
-        "weldPosition",
-        "preheatingTemp",
-        "postWeldHeatTreatment",
-        "electricalParameters",
-        "shieldingGas",
-        "document_file_path",
-        status,
-        remarks,
-        "createdBy",
-        "createdAt",
-        "updatedAt"
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
-      RETURNING *
-    `, [
-      wpsId,
-      pqrId,
-      welderProcess,
-      baseMetalGrade,
-      baseMetalThickness,
-      fillerMaterial,
-      jointType,
-      weldPosition,
-      preheatingTemp || null,
-      postWeldHeatTreatment || null,
-      parsedElectricalParams,
-      shieldingGas || null,
-      document_file_path,
-      status || 'Draft',
-      remarks || null,
-      req.user.id
-    ]);
-    
-    // Add the document URL to the response for immediate display
-    const response = {
-      ...result.rows[0],
-      document_url: document_url
-    };
-    
-    res.status(201).json(response);
+    res.status(201).json(newWpsDocument);
   } catch (error) {
     console.error('Error creating WPS document:', error);
-    res.status(500).json({ error: 'Failed to create WPS document' });
+    res.status(500).json({ 
+      error: 'Failed to create WPS document',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
-// Update a WPS document
-router.put('/wps/:id', ensureAuthenticated, upload.single('document'), async (req: Request, res: Response) => {
+// Update WPS document by ID
+router.put('/wps/:id', ensureAuthenticated, uploadWpsPqrDocument.single('document'), async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const {
-      welderProcess,
-      baseMetalGrade,
-      baseMetalThickness,
-      fillerMaterial,
-      jointType,
-      weldPosition,
-      preheatingTemp,
-      postWeldHeatTreatment,
-      electricalParameters,
-      shieldingGas,
-      status,
-      remarks
-    } = req.body;
+    const wpsId = parseInt(req.params.id);
     
-    // Get current WPS data
-    const currentResult = await pool.query(`
-      SELECT "wpsId", "document_file_path" FROM wps_documents
-      WHERE id = $1
-    `, [id]);
+    // Check if WPS document exists
+    const [existingDocument] = await db.query.wpsDocuments.findMany({
+      where: eq(sql`id`, wpsId)
+    });
     
-    if (currentResult.rows.length === 0) {
+    if (!existingDocument) {
       return res.status(404).json({ error: 'WPS document not found' });
     }
     
-    const currentWpsId = currentResult.rows[0].wpsId;
-    const currentFilePath = currentResult.rows[0].document_file_path;
-    
-    // Handle document file upload to GCS if present
-    let document_file_path = undefined;
-    let document_url = null;
-    
+    // If a document was uploaded, process it with Google Cloud Storage
+    let documentUploadResult = { success: true };
     if (req.file) {
-      try {
-        // Upload file to GCS using the WPS ID for consistent naming
-        const uploadResult = await uploadWpsPqrDocument(
-          req.file.buffer,
-          req.file.originalname,
-          req.file.mimetype,
-          currentWpsId
-        );
-        
-        if (uploadResult.success && uploadResult.filePath) {
-          document_file_path = uploadResult.filePath;
-          document_url = uploadResult.url;
-          console.log(`WPS document uploaded to GCS: ${document_file_path}`);
-        } else {
-          console.error('Failed to upload WPS document to GCS:', uploadResult.error);
-        }
-      } catch (uploadError) {
-        console.error('Error uploading WPS document:', uploadError);
-        // Continue without document if upload fails
+      req.body.wpsId = existingDocument.wps_id; // Set WPS ID for file naming
+      documentUploadResult = await uploadWpsDocument(req);
+      
+      if ('error' in documentUploadResult) {
+        return res.status(400).json({ error: documentUploadResult.error });
       }
     }
     
-    // Parse JSON parameters if provided as strings
-    const parsedElectricalParams = electricalParameters ? 
-      (typeof electricalParameters === 'string' ? 
-        JSON.parse(electricalParameters) : electricalParameters) : 
-      null;
+    // Update WPS document in database
+    const [updatedWpsDocument] = await db.update(sql`wps_documents`)
+      .set({
+        welder_process: req.body.welderProcess || existingDocument.welder_process,
+        base_metal_grade: req.body.baseMetalGrade || existingDocument.base_metal_grade,
+        base_metal_thickness: req.body.baseMetalThickness || existingDocument.base_metal_thickness,
+        filler_material: req.body.fillerMaterial || existingDocument.filler_material,
+        joint_type: req.body.jointType || existingDocument.joint_type,
+        weld_position: req.body.weldPosition || existingDocument.weld_position,
+        preheating_temp: req.body.preheatingTemp || existingDocument.preheating_temp,
+        post_weld_heat_treatment: req.body.postWeldHeatTreatment || existingDocument.post_weld_heat_treatment,
+        shielding_gas: req.body.shieldingGas || existingDocument.shielding_gas,
+        document_file_path: documentUploadResult.document_file_path || existingDocument.document_file_path,
+        document_url: documentUploadResult.document_url || existingDocument.document_url,
+        status: req.body.status || existingDocument.status,
+        remarks: req.body.remarks || existingDocument.remarks,
+        updated_at: new Date()
+      })
+      .where(eq(sql`id`, wpsId))
+      .returning();
     
-    // Build update query dynamically
-    let queryParts = [];
-    let values = [];
-    let paramIndex = 1;
-    
-    const updateFields: Record<string, any> = {
-      "welderProcess": welderProcess,
-      "baseMetalGrade": baseMetalGrade,
-      "baseMetalThickness": baseMetalThickness,
-      "fillerMaterial": fillerMaterial,
-      "jointType": jointType,
-      "weldPosition": weldPosition,
-      "preheatingTemp": preheatingTemp || null,
-      "postWeldHeatTreatment": postWeldHeatTreatment || null,
-      "electricalParameters": parsedElectricalParams,
-      "shieldingGas": shieldingGas || null,
-      status: status,
-      remarks: remarks || null,
-      "updatedAt": new Date()
-    };
-    
-    // Add document_file_path if a new file was uploaded
-    if (document_file_path) {
-      updateFields['document_file_path'] = document_file_path;
-    }
-    
-    // Add approval fields if status changed to Approved
-    if (status === 'Approved') {
-      updateFields['approvedBy'] = req.user.id;
-      updateFields['approvalDate'] = new Date();
-    }
-    
-    // Build the query parts and values array
-    for (const [key, value] of Object.entries(updateFields)) {
-      if (value !== undefined) {
-        queryParts.push(`"${key}" = $${paramIndex}`);
-        values.push(value);
-        paramIndex++;
-      }
-    }
-    
-    // Add the ID as the last parameter
-    values.push(id);
-    
-    const result = await pool.query(`
-      UPDATE wps_documents
-      SET ${queryParts.join(', ')}
-      WHERE id = $${paramIndex}
-      RETURNING *
-    `, values);
-    
-    // Add the document URL to the response for immediate display
-    const response = {
-      ...result.rows[0],
-      document_url: document_url
-    };
-    
-    res.json(response);
+    res.json(updatedWpsDocument);
   } catch (error) {
-    console.error('Error updating WPS document:', error);
-    res.status(500).json({ error: 'Failed to update WPS document' });
+    console.error(`Error updating WPS document ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to update WPS document',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
-// Delete a WPS document
+// Delete WPS document by ID
 router.delete('/wps/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const wpsId = parseInt(req.params.id);
     
-    // Get current WPS data to check if we need to delete a document file
-    const currentResult = await pool.query(`
-      SELECT "wpsId", "document_file_path" FROM wps_documents
-      WHERE id = $1
-    `, [id]);
+    // Check if WPS document exists
+    const [existingDocument] = await db.query.wpsDocuments.findMany({
+      where: eq(sql`id`, wpsId)
+    });
     
-    if (currentResult.rows.length === 0) {
+    if (!existingDocument) {
       return res.status(404).json({ error: 'WPS document not found' });
     }
     
-    const currentWpsId = currentResult.rows[0].wpsId;
-    const currentFilePath = currentResult.rows[0].document_file_path;
+    // Delete WPS document from database
+    await db.delete(sql`wps_documents`).where(eq(sql`id`, wpsId));
     
-    const result = await pool.query(`
-      DELETE FROM wps_documents
-      WHERE id = $1
-      RETURNING *
-    `, [id]);
-    
-    // Handle file deletion based on storage location
-    if (currentFilePath) {
-      if (currentFilePath.startsWith('QMS/')) {
-        // It's a GCS file - we don't delete GCS files in this version
-        // Just log it for now
-        console.log(`GCS WPS document will be retained: ${currentFilePath}`);
-      } else if (fs.existsSync(currentFilePath)) {
-        // It's a local file
-        fs.unlinkSync(currentFilePath);
-        console.log(`Deleted local WPS document file: ${currentFilePath}`);
-      }
-    }
-    
-    res.json(result.rows[0]);
+    res.status(200).json({ message: 'WPS document deleted successfully' });
   } catch (error) {
-    console.error('Error deleting WPS document:', error);
-    res.status(500).json({ error: 'Failed to delete WPS document' });
+    console.error(`Error deleting WPS document ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to delete WPS document',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
-// Download or redirect to WPS document file
+// Get WPS document file by ID
 router.get('/wps/:id/document', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const wpsId = parseInt(req.params.id);
     
-    const result = await pool.query(`
-      SELECT "wpsId", "document_file_path" FROM wps_documents
-      WHERE id = $1
-    `, [id]);
+    // Check if WPS document exists
+    const [existingDocument] = await db.query.wpsDocuments.findMany({
+      where: eq(sql`id`, wpsId)
+    });
     
-    if (result.rows.length === 0) {
+    if (!existingDocument) {
       return res.status(404).json({ error: 'WPS document not found' });
     }
     
-    const wpsId = result.rows[0].wpsId;
-    const documentFilePath = result.rows[0].document_file_path;
-    
-    if (!documentFilePath) {
-      return res.status(404).json({ error: 'No document file found for this WPS' });
+    if (!existingDocument.document_url) {
+      return res.status(404).json({ error: 'Document not found for this WPS' });
     }
     
-    // Check if it's a GCS path
-    if (documentFilePath.startsWith('QMS/')) {
-      // Get signed URL for GCS file
-      const signedUrl = await getWpsPqrDocumentUrl(documentFilePath);
-      
-      if (!signedUrl) {
-        return res.status(404).json({ error: 'Document file not found in cloud storage' });
-      }
-      
-      // Redirect to the signed URL
-      return res.redirect(signedUrl);
-    } else {
-      // Handle legacy local file paths
-      if (!fs.existsSync(documentFilePath)) {
-        return res.status(404).json({ error: 'Document file not found on server' });
-      }
-      
-      res.download(documentFilePath);
-    }
+    // Redirect to the document URL
+    res.redirect(existingDocument.document_url);
   } catch (error) {
-    console.error('Error accessing WPS document file:', error);
-    res.status(500).json({ error: 'Failed to access WPS document file' });
+    console.error(`Error retrieving WPS document file ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to retrieve WPS document file',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Upload combined WPS/PQR document
+router.post('/combined-document', ensureAuthenticated, uploadWpsPqrDocument.single('combinedDocument'), async (req: Request, res: Response) => {
+  try {
+    // Process the combined document upload with Google Cloud Storage
+    const uploadResult = await uploadCombinedDocument(req);
+    
+    if ('error' in uploadResult) {
+      return res.status(400).json({ error: uploadResult.error });
+    }
+    
+    // Find the WPS document by WPS ID
+    const [wpsDocument] = await db.query.wpsDocuments.findMany({
+      where: eq(sql`wps_id`, uploadResult.wpsId)
+    });
+    
+    if (!wpsDocument) {
+      return res.status(404).json({ 
+        error: 'WPS document not found',
+        details: `No WPS document found with ID: ${uploadResult.wpsId}`
+      });
+    }
+    
+    // Update the WPS document with the combined document information
+    const [updatedWpsDocument] = await db.update(sql`wps_documents`)
+      .set({
+        combined_document_file_path: uploadResult.combined_document_file_path,
+        combined_document_url: uploadResult.combined_document_url,
+        updated_at: new Date()
+      })
+      .where(eq(sql`id`, wpsDocument.id))
+      .returning();
+    
+    res.status(200).json({
+      message: 'Combined WPS/PQR document uploaded successfully',
+      document: updatedWpsDocument
+    });
+  } catch (error) {
+    console.error('Error uploading combined WPS/PQR document:', error);
+    res.status(500).json({ 
+      error: 'Failed to upload combined WPS/PQR document',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get combined WPS/PQR document file by WPS ID
+router.get('/wps/:id/combined-document', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const wpsId = parseInt(req.params.id);
+    
+    // Check if WPS document exists
+    const [existingDocument] = await db.query.wpsDocuments.findMany({
+      where: eq(sql`id`, wpsId)
+    });
+    
+    if (!existingDocument) {
+      return res.status(404).json({ error: 'WPS document not found' });
+    }
+    
+    if (!existingDocument.combined_document_url) {
+      return res.status(404).json({ error: 'Combined document not found for this WPS' });
+    }
+    
+    // Redirect to the combined document URL
+    res.redirect(existingDocument.combined_document_url);
+  } catch (error) {
+    console.error(`Error retrieving combined WPS/PQR document file ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to retrieve combined WPS/PQR document file',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
