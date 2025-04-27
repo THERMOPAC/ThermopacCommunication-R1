@@ -12,14 +12,24 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Search, Download, FileText, Edit, Trash2 } from "lucide-react";
+import { 
+  AlertCircle,
+  CheckCircle,
+  PlusCircle, 
+  Search, 
+  Download, 
+  FileText, 
+  Edit, 
+  Trash2,
+  InfoIcon,
+  Loader2 
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 // Form schema for WPS documents
@@ -80,6 +90,7 @@ type WpsDocument = {
   approvedByUser?: string;
   createdAt: string;
   updatedAt: string;
+  has_pqr?: boolean; // Flag to indicate if a WPS has an associated PQR
 };
 
 // Options for dropdowns
@@ -499,9 +510,21 @@ export default function WpsPqrManagementPage() {
                 <TabsTrigger value="documents">Documents</TabsTrigger>
               </TabsList>
             </div>
-            <Button onClick={() => setIsAddWpsOpen(true)}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add New WPS
-            </Button>
+            {activeTab === "wps" && (
+              <Button onClick={() => setIsAddWpsOpen(true)}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add New WPS
+              </Button>
+            )}
+            {activeTab === "pqr" && (
+              <Button onClick={() => {
+                // Show the PQR creation dialog directly from PQR tab
+                // User will need to select a WPS to link with
+                setIsAddPqrOpen(true);
+                setSelectedWps(null); // Will need to select a WPS in the dialog
+              }}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add New PQR
+              </Button>
+            )}
           </div>
           
           <TabsContent value="wps" className="mt-0">
@@ -1503,6 +1526,16 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [pqrDocumentFile, setPqrDocumentFile] = useState<File | null>(null);
+  const [selectedWpsId, setSelectedWpsId] = useState<number | null>(wps?.id || null);
+  
+  // Fetch WPS documents data for selection when no WPS is provided
+  const { data: wpsDocuments = [] } = useQuery<WpsDocument[]>({
+    queryKey: ["/api/quality/wps"],
+    enabled: !wps, // Only fetch if no WPS is provided
+  });
+  
+  // Filter WPS documents that don't already have a PQR
+  const availableWps = wpsDocuments.filter(doc => !doc.pqrId);
   
   // Form setup for adding a new PQR document
   const pqrForm = useForm<PqrDocumentFormData>({
@@ -1527,14 +1560,15 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
   // Create PQR mutation
   const createPqrMutation = useMutation({
     mutationFn: async (data: PqrDocumentFormData) => {
-      if (!wps) {
-        throw new Error("No WPS selected");
+      // Need either the provided WPS or a selected WPS
+      if (!wps && !selectedWpsId) {
+        throw new Error("Please select a WPS document");
       }
       
       const formData = new FormData();
       
       // Add WPS ID reference
-      formData.append("wpsId", wps.id.toString());
+      formData.append("wpsId", (wps?.id || selectedWpsId || 0).toString());
       
       // Append form fields to FormData
       Object.entries(data).forEach(([key, value]) => {
@@ -1568,6 +1602,7 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
       onClose();
       pqrForm.reset();
       setPqrDocumentFile(null);
+      setSelectedWpsId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/quality/wps"] });
     },
     onError: (error: Error) => {
@@ -1594,6 +1629,57 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
           </TabsList>
           
           <TabsContent value="details" className="space-y-4">
+            {!wps && (
+              <div className="mb-6 border rounded-md p-4 bg-muted/30">
+                <h3 className="font-medium mb-2">Select WPS Document</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Select a WPS document to create a corresponding PQR. The PQR ID will be linked to match the WPS ID format.
+                </p>
+                <Select value={selectedWpsId?.toString() || ""} onValueChange={(value) => setSelectedWpsId(parseInt(value))}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a WPS document" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableWps.length === 0 ? (
+                      <SelectItem value="none" disabled>No available WPS documents</SelectItem>
+                    ) : (
+                      availableWps.map((doc) => (
+                        <SelectItem key={doc.id} value={doc.id.toString()}>
+                          {doc.wpsId} - {doc.welderProcess} {doc.baseMetalGrade}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {selectedWpsId ? (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                    <InfoIcon className="inline-block mr-1 h-4 w-4" /> 
+                    Selected WPS will be linked with a matching PQR ID sequence.
+                  </div>
+                ) : (
+                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-700">
+                    <AlertCircle className="inline-block mr-1 h-4 w-4" />
+                    Please select a WPS document to proceed.
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {(wps || selectedWpsId) && (
+              <div className="mb-6 border rounded-md p-4 bg-green-50 border-green-100">
+                <h3 className="font-medium text-green-700 flex items-center">
+                  <CheckCircle className="mr-2 h-5 w-5" />
+                  WPS Document Selected
+                </h3>
+                <p className="text-sm text-green-600 mt-1">
+                  Creating PQR for WPS: <span className="font-semibold">{wps?.wpsId || availableWps.find(doc => doc.id === selectedWpsId)?.wpsId}</span>
+                </p>
+                <p className="text-sm text-green-600 mt-1">
+                  PQR ID will be: <span className="font-semibold">{wps?.pqrId || availableWps.find(doc => doc.id === selectedWpsId)?.pqrId}</span>
+                </p>
+              </div>
+            )}
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={pqrForm.control}
