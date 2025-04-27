@@ -2399,4 +2399,70 @@ export const wpsDocumentSchema = createInsertSchema(wpsDocuments)
 
 // Export WPS document types
 export type WpsDocument = typeof wpsDocuments.$inferSelect;
+
+// Material Identification tables
+export const materialIdentification = pgTable('material_identification', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id),
+  inspectionOrderId: integer('inspection_order_id').references(() => inspectionOrders.id),
+  
+  // Material Identification details
+  materialIdentificationId: text('material_identification_id').notNull().unique(), // Format: MI-YYYY-SEQUENCE
+  materialDescription: text('material_description').notNull(),
+  materialCode: text('material_code').notNull(),
+  specification: text('specification').notNull(),
+  materialGrade: text('material_grade').notNull(),
+  heatNumber: text('heat_number').notNull(),
+  batchNumber: text('batch_number'),
+  millName: text('mill_name').notNull(),
+  millTestCertificateNumber: text('mill_test_certificate_number').notNull(),
+  quantity: text('quantity').notNull(),
+  dimensions: text('dimensions').notNull(),
+  materialStatus: text('material_status').notNull(),
+  
+  // Inspection details
+  inspectorName: text('inspector_name').notNull(),
+  inspectionDate: date('inspection_date').notNull(),
+  remarks: text('remarks'),
+  
+  // Tracking and metadata
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Counter table for MI ID sequence numbers
+export const materialIdentificationCounter = pgTable('material_identification_counter', {
+  year: integer('year').primaryKey(),
+  sequenceNumber: integer('sequence_number').notNull().default(0),
+});
+
+// Relations for material identification
+export const materialIdentificationRelations = relations(materialIdentification, ({ one }) => ({
+  project: one(projects, {
+    fields: [materialIdentification.projectId],
+    references: [projects.id],
+  }),
+  inspectionOrder: one(inspectionOrders, {
+    fields: [materialIdentification.inspectionOrderId],
+    references: [inspectionOrders.id],
+  }),
+  creator: one(users, {
+    fields: [materialIdentification.createdBy],
+    references: [users.id],
+  }),
+}));
+
+// Insert schemas for Material Identification
+export const insertMaterialIdentificationSchema = createInsertSchema(materialIdentification)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    materialStatus: z.enum(['Accepted', 'Rejected', 'Hold']),
+  });
+
+export const insertMaterialIdentificationCounterSchema = createInsertSchema(materialIdentificationCounter);
+
+// Export Material Identification types
+export type MaterialIdentification = typeof materialIdentification.$inferSelect;
+export type InsertMaterialIdentification = z.infer<typeof insertMaterialIdentificationSchema>;
 export type InsertWpsDocument = z.infer<typeof wpsDocumentSchema>;
