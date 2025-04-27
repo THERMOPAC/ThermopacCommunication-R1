@@ -49,7 +49,7 @@ export async function uploadWpsPqrDocument(
     });
     
     const uploadPromise = new Promise<void>((resolve, reject) => {
-      fileStream.on('error', (err) => {
+      fileStream.on('error', (err: Error) => {
         console.error('Upload stream error:', err);
         reject(err);
       });

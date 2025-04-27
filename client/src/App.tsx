@@ -24,6 +24,7 @@ import InspectionsPage from "@/pages/inspections-page";
 import InspectionManagementPage from "@/pages/inspection-management-page";
 import MaterialIdentificationPage from "@/pages/material-identification-page";
 import WpsPqrPage from "@/pages/wps-pqr-page";
+import WpsPqrManagementPage from "@/pages/wps-pqr-management-page";
 import WelderManagementPage from "@/pages/welder-management-page";
 import CalibrationManagementPage from "@/pages/calibration-management-page";
 import QualityReportsPage from "@/pages/quality-reports-page";
