@@ -167,6 +167,21 @@ const testTypeOptions = [
   "Visual Examination"
 ];
 
+const shieldingGasOptions = [
+  "Argon (100%)",
+  "Pure CO₂ (Carbon Dioxide)",
+  "Helium (100%)",
+  "Helium + Argon Mixture",
+  "Nitrogen",
+  "Argon + Nitrogen", 
+  "Argon + CO₂ (75/25)",
+  "Argon + CO₂ (80/20)",
+  "Argon + CO₂ (90/10)",
+  "Argon + Oxygen (98/2)",
+  "Argon + Hydrogen (95/5)",
+  "None"
+];
+
 export default function WpsPqrManagementPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1514,9 +1529,23 @@ export default function WpsPqrManagementPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Shielding Gas</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Optional" {...field} />
-                            </FormControl>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select shielding gas" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {shieldingGasOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
