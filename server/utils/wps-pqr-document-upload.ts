@@ -1,6 +1,14 @@
-import { storage, bucketName } from './storage-config';
-import { v4 as uuidv4 } from 'uuid';
+import { Storage } from '@google-cloud/storage';
+import { format } from 'date-fns';
 import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import storage, { bucketName } from './storage-config';
+
+// Initialize Google Cloud Storage bucket
+const bucket = storage.bucket(bucketName);
+
+// Base path for WPS/PQR documents in GCS
+const WPS_PQR_BASE_PATH = 'QMS/WPS_PQR';
 
 /**
  * Uploads a WPS or PQR document to Google Cloud Storage
@@ -14,56 +22,51 @@ export async function uploadWpsPqrDocument(
   buffer: Buffer,
   originalFilename: string,
   mimeType: string,
-  wpsId: string = ''
-): Promise<{
-  success: boolean;
-  filePath?: string;
-  url?: string;
-  error?: any;
-}> {
+  wpsId: string
+): Promise<{ success: boolean; filePath?: string; url?: string; error?: string }> {
   try {
-    // Use WPS ID for filename if provided, otherwise use a UUID
-    const fileExtension = '.pdf'; // Always use .pdf extension as required
-    const filename = wpsId ? 
-      `${wpsId}.pdf` : 
-      `${uuidv4()}${fileExtension}`;
+    // Create a standardized filename based on WPS ID
+    const fileExtension = path.extname(originalFilename).toLowerCase();
+    const targetExtension = fileExtension || '.pdf'; // Default to .pdf if no extension
+    const sanitizedWpsId = wpsId.replace(/[^a-zA-Z0-9-]/g, '_');
+    const fileName = `${sanitizedWpsId}${targetExtension}`;
     
-    // Set the GCS path in the QMS/WPS_PQR directory
-    const gcsPath = `QMS/WPS_PQR/${filename}`;
+    // Create the full path in GCS
+    const filePath = `${WPS_PQR_BASE_PATH}/${fileName}`;
     
-    console.log(`Uploading WPS/PQR document to: ${gcsPath}`);
+    // Create a file object in the bucket
+    const file = bucket.file(filePath);
     
-    // Get a reference to the file in the bucket
-    const bucket = storage.bucket(bucketName);
-    const file = bucket.file(gcsPath);
-    
-    // Upload the file to GCS
+    // Upload the buffer to GCS
     await file.save(buffer, {
-      contentType: mimeType,
       metadata: {
         contentType: mimeType,
-        cacheControl: 'public, max-age=31536000', // Cache for 1 year
-      },
+        metadata: {
+          originalName: originalFilename,
+          uploadDate: format(new Date(), 'yyyy-MM-dd'),
+          wpsId: wpsId
+        }
+      }
     });
+    
+    console.log(`WPS document uploaded to GCS: ${filePath}`);
     
     // Generate a signed URL for immediate access
-    const [signedUrl] = await file.getSignedUrl({
+    const [url] = await file.getSignedUrl({
       action: 'read',
-      expires: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+      expires: Date.now() + 7 * 24 * 60 * 60 * 1000 // URL valid for 7 days
     });
-    
-    console.log('WPS/PQR document uploaded successfully to GCS');
     
     return {
       success: true,
-      filePath: gcsPath,
-      url: signedUrl
+      filePath,
+      url
     };
   } catch (error) {
     console.error('Error uploading WPS/PQR document to GCS:', error);
     return {
       success: false,
-      error: error
+      error: error instanceof Error ? error.message : 'Unknown error occurred during upload'
     };
   }
 }
@@ -75,34 +78,25 @@ export async function uploadWpsPqrDocument(
  */
 export async function getWpsPqrDocumentUrl(filePath: string): Promise<string | null> {
   try {
-    if (!filePath) return null;
-    
-    // Check if it's already a GCS path starting with QMS/
-    if (!filePath.startsWith('QMS/')) {
-      // It might be a legacy path
-      console.log('Document path does not start with QMS/, might be a legacy path');
-      return null;
-    }
-    
-    const bucket = storage.bucket(bucketName);
+    // Create a reference to the file
     const file = bucket.file(filePath);
     
-    // Check if file exists
+    // Check if the file exists
     const [exists] = await file.exists();
     if (!exists) {
-      console.error(`WPS/PQR document ${filePath} does not exist in GCS`);
+      console.error(`WPS/PQR document file not found in GCS: ${filePath}`);
       return null;
     }
     
-    // Generate a signed URL
-    const [signedUrl] = await file.getSignedUrl({
+    // Generate a signed URL valid for 7 days
+    const [url] = await file.getSignedUrl({
       action: 'read',
-      expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+      expires: Date.now() + 7 * 24 * 60 * 60 * 1000
     });
     
-    return signedUrl;
+    return url;
   } catch (error) {
-    console.error('Error generating WPS/PQR document URL:', error);
+    console.error(`Error generating URL for WPS/PQR document: ${filePath}`, error);
     return null;
   }
 }
