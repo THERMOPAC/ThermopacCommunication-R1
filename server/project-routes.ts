@@ -52,7 +52,7 @@ export function setupProjectRoutes(app: express.Express) {
       const userId = req.user!.id;
       const allProjects = await storage.getUserProjects(userId);
       
-      // Find projects with codes that match our pattern (e.g., "2526-1", "2526-2", etc.)
+      // Find projects with codes that match our pattern (e.g., "2025-1", "2025-2", etc.)
       const regex = new RegExp(`^${yearCode}-(\\d+)$`);
       const matchingProjects = allProjects.filter(project => regex.test(project.code));
       
@@ -96,7 +96,7 @@ export function setupProjectRoutes(app: express.Express) {
         project = await storage.getProject(parseInt(projectId));
         console.log("Looking up by numeric ID");
       } else {
-        // Otherwise it might be a project code (like "2526-1")
+        // Otherwise it might be a project code (like "2025-1")
         console.log("Looking up by project code");
         const allProjects = await storage.getAllProjects();
         project = allProjects.find(p => p.code === projectId);

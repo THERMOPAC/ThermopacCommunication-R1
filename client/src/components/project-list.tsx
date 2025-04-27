@@ -116,7 +116,7 @@ async function getNextProjectCode(financialYear: string): Promise<string> {
   } catch (error) {
     console.error('Error getting next project code:', error);
     
-    // Fallback: Generate a code in the format 2526-1
+    // Fallback: Generate a code in the format 2025-1
     const yearCode = convertFinancialYearToCode(financialYear);
     return `${yearCode}-1`;
   }
