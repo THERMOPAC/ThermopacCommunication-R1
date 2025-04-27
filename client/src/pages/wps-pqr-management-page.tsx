@@ -1690,11 +1690,15 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
                     {availableWps.length === 0 ? (
                       <SelectItem value="none" disabled>No available WPS documents</SelectItem>
                     ) : (
-                      availableWps.map((doc) => (
-                        <SelectItem key={doc.id} value={doc.id.toString()}>
-                          {doc.wpsId} - {doc.welderProcess} {doc.baseMetalGrade}
-                        </SelectItem>
-                      ))
+                      availableWps.map((doc) => {
+                        // Extract sequence number from WPS-N format
+                        const wpsSequence = doc.wpsId ? doc.wpsId.split("-")[1] : "";
+                        return (
+                          <SelectItem key={doc.id} value={doc.id.toString()}>
+                            {doc.wpsId} → PQR-{wpsSequence} | {doc.welderProcess} {doc.baseMetalGrade}
+                          </SelectItem>
+                        );
+                      })
                     )}
                   </SelectContent>
                 </Select>
@@ -1730,7 +1734,15 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
                   PQR ID will be: <span className="font-semibold">
                     {wps?.pqrId || 
                      (availableWps && selectedWpsId ? 
-                      availableWps.find(doc => doc.id === selectedWpsId)?.pqrId : 
+                      (() => {
+                        const selectedWps = availableWps.find(doc => doc.id === selectedWpsId);
+                        if (selectedWps?.wpsId) {
+                          // Extract sequence number from WPS-N format and create matching PQR-N
+                          const wpsSequence = selectedWps.wpsId.split("-")[1];
+                          return `PQR-${wpsSequence}`;
+                        }
+                        return selectedWps?.pqrId || "Unknown";
+                      })() : 
                       "Unknown")}
                   </span>
                 </p>
