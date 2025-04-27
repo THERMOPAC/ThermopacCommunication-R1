@@ -811,32 +811,80 @@ export default function WpsPqrManagementPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div>
                         <Label htmlFor="wps_id">WPS ID</Label>
-                        <Input 
-                          id="wps_id" 
-                          placeholder="Enter WPS ID" 
+                        <Select 
                           value={selectedWpsId || ''}
-                          onChange={(e) => setSelectedWpsId(e.target.value)}
-                        />
+                          onValueChange={(value) => {
+                            setSelectedWpsId(value);
+                            // Auto-populate PQR ID based on the selected WPS
+                            const selectedWps = wpsDocuments.find(w => w.wpsId === value);
+                            if (selectedWps && selectedWps.pqrId) {
+                              setSelectedPqrId(selectedWps.pqrId);
+                            } else {
+                              setSelectedPqrId('');
+                            }
+                          }}
+                        >
+                          <SelectTrigger id="wps_id" className="w-full">
+                            <SelectValue placeholder="Select WPS ID" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {wpsDocuments && wpsDocuments.length > 0 ? (
+                              wpsDocuments
+                                .filter(doc => doc.has_pqr) // Only show WPS with associated PQR
+                                .map((wps) => (
+                                  <SelectItem key={wps.id} value={wps.wpsId}>
+                                    <span className="font-medium">{wps.wpsId}</span> - {wps.welderProcess} {wps.baseMetalGrade}
+                                  </SelectItem>
+                                ))
+                            ) : (
+                              <SelectItem value="no_wps" disabled>No WPS documents available</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Enter the WPS ID for this document
+                          Select the WPS ID for this document
                         </p>
                       </div>
                       <div>
                         <Label htmlFor="pqr_id">PQR ID</Label>
                         <Input 
                           id="pqr_id" 
-                          placeholder="Enter PQR ID" 
+                          placeholder="PQR ID will auto-populate" 
                           value={selectedPqrId || ''}
                           onChange={(e) => setSelectedPqrId(e.target.value)}
+                          readOnly
+                          className="bg-muted/50"
                         />
                         <p className="text-xs text-muted-foreground mt-1">
-                          Enter the PQR ID for this document
+                          PQR ID auto-populates based on selected WPS
                         </p>
                       </div>
                     </div>
                     
+                    {/* Show file naming preview when both IDs are selected */}
+                    {selectedWpsId && selectedPqrId && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-md">
+                        <div className="flex items-center text-blue-700 font-medium">
+                          <FileText className="h-4 w-4 mr-2" />
+                          Document Naming Preview
+                        </div>
+                        <p className="text-sm text-blue-700 mt-1">
+                          File will be stored as: <span className="font-semibold">{selectedWpsId}_{selectedPqrId}.pdf</span>
+                        </p>
+                      </div>
+                    )}
+                    
                     <div className="mb-4">
-                      <Label htmlFor="combined_document">Upload Combined Document</Label>
+                      <Label htmlFor="combined_document">
+                        <div className="flex items-center">
+                          <span>Upload Combined Document</span>
+                          {selectedWpsId && selectedPqrId && !combinedDocumentFile && (
+                            <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                              Required
+                            </span>
+                          )}
+                        </div>
+                      </Label>
                       <Input
                         id="combined_document"
                         type="file"
@@ -859,7 +907,7 @@ export default function WpsPqrManagementPage() {
                         if (!selectedWpsId || !selectedPqrId) {
                           toast({
                             title: "Missing Information",
-                            description: "Please enter both WPS ID and PQR ID",
+                            description: "Please select a WPS document first",
                             variant: "destructive",
                           });
                           return;
@@ -880,9 +928,18 @@ export default function WpsPqrManagementPage() {
                         });
                       }}
                       disabled={uploadCombinedDocumentMutation.isPending}
+                      className={
+                        selectedWpsId && selectedPqrId && combinedDocumentFile 
+                          ? "bg-green-600 hover:bg-green-700" 
+                          : ""
+                      }
                     >
                       {uploadCombinedDocumentMutation.isPending ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
+                      ) : selectedWpsId && selectedPqrId && combinedDocumentFile ? (
+                        <>
+                          <CheckCircle2 className="mr-2 h-4 w-4" /> Upload Combined Document
+                        </>
                       ) : (
                         <>
                           <FileText className="mr-2 h-4 w-4" /> Upload Combined Document
