@@ -202,6 +202,20 @@ const fillerMaterialOptions = [
   "E8018-C3"
 ];
 
+const postWeldHeatTreatmentOptions = [
+  "Normalizing",
+  "Annealing",
+  "Stress Relieving",
+  "Tempering",
+  "Quenching",
+  "Baking",
+  "Post Weld Hydrogen Relief",
+  "Full Annealing",
+  "Recrystallization",
+  "Stress Relief Annealing",
+  "None"
+];
+
 export default function WpsPqrManagementPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1272,9 +1286,23 @@ export default function WpsPqrManagementPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Post Weld Heat Treatment</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Optional" {...field} />
-                            </FormControl>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select heat treatment" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {postWeldHeatTreatmentOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1578,9 +1606,23 @@ export default function WpsPqrManagementPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Post Weld Heat Treatment</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Optional" {...field} />
-                            </FormControl>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select heat treatment" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {postWeldHeatTreatmentOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
