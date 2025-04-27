@@ -1251,9 +1251,23 @@ export default function WpsPqrManagementPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Shielding Gas</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Optional" {...field} />
-                            </FormControl>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select shielding gas" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {shieldingGasOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
