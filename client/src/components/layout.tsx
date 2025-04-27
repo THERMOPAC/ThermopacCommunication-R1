@@ -44,6 +44,7 @@ export default function Layout({ children }: LayoutProps) {
   const [isProcurementMenuOpen, setIsProcurementMenuOpen] = useState(false);
   const [isProductionMenuOpen, setIsProductionMenuOpen] = useState(false);
   const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
+  const [isWpsSubmenuOpen, setIsWpsSubmenuOpen] = useState(false);
 
   // Get all module permissions for the current user
   const { data: modulePermissions, isLoading: isLoadingPermissions } = useAllModulePermissions();
@@ -72,6 +73,9 @@ export default function Layout({ children }: LayoutProps) {
                         location.startsWith('/quality-reports') ||
                         location === '/quality-assurance-plan' ||
                         location === '/calibration-management';
+                        
+  // Check if we're on any WPS/PQR or Welder Management page
+  const isOnWpsPqrPage = location.startsWith('/wps-pqr') || location === '/welder-management';
   
   // Auto-open menus based on current page
   useEffect(() => {
@@ -90,7 +94,11 @@ export default function Layout({ children }: LayoutProps) {
     if (isOnQualityPage && !isQualityMenuOpen) {
       setIsQualityMenuOpen(true);
     }
-  }, [isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage]);
+    
+    if (isOnWpsPqrPage && !isWpsSubmenuOpen) {
+      setIsWpsSubmenuOpen(true);
+    }
+  }, [isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnWpsPqrPage]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -154,8 +162,17 @@ export default function Layout({ children }: LayoutProps) {
       toggle: () => setIsQualityMenuOpen(!isQualityMenuOpen),
       children: [
         { icon: CalendarClock, label: "Calibration Management", href: "/calibration-management" },
-        { icon: FileCheck, label: "WPS and PQR", href: "/wps-pqr" },
-        { icon: UserCheck, label: "Welder Management", href: "/welder-management" },
+        { 
+          icon: FileCheck, 
+          label: "WPS and PQR", 
+          isSubmenu: true,
+          isOpen: isWpsSubmenuOpen,
+          toggle: () => setIsWpsSubmenuOpen(!isWpsSubmenuOpen),
+          children: [
+            { icon: FileCheck, label: "WPS/PQR Documents", href: "/wps-pqr" },
+            { icon: UserCheck, label: "Welder Management", href: "/welder-management" },
+          ]
+        },
         { icon: CheckSquare, label: "Material Identification", href: "/material-identification" },
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
         { icon: FileCheck, label: "Inspection Management", href: "/inspection-management" },
