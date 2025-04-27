@@ -6,6 +6,7 @@ import { wpsDocuments, users } from '@shared/schema';
 import { 
   uploadWpsPqrDocument, 
   uploadWpsDocument,
+  uploadPqrDocument,
   uploadCombinedDocument 
 } from '../utils/wps-pqr-document-upload';
 
@@ -266,6 +267,63 @@ router.post('/combined-document', ensureAuthenticated, uploadWpsPqrDocument.sing
     console.error('Error uploading combined WPS/PQR document:', error);
     res.status(500).json({ 
       error: 'Failed to upload combined WPS/PQR document',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Create new PQR document
+router.post('/wps/pqr', ensureAuthenticated, uploadWpsPqrDocument.single('document'), async (req: Request, res: Response) => {
+  try {
+    const wpsId = parseInt(req.body.wpsId);
+    
+    // Check if WPS document exists
+    const [wpsDocument] = await db.query.wpsDocuments.findMany({
+      where: eq(sql`id`, wpsId)
+    });
+    
+    if (!wpsDocument) {
+      return res.status(404).json({ error: 'WPS document not found' });
+    }
+    
+    // Use the PQR ID that was already generated with the WPS
+    const pqrId = wpsDocument.pqr_id;
+    
+    // If a document was uploaded, process it with Google Cloud Storage
+    let documentUploadResult = { success: true };
+    if (req.file) {
+      req.body.pqrId = pqrId; // Set PQR ID for file naming
+      documentUploadResult = await uploadPqrDocument(req);
+      
+      if ('error' in documentUploadResult) {
+        return res.status(400).json({ error: documentUploadResult.error });
+      }
+    }
+    
+    // Update the WPS document with PQR information
+    const [updatedWpsDocument] = await db.update(sql`wps_documents`)
+      .set({
+        has_pqr: true,
+        pqr_test_date: req.body.testDate,
+        pqr_test_laboratory: req.body.testLaboratory,
+        pqr_test_type: req.body.testType,
+        pqr_test_results: req.body.testResults,
+        pqr_status: req.body.status,
+        pqr_remarks: req.body.remarks,
+        pqr_document_file_path: documentUploadResult.document_file_path || null,
+        pqr_document_url: documentUploadResult.document_url || null,
+        pqr_created_by: req.user!.id,
+        pqr_created_at: new Date(),
+        updated_at: new Date()
+      })
+      .where(eq(sql`id`, wpsId))
+      .returning();
+    
+    res.status(201).json(updatedWpsDocument);
+  } catch (error) {
+    console.error('Error creating PQR document:', error);
+    res.status(500).json({ 
+      error: 'Failed to create PQR document',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }

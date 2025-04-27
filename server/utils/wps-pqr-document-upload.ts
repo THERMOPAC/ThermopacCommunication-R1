@@ -133,10 +133,88 @@ export const uploadWpsDocument = async (req: Request): Promise<{
 };
 
 /**
- * Upload a combined WPS/PQR document to Google Cloud Storage
+ * Upload a PQR document to Google Cloud Storage
  * @param req Express request object with file attached
  * @returns Object with upload result
  */
+export const uploadPqrDocument = async (req: Request): Promise<{
+  success: boolean;
+  document_file_path?: string;
+  document_url?: string;
+  error?: string;
+}> => {
+  if (!req.file) {
+    return {
+      error: 'No file was uploaded',
+      success: false
+    };
+  }
+  
+  try {
+    const { storage, bucketName } = getGcsClient();
+    const bucket = storage.bucket(bucketName);
+    
+    // Get PQR ID from request body
+    const pqrId = req.body.pqrId;
+    if (!pqrId) {
+      return {
+        error: 'PQR ID is required for document upload',
+        success: false
+      };
+    }
+    
+    // Format file path - store in QMS/WPS_PQR directory
+    const filePath = `QMS/WPS_PQR/${pqrId}.pdf`;
+    
+    // Create a new blob in the bucket and upload the file data
+    const blob = bucket.file(filePath);
+    const blobStream = blob.createWriteStream({
+      resumable: false,
+      contentType: 'application/pdf'
+    });
+    
+    // Return a promise that resolves when the file is uploaded
+    return new Promise((resolve, reject) => {
+      blobStream.on('error', (err) => {
+        console.error('Error uploading PQR document:', err);
+        reject({
+          error: 'Failed to upload PQR document',
+          success: false
+        });
+      });
+      
+      blobStream.on('finish', async () => {
+        // Make the file public and get the URL
+        try {
+          await blob.makePublic();
+          const publicUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
+          
+          resolve({
+            success: true,
+            document_file_path: filePath,
+            document_url: publicUrl
+          });
+        } catch (err) {
+          console.error('Error making PQR document public:', err);
+          reject({
+            error: 'Failed to make PQR document public',
+            success: false
+          });
+        }
+      });
+      
+      // Send the file buffer to the blob stream
+      blobStream.end(req.file.buffer);
+    });
+  } catch (error) {
+    console.error('Error in PQR document upload process:', error);
+    return {
+      error: error instanceof Error ? error.message : 'Unknown error during upload',
+      success: false
+    };
+  }
+};
+
 export const uploadCombinedDocument = async (req: Request): Promise<{
   success: boolean;
   wpsId?: string;
