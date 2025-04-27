@@ -938,6 +938,19 @@ export default function WpsPqrManagementPage() {
                     <TabsTrigger value="document">Document</TabsTrigger>
                   </TabsList>
                   <TabsContent value="details" className="space-y-4">
+                    {/* Document ID Information Box */}
+                    <div className="border rounded-md p-4 bg-blue-50 border-blue-100 mb-4">
+                      <h3 className="font-medium text-blue-700 flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Document Numbering
+                      </h3>
+                      <p className="text-sm text-blue-700 mt-2">
+                        Document will receive the following ID: <span className="font-semibold">WPS-{wpsDocuments.length + 1}</span>
+                      </p>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Associated PQR ID will be: <span className="font-semibold">PQR-{wpsDocuments.length + 1}</span>
+                      </p>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
@@ -1666,12 +1679,12 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
             )}
             
             {(wps || (selectedWpsId && selectedWpsId > 0)) && (
-              <div className="mb-6 border rounded-md p-4 bg-green-50 border-green-100">
-                <h3 className="font-medium text-green-700 flex items-center">
-                  <CheckCircle className="mr-2 h-5 w-5" />
-                  WPS Document Selected
+              <div className="mb-6 border rounded-md p-4 bg-blue-50 border-blue-100">
+                <h3 className="font-medium text-blue-700 flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Document Numbering
                 </h3>
-                <p className="text-sm text-green-600 mt-1">
+                <p className="text-sm text-blue-700 mt-2">
                   Creating PQR for WPS: <span className="font-semibold">
                     {wps?.wpsId || 
                      (availableWps && selectedWpsId ? 
@@ -1679,7 +1692,7 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
                       "Unknown")}
                   </span>
                 </p>
-                <p className="text-sm text-green-600 mt-1">
+                <p className="text-sm text-blue-700 mt-1">
                   PQR ID will be: <span className="font-semibold">
                     {wps?.pqrId || 
                      (availableWps && selectedWpsId ? 

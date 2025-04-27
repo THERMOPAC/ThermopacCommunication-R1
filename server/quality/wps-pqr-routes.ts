@@ -56,20 +56,18 @@ router.get('/wps/:id', ensureAuthenticated, async (req: Request, res: Response) 
 // Create new WPS document
 router.post('/wps', ensureAuthenticated, uploadWpsPqrDocument.single('document'), async (req: Request, res: Response) => {
   try {
-    // Generate WPS ID
-    const currentYear = new Date().getFullYear();
-    
-    // Query for the highest existing WPS sequence for the current year
+    // Generate WPS ID with format WPS-N (without year)
+    // Query for the highest existing WPS sequence
     const result = await db.execute(sql`
       SELECT MAX(CAST(SUBSTRING(wps_id, POSITION('-' IN wps_id) + 1) AS INTEGER)) as max_seq
       FROM wps_documents
-      WHERE wps_id LIKE ${`WPS-${currentYear}-%`}
+      WHERE wps_id LIKE 'WPS-%'
     `);
     
     const maxSeq = result[0]?.max_seq || 0;
     const nextSeq = maxSeq + 1;
-    const wpsId = `WPS-${currentYear}-${nextSeq}`;
-    const pqrId = `PQR-${currentYear}-${nextSeq}`;
+    const wpsId = `WPS-${nextSeq}`;
+    const pqrId = `PQR-${nextSeq}`;
     
     // If a document was uploaded, process it with Google Cloud Storage
     let documentUploadResult = { success: true };
