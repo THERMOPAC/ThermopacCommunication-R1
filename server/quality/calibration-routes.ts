@@ -514,4 +514,66 @@ router.get('/instruments/:id/certificate', ensureAuthenticated, async (req: Requ
   }
 });
 
+// Endpoint to fetch calibration instruments data for reporting
+router.get('/report', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { instrumentId, instrumentType, status, dueWithin } = req.query;
+    
+    let queryParams = [];
+    let queryConditions = [];
+    let paramIndex = 1;
+    
+    let query = `
+      SELECT 
+        ci.*,
+        u.username as created_by_user
+      FROM calibration_instruments ci
+      LEFT JOIN users u ON ci.created_by = u.id
+      WHERE 1=1
+    `;
+    
+    // Add filters if provided
+    if (instrumentId) {
+      queryConditions.push(`ci.instrument_id = $${paramIndex}`);
+      queryParams.push(instrumentId);
+      paramIndex++;
+    }
+    
+    if (instrumentType) {
+      queryConditions.push(`ci.instrument_type = $${paramIndex}`);
+      queryParams.push(instrumentType);
+      paramIndex++;
+    }
+    
+    if (status) {
+      queryConditions.push(`ci.status = $${paramIndex}`);
+      queryParams.push(status);
+      paramIndex++;
+    }
+    
+    // Filter for instruments due within a certain timeframe (in days)
+    if (dueWithin) {
+      queryConditions.push(`ci.next_calibration_date <= (CURRENT_DATE + INTERVAL '${parseInt(dueWithin as string)} days')`);
+    }
+    
+    // Add conditions to query
+    if (queryConditions.length > 0) {
+      query += ` AND ${queryConditions.join(' AND ')}`;
+    }
+    
+    // Order by calibration due date
+    query += ' ORDER BY ci.next_calibration_date';
+    
+    const result = await pool.query(query, queryParams);
+    
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error fetching report data:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch report data',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
