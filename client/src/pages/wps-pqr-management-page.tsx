@@ -58,6 +58,8 @@ type WpsDocument = {
   shieldingGas?: string;
   document_file_path?: string;
   document_url?: string;
+  combined_document_file_path?: string;
+  combined_document_url?: string;
   status: string;
   approvedBy?: number;
   approvalDate?: string;
@@ -113,7 +115,11 @@ export default function WpsPqrManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [combinedDocumentFile, setCombinedDocumentFile] = useState<File | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("wps");
+  const [selectedWpsId, setSelectedWpsId] = useState<string | null>(null);
+  const [selectedPqrId, setSelectedPqrId] = useState<string | null>(null);
   
   // Handle status filter selection
   const handleStatusFilterChange = (value: string) => {
@@ -361,6 +367,13 @@ export default function WpsPqrManagementPage() {
     }
   };
   
+  // Handle combined document file selection
+  const handleCombinedDocumentFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setCombinedDocumentFile(event.target.files[0]);
+    }
+  };
+  
   // Download document
   const handleDownloadDocument = async (wpsId: number) => {
     try {
@@ -373,6 +386,62 @@ export default function WpsPqrManagementPage() {
       });
     }
   };
+  
+  // Download combined document
+  const handleDownloadCombinedDocument = async (wpsId: number) => {
+    try {
+      window.open(`/api/quality/wps-pqr/wps/${wpsId}/combined-document`, '_blank');
+    } catch (error) {
+      toast({
+        title: "Error downloading combined document",
+        description: "Failed to download the combined document file",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Upload combined document
+  const uploadCombinedDocumentMutation = useMutation({
+    mutationFn: async ({ wpsId, pqrId }: { wpsId: string; pqrId: string }) => {
+      if (!combinedDocumentFile) {
+        throw new Error("No document file selected");
+      }
+      
+      const formData = new FormData();
+      formData.append("combinedDocument", combinedDocumentFile);
+      formData.append("wpsId", wpsId);
+      formData.append("pqrId", pqrId);
+      
+      const response = await fetch(`/api/quality/wps-pqr/combined-document`, {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to upload combined document");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Combined WPS/PQR document uploaded successfully",
+      });
+      setCombinedDocumentFile(null);
+      setSelectedWpsId(null);
+      setSelectedPqrId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps-pqr/wps"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error uploading combined document",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
   
   // Get status badge
   const getStatusBadge = (status: string) => {
@@ -393,125 +462,303 @@ export default function WpsPqrManagementPage() {
   return (
     <Layout>
       <div className="container mx-auto py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">WPS & PQR Management</h1>
-          <Button onClick={() => setIsAddWpsOpen(true)}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add New WPS
-          </Button>
-        </div>
-        
-        {/* Filter and search */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="w-full md:w-1/3">
-            <div className="relative">
-              <Search className="absolute left-2 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search by WPS ID, material, process..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+        <Tabs defaultValue="wps" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-2xl font-bold">WPS & PQR Management</h1>
+              <TabsList className="mt-4">
+                <TabsTrigger value="wps">WPS</TabsTrigger>
+                <TabsTrigger value="pqr">PQR</TabsTrigger>
+                <TabsTrigger value="documents">Documents</TabsTrigger>
+              </TabsList>
             </div>
+            <Button onClick={() => setIsAddWpsOpen(true)}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Add New WPS
+            </Button>
           </div>
-          <div className="w-full md:w-1/4">
-            <Select value={statusFilter || "all_statuses"} onValueChange={handleStatusFilterChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all_statuses">All Statuses</SelectItem>
-                {statusOptions.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
-        {/* WPS documents table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>WPS Documents</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          
+          <TabsContent value="wps" className="mt-0">
+            {/* Filter and search */}
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="w-full md:w-1/3">
+                <div className="relative">
+                  <Search className="absolute left-2 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by WPS ID, material, process..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
-            ) : filteredWpsDocuments.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No WPS documents found. Add a new WPS to get started.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>WPS ID</TableHead>
-                      <TableHead>PQR ID</TableHead>
-                      <TableHead>Process</TableHead>
-                      <TableHead>Base Metal</TableHead>
-                      <TableHead>Joint Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Document</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredWpsDocuments.map((wps) => (
-                      <TableRow key={wps.id}>
-                        <TableCell className="font-medium">{wps.wpsId}</TableCell>
-                        <TableCell>{wps.pqrId}</TableCell>
-                        <TableCell>{wps.welderProcess}</TableCell>
-                        <TableCell>
-                          {wps.baseMetalGrade}
-                          <span className="text-xs text-muted-foreground block">
-                            {wps.baseMetalThickness} mm
-                          </span>
-                        </TableCell>
-                        <TableCell>{wps.jointType}</TableCell>
-                        <TableCell>{getStatusBadge(wps.status)}</TableCell>
-                        <TableCell>
-                          {wps.document_file_path ? (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleDownloadDocument(wps.id)}
-                            >
-                              <Download className="h-4 w-4 mr-1" /> View
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">No document</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditClick(wps)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteClick(wps)}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+              <div className="w-full md:w-1/4">
+                <Select value={statusFilter || "all_statuses"} onValueChange={handleStatusFilterChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all_statuses">All Statuses</SelectItem>
+                    {statusOptions.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
                     ))}
-                  </TableBody>
-                </Table>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+            
+            {/* WPS documents table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>WPS Documents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : filteredWpsDocuments.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No WPS documents found. Add a new WPS to get started.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>WPS ID</TableHead>
+                          <TableHead>PQR ID</TableHead>
+                          <TableHead>Process</TableHead>
+                          <TableHead>Base Metal</TableHead>
+                          <TableHead>Joint Type</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Document</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredWpsDocuments.map((wps) => (
+                          <TableRow key={wps.id}>
+                            <TableCell className="font-medium">{wps.wpsId}</TableCell>
+                            <TableCell>{wps.pqrId}</TableCell>
+                            <TableCell>{wps.welderProcess}</TableCell>
+                            <TableCell>
+                              {wps.baseMetalGrade}
+                              <span className="text-xs text-muted-foreground block">
+                                {wps.baseMetalThickness} mm
+                              </span>
+                            </TableCell>
+                            <TableCell>{wps.jointType}</TableCell>
+                            <TableCell>{getStatusBadge(wps.status)}</TableCell>
+                            <TableCell>
+                              {wps.document_file_path ? (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleDownloadDocument(wps.id)}
+                                >
+                                  <Download className="h-4 w-4 mr-1" /> View
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">No document</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditClick(wps)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteClick(wps)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="pqr" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>PQR Documents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-muted-foreground">
+                  PQR management functionality coming soon.
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="documents" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Combined WPS/PQR Documents</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Upload approved combined WPS and PQR documents for reference.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {/* Document upload form */}
+                  <div className="bg-muted/50 p-6 rounded-lg border">
+                    <h3 className="text-lg font-medium mb-4">Upload Combined WPS/PQR Document</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <Label htmlFor="wps_id">WPS ID</Label>
+                        <Input 
+                          id="wps_id" 
+                          placeholder="Enter WPS ID" 
+                          value={selectedWpsId || ''}
+                          onChange={(e) => setSelectedWpsId(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Enter the WPS ID for this document
+                        </p>
+                      </div>
+                      <div>
+                        <Label htmlFor="pqr_id">PQR ID</Label>
+                        <Input 
+                          id="pqr_id" 
+                          placeholder="Enter PQR ID" 
+                          value={selectedPqrId || ''}
+                          onChange={(e) => setSelectedPqrId(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Enter the PQR ID for this document
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <Label htmlFor="combined_document">Upload Combined Document</Label>
+                      <Input
+                        id="combined_document"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={handleCombinedDocumentFileChange}
+                        className="mt-1"
+                      />
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {combinedDocumentFile ? 
+                          `Selected file: ${combinedDocumentFile.name}` : 
+                          "Select a PDF or image file (.pdf, .jpg, .png)"}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Note: The file will be stored with the filename "WPS ID_PQR ID.pdf" in Google Cloud Storage under QMS/WPS_PQR path.
+                      </p>
+                    </div>
+                    
+                    <Button
+                      onClick={() => {
+                        if (!selectedWpsId || !selectedPqrId) {
+                          toast({
+                            title: "Missing Information",
+                            description: "Please enter both WPS ID and PQR ID",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        
+                        if (!combinedDocumentFile) {
+                          toast({
+                            title: "No File Selected",
+                            description: "Please select a document file to upload",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        
+                        uploadCombinedDocumentMutation.mutate({
+                          wpsId: selectedWpsId,
+                          pqrId: selectedPqrId
+                        });
+                      }}
+                      disabled={uploadCombinedDocumentMutation.isPending}
+                    >
+                      {uploadCombinedDocumentMutation.isPending ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
+                      ) : (
+                        <>
+                          <FileText className="mr-2 h-4 w-4" /> Upload Combined Document
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  
+                  {/* Document list */}
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Uploaded Combined Documents</h3>
+                    {isLoading ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>WPS ID</TableHead>
+                              <TableHead>PQR ID</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Combined Document</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredWpsDocuments
+                              .filter(doc => doc.combined_document_file_path)
+                              .map((wps) => (
+                                <TableRow key={`${wps.id}-combined`}>
+                                  <TableCell className="font-medium">{wps.wpsId}</TableCell>
+                                  <TableCell>{wps.pqrId}</TableCell>
+                                  <TableCell>{getStatusBadge(wps.status)}</TableCell>
+                                  <TableCell>
+                                    {wps.combined_document_file_path ? (
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => handleDownloadCombinedDocument(wps.id)}
+                                      >
+                                        <Download className="h-4 w-4 mr-1" /> View Document
+                                      </Button>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">No document</span>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                            ))}
+                            {filteredWpsDocuments.filter(doc => doc.combined_document_file_path).length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                                  No combined documents uploaded yet.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
         
         {/* Add WPS Dialog */}
         <Dialog open={isAddWpsOpen} onOpenChange={setIsAddWpsOpen}>
