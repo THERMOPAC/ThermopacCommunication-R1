@@ -132,7 +132,7 @@ export default function WpsPqrManagementPage() {
     isLoading, 
     refetch 
   } = useQuery<WpsDocument[]>({
-    queryKey: ["/api/quality/wps-pqr/wps"],
+    queryKey: ["/api/quality/wps"],
   });
   
   // Create new WPS document mutation
