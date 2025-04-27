@@ -16,6 +16,7 @@ import {
   generateInspectionOrders
 } from './quality/fixed-inspection-order-generator';
 import { setupWelderRoutes } from './quality/welder-routes';
+import calibrationRoutes from './quality/calibration-routes';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
@@ -27,6 +28,9 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
 export const setupQualityRoutes = (app: Router) => {
   // Set up welder management routes
   setupWelderRoutes(app);
+  
+  // Set up calibration management routes
+  app.use('/api/quality/calibration', calibrationRoutes);
   
   // Existing quality routes should be kept...
 

@@ -26,7 +26,8 @@ import {
   Lock,
   Shield,
   Settings,
-  FileCheck
+  FileCheck,
+  CalendarClock
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -69,7 +70,8 @@ export default function Layout({ children }: LayoutProps) {
                         location === '/inspections' ||
                         location === '/inspection-management' ||
                         location.startsWith('/quality-reports') ||
-                        location === '/quality-assurance-plan';
+                        location === '/quality-assurance-plan' ||
+                        location === '/calibration-management';
   
   // Auto-open menus based on current page
   useEffect(() => {
@@ -151,6 +153,7 @@ export default function Layout({ children }: LayoutProps) {
       isOpen: isQualityMenuOpen,
       toggle: () => setIsQualityMenuOpen(!isQualityMenuOpen),
       children: [
+        { icon: CalendarClock, label: "Calibration Management", href: "/calibration-management" },
         { icon: FileCheck, label: "WPS and PQR", href: "/wps-pqr" },
         { icon: UserCheck, label: "Welder Management", href: "/welder-management" },
         { icon: CheckSquare, label: "Material Identification", href: "/material-identification" },
