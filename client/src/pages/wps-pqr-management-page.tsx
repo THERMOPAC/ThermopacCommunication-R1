@@ -102,6 +102,31 @@ const welderProcessOptions = [
   "GMAW"
 ];
 
+const baseMetalGradeOptions = [
+  "SA-516 Gr 60",
+  "SA-516 Gr 70",
+  "SA-106 Gr B",
+  "SA-106 Gr C",
+  "SA-36",
+  "SA-537 Cl 1",
+  "SA-537 Cl 2",
+  "SA-240 Type 304",
+  "SA-240 Type 316",
+  "SA-312 TP304",
+  "SA-312 TP316",
+  "SA-387 Gr 11 Cl 2",
+  "SA-387 Gr 22 Cl 2",
+  "SA-213 TP304",
+  "SA-213 TP316",
+  "API 5L Gr B",
+  "API 5L X42",
+  "API 5L X52",
+  "ASTM A36",
+  "ASTM A106 Gr B",
+  "ASTM A333 Gr 6",
+  "ASTM A515 Gr 70"
+];
+
 const jointTypeOptions = [
   "Butt",
   "Fillet",
@@ -1076,9 +1101,23 @@ export default function WpsPqrManagementPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Base Metal Grade</FormLabel>
-                            <FormControl>
-                              <Input placeholder="e.g. SA516 Gr.70" {...field} />
-                            </FormControl>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select base metal grade" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="max-h-[300px]">
+                                {baseMetalGradeOptions.map((grade) => (
+                                  <SelectItem key={grade} value={grade}>
+                                    {grade}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1340,9 +1379,23 @@ export default function WpsPqrManagementPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Base Metal Grade</FormLabel>
-                            <FormControl>
-                              <Input placeholder="e.g. SA516 Gr.70" {...field} />
-                            </FormControl>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select base metal grade" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="max-h-[300px]">
+                                {baseMetalGradeOptions.map((grade) => (
+                                  <SelectItem key={grade} value={grade}>
+                                    {grade}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
