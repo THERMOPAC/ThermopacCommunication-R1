@@ -172,7 +172,7 @@ export default function WpsPqrManagementPage() {
       setIsAddWpsOpen(false);
       form.reset();
       setDocumentFile(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps-pqr/wps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps"] });
     },
     onError: (error: Error) => {
       toast({
@@ -221,7 +221,7 @@ export default function WpsPqrManagementPage() {
       editForm.reset();
       setDocumentFile(null);
       setSelectedWps(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps-pqr/wps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps"] });
     },
     onError: (error: Error) => {
       toast({
@@ -253,7 +253,7 @@ export default function WpsPqrManagementPage() {
       });
       setIsDeleteDialogOpen(false);
       setSelectedWps(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps-pqr/wps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps"] });
     },
     onError: (error: Error) => {
       toast({
@@ -432,7 +432,7 @@ export default function WpsPqrManagementPage() {
       setCombinedDocumentFile(null);
       setSelectedWpsId(null);
       setSelectedPqrId(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps-pqr/wps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps"] });
     },
     onError: (error: Error) => {
       toast({
