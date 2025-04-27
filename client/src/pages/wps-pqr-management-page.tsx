@@ -57,6 +57,8 @@ const pqrDocumentSchema = z.object({
   remarks: z.string().optional(),
 });
 
+// Standard options for various form fields
+
 // Type for the form data
 type WpsDocumentFormData = z.infer<typeof wpsDocumentSchema>;
 type PqrDocumentFormData = z.infer<typeof pqrDocumentSchema>;

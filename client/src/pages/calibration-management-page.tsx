@@ -690,7 +690,7 @@ export default function CalibrationManagementPage() {
               <CardTitle className="text-sm font-medium">Total Instruments</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{isStatsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.total}</div>
+              <div className="text-2xl font-bold">{isStatsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats?.total || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -698,7 +698,7 @@ export default function CalibrationManagementPage() {
               <CardTitle className="text-sm font-medium">Calibrated</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{isStatsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.calibrated}</div>
+              <div className="text-2xl font-bold text-green-600">{isStatsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats?.calibrated || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -706,7 +706,7 @@ export default function CalibrationManagementPage() {
               <CardTitle className="text-sm font-medium">Due Soon</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-amber-500">{isStatsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.dueSoon}</div>
+              <div className="text-2xl font-bold text-amber-500">{isStatsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats?.dueSoon || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -714,7 +714,7 @@ export default function CalibrationManagementPage() {
               <CardTitle className="text-sm font-medium">Overdue</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{isStatsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.overdue}</div>
+              <div className="text-2xl font-bold text-red-600">{isStatsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats?.overdue || 0}</div>
             </CardContent>
           </Card>
         </div>
