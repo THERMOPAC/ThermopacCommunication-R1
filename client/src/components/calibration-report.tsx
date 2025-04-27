@@ -87,7 +87,7 @@ export default function CalibrationReport({ open, onOpenChange }: CalibrationRep
     { label: "Next 7 days", value: "7" },
     { label: "Next 30 days", value: "30" },
     { label: "Next 90 days", value: "90" },
-    { label: "All instruments", value: "" }
+    { label: "All instruments", value: "all" }
   ];
 
   // Function to generate report
@@ -97,9 +97,9 @@ export default function CalibrationReport({ open, onOpenChange }: CalibrationRep
       // Build the query string for filters
       let queryParams = new URLSearchParams();
       if (instrumentIdFilter) queryParams.append('instrumentId', instrumentIdFilter);
-      if (instrumentTypeFilter) queryParams.append('instrumentType', instrumentTypeFilter);
-      if (statusFilter) queryParams.append('status', statusFilter);
-      if (dueWithinFilter) queryParams.append('dueWithin', dueWithinFilter);
+      if (instrumentTypeFilter && instrumentTypeFilter !== 'all_types') queryParams.append('instrumentType', instrumentTypeFilter);
+      if (statusFilter && statusFilter !== 'all_statuses') queryParams.append('status', statusFilter);
+      if (dueWithinFilter && dueWithinFilter !== 'all') queryParams.append('dueWithin', dueWithinFilter);
 
       const response = await fetch('/api/quality/calibration/report?' + queryParams.toString());
       
@@ -199,13 +199,16 @@ export default function CalibrationReport({ open, onOpenChange }: CalibrationRep
       doc.text(`Generated on: ${format(new Date(), 'dd-MM-yyyy HH:mm')}`, 105, 22, { align: 'center' });
       
       // Add filters if applied
-      if (instrumentIdFilter || instrumentTypeFilter || statusFilter || dueWithinFilter) {
+      if (instrumentIdFilter || 
+          (instrumentTypeFilter && instrumentTypeFilter !== 'all_types') || 
+          (statusFilter && statusFilter !== 'all_statuses') || 
+          (dueWithinFilter && dueWithinFilter !== 'all')) {
         doc.setFontSize(10);
         let filterText = 'Filters applied: ';
         if (instrumentIdFilter) filterText += `Instrument ID: ${instrumentIdFilter} `;
-        if (instrumentTypeFilter) filterText += `Type: ${instrumentTypeFilter} `;
-        if (statusFilter) filterText += `Status: ${statusFilter} `;
-        if (dueWithinFilter) filterText += `Due within: ${dueWithinFilter} days `;
+        if (instrumentTypeFilter && instrumentTypeFilter !== 'all_types') filterText += `Type: ${instrumentTypeFilter} `;
+        if (statusFilter && statusFilter !== 'all_statuses') filterText += `Status: ${statusFilter} `;
+        if (dueWithinFilter && dueWithinFilter !== 'all') filterText += `Due within: ${dueWithinFilter} days `;
         doc.text(filterText, 105, 28, { align: 'center' });
       }
 
@@ -308,7 +311,7 @@ export default function CalibrationReport({ open, onOpenChange }: CalibrationRep
                   <SelectValue placeholder="Select instrument type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  <SelectItem value="all_types">All Types</SelectItem>
                   {instrumentTypeOptions.map((type) => (
                     <SelectItem key={type} value={type}>{type}</SelectItem>
                   ))}
@@ -325,7 +328,7 @@ export default function CalibrationReport({ open, onOpenChange }: CalibrationRep
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Statuses</SelectItem>
+                  <SelectItem value="all_statuses">All Statuses</SelectItem>
                   {statusOptions.map((status) => (
                     <SelectItem key={status} value={status}>{status}</SelectItem>
                   ))}
