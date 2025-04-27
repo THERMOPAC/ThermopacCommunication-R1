@@ -74,31 +74,14 @@ const projectFormSchema = z.object({
 type ProjectFormValues = z.infer<typeof projectFormSchema>;
 type ProjectItemValues = z.infer<typeof projectItemSchema>;
 
-// Function to get the current financial year in the format "FY23-24"
+// Function to get the current year in the format "2025"
 function getCurrentFinancialYear(): string {
-  const today = new Date();
-  const currentMonth = today.getMonth(); // 0-11 (Jan-Dec)
-  
-  // In India, financial year starts from April 1 and ends on March 31
-  let financialYearStart: number;
-  
-  // If current month is January to March, financial year started in previous calendar year
-  // Otherwise, financial year started in current calendar year
-  if (currentMonth < 3) { // January to March
-    financialYearStart = today.getFullYear() - 1;
-  } else { // April to December
-    financialYearStart = today.getFullYear();
-  }
-  
-  // Financial year is represented as "FY23-24" where 23 is the last two digits of start year
-  // and 24 is the last two digits of end year
-  const startYearShort = (financialYearStart % 100).toString().padStart(2, '0');
-  const endYearShort = ((financialYearStart + 1) % 100).toString().padStart(2, '0');
-  
-  return `FY${startYearShort}-${endYearShort}`;
+  // Just return the current year as a string
+  const currentYear = new Date().getFullYear().toString();
+  return currentYear;
 }
 
-// Function to convert financial year to the format used for project codes
+// Function to convert any input to the current calendar year format
 function convertFinancialYearToCode(financialYear: string): string {
   // Return the current year as a string (YYYY format)
   return new Date().getFullYear().toString();
@@ -510,7 +493,7 @@ export default function ProjectList() {
                             </FormControl>
                             <FormMessage />
                             <div className="text-xs text-muted-foreground">
-                              Current financial year (auto-generated)
+                              Current calendar year (auto-generated)
                             </div>
                           </FormItem>
                         )}
