@@ -150,7 +150,7 @@ export function setupWelderRoutes(app: any) {
       try {
         console.log("Executing database insert");
         
-        // Create welder record with simplified query
+        // Create welder record with proper PostgreSQL array handling
         const result = await db.execute(sql`
           INSERT INTO welders (
             "welderId", name, trade, "processQualified", "materialGroupQualified", 
@@ -159,9 +159,13 @@ export function setupWelderRoutes(app: any) {
             remarks, "createdAt"
           ) 
           VALUES (
-            ${welderId}, ${name}, ${trade}, ${processArray}, ${materialArray},
-            ${thicknessRange}, ${positionArray}, ${wpsNumber}, ${testDate},
-            ${testResults}, ${certificateNo}, ${certificateExpiryDate}, ${status},
+            ${welderId}, ${name}, ${trade}, 
+            ${`{${processArray.join(',')}}`}::text[], 
+            ${`{${materialArray.join(',')}}`}::text[],
+            ${thicknessRange || ''}, 
+            ${`{${positionArray.join(',')}}`}::text[], 
+            ${wpsNumber}, ${testDate},
+            ${testResults || 'Pass'}, ${certificateNo}, ${certificateExpiryDate}, ${status},
             ${remarks || ""}, NOW()
           )
           RETURNING id, "welderId", name, trade
@@ -266,16 +270,16 @@ export function setupWelderRoutes(app: any) {
       try {
         console.log("Executing database update");
         
-        // Update welder record with simplified query
+        // Update welder record with proper PostgreSQL array handling
         const result = await db.execute(sql`
           UPDATE welders 
           SET 
             name = ${name}, 
             trade = ${trade}, 
-            "processQualified" = ${processArray}, 
-            "materialGroupQualified" = ${materialArray}, 
+            "processQualified" = ${`{${processArray.join(',')}}`}::text[], 
+            "materialGroupQualified" = ${`{${materialArray.join(',')}}`}::text[], 
             "thicknessRange" = ${thicknessRange}, 
-            "positionQualified" = ${positionArray}, 
+            "positionQualified" = ${`{${positionArray.join(',')}}`}::text[], 
             "wpsNumber" = ${wpsNumber}, 
             "testDate" = ${testDate}, 
             "testResults" = ${testResults}, 

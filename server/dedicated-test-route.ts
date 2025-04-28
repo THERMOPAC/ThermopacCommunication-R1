@@ -116,7 +116,7 @@ testRouter.post('/create-welder-test', async (req: Request, res: Response) => {
     try {
       console.log("Executing database insert");
       
-      // Create welder record with simplified query
+      // Create welder record with proper array handling for PostgreSQL
       const result = await db.execute(sql`
         INSERT INTO welders (
           "welderId", name, trade, "processQualified", "materialGroupQualified", 
@@ -126,10 +126,10 @@ testRouter.post('/create-welder-test', async (req: Request, res: Response) => {
         ) 
         VALUES (
           ${welderId}, ${name}, ${trade}, 
-          ${sql.array(processArray, 'text')}, 
-          ${sql.array(materialArray, 'text')},
+          ${`{${processArray.join(',')}}`}::text[], 
+          ${`{${materialArray.join(',')}}`}::text[],
           ${thicknessRange || ''}, 
-          ${sql.array(positionArray, 'text')}, 
+          ${`{${positionArray.join(',')}}`}::text[], 
           ${wpsNumber}, 
           ${testDate || new Date().toISOString().split('T')[0]},
           ${testResults || 'Pass'}, 
