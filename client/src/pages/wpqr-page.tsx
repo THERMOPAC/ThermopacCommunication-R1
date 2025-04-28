@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DownloadCloud, FileText, RefreshCw, Trash2, Plus } from "lucide-react";
+import { Loader2, DownloadCloud, FileText, RefreshCw, Trash2, Plus, Eye, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -219,15 +219,17 @@ export default function WpqrPage() {
           {wpqrDocuments.map((document) => (
             <Card key={document.id} className="overflow-hidden">
               <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg truncate">{document.title}</CardTitle>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className="mr-1">
+                      {document.documentId}
+                    </Badge>
+                    <CardTitle className="text-base truncate">{document.title}</CardTitle>
+                  </div>
                   <Badge variant={document.status === "Active" ? "default" : "secondary"}>
                     {document.status}
                   </Badge>
                 </div>
-                <CardDescription className="truncate">
-                  ID: {document.documentId}
-                </CardDescription>
               </CardHeader>
               <CardContent className="pb-2">
                 <div className="space-y-1 text-sm">
@@ -244,13 +246,25 @@ export default function WpqrPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between pt-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => handleViewDocument(document)}
-                >
-                  View Details
-                </Button>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleViewDocument(document)}
+                    className="flex items-center gap-1"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    View
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
+                    <PencilLine className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                </div>
                 <div className="flex space-x-2">
                   <Button 
                     variant="ghost" 
