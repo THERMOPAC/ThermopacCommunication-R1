@@ -17,7 +17,8 @@ async function generateNextWelderId() {
     FROM welders
   `);
   
-  const maxId = parseInt(result.rows[0]?.max_id) || 0;
+  const maxIdStr = result.rows[0]?.max_id as string | undefined;
+  const maxId = maxIdStr ? parseInt(maxIdStr) : 0;
   const nextId = maxId + 1;
   return `W-${nextId.toString().padStart(3, '0')}`;
 }
@@ -29,7 +30,8 @@ async function generateNextCertificateNo() {
     FROM welders
   `);
   
-  const maxId = parseInt(result.rows[0]?.max_id) || 0;
+  const maxIdStr = result.rows[0]?.max_id as string | undefined;
+  const maxId = maxIdStr ? parseInt(maxIdStr) : 0;
   const nextId = maxId + 1;
   return `WQC-${nextId.toString().padStart(3, '0')}`;
 }
