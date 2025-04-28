@@ -3,7 +3,7 @@ import { db } from '../db';
 import { wpqrDocuments, wpqrDocumentSchema, users } from '@shared/schema';
 import { Storage } from '@google-cloud/storage';
 import multer from 'multer';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 const router = express.Router();
@@ -161,12 +161,14 @@ router.get('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
 // Helper function to generate a unique document ID
 async function generateWpqrDocumentId(): Promise<string> {
   // Count existing documents to determine the next number
-  const [{ count }] = await db
-    .select({ count: db.fn.count<number>(wpqrDocuments.id) })
+  const result = await db
+    .select({ count: sql`count(${wpqrDocuments.id})` })
     .from(wpqrDocuments);
   
+  const count = Number(result[0]?.count || 0);
+  
   // Format: WPQR-N where N is an incremental number
-  const nextNumber = count ? count + 1 : 1;
+  const nextNumber = count + 1;
   return `WPQR-${nextNumber}`;
 }
 

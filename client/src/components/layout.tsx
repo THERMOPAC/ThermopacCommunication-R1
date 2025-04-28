@@ -155,6 +155,7 @@ export default function Layout({ children }: LayoutProps) {
       children: [
         { icon: CalendarClock, label: "Calibration Management", href: "/calibration-management" },
         { icon: FileCheck, label: "WPS and PQR", href: "/wps-pqr-management" },
+        { icon: FileCheck, label: "WPQR Documents", href: "/wpqr" },
         { icon: UserCheck, label: "Welder Management", href: "/welder-management" },
         { icon: CheckSquare, label: "Material Identification", href: "/material-identification" },
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
