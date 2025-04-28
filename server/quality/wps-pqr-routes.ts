@@ -203,7 +203,7 @@ router.get('/wps/:id/document', ensureAuthenticated, async (req: Request, res: R
     
     // Check if WPS document exists
     const [existingDocument] = await db.query.wpsDocuments.findMany({
-      where: eq(sql`id`, wpsId)
+      where: eq(wpsDocuments.id, wpsId)
     });
     
     if (!existingDocument) {
@@ -277,7 +277,7 @@ router.post('/wps/pqr', ensureAuthenticated, uploadWpsPqrDocument.single('docume
     
     // Check if WPS document exists
     const [wpsDocument] = await db.query.wpsDocuments.findMany({
-      where: eq(sql`id`, wpsId)
+      where: eq(wpsDocuments.id, wpsId)
     });
     
     if (!wpsDocument) {
@@ -334,7 +334,7 @@ router.get('/wps/:id/combined-document', ensureAuthenticated, async (req: Reques
     
     // Check if WPS document exists
     const [existingDocument] = await db.query.wpsDocuments.findMany({
-      where: eq(sql`id`, wpsId)
+      where: eq(wpsDocuments.id, wpsId)
     });
     
     if (!existingDocument) {
