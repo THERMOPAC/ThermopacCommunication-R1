@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { db } from '../db';
 import { ensureAuthenticated } from '../middleware/auth-middleware';
-import { eq, sql, and, or, desc } from 'drizzle-orm';
+import { eq, sql, and, or, desc, SQL } from 'drizzle-orm';
 import { wpsDocuments, users } from '@shared/schema';
 import { 
   uploadWpsPqrDocument, 
@@ -376,13 +376,18 @@ router.post('/combined-document', ensureAuthenticated, uploadWpsPqrDocument.sing
     }
     
     // Update the WPS document with the combined document information
+    // Convert wpsDocument.id to a number if it's a string
+    const documentId = typeof wpsDocument.id === 'string' 
+      ? parseInt(wpsDocument.id) 
+      : wpsDocument.id;
+      
     const [updatedWpsDocument] = await db.update(wpsDocuments)
       .set({
         combinedDocumentFilePath: uploadResult.combined_document_file_path,
         combinedDocumentUrl: uploadResult.combined_document_url,
         updatedAt: new Date()
       })
-      .where(eq(wpsDocuments.id, wpsDocument.id))
+      .where(eq(wpsDocuments.id, documentId))
       .returning();
     
     res.status(200).json({
@@ -497,9 +502,42 @@ router.get('/report', ensureAuthenticated, async (req: Request, res: Response) =
   try {
     const { wpsId, pqrId } = req.query;
     
-    // Use raw SQL for the report query to avoid column naming issues
-    let sqlQuery = `
-      SELECT w.*, 
+    // Use a more explicit SQL query with proper column names
+    let query = sql`
+      SELECT 
+        w.id,
+        w.wps_id,
+        w.pqr_id,
+        w.revision_no,
+        w.welder_process,
+        w.base_metal_grade,
+        w.base_metal_thickness,
+        w.filler_material,
+        w.joint_type,
+        w.weld_position,
+        w.preheating_temp,
+        w.post_weld_heat_treatment,
+        w.shielding_gas,
+        w.document_file_path,
+        w.document_url,
+        w.combined_document_file_path,
+        w.combined_document_url,
+        w.status,
+        w.remarks,
+        w.approved_by,
+        w.approval_date,
+        w.created_by,
+        w.created_at,
+        w.updated_at,
+        w.has_pqr,
+        w.pqr_test_date,
+        w.pqr_test_laboratory,
+        w.pqr_test_type,
+        w.pqr_test_results,
+        w.pqr_status,
+        w.pqr_remarks,
+        w.pqr_document_file_path,
+        w.pqr_document_url,
         creator.username as created_by_user, 
         approver.username as approved_by_user
       FROM wps_documents w
@@ -508,28 +546,30 @@ router.get('/report', ensureAuthenticated, async (req: Request, res: Response) =
       WHERE 1=1
     `;
     
-    const params: any[] = [];
+    // Build conditions array
+    const conditions: SQL<unknown>[] = [];
     
     if (wpsId) {
-      sqlQuery += ` AND w.wps_id = $${params.length + 1}`;
-      params.push(wpsId);
+      conditions.push(sql`w.wps_id = ${wpsId}`);
     }
     
     if (pqrId) {
-      sqlQuery += ` AND w.pqr_id = $${params.length + 1}`;
-      params.push(pqrId);
+      conditions.push(sql`w.pqr_id = ${pqrId}`);
     }
     
-    sqlQuery += ` ORDER BY w.wps_id`;
+    // Add conditions to query
+    for (const condition of conditions) {
+      query = sql`${query} AND ${condition}`;
+    }
     
-    // Execute raw SQL with proper parameter formatting
-    const queryResult = await db.execute({
-      query: sqlQuery,
-      values: params
-    });
+    // Add ordering
+    query = sql`${query} ORDER BY w.wps_id`;
+    
+    // Execute the query
+    const queryResult = await db.execute(query);
     
     // Format the data for reporting
-    const reportData = (results.rows || []).map((record: any) => {
+    const reportData = (queryResult.rows || []).map((record: any) => {
       return {
         wps_id: record.id,
         wps_number: record.wps_id,
