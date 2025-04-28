@@ -1,46 +1,109 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
-import { ensureAuthenticated } from '../middleware/auth-middleware';
-import { eq, sql, desc } from 'drizzle-orm';
-import { wpqrDocuments } from '@shared/schema';
-import multer from 'multer';
-import path from 'path';
+import { wpqrDocuments, wpqrDocumentSchema, users } from '@shared/schema';
 import { Storage } from '@google-cloud/storage';
-import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+import { eq, desc } from 'drizzle-orm';
+import { z } from 'zod';
 
 const router = express.Router();
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
-const upload = multer({
+const upload = multer({ 
   storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB file size limit
-  },
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
-// Configure Google Cloud Storage
-const gcsBucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
+// Create Google Cloud Storage client
 let gcsClient: Storage;
 
 try {
-  const credentials = JSON.parse(process.env.GCS_CREDENTIALS || '{}');
-  gcsClient = new Storage({
-    projectId: credentials.project_id,
-    credentials
-  });
+  // Check if we're running in production (with service account credentials)
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Environment: production - Creating GCS client with default credentials');
+    gcsClient = new Storage();
+  } else {
+    // For development, use explicit credentials from environment variable
+    console.log('Environment: development - Creating GCS client with explicit credentials');
+    
+    if (!process.env.GOOGLE_CLOUD_CREDENTIALS) {
+      throw new Error('GOOGLE_CLOUD_CREDENTIALS environment variable is not set');
+    }
+    
+    const credentialsString = process.env.GOOGLE_CLOUD_CREDENTIALS;
+    console.log(`Credentials string length: ${credentialsString.length}`);
+    console.log(`First 20 chars: ${credentialsString.substring(0, 20)}...`);
+    
+    console.log('Attempting to parse Google Cloud credentials...');
+    const credentials = JSON.parse(credentialsString);
+    
+    // Validate credentials have required fields
+    const validation = {
+      hasType: !!credentials.type,
+      hasProjectId: !!credentials.project_id,
+      hasClientEmail: !!credentials.client_email,
+      hasPrivateKey: !!credentials.private_key
+    };
+    
+    console.log('✅ Successfully parsed credentials JSON');
+    console.log(`Credential validation: ${JSON.stringify(validation)}`);
+    
+    // Create GCS client with explicit credentials
+    gcsClient = new Storage({
+      projectId: credentials.project_id,
+      credentials: {
+        client_email: credentials.client_email,
+        private_key: credentials.private_key
+      }
+    });
+    
+    console.log(`Using explicit GCS credentials with project: ${credentials.project_id}`);
+    console.log(`Service account: ${credentials.client_email}`);
+  }
+  
   console.log('GCS client created successfully for WPQR routes');
 } catch (error) {
-  console.error('Error initializing GCS client for WPQR routes:', error);
-  // Fallback to default credentials if environment variables aren't set
-  gcsClient = new Storage();
+  console.error('Failed to initialize Google Cloud Storage client:', error);
+}
+
+// Define the GCS bucket name
+const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
+console.log(`Using GCS bucket name: ${bucketName} (from env: ${process.env.GCS_BUCKET_NAME})`);
+
+// Define ensureAuthenticated middleware
+function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: 'Not authenticated' });
 }
 
 // Get all WPQR documents
 router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const result = await db.select().from(wpqrDocuments).orderBy(desc(wpqrDocuments.createdAt));
-    res.json(result);
+    // Join with users table to get creator names
+    const documents = await db.select({
+      id: wpqrDocuments.id,
+      documentId: wpqrDocuments.documentId,
+      title: wpqrDocuments.title,
+      description: wpqrDocuments.description,
+      welderProcess: wpqrDocuments.welderProcess,
+      baseMetalGrade: wpqrDocuments.baseMetalGrade,
+      jointType: wpqrDocuments.jointType,
+      filePath: wpqrDocuments.filePath,
+      fileUrl: wpqrDocuments.fileUrl,
+      status: wpqrDocuments.status,
+      createdBy: wpqrDocuments.createdBy,
+      createdAt: wpqrDocuments.createdAt,
+      updatedAt: wpqrDocuments.updatedAt,
+      createdByUser: users.username
+    })
+    .from(wpqrDocuments)
+    .leftJoin(users, eq(wpqrDocuments.createdBy, users.id))
+    .orderBy(desc(wpqrDocuments.createdAt));
+    
+    res.json(documents);
   } catch (error) {
     console.error('Error fetching WPQR documents:', error);
     res.status(500).json({ 
@@ -53,16 +116,41 @@ router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
 // Get a specific WPQR document by ID
 router.get('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const documentId = parseInt(req.params.id);
-    const [document] = await db.select().from(wpqrDocuments).where(eq(wpqrDocuments.id, documentId));
+    const { id } = req.params;
+    const documentId = parseInt(id);
     
-    if (!document) {
-      return res.status(404).json({ error: 'WPQR document not found' });
+    if (isNaN(documentId)) {
+      return res.status(400).json({ error: 'Invalid document ID' });
     }
     
-    res.json(document);
+    const document = await db.select({
+      id: wpqrDocuments.id,
+      documentId: wpqrDocuments.documentId,
+      title: wpqrDocuments.title,
+      description: wpqrDocuments.description,
+      welderProcess: wpqrDocuments.welderProcess,
+      baseMetalGrade: wpqrDocuments.baseMetalGrade,
+      jointType: wpqrDocuments.jointType,
+      filePath: wpqrDocuments.filePath,
+      fileUrl: wpqrDocuments.fileUrl,
+      status: wpqrDocuments.status,
+      createdBy: wpqrDocuments.createdBy,
+      createdAt: wpqrDocuments.createdAt,
+      updatedAt: wpqrDocuments.updatedAt,
+      createdByUser: users.username
+    })
+    .from(wpqrDocuments)
+    .leftJoin(users, eq(wpqrDocuments.createdBy, users.id))
+    .where(eq(wpqrDocuments.id, documentId))
+    .limit(1);
+    
+    if (!document.length) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    res.json(document[0]);
   } catch (error) {
-    console.error(`Error fetching WPQR document ${req.params.id}:`, error);
+    console.error('Error fetching WPQR document:', error);
     res.status(500).json({ 
       error: 'Failed to fetch WPQR document',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -70,63 +158,87 @@ router.get('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   }
 });
 
-// Create a new WPQR document with file upload
+// Helper function to generate a unique document ID
+async function generateWpqrDocumentId(): Promise<string> {
+  // Count existing documents to determine the next number
+  const [{ count }] = await db
+    .select({ count: db.fn.count<number>(wpqrDocuments.id) })
+    .from(wpqrDocuments);
+  
+  // Format: WPQR-N where N is an incremental number
+  const nextNumber = count ? count + 1 : 1;
+  return `WPQR-${nextNumber}`;
+}
+
+// Create a new WPQR document
 router.post('/', ensureAuthenticated, upload.single('document'), async (req: Request, res: Response) => {
   try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
+    // Validate the request body
+    const { 
+      title, 
+      description = null, 
+      welderProcess, 
+      baseMetalGrade, 
+      jointType,
+      status = 'Active'
+    } = req.body;
+    
+    // Basic validation for required fields
+    if (!title || !welderProcess || !baseMetalGrade || !jointType) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
     if (!req.file) {
       return res.status(400).json({ error: 'No document file uploaded' });
     }
-
-    // Generate a unique document ID (WPQR-Year-Sequence)
-    const currentYear = new Date().getFullYear();
     
-    // Get the next sequence number for this year
-    const seqResult = await db.execute(sql`
-      SELECT COUNT(*) + 1 as next_seq 
-      FROM wpqr_documents 
-      WHERE document_id LIKE ${`WPQR-${currentYear}-%`}
-    `);
-    
-    const nextSeq = seqResult.rows && seqResult.rows.length > 0 ? 
-      parseInt(seqResult.rows[0].next_seq) || 1 : 1;
-    
-    const documentId = `WPQR-${currentYear}-${nextSeq.toString().padStart(3, '0')}`;
+    // Generate a unique document ID
+    const documentId = await generateWpqrDocumentId();
     
     // Upload the file to Google Cloud Storage
-    const fileExtension = path.extname(req.file.originalname);
-    const gcsFileName = `QMS/WPQR/${documentId}${fileExtension}`;
-    const file = gcsClient.bucket(gcsBucketName).file(gcsFileName);
+    const filePath = `/QMS/WPQR/${documentId}.pdf`;
+    const fileBuffer = req.file.buffer;
+    const fileType = req.file.mimetype;
     
     // Upload file to GCS
-    await file.save(req.file.buffer, {
+    const bucket = gcsClient.bucket(bucketName);
+    const file = bucket.file(filePath.slice(1)); // Remove leading slash
+    
+    await file.save(fileBuffer, {
       metadata: {
-        contentType: req.file.mimetype,
-      },
+        contentType: fileType
+      }
     });
     
-    // Make the file publicly accessible
-    await file.makePublic();
+    // Generate a public URL (optional, you may keep it private)
+    const fileUrl = `https://storage.googleapis.com/${bucketName}${filePath}`;
     
-    // Get the public URL
-    const fileUrl = `https://storage.googleapis.com/${gcsBucketName}/${gcsFileName}`;
-    
-    // Save document record to database
-    const [newDocument] = await db.insert(wpqrDocuments)
+    // Insert document record into the database
+    const insertedDocuments = await db.insert(wpqrDocuments)
       .values({
         documentId,
-        title: req.body.title,
-        description: req.body.description || null,
-        welderProcess: req.body.welderProcess,
-        baseMetalGrade: req.body.baseMetalGrade,
-        jointType: req.body.jointType,
-        filePath: gcsFileName,
+        title,
+        description,
+        welderProcess,
+        baseMetalGrade,
+        jointType,
+        filePath,
         fileUrl,
-        status: 'Active',
-        createdBy: req.user!.id,
+        status,
+        createdBy: userId,
+        updatedAt: new Date()
       })
       .returning();
     
-    res.status(201).json(newDocument);
+    const insertedDocument = insertedDocuments[0];
+    
+    res.status(201).json(insertedDocument);
   } catch (error) {
     console.error('Error creating WPQR document:', error);
     res.status(500).json({ 
@@ -139,57 +251,70 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
 // Update a WPQR document
 router.put('/:id', ensureAuthenticated, upload.single('document'), async (req: Request, res: Response) => {
   try {
-    const documentId = parseInt(req.params.id);
-    const [existingDocument] = await db.select().from(wpqrDocuments).where(eq(wpqrDocuments.id, documentId));
+    const { id } = req.params;
+    const documentId = parseInt(id);
     
-    if (!existingDocument) {
-      return res.status(404).json({ error: 'WPQR document not found' });
+    if (isNaN(documentId)) {
+      return res.status(400).json({ error: 'Invalid document ID' });
     }
     
-    // Check if a new file was uploaded
-    let filePath = existingDocument.filePath;
-    let fileUrl = existingDocument.fileUrl;
+    // Get the existing document
+    const existingDocument = await db.select()
+      .from(wpqrDocuments)
+      .where(eq(wpqrDocuments.id, documentId))
+      .limit(1);
     
+    if (!existingDocument.length) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    const document = existingDocument[0];
+    
+    // Prepare update data
+    const updateData: Partial<typeof wpqrDocuments.$inferInsert> = {
+      title: req.body.title || document.title,
+      description: req.body.description !== undefined ? req.body.description : document.description,
+      welderProcess: req.body.welderProcess || document.welderProcess,
+      baseMetalGrade: req.body.baseMetalGrade || document.baseMetalGrade,
+      jointType: req.body.jointType || document.jointType,
+      status: req.body.status || document.status,
+      updatedAt: new Date()
+    };
+    
+    // If a new file is uploaded, update the file
     if (req.file) {
-      // Upload the new file to Google Cloud Storage
-      const fileExtension = path.extname(req.file.originalname);
-      const gcsFileName = `QMS/WPQR/${existingDocument.documentId}${fileExtension}`;
-      const file = gcsClient.bucket(gcsBucketName).file(gcsFileName);
+      // Upload the file to Google Cloud Storage
+      const filePath = document.filePath || `/QMS/WPQR/${document.documentId}.pdf`;
+      const fileBuffer = req.file.buffer;
+      const fileType = req.file.mimetype;
       
       // Upload file to GCS
-      await file.save(req.file.buffer, {
+      const bucket = gcsClient.bucket(bucketName);
+      const file = bucket.file(filePath.slice(1)); // Remove leading slash
+      
+      await file.save(fileBuffer, {
         metadata: {
-          contentType: req.file.mimetype,
-        },
+          contentType: fileType
+        }
       });
       
-      // Make the file publicly accessible
-      await file.makePublic();
+      // Generate a public URL (optional, you may keep it private)
+      const fileUrl = `https://storage.googleapis.com/${bucketName}${filePath}`;
       
-      // Update file path and URL
-      filePath = gcsFileName;
-      fileUrl = `https://storage.googleapis.com/${gcsBucketName}/${gcsFileName}`;
+      // Update file information in the update data
+      updateData.filePath = filePath;
+      updateData.fileUrl = fileUrl;
     }
     
-    // Update document record in database
-    const [updatedDocument] = await db.update(wpqrDocuments)
-      .set({
-        title: req.body.title || existingDocument.title,
-        description: req.body.description || existingDocument.description,
-        welderProcess: req.body.welderProcess || existingDocument.welderProcess,
-        baseMetalGrade: req.body.baseMetalGrade || existingDocument.baseMetalGrade,
-        jointType: req.body.jointType || existingDocument.jointType,
-        filePath,
-        fileUrl,
-        status: req.body.status || existingDocument.status,
-        updatedAt: new Date(),
-      })
+    // Update the document in the database
+    const updatedDocuments = await db.update(wpqrDocuments)
+      .set(updateData)
       .where(eq(wpqrDocuments.id, documentId))
       .returning();
     
-    res.json(updatedDocument);
+    res.json(updatedDocuments[0]);
   } catch (error) {
-    console.error(`Error updating WPQR document ${req.params.id}:`, error);
+    console.error('Error updating WPQR document:', error);
     res.status(500).json({ 
       error: 'Failed to update WPQR document',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -200,29 +325,45 @@ router.put('/:id', ensureAuthenticated, upload.single('document'), async (req: R
 // Delete a WPQR document
 router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const documentId = parseInt(req.params.id);
-    const [existingDocument] = await db.select().from(wpqrDocuments).where(eq(wpqrDocuments.id, documentId));
+    const { id } = req.params;
+    const documentId = parseInt(id);
     
-    if (!existingDocument) {
-      return res.status(404).json({ error: 'WPQR document not found' });
+    if (isNaN(documentId)) {
+      return res.status(400).json({ error: 'Invalid document ID' });
     }
     
-    // Delete file from Google Cloud Storage if it exists
-    if (existingDocument.filePath) {
+    // Get the existing document for file path
+    const existingDocument = await db.select()
+      .from(wpqrDocuments)
+      .where(eq(wpqrDocuments.id, documentId))
+      .limit(1);
+    
+    if (!existingDocument.length) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    const document = existingDocument[0];
+    
+    // Delete the file from GCS if it exists
+    if (document.filePath) {
       try {
-        await gcsClient.bucket(gcsBucketName).file(existingDocument.filePath).delete();
-      } catch (deleteError) {
-        console.warn(`Failed to delete file from GCS: ${existingDocument.filePath}`, deleteError);
-        // Continue with database deletion even if file deletion fails
+        const bucket = gcsClient.bucket(bucketName);
+        const file = bucket.file(document.filePath.slice(1)); // Remove leading slash
+        await file.delete();
+      } catch (fileError) {
+        console.warn(`Warning: Could not delete file ${document.filePath} from GCS:`, fileError);
+        // Continue with deletion even if file removal fails
       }
     }
     
-    // Delete document record from database
-    await db.delete(wpqrDocuments).where(eq(wpqrDocuments.id, documentId));
+    // Delete the document record from the database
+    const deletedDocuments = await db.delete(wpqrDocuments)
+      .where(eq(wpqrDocuments.id, documentId))
+      .returning();
     
-    res.status(200).json({ message: 'WPQR document deleted successfully' });
+    res.json(deletedDocuments[0]);
   } catch (error) {
-    console.error(`Error deleting WPQR document ${req.params.id}:`, error);
+    console.error('Error deleting WPQR document:', error);
     res.status(500).json({ 
       error: 'Failed to delete WPQR document',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -233,21 +374,47 @@ router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) =
 // Download a WPQR document
 router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const documentId = parseInt(req.params.id);
-    const [document] = await db.select().from(wpqrDocuments).where(eq(wpqrDocuments.id, documentId));
+    const { id } = req.params;
+    const documentId = parseInt(id);
     
-    if (!document) {
-      return res.status(404).json({ error: 'WPQR document not found' });
+    if (isNaN(documentId)) {
+      return res.status(400).json({ error: 'Invalid document ID' });
     }
     
-    if (!document.fileUrl) {
-      return res.status(404).json({ error: 'Document file not found' });
+    // Get the document to obtain the file path
+    const document = await db.select()
+      .from(wpqrDocuments)
+      .where(eq(wpqrDocuments.id, documentId))
+      .limit(1);
+    
+    if (!document.length) {
+      return res.status(404).json({ error: 'Document not found' });
     }
     
-    // Redirect to the file URL for download
-    res.redirect(document.fileUrl);
+    const filePath = document[0].filePath;
+    
+    if (!filePath) {
+      return res.status(404).json({ error: 'No file associated with this document' });
+    }
+    
+    // Create a temporary signed URL for download
+    const bucket = gcsClient.bucket(bucketName);
+    const file = bucket.file(filePath.slice(1)); // Remove leading slash
+    
+    const [exists] = await file.exists();
+    if (!exists) {
+      return res.status(404).json({ error: 'File not found in storage' });
+    }
+    
+    const [url] = await file.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 15 * 60 * 1000, // URL expires in 15 minutes
+    });
+    
+    // Redirect to the signed URL for download
+    res.redirect(url);
   } catch (error) {
-    console.error(`Error downloading WPQR document ${req.params.id}:`, error);
+    console.error('Error downloading WPQR document:', error);
     res.status(500).json({ 
       error: 'Failed to download WPQR document',
       details: error instanceof Error ? error.message : 'Unknown error'
