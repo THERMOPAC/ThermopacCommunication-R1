@@ -53,6 +53,13 @@ export async function apiRequest<T = any>(
       try {
         // Some endpoints might return empty response
         const text = await res.text();
+        
+        // Additional check - if the response starts with <!DOCTYPE or <html, it's an HTML error page
+        if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+          console.error('Received HTML instead of JSON:', text.substring(0, 150) + '...');
+          throw new Error('Server returned HTML instead of JSON. This may indicate a server error.');
+        }
+        
         return text ? JSON.parse(text) : null;
       } catch (error) {
         console.error('Error parsing response:', error);
@@ -90,9 +97,19 @@ export const getQueryFn: <T>(options: {
     try {
       // Some endpoints might return empty response
       const text = await res.text();
+      
+      // Additional check - if the response starts with <!DOCTYPE or <html, it's an HTML error page
+      if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+        console.error('Received HTML instead of JSON:', text.substring(0, 150) + '...');
+        throw new Error('Server returned HTML instead of JSON. This may indicate a server error.');
+      }
+      
       return text ? JSON.parse(text) : null;
     } catch (error) {
       console.error('Error parsing response:', error);
+      if (error instanceof Error && error.message.includes('Server returned HTML')) {
+        throw error; // Re-throw the HTML error
+      }
       return null;
     }
   };
