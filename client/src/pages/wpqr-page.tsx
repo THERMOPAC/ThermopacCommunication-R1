@@ -149,12 +149,40 @@ export default function WpqrPage() {
   // Update WPQR document mutation
   const updateMutation = useMutation({
     mutationFn: async (data: { id: number; values: Omit<WpqrFormValues, 'document'> }) => {
-      const response = await apiRequest("PATCH", `/api/quality/wpqr/${data.id}`, data.values);
+      // Create a plain object with all form values
+      const updateData = {
+        title: data.values.title,
+        description: data.values.description,
+        welderProcess: data.values.welderProcess,
+        baseMetalGrade: data.values.baseMetalGrade,
+        jointType: data.values.jointType,
+        certificateNo: data.values.certificateNo,
+        inspectionAuthority: data.values.inspectionAuthority
+      };
+      
+      // Use fetch directly instead of apiRequest to have more control over response handling
+      const response = await fetch(`/api/quality/wpqr/${data.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update WPQR document");
+        const errorText = await response.text();
+        let errorMessage;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || "Failed to update WPQR document";
+        } catch (e) {
+          errorMessage = errorText || "Failed to update WPQR document";
+        }
+        throw new Error(errorMessage);
       }
-      return await response.json();
+      
+      const responseText = await response.text();
+      return responseText ? JSON.parse(responseText) : {};
     },
     onSuccess: () => {
       toast({
