@@ -164,8 +164,17 @@ export default function WelderManagementPage() {
   // Create new welder mutation
   const createWelderMutation = useMutation({
     mutationFn: async (data: WelderFormData) => {
-      const response = await apiRequest("POST", "/api/quality/welders", data);
-      return response.json();
+      try {
+        console.log("Sending welder data to server:", JSON.stringify(data, null, 2));
+        
+        // Set parseJson to true to automatically handle JSON parsing with HTML error detection
+        const response = await apiRequest("POST", "/api/quality/welders", data);
+        console.log("Server response:", response);
+        return response;
+      } catch (error) {
+        console.error("API request failed:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -177,9 +186,10 @@ export default function WelderManagementPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/quality/welders"] });
     },
     onError: (error: Error) => {
+      console.error("Mutation error:", error);
       toast({
         title: "Error creating welder record",
-        description: error.message,
+        description: error.message || "Server returned an invalid response. Check format of date fields.",
         variant: "destructive",
       });
     },
@@ -188,8 +198,17 @@ export default function WelderManagementPage() {
   // Update welder mutation
   const updateWelderMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: WelderFormData }) => {
-      const response = await apiRequest("PUT", `/api/quality/welders/${id}`, data);
-      return response.json();
+      try {
+        console.log("Sending welder update data to server:", JSON.stringify(data, null, 2));
+        
+        // Set parseJson to true to automatically handle JSON parsing with HTML error detection
+        const response = await apiRequest("PUT", `/api/quality/welders/${id}`, data);
+        console.log("Server update response:", response);
+        return response;
+      } catch (error) {
+        console.error("API update request failed:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -201,9 +220,10 @@ export default function WelderManagementPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/quality/welders"] });
     },
     onError: (error: Error) => {
+      console.error("Update mutation error:", error);
       toast({
         title: "Error updating welder record",
-        description: error.message,
+        description: error.message || "Server returned an invalid response. Check format of date fields.",
         variant: "destructive",
       });
     },
@@ -323,8 +343,20 @@ export default function WelderManagementPage() {
   
   // Helper function to format date strings to YYYY-MM-DD
   const formatDateString = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    return date.toISOString().split('T')[0];
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        console.error(`Invalid date string: ${dateStr}`);
+        return '';
+      }
+      // Use ISO string and take just the date part (YYYY-MM-DD)
+      const isoDate = date.toISOString().split('T')[0];
+      console.log(`Formatted date from ${dateStr} to ${isoDate}`);
+      return isoDate;
+    } catch (error) {
+      console.error(`Error formatting date: ${dateStr}`, error);
+      return '';
+    }
   };
 
   // Submit handler for editing a welder
