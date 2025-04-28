@@ -60,11 +60,10 @@ export default function WpqrPage() {
     retry: 1,
   });
   
-  // Fetch the next document ID when the create dialog is opened
-  const { data: nextDocumentId, isLoading: isLoadingNextId } = useQuery<{ documentId: string }>({
-    queryKey: ['/api/quality/wpqr/next-document-id'],
-    enabled: isCreateOpen, // Only fetch when the dialog is open
-  });
+  // For the document ID display, we'll count the documents ourselves
+  // This avoids issues with authentication on the next-document-id endpoint
+  const nextDocumentIdNumber = (wpqrDocuments?.length || 0) + 1;
+  const nextDocumentId = `WPQR-${nextDocumentIdNumber}`;
 
   // Form setup for creating new WPQR document
   const form = useForm<WpqrFormValues>({

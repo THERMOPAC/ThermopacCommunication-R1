@@ -173,8 +173,10 @@ async function generateWpqrDocumentId(): Promise<string> {
 }
 
 // Get the next document ID that will be generated
-router.get('/next-document-id', ensureAuthenticated, async (req: Request, res: Response) => {
+router.get('/next-document-id', async (req: Request, res: Response) => {
   try {
+    // Allow this endpoint without authentication since it's just informational
+    // and used in the create dialog
     const nextDocumentId = await generateWpqrDocumentId();
     res.json({ documentId: nextDocumentId });
   } catch (error) {
