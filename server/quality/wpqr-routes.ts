@@ -204,6 +204,8 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
       welderProcess, 
       baseMetalGrade, 
       jointType,
+      certificateNo = null,
+      inspectionAuthority = null,
       status = 'Active'
     } = req.body;
     
@@ -246,6 +248,8 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
         welderProcess,
         baseMetalGrade,
         jointType,
+        certificateNo,
+        inspectionAuthority,
         filePath,
         fileUrl,
         status,

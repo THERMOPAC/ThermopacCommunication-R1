@@ -24,6 +24,8 @@ const wpqrFormSchema = z.object({
   welderProcess: z.string().min(1, "Welder process is required"),
   baseMetalGrade: z.string().min(1, "Base metal grade is required"),
   jointType: z.string().min(1, "Joint type is required"),
+  certificateNo: z.string().optional(),
+  inspectionAuthority: z.string().optional(),
   document: z.instanceof(FileList).refine(files => files.length > 0, {
     message: "Document file is required",
   }),
@@ -40,6 +42,8 @@ type WpqrDocument = {
   welderProcess: string;
   baseMetalGrade: string;
   jointType: string;
+  certificateNo?: string | null;
+  inspectionAuthority?: string | null;
   filePath: string | null;
   fileUrl: string | null;
   status: string;
@@ -74,6 +78,8 @@ export default function WpqrPage() {
       welderProcess: "",
       baseMetalGrade: "",
       jointType: "",
+      certificateNo: "",
+      inspectionAuthority: "",
     },
   });
 
@@ -86,6 +92,8 @@ export default function WpqrPage() {
       formData.append("welderProcess", values.welderProcess);
       formData.append("baseMetalGrade", values.baseMetalGrade);
       formData.append("jointType", values.jointType);
+      if (values.certificateNo) formData.append("certificateNo", values.certificateNo);
+      if (values.inspectionAuthority) formData.append("inspectionAuthority", values.inspectionAuthority);
       
       // Append the document file
       if (values.document && values.document.length > 0) {
@@ -394,6 +402,45 @@ export default function WpqrPage() {
                   </FormItem>
                 )}
               />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="certificateNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Certificate No</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter certificate number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="inspectionAuthority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Inspection Authority</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select authority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="TUV NORD">TUV NORD</SelectItem>
+                          <SelectItem value="SGS">SGS</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name="document"
@@ -465,6 +512,18 @@ export default function WpqrPage() {
                     {selectedDocument.status}
                   </Badge>
                 </div>
+                {selectedDocument.certificateNo && (
+                  <div>
+                    <h4 className="text-sm font-semibold">Certificate No</h4>
+                    <p>{selectedDocument.certificateNo}</p>
+                  </div>
+                )}
+                {selectedDocument.inspectionAuthority && (
+                  <div>
+                    <h4 className="text-sm font-semibold">Inspection Authority</h4>
+                    <p>{selectedDocument.inspectionAuthority}</p>
+                  </div>
+                )}
               </div>
               
               {selectedDocument.description && (
