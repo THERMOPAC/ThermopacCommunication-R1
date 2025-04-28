@@ -290,12 +290,18 @@ export default function WelderManagementPage() {
   // Submit handler for editing a welder
   const onEditSubmit = (values: z.infer<typeof welderFormSchema>) => {
     if (selectedWelder) {
+      // Ensure dates are properly formatted
+      const formattedValues = {
+        ...values,
+        testDate: values.testDate ? new Date(values.testDate).toISOString().split('T')[0] : '',
+        certificateExpiryDate: values.certificateExpiryDate ? new Date(values.certificateExpiryDate).toISOString().split('T')[0] : '',
+        remarks: values.remarks || ""
+      };
+      
+      console.log("Updating welder data:", formattedValues);
       updateWelderMutation.mutate({ 
         id: selectedWelder.id, 
-        data: {
-          ...values,
-          remarks: values.remarks || ""
-        }
+        data: formattedValues
       });
     }
   };
