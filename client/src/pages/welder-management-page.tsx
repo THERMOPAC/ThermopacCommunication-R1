@@ -109,7 +109,7 @@ const welderFormSchema = z.object({
   materialGroupQualified: z.array(z.string()).min(1, "Select at least one material group"),
   thicknessRange: z.string().min(1, "Thickness range is required"),
   positionQualified: z.array(z.string()).min(1, "Select at least one position"),
-  wpsNumber: z.string().min(1, "WPS number is required"),
+  wpsNumber: z.string().min(1, "WPQR number is required"),
   testDate: z.string().min(1, "Test date is required"),
   testResults: z.string().min(1, "Test result is required"),
   certificateExpiryDate: z.string().min(1, "Certificate expiry date is required"),
@@ -137,12 +137,12 @@ export default function WelderManagementPage() {
     setStatusFilter(value === "all_statuses" ? null : value);
   };
   
-  // Fetch WPS data for dropdown
-  const { data: wpsData = [] } = useQuery<any[]>({
-    queryKey: ["/api/quality/wps"],
+  // Fetch WPQR data for dropdown
+  const { data: wpqrData = [] } = useQuery<any[]>({
+    queryKey: ["/api/quality/wpqr"],
     staleTime: 60000, // 1 minute
     onError: (error) => {
-      console.error("Error fetching WPS data:", error);
+      console.error("Error fetching WPQR data:", error);
     }
   });
   
