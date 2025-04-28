@@ -175,22 +175,29 @@ export default function WpsPqrPage() {
     console.log("WPS Form submitted:", data);
     
     try {
-      // Convert form data to appropriate server-side field names
+      // Sanitize all string inputs to ensure valid JSON
+      const sanitizeString = (str: string | undefined): string => {
+        if (!str) return "";
+        // Remove special characters and replace quotes with simple ones
+        return str.replace(/[^\w\s.,\-]/g, '').trim();
+      };
+      
+      // Create data object that exactly matches the server-side field names from the WPS post route
       const wpsData = {
-        wps_id: data.wpsId, // Added WPS ID field
-        pqr_id: pqrId, // Associated PQR ID
-        revision_no: "0", // Default for new entries
-        welder_process: data.weldingProcess,
-        base_metal_grade: data.materialGrade,
-        base_metal_thickness: data.preheatTemperature.replace(/[°]/g, ''), // Remove degree symbols
-        filler_material: data.fillerMaterial,
-        joint_type: "Butt", // Default value
-        weld_position: data.weldingPosition,
-        preheating_temp: data.preheatTemperature.replace(/[°]/g, ''), // Match the server field name
-        post_weld_heat_treatment: data.pwht === 'Yes' ? data.pwhtDetails : 'None',
-        shielding_gas: data.shieldingGas || "",
+        // Use the provided WPS ID directly (server will handle numbering if needed)
+        wpsId: data.wpsId,
+        // These field names must exactly match the server-side API expectations
+        welderProcess: sanitizeString(data.weldingProcess),
+        baseMetalGrade: sanitizeString(data.materialGrade),
+        baseMetalThickness: sanitizeString(data.preheatTemperature.replace('°C', '')), 
+        fillerMaterial: sanitizeString(data.fillerMaterial),
+        jointType: "Butt", // Default value
+        weldPosition: sanitizeString(data.weldingPosition),
+        preheatingTemp: sanitizeString(data.preheatTemperature.replace('°C', '')),
+        postWeldHeatTreatment: data.pwht === 'Yes' ? sanitizeString(data.pwhtDetails) : 'None',
+        shieldingGas: sanitizeString(data.shieldingGas || ""),
         status: "Draft",
-        remarks: data.remarks || ""
+        remarks: sanitizeString(data.remarks || "")
       };
       
       console.log("Sanitized WPS data for API:", wpsData);
@@ -245,22 +252,31 @@ export default function WpsPqrPage() {
     console.log("PQR Form submitted:", data);
     
     try {
-      // Convert form data to appropriate server-side field names
+      // Sanitize all string inputs to ensure valid JSON
+      const sanitizeString = (str: string | undefined): string => {
+        if (!str) return "";
+        // Remove special characters and replace quotes with simple ones
+        return str.replace(/[^\w\s.,\-]/g, '').trim();
+      };
+      
+      // Create data object that exactly matches the server-side field names for PQR
       const pqrData = {
-        wpsId: data.relatedWpsId.replace('WPS-', ''), // Extract the numeric ID from WPS-XXX format
+        // WPS ID is expected as a numeric value
+        wpsId: sanitizeString(data.relatedWpsId.replace('WPS-', '')),
+        // These field names must exactly match the server-side API expectations
         testDate: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
-        testLaboratory: "Internal Testing Lab", // Default value
+        testLaboratory: "Internal Testing Lab",
         testType: "Mechanical Testing",
-        testResults: data.mechanicalTestResults,
+        testResults: sanitizeString(data.mechanicalTestResults),
         status: "Draft",
-        remarks: data.remarks || "",
-        // Additional technical details
-        testSpecimenMaterial: data.testSpecimenMaterial,
-        testSpecimenThickness: data.testSpecimenThickness.replace(/[°]/g, ''),
-        voltage: data.voltage,
-        amperage: data.amperage,
-        travelSpeed: data.travelSpeed,
-        wireFeedSpeed: data.wireFeedSpeed
+        remarks: sanitizeString(data.remarks || ""),
+        // Technical details - these would be added to additional fields on the server
+        testSpecimenMaterial: sanitizeString(data.testSpecimenMaterial),
+        testSpecimenThickness: sanitizeString(data.testSpecimenThickness.replace('°C', '')),
+        voltage: sanitizeString(data.voltage),
+        amperage: sanitizeString(data.amperage),
+        travelSpeed: sanitizeString(data.travelSpeed),
+        wireFeedSpeed: sanitizeString(data.wireFeedSpeed)
       };
       
       console.log("Sanitized PQR data for API:", pqrData);

@@ -27,29 +27,47 @@ export async function apiRequest<T = any>(
   // and don't stringify the data
   const isFormData = data instanceof FormData;
   
-  const res = await fetch(url, {
-    method,
-    headers: data && !isFormData ? { "Content-Type": "application/json" } : {},
-    body: isFormData ? data : data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
-
-  if (!skipErrorThrow) {
-    await throwIfResNotOk(res);
+  // Sanitize data to ensure it's valid JSON
+  let sanitizedData = data;
+  if (data && !isFormData && typeof data === 'object') {
+    sanitizedData = JSON.parse(JSON.stringify(data));
   }
   
-  // Return parsed JSON data if requested, otherwise return Response object
-  if (parseJson) {
-    try {
-      // Some endpoints might return empty response
-      const text = await res.text();
-      return text ? JSON.parse(text) : null;
-    } catch (error) {
-      console.error('Error parsing response:', error);
-      return null;
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: data && !isFormData ? { 
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      } : {},
+      body: isFormData ? data : sanitizedData ? JSON.stringify(sanitizedData) : undefined,
+      credentials: "include",
+    });
+
+    if (!skipErrorThrow) {
+      await throwIfResNotOk(res);
     }
-  } else {
-    return res;
+    
+    // Return parsed JSON data if requested, otherwise return Response object
+    if (parseJson) {
+      try {
+        // Some endpoints might return empty response
+        const text = await res.text();
+        return text ? JSON.parse(text) : null;
+      } catch (error) {
+        console.error('Error parsing response:', error);
+        if (error instanceof Error) {
+          throw new Error(`Failed to parse server response as JSON: ${error.message}`);
+        } else {
+          throw new Error('Failed to parse server response as JSON');
+        }
+      }
+    } else {
+      return res;
+    }
+  } catch (error) {
+    console.error('API request failed:', error);
+    throw error;
   }
 }
 
