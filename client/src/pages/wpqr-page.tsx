@@ -625,7 +625,7 @@ export default function WpqrPage() {
                       <FormLabel>Welder Process</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -652,7 +652,7 @@ export default function WpqrPage() {
                       <FormLabel>Base Metal Grade</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -684,7 +684,7 @@ export default function WpqrPage() {
                     <FormLabel>Joint Type</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
-                      defaultValue={field.value}
+                      value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -724,7 +724,7 @@ export default function WpqrPage() {
                     <FormLabel>Inspection Authority</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
-                      defaultValue={field.value}
+                      value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
