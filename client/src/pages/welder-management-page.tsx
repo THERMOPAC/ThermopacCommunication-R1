@@ -806,7 +806,7 @@ export default function WelderManagementPage() {
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name, welder ID, WPS number..."
+              placeholder="Search by name, welder ID, WPQR number..."
               className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -838,7 +838,7 @@ export default function WelderManagementPage() {
                 <TableHead>Welder ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Processes</TableHead>
-                <TableHead>WPS Number</TableHead>
+                <TableHead>WPQR Number</TableHead>
                 <TableHead>Certificate No.</TableHead>
                 <TableHead>Expiry Date</TableHead>
                 <TableHead>Status</TableHead>
