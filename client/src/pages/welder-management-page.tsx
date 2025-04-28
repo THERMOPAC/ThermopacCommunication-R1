@@ -148,16 +148,44 @@ export default function WelderManagementPage() {
     queryKey: ["/api/quality/welders"],
   });
 
-  // Create new welder mutation
+  // Create new welder mutation with direct fetch approach
   const createWelderMutation = useMutation({
     mutationFn: async (data: WelderFormData) => {
       try {
         console.log("Sending welder data to server:", JSON.stringify(data, null, 2));
         
-        // Set parseJson to true to automatically handle JSON parsing with HTML error detection
-        const response = await apiRequest("POST", "/api/quality/welders", data);
-        console.log("Server response:", response);
-        return response;
+        // Manual fetch with robust error handling
+        const response = await fetch("/api/quality/welders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(data),
+          credentials: "include",
+        });
+        
+        console.log("Server response status:", response.status);
+        
+        // Try to get the response text
+        const responseText = await response.text();
+        console.log("Response text:", responseText);
+        
+        // Check if it's valid JSON
+        let jsonData;
+        try {
+          jsonData = JSON.parse(responseText);
+          console.log("Parsed JSON:", jsonData);
+          return jsonData;
+        } catch (jsonError) {
+          console.error("Failed to parse response as JSON:", jsonError);
+          // If response contains HTML (likely an error page)
+          if (responseText.includes("<!DOCTYPE") || responseText.includes("<html")) {
+            throw new Error("Server returned HTML instead of JSON. This indicates a server error.");
+          } else {
+            throw new Error(`Invalid server response: ${responseText.substring(0, 100)}...`);
+          }
+        }
       } catch (error) {
         console.error("API request failed:", error);
         throw error;
@@ -182,16 +210,44 @@ export default function WelderManagementPage() {
     },
   });
 
-  // Update welder mutation
+  // Update welder mutation with direct fetch approach
   const updateWelderMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: WelderFormData }) => {
       try {
         console.log("Sending welder update data to server:", JSON.stringify(data, null, 2));
         
-        // Set parseJson to true to automatically handle JSON parsing with HTML error detection
-        const response = await apiRequest("PUT", `/api/quality/welders/${id}`, data);
-        console.log("Server update response:", response);
-        return response;
+        // Manual fetch with robust error handling
+        const response = await fetch(`/api/quality/welders/${id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(data),
+          credentials: "include",
+        });
+        
+        console.log("Server response status:", response.status);
+        
+        // Try to get the response text
+        const responseText = await response.text();
+        console.log("Response text:", responseText);
+        
+        // Check if it's valid JSON
+        let jsonData;
+        try {
+          jsonData = JSON.parse(responseText);
+          console.log("Parsed JSON:", jsonData);
+          return jsonData;
+        } catch (jsonError) {
+          console.error("Failed to parse response as JSON:", jsonError);
+          // If response contains HTML (likely an error page)
+          if (responseText.includes("<!DOCTYPE") || responseText.includes("<html")) {
+            throw new Error("Server returned HTML instead of JSON. This indicates a server error.");
+          } else {
+            throw new Error(`Invalid server response: ${responseText.substring(0, 100)}...`);
+          }
+        }
       } catch (error) {
         console.error("API update request failed:", error);
         throw error;
