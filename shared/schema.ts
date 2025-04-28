@@ -2386,6 +2386,8 @@ export const wpqrDocuments = pgTable('wpqr_documents', {
   welderProcess: varchar('welder_process', { length: 20 }).notNull(),
   baseMetalGrade: varchar('base_metal_grade', { length: 100 }).notNull(),
   jointType: varchar('joint_type', { length: 50 }).notNull(),
+  certificateNo: varchar('certificate_no', { length: 50 }),
+  inspectionAuthority: varchar('inspection_authority', { length: 50 }),
   filePath: varchar('file_path', { length: 255 }),
   fileUrl: text('file_url'),
   status: varchar('status', { length: 20 }).notNull().default('Active'),
@@ -2407,6 +2409,8 @@ export const wpqrDocumentSchema = createInsertSchema(wpqrDocuments)
   .omit({ id: true, createdAt: true, updatedAt: true, fileUrl: true, filePath: true })
   .extend({
     welderProcess: z.enum(['SMAW', 'GMAW', 'GTAW', 'FCAW', 'SAW']),
+    inspectionAuthority: z.enum(['TUV NORD', 'SGS']).optional(),
+    certificateNo: z.string().optional(),
     status: z.enum(['Active', 'Obsolete']).default('Active'),
   });
 
