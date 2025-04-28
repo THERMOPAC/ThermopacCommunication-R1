@@ -313,7 +313,7 @@ export default function WpqrPage() {
   };
 
   // Handle edit form submission
-  const onSubmitEdit = (values: Omit<WpqrFormValues, 'document'>) => {
+  const onSubmitEdit = (values: WpqrFormValues) => {
     if (editingDocument) {
       updateMutation.mutate({
         id: editingDocument.id,
@@ -858,9 +858,9 @@ export default function WpqrPage() {
                           {...rest}
                         />
                       </FormControl>
-                      <FormDescription>
+                      <FormMessage className="text-xs text-muted-foreground mt-1">
                         Upload a new file to replace the existing document
-                      </FormDescription>
+                      </FormMessage>
                       <FormMessage />
                     </FormItem>
                   )}
