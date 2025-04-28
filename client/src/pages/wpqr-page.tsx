@@ -357,7 +357,7 @@ export default function WpqrPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="p-2 text-left font-medium w-[15%]">Document ID</th>
-                    <th className="p-2 text-left font-medium w-[12%]">Welder Process</th>
+                    <th className="p-2 text-left font-medium w-[12%]">Welding Process</th>
                     <th className="p-2 text-left font-medium w-[15%]">Base Metal Grade</th>
                     <th className="p-2 text-left font-medium w-[10%]">Joint Type</th>
                     <th className="p-2 text-left font-medium w-[25%]">Certificate No</th>
@@ -472,7 +472,7 @@ export default function WpqrPage() {
                     name="welderProcess"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Welder Process</FormLabel>
+                        <FormLabel>Welding Process</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
                           defaultValue={field.value}
@@ -686,7 +686,7 @@ export default function WpqrPage() {
                     name="welderProcess"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Welder Process</FormLabel>
+                        <FormLabel>Welding Process</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
                           defaultValue={field.value}
@@ -837,7 +837,7 @@ export default function WpqrPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h4 className="text-sm font-semibold">Welder Process</h4>
+                    <h4 className="text-sm font-semibold">Welding Process</h4>
                     <p>{selectedDocument.welderProcess}</p>
                   </div>
                   <div>
