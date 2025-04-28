@@ -141,9 +141,6 @@ export default function WelderManagementPage() {
   const { data: wpqrData = [] } = useQuery<any[]>({
     queryKey: ["/api/quality/wpqr"],
     staleTime: 60000, // 1 minute
-    onError: (error) => {
-      console.error("Error fetching WPQR data:", error);
-    }
   });
   
   // Fetch welders data
