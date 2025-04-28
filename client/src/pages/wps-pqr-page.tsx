@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "../lib/queryClient";
 import { useLocation, useRoute } from "wouter";
 
 // Define the WPS form schema
@@ -191,21 +192,15 @@ export default function WpsPqrPage() {
       
       console.log("Sanitized WPS data for API:", wpsData);
       
-      // Send data to the API
-      const response = await fetch('/api/quality/wps', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(wpsData),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create WPS');
+      // Send data to the API using apiRequest function
+      try {
+        console.log("Sending WPS data using apiRequest");
+        const savedWps = await apiRequest('POST', '/api/quality/wps', wpsData);
+        console.log("API response:", savedWps);
+      } catch (apiError) {
+        console.error("API request failed with error:", apiError);
+        throw apiError;
       }
-      
-      const savedWps = await response.json();
       
       // Show success message
       toast({
@@ -270,21 +265,15 @@ export default function WpsPqrPage() {
       
       console.log("Sanitized PQR data for API:", pqrData);
       
-      // Send data to the API
-      const response = await fetch('/api/quality/pqr', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(pqrData),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create PQR');
+      // Send data to the API using apiRequest
+      try {
+        console.log("Sending PQR data using apiRequest");
+        const savedPqr = await apiRequest('POST', '/api/quality/wps-pqr/pqr', pqrData);
+        console.log("API response for PQR:", savedPqr);
+      } catch (apiError) {
+        console.error("API request failed with error:", apiError);
+        throw apiError;
       }
-      
-      const savedPqr = await response.json();
       
       toast({
         title: "PQR Created Successfully",
