@@ -182,10 +182,8 @@ export default function WpsPqrPage() {
         fillerMaterial: data.fillerMaterial,
         jointType: "Butt", // Default value
         weldPosition: data.weldingPosition,
-        preheatTemperature: data.preheatTemperature.replace(/[°]/g, ''), // Remove degree symbols
-        interpassTemperature: data.interpassTemperature.replace(/[°]/g, ''), // Remove degree symbols
-        pwht: data.pwht,
-        pwhtDetails: data.pwhtDetails || "",
+        preheatingTemp: data.preheatTemperature.replace(/[°]/g, ''), // Match the server field name
+        postWeldHeatTreatment: data.pwht === 'Yes' ? data.pwhtDetails : 'None',
         shieldingGas: data.shieldingGas || "",
         status: "Draft",
         remarks: data.remarks || ""
