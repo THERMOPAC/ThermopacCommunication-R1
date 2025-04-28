@@ -114,8 +114,8 @@ router.get('/wps/:id', ensureAuthenticated, async (req: Request, res: Response) 
         creator.username as "createdByUser",
         approver.username as "approvedByUser"
       FROM wps_documents w
-      LEFT JOIN users creator ON w.created_by = creator.id
-      LEFT JOIN users approver ON w.approved_by = approver.id
+      LEFT JOIN users creator ON w.createdBy = creator.id
+      LEFT JOIN users approver ON w.approvedBy = approver.id
       WHERE w.id = ${wpsId}
       LIMIT 1
     `);
@@ -541,8 +541,8 @@ router.get('/report', ensureAuthenticated, async (req: Request, res: Response) =
         creator.username as created_by_user, 
         approver.username as approved_by_user
       FROM wps_documents w
-      LEFT JOIN users creator ON w.created_by = creator.id
-      LEFT JOIN users approver ON w.approved_by = approver.id
+      LEFT JOIN users creator ON w.createdBy = creator.id
+      LEFT JOIN users approver ON w.approvedBy = approver.id
       WHERE 1=1
     `;
     
