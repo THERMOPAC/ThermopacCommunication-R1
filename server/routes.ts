@@ -24,6 +24,7 @@ import { setupEngineeringChangeRoutes } from "./engineering-change-routes";
 import { default as afterSalesRoutes } from "./after-sales-routes";
 import { default as modulePermissionRoutes } from "./module-permission-routes";
 import { hashPassword as updatePasswordHash } from "./update-password";
+import { setupTestWelderRoute } from "./quality/test-welder-route";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
 import { checkGcsPermissions } from "./utils/gcs-permissions-check";
@@ -81,6 +82,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up quality management routes
   setupQualityRoutes(app);
+  
+  // Set up test welder route (for debugging)
+  setupTestWelderRoute(app);
   
   // Set up dispatch and shipping routes
   setupDispatchRoutes(app);
