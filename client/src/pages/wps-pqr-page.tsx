@@ -205,7 +205,8 @@ export default function WpsPqrPage() {
       // Send data to the API using apiRequest function
       try {
         console.log("Sending WPS data using apiRequest");
-        const savedWps = await apiRequest('POST', '/api/quality/wps', wpsData);
+        // Fix the endpoint URL to match server-side routing - note the correct path is /wps-pqr/wps
+        const savedWps = await apiRequest('POST', '/api/quality/wps-pqr/wps', wpsData);
         console.log("API response:", savedWps);
       } catch (apiError) {
         console.error("API request failed with error:", apiError);
