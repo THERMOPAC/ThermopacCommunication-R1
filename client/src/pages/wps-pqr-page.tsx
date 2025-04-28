@@ -174,12 +174,40 @@ export default function WpsPqrPage() {
     console.log("WPS Form submitted:", data);
     
     try {
-      // TODO: Add API call to save the WPS data
-      // const response = await apiRequest('POST', '/api/quality/wps', data);
-      // const savedWps = await response.json();
+      // Convert form data to appropriate server-side field names
+      const wpsData = {
+        welderProcess: data.weldingProcess,
+        baseMetalGrade: data.materialGrade,
+        baseMetalThickness: data.preheatTemperature.replace(/[°]/g, ''), // Remove degree symbols
+        fillerMaterial: data.fillerMaterial,
+        jointType: "Butt", // Default value
+        weldPosition: data.weldingPosition,
+        preheatTemperature: data.preheatTemperature.replace(/[°]/g, ''), // Remove degree symbols
+        interpassTemperature: data.interpassTemperature.replace(/[°]/g, ''), // Remove degree symbols
+        pwht: data.pwht,
+        pwhtDetails: data.pwhtDetails || "",
+        shieldingGas: data.shieldingGas || "",
+        status: "Draft",
+        remarks: data.remarks || ""
+      };
       
-      // For now, simulate successful save
-      const savedWps = { ...data };
+      console.log("Sanitized WPS data for API:", wpsData);
+      
+      // Send data to the API
+      const response = await fetch('/api/quality/wps', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(wpsData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create WPS');
+      }
+      
+      const savedWps = await response.json();
       
       // Show success message
       toast({
@@ -196,7 +224,7 @@ export default function WpsPqrPage() {
       pqrForm.setValue("weldingPosition", data.weldingPosition);
       pqrForm.setValue("fillerMaterial", data.fillerMaterial);
       pqrForm.setValue("shieldingGas", data.shieldingGas || "");
-      pqrForm.setValue("preheatTemperature", data.preheatTemperature);
+      pqrForm.setValue("preheatTemperature", data.preheatTemperature.replace(/[°]/g, '')); // Remove degree symbols
       pqrForm.setValue("pwht", data.pwht);
       
       // Update the URL to include the document ID
@@ -204,13 +232,13 @@ export default function WpsPqrPage() {
         setLocation(`/wps-pqr/${documentId}`, { replace: true });
       }
       
-      // In a real implementation, invalidate queries
-      // queryClient.invalidateQueries(['/api/quality/wps']);
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({queryKey: ['/api/quality/wps']});
     } catch (error) {
       console.error("Error saving WPS:", error);
       toast({
         title: "Error",
-        description: "Failed to create WPS. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create WPS. Please try again.",
         variant: "destructive",
       });
     }
@@ -221,20 +249,52 @@ export default function WpsPqrPage() {
     console.log("PQR Form submitted:", data);
     
     try {
-      // TODO: Add API call to save the PQR data
-      // const response = await apiRequest('POST', '/api/quality/pqr', data);
-      // const savedPqr = await response.json();
+      // Convert form data to appropriate server-side field names
+      const pqrData = {
+        pqrId: data.pqrId,
+        relatedWpsId: data.relatedWpsId,
+        testSpecimenMaterial: data.testSpecimenMaterial,
+        testSpecimenThickness: data.testSpecimenThickness.replace(/[°]/g, ''), // Remove degree symbols
+        voltage: data.voltage,
+        amperage: data.amperage,
+        travelSpeed: data.travelSpeed,
+        wireFeedSpeed: data.wireFeedSpeed,
+        weldPosition: data.weldingPosition,
+        fillerMaterial: data.fillerMaterial,
+        shieldingGas: data.shieldingGas,
+        preheatTemperature: data.preheatTemperature.replace(/[°]/g, ''), // Remove degree symbols
+        pwht: data.pwht,
+        mechanicalTestResults: data.mechanicalTestResults,
+        visualInspectionResult: data.visualInspectionResult,
+        ndtRequirements: data.ndtRequirements,
+        remarks: data.remarks || ""
+      };
       
-      // For now, simulate successful save
-      const savedPqr = { ...data };
+      console.log("Sanitized PQR data for API:", pqrData);
+      
+      // Send data to the API
+      const response = await fetch('/api/quality/pqr', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pqrData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create PQR');
+      }
+      
+      const savedPqr = await response.json();
       
       toast({
         title: "PQR Created Successfully",
         description: `PQR ID: ${data.pqrId} has been created and linked to ${data.relatedWpsId}.`,
       });
       
-      // In a real implementation, invalidate queries
-      // queryClient.invalidateQueries(['/api/quality/pqr']);
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({queryKey: ['/api/quality/pqr']});
       
       // Reset forms with new IDs for the next entry
       const newId = generateSequentialId();
@@ -258,7 +318,7 @@ export default function WpsPqrPage() {
       console.error("Error saving PQR:", error);
       toast({
         title: "Error",
-        description: "Failed to create PQR. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create PQR. Please try again.",
         variant: "destructive",
       });
     }
