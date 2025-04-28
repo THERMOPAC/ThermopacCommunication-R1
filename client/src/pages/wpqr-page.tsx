@@ -354,12 +354,12 @@ export default function WpqrPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="p-2 text-left font-medium">Document ID</th>
-                  <th className="p-2 text-left font-medium">Welder Process</th>
-                  <th className="p-2 text-left font-medium">Base Metal Grade</th>
-                  <th className="p-2 text-left font-medium">Joint Type</th>
-                  <th className="p-2 text-left font-medium">Certificate No</th>
-                  <th className="p-2 text-left font-medium">Inspection Authority</th>
+                  <th className="p-2 text-left font-medium w-[20%]">Document ID</th>
+                  <th className="p-2 text-left font-medium w-[10%]">Welder Process</th>
+                  <th className="p-2 text-left font-medium w-[15%]">Base Metal Grade</th>
+                  <th className="p-2 text-left font-medium w-[10%]">Joint Type</th>
+                  <th className="p-2 text-left font-medium w-[30%]">Certificate No</th>
+                  <th className="p-2 text-left font-medium w-[15%]">Inspection Authority</th>
                   <th className="p-2 text-right font-medium">Actions</th>
                 </tr>
               </thead>
@@ -374,11 +374,11 @@ export default function WpqrPage() {
                         <span className="text-xs font-medium">{document.title}</span>
                       </div>
                     </td>
-                    <td className="p-2">{document.welderProcess}</td>
-                    <td className="p-2">{document.baseMetalGrade}</td>
-                    <td className="p-2">{document.jointType}</td>
-                    <td className="p-2 max-w-[150px] truncate">{document.certificateNo || "-"}</td>
-                    <td className="p-2">{document.inspectionAuthority || "-"}</td>
+                    <td className="p-2 w-[10%]">{document.welderProcess}</td>
+                    <td className="p-2 w-[15%]">{document.baseMetalGrade}</td>
+                    <td className="p-2 w-[10%]">{document.jointType}</td>
+                    <td className="p-2 w-[30%] break-words">{document.certificateNo || "-"}</td>
+                    <td className="p-2 w-[15%]">{document.inspectionAuthority || "-"}</td>
                     <td className="p-2">
                       <div className="flex justify-end gap-2">
                         <Button 
