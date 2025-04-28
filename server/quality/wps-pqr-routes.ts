@@ -17,16 +17,50 @@ router.get('/wps', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Use raw SQL query to avoid property/column name mismatches
     const result = await db.execute(sql`
-      SELECT w.*, 
-        creator.username as created_by_user,
-        approver.username as approved_by_user
+      SELECT 
+        w.id,
+        w.wps_id as "wpsId",
+        w.pqr_id as "pqrId",
+        w.revision_no as "revisionNo",
+        w.welder_process as "welderProcess",
+        w.base_metal_grade as "baseMetalGrade",
+        w.base_metal_thickness as "baseMetalThickness",
+        w.filler_material as "fillerMaterial",
+        w.joint_type as "jointType",
+        w.weld_position as "weldPosition",
+        w.preheating_temp as "preheatingTemp",
+        w.post_weld_heat_treatment as "postWeldHeatTreatment",
+        w.electrical_parameters as "electricalParameters",
+        w.shielding_gas as "shieldingGas",
+        w.document_file_path as "documentFilePath",
+        w.document_url as "documentUrl",
+        w.combined_document_file_path as "combinedDocumentFilePath",
+        w.combined_document_url as "combinedDocumentUrl",
+        w.status,
+        w.remarks,
+        w.approved_by as "approvedBy",
+        w.approval_date as "approvalDate",
+        w.created_by as "createdBy",
+        w.created_at as "createdAt",
+        w.updated_at as "updatedAt",
+        w.has_pqr as "hasPqr",
+        w.pqr_test_date as "pqrTestDate",
+        w.pqr_test_laboratory as "pqrTestLaboratory",
+        w.pqr_test_type as "pqrTestType",
+        w.pqr_test_results as "pqrTestResults",
+        w.pqr_status as "pqrStatus",
+        w.pqr_remarks as "pqrRemarks",
+        w.pqr_document_file_path as "pqrDocumentFilePath",
+        w.pqr_document_url as "pqrDocumentUrl",
+        creator.username as "createdByUser",
+        approver.username as "approvedByUser"
       FROM wps_documents w
       LEFT JOIN users creator ON w.created_by = creator.id
       LEFT JOIN users approver ON w.approved_by = approver.id
       ORDER BY w.created_at DESC
     `);
     
-    res.json(result);
+    res.json(result.rows || []);
   } catch (error) {
     console.error('Error fetching WPS documents:', error);
     res.status(500).json({ 
@@ -41,9 +75,52 @@ router.get('/wps/:id', ensureAuthenticated, async (req: Request, res: Response) 
   try {
     const wpsId = parseInt(req.params.id);
     
-    const [wpsDocument] = await db.query.wpsDocuments.findMany({
-      where: eq(wpsDocuments.id, wpsId)
-    });
+    const result = await db.execute(sql`
+      SELECT 
+        w.id,
+        w.wps_id as "wpsId",
+        w.pqr_id as "pqrId",
+        w.revision_no as "revisionNo",
+        w.welder_process as "welderProcess",
+        w.base_metal_grade as "baseMetalGrade",
+        w.base_metal_thickness as "baseMetalThickness",
+        w.filler_material as "fillerMaterial",
+        w.joint_type as "jointType",
+        w.weld_position as "weldPosition",
+        w.preheating_temp as "preheatingTemp",
+        w.post_weld_heat_treatment as "postWeldHeatTreatment",
+        w.electrical_parameters as "electricalParameters",
+        w.shielding_gas as "shieldingGas",
+        w.document_file_path as "documentFilePath",
+        w.document_url as "documentUrl",
+        w.combined_document_file_path as "combinedDocumentFilePath",
+        w.combined_document_url as "combinedDocumentUrl",
+        w.status,
+        w.remarks,
+        w.approved_by as "approvedBy",
+        w.approval_date as "approvalDate",
+        w.created_by as "createdBy",
+        w.created_at as "createdAt",
+        w.updated_at as "updatedAt",
+        w.has_pqr as "hasPqr",
+        w.pqr_test_date as "pqrTestDate",
+        w.pqr_test_laboratory as "pqrTestLaboratory",
+        w.pqr_test_type as "pqrTestType",
+        w.pqr_test_results as "pqrTestResults",
+        w.pqr_status as "pqrStatus",
+        w.pqr_remarks as "pqrRemarks",
+        w.pqr_document_file_path as "pqrDocumentFilePath",
+        w.pqr_document_url as "pqrDocumentUrl",
+        creator.username as "createdByUser",
+        approver.username as "approvedByUser"
+      FROM wps_documents w
+      LEFT JOIN users creator ON w.created_by = creator.id
+      LEFT JOIN users approver ON w.approved_by = approver.id
+      WHERE w.id = ${wpsId}
+      LIMIT 1
+    `);
+    
+    const wpsDocument = result.rows && result.rows.length > 0 ? result.rows[0] : null;
     
     if (!wpsDocument) {
       return res.status(404).json({ error: 'WPS document not found' });
@@ -65,12 +142,12 @@ router.post('/wps', ensureAuthenticated, uploadWpsPqrDocument.single('document')
     // Generate WPS ID with format WPS-N (without year)
     // Query for the highest existing WPS sequence using properly aliased table
     const seqResult = await db.execute(sql`
-      SELECT MAX(CAST(SUBSTRING("wps_id", POSITION('-' IN "wps_id") + 1) AS INTEGER)) as max_seq
+      SELECT MAX(CAST(SUBSTRING(wps_id, POSITION('-' IN wps_id) + 1) AS INTEGER)) as max_seq
       FROM wps_documents
-      WHERE "wps_id" LIKE 'WPS-%'
+      WHERE wps_id LIKE 'WPS-%'
     `);
     
-    const maxSeq = seqResult[0]?.max_seq || 0;
+    const maxSeq = seqResult.rows && seqResult.rows.length > 0 ? seqResult.rows[0].max_seq || 0 : 0;
     const nextSeq = maxSeq + 1;
     const wpsId = `WPS-${nextSeq}`;
     const pqrId = `PQR-${nextSeq}`;
