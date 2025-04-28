@@ -1,5 +1,6 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import wpsPqrRoutes from './quality/wps-pqr-routes';
+import wpqrRoutes from './quality/wpqr-routes';
 import materialIdentificationRoutes from './quality/material-identification-routes';
 import { previewInspectionOrders, generateInspectionOrders } from './quality/inspection-order-generator';
 import { db } from './db';
@@ -18,6 +19,9 @@ const router = express.Router();
 
 // Register WPS/PQR management routes
 router.use('/wps-pqr', wpsPqrRoutes);
+
+// Register new WPQR document routes
+router.use('/wpqr', wpqrRoutes);
 
 // Register Material Identification routes
 router.use('/material-identification', materialIdentificationRoutes);

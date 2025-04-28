@@ -19,3 +19,16 @@ export function formatFileSize(bytes: number): string {
   
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
+/**
+ * Format a date to a human-readable string
+ * @param date Date object or string to format
+ * @returns Formatted date string (e.g., "Apr 28, 2025")
+ */
+export function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(date);
+}
