@@ -147,20 +147,30 @@ router.post('/wps', ensureAuthenticated, uploadWpsPqrDocument.single('document')
       WHERE wps_id LIKE 'WPS-%'
     `);
     
-    const maxSeq = seqResult.rows && seqResult.rows.length > 0 ? seqResult.rows[0].max_seq || 0 : 0;
+    // Extract max sequence and handle type safely
+    let maxSeq = 0;
+    if (seqResult.rows && seqResult.rows.length > 0) {
+      const maxSeqValue = seqResult.rows[0].max_seq;
+      maxSeq = maxSeqValue !== null ? parseInt(maxSeqValue) : 0;
+    }
     const nextSeq = maxSeq + 1;
     const wpsId = `WPS-${nextSeq}`;
     const pqrId = `PQR-${nextSeq}`;
     
     // If a document was uploaded, process it with Google Cloud Storage
-    let documentUploadResult = { success: true };
+    let documentFilePath: string | null = null;
+    let documentUrl: string | null = null;
+    
     if (req.file) {
       req.body.wpsId = wpsId; // Set WPS ID for file naming
-      documentUploadResult = await uploadWpsDocument(req);
+      const documentUploadResult = await uploadWpsDocument(req);
       
       if ('error' in documentUploadResult) {
         return res.status(400).json({ error: documentUploadResult.error });
       }
+      
+      documentFilePath = documentUploadResult.document_file_path || null;
+      documentUrl = documentUploadResult.document_url || null;
     }
     
     // Insert new WPS document into database using raw SQL
@@ -199,8 +209,8 @@ router.post('/wps', ensureAuthenticated, uploadWpsPqrDocument.single('document')
         ${req.body.preheatingTemp || null},
         ${req.body.postWeldHeatTreatment || null},
         ${req.body.shieldingGas || null},
-        ${documentUploadResult.document_file_path || null},
-        ${documentUploadResult.document_url || null},
+        ${documentFilePath},
+        ${documentUrl},
         ${req.body.status || 'Draft'},
         ${req.body.remarks || null},
         ${req.user!.id},
@@ -210,7 +220,7 @@ router.post('/wps', ensureAuthenticated, uploadWpsPqrDocument.single('document')
       RETURNING *
     `);
     
-    const newWpsDocument = result.length > 0 ? result[0] : null;
+    const newWpsDocument = result.rows && result.rows.length > 0 ? result.rows[0] : null;
     
     res.status(201).json(newWpsDocument);
   } catch (error) {
@@ -237,14 +247,19 @@ router.put('/wps/:id', ensureAuthenticated, uploadWpsPqrDocument.single('documen
     }
     
     // If a document was uploaded, process it with Google Cloud Storage
-    let documentUploadResult = { success: true };
+    let documentFilePath: string | null = existingDocument.documentFilePath;
+    let documentUrl: string | null = existingDocument.documentUrl;
+    
     if (req.file) {
       req.body.wpsId = existingDocument.wpsId; // Set WPS ID for file naming
-      documentUploadResult = await uploadWpsDocument(req);
+      const documentUploadResult = await uploadWpsDocument(req);
       
       if ('error' in documentUploadResult) {
         return res.status(400).json({ error: documentUploadResult.error });
       }
+      
+      documentFilePath = documentUploadResult.document_file_path || existingDocument.documentFilePath;
+      documentUrl = documentUploadResult.document_url || existingDocument.documentUrl;
     }
     
     // Update WPS document in database
@@ -259,8 +274,8 @@ router.put('/wps/:id', ensureAuthenticated, uploadWpsPqrDocument.single('documen
         preheatingTemp: req.body.preheatingTemp || existingDocument.preheatingTemp,
         postWeldHeatTreatment: req.body.postWeldHeatTreatment || existingDocument.postWeldHeatTreatment,
         shieldingGas: req.body.shieldingGas || existingDocument.shieldingGas,
-        documentFilePath: documentUploadResult.document_file_path || existingDocument.documentFilePath,
-        documentUrl: documentUploadResult.document_url || existingDocument.documentUrl,
+        documentFilePath: documentFilePath,
+        documentUrl: documentUrl,
         status: req.body.status || existingDocument.status,
         remarks: req.body.remarks || existingDocument.remarks,
         updatedAt: new Date()
@@ -351,7 +366,7 @@ router.post('/combined-document', ensureAuthenticated, uploadWpsPqrDocument.sing
       LIMIT 1
     `);
     
-    const wpsDocument = wpsResult.length > 0 ? wpsResult[0] : null;
+    const wpsDocument = wpsResult.rows && wpsResult.rows.length > 0 ? wpsResult.rows[0] : null;
     
     if (!wpsDocument) {
       return res.status(404).json({ 
@@ -401,14 +416,19 @@ router.post('/wps/pqr', ensureAuthenticated, uploadWpsPqrDocument.single('docume
     const pqrId = wpsDocument.pqrId;
     
     // If a document was uploaded, process it with Google Cloud Storage
-    let documentUploadResult = { success: true };
+    let documentFilePath: string | null = null;
+    let documentUrl: string | null = null;
+    
     if (req.file) {
       req.body.pqrId = pqrId; // Set PQR ID for file naming
-      documentUploadResult = await uploadPqrDocument(req);
+      const documentUploadResult = await uploadPqrDocument(req);
       
       if ('error' in documentUploadResult) {
         return res.status(400).json({ error: documentUploadResult.error });
       }
+      
+      documentFilePath = documentUploadResult.document_file_path || null;
+      documentUrl = documentUploadResult.document_url || null;
     }
     
     // Update the WPS document with PQR information using raw SQL
@@ -422,8 +442,8 @@ router.post('/wps/pqr', ensureAuthenticated, uploadWpsPqrDocument.single('docume
         pqr_test_results = ${req.body.testResults},
         pqr_status = ${req.body.status},
         pqr_remarks = ${req.body.remarks},
-        pqr_document_file_path = ${documentUploadResult.document_file_path || null},
-        pqr_document_url = ${documentUploadResult.document_url || null},
+        pqr_document_file_path = ${documentFilePath},
+        pqr_document_url = ${documentUrl},
         pqr_created_by = ${req.user!.id},
         pqr_created_at = NOW(),
         updated_at = NOW()
@@ -431,7 +451,7 @@ router.post('/wps/pqr', ensureAuthenticated, uploadWpsPqrDocument.single('docume
       RETURNING *
     `);
     
-    const updatedWpsDocument = pqrResult.length > 0 ? pqrResult[0] : null;
+    const updatedWpsDocument = pqrResult.rows && pqrResult.rows.length > 0 ? pqrResult.rows[0] : null;
     
     res.status(201).json(updatedWpsDocument);
   } catch (error) {
@@ -502,10 +522,14 @@ router.get('/report', ensureAuthenticated, async (req: Request, res: Response) =
     
     sqlQuery += ` ORDER BY w.wps_id`;
     
-    const results = await db.execute(sql.raw(sqlQuery, ...params));
+    // Execute raw SQL with proper parameter formatting
+    const queryResult = await db.execute({
+      query: sqlQuery,
+      values: params
+    });
     
     // Format the data for reporting
-    const reportData = results.map(record => {
+    const reportData = (results.rows || []).map((record: any) => {
       return {
         wps_id: record.id,
         wps_number: record.wps_id,
