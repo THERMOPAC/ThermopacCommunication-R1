@@ -172,6 +172,20 @@ async function generateWpqrDocumentId(): Promise<string> {
   return `WPQR-${nextNumber}`;
 }
 
+// Get the next document ID that will be generated
+router.get('/next-document-id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const nextDocumentId = await generateWpqrDocumentId();
+    res.json({ documentId: nextDocumentId });
+  } catch (error) {
+    console.error('Error generating next document ID:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate next document ID',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Create a new WPQR document
 router.post('/', ensureAuthenticated, upload.single('document'), async (req: Request, res: Response) => {
   try {

@@ -59,6 +59,12 @@ export default function WpqrPage() {
     queryKey: ['/api/quality/wpqr'],
     retry: 1,
   });
+  
+  // Fetch the next document ID when the create dialog is opened
+  const { data: nextDocumentId, isLoading: isLoadingNextId } = useQuery<{ documentId: string }>({
+    queryKey: ['/api/quality/wpqr/next-document-id'],
+    enabled: isCreateOpen, // Only fetch when the dialog is open
+  });
 
   // Form setup for creating new WPQR document
   const form = useForm<WpqrFormValues>({
@@ -263,7 +269,19 @@ export default function WpqrPage() {
             <DialogDescription>
               Upload a new Welding Procedure Qualification Record document.
               <div className="mt-2 text-sm font-medium">
-                Document ID will be automatically generated (format: WPQR-X)
+                {isLoadingNextId ? (
+                  <div className="flex items-center">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Loading document ID...
+                  </div>
+                ) : nextDocumentId ? (
+                  <div className="flex items-center space-x-2">
+                    <span>Document ID will be:</span>
+                    <span className="font-bold text-primary">{nextDocumentId.documentId}</span>
+                  </div>
+                ) : (
+                  <span>Document ID will be automatically generated</span>
+                )}
               </div>
             </DialogDescription>
           </DialogHeader>
