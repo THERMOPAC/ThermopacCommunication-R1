@@ -177,15 +177,18 @@ export default function WpsPqrPage() {
     try {
       // Convert form data to appropriate server-side field names
       const wpsData = {
-        welderProcess: data.weldingProcess,
-        baseMetalGrade: data.materialGrade,
-        baseMetalThickness: data.preheatTemperature.replace(/[°]/g, ''), // Remove degree symbols
-        fillerMaterial: data.fillerMaterial,
-        jointType: "Butt", // Default value
-        weldPosition: data.weldingPosition,
-        preheatingTemp: data.preheatTemperature.replace(/[°]/g, ''), // Match the server field name
-        postWeldHeatTreatment: data.pwht === 'Yes' ? data.pwhtDetails : 'None',
-        shieldingGas: data.shieldingGas || "",
+        wps_id: data.wpsId, // Added WPS ID field
+        pqr_id: pqrId, // Associated PQR ID
+        revision_no: "0", // Default for new entries
+        welder_process: data.weldingProcess,
+        base_metal_grade: data.materialGrade,
+        base_metal_thickness: data.preheatTemperature.replace(/[°]/g, ''), // Remove degree symbols
+        filler_material: data.fillerMaterial,
+        joint_type: "Butt", // Default value
+        weld_position: data.weldingPosition,
+        preheating_temp: data.preheatTemperature.replace(/[°]/g, ''), // Match the server field name
+        post_weld_heat_treatment: data.pwht === 'Yes' ? data.pwhtDetails : 'None',
+        shielding_gas: data.shieldingGas || "",
         status: "Draft",
         remarks: data.remarks || ""
       };
@@ -244,23 +247,20 @@ export default function WpsPqrPage() {
     try {
       // Convert form data to appropriate server-side field names
       const pqrData = {
-        pqrId: data.pqrId,
-        relatedWpsId: data.relatedWpsId,
+        wpsId: data.relatedWpsId.replace('WPS-', ''), // Extract the numeric ID from WPS-XXX format
+        testDate: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
+        testLaboratory: "Internal Testing Lab", // Default value
+        testType: "Mechanical Testing",
+        testResults: data.mechanicalTestResults,
+        status: "Draft",
+        remarks: data.remarks || "",
+        // Additional technical details
         testSpecimenMaterial: data.testSpecimenMaterial,
-        testSpecimenThickness: data.testSpecimenThickness.replace(/[°]/g, ''), // Remove degree symbols
+        testSpecimenThickness: data.testSpecimenThickness.replace(/[°]/g, ''),
         voltage: data.voltage,
         amperage: data.amperage,
         travelSpeed: data.travelSpeed,
-        wireFeedSpeed: data.wireFeedSpeed,
-        weldPosition: data.weldingPosition,
-        fillerMaterial: data.fillerMaterial,
-        shieldingGas: data.shieldingGas,
-        preheatTemperature: data.preheatTemperature.replace(/[°]/g, ''), // Remove degree symbols
-        pwht: data.pwht,
-        mechanicalTestResults: data.mechanicalTestResults,
-        visualInspectionResult: data.visualInspectionResult,
-        ndtRequirements: data.ndtRequirements,
-        remarks: data.remarks || ""
+        wireFeedSpeed: data.wireFeedSpeed
       };
       
       console.log("Sanitized PQR data for API:", pqrData);
