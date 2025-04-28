@@ -249,7 +249,7 @@ export default function WpsPqrManagementPage() {
     isLoading, 
     refetch 
   } = useQuery<WpsDocument[]>({
-    queryKey: ["/api/quality/wps"],
+    queryKey: ["/api/quality/wps-pqr/wps"],
   });
   
   // Create new WPS document mutation
@@ -269,7 +269,7 @@ export default function WpsPqrManagementPage() {
         formData.append("document", documentFile);
       }
       
-      const response = await fetch("/api/quality/wps", {
+      const response = await fetch("/api/quality/wps-pqr/wps", {
         method: "POST",
         body: formData,
       });
@@ -289,7 +289,7 @@ export default function WpsPqrManagementPage() {
       setIsAddWpsOpen(false);
       form.reset();
       setDocumentFile(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps-pqr/wps"] });
     },
     onError: (error: Error) => {
       toast({
@@ -317,7 +317,7 @@ export default function WpsPqrManagementPage() {
         formData.append("document", documentFile);
       }
       
-      const response = await fetch(`/api/quality/wps/${id}`, {
+      const response = await fetch(`/api/quality/wps-pqr/wps/${id}`, {
         method: "PUT",
         body: formData,
       });
@@ -338,7 +338,7 @@ export default function WpsPqrManagementPage() {
       editForm.reset();
       setDocumentFile(null);
       setSelectedWps(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps-pqr/wps"] });
     },
     onError: (error: Error) => {
       toast({
@@ -370,7 +370,7 @@ export default function WpsPqrManagementPage() {
       });
       setIsDeleteDialogOpen(false);
       setSelectedWps(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps-pqr/wps"] });
     },
     onError: (error: Error) => {
       toast({
@@ -549,7 +549,7 @@ export default function WpsPqrManagementPage() {
       setCombinedDocumentFile(null);
       setSelectedWpsId(null);
       setSelectedPqrId(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps-pqr/wps"] });
     },
     onError: (error: Error) => {
       toast({
@@ -1836,7 +1836,7 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
   
   // Fetch WPS documents data for selection when no WPS is provided
   const { data: wpsDocuments = [] } = useQuery<WpsDocument[]>({
-    queryKey: ["/api/quality/wps"],
+    queryKey: ["/api/quality/wps-pqr/wps"],
     enabled: !wps, // Only fetch if no WPS is provided
   });
   
@@ -1909,7 +1909,7 @@ function PqrForm({ wps, onClose }: { wps: WpsDocument | null; onClose: () => voi
       pqrForm.reset();
       setPqrDocumentFile(null);
       setSelectedWpsId(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/wps-pqr/wps"] });
     },
     onError: (error: Error) => {
       toast({
