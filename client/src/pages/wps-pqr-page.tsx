@@ -268,7 +268,7 @@ export default function WpsPqrPage() {
       // Send data to the API using apiRequest
       try {
         console.log("Sending PQR data using apiRequest");
-        const savedPqr = await apiRequest('POST', '/api/quality/wps-pqr/pqr', pqrData);
+        const savedPqr = await apiRequest('POST', '/api/quality/wps/pqr', pqrData);
         console.log("API response for PQR:", savedPqr);
       } catch (apiError) {
         console.error("API request failed with error:", apiError);
