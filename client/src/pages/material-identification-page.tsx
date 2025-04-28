@@ -359,9 +359,40 @@ export default function MaterialIdentificationPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Material Grade</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="e.g., SA-516 Gr 70" />
-                        </FormControl>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select material grade" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="SA-516 Gr 60">SA-516 Gr 60</SelectItem>
+                            <SelectItem value="SA-516 Gr 70">SA-516 Gr 70</SelectItem>
+                            <SelectItem value="SA-106 Gr B">SA-106 Gr B</SelectItem>
+                            <SelectItem value="SA-106 Gr C">SA-106 Gr C</SelectItem>
+                            <SelectItem value="SA-36">SA-36</SelectItem>
+                            <SelectItem value="SA-537 Cl 1">SA-537 Cl 1</SelectItem>
+                            <SelectItem value="SA-537 Cl 2">SA-537 Cl 2</SelectItem>
+                            <SelectItem value="SA-240 Type 304">SA-240 Type 304</SelectItem>
+                            <SelectItem value="SA-240 Type 316">SA-240 Type 316</SelectItem>
+                            <SelectItem value="SA-312 TP304">SA-312 TP304</SelectItem>
+                            <SelectItem value="SA-312 TP316">SA-312 TP316</SelectItem>
+                            <SelectItem value="SA-387 Gr 11 Cl 2">SA-387 Gr 11 Cl 2</SelectItem>
+                            <SelectItem value="SA-387 Gr 22 Cl 2">SA-387 Gr 22 Cl 2</SelectItem>
+                            <SelectItem value="SA-213 TP304">SA-213 TP304</SelectItem>
+                            <SelectItem value="SA-213 TP316">SA-213 TP316</SelectItem>
+                            <SelectItem value="API 5L Gr B">API 5L Gr B</SelectItem>
+                            <SelectItem value="API 5L X42">API 5L X42</SelectItem>
+                            <SelectItem value="API 5L X52">API 5L X52</SelectItem>
+                            <SelectItem value="ASTM A36">ASTM A36</SelectItem>
+                            <SelectItem value="ASTM A106 Gr B">ASTM A106 Gr B</SelectItem>
+                            <SelectItem value="ASTM A333 Gr 6">ASTM A333 Gr 6</SelectItem>
+                            <SelectItem value="ASTM A515 Gr 70">ASTM A515 Gr 70</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
