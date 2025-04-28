@@ -275,26 +275,87 @@ export default function WelderManagementPage() {
 
   // Submit handler for adding a new welder
   const onSubmit = (values: z.infer<typeof welderFormSchema>) => {
-    // Ensure dates are properly formatted
-    const formattedValues = {
-      ...values,
-      testDate: values.testDate ? new Date(values.testDate).toISOString().split('T')[0] : '',
-      certificateExpiryDate: values.certificateExpiryDate ? new Date(values.certificateExpiryDate).toISOString().split('T')[0] : '',
-      remarks: values.remarks || ""
-    };
-    
-    console.log("Submitting welder data:", formattedValues);
-    createWelderMutation.mutate(formattedValues);
+    try {
+      // Validate dates before formatting
+      if (values.testDate && !isValidDateString(values.testDate)) {
+        toast({
+          title: "Invalid Test Date",
+          description: "Please select a valid test date",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (values.certificateExpiryDate && !isValidDateString(values.certificateExpiryDate)) {
+        toast({
+          title: "Invalid Certificate Expiry Date",
+          description: "Please select a valid certificate expiry date",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Ensure dates are properly formatted
+      const formattedValues = {
+        ...values,
+        testDate: values.testDate ? formatDateString(values.testDate) : '',
+        certificateExpiryDate: values.certificateExpiryDate ? formatDateString(values.certificateExpiryDate) : '',
+        remarks: values.remarks || ""
+      };
+      
+      console.log("Submitting welder data:", formattedValues);
+      createWelderMutation.mutate(formattedValues);
+    } catch (error) {
+      console.error("Error in form submission:", error);
+      toast({
+        title: "Form Error",
+        description: "There was a problem with the form data. Please check all fields.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Helper function to validate date strings
+  const isValidDateString = (dateStr: string): boolean => {
+    const date = new Date(dateStr);
+    return !isNaN(date.getTime());
+  };
+  
+  // Helper function to format date strings to YYYY-MM-DD
+  const formatDateString = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    return date.toISOString().split('T')[0];
   };
 
   // Submit handler for editing a welder
   const onEditSubmit = (values: z.infer<typeof welderFormSchema>) => {
-    if (selectedWelder) {
+    if (!selectedWelder) return;
+    
+    try {
+      // Validate dates before formatting
+      if (values.testDate && !isValidDateString(values.testDate)) {
+        toast({
+          title: "Invalid Test Date",
+          description: "Please select a valid test date",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (values.certificateExpiryDate && !isValidDateString(values.certificateExpiryDate)) {
+        toast({
+          title: "Invalid Certificate Expiry Date",
+          description: "Please select a valid certificate expiry date",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       // Ensure dates are properly formatted
       const formattedValues = {
         ...values,
-        testDate: values.testDate ? new Date(values.testDate).toISOString().split('T')[0] : '',
-        certificateExpiryDate: values.certificateExpiryDate ? new Date(values.certificateExpiryDate).toISOString().split('T')[0] : '',
+        testDate: values.testDate ? formatDateString(values.testDate) : '',
+        certificateExpiryDate: values.certificateExpiryDate ? formatDateString(values.certificateExpiryDate) : '',
         remarks: values.remarks || ""
       };
       
@@ -302,6 +363,13 @@ export default function WelderManagementPage() {
       updateWelderMutation.mutate({ 
         id: selectedWelder.id, 
         data: formattedValues
+      });
+    } catch (error) {
+      console.error("Error in edit form submission:", error);
+      toast({
+        title: "Form Error",
+        description: "There was a problem with the form data. Please check all fields.",
+        variant: "destructive"
       });
     }
   };
