@@ -73,6 +73,7 @@ export function setupWelderRoutes(app: any) {
   app.post('/api/quality/welders', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       console.log("Received welder creation request:", JSON.stringify(req.body, null, 2));
+      res.setHeader('Content-Type', 'application/json');
       
       const {
         name,
@@ -94,10 +95,18 @@ export function setupWelderRoutes(app: any) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
       
+      console.log("All required fields are present");
+      
       // Ensure arrays are properly handled
       const processArray = Array.isArray(processQualified) ? processQualified : [];
       const materialArray = Array.isArray(materialGroupQualified) ? materialGroupQualified : [];
       const positionArray = Array.isArray(positionQualified) ? positionQualified : [];
+      
+      console.log("Sanitized arrays:", {
+        processArray,
+        materialArray,
+        positionArray
+      });
       
       // Validate date formats
       try {
@@ -114,80 +123,77 @@ export function setupWelderRoutes(app: any) {
             return res.status(400).json({ error: 'Invalid certificate expiry date format. Use YYYY-MM-DD format.' });
           }
         }
+        
+        console.log("Date validation passed");
       } catch (dateError) {
         console.error("Date validation error:", dateError);
         return res.status(400).json({ error: 'Invalid date format', details: String(dateError) });
       }
 
       // Generate IDs
-      const welderId = await generateNextWelderId();
-      const certificateNo = await generateNextCertificateNo();
-      
-      console.log("Generating IDs completed successfully. Welder ID:", welderId, "Certificate No:", certificateNo);
-      
-      // Simplify the SQL insert to focus on the potential issue
+      let welderId, certificateNo;
       try {
-        console.log("About to execute database insert with arrays:", {
-          processArray: JSON.stringify(processArray),
-          materialArray: JSON.stringify(materialArray),
-          positionArray: JSON.stringify(positionArray)
+        welderId = await generateNextWelderId();
+        certificateNo = await generateNextCertificateNo();
+        console.log("Generated IDs successfully. Welder ID:", welderId, "Certificate No:", certificateNo);
+      } catch (idError) {
+        console.error("Error generating IDs:", idError);
+        return res.status(500).json({ 
+          error: 'Failed to generate IDs',
+          message: idError instanceof Error ? idError.message : String(idError)
         });
+      }
+      
+      // Database insert
+      try {
+        console.log("Executing database insert");
         
-        // Create welder record
+        // Create welder record with simplified query
         const result = await db.execute(sql`
           INSERT INTO welders (
-            "welderId", 
-            name, 
-            trade, 
-            "processQualified", 
-            "materialGroupQualified", 
-            "thicknessRange", 
-            "positionQualified", 
-            "wpsNumber", 
-            "testDate", 
-            "testResults", 
-            "certificateNo", 
-            "certificateExpiryDate", 
-            status, 
-            remarks,
-            "createdAt"
+            "welderId", name, trade, "processQualified", "materialGroupQualified", 
+            "thicknessRange", "positionQualified", "wpsNumber", "testDate", 
+            "testResults", "certificateNo", "certificateExpiryDate", status, 
+            remarks, "createdAt"
           ) 
           VALUES (
-            ${welderId}, 
-            ${name}, 
-            ${trade}, 
-            ${processArray}, 
-            ${materialArray}, 
-            ${thicknessRange}, 
-            ${positionArray}, 
-            ${wpsNumber}, 
-            ${testDate}, 
-            ${testResults}, 
-            ${certificateNo}, 
-            ${certificateExpiryDate}, 
-            ${status}, 
-            ${remarks || ""},
-            NOW()
+            ${welderId}, ${name}, ${trade}, ${processArray}, ${materialArray},
+            ${thicknessRange}, ${positionArray}, ${wpsNumber}, ${testDate},
+            ${testResults}, ${certificateNo}, ${certificateExpiryDate}, ${status},
+            ${remarks || ""}, NOW()
           )
-          RETURNING *
+          RETURNING id, "welderId", name, trade
         `);
         
-        console.log("Welder created successfully:", result.rows[0]);
-        res.status(201).json(result.rows[0]);
+        if (result.rows && result.rows.length > 0) {
+          console.log("Welder created successfully:", result.rows[0]);
+          return res.status(201).json({
+            success: true,
+            message: 'Welder created successfully',
+            data: result.rows[0]
+          });
+        } else {
+          console.error('No rows returned from insert');
+          return res.status(500).json({ 
+            error: 'Database insert did not return expected data',
+            success: false
+          });
+        }
       } catch (dbError) {
         console.error('Database error:', dbError);
-        res.status(500).json({ 
+        return res.status(500).json({ 
           error: 'Database error',
-          message: dbError instanceof Error ? dbError.message : String(dbError)
+          message: dbError instanceof Error ? dbError.message : String(dbError),
+          success: false
         });
       }
     } catch (error) {
       console.error('Error creating welder:', error);
       // Send a more detailed error response
-      res.status(500).json({ 
+      return res.status(500).json({ 
         error: 'Failed to create welder', 
         message: error instanceof Error ? error.message : String(error),
-        stack: process.env.NODE_ENV !== 'production' ? (error instanceof Error ? error.stack : undefined) : undefined
+        success: false
       });
     }
   });
@@ -196,6 +202,7 @@ export function setupWelderRoutes(app: any) {
   app.put('/api/quality/welders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       console.log("Received welder update request:", JSON.stringify(req.body, null, 2));
+      res.setHeader('Content-Type', 'application/json');
       
       const { id } = req.params;
       const {
@@ -218,10 +225,18 @@ export function setupWelderRoutes(app: any) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
       
+      console.log("All required fields are present");
+      
       // Ensure arrays are properly handled
       const processArray = Array.isArray(processQualified) ? processQualified : [];
       const materialArray = Array.isArray(materialGroupQualified) ? materialGroupQualified : [];
       const positionArray = Array.isArray(positionQualified) ? positionQualified : [];
+      
+      console.log("Sanitized arrays:", {
+        processArray,
+        materialArray,
+        positionArray
+      });
       
       // Validate date formats
       try {
@@ -238,19 +253,18 @@ export function setupWelderRoutes(app: any) {
             return res.status(400).json({ error: 'Invalid certificate expiry date format. Use YYYY-MM-DD format.' });
           }
         }
+        
+        console.log("Date validation passed");
       } catch (dateError) {
         console.error("Date validation error:", dateError);
         return res.status(400).json({ error: 'Invalid date format', details: String(dateError) });
       }
       
-      console.log("About to execute database update with arrays:", {
-        processArray: JSON.stringify(processArray),
-        materialArray: JSON.stringify(materialArray),
-        positionArray: JSON.stringify(positionArray)
-      });
-      
+      // Database update
       try {
-        // Update welder record
+        console.log("Executing database update");
+        
+        // Update welder record with simplified query
         const result = await db.execute(sql`
           UPDATE welders 
           SET 
@@ -268,29 +282,38 @@ export function setupWelderRoutes(app: any) {
             remarks = ${remarks || ""},
             "updatedAt" = NOW()
           WHERE id = ${id}
-          RETURNING *
+          RETURNING id, "welderId", name, trade
         `);
         
-        if (result.rows.length === 0) {
-          return res.status(404).json({ error: 'Welder not found' });
+        if (result.rows && result.rows.length > 0) {
+          console.log("Welder updated successfully:", result.rows[0]);
+          return res.status(200).json({
+            success: true,
+            message: 'Welder updated successfully',
+            data: result.rows[0]
+          });
+        } else {
+          console.error('Welder not found for update');
+          return res.status(404).json({ 
+            error: 'Welder not found',
+            success: false
+          });
         }
-        
-        console.log("Welder updated successfully:", result.rows[0]);
-        res.json(result.rows[0]);
       } catch (dbError) {
         console.error('Database error during update:', dbError);
-        res.status(500).json({ 
+        return res.status(500).json({ 
           error: 'Database error during update',
-          message: dbError instanceof Error ? dbError.message : String(dbError)
+          message: dbError instanceof Error ? dbError.message : String(dbError),
+          success: false
         });
       }
     } catch (error) {
       console.error('Error updating welder:', error);
       // Send a more detailed error response
-      res.status(500).json({ 
+      return res.status(500).json({ 
         error: 'Failed to update welder', 
         message: error instanceof Error ? error.message : String(error),
-        stack: process.env.NODE_ENV !== 'production' ? (error instanceof Error ? error.stack : undefined) : undefined
+        success: false
       });
     }
   });
