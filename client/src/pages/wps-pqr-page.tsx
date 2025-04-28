@@ -82,20 +82,20 @@ export default function WpsPqrPage() {
   
   // Fetch existing WPS data
   const { data: wpsData, isLoading: isLoadingWps } = useQuery({
-    queryKey: ['/api/quality/wps'],
+    queryKey: ['/api/quality/wps-pqr/wps'],
     // The API does not exist yet, so we'll disable it to prevent errors
     enabled: false,
   });
   
   // Fetch specific WPS data if ID is provided
   const { data: specificWps, isLoading: isLoadingSpecificWps } = useQuery({
-    queryKey: ['/api/quality/wps', documentId],
+    queryKey: ['/api/quality/wps-pqr/wps', documentId],
     enabled: !!params?.id && false, // Disabled for now
   });
   
   // Fetch specific PQR data if ID is provided
   const { data: specificPqr, isLoading: isLoadingSpecificPqr } = useQuery({
-    queryKey: ['/api/quality/pqr', documentId],
+    queryKey: ['/api/quality/wps-pqr/wps/pqr', documentId],
     enabled: !!params?.id && false, // Disabled for now
   });
   
@@ -237,7 +237,7 @@ export default function WpsPqrPage() {
       }
       
       // Invalidate queries to refresh data
-      queryClient.invalidateQueries({queryKey: ['/api/quality/wps']});
+      queryClient.invalidateQueries({queryKey: ['/api/quality/wps-pqr/wps']});
     } catch (error) {
       console.error("Error saving WPS:", error);
       toast({
@@ -285,7 +285,8 @@ export default function WpsPqrPage() {
       // Send data to the API using apiRequest
       try {
         console.log("Sending PQR data using apiRequest");
-        const savedPqr = await apiRequest('POST', '/api/quality/wps/pqr', pqrData);
+        // Fix the endpoint URL to match server-side routing - note the correct path is /wps-pqr/wps/pqr
+        const savedPqr = await apiRequest('POST', '/api/quality/wps-pqr/wps/pqr', pqrData);
         console.log("API response for PQR:", savedPqr);
       } catch (apiError) {
         console.error("API request failed with error:", apiError);
@@ -298,7 +299,7 @@ export default function WpsPqrPage() {
       });
       
       // Invalidate queries to refresh data
-      queryClient.invalidateQueries({queryKey: ['/api/quality/pqr']});
+      queryClient.invalidateQueries({queryKey: ['/api/quality/wps-pqr/wps/pqr']});
       
       // Reset forms with new IDs for the next entry
       const newId = generateSequentialId();
