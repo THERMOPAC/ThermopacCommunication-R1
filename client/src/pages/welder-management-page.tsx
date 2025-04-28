@@ -566,48 +566,116 @@ export default function WelderManagementPage() {
                         <FormField
                           control={form.control}
                           name="testDate"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                              <FormLabel>Test Date*</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant={"outline"}
-                                      className={cn(
-                                        "pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground"
-                                      )}
-                                    >
-                                      {field.value ? (
-                                        format(new Date(field.value), "PPP")
-                                      ) : (
-                                        <span>Pick a date</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value ? new Date(field.value) : undefined}
-                                    onSelect={(date) => {
-                                      field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                          render={({ field }) => {
+                            // Parse date value for controlled inputs
+                            const dateValue = field.value ? new Date(field.value) : new Date();
+                            const [day, setDay] = useState(field.value ? dateValue.getDate().toString() : "");
+                            const [month, setMonth] = useState(field.value ? (dateValue.getMonth() + 1).toString() : "");
+                            const [year, setYear] = useState(field.value ? dateValue.getFullYear().toString() : "");
+                            
+                            // Update field value when day, month, or year changes
+                            const updateDate = (newDay: string, newMonth: string, newYear: string) => {
+                              if (newDay && newMonth && newYear) {
+                                const dateStr = `${newYear}-${newMonth.padStart(2, '0')}-${newDay.padStart(2, '0')}`;
+                                field.onChange(dateStr);
+                              }
+                            };
+
+                            // Generate options for days, months, and years
+                            const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
+                            const months = [
+                              { value: "1", label: "January" },
+                              { value: "2", label: "February" },
+                              { value: "3", label: "March" },
+                              { value: "4", label: "April" },
+                              { value: "5", label: "May" },
+                              { value: "6", label: "June" },
+                              { value: "7", label: "July" },
+                              { value: "8", label: "August" },
+                              { value: "9", label: "September" },
+                              { value: "10", label: "October" },
+                              { value: "11", label: "November" },
+                              { value: "12", label: "December" },
+                            ];
+                            const years = Array.from(
+                              { length: 51 }, 
+                              (_, i) => (2000 + i).toString()
+                            );
+
+                            return (
+                              <FormItem>
+                                <FormLabel>Test Date*</FormLabel>
+                                <div className="flex space-x-2">
+                                  {/* Day Select */}
+                                  <Select
+                                    value={day}
+                                    onValueChange={(value) => {
+                                      setDay(value);
+                                      updateDate(value, month, year);
                                     }}
-                                    disabled={(date) =>
-                                      date > new Date() || date < new Date("1900-01-01")
-                                    }
-                                    captionLayout="dropdown"
-                                    fromYear={2000}
-                                    toYear={2050}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <FormMessage />
-                            </FormItem>
-                          )}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="w-[80px]">
+                                        <SelectValue placeholder="Day" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {days.map((d) => (
+                                        <SelectItem key={d} value={d}>
+                                          {d}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  {/* Month Select */}
+                                  <Select
+                                    value={month}
+                                    onValueChange={(value) => {
+                                      setMonth(value);
+                                      updateDate(day, value, year);
+                                    }}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="w-[120px]">
+                                        <SelectValue placeholder="Month" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {months.map((m) => (
+                                        <SelectItem key={m.value} value={m.value}>
+                                          {m.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  {/* Year Select */}
+                                  <Select
+                                    value={year}
+                                    onValueChange={(value) => {
+                                      setYear(value);
+                                      updateDate(day, month, value);
+                                    }}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="w-[90px]">
+                                        <SelectValue placeholder="Year" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {years.map((y) => (
+                                        <SelectItem key={y} value={y}>
+                                          {y}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }}
                         />
                         <FormField
                           control={form.control}
@@ -639,48 +707,116 @@ export default function WelderManagementPage() {
                         <FormField
                           control={form.control}
                           name="certificateExpiryDate"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                              <FormLabel>Certificate Expiry Date*</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant={"outline"}
-                                      className={cn(
-                                        "pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground"
-                                      )}
-                                    >
-                                      {field.value ? (
-                                        format(new Date(field.value), "PPP")
-                                      ) : (
-                                        <span>Pick a date</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value ? new Date(field.value) : undefined}
-                                    onSelect={(date) => {
-                                      field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                          render={({ field }) => {
+                            // Parse date value for controlled inputs
+                            const dateValue = field.value ? new Date(field.value) : new Date();
+                            const [day, setDay] = useState(field.value ? dateValue.getDate().toString() : "");
+                            const [month, setMonth] = useState(field.value ? (dateValue.getMonth() + 1).toString() : "");
+                            const [year, setYear] = useState(field.value ? dateValue.getFullYear().toString() : "");
+                            
+                            // Update field value when day, month, or year changes
+                            const updateDate = (newDay: string, newMonth: string, newYear: string) => {
+                              if (newDay && newMonth && newYear) {
+                                const dateStr = `${newYear}-${newMonth.padStart(2, '0')}-${newDay.padStart(2, '0')}`;
+                                field.onChange(dateStr);
+                              }
+                            };
+
+                            // Generate options for days, months, and years
+                            const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
+                            const months = [
+                              { value: "1", label: "January" },
+                              { value: "2", label: "February" },
+                              { value: "3", label: "March" },
+                              { value: "4", label: "April" },
+                              { value: "5", label: "May" },
+                              { value: "6", label: "June" },
+                              { value: "7", label: "July" },
+                              { value: "8", label: "August" },
+                              { value: "9", label: "September" },
+                              { value: "10", label: "October" },
+                              { value: "11", label: "November" },
+                              { value: "12", label: "December" },
+                            ];
+                            const years = Array.from(
+                              { length: 51 }, 
+                              (_, i) => (2000 + i).toString()
+                            );
+
+                            return (
+                              <FormItem>
+                                <FormLabel>Certificate Expiry Date*</FormLabel>
+                                <div className="flex space-x-2">
+                                  {/* Day Select */}
+                                  <Select
+                                    value={day}
+                                    onValueChange={(value) => {
+                                      setDay(value);
+                                      updateDate(value, month, year);
                                     }}
-                                    disabled={(date) =>
-                                      date < new Date("1900-01-01")
-                                    }
-                                    captionLayout="dropdown-buttons"
-                                    fromYear={2000}
-                                    toYear={2050}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <FormMessage />
-                            </FormItem>
-                          )}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="w-[80px]">
+                                        <SelectValue placeholder="Day" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {days.map((d) => (
+                                        <SelectItem key={d} value={d}>
+                                          {d}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  {/* Month Select */}
+                                  <Select
+                                    value={month}
+                                    onValueChange={(value) => {
+                                      setMonth(value);
+                                      updateDate(day, value, year);
+                                    }}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="w-[120px]">
+                                        <SelectValue placeholder="Month" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {months.map((m) => (
+                                        <SelectItem key={m.value} value={m.value}>
+                                          {m.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  {/* Year Select */}
+                                  <Select
+                                    value={year}
+                                    onValueChange={(value) => {
+                                      setYear(value);
+                                      updateDate(day, month, value);
+                                    }}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="w-[90px]">
+                                        <SelectValue placeholder="Year" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {years.map((y) => (
+                                        <SelectItem key={y} value={y}>
+                                          {y}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }}
                         />
                         <FormField
                           control={form.control}
@@ -1141,48 +1277,116 @@ export default function WelderManagementPage() {
                       <FormField
                         control={editForm.control}
                         name="testDate"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-col">
-                            <FormLabel>Test Date*</FormLabel>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                      "pl-3 text-left font-normal",
-                                      !field.value && "text-muted-foreground"
-                                    )}
-                                  >
-                                    {field.value ? (
-                                      format(new Date(field.value), "PPP")
-                                    ) : (
-                                      <span>Pick a date</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </Button>
-                                </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                  mode="single"
-                                  selected={field.value ? new Date(field.value) : undefined}
-                                  onSelect={(date) => {
-                                    field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                        render={({ field }) => {
+                          // Parse date value for controlled inputs
+                          const dateValue = field.value ? new Date(field.value) : new Date();
+                          const [day, setDay] = useState(field.value ? dateValue.getDate().toString() : "");
+                          const [month, setMonth] = useState(field.value ? (dateValue.getMonth() + 1).toString() : "");
+                          const [year, setYear] = useState(field.value ? dateValue.getFullYear().toString() : "");
+                          
+                          // Update field value when day, month, or year changes
+                          const updateDate = (newDay: string, newMonth: string, newYear: string) => {
+                            if (newDay && newMonth && newYear) {
+                              const dateStr = `${newYear}-${newMonth.padStart(2, '0')}-${newDay.padStart(2, '0')}`;
+                              field.onChange(dateStr);
+                            }
+                          };
+
+                          // Generate options for days, months, and years
+                          const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
+                          const months = [
+                            { value: "1", label: "January" },
+                            { value: "2", label: "February" },
+                            { value: "3", label: "March" },
+                            { value: "4", label: "April" },
+                            { value: "5", label: "May" },
+                            { value: "6", label: "June" },
+                            { value: "7", label: "July" },
+                            { value: "8", label: "August" },
+                            { value: "9", label: "September" },
+                            { value: "10", label: "October" },
+                            { value: "11", label: "November" },
+                            { value: "12", label: "December" },
+                          ];
+                          const years = Array.from(
+                            { length: 51 }, 
+                            (_, i) => (2000 + i).toString()
+                          );
+
+                          return (
+                            <FormItem>
+                              <FormLabel>Test Date*</FormLabel>
+                              <div className="flex space-x-2">
+                                {/* Day Select */}
+                                <Select
+                                  value={day}
+                                  onValueChange={(value) => {
+                                    setDay(value);
+                                    updateDate(value, month, year);
                                   }}
-                                  disabled={(date) =>
-                                    date > new Date() || date < new Date("1900-01-01")
-                                  }
-                                  captionLayout="dropdown"
-                                  fromYear={2000}
-                                  toYear={2050}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-[80px]">
+                                      <SelectValue placeholder="Day" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {days.map((d) => (
+                                      <SelectItem key={d} value={d}>
+                                        {d}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+
+                                {/* Month Select */}
+                                <Select
+                                  value={month}
+                                  onValueChange={(value) => {
+                                    setMonth(value);
+                                    updateDate(day, value, year);
+                                  }}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-[120px]">
+                                      <SelectValue placeholder="Month" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {months.map((m) => (
+                                      <SelectItem key={m.value} value={m.value}>
+                                        {m.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+
+                                {/* Year Select */}
+                                <Select
+                                  value={year}
+                                  onValueChange={(value) => {
+                                    setYear(value);
+                                    updateDate(day, month, value);
+                                  }}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-[90px]">
+                                      <SelectValue placeholder="Year" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {years.map((y) => (
+                                      <SelectItem key={y} value={y}>
+                                        {y}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
                       />
                       <FormField
                         control={editForm.control}
@@ -1214,48 +1418,116 @@ export default function WelderManagementPage() {
                       <FormField
                         control={editForm.control}
                         name="certificateExpiryDate"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-col">
-                            <FormLabel>Certificate Expiry Date*</FormLabel>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                      "pl-3 text-left font-normal",
-                                      !field.value && "text-muted-foreground"
-                                    )}
-                                  >
-                                    {field.value ? (
-                                      format(new Date(field.value), "PPP")
-                                    ) : (
-                                      <span>Pick a date</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </Button>
-                                </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                  mode="single"
-                                  selected={field.value ? new Date(field.value) : undefined}
-                                  onSelect={(date) => {
-                                    field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                        render={({ field }) => {
+                          // Parse date value for controlled inputs
+                          const dateValue = field.value ? new Date(field.value) : new Date();
+                          const [day, setDay] = useState(field.value ? dateValue.getDate().toString() : "");
+                          const [month, setMonth] = useState(field.value ? (dateValue.getMonth() + 1).toString() : "");
+                          const [year, setYear] = useState(field.value ? dateValue.getFullYear().toString() : "");
+                          
+                          // Update field value when day, month, or year changes
+                          const updateDate = (newDay: string, newMonth: string, newYear: string) => {
+                            if (newDay && newMonth && newYear) {
+                              const dateStr = `${newYear}-${newMonth.padStart(2, '0')}-${newDay.padStart(2, '0')}`;
+                              field.onChange(dateStr);
+                            }
+                          };
+
+                          // Generate options for days, months, and years
+                          const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
+                          const months = [
+                            { value: "1", label: "January" },
+                            { value: "2", label: "February" },
+                            { value: "3", label: "March" },
+                            { value: "4", label: "April" },
+                            { value: "5", label: "May" },
+                            { value: "6", label: "June" },
+                            { value: "7", label: "July" },
+                            { value: "8", label: "August" },
+                            { value: "9", label: "September" },
+                            { value: "10", label: "October" },
+                            { value: "11", label: "November" },
+                            { value: "12", label: "December" },
+                          ];
+                          const years = Array.from(
+                            { length: 51 }, 
+                            (_, i) => (2000 + i).toString()
+                          );
+
+                          return (
+                            <FormItem>
+                              <FormLabel>Certificate Expiry Date*</FormLabel>
+                              <div className="flex space-x-2">
+                                {/* Day Select */}
+                                <Select
+                                  value={day}
+                                  onValueChange={(value) => {
+                                    setDay(value);
+                                    updateDate(value, month, year);
                                   }}
-                                  disabled={(date) =>
-                                    date < new Date("1900-01-01")
-                                  }
-                                  captionLayout="dropdown"
-                                  fromYear={2000}
-                                  toYear={2050}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-[80px]">
+                                      <SelectValue placeholder="Day" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {days.map((d) => (
+                                      <SelectItem key={d} value={d}>
+                                        {d}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+
+                                {/* Month Select */}
+                                <Select
+                                  value={month}
+                                  onValueChange={(value) => {
+                                    setMonth(value);
+                                    updateDate(day, value, year);
+                                  }}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-[120px]">
+                                      <SelectValue placeholder="Month" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {months.map((m) => (
+                                      <SelectItem key={m.value} value={m.value}>
+                                        {m.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+
+                                {/* Year Select */}
+                                <Select
+                                  value={year}
+                                  onValueChange={(value) => {
+                                    setYear(value);
+                                    updateDate(day, month, value);
+                                  }}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-[90px]">
+                                      <SelectValue placeholder="Year" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {years.map((y) => (
+                                      <SelectItem key={y} value={y}>
+                                        {y}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
                       />
                       <FormField
                         control={editForm.control}
