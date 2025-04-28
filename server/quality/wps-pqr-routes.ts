@@ -20,7 +20,7 @@ router.get('/wps', ensureAuthenticated, async (req: Request, res: Response) => {
       orderBy: [desc(wpsDocuments.createdAt)]
     });
     
-    res.json(wpsDocuments);
+    res.json(wpsResults);
   } catch (error) {
     console.error('Error fetching WPS documents:', error);
     res.status(500).json({ 
@@ -36,7 +36,7 @@ router.get('/wps/:id', ensureAuthenticated, async (req: Request, res: Response) 
     const wpsId = parseInt(req.params.id);
     
     const [wpsDocument] = await db.query.wpsDocuments.findMany({
-      where: eq(sql`id`, wpsId)
+      where: eq(wpsDocuments.id, wpsId)
     });
     
     if (!wpsDocument) {
@@ -120,7 +120,7 @@ router.put('/wps/:id', ensureAuthenticated, uploadWpsPqrDocument.single('documen
     
     // Check if WPS document exists
     const [existingDocument] = await db.query.wpsDocuments.findMany({
-      where: eq(sql`id`, wpsId)
+      where: eq(wpsDocuments.id, wpsId)
     });
     
     if (!existingDocument) {
@@ -176,7 +176,7 @@ router.delete('/wps/:id', ensureAuthenticated, async (req: Request, res: Respons
     
     // Check if WPS document exists
     const [existingDocument] = await db.query.wpsDocuments.findMany({
-      where: eq(sql`id`, wpsId)
+      where: eq(wpsDocuments.id, wpsId)
     });
     
     if (!existingDocument) {
