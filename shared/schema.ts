@@ -2386,7 +2386,7 @@ export const wpqrDocuments = pgTable('wpqr_documents', {
   welderProcess: varchar('welder_process', { length: 20 }).notNull(),
   baseMetalGrade: varchar('base_metal_grade', { length: 100 }).notNull(),
   jointType: varchar('joint_type', { length: 50 }).notNull(),
-  certificateNo: varchar('certificate_no', { length: 50 }),
+  certificateNo: varchar('certificate_no', { length: 100 }),
   inspectionAuthority: varchar('inspection_authority', { length: 50 }),
   filePath: varchar('file_path', { length: 255 }),
   fileUrl: text('file_url'),

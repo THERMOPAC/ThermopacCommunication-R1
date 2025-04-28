@@ -276,7 +276,7 @@ export default function WpqrPage() {
 
       {/* Create New WPQR Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Create New WPQR Document</DialogTitle>
             <DialogDescription>
@@ -408,45 +408,43 @@ export default function WpqrPage() {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="certificateNo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Certificate No</FormLabel>
+              <FormField
+                control={form.control}
+                name="certificateNo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Certificate No</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter certificate number" {...field} className="w-full" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="inspectionAuthority"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Inspection Authority</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
                       <FormControl>
-                        <Input placeholder="Enter certificate number" {...field} />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select authority" />
+                        </SelectTrigger>
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="inspectionAuthority"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Inspection Authority</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select authority" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="TUV NORD">TUV NORD</SelectItem>
-                          <SelectItem value="SGS">SGS</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                      <SelectContent>
+                        <SelectItem value="TUV NORD">TUV NORD</SelectItem>
+                        <SelectItem value="SGS">SGS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="document"
@@ -491,7 +489,7 @@ export default function WpqrPage() {
       {/* Document Details Dialog */}
       {selectedDocument && (
         <Dialog open={!!selectedDocument} onOpenChange={handleCloseDetails}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>{selectedDocument.title}</DialogTitle>
               <DialogDescription>
@@ -519,9 +517,9 @@ export default function WpqrPage() {
                   </Badge>
                 </div>
                 {selectedDocument.certificateNo && (
-                  <div>
+                  <div className="col-span-2">
                     <h4 className="text-sm font-semibold">Certificate No</h4>
-                    <p>{selectedDocument.certificateNo}</p>
+                    <p className="break-words">{selectedDocument.certificateNo}</p>
                   </div>
                 )}
                 {selectedDocument.inspectionAuthority && (
