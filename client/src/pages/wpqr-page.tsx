@@ -281,6 +281,20 @@ export default function WpqrPage() {
     }
   };
 
+  // Search functionality
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Filter documents based on search term
+  const filteredDocuments = wpqrDocuments ? wpqrDocuments.filter(doc => 
+    doc.documentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    doc.welderProcess.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    doc.baseMetalGrade.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    doc.jointType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (doc.certificateNo && doc.certificateNo.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (doc.inspectionAuthority && doc.inspectionAuthority.toLowerCase().includes(searchTerm.toLowerCase()))
+  ) : [];
+
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
@@ -293,6 +307,24 @@ export default function WpqrPage() {
         <Button onClick={() => setIsCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Add New WPQR
         </Button>
+      </div>
+
+      <div className="flex items-center mb-6">
+        <Input
+          placeholder="Search WPQR documents..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+        {searchTerm && (
+          <Button
+            variant="ghost"
+            onClick={() => setSearchTerm("")}
+            className="ml-2"
+          >
+            Clear
+          </Button>
+        )}
       </div>
 
       <Separator className="my-6" />
@@ -325,13 +357,14 @@ export default function WpqrPage() {
                   <th className="p-2 text-left font-medium">Document ID</th>
                   <th className="p-2 text-left font-medium">Welder Process</th>
                   <th className="p-2 text-left font-medium">Base Metal Grade</th>
+                  <th className="p-2 text-left font-medium">Joint Type</th>
                   <th className="p-2 text-left font-medium">Certificate No</th>
                   <th className="p-2 text-left font-medium">Inspection Authority</th>
                   <th className="p-2 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {wpqrDocuments.map((document) => (
+                {filteredDocuments.map((document) => (
                   <tr key={document.id} className="border-b">
                     <td className="p-2">
                       <div className="flex items-center gap-2">
@@ -343,6 +376,7 @@ export default function WpqrPage() {
                     </td>
                     <td className="p-2">{document.welderProcess}</td>
                     <td className="p-2">{document.baseMetalGrade}</td>
+                    <td className="p-2">{document.jointType}</td>
                     <td className="p-2 max-w-[150px] truncate">{document.certificateNo || "-"}</td>
                     <td className="p-2">{document.inspectionAuthority || "-"}</td>
                     <td className="p-2">
@@ -372,14 +406,6 @@ export default function WpqrPage() {
                           onClick={() => handleDownload(document.id)}
                         >
                           <DownloadCloud className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          className="h-8 w-8 text-destructive" 
-                          onClick={() => handleDelete(document.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </td>
