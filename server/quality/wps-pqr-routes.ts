@@ -15,12 +15,24 @@ const router = express.Router();
 // Get all WPS documents
 router.get('/wps', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Query wps_documents table with user information
-    const wpsResults = await db.query.wpsDocuments.findMany({
-      orderBy: [desc(wpsDocuments.createdAt)]
+    // Use raw SQL query to avoid property/column name mismatches
+    const wpsResults = await db.select()
+      .from(wpsDocuments)
+      .leftJoin(users, eq(wpsDocuments.createdBy, users.id))
+      .leftJoin(users, eq(wpsDocuments.approvedBy, users.id))
+      .orderBy(desc(wpsDocuments.createdAt));
+    
+    // Map the results to include user information
+    const formattedResults = wpsResults.map(record => {
+      // Return the WPS document with user information added
+      return {
+        ...record.wps_documents,
+        createdByUser: record.users?.username || '',
+        approvedByUser: record.users_2?.username || ''
+      };
     });
     
-    res.json(wpsResults);
+    res.json(formattedResults);
   } catch (error) {
     console.error('Error fetching WPS documents:', error);
     res.status(500).json({ 
@@ -130,7 +142,7 @@ router.put('/wps/:id', ensureAuthenticated, uploadWpsPqrDocument.single('documen
     // If a document was uploaded, process it with Google Cloud Storage
     let documentUploadResult = { success: true };
     if (req.file) {
-      req.body.wpsId = existingDocument.wps_id; // Set WPS ID for file naming
+      req.body.wpsId = existingDocument.wpsId; // Set WPS ID for file naming
       documentUploadResult = await uploadWpsDocument(req);
       
       if ('error' in documentUploadResult) {
@@ -139,24 +151,24 @@ router.put('/wps/:id', ensureAuthenticated, uploadWpsPqrDocument.single('documen
     }
     
     // Update WPS document in database
-    const [updatedWpsDocument] = await db.update(sql`wps_documents`)
+    const [updatedWpsDocument] = await db.update(wpsDocuments)
       .set({
-        welder_process: req.body.welderProcess || existingDocument.welder_process,
-        base_metal_grade: req.body.baseMetalGrade || existingDocument.base_metal_grade,
-        base_metal_thickness: req.body.baseMetalThickness || existingDocument.base_metal_thickness,
-        filler_material: req.body.fillerMaterial || existingDocument.filler_material,
-        joint_type: req.body.jointType || existingDocument.joint_type,
-        weld_position: req.body.weldPosition || existingDocument.weld_position,
-        preheating_temp: req.body.preheatingTemp || existingDocument.preheating_temp,
-        post_weld_heat_treatment: req.body.postWeldHeatTreatment || existingDocument.post_weld_heat_treatment,
-        shielding_gas: req.body.shieldingGas || existingDocument.shielding_gas,
-        document_file_path: documentUploadResult.document_file_path || existingDocument.document_file_path,
-        document_url: documentUploadResult.document_url || existingDocument.document_url,
+        welderProcess: req.body.welderProcess || existingDocument.welderProcess,
+        baseMetalGrade: req.body.baseMetalGrade || existingDocument.baseMetalGrade,
+        baseMetalThickness: req.body.baseMetalThickness || existingDocument.baseMetalThickness,
+        fillerMaterial: req.body.fillerMaterial || existingDocument.fillerMaterial,
+        jointType: req.body.jointType || existingDocument.jointType,
+        weldPosition: req.body.weldPosition || existingDocument.weldPosition,
+        preheatingTemp: req.body.preheatingTemp || existingDocument.preheatingTemp,
+        postWeldHeatTreatment: req.body.postWeldHeatTreatment || existingDocument.postWeldHeatTreatment,
+        shieldingGas: req.body.shieldingGas || existingDocument.shieldingGas,
+        documentFilePath: documentUploadResult.document_file_path || existingDocument.documentFilePath,
+        documentUrl: documentUploadResult.document_url || existingDocument.documentUrl,
         status: req.body.status || existingDocument.status,
         remarks: req.body.remarks || existingDocument.remarks,
-        updated_at: new Date()
+        updatedAt: new Date()
       })
-      .where(eq(sql`id`, wpsId))
+      .where(eq(wpsDocuments.id, wpsId))
       .returning();
     
     res.json(updatedWpsDocument);
@@ -184,7 +196,7 @@ router.delete('/wps/:id', ensureAuthenticated, async (req: Request, res: Respons
     }
     
     // Delete WPS document from database
-    await db.delete(sql`wps_documents`).where(eq(sql`id`, wpsId));
+    await db.delete(wpsDocuments).where(eq(wpsDocuments.id, wpsId));
     
     res.status(200).json({ message: 'WPS document deleted successfully' });
   } catch (error) {
@@ -210,12 +222,12 @@ router.get('/wps/:id/document', ensureAuthenticated, async (req: Request, res: R
       return res.status(404).json({ error: 'WPS document not found' });
     }
     
-    if (!existingDocument.document_url) {
+    if (!existingDocument.documentUrl) {
       return res.status(404).json({ error: 'Document not found for this WPS' });
     }
     
     // Redirect to the document URL
-    res.redirect(existingDocument.document_url);
+    res.redirect(existingDocument.documentUrl);
   } catch (error) {
     console.error(`Error retrieving WPS document file ${req.params.id}:`, error);
     res.status(500).json({ 
@@ -248,13 +260,13 @@ router.post('/combined-document', ensureAuthenticated, uploadWpsPqrDocument.sing
     }
     
     // Update the WPS document with the combined document information
-    const [updatedWpsDocument] = await db.update(sql`wps_documents`)
+    const [updatedWpsDocument] = await db.update(wpsDocuments)
       .set({
-        combined_document_file_path: uploadResult.combined_document_file_path,
-        combined_document_url: uploadResult.combined_document_url,
-        updated_at: new Date()
+        combinedDocumentFilePath: uploadResult.combined_document_file_path,
+        combinedDocumentUrl: uploadResult.combined_document_url,
+        updatedAt: new Date()
       })
-      .where(eq(sql`id`, wpsDocument.id))
+      .where(eq(wpsDocuments.id, wpsDocument.id))
       .returning();
     
     res.status(200).json({
@@ -285,7 +297,7 @@ router.post('/wps/pqr', ensureAuthenticated, uploadWpsPqrDocument.single('docume
     }
     
     // Use the PQR ID that was already generated with the WPS
-    const pqrId = wpsDocument.pqr_id;
+    const pqrId = wpsDocument.pqrId;
     
     // If a document was uploaded, process it with Google Cloud Storage
     let documentUploadResult = { success: true };
@@ -299,22 +311,22 @@ router.post('/wps/pqr', ensureAuthenticated, uploadWpsPqrDocument.single('docume
     }
     
     // Update the WPS document with PQR information
-    const [updatedWpsDocument] = await db.update(sql`wps_documents`)
+    const [updatedWpsDocument] = await db.update(wpsDocuments)
       .set({
-        has_pqr: true,
-        pqr_test_date: req.body.testDate,
-        pqr_test_laboratory: req.body.testLaboratory,
-        pqr_test_type: req.body.testType,
-        pqr_test_results: req.body.testResults,
-        pqr_status: req.body.status,
-        pqr_remarks: req.body.remarks,
-        pqr_document_file_path: documentUploadResult.document_file_path || null,
-        pqr_document_url: documentUploadResult.document_url || null,
-        pqr_created_by: req.user!.id,
-        pqr_created_at: new Date(),
-        updated_at: new Date()
+        hasPqr: true,
+        pqrTestDate: req.body.testDate,
+        pqrTestLaboratory: req.body.testLaboratory,
+        pqrTestType: req.body.testType,
+        pqrTestResults: req.body.testResults,
+        pqrStatus: req.body.status,
+        pqrRemarks: req.body.remarks,
+        pqrDocumentFilePath: documentUploadResult.document_file_path || null,
+        pqrDocumentUrl: documentUploadResult.document_url || null,
+        pqrCreatedBy: req.user!.id,
+        pqrCreatedAt: new Date(),
+        updatedAt: new Date()
       })
-      .where(eq(sql`id`, wpsId))
+      .where(eq(wpsDocuments.id, wpsId))
       .returning();
     
     res.status(201).json(updatedWpsDocument);
@@ -341,12 +353,12 @@ router.get('/wps/:id/combined-document', ensureAuthenticated, async (req: Reques
       return res.status(404).json({ error: 'WPS document not found' });
     }
     
-    if (!existingDocument.combined_document_url) {
+    if (!existingDocument.combinedDocumentUrl) {
       return res.status(404).json({ error: 'Combined document not found for this WPS' });
     }
     
     // Redirect to the combined document URL
-    res.redirect(existingDocument.combined_document_url);
+    res.redirect(existingDocument.combinedDocumentUrl);
   } catch (error) {
     console.error(`Error retrieving combined WPS/PQR document file ${req.params.id}:`, error);
     res.status(500).json({ 
