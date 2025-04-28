@@ -64,13 +64,13 @@ router.post('/wps', ensureAuthenticated, uploadWpsPqrDocument.single('document')
   try {
     // Generate WPS ID with format WPS-N (without year)
     // Query for the highest existing WPS sequence using properly aliased table
-    const result = await db.execute(sql`
+    const seqResult = await db.execute(sql`
       SELECT MAX(CAST(SUBSTRING("wps_id", POSITION('-' IN "wps_id") + 1) AS INTEGER)) as max_seq
       FROM wps_documents
       WHERE "wps_id" LIKE 'WPS-%'
     `);
     
-    const maxSeq = result[0]?.max_seq || 0;
+    const maxSeq = seqResult[0]?.max_seq || 0;
     const nextSeq = maxSeq + 1;
     const wpsId = `WPS-${nextSeq}`;
     const pqrId = `PQR-${nextSeq}`;
@@ -86,28 +86,54 @@ router.post('/wps', ensureAuthenticated, uploadWpsPqrDocument.single('document')
       }
     }
     
-    // Insert new WPS document into database
-    const [newWpsDocument] = await db.insert(sql`wps_documents`).values({
-      wps_id: wpsId,
-      pqr_id: pqrId,
-      revision_no: '0',
-      welder_process: req.body.welderProcess,
-      base_metal_grade: req.body.baseMetalGrade,
-      base_metal_thickness: req.body.baseMetalThickness,
-      filler_material: req.body.fillerMaterial,
-      joint_type: req.body.jointType,
-      weld_position: req.body.weldPosition,
-      preheating_temp: req.body.preheatingTemp || null,
-      post_weld_heat_treatment: req.body.postWeldHeatTreatment || null,
-      shielding_gas: req.body.shieldingGas || null,
-      document_file_path: documentUploadResult.document_file_path || null,
-      document_url: documentUploadResult.document_url || null,
-      status: req.body.status || 'Draft',
-      remarks: req.body.remarks || null,
-      created_by: req.user!.id,
-      created_at: new Date(),
-      updated_at: new Date()
-    }).returning();
+    // Insert new WPS document into database using raw SQL
+    const result = await db.execute(sql`
+      INSERT INTO wps_documents (
+        wps_id, 
+        pqr_id, 
+        revision_no, 
+        welder_process, 
+        base_metal_grade, 
+        base_metal_thickness, 
+        filler_material, 
+        joint_type, 
+        weld_position, 
+        preheating_temp, 
+        post_weld_heat_treatment, 
+        shielding_gas, 
+        document_file_path, 
+        document_url, 
+        status, 
+        remarks, 
+        created_by, 
+        created_at, 
+        updated_at
+      ) 
+      VALUES (
+        ${wpsId},
+        ${pqrId},
+        '0',
+        ${req.body.welderProcess},
+        ${req.body.baseMetalGrade},
+        ${req.body.baseMetalThickness},
+        ${req.body.fillerMaterial},
+        ${req.body.jointType},
+        ${req.body.weldPosition},
+        ${req.body.preheatingTemp || null},
+        ${req.body.postWeldHeatTreatment || null},
+        ${req.body.shieldingGas || null},
+        ${documentUploadResult.document_file_path || null},
+        ${documentUploadResult.document_url || null},
+        ${req.body.status || 'Draft'},
+        ${req.body.remarks || null},
+        ${req.user!.id},
+        NOW(),
+        NOW()
+      )
+      RETURNING *
+    `);
+    
+    const newWpsDocument = result.length > 0 ? result[0] : null;
     
     res.status(201).json(newWpsDocument);
   } catch (error) {
@@ -242,13 +268,13 @@ router.post('/combined-document', ensureAuthenticated, uploadWpsPqrDocument.sing
     }
     
     // Find the WPS document by WPS ID using raw SQL
-    const result = await db.execute(sql`
+    const wpsResult = await db.execute(sql`
       SELECT * FROM wps_documents
       WHERE wps_id = ${uploadResult.wpsId}
       LIMIT 1
     `);
     
-    const wpsDocument = result.length > 0 ? result[0] : null;
+    const wpsDocument = wpsResult.length > 0 ? wpsResult[0] : null;
     
     if (!wpsDocument) {
       return res.status(404).json({ 
@@ -308,24 +334,27 @@ router.post('/wps/pqr', ensureAuthenticated, uploadWpsPqrDocument.single('docume
       }
     }
     
-    // Update the WPS document with PQR information
-    const [updatedWpsDocument] = await db.update(wpsDocuments)
-      .set({
-        hasPqr: true,
-        pqrTestDate: req.body.testDate,
-        pqrTestLaboratory: req.body.testLaboratory,
-        pqrTestType: req.body.testType,
-        pqrTestResults: req.body.testResults,
-        pqrStatus: req.body.status,
-        pqrRemarks: req.body.remarks,
-        pqrDocumentFilePath: documentUploadResult.document_file_path || null,
-        pqrDocumentUrl: documentUploadResult.document_url || null,
-        pqrCreatedBy: req.user!.id,
-        pqrCreatedAt: new Date(),
-        updatedAt: new Date()
-      })
-      .where(eq(wpsDocuments.id, wpsId))
-      .returning();
+    // Update the WPS document with PQR information using raw SQL
+    const pqrResult = await db.execute(sql`
+      UPDATE wps_documents
+      SET 
+        has_pqr = true,
+        pqr_test_date = ${req.body.testDate},
+        pqr_test_laboratory = ${req.body.testLaboratory},
+        pqr_test_type = ${req.body.testType},
+        pqr_test_results = ${req.body.testResults},
+        pqr_status = ${req.body.status},
+        pqr_remarks = ${req.body.remarks},
+        pqr_document_file_path = ${documentUploadResult.document_file_path || null},
+        pqr_document_url = ${documentUploadResult.document_url || null},
+        pqr_created_by = ${req.user!.id},
+        pqr_created_at = NOW(),
+        updated_at = NOW()
+      WHERE id = ${wpsId}
+      RETURNING *
+    `);
+    
+    const updatedWpsDocument = pqrResult.length > 0 ? pqrResult[0] : null;
     
     res.status(201).json(updatedWpsDocument);
   } catch (error) {
@@ -371,55 +400,65 @@ router.get('/report', ensureAuthenticated, async (req: Request, res: Response) =
   try {
     const { wpsId, pqrId } = req.query;
     
-    let query = db.select()
-      .from(sql`wps_documents w`)
-      .leftJoin(sql`users wu`, sql`w.created_by = wu.id`)
-      .leftJoin(sql`users wau`, sql`w.approved_by = wau.id`);
+    // Use raw SQL for the report query to avoid column naming issues
+    let sqlQuery = `
+      SELECT w.*, 
+        creator.username as created_by_user, 
+        approver.username as approved_by_user
+      FROM wps_documents w
+      LEFT JOIN users creator ON w.created_by = creator.id
+      LEFT JOIN users approver ON w.approved_by = approver.id
+      WHERE 1=1
+    `;
+    
+    const params: any[] = [];
     
     if (wpsId) {
-      query = query.where(eq(sql`"w"."wps_id"`, wpsId as string));
+      sqlQuery += ` AND w.wps_id = $${params.length + 1}`;
+      params.push(wpsId);
     }
     
     if (pqrId) {
-      query = query.where(eq(sql`"w"."pqr_id"`, pqrId as string));
+      sqlQuery += ` AND w.pqr_id = $${params.length + 1}`;
+      params.push(pqrId);
     }
     
-    const results = await query.orderBy(sql`"w"."wps_id"`);
+    sqlQuery += ` ORDER BY w.wps_id`;
+    
+    const results = await db.execute(sql.raw(sqlQuery, ...params));
     
     // Format the data for reporting
     const reportData = results.map(record => {
-      const { w: wpsRecord, wu: createdByUser, wau: approvedByUser } = record;
-      
       return {
-        wps_id: wpsRecord.id,
-        wps_number: wpsRecord.wps_id,
-        pqr_number: wpsRecord.pqr_id,
-        revision_no: wpsRecord.revision_no,
-        welder_process: wpsRecord.welder_process,
-        base_metal_grade: wpsRecord.base_metal_grade,
-        base_metal_thickness: wpsRecord.base_metal_thickness,
-        filler_material: wpsRecord.filler_material,
-        joint_type: wpsRecord.joint_type,
-        weld_position: wpsRecord.weld_position,
-        preheating_temp: wpsRecord.preheating_temp,
-        post_weld_heat_treatment: wpsRecord.post_weld_heat_treatment,
-        shielding_gas: wpsRecord.shielding_gas,
-        wps_status: wpsRecord.status,
-        wps_remarks: wpsRecord.remarks,
-        wps_created_at: wpsRecord.created_at,
-        wps_updated_at: wpsRecord.updated_at,
-        wps_approved_by: wpsRecord.approved_by,
-        wps_approval_date: wpsRecord.approval_date,
-        wps_created_by_user: createdByUser?.username,
-        wps_approved_by_user: approvedByUser?.username,
-        has_pqr: wpsRecord.has_pqr,
+        wps_id: record.id,
+        wps_number: record.wps_id,
+        pqr_number: record.pqr_id,
+        revision_no: record.revision_no,
+        welder_process: record.welder_process,
+        base_metal_grade: record.base_metal_grade,
+        base_metal_thickness: record.base_metal_thickness,
+        filler_material: record.filler_material,
+        joint_type: record.joint_type,
+        weld_position: record.weld_position,
+        preheating_temp: record.preheating_temp,
+        post_weld_heat_treatment: record.post_weld_heat_treatment,
+        shielding_gas: record.shielding_gas,
+        wps_status: record.status,
+        wps_remarks: record.remarks,
+        wps_created_at: record.created_at,
+        wps_updated_at: record.updated_at,
+        wps_approved_by: record.approved_by,
+        wps_approval_date: record.approval_date,
+        wps_created_by_user: record.created_by_user,
+        wps_approved_by_user: record.approved_by_user,
+        has_pqr: record.has_pqr,
         // Include PQR data if available
-        pqr_test_date: wpsRecord.pqr_test_date,
-        pqr_test_laboratory: wpsRecord.pqr_test_laboratory,
-        pqr_test_type: wpsRecord.pqr_test_type,
-        pqr_test_results: wpsRecord.pqr_test_results,
-        pqr_status: wpsRecord.pqr_status,
-        pqr_remarks: wpsRecord.pqr_remarks
+        pqr_test_date: record.pqr_test_date,
+        pqr_test_laboratory: record.pqr_test_laboratory,
+        pqr_test_type: record.pqr_test_type,
+        pqr_test_results: record.pqr_test_results,
+        pqr_status: record.pqr_status,
+        pqr_remarks: record.pqr_remarks
       };
     });
     
