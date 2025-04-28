@@ -87,6 +87,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up test welder route (for debugging)
   setupTestWelderRoute(app);
   
+  // Set up API test routes for troubleshooting
+  setupApiTestRoutes(app);
+  
   // Set up dispatch and shipping routes
   setupDispatchRoutes(app);
   

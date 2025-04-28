@@ -60,4 +60,110 @@ export function setupTestWelderRoute(app: any) {
       });
     }
   });
+  
+  // Non-authenticated test route for creating welders
+  app.post('/api/quality/test-create-welder', async (req: Request, res: Response) => {
+    // Force content type to be application/json
+    res.setHeader('Content-Type', 'application/json');
+    
+    try {
+      console.log("TEST CREATE WELDER - Received request body:", JSON.stringify(req.body, null, 2));
+      
+      const {
+        name,
+        trade,
+        processQualified,
+        materialGroupQualified,
+        thicknessRange,
+        positionQualified,
+        wpsNumber,
+        testDate,
+        testResults,
+        certificateExpiryDate,
+        status,
+        remarks
+      } = req.body;
+      
+      // Simplified validation
+      if (!name || !trade || !wpsNumber) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      
+      // Ensure arrays are properly handled
+      const processArray = Array.isArray(processQualified) ? processQualified : [];
+      const materialArray = Array.isArray(materialGroupQualified) ? materialGroupQualified : [];
+      const positionArray = Array.isArray(positionQualified) ? positionQualified : [];
+      
+      console.log("Sanitized arrays:", {
+        processArray,
+        materialArray,
+        positionArray
+      });
+      
+      // Generate IDs
+      let welderId, certificateNo;
+      try {
+        welderId = await generateNextWelderId();
+        certificateNo = await generateNextCertificateNo();
+        console.log("Generated IDs successfully. Welder ID:", welderId, "Certificate No:", certificateNo);
+      } catch (idError) {
+        console.error("Error generating IDs:", idError);
+        return res.status(500).json({ 
+          error: 'Failed to generate IDs',
+          message: idError instanceof Error ? idError.message : String(idError)
+        });
+      }
+      
+      // Database insert
+      try {
+        console.log("Executing database insert");
+        
+        // Create welder record with simplified query
+        const result = await db.execute(sql`
+          INSERT INTO welders (
+            "welderId", name, trade, "processQualified", "materialGroupQualified", 
+            "thicknessRange", "positionQualified", "wpsNumber", "testDate", 
+            "testResults", "certificateNo", "certificateExpiryDate", status, 
+            remarks, "createdAt"
+          ) 
+          VALUES (
+            ${welderId}, ${name}, ${trade}, ${processArray}, ${materialArray},
+            ${thicknessRange || ''}, ${positionArray}, ${wpsNumber}, ${testDate || new Date().toISOString().split('T')[0]},
+            ${testResults || 'Pass'}, ${certificateNo}, ${certificateExpiryDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]}, 
+            ${status || 'Active'}, ${remarks || ""}, NOW()
+          )
+          RETURNING id, "welderId", name, trade
+        `);
+        
+        if (result.rows && result.rows.length > 0) {
+          console.log("Test welder created successfully:", result.rows[0]);
+          return res.status(201).json({
+            success: true,
+            message: 'Test welder created successfully',
+            data: result.rows[0]
+          });
+        } else {
+          console.error('No rows returned from insert');
+          return res.status(500).json({ 
+            error: 'Database insert did not return expected data',
+            success: false
+          });
+        }
+      } catch (dbError) {
+        console.error('Database error:', dbError);
+        return res.status(500).json({ 
+          error: 'Database error',
+          message: dbError instanceof Error ? dbError.message : String(dbError),
+          success: false
+        });
+      }
+    } catch (error) {
+      console.error('Error creating test welder:', error);
+      return res.status(500).json({ 
+        error: 'Failed to create test welder', 
+        message: error instanceof Error ? error.message : String(error),
+        success: false
+      });
+    }
+  });
 }

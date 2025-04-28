@@ -63,10 +63,17 @@
   </div>
   
   <div class="card">
-    <h2>Create Welder Test</h2>
-    <p>This will try to create a new welder record:</p>
+    <h2>Create Welder Test (Authentication Required)</h2>
+    <p>This will try to create a new welder record using the authenticated API:</p>
     <button id="createButton">Test Create Welder</button>
     <div id="createResult" style="margin-top: 20px;"></div>
+  </div>
+  
+  <div class="card">
+    <h2>Create Welder Test (No Authentication)</h2>
+    <p>This will try to create a new welder using the test endpoint that doesn't require authentication:</p>
+    <button id="createTestButton">Test Create Welder (No Auth)</button>
+    <div id="testCreateResult" style="margin-top: 20px;"></div>
   </div>
 
   <script>
@@ -166,6 +173,70 @@
         
         const responseText = await response.text();
         console.log('Response text:', responseText);
+        
+        // Try to parse as JSON
+        try {
+          const data = JSON.parse(responseText);
+          resultDiv.innerHTML = `
+            <div class="success">
+              <h3>Success! Status: ${response.status}</h3>
+            </div>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          `;
+        } catch (parseError) {
+          // If not valid JSON (likely HTML)
+          resultDiv.innerHTML = `
+            <div class="error">
+              <h3>Error parsing response as JSON (Status: ${response.status})</h3>
+              <p>Response might be HTML instead of JSON</p>
+            </div>
+            <pre>${responseText.substring(0, 500)}...</pre>
+          `;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="error">
+            <h3>Network Error</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    });
+    
+    // Create test welder function (no auth)
+    document.getElementById('createTestButton').addEventListener('click', async () => {
+      const resultDiv = document.getElementById('testCreateResult');
+      resultDiv.innerHTML = '<p>Sending request...</p>';
+      
+      const testData = {
+        name: 'Test Welder (No Auth)',
+        trade: 'Welder',
+        processQualified: ['SMAW', 'GTAW'],
+        materialGroupQualified: ['Carbon Steel', 'Stainless Steel'],
+        thicknessRange: '2-15 mm',
+        positionQualified: ['1G', '2G', '3G'],
+        wpsNumber: 'WPQR-2',
+        testDate: '2025-04-26',
+        testResults: 'Passed',
+        certificateExpiryDate: '2026-04-26',
+        status: 'Active',
+        remarks: 'Created via test page without authentication'
+      };
+      
+      try {
+        console.log('Sending data to test endpoint:', JSON.stringify(testData, null, 2));
+        
+        const response = await fetch('/api/quality/test-create-welder', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(testData)
+        });
+        
+        const responseText = await response.text();
+        console.log('Response text from test endpoint:', responseText);
         
         // Try to parse as JSON
         try {
