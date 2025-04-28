@@ -275,10 +275,16 @@ export default function WelderManagementPage() {
 
   // Submit handler for adding a new welder
   const onSubmit = (values: z.infer<typeof welderFormSchema>) => {
-    createWelderMutation.mutate({
+    // Ensure dates are properly formatted
+    const formattedValues = {
       ...values,
+      testDate: values.testDate ? new Date(values.testDate).toISOString().split('T')[0] : '',
+      certificateExpiryDate: values.certificateExpiryDate ? new Date(values.certificateExpiryDate).toISOString().split('T')[0] : '',
       remarks: values.remarks || ""
-    });
+    };
+    
+    console.log("Submitting welder data:", formattedValues);
+    createWelderMutation.mutate(formattedValues);
   };
 
   // Submit handler for editing a welder
