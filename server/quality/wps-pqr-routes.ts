@@ -16,8 +16,8 @@ const router = express.Router();
 router.get('/wps', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Query wps_documents table with user information
-    const wpsDocuments = await db.query.wpsDocuments.findMany({
-      orderBy: [desc(sql`created_at`)]
+    const wpsResults = await db.query.wpsDocuments.findMany({
+      orderBy: [desc(wpsDocuments.createdAt)]
     });
     
     res.json(wpsDocuments);
@@ -57,11 +57,11 @@ router.get('/wps/:id', ensureAuthenticated, async (req: Request, res: Response) 
 router.post('/wps', ensureAuthenticated, uploadWpsPqrDocument.single('document'), async (req: Request, res: Response) => {
   try {
     // Generate WPS ID with format WPS-N (without year)
-    // Query for the highest existing WPS sequence
+    // Query for the highest existing WPS sequence using properly aliased table
     const result = await db.execute(sql`
-      SELECT MAX(CAST(SUBSTRING(wps_id, POSITION('-' IN wps_id) + 1) AS INTEGER)) as max_seq
-      FROM wps_documents
-      WHERE wps_id LIKE 'WPS-%'
+      SELECT MAX(CAST(SUBSTRING("wpsDocuments"."wps_id", POSITION('-' IN "wpsDocuments"."wps_id") + 1) AS INTEGER)) as max_seq
+      FROM wps_documents "wpsDocuments"
+      WHERE "wpsDocuments"."wps_id" LIKE 'WPS-%'
     `);
     
     const maxSeq = result[0]?.max_seq || 0;
@@ -237,7 +237,7 @@ router.post('/combined-document', ensureAuthenticated, uploadWpsPqrDocument.sing
     
     // Find the WPS document by WPS ID
     const [wpsDocument] = await db.query.wpsDocuments.findMany({
-      where: eq(sql`wps_id`, uploadResult.wpsId)
+      where: eq(wpsDocuments.wpsId, uploadResult.wpsId)
     });
     
     if (!wpsDocument) {
@@ -367,14 +367,14 @@ router.get('/report', ensureAuthenticated, async (req: Request, res: Response) =
       .leftJoin(sql`users wau`, sql`w.approved_by = wau.id`);
     
     if (wpsId) {
-      query = query.where(eq(sql`w.wps_id`, wpsId as string));
+      query = query.where(eq(sql`"w"."wps_id"`, wpsId as string));
     }
     
     if (pqrId) {
-      query = query.where(eq(sql`w.pqr_id`, pqrId as string));
+      query = query.where(eq(sql`"w"."pqr_id"`, pqrId as string));
     }
     
-    const results = await query.orderBy(sql`w.wps_id`);
+    const results = await query.orderBy(sql`"w"."wps_id"`);
     
     // Format the data for reporting
     const reportData = results.map(record => {
