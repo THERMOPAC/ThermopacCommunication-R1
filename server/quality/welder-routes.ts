@@ -72,6 +72,8 @@ export function setupWelderRoutes(app: any) {
   // Create new welder
   app.post('/api/quality/welders', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      console.log("Received welder creation request:", JSON.stringify(req.body, null, 2));
+      
       const {
         name,
         trade,
@@ -86,10 +88,52 @@ export function setupWelderRoutes(app: any) {
         status,
         remarks
       } = req.body;
+      
+      // Validate required fields
+      if (!name || !trade || !wpsNumber || !testDate || !certificateExpiryDate || !status) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      
+      // Validate date formats
+      try {
+        if (testDate) {
+          const parsedTestDate = new Date(testDate);
+          if (isNaN(parsedTestDate.getTime())) {
+            return res.status(400).json({ error: 'Invalid test date format. Use YYYY-MM-DD format.' });
+          }
+        }
+        
+        if (certificateExpiryDate) {
+          const parsedExpiryDate = new Date(certificateExpiryDate);
+          if (isNaN(parsedExpiryDate.getTime())) {
+            return res.status(400).json({ error: 'Invalid certificate expiry date format. Use YYYY-MM-DD format.' });
+          }
+        }
+      } catch (dateError) {
+        console.error("Date validation error:", dateError);
+        return res.status(400).json({ error: 'Invalid date format', details: String(dateError) });
+      }
 
       // Generate IDs
       const welderId = await generateNextWelderId();
       const certificateNo = await generateNextCertificateNo();
+      
+      console.log("Inserting welder with values:", {
+        welderId,
+        name,
+        trade,
+        processQualified: Array.isArray(processQualified) ? processQualified : [],
+        materialGroupQualified: Array.isArray(materialGroupQualified) ? materialGroupQualified : [],
+        thicknessRange,
+        positionQualified: Array.isArray(positionQualified) ? positionQualified : [],
+        wpsNumber,
+        testDate,
+        testResults,
+        certificateNo,
+        certificateExpiryDate,
+        status,
+        remarks: remarks || ""
+      });
       
       // Create welder record
       const result = await db.execute(sql`
@@ -114,32 +158,40 @@ export function setupWelderRoutes(app: any) {
           ${welderId}, 
           ${name}, 
           ${trade}, 
-          ${processQualified}, 
-          ${materialGroupQualified}, 
+          ${processQualified || []}, 
+          ${materialGroupQualified || []}, 
           ${thicknessRange}, 
-          ${positionQualified}, 
+          ${positionQualified || []}, 
           ${wpsNumber}, 
           ${testDate}, 
           ${testResults}, 
           ${certificateNo}, 
           ${certificateExpiryDate}, 
           ${status}, 
-          ${remarks},
+          ${remarks || ""},
           NOW()
         )
         RETURNING *
       `);
       
+      console.log("Welder created successfully:", result.rows[0]);
       res.status(201).json(result.rows[0]);
     } catch (error) {
       console.error('Error creating welder:', error);
-      res.status(500).json({ error: 'Failed to create welder' });
+      // Send a more detailed error response
+      res.status(500).json({ 
+        error: 'Failed to create welder', 
+        message: error instanceof Error ? error.message : String(error),
+        stack: process.env.NODE_ENV !== 'production' ? (error instanceof Error ? error.stack : undefined) : undefined
+      });
     }
   });
 
   // Update welder
   app.put('/api/quality/welders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      console.log("Received welder update request:", JSON.stringify(req.body, null, 2));
+      
       const { id } = req.params;
       const {
         name,
@@ -156,22 +208,63 @@ export function setupWelderRoutes(app: any) {
         remarks
       } = req.body;
       
+      // Validate required fields
+      if (!name || !trade || !wpsNumber || !testDate || !certificateExpiryDate || !status) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      
+      // Validate date formats
+      try {
+        if (testDate) {
+          const parsedTestDate = new Date(testDate);
+          if (isNaN(parsedTestDate.getTime())) {
+            return res.status(400).json({ error: 'Invalid test date format. Use YYYY-MM-DD format.' });
+          }
+        }
+        
+        if (certificateExpiryDate) {
+          const parsedExpiryDate = new Date(certificateExpiryDate);
+          if (isNaN(parsedExpiryDate.getTime())) {
+            return res.status(400).json({ error: 'Invalid certificate expiry date format. Use YYYY-MM-DD format.' });
+          }
+        }
+      } catch (dateError) {
+        console.error("Date validation error:", dateError);
+        return res.status(400).json({ error: 'Invalid date format', details: String(dateError) });
+      }
+      
+      console.log("Updating welder with values:", {
+        id,
+        name,
+        trade,
+        processQualified: Array.isArray(processQualified) ? processQualified : [],
+        materialGroupQualified: Array.isArray(materialGroupQualified) ? materialGroupQualified : [],
+        thicknessRange,
+        positionQualified: Array.isArray(positionQualified) ? positionQualified : [],
+        wpsNumber,
+        testDate,
+        testResults,
+        certificateExpiryDate,
+        status,
+        remarks: remarks || ""
+      });
+      
       // Update welder record
       const result = await db.execute(sql`
         UPDATE welders 
         SET 
           name = ${name}, 
           trade = ${trade}, 
-          "processQualified" = ${processQualified}, 
-          "materialGroupQualified" = ${materialGroupQualified}, 
+          "processQualified" = ${processQualified || []}, 
+          "materialGroupQualified" = ${materialGroupQualified || []}, 
           "thicknessRange" = ${thicknessRange}, 
-          "positionQualified" = ${positionQualified}, 
+          "positionQualified" = ${positionQualified || []}, 
           "wpsNumber" = ${wpsNumber}, 
           "testDate" = ${testDate}, 
           "testResults" = ${testResults}, 
           "certificateExpiryDate" = ${certificateExpiryDate}, 
           status = ${status}, 
-          remarks = ${remarks},
+          remarks = ${remarks || ""},
           "updatedAt" = NOW()
         WHERE id = ${id}
         RETURNING *
@@ -181,10 +274,16 @@ export function setupWelderRoutes(app: any) {
         return res.status(404).json({ error: 'Welder not found' });
       }
       
+      console.log("Welder updated successfully:", result.rows[0]);
       res.json(result.rows[0]);
     } catch (error) {
       console.error('Error updating welder:', error);
-      res.status(500).json({ error: 'Failed to update welder' });
+      // Send a more detailed error response
+      res.status(500).json({ 
+        error: 'Failed to update welder', 
+        message: error instanceof Error ? error.message : String(error),
+        stack: process.env.NODE_ENV !== 'production' ? (error instanceof Error ? error.stack : undefined) : undefined
+      });
     }
   });
 
