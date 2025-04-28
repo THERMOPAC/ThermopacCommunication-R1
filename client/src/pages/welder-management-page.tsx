@@ -537,25 +537,25 @@ export default function WelderManagementPage() {
                           name="wpsNumber"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>WPS Number*</FormLabel>
+                              <FormLabel>WPQR Number*</FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 defaultValue={field.value}
                               >
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="Select WPS number" />
+                                    <SelectValue placeholder="Select WPQR number" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {Array.isArray(wpsData) && wpsData.length > 0 ? (
-                                    wpsData.map((wps: any) => (
-                                      <SelectItem key={wps.wpsNumber} value={wps.wpsNumber || "no_number"}>
-                                        {wps.wpsNumber || "No Number"}
+                                  {Array.isArray(wpqrData) && wpqrData.length > 0 ? (
+                                    wpqrData.map((wpqr: any) => (
+                                      <SelectItem key={wpqr.documentId} value={wpqr.documentId || "no_number"}>
+                                        {wpqr.documentId || "No Number"}
                                       </SelectItem>
                                     ))
                                   ) : (
-                                    <SelectItem value="no_wps_available" disabled>No WPS available</SelectItem>
+                                    <SelectItem value="no_wpqr_available" disabled>No WPQR available</SelectItem>
                                   )}
                                 </SelectContent>
                               </Select>
@@ -1106,25 +1106,25 @@ export default function WelderManagementPage() {
                         name="wpsNumber"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>WPS Number*</FormLabel>
+                            <FormLabel>WPQR Number*</FormLabel>
                             <Select
                               onValueChange={field.onChange}
                               value={field.value}
                             >
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select WPS number" />
+                                  <SelectValue placeholder="Select WPQR number" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {Array.isArray(wpsData) && wpsData.length > 0 ? (
-                                  wpsData.map((wps: any) => (
-                                    <SelectItem key={wps.wpsNumber} value={wps.wpsNumber || "no_number"}>
-                                      {wps.wpsNumber || "No Number"}
+                                {Array.isArray(wpqrData) && wpqrData.length > 0 ? (
+                                  wpqrData.map((wpqr: any) => (
+                                    <SelectItem key={wpqr.documentId} value={wpqr.documentId || "no_number"}>
+                                      {wpqr.documentId || "No Number"}
                                     </SelectItem>
                                   ))
                                 ) : (
-                                  <SelectItem value="no_wps_available" disabled>No WPS available</SelectItem>
+                                  <SelectItem value="no_wpqr_available" disabled>No WPQR available</SelectItem>
                                 )}
                               </SelectContent>
                             </Select>
