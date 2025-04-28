@@ -317,77 +317,77 @@ export default function WpqrPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {wpqrDocuments.map((document) => (
-            <Card key={document.id} className="overflow-hidden">
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline" className="mr-1">
-                      {document.documentId}
-                    </Badge>
-                    <CardTitle className="text-base truncate">{document.title}</CardTitle>
-                  </div>
-                  <Badge variant={document.status === "Active" ? "default" : "secondary"}>
-                    {document.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="pb-2">
-                <div className="space-y-1 text-sm">
-                  <div><span className="font-semibold">Process:</span> {document.welderProcess}</div>
-                  <div><span className="font-semibold">Metal Grade:</span> {document.baseMetalGrade}</div>
-                  <div><span className="font-semibold">Joint Type:</span> {document.jointType}</div>
-                  {document.certificateNo && (
-                    <div><span className="font-semibold">Certificate No:</span> {document.certificateNo}</div>
-                  )}
-                  {document.inspectionAuthority && (
-                    <div><span className="font-semibold">Inspection:</span> {document.inspectionAuthority}</div>
-                  )}
-                  <div><span className="font-semibold">Created:</span> {formatDate(new Date(document.createdAt))}</div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between pt-2">
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleViewDocument(document)}
-                    className="flex items-center gap-1"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="flex items-center gap-1"
-                    onClick={() => handleEditDocument(document)}
-                  >
-                    <PencilLine className="h-3.5 w-3.5" />
-                    Edit
-                  </Button>
-                </div>
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleDownload(document.id)}
-                  >
-                    <DownloadCloud className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleDelete(document.id)}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardFooter>
-            </Card>
-          ))}
+        <div className="w-full">
+          <div className="rounded-md border">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="p-2 text-left font-medium">Document ID</th>
+                  <th className="p-2 text-left font-medium">Welder Process</th>
+                  <th className="p-2 text-left font-medium">Base Metal Grade</th>
+                  <th className="p-2 text-left font-medium">Certificate No</th>
+                  <th className="p-2 text-left font-medium">Inspection Authority</th>
+                  <th className="p-2 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {wpqrDocuments.map((document) => (
+                  <tr key={document.id} className="border-b">
+                    <td className="p-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">
+                          {document.documentId}
+                        </Badge>
+                        <span className="text-xs font-medium">{document.title}</span>
+                      </div>
+                    </td>
+                    <td className="p-2">{document.welderProcess}</td>
+                    <td className="p-2">{document.baseMetalGrade}</td>
+                    <td className="p-2 max-w-[150px] truncate">{document.certificateNo || "-"}</td>
+                    <td className="p-2">{document.inspectionAuthority || "-"}</td>
+                    <td className="p-2">
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleViewDocument(document)}
+                          className="flex items-center gap-1 h-8"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="flex items-center gap-1 h-8"
+                          onClick={() => handleEditDocument(document)}
+                        >
+                          <PencilLine className="h-3.5 w-3.5" />
+                          Edit
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-8 w-8" 
+                          onClick={() => handleDownload(document.id)}
+                        >
+                          <DownloadCloud className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-8 w-8 text-destructive" 
+                          onClick={() => handleDelete(document.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
