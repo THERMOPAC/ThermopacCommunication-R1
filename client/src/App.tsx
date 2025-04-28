@@ -25,6 +25,7 @@ import InspectionManagementPage from "@/pages/inspection-management-page";
 import MaterialIdentificationPage from "@/pages/material-identification-page";
 import WpsPqrPage from "@/pages/wps-pqr-page";
 import WpsPqrManagementPage from "@/pages/wps-pqr-management-page";
+import WpqrPage from "@/pages/wpqr-page";
 import WelderManagementPage from "@/pages/welder-management-page";
 import CalibrationManagementPage from "@/pages/calibration-management-page";
 import QualityReportsPage from "@/pages/quality-reports-page";
@@ -105,6 +106,7 @@ function Router() {
       <ProtectedRoute path="/shop-floor" component={ShopFloorPage} />
       <ProtectedRoute path="/wps-pqr" component={WpsPqrPage} />
       <ProtectedRoute path="/wps-pqr-management" component={WpsPqrManagementPage} />
+      <ProtectedRoute path="/wpqr" component={WpqrPage} />
       <ProtectedRoute path="/welder-management" component={WelderManagementPage} />
       <ProtectedRoute path="/calibration-management" component={CalibrationManagementPage} />
       <ProtectedRoute path="/material-identification" component={MaterialIdentificationPage} />
