@@ -234,6 +234,12 @@ export default function WpqrPage() {
                   <div><span className="font-semibold">Process:</span> {document.welderProcess}</div>
                   <div><span className="font-semibold">Metal Grade:</span> {document.baseMetalGrade}</div>
                   <div><span className="font-semibold">Joint Type:</span> {document.jointType}</div>
+                  {document.certificateNo && (
+                    <div><span className="font-semibold">Certificate No:</span> {document.certificateNo}</div>
+                  )}
+                  {document.inspectionAuthority && (
+                    <div><span className="font-semibold">Inspection:</span> {document.inspectionAuthority}</div>
+                  )}
                   <div><span className="font-semibold">Created:</span> {formatDate(new Date(document.createdAt))}</div>
                 </div>
               </CardContent>

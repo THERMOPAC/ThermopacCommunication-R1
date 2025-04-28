@@ -299,6 +299,8 @@ router.put('/:id', ensureAuthenticated, upload.single('document'), async (req: R
       welderProcess: req.body.welderProcess || document.welderProcess,
       baseMetalGrade: req.body.baseMetalGrade || document.baseMetalGrade,
       jointType: req.body.jointType || document.jointType,
+      certificateNo: req.body.certificateNo !== undefined ? req.body.certificateNo : document.certificateNo,
+      inspectionAuthority: req.body.inspectionAuthority !== undefined ? req.body.inspectionAuthority : document.inspectionAuthority,
       status: req.body.status || document.status,
       updatedAt: new Date()
     };
