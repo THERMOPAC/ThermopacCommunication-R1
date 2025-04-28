@@ -16,23 +16,17 @@ const router = express.Router();
 router.get('/wps', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Use raw SQL query to avoid property/column name mismatches
-    const wpsResults = await db.select()
-      .from(wpsDocuments)
-      .leftJoin(users, eq(wpsDocuments.createdBy, users.id))
-      .leftJoin(users, eq(wpsDocuments.approvedBy, users.id))
-      .orderBy(desc(wpsDocuments.createdAt));
+    const result = await db.execute(sql`
+      SELECT w.*, 
+        creator.username as created_by_user,
+        approver.username as approved_by_user
+      FROM wps_documents w
+      LEFT JOIN users creator ON w.created_by = creator.id
+      LEFT JOIN users approver ON w.approved_by = approver.id
+      ORDER BY w.created_at DESC
+    `);
     
-    // Map the results to include user information
-    const formattedResults = wpsResults.map(record => {
-      // Return the WPS document with user information added
-      return {
-        ...record.wps_documents,
-        createdByUser: record.users?.username || '',
-        approvedByUser: record.users_2?.username || ''
-      };
-    });
-    
-    res.json(formattedResults);
+    res.json(result);
   } catch (error) {
     console.error('Error fetching WPS documents:', error);
     res.status(500).json({ 
@@ -71,9 +65,9 @@ router.post('/wps', ensureAuthenticated, uploadWpsPqrDocument.single('document')
     // Generate WPS ID with format WPS-N (without year)
     // Query for the highest existing WPS sequence using properly aliased table
     const result = await db.execute(sql`
-      SELECT MAX(CAST(SUBSTRING("wpsDocuments"."wps_id", POSITION('-' IN "wpsDocuments"."wps_id") + 1) AS INTEGER)) as max_seq
-      FROM wps_documents "wpsDocuments"
-      WHERE "wpsDocuments"."wps_id" LIKE 'WPS-%'
+      SELECT MAX(CAST(SUBSTRING("wps_id", POSITION('-' IN "wps_id") + 1) AS INTEGER)) as max_seq
+      FROM wps_documents
+      WHERE "wps_id" LIKE 'WPS-%'
     `);
     
     const maxSeq = result[0]?.max_seq || 0;
@@ -247,10 +241,14 @@ router.post('/combined-document', ensureAuthenticated, uploadWpsPqrDocument.sing
       return res.status(400).json({ error: uploadResult.error });
     }
     
-    // Find the WPS document by WPS ID
-    const [wpsDocument] = await db.query.wpsDocuments.findMany({
-      where: eq(wpsDocuments.wpsId, uploadResult.wpsId)
-    });
+    // Find the WPS document by WPS ID using raw SQL
+    const result = await db.execute(sql`
+      SELECT * FROM wps_documents
+      WHERE wps_id = ${uploadResult.wpsId}
+      LIMIT 1
+    `);
+    
+    const wpsDocument = result.length > 0 ? result[0] : null;
     
     if (!wpsDocument) {
       return res.status(404).json({ 
