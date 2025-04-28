@@ -1280,9 +1280,9 @@ export default function WpsPqrManagementPage() {
                         name="preheatingTemp"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Preheating Temperature (°C)</FormLabel>
+                            <FormLabel>Preheating Temperature (C)</FormLabel>
                             <FormControl>
-                              <Input placeholder="Optional" {...field} />
+                              <Input placeholder="Enter temperature in Celsius" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1600,9 +1600,9 @@ export default function WpsPqrManagementPage() {
                         name="preheatingTemp"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Preheating Temperature (°C)</FormLabel>
+                            <FormLabel>Preheating Temperature (C)</FormLabel>
                             <FormControl>
-                              <Input placeholder="Optional" {...field} />
+                              <Input placeholder="Enter temperature in Celsius" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

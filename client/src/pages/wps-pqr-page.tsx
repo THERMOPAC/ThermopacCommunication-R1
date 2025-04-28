@@ -476,7 +476,7 @@ export default function WpsPqrPage() {
                             <FormItem>
                               <FormLabel>Preheat Temperature</FormLabel>
                               <FormControl>
-                                <Input {...field} placeholder="E.g., 200°F, 100°C" />
+                                <Input {...field} placeholder="E.g., 200F, 100C" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -490,7 +490,7 @@ export default function WpsPqrPage() {
                             <FormItem>
                               <FormLabel>Interpass Temperature</FormLabel>
                               <FormControl>
-                                <Input {...field} placeholder="E.g., 350°F, 175°C" />
+                                <Input {...field} placeholder="E.g., 350F, 175C" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -831,7 +831,7 @@ export default function WpsPqrPage() {
                             <FormItem>
                               <FormLabel>Preheat Temperature</FormLabel>
                               <FormControl>
-                                <Input {...field} placeholder="E.g., 200°F, 100°C" />
+                                <Input {...field} placeholder="E.g., 200F, 100C" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
