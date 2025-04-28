@@ -7,6 +7,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use('/images', express.static(path.join(process.cwd(), 'client/public/images')));
+app.use('/test-static', express.static(path.join(process.cwd(), 'server/public')));
 
 app.use((req, res, next) => {
   const start = Date.now();

@@ -125,10 +125,19 @@ testRouter.post('/create-welder-test', async (req: Request, res: Response) => {
           remarks, "createdAt"
         ) 
         VALUES (
-          ${welderId}, ${name}, ${trade}, ${processArray}, ${materialArray},
-          ${thicknessRange || ''}, ${positionArray}, ${wpsNumber}, ${testDate || new Date().toISOString().split('T')[0]},
-          ${testResults || 'Pass'}, ${certificateNo}, ${certificateExpiryDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]}, 
-          ${status || 'Active'}, ${remarks || ""}, NOW()
+          ${welderId}, ${name}, ${trade}, 
+          ${sql.array(processArray, 'text')}, 
+          ${sql.array(materialArray, 'text')},
+          ${thicknessRange || ''}, 
+          ${sql.array(positionArray, 'text')}, 
+          ${wpsNumber}, 
+          ${testDate || new Date().toISOString().split('T')[0]},
+          ${testResults || 'Pass'}, 
+          ${certificateNo}, 
+          ${certificateExpiryDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]}, 
+          ${status || 'Active'}, 
+          ${remarks || ""}, 
+          NOW()
         )
         RETURNING id, "welderId", name, trade
       `);
