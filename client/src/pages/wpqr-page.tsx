@@ -150,6 +150,10 @@ export default function WpqrPage() {
   const updateMutation = useMutation({
     mutationFn: async (data: { id: number; values: Omit<WpqrFormValues, 'document'> }) => {
       const response = await apiRequest("PATCH", `/api/quality/wpqr/${data.id}`, data.values);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update WPQR document");
+      }
       return await response.json();
     },
     onSuccess: () => {
@@ -174,6 +178,10 @@ export default function WpqrPage() {
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await apiRequest("DELETE", `/api/quality/wpqr/${id}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete WPQR document");
+      }
       return await response.json();
     },
     onSuccess: () => {
