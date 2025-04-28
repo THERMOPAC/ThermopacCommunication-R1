@@ -57,6 +57,8 @@ export default function WpqrPage() {
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<WpqrDocument | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingDocument, setEditingDocument] = useState<WpqrDocument | null>(null);
 
   // Fetch WPQR documents
   const { data: wpqrDocuments, isLoading, error } = useQuery<WpqrDocument[]>({
@@ -72,6 +74,20 @@ export default function WpqrPage() {
   // Form setup for creating new WPQR document
   const form = useForm<WpqrFormValues>({
     resolver: zodResolver(wpqrFormSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      welderProcess: "",
+      baseMetalGrade: "",
+      jointType: "",
+      certificateNo: "",
+      inspectionAuthority: "",
+    },
+  });
+
+  // Edit form setup
+  const editForm = useForm<WpqrFormValues>({
+    resolver: zodResolver(wpqrFormSchema.omit({ document: true })),
     defaultValues: {
       title: "",
       description: "",
@@ -130,6 +146,30 @@ export default function WpqrPage() {
     },
   });
 
+  // Update WPQR document mutation
+  const updateMutation = useMutation({
+    mutationFn: async (data: { id: number; values: Omit<WpqrFormValues, 'document'> }) => {
+      const response = await apiRequest("PATCH", `/api/quality/wpqr/${data.id}`, data.values);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "WPQR Document Updated",
+        description: "The document was updated successfully.",
+      });
+      setIsEditOpen(false);
+      editForm.reset();
+      queryClient.invalidateQueries({ queryKey: ['/api/quality/wpqr'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Delete WPQR document mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -177,6 +217,32 @@ export default function WpqrPage() {
   // Close document details dialog
   const handleCloseDetails = () => {
     setSelectedDocument(null);
+  };
+
+  // Handle edit document
+  const handleEditDocument = (document: WpqrDocument) => {
+    setEditingDocument(document);
+    // Populate the edit form with the document data
+    editForm.reset({
+      title: document.title,
+      description: document.description || "",
+      welderProcess: document.welderProcess,
+      baseMetalGrade: document.baseMetalGrade,
+      jointType: document.jointType,
+      certificateNo: document.certificateNo || "",
+      inspectionAuthority: document.inspectionAuthority || "",
+    });
+    setIsEditOpen(true);
+  };
+
+  // Handle edit form submission
+  const onSubmitEdit = (values: Omit<WpqrFormValues, 'document'>) => {
+    if (editingDocument) {
+      updateMutation.mutate({
+        id: editingDocument.id,
+        values
+      });
+    }
   };
 
   return (
@@ -260,6 +326,7 @@ export default function WpqrPage() {
                     variant="outline" 
                     size="sm"
                     className="flex items-center gap-1"
+                    onClick={() => handleEditDocument(document)}
                   >
                     <PencilLine className="h-3.5 w-3.5" />
                     Edit
@@ -493,6 +560,202 @@ export default function WpqrPage() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   Create Document
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit WPQR Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Edit WPQR Document</DialogTitle>
+            <DialogDescription>
+              Update the WPQR document information.
+              {editingDocument && (
+                <div className="mt-2 text-sm font-medium">
+                  <div className="flex items-center space-x-2">
+                    <span>Document ID:</span>
+                    <span className="font-bold text-primary">{editingDocument.documentId}</span>
+                  </div>
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onSubmitEdit)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter document title" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Enter document description" 
+                        {...field} 
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="welderProcess"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Welder Process</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select process" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="SMAW">SMAW</SelectItem>
+                          <SelectItem value="GMAW">GMAW</SelectItem>
+                          <SelectItem value="GTAW">GTAW</SelectItem>
+                          <SelectItem value="FCAW">FCAW</SelectItem>
+                          <SelectItem value="SAW">SAW</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="baseMetalGrade"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Base Metal Grade</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select grade" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="SA-516 Gr 60">SA-516 Gr 60</SelectItem>
+                          <SelectItem value="SA-516 Gr 70">SA-516 Gr 70</SelectItem>
+                          <SelectItem value="SA-106 Gr B">SA-106 Gr B</SelectItem>
+                          <SelectItem value="SA-53 Gr B">SA-53 Gr B</SelectItem>
+                          <SelectItem value="SA-234 WPB">SA-234 WPB</SelectItem>
+                          <SelectItem value="SA-105">SA-105</SelectItem>
+                          <SelectItem value="SA-182 F304">SA-182 F304</SelectItem>
+                          <SelectItem value="SA-240 304">SA-240 304</SelectItem>
+                          <SelectItem value="SA-240 316L">SA-240 316L</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={editForm.control}
+                name="jointType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Joint Type</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select joint type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Butt">Butt Joint</SelectItem>
+                        <SelectItem value="Corner">Corner Joint</SelectItem>
+                        <SelectItem value="Lap">Lap Joint</SelectItem>
+                        <SelectItem value="T-Joint">T-Joint</SelectItem>
+                        <SelectItem value="Edge">Edge Joint</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="certificateNo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Certificate No</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter certificate number" {...field} className="w-full" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="inspectionAuthority"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Inspection Authority</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select authority" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="TUV NORD">TUV NORD</SelectItem>
+                        <SelectItem value="SGS">SGS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsEditOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateMutation.isPending}
+                >
+                  {updateMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Update Document
                 </Button>
               </DialogFooter>
             </form>

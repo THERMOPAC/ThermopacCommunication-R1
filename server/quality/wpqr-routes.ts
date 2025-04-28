@@ -271,7 +271,7 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
 });
 
 // Update a WPQR document
-router.put('/:id', ensureAuthenticated, upload.single('document'), async (req: Request, res: Response) => {
+router.patch('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const documentId = parseInt(id);
@@ -305,30 +305,8 @@ router.put('/:id', ensureAuthenticated, upload.single('document'), async (req: R
       updatedAt: new Date()
     };
     
-    // If a new file is uploaded, update the file
-    if (req.file) {
-      // Upload the file to Google Cloud Storage
-      const filePath = document.filePath || `/QMS/WPQR/${document.documentId}.pdf`;
-      const fileBuffer = req.file.buffer;
-      const fileType = req.file.mimetype;
-      
-      // Upload file to GCS
-      const bucket = gcsClient.bucket(bucketName);
-      const file = bucket.file(filePath.slice(1)); // Remove leading slash
-      
-      await file.save(fileBuffer, {
-        metadata: {
-          contentType: fileType
-        }
-      });
-      
-      // Generate a public URL (optional, you may keep it private)
-      const fileUrl = `https://storage.googleapis.com/${bucketName}${filePath}`;
-      
-      // Update file information in the update data
-      updateData.filePath = filePath;
-      updateData.fileUrl = fileUrl;
-    }
+    // Note: File uploads are not handled in the PATCH endpoint
+    // The Edit form doesn't include file upload functionality
     
     // Update the document in the database
     const updatedDocuments = await db.update(wpqrDocuments)
