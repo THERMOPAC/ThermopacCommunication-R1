@@ -26,6 +26,7 @@ import { default as modulePermissionRoutes } from "./module-permission-routes";
 import { hashPassword as updatePasswordHash } from "./update-password";
 import { setupTestWelderRoute } from "./quality/test-welder-route";
 import { setupApiTestRoutes } from "./api-test-route";
+import { setupDedicatedTestRoutes } from "./dedicated-test-route";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
 import { checkGcsPermissions } from "./utils/gcs-permissions-check";
@@ -89,6 +90,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up API test routes for troubleshooting
   setupApiTestRoutes(app);
+  
+  // Set up dedicated test routes that bypass React app
+  // These should be registered BEFORE app.use("*", ...) in setupVite
+  setupDedicatedTestRoutes(app);
   
   // Set up dispatch and shipping routes
   setupDispatchRoutes(app);
