@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -88,7 +88,10 @@ export default function WpqrPage() {
 
   // Edit form setup
   const editForm = useForm<WpqrFormValues>({
-    resolver: zodResolver(wpqrFormSchema.omit({ document: true })),
+    resolver: zodResolver(wpqrFormSchema.extend({
+      // Override document to make it optional for the edit form
+      document: z.instanceof(FileList).optional(),
+    })),
     defaultValues: {
       title: "",
       description: "",
@@ -149,41 +152,78 @@ export default function WpqrPage() {
 
   // Update WPQR document mutation
   const updateMutation = useMutation({
-    mutationFn: async (data: { id: number; values: Omit<WpqrFormValues, 'document'> }) => {
-      // Create a plain object with all form values
-      const updateData = {
-        title: data.values.title,
-        description: data.values.description,
-        welderProcess: data.values.welderProcess,
-        baseMetalGrade: data.values.baseMetalGrade,
-        jointType: data.values.jointType,
-        certificateNo: data.values.certificateNo,
-        inspectionAuthority: data.values.inspectionAuthority
-      };
-      
-      // Use fetch directly instead of apiRequest to have more control over response handling
-      const response = await fetch(`/api/quality/wpqr/${data.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage;
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.error || "Failed to update WPQR document";
-        } catch (e) {
-          errorMessage = errorText || "Failed to update WPQR document";
+    mutationFn: async (data: { id: number; values: Omit<WpqrFormValues, 'document'> & { document?: FileList } }) => {
+      // Check if we're dealing with a file upload or just metadata update
+      if (data.values.document && data.values.document.length > 0) {
+        // If we have a new document file, use FormData for the update
+        const formData = new FormData();
+        formData.append("title", data.values.title);
+        if (data.values.description) formData.append("description", data.values.description);
+        formData.append("welderProcess", data.values.welderProcess);
+        formData.append("baseMetalGrade", data.values.baseMetalGrade);
+        formData.append("jointType", data.values.jointType);
+        if (data.values.certificateNo) formData.append("certificateNo", data.values.certificateNo);
+        if (data.values.inspectionAuthority) formData.append("inspectionAuthority", data.values.inspectionAuthority);
+        
+        // Append the new document file
+        formData.append("document", data.values.document[0]);
+        
+        // Use fetch with FormData
+        const response = await fetch(`/api/quality/wpqr/${data.id}`, {
+          method: 'PATCH',
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage;
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.error || "Failed to update WPQR document";
+          } catch (e) {
+            errorMessage = errorText || "Failed to update WPQR document";
+          }
+          throw new Error(errorMessage);
         }
-        throw new Error(errorMessage);
-      }
+        
+        const responseText = await response.text();
+        return responseText ? JSON.parse(responseText) : {};
+      } else {
+        // If no new document file, use JSON for metadata update only
+        const updateData = {
+          title: data.values.title,
+          description: data.values.description,
+          welderProcess: data.values.welderProcess,
+          baseMetalGrade: data.values.baseMetalGrade,
+          jointType: data.values.jointType,
+          certificateNo: data.values.certificateNo,
+          inspectionAuthority: data.values.inspectionAuthority
+        };
+        
+        // Use fetch with JSON
+        const response = await fetch(`/api/quality/wpqr/${data.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updateData),
+        });
       
-      const responseText = await response.text();
-      return responseText ? JSON.parse(responseText) : {};
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage;
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.error || "Failed to update WPQR document";
+          } catch (e) {
+            errorMessage = errorText || "Failed to update WPQR document";
+          }
+          throw new Error(errorMessage);
+        }
+        
+        const responseText = await response.text();
+        return responseText ? JSON.parse(responseText) : {};
+      }
     },
     onSuccess: () => {
       toast({
@@ -800,6 +840,27 @@ export default function WpqrPage() {
                           <SelectItem value="SGS">SGS</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="document"
+                  render={({ field: { onChange, value, ...rest } }) => (
+                    <FormItem>
+                      <FormLabel>Replace Document File (Optional)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="file" 
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" 
+                          onChange={(e) => onChange(e.target.files)} 
+                          {...rest}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Upload a new file to replace the existing document
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
