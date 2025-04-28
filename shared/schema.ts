@@ -2377,6 +2377,43 @@ export const wpsDocuments = pgTable('wps_documents', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+// New simplified WPQR Documents schema
+export const wpqrDocuments = pgTable('wpqr_documents', {
+  id: serial('id').primaryKey(),
+  documentId: varchar('document_id', { length: 50 }).notNull().unique(),
+  title: varchar('title', { length: 100 }).notNull(),
+  description: text('description'),
+  welderProcess: varchar('welder_process', { length: 20 }).notNull(),
+  baseMetalGrade: varchar('base_metal_grade', { length: 100 }).notNull(),
+  jointType: varchar('joint_type', { length: 50 }).notNull(),
+  filePath: varchar('file_path', { length: 255 }),
+  fileUrl: text('file_url'),
+  status: varchar('status', { length: 20 }).notNull().default('Active'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// WPQR Documents relations
+export const wpqrDocumentsRelations = relations(wpqrDocuments, ({ one }) => ({
+  creator: one(users, {
+    fields: [wpqrDocuments.createdBy],
+    references: [users.id],
+  }),
+}));
+
+// WPQR Document schema for validation
+export const wpqrDocumentSchema = createInsertSchema(wpqrDocuments)
+  .omit({ id: true, createdAt: true, updatedAt: true, fileUrl: true, filePath: true })
+  .extend({
+    welderProcess: z.enum(['SMAW', 'GMAW', 'GTAW', 'FCAW', 'SAW']),
+    status: z.enum(['Active', 'Obsolete']).default('Active'),
+  });
+
+// Export WPQR document types
+export type WpqrDocument = typeof wpqrDocuments.$inferSelect;
+export type InsertWpqrDocument = z.infer<typeof wpqrDocumentSchema>;
+
 // WPS Documents relations
 export const wpsDocumentsRelations = relations(wpsDocuments, ({ one }) => ({
   creator: one(users, {
