@@ -262,6 +262,9 @@ export default function WpqrPage() {
             <DialogTitle>Create New WPQR Document</DialogTitle>
             <DialogDescription>
               Upload a new Welding Procedure Qualification Record document.
+              <div className="mt-2 text-sm font-medium">
+                Document ID will be automatically generated (format: WPQR-X)
+              </div>
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
