@@ -1173,6 +1173,9 @@ export default function WelderManagementPage() {
                                   disabled={(date) =>
                                     date > new Date() || date < new Date("1900-01-01")
                                   }
+                                  captionLayout="dropdown-buttons"
+                                  fromYear={2000}
+                                  toYear={2050}
                                   initialFocus
                                 />
                               </PopoverContent>
@@ -1243,6 +1246,9 @@ export default function WelderManagementPage() {
                                   disabled={(date) =>
                                     date < new Date("1900-01-01")
                                   }
+                                  captionLayout="dropdown-buttons"
+                                  fromYear={2000}
+                                  toYear={2050}
                                   initialFocus
                                 />
                               </PopoverContent>
