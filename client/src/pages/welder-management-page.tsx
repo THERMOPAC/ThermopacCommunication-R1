@@ -146,16 +146,6 @@ export default function WelderManagementPage() {
   // Fetch welders data
   const { data: welders = [], isLoading, refetch } = useQuery<any[]>({
     queryKey: ["/api/quality/welders"],
-    onSuccess: () => {
-      console.log("Welders data loaded successfully");
-    },
-    onError: (error) => {
-      toast({
-        title: "Error loading welders",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
   });
 
   // Create new welder mutation
