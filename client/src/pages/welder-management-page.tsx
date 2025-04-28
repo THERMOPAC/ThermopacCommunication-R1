@@ -598,7 +598,7 @@ export default function WelderManagementPage() {
                                     disabled={(date) =>
                                       date > new Date() || date < new Date("1900-01-01")
                                     }
-                                    captionLayout="dropdown-buttons"
+                                    captionLayout="dropdown"
                                     fromYear={2000}
                                     toYear={2050}
                                     initialFocus
@@ -1173,7 +1173,7 @@ export default function WelderManagementPage() {
                                   disabled={(date) =>
                                     date > new Date() || date < new Date("1900-01-01")
                                   }
-                                  captionLayout="dropdown-buttons"
+                                  captionLayout="dropdown"
                                   fromYear={2000}
                                   toYear={2050}
                                   initialFocus
@@ -1246,7 +1246,7 @@ export default function WelderManagementPage() {
                                   disabled={(date) =>
                                     date < new Date("1900-01-01")
                                   }
-                                  captionLayout="dropdown-buttons"
+                                  captionLayout="dropdown"
                                   fromYear={2000}
                                   toYear={2050}
                                   initialFocus
