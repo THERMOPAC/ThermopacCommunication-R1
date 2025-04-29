@@ -115,9 +115,9 @@ function Router() {
       <ProtectedRoute path="/quality/welder-certificates/:welderId" component={WelderCertificatesPage} />
       <ProtectedRoute path="/welder-test" component={WelderTestPage} />
       <ProtectedRoute path="/calibration-management" component={CalibrationManagementPage} />
-      <ProtectedRoute path="/material-identification/new" component={MaterialIdentificationPage} />
-      <ProtectedRoute path="/material-identification" component={MaterialIdentificationListPage} />
-      <ProtectedRoute path="/material-identification/:id" component={MaterialIdentificationPage} />
+      <ProtectedRoute path="/quality/material-identification/new" component={MaterialIdentificationPage} />
+      <ProtectedRoute path="/quality/material-identification" component={MaterialIdentificationListPage} />
+      <ProtectedRoute path="/quality/material-identification/:id" component={MaterialIdentificationPage} />
       <ProtectedRoute path="/inspections" component={InspectionsPage} />
       <ProtectedRoute path="/inspection-management" component={InspectionManagementPage} />
       <ProtectedRoute path="/quality-reports" component={QualityReportsPage} />

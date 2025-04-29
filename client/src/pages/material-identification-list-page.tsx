@@ -108,8 +108,19 @@ export default function MaterialIdentificationListPage() {
     limit: pageSize.toString()
   };
 
+  // Define API response type
+  interface MaterialIdentificationResponse {
+    data: MaterialIdentification[];
+    pagination: {
+      total: number;
+      totalPages: number;
+      currentPage: number;
+      limit: number;
+    };
+  }
+  
   // Fetch material identifications with server-side filtering
-  const { data: response, isLoading: isLoadingMI } = useQuery({
+  const { data: response, isLoading: isLoadingMI } = useQuery<MaterialIdentificationResponse>({
     queryKey: ['/api/quality/material-identification', queryParams],
   });
 
