@@ -31,21 +31,37 @@ export async function uploadWelderPhoto(
       };
     }
     
-    // Always use .pdf extension as requested in the new path format
-    // Set the GCS path in the QMS/WELDERS/{Welder ID} directory
-    const gcsPath = `QMS/WELDERS/${welderId}/${welderId}.pdf`;
+    // Get file extension from the original filename or use jpg as default
+    const originalExt = originalFilename.split('.').pop()?.toLowerCase() || 'jpg';
     
-    console.log(`Uploading welder photo to: ${gcsPath}`);
+    // Determine content type based on the file extension
+    let contentType = mimeType;
+    if (!contentType || contentType === 'application/octet-stream') {
+      // Default content types based on common extensions
+      const contentTypeMap: Record<string, string> = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'gif': 'image/gif',
+        'pdf': 'application/pdf'
+      };
+      contentType = contentTypeMap[originalExt] || 'image/jpeg';
+    }
+    
+    // Set the GCS path in the QMS/WELDERS/{Welder ID} directory
+    const gcsPath = `QMS/WELDERS/${welderId}/${welderId}.${originalExt}`;
+    
+    console.log(`Uploading welder photo to: ${gcsPath} with content type: ${contentType}`);
     
     // Get a reference to the file in the bucket
     const bucket = storage.bucket(bucketName);
     const file = bucket.file(gcsPath);
     
-    // Always set content type to PDF for the new path structure
+    // Save with proper content type
     await file.save(buffer, {
-      contentType: 'application/pdf',
+      contentType: contentType,
       metadata: {
-        contentType: 'application/pdf',
+        contentType: contentType,
         cacheControl: 'public, max-age=31536000', // Cache for 1 year
       },
     });
@@ -88,13 +104,49 @@ export async function getWelderPhotoUrl(filePath: string): Promise<string | null
       return null;
     }
     
+    console.log(`Attempting to retrieve welder photo from GCS path: ${filePath}`);
+    
     const bucket = storage.bucket(bucketName);
-    const file = bucket.file(filePath);
+    
+    // First try using the exact path provided
+    let file = bucket.file(filePath);
     
     // Check if file exists
-    const [exists] = await file.exists();
+    let [exists] = await file.exists();
+    
+    // If not found and it's in the expected directory format
+    if (!exists && filePath.includes('/')) {
+      console.log(`File not found at exact path: ${filePath}, trying to find in directory`);
+      
+      // Extract the welderId and try different extensions
+      const pathParts = filePath.split('/');
+      if (pathParts.length >= 3) {
+        const welderId = pathParts[2]; // Assuming format QMS/WELDERS/{welderId}/...
+        
+        // Try common extensions: jpg, jpeg, png, pdf
+        const extensions = ['jpg', 'jpeg', 'png', 'pdf'];
+        for (const ext of extensions) {
+          const alternatePath = `QMS/WELDERS/${welderId}/${welderId}.${ext}`;
+          
+          if (alternatePath !== filePath) { // Skip if it's the same path we already tried
+            console.log(`Trying alternate path: ${alternatePath}`);
+            
+            file = bucket.file(alternatePath);
+            [exists] = await file.exists();
+            
+            if (exists) {
+              console.log(`Found file at alternate path: ${alternatePath}`);
+              // Update the file path in the database?
+              // This would require a DB call, possibly add this as a future enhancement
+              break;
+            }
+          }
+        }
+      }
+    }
+    
     if (!exists) {
-      console.error(`Welder photo file ${filePath} does not exist in GCS`);
+      console.error(`Welder photo file ${filePath} does not exist in GCS after trying alternatives`);
       return null;
     }
     
@@ -104,6 +156,7 @@ export async function getWelderPhotoUrl(filePath: string): Promise<string | null
       expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
     });
     
+    console.log(`Successfully generated signed URL for ${filePath}`);
     return signedUrl;
   } catch (error) {
     console.error('Error generating welder photo URL:', error);
