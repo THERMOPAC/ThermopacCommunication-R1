@@ -52,18 +52,34 @@ interface Welder {
 
 interface WelderCertificate {
   id: number;
-  welderId: number;
-  certificateNo: string;
-  certificateType: string;
-  description: string;
-  issueDate: string;
-  expiryDate: string;
-  filePath: string;
-  fileUrl: string;
-  status: string;
-  createdAt: string;
+  // Either camelCase (frontend) or snake_case (backend) properties will be present
+  welderId?: number;
+  certificateNo?: string;
+  certificateType?: string;
+  description?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  filePath?: string;
+  fileUrl?: string;
+  status?: string;
+  createdAt?: string;
   wpqrId?: number;
   wpqrDocumentId?: string;
+  
+  // Backend properties (snake_case)
+  welder_id?: number;
+  certificate_no?: string;
+  certificate_type?: string;
+  issue_date?: string;
+  expiry_date?: string;
+  file_path?: string;
+  file_url?: string;
+  created_at?: string;
+  wpqr_id?: number;
+  wpqr_document_id?: string;
+  
+  // Any other properties
+  [key: string]: any;
 }
 
 interface WPQR {
@@ -433,55 +449,85 @@ export default function WelderCertificatesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {certificates.map((cert) => (
-                      <TableRow key={cert.id}>
-                        <TableCell>{cert.certificateNo}</TableCell>
-                        <TableCell>{cert.certificateType}</TableCell>
-                        <TableCell>{cert.wpqrDocumentId || "N/A"}</TableCell>
-                        <TableCell>{formatDate(cert.issueDate)}</TableCell>
-                        <TableCell>{formatDate(cert.expiryDate)}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              cert.status === "Active" ? "default" : "destructive"
-                            }
-                          >
-                            {cert.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                if (cert.fileUrl) {
-                                  window.open(cert.fileUrl, "_blank");
-                                }
-                              }}
+                    {certificates.map((cert) => {
+                      // Normalize property names to handle both camelCase and snake_case
+                      const certNumber = cert.certificateNo || cert.certificate_no || "N/A";
+                      const certType = cert.certificateType || cert.certificate_type || "N/A";
+                      const wpqrId = cert.wpqrDocumentId || cert.wpqr_document_id || "N/A";
+                      const issueDate = cert.issueDate || cert.issue_date || "";
+                      const expiryDate = cert.expiryDate || cert.expiry_date || "";
+                      const status = cert.status || "Unknown";
+                      
+                      return (
+                        <TableRow key={cert.id}>
+                          <TableCell>{certNumber}</TableCell>
+                          <TableCell>{certType}</TableCell>
+                          <TableCell>{wpqrId}</TableCell>
+                          <TableCell>{formatDate(issueDate)}</TableCell>
+                          <TableCell>{formatDate(expiryDate)}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                status === "Active" ? "default" : "destructive"
+                              }
                             >
-                              <FileCheck className="h-4 w-4 mr-1" /> View
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => {
-                                if (
-                                  confirm(
-                                    "Are you sure you want to delete this certificate?"
-                                  )
-                                ) {
-                                  deleteCertificateMutation.mutate(cert.id);
-                                }
-                              }}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                              {status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const fileUrl = cert.fileUrl || cert.file_url;
+                                  if (fileUrl) {
+                                    window.open(fileUrl, "_blank");
+                                  } else {
+                                    toast({
+                                      title: "Error",
+                                      description: "Certificate file URL not available",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }}
+                              >
+                                <FileCheck className="h-4 w-4 mr-1" /> View
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  // Future implementation: Add edit functionality
+                                  toast({
+                                    title: "Coming Soon",
+                                    description: "Edit functionality will be available soon",
+                                  });
+                                }}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  if (
+                                    confirm(
+                                      "Are you sure you want to delete this certificate?"
+                                    )
+                                  ) {
+                                    deleteCertificateMutation.mutate(cert.id);
+                                  }
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

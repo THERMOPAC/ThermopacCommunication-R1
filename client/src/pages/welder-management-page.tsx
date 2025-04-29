@@ -214,7 +214,9 @@ export default function WelderManagementPage() {
       if (!response.ok) {
         throw new Error("Failed to fetch all certificates");
       }
-      return response.json();
+      const data = await response.json();
+      console.log("Fetched all certificates:", data); // Debug log
+      return data;
     },
   });
   
@@ -1316,6 +1318,7 @@ export default function WelderManagementPage() {
                     <TableRow>
                       <TableHead>Certificate No</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>WPQR</TableHead>
                       <TableHead>Issue Date</TableHead>
                       <TableHead>Expiry Date</TableHead>
                       <TableHead>Status</TableHead>
@@ -1329,6 +1332,7 @@ export default function WelderManagementPage() {
                       const issueDate = certificate.issueDate || (certificate as any).issue_date;
                       const certNumber = certificate.certificateNo || (certificate as any).certificate_no;
                       const certType = certificate.certificateType || (certificate as any).certificate_type;
+                      const wpqrId = certificate.wpqrDocumentId || (certificate as any).wpqr_document_id || "N/A";
                       
                       // Safe date parsing
                       const parseDate = (dateStr: string | undefined) => {
@@ -1361,6 +1365,7 @@ export default function WelderManagementPage() {
                         <TableRow key={certificate.id}>
                           <TableCell>{certNumber}</TableCell>
                           <TableCell>{certType}</TableCell>
+                          <TableCell>{wpqrId}</TableCell>
                           <TableCell>{formatDate(issueDateObj)}</TableCell>
                           <TableCell>
                             <Badge
