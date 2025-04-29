@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GcsDiagnostics from "@/components/gcs-diagnostics";
-import { Shield } from "lucide-react";
+import { Shield, ChevronRight } from "lucide-react";
+import { Link } from "wouter";
 import {
   Card,
   CardHeader,
   CardTitle,
   CardDescription,
   CardContent,
+  CardFooter,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
 
@@ -51,6 +54,14 @@ export default function DiagnosticsPage() {
                       <CardContent>
                         <GcsDiagnostics />
                       </CardContent>
+                      <CardFooter className="flex justify-end pt-0">
+                        <Button asChild variant="ghost" size="sm">
+                          <Link href="/gcs-diagnostic">
+                            Advanced GCS Diagnostic Tools
+                            <ChevronRight className="ml-2 h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </CardFooter>
                     </Card>
                   </div>
                 ) : (

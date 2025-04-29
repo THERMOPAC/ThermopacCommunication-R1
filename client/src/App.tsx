@@ -41,6 +41,7 @@ import ProcurementPlanningPage from "@/pages/procurement-planning-page";
 import ProcurementTrackingPage from "@/pages/procurement-tracking-page";
 import ModulePermissionsPage from "@/pages/module-permissions-page";
 import DiagnosticsPage from "@/pages/diagnostics-page";
+import GcsDiagnosticPage from "@/pages/gcs-diagnostic-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
@@ -126,6 +127,7 @@ function Router() {
       <SuperuserRoute path="/users" component={Dashboard} />
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
+      <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />
       <Route component={NotFound} />
     </Switch>
   );
