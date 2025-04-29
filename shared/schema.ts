@@ -1259,6 +1259,44 @@ export const machineAllocations = pgTable('machine_allocations', {
 
 // ==================== QUALITY MANAGEMENT MODULE ====================
 
+// Welders table
+export const welders = pgTable('welders', {
+  id: serial('id').primaryKey(),
+  welderId: varchar('welderId', { length: 10 }).notNull().unique(),
+  name: varchar('name', { length: 100 }).notNull(),
+  trade: varchar('trade', { length: 50 }).notNull(),
+  processQualified: text('processQualified').array().notNull(),
+  materialGroupQualified: text('materialGroupQualified').array().notNull(),
+  thicknessRange: varchar('thicknessRange', { length: 50 }).notNull(),
+  positionQualified: text('positionQualified').array().notNull(),
+  wpsNumber: varchar('wpsNumber', { length: 20 }).notNull(),
+  testDate: date('testDate').notNull(),
+  testResults: varchar('testResults', { length: 20 }).notNull(),
+  certificateNo: varchar('certificateNo', { length: 20 }).notNull(),
+  certificateExpiryDate: date('certificateExpiryDate').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('Active'),
+  remarks: text('remarks'),
+  createdAt: timestamp('createdAt').defaultNow(),
+  updatedAt: timestamp('updatedAt').defaultNow()
+});
+
+// Welder Certificates table
+export const welderCertificates = pgTable('welder_certificates', {
+  id: serial('id').primaryKey(),
+  welderId: integer('welder_id').notNull().references(() => welders.id, { onDelete: 'cascade' }),
+  certificateNo: varchar('certificate_no', { length: 30 }).notNull(),
+  certificateType: varchar('certificate_type', { length: 50 }).notNull(),
+  description: text('description'),
+  issueDate: date('issue_date').notNull(),
+  expiryDate: date('expiry_date').notNull(),
+  filePath: varchar('file_path', { length: 255 }).notNull(),
+  fileUrl: varchar('file_url', { length: 255 }),
+  status: varchar('status', { length: 20 }).notNull().default('Active'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  createdBy: integer('created_by').references(() => users.id),
+});
+
 // Inspection Reports table
 export const inspectionReports = pgTable('inspection_reports', {
   id: serial('id').primaryKey(),
