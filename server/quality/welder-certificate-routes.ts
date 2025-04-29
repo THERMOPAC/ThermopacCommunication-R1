@@ -272,7 +272,9 @@ router.post('/:welderId', ensureAuthenticated, upload.single('file'), async (req
     
     // Upload file to GCS
     const bucket = gcsClient.bucket(bucketName);
-    const file = bucket.file(filePath.slice(1)); // Remove leading slash
+    // Remove leading slash if present
+    const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+    const file = bucket.file(cleanPath);
     
     await file.save(fileBuffer, {
       metadata: {
@@ -353,7 +355,9 @@ router.get('/:certificateId/url', ensureAuthenticated, async (req: Request, res:
     
     // Generate a fresh signed URL
     const bucket = gcsClient.bucket(bucketName);
-    const file = bucket.file(filePath.slice(1)); // Remove leading slash
+    // Remove leading slash if present
+    const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+    const file = bucket.file(cleanPath);
     
     const [signedUrl] = await file.getSignedUrl({
       version: 'v4',
