@@ -163,7 +163,8 @@ export default function WelderManagementPage() {
       hireDate: null,
       identificationType: "",
       identificationNumber: "",
-      photoFile: null
+      photoFile: null,
+      photoPath: null
     },
   });
 
@@ -180,7 +181,8 @@ export default function WelderManagementPage() {
       hireDate: null,
       identificationType: "",
       identificationNumber: "",
-      photoFile: null
+      photoFile: null,
+      photoPath: null
     },
   });
   
@@ -218,8 +220,10 @@ export default function WelderManagementPage() {
   // Create new welder mutation
   const createWelderMutation = useMutation({
     mutationFn: async (data: WelderFormData) => {
-      // Handle file upload if a photo is selected
-      let photoPath = null;
+      // Use photoPath directly from form data if it was set by the WelderPhotoUpload component
+      let photoPath = data.photoPath || null;
+      
+      // Handle file upload if a photo is selected (this is a fallback for the old flow)
       if (data.photoFile) {
         const formData = new FormData();
         formData.append("file", data.photoFile);
@@ -283,8 +287,11 @@ export default function WelderManagementPage() {
   // Update welder mutation
   const updateWelderMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: WelderFormData }) => {
-      // Handle file upload if a new photo is selected
-      let photoPath = selectedWelder?.photoPath || null;
+      // Use photoPath directly from form data if it was set by the WelderPhotoUpload component
+      // Otherwise fall back to existing photoPath or null
+      let photoPath = data.photoPath || selectedWelder?.photoPath || null;
+      
+      // Handle file upload if a new photo is selected (this is a fallback for the old flow)
       if (data.photoFile) {
         const formData = new FormData();
         formData.append("file", data.photoFile);
@@ -370,7 +377,8 @@ export default function WelderManagementPage() {
       hireDate: welder.hireDate || null,
       identificationType: welder.identificationType || "",
       identificationNumber: welder.identificationNumber || "",
-      photoFile: null
+      photoFile: null,
+      photoPath: welder.photoPath || null
     });
     setIsEditWelderOpen(true);
   };
