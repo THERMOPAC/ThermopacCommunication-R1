@@ -25,18 +25,33 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
   
   // Fetch the actual photo URL when existingPhotoUrl contains a welder ID
   useEffect(() => {
-    if (existingPhotoUrl && welderId) {
+    if (existingPhotoUrl) {
+      console.log(`Fetching photo URL from: ${existingPhotoUrl}`);
+      console.log(`Welder ID (for fetch): ${welderId}, Welder Code: ${welderCode}`);
+      
       const fetchPhotoUrl = async () => {
         try {
+          console.log(`Making fetch request to: ${existingPhotoUrl}`);
           const response = await fetch(existingPhotoUrl);
+          
+          console.log(`Photo URL fetch response status: ${response.status}`);
+          
           if (!response.ok) {
-            console.error('Failed to fetch welder photo URL');
+            console.error(`Failed to fetch welder photo URL: ${response.status} ${response.statusText}`);
+            // Don't return early, try to read the error body
+            const errorText = await response.text();
+            console.error(`Error response body: ${errorText}`);
             return;
           }
           
           const data = await response.json();
+          console.log(`Photo URL fetch response data:`, data);
+          
           if (data.url) {
+            console.log(`Setting preview to URL: ${data.url}`);
             setPreview(data.url);
+          } else {
+            console.warn(`No URL in response data`);
           }
         } catch (error) {
           console.error('Error fetching welder photo URL:', error);
@@ -44,8 +59,10 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       };
       
       fetchPhotoUrl();
+    } else {
+      console.log(`No existing photo URL provided`);
     }
-  }, [existingPhotoUrl, welderId]);
+  }, [existingPhotoUrl, welderId, welderCode]);
   
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,7 +113,8 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
     setIsUploading(true);
     console.log("Starting photo upload process");
     console.log("Uploading file:", file.name, "size:", file.size, "type:", file.type);
-    console.log("Welder ID:", welderId);
+    console.log("Welder ID (numeric):", welderId);
+    console.log("Welder Code (string):", welderCode);
     
     try {
       const formData = new FormData();
@@ -118,6 +136,22 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       if (welderCode && !formData.has('welderId')) {
         console.log(`Converting welderCode to welderId field: ${welderCode}`);
         formData.append('welderId', welderCode); 
+      }
+      
+      // Make sure at least one identifier is included
+      if (!formData.has('welderId') && !formData.has('welderCode')) {
+        console.error("No welderId or welderCode in form data - adding fallback");
+        // Add a fallback - use whichever ID is available
+        if (welderId) {
+          console.log(`Adding fallback welderId: ${welderId}`);
+          formData.append('welderId', welderId.toString());
+        } else if (welderCode) {
+          console.log(`Adding fallback using welderCode as welderId: ${welderCode}`);
+          formData.append('welderId', welderCode);
+        } else {
+          console.error("No welder identification available");
+          throw new Error("No welder identification available for upload");
+        }
       }
       
       // Debug log all form data fields
