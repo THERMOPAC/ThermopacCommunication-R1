@@ -21,12 +21,29 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
   const [preview, setPreview] = useState<string | null>(existingPhotoUrl || null);
   const [isUploading, setIsUploading] = useState(false);
   
-  // Update preview when existingPhotoUrl changes
+  // Fetch the actual photo URL when existingPhotoUrl contains a welder ID
   useEffect(() => {
-    if (existingPhotoUrl) {
-      setPreview(existingPhotoUrl);
+    if (existingPhotoUrl && welderId) {
+      const fetchPhotoUrl = async () => {
+        try {
+          const response = await fetch(existingPhotoUrl);
+          if (!response.ok) {
+            console.error('Failed to fetch welder photo URL');
+            return;
+          }
+          
+          const data = await response.json();
+          if (data.url) {
+            setPreview(data.url);
+          }
+        } catch (error) {
+          console.error('Error fetching welder photo URL:', error);
+        }
+      };
+      
+      fetchPhotoUrl();
     }
-  }, [existingPhotoUrl]);
+  }, [existingPhotoUrl, welderId]);
   
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

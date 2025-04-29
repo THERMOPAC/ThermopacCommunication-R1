@@ -112,6 +112,7 @@ interface WelderFormData {
   identificationType?: string;
   identificationNumber?: string;
   photoFile?: File | null;
+  photoPath?: string | null;
 }
 
 // Form validation schema - simplified for basic welder information
@@ -126,6 +127,7 @@ const welderFormSchema = z.object({
   identificationType: z.string().optional(),
   identificationNumber: z.string().optional(),
   photoFile: z.instanceof(File).nullable().optional(),
+  photoPath: z.string().nullable().optional(),
 });
 
 const tradeOptions = ["Welder", "Fitter", "Fabricator"];
@@ -655,8 +657,9 @@ export default function WelderManagementPage() {
                             <div className="pt-2">
                               <WelderPhotoUpload
                                 onPhotoUploadSuccess={(path) => {
-                                  // Form doesn't need to keep the actual file since we already uploaded it
-                                  // This is handled in the form submission
+                                  // When a photo is uploaded, update the form data
+                                  // with the path so we can use it in form submission
+                                  form.setValue("photoPath", path);
                                 }}
                               />
                             </div>
@@ -1211,8 +1214,9 @@ export default function WelderManagementPage() {
                               welderId={selectedWelder?.id}
                               existingPhotoUrl={selectedWelder?.photoPath ? `/api/welder-photos/${selectedWelder.id}` : undefined}
                               onPhotoUploadSuccess={(path) => {
-                                // Form doesn't need to keep the actual file since we already uploaded it
-                                // This is handled in the form submission
+                                // When a photo is uploaded, update the form data
+                                // with the path so we can use it in form submission
+                                editForm.setValue("photoPath", path);
                               }}
                             />
                           </div>
