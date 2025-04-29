@@ -302,17 +302,17 @@ router.post('/:welderId', ensureAuthenticated, upload.single('file'), async (req
       responseDisposition: 'attachment', // Force download rather than viewing in browser
     });
     
-    // Store the file path and URL in the database
-    const fileUrl = signedUrl;
+    // Only store the file path in the database, not the signed URL (which is too long)
+    // We'll generate fresh signed URLs when needed
     
     // Insert certificate record into the database
     const result = await db.execute(sql`
       INSERT INTO welder_certificates (
         welder_id, certificate_no, certificate_type, description,
-        issue_date, expiry_date, file_path, file_url, status, created_by
+        issue_date, expiry_date, file_path, status, created_by
       ) VALUES (
         ${welderIdInt}, ${certificateNo}, ${certificateType}, ${description},
-        ${issueDate}, ${expiryDate}, ${filePath}, ${fileUrl}, ${status}, ${userId}
+        ${issueDate}, ${expiryDate}, ${filePath}, ${status}, ${userId}
       )
       RETURNING id, certificate_no, certificate_type, issue_date, expiry_date
     `);
@@ -368,6 +368,16 @@ router.get('/:certificateId/url', ensureAuthenticated, async (req: Request, res:
     const cleanPath = getGCSCleanPath(filePathRaw);
     const file = bucket.file(cleanPath);
     
+    // Check if the file exists
+    const [exists] = await file.exists();
+    if (!exists) {
+      return res.status(404).json({ 
+        error: 'Certificate file not found in storage',
+        details: `File not found at path: ${cleanPath}` 
+      });
+    }
+    
+    // Generate signed URL
     const [signedUrl] = await file.getSignedUrl({
       version: 'v4',
       action: 'read',
@@ -510,11 +520,11 @@ router.put('/:certificateId/file', ensureAuthenticated, upload.single('file'), a
       responseDisposition: 'attachment', // Force download rather than viewing in browser
     });
     
-    // Update certificate record with new file information
+    // We won't store the signed URL in the database since it's too long and expires anyway
+    // Instead, we'll generate it on-demand when needed
     const updateResult = await db.execute(sql`
       UPDATE welder_certificates SET
         file_path = ${filePath},
-        file_url = ${signedUrl},
         updated_at = NOW()
       WHERE id = ${certificateIdInt}
       RETURNING *
