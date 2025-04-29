@@ -23,6 +23,7 @@ import ShopFloorPage from "@/pages/shop-floor-page";
 import InspectionsPage from "@/pages/inspections-page";
 import InspectionManagementPage from "@/pages/inspection-management-page";
 import MaterialIdentificationPage from "@/pages/material-identification-page";
+import MaterialIdentificationListPage from "@/pages/material-identification-list-page";
 import WpsPqrPage from "@/pages/wps-pqr-page";
 import WpsPqrManagementPage from "@/pages/wps-pqr-management-page";
 import WpqrPage from "@/pages/wpqr-page";
@@ -114,7 +115,9 @@ function Router() {
       <ProtectedRoute path="/quality/welder-certificates/:welderId" component={WelderCertificatesPage} />
       <ProtectedRoute path="/welder-test" component={WelderTestPage} />
       <ProtectedRoute path="/calibration-management" component={CalibrationManagementPage} />
-      <ProtectedRoute path="/material-identification" component={MaterialIdentificationPage} />
+      <ProtectedRoute path="/material-identification/new" component={MaterialIdentificationPage} />
+      <ProtectedRoute path="/material-identification" component={MaterialIdentificationListPage} />
+      <ProtectedRoute path="/material-identification/:id" component={MaterialIdentificationPage} />
       <ProtectedRoute path="/inspections" component={InspectionsPage} />
       <ProtectedRoute path="/inspection-management" component={InspectionManagementPage} />
       <ProtectedRoute path="/quality-reports" component={QualityReportsPage} />

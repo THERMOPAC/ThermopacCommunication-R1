@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
-import { PlusCircle, Search, FileDown, Filter } from "lucide-react";
+import { PlusCircle, Search, FileDown, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 
 import Layout from "@/components/layout";
 import { Input } from "@/components/ui/input";
@@ -82,63 +82,61 @@ export default function MaterialIdentificationListPage() {
   const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
   const [toDate, setToDate] = useState<Date | undefined>(undefined);
 
-  // Fetch material identifications
-  const { data: materialIdentifications = [], isLoading: isLoadingMI } = useQuery<MaterialIdentification[]>({
-    queryKey: ['/api/quality/material-identification'],
+  // Set up state for pagination
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [totalItems, setTotalItems] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+
+  // Create a debounced version of search term to avoid too many queries
+  const [debouncedSearchTerm] = useState(() => {
+    return searchTerm;
   });
+
+  // Use effect to handle debouncing search term
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setCurrentPage(1); // Reset to first page on search change
+    }, 500);
+    return () => clearTimeout(timerId);
+  }, [searchTerm]);
+
+  // Construct query parameters for backend filtering
+  const queryParams = {
+    search: searchTerm,
+    ...(selectedProject && { projectId: selectedProject }),
+    ...(selectedMaterialGrade && { materialGrade: selectedMaterialGrade }),
+    ...(selectedStatus && { status: selectedStatus }),
+    ...(fromDate && { fromDate: format(fromDate, 'yyyy-MM-dd') }),
+    ...(toDate && { toDate: format(toDate, 'yyyy-MM-dd') }),
+    page: currentPage.toString(),
+    limit: pageSize.toString()
+  };
+
+  // Fetch material identifications with server-side filtering
+  const { data: miResponse, isLoading: isLoadingMI } = useQuery({
+    queryKey: ['/api/quality/material-identification', queryParams],
+    select: (data: any) => {
+      // Process pagination data
+      if (data.pagination) {
+        setTotalItems(data.pagination.total);
+        setTotalPages(data.pagination.totalPages);
+      }
+      return data.data || [];
+    }
+  });
+
+  // Use response data for display
+  const materialIdentifications = miResponse || [];
 
   // Fetch projects for filter
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ['/api/projects'],
   });
 
-  // Filter material identifications based on search term and filters
-  const filteredMI = materialIdentifications.filter((mi) => {
-    // Apply search term filter (search in multiple fields)
-    const searchFields = [
-      mi.material_identification_id,
-      mi.material_description,
-      mi.material_code,
-      mi.heat_number,
-      mi.mill_test_certificate_number,
-      mi.inspector_name,
-    ];
-    
-    const matchesSearch = searchTerm === "" || 
-      searchFields.some(field => 
-        field && field.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    
-    // Apply project filter
-    const matchesProject = selectedProject === "" || 
-      mi.project_id.toString() === selectedProject;
-    
-    // Apply status filter
-    const matchesStatus = selectedStatus === "" || 
-      mi.material_status === selectedStatus;
-    
-    // Apply material grade filter
-    const matchesMaterialGrade = selectedMaterialGrade === "" || 
-      mi.material_grade === selectedMaterialGrade;
-    
-    // Apply date filters
-    let matchesDateRange = true;
-    if (fromDate) {
-      const inspectionDate = new Date(mi.inspection_date);
-      matchesDateRange = inspectionDate >= fromDate;
-    }
-    if (toDate) {
-      const inspectionDate = new Date(mi.inspection_date);
-      matchesDateRange = matchesDateRange && inspectionDate <= toDate;
-    }
-    
-    return matchesSearch && matchesProject && matchesStatus && 
-      matchesMaterialGrade && matchesDateRange;
-  });
-
-  // Get unique material grades for filter dropdown
-  const uniqueMaterialGrades = Array.from(
-    new Set(materialIdentifications.map(mi => mi.material_grade))
+  // Get unique material grades from the loaded data for the filter dropdown
+  const uniqueMaterialGrades: string[] = Array.from(
+    new Set(materialIdentifications.map((mi: MaterialIdentification) => mi.material_grade || '').filter(Boolean))
   );
 
   // Handle export to CSV/Excel
@@ -227,7 +225,7 @@ export default function MaterialIdentificationListPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">All Grades</SelectItem>
-                      {uniqueMaterialGrades.map((grade) => (
+                      {uniqueMaterialGrades.map((grade: string) => (
                         <SelectItem key={grade} value={grade}>
                           {grade}
                         </SelectItem>
@@ -327,7 +325,7 @@ export default function MaterialIdentificationListPage() {
               <div className="flex justify-between items-center">
                 <CardTitle>Material Identification Records</CardTitle>
                 <CardDescription>
-                  {filteredMI.length} records found
+                  {totalItems} records found
                 </CardDescription>
               </div>
             </CardHeader>
@@ -336,7 +334,7 @@ export default function MaterialIdentificationListPage() {
                 <div className="flex justify-center items-center h-[400px]">
                   Loading material identification records...
                 </div>
-              ) : filteredMI.length === 0 ? (
+              ) : materialIdentifications.length === 0 ? (
                 <div className="flex justify-center items-center h-[400px]">
                   No material identification records found.
                 </div>
@@ -356,7 +354,7 @@ export default function MaterialIdentificationListPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredMI.map((mi) => (
+                      {materialIdentifications.map((mi: MaterialIdentification) => (
                         <TableRow key={mi.id}>
                           <TableCell className="font-medium">
                             {mi.material_identification_id}
@@ -403,6 +401,38 @@ export default function MaterialIdentificationListPage() {
                       ))}
                     </TableBody>
                   </Table>
+                  
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-4 border-t">
+                      <div className="text-sm text-muted-foreground">
+                        Showing records {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalItems)} of {totalItems}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          <span className="sr-only">Previous Page</span>
+                        </Button>
+                        <div className="text-sm">
+                          Page {currentPage} of {totalPages}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                          <span className="sr-only">Next Page</span>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
