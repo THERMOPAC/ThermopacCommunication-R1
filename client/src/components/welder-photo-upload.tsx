@@ -92,6 +92,9 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
     }
     
     setIsUploading(true);
+    console.log("Starting photo upload process");
+    console.log("Uploading file:", file.name, "size:", file.size, "type:", file.type);
+    console.log("Welder ID:", welderId);
     
     try {
       const formData = new FormData();
@@ -99,29 +102,45 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       
       // If welderId is provided, add it to the form data
       if (welderId) {
+        console.log(`Adding welder ID to form data: ${welderId}`);
         formData.append('welderId', welderId.toString());
+      } else {
+        console.warn("No welder ID provided for photo upload");
       }
       
+      console.log("Sending photo upload request to /api/upload/welder-photo");
       const response = await fetch('/api/upload/welder-photo', {
         method: 'POST',
         body: formData,
       });
       
+      console.log("Upload response status:", response.status);
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload photo');
+        const errorText = await response.text();
+        console.error("Upload error response:", errorText);
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || 'Failed to upload photo');
+        } catch (jsonError) {
+          throw new Error(`Failed to upload photo: ${errorText}`);
+        }
       }
       
       const data = await response.json();
+      console.log("Upload success response:", data);
       
       // Call the success callback with the file path
       if (onPhotoUploadSuccess && data.path) {
+        console.log(`Calling success callback with path: ${data.path}`);
         onPhotoUploadSuccess(data.path);
+      } else {
+        console.warn("Success callback not called, path:", data.path, "callback:", !!onPhotoUploadSuccess);
       }
       
       toast({
         title: "Upload successful",
-        description: "Welder photo has been uploaded"
+        description: `Welder photo has been uploaded: ${data.path}`
       });
       
     } catch (error) {

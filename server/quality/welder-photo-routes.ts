@@ -29,14 +29,26 @@ export function registerWelderPhotoRoutes(app: express.Router) {
     ensureAuthenticated,
     upload.single('file'),
     async (req: Request, res: Response) => {
+      console.log('Received welder photo upload request');
       try {
+        console.log('Request body:', req.body);
+        console.log('Request file:', req.file ? {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size
+        } : 'No file in request');
+        
         if (!req.file) {
+          console.error('No file uploaded in the request');
           return res.status(400).json({ error: 'No file uploaded' });
         }
 
         const { buffer, originalname, mimetype } = req.file;
+        console.log(`File details: ${originalname}, ${mimetype}, size: ${buffer.length} bytes`);
+        
         // Welder ID is now required for the new directory structure
         if (!req.body.welderId) {
+          console.error('No welder ID provided in the request body');
           return res.status(400).json({ error: 'Welder ID is required for photo upload' });
         }
         
@@ -45,6 +57,7 @@ export function registerWelderPhotoRoutes(app: express.Router) {
         console.log(`Processing photo upload for welder ID: ${welderId}`);
 
         // Upload the file to GCS
+        console.log(`Calling uploadWelderPhoto with params: originalname=${originalname}, mimetype=${mimetype}, welderId=${welderId}`);
         const result = await uploadWelderPhoto(
           buffer,
           originalname,
