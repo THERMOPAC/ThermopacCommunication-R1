@@ -82,7 +82,10 @@ export function setupWelderRoutes(app: any) {
         ORDER BY "certificateExpiryDate" DESC
       `);
       
-      res.json(welders.rows);
+      // Auto-update status based on certificate expiry date
+      const updatedWelders = welders.rows.map(welder => checkAndUpdateWelderStatus(welder));
+      
+      res.json(updatedWelders);
     } catch (error) {
       console.error('Error fetching expired certifications:', error);
       res.status(500).json({ error: 'Failed to fetch expired certifications' });
@@ -95,13 +98,16 @@ export function setupWelderRoutes(app: any) {
     try {
       const welders = await db.execute(sql`
         SELECT * FROM welders 
-        WHERE status = 'Active'
-        AND "certificateExpiryDate" <= (CURRENT_DATE + INTERVAL '30 days')
+        WHERE "certificateExpiryDate" <= (CURRENT_DATE + INTERVAL '30 days')
         AND "certificateExpiryDate" > CURRENT_DATE
         ORDER BY "certificateExpiryDate" ASC
       `);
       
-      res.json(welders.rows);
+      // Auto-update status based on certificate expiry date (not needed for this endpoint
+      // but including for consistency)
+      const updatedWelders = welders.rows.map(welder => checkAndUpdateWelderStatus(welder));
+      
+      res.json(updatedWelders);
     } catch (error) {
       console.error('Error fetching expiring certifications:', error);
       res.status(500).json({ error: 'Failed to fetch expiring certifications' });
@@ -121,7 +127,10 @@ export function setupWelderRoutes(app: any) {
         return res.status(404).json({ error: 'Welder not found' });
       }
       
-      res.json(welder.rows[0]);
+      // Auto-update status based on certificate expiry date
+      const updatedWelder = checkAndUpdateWelderStatus(welder.rows[0]);
+      
+      res.json(updatedWelder);
     } catch (error) {
       console.error('Error fetching welder:', error);
       res.status(500).json({ error: 'Failed to fetch welder' });
@@ -411,11 +420,16 @@ export function setupWelderRoutes(app: any) {
       const welders = await db.execute(sql`
         SELECT * FROM welders 
         WHERE "wpsNumber" = ${wpsNumber}
-        AND status = 'Active'
         ORDER BY name ASC
       `);
       
-      res.json(welders.rows);
+      // Auto-update status based on certificate expiry date
+      const updatedWelders = welders.rows.map(welder => checkAndUpdateWelderStatus(welder));
+      
+      // Filter to only active welders (after status has been updated)
+      const activeWelders = updatedWelders.filter(welder => welder.status === 'Active');
+      
+      res.json(activeWelders);
     } catch (error) {
       console.error('Error fetching welders by WPS:', error);
       res.status(500).json({ error: 'Failed to fetch welders' });
