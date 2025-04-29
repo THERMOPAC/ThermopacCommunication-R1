@@ -49,15 +49,106 @@ const materialIdentificationSchema = z.object({
   updatedBy: z.number().optional()
 });
 
-// Get all material identifications
+// Get all material identifications with optional filters
 router.get("/", async (req, res) => {
   try {
-    const materialIdentifications = await db.execute(sql`
-      SELECT * FROM material_identification
-      ORDER BY created_at DESC
-    `) as any;
+    const {
+      search,
+      projectId,
+      materialGrade,
+      status,
+      fromDate,
+      toDate,
+      page = "1", 
+      limit = "20"
+    } = req.query;
+
+    // Build where conditions
+    const conditions: string[] = [];
+    const params: any[] = [];
     
-    res.json(materialIdentifications.rows || []);
+    if (search) {
+      conditions.push(`
+        (
+          material_identification_id ILIKE ${sql.placeholder} OR
+          material_description ILIKE ${sql.placeholder} OR
+          material_code ILIKE ${sql.placeholder} OR
+          heat_number ILIKE ${sql.placeholder} OR
+          mill_test_certificate_number ILIKE ${sql.placeholder} OR
+          inspector_name ILIKE ${sql.placeholder}
+        )
+      `);
+      const searchParam = `%${search}%`;
+      params.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
+    }
+    
+    if (projectId) {
+      conditions.push(`project_id = ${sql.placeholder}`);
+      params.push(projectId);
+    }
+    
+    if (materialGrade) {
+      conditions.push(`material_grade = ${sql.placeholder}`);
+      params.push(materialGrade);
+    }
+    
+    if (status) {
+      conditions.push(`material_status = ${sql.placeholder}`);
+      params.push(status);
+    }
+    
+    if (fromDate) {
+      conditions.push(`inspection_date >= ${sql.placeholder}`);
+      params.push(fromDate);
+    }
+    
+    if (toDate) {
+      conditions.push(`inspection_date <= ${sql.placeholder}`);
+      params.push(toDate);
+    }
+    
+    // Parse pagination parameters
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+    const offset = (pageNum - 1) * limitNum;
+    
+    // Create base query
+    let baseQuery = sql`SELECT * FROM material_identification`;
+    
+    // Add where conditions if there are any
+    if (conditions.length > 0) {
+      baseQuery = sql`${baseQuery} WHERE ${sql.join(conditions.map(c => sql.raw(c)), sql` AND `)}`;
+    }
+    
+    // Add order by and pagination
+    baseQuery = sql`${baseQuery} ORDER BY created_at DESC LIMIT ${limitNum} OFFSET ${offset}`;
+    
+    // Execute the query
+    const materialIdentifications = await db.execute(baseQuery) as any;
+    
+    // Count query for pagination
+    let countQuery = sql`SELECT COUNT(*) FROM material_identification`;
+    
+    // Add the same conditions to count query
+    if (conditions.length > 0) {
+      countQuery = sql`${countQuery} WHERE ${sql.join(conditions.map(c => sql.raw(c)), sql` AND `)}`;
+    }
+    
+    // Execute count query
+    const countResult = await db.execute(countQuery) as any;
+    
+    const totalCount = parseInt(countResult.rows[0]?.count || '0', 10);
+    const totalPages = Math.ceil(totalCount / limitNum);
+    
+    res.json({
+      data: materialIdentifications.rows || [],
+      pagination: {
+        total: totalCount,
+        page: pageNum,
+        limit: limitNum,
+        totalPages
+      }
+    });
   } catch (error) {
     console.error("Error getting material identifications:", error);
     res.status(500).json({ error: "Failed to get material identifications" });
