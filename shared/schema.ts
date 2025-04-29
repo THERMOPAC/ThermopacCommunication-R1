@@ -1259,21 +1259,12 @@ export const machineAllocations = pgTable('machine_allocations', {
 
 // ==================== QUALITY MANAGEMENT MODULE ====================
 
-// Welders table
+// Welders table - simplified version without qualification details
 export const welders = pgTable('welders', {
   id: serial('id').primaryKey(),
   welderId: varchar('welderId', { length: 10 }).notNull().unique(),
   name: varchar('name', { length: 100 }).notNull(),
   trade: varchar('trade', { length: 50 }).notNull(),
-  processQualified: text('processQualified').array().notNull(),
-  materialGroupQualified: text('materialGroupQualified').array().notNull(),
-  thicknessRange: varchar('thicknessRange', { length: 50 }).notNull(),
-  positionQualified: text('positionQualified').array().notNull(),
-  wpsNumber: varchar('wpsNumber', { length: 20 }).notNull(),
-  testDate: date('testDate').notNull(),
-  testResults: varchar('testResults', { length: 20 }).notNull(),
-  certificateNo: varchar('certificateNo', { length: 20 }).notNull(),
-  certificateExpiryDate: date('certificateExpiryDate').notNull(),
   status: varchar('status', { length: 20 }).notNull().default('Active'),
   remarks: text('remarks'),
   createdAt: timestamp('createdAt').defaultNow(),
