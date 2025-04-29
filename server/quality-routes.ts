@@ -7,6 +7,7 @@ import { db } from './db';
 import { inspectionOrders, inspectionOrderItems } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { setupWelderRoutes } from './quality/welder-routes';
+import { registerWelderCertificateRoutes } from './quality/welder-certificate-routes';
 
 // Define ensureAuthenticated middleware
 function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -140,6 +141,9 @@ export function setupQualityRoutes(app: Express) {
   
   // Setup welder management routes directly
   setupWelderRoutes(app);
+  
+  // Setup welder certificate routes
+  registerWelderCertificateRoutes(app);
   
   console.log('Quality management routes registered');
 }
