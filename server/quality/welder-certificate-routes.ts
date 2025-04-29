@@ -92,6 +92,29 @@ async function generateCertificateNumber() {
   return `CERT-${nextId.toString().padStart(3, '0')}`;
 }
 
+// Get all certificates across all welders
+router.get('/all', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Get all certificates with welder and creator info
+    const certificates = await db.execute(sql`
+      SELECT 
+        wc.*,
+        u.username as "createdByUsername"
+      FROM welder_certificates wc
+      LEFT JOIN users u ON wc.created_by = u.id
+      ORDER BY wc.created_at DESC
+    `);
+    
+    res.json(certificates.rows);
+  } catch (error) {
+    console.error('Error fetching all welder certificates:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch all certificates',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Get all certificates for a welder
 router.get('/welder/:welderId', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
