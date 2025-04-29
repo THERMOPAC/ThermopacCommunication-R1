@@ -8,12 +8,14 @@ import { UploadIcon, Loader2 } from 'lucide-react';
 
 interface WelderPhotoUploadProps {
   welderId?: number;
+  welderCode?: string; // Added string format welderId (W-001)
   existingPhotoUrl?: string;
   onPhotoUploadSuccess?: (path: string) => void;
 }
 
 const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
   welderId,
+  welderCode,
   existingPhotoUrl,
   onPhotoUploadSuccess
 }) => {
@@ -100,12 +102,15 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       const formData = new FormData();
       formData.append('file', file);
       
-      // If welderId is provided, add it to the form data
-      if (welderId) {
+      // Use welderCode if provided, otherwise use welderId
+      if (welderCode) {
+        console.log(`Adding welder code to form data: ${welderCode}`);
+        formData.append('welderCode', welderCode);
+      } else if (welderId) {
         console.log(`Adding welder ID to form data: ${welderId}`);
         formData.append('welderId', welderId.toString());
       } else {
-        console.warn("No welder ID provided for photo upload");
+        console.warn("No welder ID or code provided for photo upload");
       }
       
       console.log("Sending photo upload request to /api/upload/welder-photo");
