@@ -50,8 +50,44 @@ export function setupWelderRoutes(app: any) {
       res.status(500).json({ error: 'Failed to fetch welders' });
     }
   });
+  
+  // Get expired certificates (welders whose certificates have expired)
+  // This must be defined BEFORE the /:id route to avoid path conflicts
+  app.get('/api/quality/welders/expired', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const welders = await db.execute(sql`
+        SELECT * FROM welders 
+        WHERE "certificateExpiryDate" < CURRENT_DATE
+        ORDER BY "certificateExpiryDate" DESC
+      `);
+      
+      res.json(welders.rows);
+    } catch (error) {
+      console.error('Error fetching expired certifications:', error);
+      res.status(500).json({ error: 'Failed to fetch expired certifications' });
+    }
+  });
+  
+  // Get expiring certificates (welders whose certificates expire within 30 days)
+  // This must be defined BEFORE the /:id route to avoid path conflicts
+  app.get('/api/quality/welders/expiring-soon', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const welders = await db.execute(sql`
+        SELECT * FROM welders 
+        WHERE status = 'Active'
+        AND "certificateExpiryDate" <= (CURRENT_DATE + INTERVAL '30 days')
+        AND "certificateExpiryDate" > CURRENT_DATE
+        ORDER BY "certificateExpiryDate" ASC
+      `);
+      
+      res.json(welders.rows);
+    } catch (error) {
+      console.error('Error fetching expiring certifications:', error);
+      res.status(500).json({ error: 'Failed to fetch expiring certifications' });
+    }
+  });
 
-  // Get welder by ID
+  // Get welder by ID - this must come AFTER more specific routes
   app.get('/api/quality/welders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -362,40 +398,6 @@ export function setupWelderRoutes(app: any) {
     } catch (error) {
       console.error('Error fetching welders by WPS:', error);
       res.status(500).json({ error: 'Failed to fetch welders' });
-    }
-  });
-
-  // Get expiring certificates (welders whose certificates expire within 30 days)
-  app.get('/api/quality/welders/expiring-soon', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const welders = await db.execute(sql`
-        SELECT * FROM welders 
-        WHERE status = 'Active'
-        AND "certificateExpiryDate" <= (CURRENT_DATE + INTERVAL '30 days')
-        AND "certificateExpiryDate" > CURRENT_DATE
-        ORDER BY "certificateExpiryDate" ASC
-      `);
-      
-      res.json(welders.rows);
-    } catch (error) {
-      console.error('Error fetching expiring certifications:', error);
-      res.status(500).json({ error: 'Failed to fetch expiring certifications' });
-    }
-  });
-  
-  // Get expired certificates (welders whose certificates have expired)
-  app.get('/api/quality/welders/expired', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const welders = await db.execute(sql`
-        SELECT * FROM welders 
-        WHERE "certificateExpiryDate" < CURRENT_DATE
-        ORDER BY "certificateExpiryDate" DESC
-      `);
-      
-      res.json(welders.rows);
-    } catch (error) {
-      console.error('Error fetching expired certifications:', error);
-      res.status(500).json({ error: 'Failed to fetch expired certifications' });
     }
   });
 }
