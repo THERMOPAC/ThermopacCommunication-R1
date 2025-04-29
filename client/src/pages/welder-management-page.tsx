@@ -55,6 +55,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
+import WelderPhotoUpload from "@/components/welder-photo-upload";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -647,19 +648,18 @@ export default function WelderManagementPage() {
                     <FormField
                       control={form.control}
                       name="photoFile"
-                      render={({ field: { value, onChange, ...fieldProps } }) => (
+                      render={({ field: { value, onChange } }) => (
                         <FormItem>
                           <FormLabel>Welder Photo</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="file" 
-                              accept="image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0] || null;
-                                onChange(file);
-                              }}
-                              {...fieldProps}
-                            />
+                            <div className="pt-2">
+                              <WelderPhotoUpload
+                                onPhotoUploadSuccess={(path) => {
+                                  // Form doesn't need to keep the actual file since we already uploaded it
+                                  // This is handled in the form submission
+                                }}
+                              />
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
