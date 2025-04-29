@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 import GcsDebugTool from '@/components/gcs-debug-tool';
 import WelderPhotoUpload from '@/components/welder-photo-upload';
 import { Separator } from '@/components/ui/separator';
+import Layout from '@/components/layout';
 
 /**
  * GCS Diagnostic Page for testing Google Cloud Storage connectivity
@@ -33,43 +34,45 @@ export default function GcsDiagnosticPage() {
   }
 
   return (
-    <div className="container py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-2">GCS Diagnostic Tools</h1>
-      <p className="text-muted-foreground mb-6">
-        These tools help diagnose issues with Google Cloud Storage connectivity
-        and welder photo uploads.
-      </p>
+    <Layout>
+      <div className="container py-8 max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-2">GCS Diagnostic Tools</h1>
+        <p className="text-muted-foreground mb-6">
+          These tools help diagnose issues with Google Cloud Storage connectivity
+          and welder photo uploads.
+        </p>
 
-      <div className="grid gap-6">
-        <GcsDebugTool />
-        
-        <Separator className="my-4" />
-        
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Test Photo Upload (Welder ID: 1)</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-md font-medium mb-2">Using Numeric ID</h3>
-              <WelderPhotoUpload 
-                welderId={1} 
-                onPhotoUploadSuccess={(path) => {
-                  console.log("Photo upload success with numeric ID:", path);
-                }} 
-              />
-            </div>
-            
-            <div>
-              <h3 className="text-md font-medium mb-2">Using Welder Code</h3>
-              <WelderPhotoUpload 
-                welderCode="W-001" 
-                onPhotoUploadSuccess={(path) => {
-                  console.log("Photo upload success with welder code:", path);
-                }} 
-              />
+        <div className="grid gap-6">
+          <GcsDebugTool />
+          
+          <Separator className="my-4" />
+          
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Test Photo Upload (Welder ID: 1)</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-md font-medium mb-2">Using Numeric ID</h3>
+                <WelderPhotoUpload 
+                  welderId={1} 
+                  onPhotoUploadSuccess={(path) => {
+                    console.log("Photo upload success with numeric ID:", path);
+                  }} 
+                />
+              </div>
+              
+              <div>
+                <h3 className="text-md font-medium mb-2">Using Welder Code</h3>
+                <WelderPhotoUpload 
+                  welderCode="W-001" 
+                  onPhotoUploadSuccess={(path) => {
+                    console.log("Photo upload success with welder code:", path);
+                  }} 
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }

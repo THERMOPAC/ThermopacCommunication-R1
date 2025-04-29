@@ -27,6 +27,7 @@ import { hashPassword as updatePasswordHash } from "./update-password";
 import { setupTestWelderRoute } from "./quality/test-welder-route";
 import { setupApiTestRoutes } from "./api-test-route";
 import { setupDedicatedTestRoutes } from "./dedicated-test-route";
+import { registerFileUploadTestRoutes } from "./test/file-upload-test";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
 import { checkGcsPermissions } from "./utils/gcs-permissions-check";
