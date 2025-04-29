@@ -105,6 +105,12 @@ interface WelderFormData {
   trade: string;
   status: string;
   remarks: string;
+  dateOfBirth?: string | null;
+  contactNumber?: string;
+  hireDate?: string | null;
+  identificationType?: string;
+  identificationNumber?: string;
+  photoFile?: File | null;
 }
 
 // Form validation schema - simplified for basic welder information
@@ -113,6 +119,12 @@ const welderFormSchema = z.object({
   trade: z.string().min(1, "Please select a trade"),
   status: z.string().min(1, "Status is required"),
   remarks: z.string().optional().or(z.literal("")),
+  dateOfBirth: z.string().nullable().optional(),
+  contactNumber: z.string().optional(),
+  hireDate: z.string().nullable().optional(),
+  identificationType: z.string().optional(),
+  identificationNumber: z.string().optional(),
+  photoFile: z.instanceof(File).nullable().optional(),
 });
 
 const tradeOptions = ["Welder", "Fitter", "Fabricator"];
@@ -143,6 +155,12 @@ export default function WelderManagementPage() {
       trade: "",
       status: "Active",
       remarks: "",
+      dateOfBirth: null,
+      contactNumber: "",
+      hireDate: null,
+      identificationType: "",
+      identificationNumber: "",
+      photoFile: null
     },
   });
 
@@ -154,6 +172,12 @@ export default function WelderManagementPage() {
       trade: "",
       status: "Active",
       remarks: "",
+      dateOfBirth: null,
+      contactNumber: "",
+      hireDate: null,
+      identificationType: "",
+      identificationNumber: "",
+      photoFile: null
     },
   });
   
@@ -191,12 +215,40 @@ export default function WelderManagementPage() {
   // Create new welder mutation
   const createWelderMutation = useMutation({
     mutationFn: async (data: WelderFormData) => {
+      // Handle file upload if a photo is selected
+      let photoPath = null;
+      if (data.photoFile) {
+        const formData = new FormData();
+        formData.append("file", data.photoFile);
+        
+        const uploadResponse = await fetch("/api/upload/welder-photo", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+        
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          throw new Error(errorText || "Failed to upload welder photo");
+        }
+        
+        const uploadResult = await uploadResponse.json();
+        photoPath = uploadResult.path;
+      }
+      
+      // Create welder with all the data
+      const welderData = {
+        ...data,
+        photoPath,
+        photoFile: undefined  // Remove the file from the data sent to API
+      };
+      
       const response = await fetch("/api/quality/welders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(welderData),
         credentials: "include",
       });
       
@@ -228,12 +280,41 @@ export default function WelderManagementPage() {
   // Update welder mutation
   const updateWelderMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: WelderFormData }) => {
+      // Handle file upload if a new photo is selected
+      let photoPath = selectedWelder?.photoPath || null;
+      if (data.photoFile) {
+        const formData = new FormData();
+        formData.append("file", data.photoFile);
+        formData.append("welderId", id.toString());
+        
+        const uploadResponse = await fetch("/api/upload/welder-photo", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+        
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          throw new Error(errorText || "Failed to upload welder photo");
+        }
+        
+        const uploadResult = await uploadResponse.json();
+        photoPath = uploadResult.path;
+      }
+      
+      // Update welder with all the data
+      const welderData = {
+        ...data,
+        photoPath,
+        photoFile: undefined  // Remove the file from the data sent to API
+      };
+      
       const response = await fetch(`/api/quality/welders/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(welderData),
         credentials: "include",
       });
       
@@ -281,6 +362,12 @@ export default function WelderManagementPage() {
       trade: welder.trade,
       status: welder.status,
       remarks: welder.remarks || "",
+      dateOfBirth: welder.dateOfBirth || null,
+      contactNumber: welder.contactNumber || "",
+      hireDate: welder.hireDate || null,
+      identificationType: welder.identificationType || "",
+      identificationNumber: welder.identificationNumber || "",
+      photoFile: null
     });
     setIsEditWelderOpen(true);
   };
@@ -461,6 +548,125 @@ export default function WelderManagementPage() {
                     />
                     <FormField
                       control={form.control}
+                      name="contactNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contact Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Phone number" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="dateOfBirth"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Date of Birth</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="date" 
+                              {...field} 
+                              value={field.value || ""}
+                              onChange={(e) => field.onChange(e.target.value || null)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="hireDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Hire Date</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="date" 
+                              {...field} 
+                              value={field.value || ""}
+                              onChange={(e) => field.onChange(e.target.value || null)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="identificationType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Identification Type</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select ID type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Passport">Passport</SelectItem>
+                              <SelectItem value="Pan Card">Pan Card</SelectItem>
+                              <SelectItem value="Aadhar Card">Aadhar Card</SelectItem>
+                              <SelectItem value="Voter ID">Voter ID</SelectItem>
+                              <SelectItem value="Driving License">Driving License</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="identificationNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Identification Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="ID number" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="photoFile"
+                      render={({ field: { value, onChange, ...fieldProps } }) => (
+                        <FormItem>
+                          <FormLabel>Welder Photo</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                onChange(file);
+                              }}
+                              {...fieldProps}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
                       name="remarks"
                       render={({ field }) => (
                         <FormItem>
@@ -473,6 +679,7 @@ export default function WelderManagementPage() {
                       )}
                     />
                   </div>
+                  
                   <DialogFooter>
                     <Button
                       type="submit"
@@ -896,6 +1103,128 @@ export default function WelderManagementPage() {
                   />
                   <FormField
                     control={editForm.control}
+                    name="contactNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Phone number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="dateOfBirth"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Date of Birth</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="date" 
+                            {...field} 
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value || null)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="hireDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Hire Date</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="date" 
+                            {...field} 
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value || null)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="identificationType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Identification Type</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select ID type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Passport">Passport</SelectItem>
+                            <SelectItem value="Pan Card">Pan Card</SelectItem>
+                            <SelectItem value="Aadhar Card">Aadhar Card</SelectItem>
+                            <SelectItem value="Voter ID">Voter ID</SelectItem>
+                            <SelectItem value="Driving License">Driving License</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="identificationNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Identification Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="ID number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="photoFile"
+                    render={({ field: { value, onChange, ...fieldProps } }) => (
+                      <FormItem>
+                        <FormLabel>Update Welder Photo</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null;
+                              onChange(file);
+                            }}
+                            {...fieldProps}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        {selectedWelder?.photoPath && (
+                          <p className="text-sm text-muted-foreground">Current photo: {selectedWelder.photoPath.split('/').pop()}</p>
+                        )}
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
                     name="remarks"
                     render={({ field }) => (
                       <FormItem>
@@ -908,6 +1237,7 @@ export default function WelderManagementPage() {
                     )}
                   />
                 </div>
+                
                 <DialogFooter>
                   <Button
                     type="submit"
