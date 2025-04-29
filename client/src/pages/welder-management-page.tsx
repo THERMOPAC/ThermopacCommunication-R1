@@ -82,23 +82,38 @@ interface Welder {
 
 interface WelderCertificate {
   id: number;
-  welderId: number;
-  certificateNo: string;
-  certificateType: string;
-  description: string;
-  issueDate: string;
-  expiryDate: string;
-  filePath: string;
-  fileUrl: string;
-  status: string;
-  createdAt: string;
-  createdByUsername: string;
+  // Support both camelCase and snake_case property names
+  // Frontend expected properties (camelCase)
+  welderId?: number;
+  certificateNo?: string;
+  certificateType?: string;
+  description?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  filePath?: string;
+  fileUrl?: string;
+  status?: string;
+  createdAt?: string;
+  createdByUsername?: string;
   wpqrId?: number;
   wpqrDocumentId?: string;
   processQualified?: string[];
   materialGroupQualified?: string[];
   thicknessRange?: string;
   positionQualified?: string[];
+  
+  // Backend properties (snake_case)
+  welder_id?: number;
+  certificate_no?: string;
+  certificate_type?: string;
+  issue_date?: string;
+  expiry_date?: string;
+  file_path?: string;
+  file_url?: string;
+  created_at?: string;
+  created_by_username?: string;
+  wpqr_id?: number;
+  wpqr_document_id?: string;
 }
 
 interface WelderFormData {
@@ -1309,21 +1324,50 @@ export default function WelderManagementPage() {
                   </TableHeader>
                   <TableBody>
                     {certificates.map((certificate) => {
-                      const isExpired = isBefore(parseISO(certificate.expiryDate), today);
-                      const isExpiring = isAfter(parseISO(certificate.expiryDate), today) && 
-                                        isBefore(parseISO(certificate.expiryDate), thirtyDaysFromNow);
+                      // Get normalized property names (handle both camelCase and snake_case)
+                      const expiryDate = certificate.expiryDate || (certificate as any).expiry_date;
+                      const issueDate = certificate.issueDate || (certificate as any).issue_date;
+                      const certNumber = certificate.certificateNo || (certificate as any).certificate_no;
+                      const certType = certificate.certificateType || (certificate as any).certificate_type;
+                      
+                      // Safe date parsing
+                      const parseDate = (dateStr: string | undefined) => {
+                        if (!dateStr) return new Date();
+                        try {
+                          return parseISO(dateStr);
+                        } catch (e) {
+                          console.error("Error parsing date:", dateStr, e);
+                          return new Date();
+                        }
+                      };
+                      
+                      const expiryDateObj = parseDate(expiryDate);
+                      const issueDateObj = parseDate(issueDate);
+                      
+                      const isExpired = isBefore(expiryDateObj, today);
+                      const isExpiring = isAfter(expiryDateObj, today) && 
+                                        isBefore(expiryDateObj, thirtyDaysFromNow);
+                      
+                      // Safe date formatting
+                      const formatDate = (date: Date) => {
+                        try {
+                          return format(date, "dd MMM yyyy");
+                        } catch (e) {
+                          return "Invalid date";
+                        }
+                      };
                       
                       return (
                         <TableRow key={certificate.id}>
-                          <TableCell>{certificate.certificateNo}</TableCell>
-                          <TableCell>{certificate.certificateType}</TableCell>
-                          <TableCell>{format(parseISO(certificate.issueDate), "dd MMM yyyy")}</TableCell>
+                          <TableCell>{certNumber}</TableCell>
+                          <TableCell>{certType}</TableCell>
+                          <TableCell>{formatDate(issueDateObj)}</TableCell>
                           <TableCell>
                             <Badge
                               variant={isExpired ? "destructive" : isExpiring ? "outline" : "default"}
                               className={isExpiring ? "bg-yellow-500/10 text-yellow-600 border-yellow-400" : ""}
                             >
-                              {format(parseISO(certificate.expiryDate), "dd MMM yyyy")}
+                              {formatDate(expiryDateObj)}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -1343,7 +1387,18 @@ export default function WelderManagementPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => window.open(certificate.fileUrl, "_blank")}
+                              onClick={() => {
+                                const fileUrl = certificate.fileUrl || (certificate as any).file_url;
+                                if (fileUrl) {
+                                  window.open(fileUrl, "_blank");
+                                } else {
+                                  toast({
+                                    title: "Error",
+                                    description: "Certificate file URL not available",
+                                    variant: "destructive"
+                                  });
+                                }
+                              }}
                             >
                               View
                             </Button>
