@@ -1411,6 +1411,14 @@ export default function WelderManagementPage() {
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            onClick={() => {
+                              // Navigate to the certificates management page for this welder
+                              navigate(`/quality/welder-certificates/${welder.id}`);
+                            }}
+                          >
+                            Manage Certificates
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => {
                               // Delete functionality would go here
@@ -1442,10 +1450,9 @@ export default function WelderManagementPage() {
             <Form {...editForm}>
               <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6">
                 <Tabs defaultValue="basic" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="basic">Basic Information</TabsTrigger>
                     <TabsTrigger value="qualification">Qualification Details</TabsTrigger>
-                    <TabsTrigger value="certificates">Certificates</TabsTrigger>
                   </TabsList>
                   <TabsContent value="basic" className="space-y-4 mt-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -1956,164 +1963,6 @@ export default function WelderManagementPage() {
                           "Update Welder"
                         )}
                       </Button>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="certificates" className="space-y-4 mt-4">
-                    <div className="space-y-6">
-                      {/* Certificate upload form */}
-                      <div className="p-4 border rounded-lg">
-                        <h3 className="text-lg font-medium mb-4">Upload New Certificate</h3>
-                        
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Certificate Type*</label>
-                            <Select
-                              defaultValue={certificateForm.certificateType}
-                              onValueChange={handleCertificateTypeChange}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select certificate type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="WELDER_QUALIFICATION">Welder Qualification</SelectItem>
-                                <SelectItem value="SAFETY_TRAINING">Safety Training</SelectItem>
-                                <SelectItem value="SPECIALIZED_SKILL">Specialized Skill</SelectItem>
-                                <SelectItem value="OTHER">Other</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Certificate Number*</label>
-                            <Input 
-                              name="certificateNo"
-                              value={certificateForm.certificateNo}
-                              onChange={handleCertificateInputChange}
-                              placeholder="Enter certificate number" 
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Issue Date*</label>
-                            <Input 
-                              type="date" 
-                              name="issueDate"
-                              value={certificateForm.issueDate}
-                              onChange={handleCertificateInputChange}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Expiry Date*</label>
-                            <Input 
-                              type="date" 
-                              name="expiryDate"
-                              value={certificateForm.expiryDate}
-                              onChange={handleCertificateInputChange}
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="mb-4">
-                          <label className="block text-sm font-medium mb-1">Description</label>
-                          <Input 
-                            name="description"
-                            value={certificateForm.description}
-                            onChange={handleCertificateInputChange}
-                            placeholder="Brief description of certificate" 
-                          />
-                        </div>
-                        
-                        <div className="mb-4">
-                          <label className="block text-sm font-medium mb-1">Certificate File*</label>
-                          <Input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            className="cursor-pointer"
-                            onChange={handleFileChange}
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Accept PDF, JPG, JPEG or PNG. Max size 5MB.
-                          </p>
-                        </div>
-                        
-                        <Button 
-                          type="button"
-                          disabled={!selectedWelder || uploadCertificateMutation.isPending}
-                          onClick={handleCertificateUpload}
-                        >
-                          {uploadCertificateMutation.isPending ? (
-                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
-                          ) : (
-                            "Upload Certificate"
-                          )}
-                        </Button>
-                      </div>
-                      
-                      {/* Certificates list */}
-                      <div className="p-4 border rounded-lg">
-                        <h3 className="text-lg font-medium mb-4">Existing Certificates</h3>
-                        
-                        {certificates.length === 0 ? (
-                          <div className="text-center py-8">
-                            <p className="text-muted-foreground">No certificates uploaded yet.</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {certificates.map((cert) => (
-                              <div key={cert.id} className="flex items-start border-b pb-4">
-                                <div className="flex-1">
-                                  <div className="flex items-center">
-                                    <h4 className="font-medium">{cert.certificateType}</h4>
-                                    <Badge 
-                                      className="ml-2" 
-                                      variant={cert.status === "Active" ? "default" : "destructive"}
-                                    >
-                                      {cert.status}
-                                    </Badge>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground mb-1">
-                                    Certificate No: {cert.certificateNo}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground mb-1">
-                                    Valid from {new Date(cert.issueDate).toLocaleDateString()} to {new Date(cert.expiryDate).toLocaleDateString()}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    Description: {cert.description || 'N/A'}
-                                  </p>
-                                </div>
-                                <div className="flex space-x-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      // Open certificate in new tab
-                                      if (cert.fileUrl) {
-                                        window.open(cert.fileUrl, '_blank');
-                                      }
-                                    }}
-                                  >
-                                    View
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-destructive border-destructive hover:bg-destructive/10"
-                                    onClick={() => {
-                                      // Delete certificate
-                                      if (confirm("Are you sure you want to delete this certificate?")) {
-                                        deleteCertificateMutation.mutate(cert.id);
-                                      }
-                                    }}
-                                  >
-                                    Delete
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </TabsContent>
                 </Tabs>
