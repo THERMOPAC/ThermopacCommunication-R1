@@ -504,6 +504,7 @@ export default function WelderManagementPage() {
                                   // with the path so we can use it in form submission
                                   form.setValue("photoPath", path);
                                 }}
+                                // Note: No welderId for new welders until after creation
                               />
                             </FormControl>
                             <FormMessage />
@@ -1063,6 +1064,7 @@ export default function WelderManagementPage() {
                                 editForm.setValue("photoPath", path);
                               }}
                               welderId={selectedWelder?.id}
+                              welderCode={selectedWelder?.welderId} // Add the string format welderId (W-001)
                               existingPhotoUrl={selectedWelder?.photoPath ? `/api/welder-photos/${selectedWelder.id}` : undefined}
                             />
                           </FormControl>
