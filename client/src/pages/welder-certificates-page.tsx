@@ -96,6 +96,9 @@ export default function WelderCertificatesPage() {
 
   // Form state
   const [isAddCertificateOpen, setIsAddCertificateOpen] = useState(false);
+  const [isEditCertificateOpen, setIsEditCertificateOpen] = useState(false);
+  const [selectedCertificate, setSelectedCertificate] = useState<WelderCertificate | null>(null);
+  const [isEditFileMode, setIsEditFileMode] = useState(false);
   const [certificateForm, setCertificateForm] = useState({
     certificateType: "WELDER_QUALIFICATION",
     certificateNo: "",
@@ -229,6 +232,96 @@ export default function WelderCertificatesPage() {
       toast({
         title: "Error uploading certificate",
         description: error.message || "Failed to upload certificate",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update certificate metadata mutation
+  const updateCertificateMutation = useMutation({
+    mutationFn: async ({ 
+      certificateId, 
+      formData 
+    }: { 
+      certificateId: number; 
+      formData: any 
+    }) => {
+      const response = await fetch(
+        `/api/quality/welder-certificates/${certificateId}`,
+        {
+          method: "PUT",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to update certificate");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Certificate updated successfully",
+      });
+      setIsEditCertificateOpen(false);
+      setSelectedCertificate(null);
+      refetchCertificates();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error updating certificate",
+        description: error.message || "Failed to update certificate",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update certificate file mutation
+  const updateCertificateFileMutation = useMutation({
+    mutationFn: async ({ 
+      certificateId, 
+      formData 
+    }: { 
+      certificateId: number; 
+      formData: FormData 
+    }) => {
+      const response = await fetch(
+        `/api/quality/welder-certificates/${certificateId}/file`,
+        {
+          method: "PUT",
+          body: formData,
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to update certificate file");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Certificate file updated successfully",
+      });
+      setIsEditCertificateOpen(false);
+      setSelectedCertificate(null);
+      setIsEditFileMode(false);
+      refetchCertificates();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error updating certificate file",
+        description: error.message || "Failed to update certificate file",
         variant: "destructive",
       });
     },
@@ -519,11 +612,23 @@ export default function WelderCertificatesPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
-                                  // Future implementation: Add edit functionality
-                                  toast({
-                                    title: "Coming Soon",
-                                    description: "Edit functionality will be available soon",
-                                  });
+                                  // Get normalized data for the certificate
+                                  const normalizedCert = {
+                                    id: cert.id,
+                                    certificateType: cert.certificateType || cert.certificate_type || "",
+                                    certificateNo: cert.certificateNo || cert.certificate_no || "",
+                                    description: cert.description || "",
+                                    issueDate: cert.issueDate || cert.issue_date || "",
+                                    expiryDate: cert.expiryDate || cert.expiry_date || "",
+                                    wpqrId: cert.wpqrId?.toString() || cert.wpqr_id?.toString() || "",
+                                    status: cert.status || "Active",
+                                  };
+                                  
+                                  // Set selected certificate and open edit dialog
+                                  setSelectedCertificate(cert);
+                                  setCertificateForm(normalizedCert);
+                                  setIsEditFileMode(false);
+                                  setIsEditCertificateOpen(true);
                                 }}
                               >
                                 Edit
@@ -728,6 +833,246 @@ export default function WelderCertificatesPage() {
                   "Upload Certificate"
                 )}
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Certificate Dialog */}
+        <Dialog
+          open={isEditCertificateOpen}
+          onOpenChange={setIsEditCertificateOpen}
+        >
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Edit Certificate</DialogTitle>
+              <DialogDescription>
+                Update certificate information for {welder?.name}.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label
+                    htmlFor="certificateType"
+                    className="text-sm font-medium mb-1 block"
+                  >
+                    Certificate Type*
+                  </Label>
+                  <Select
+                    value={certificateForm.certificateType}
+                    onValueChange={handleCertificateTypeChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select certificate type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="WELDER_QUALIFICATION">
+                        Welder Qualification
+                      </SelectItem>
+                      <SelectItem value="SAFETY_TRAINING">
+                        Safety Training
+                      </SelectItem>
+                      <SelectItem value="SPECIALIZED_SKILL">
+                        Specialized Skill
+                      </SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label
+                    htmlFor="certificateNo"
+                    className="text-sm font-medium mb-1 block"
+                  >
+                    Certificate Number*
+                  </Label>
+                  <Input
+                    id="certificateNo"
+                    name="certificateNo"
+                    value={certificateForm.certificateNo}
+                    onChange={handleInputChange}
+                    placeholder="Enter certificate number"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label
+                  htmlFor="wpqrId"
+                  className="text-sm font-medium mb-1 block"
+                >
+                  Associated WPQR
+                </Label>
+                <Select
+                  value={certificateForm.wpqrId}
+                  onValueChange={handleWPQRChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select WPQR (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {wpqrData.map((wpqr) => (
+                      <SelectItem key={wpqr.id} value={wpqr.id.toString()}>
+                        {wpqr.documentId} - {wpqr.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label
+                    htmlFor="issueDate"
+                    className="text-sm font-medium mb-1 block"
+                  >
+                    Issue Date*
+                  </Label>
+                  <Input
+                    id="issueDate"
+                    type="date"
+                    name="issueDate"
+                    value={certificateForm.issueDate}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div>
+                  <Label
+                    htmlFor="expiryDate"
+                    className="text-sm font-medium mb-1 block"
+                  >
+                    Expiry Date*
+                  </Label>
+                  <Input
+                    id="expiryDate"
+                    type="date"
+                    name="expiryDate"
+                    value={certificateForm.expiryDate}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label
+                  htmlFor="description"
+                  className="text-sm font-medium mb-1 block"
+                >
+                  Description
+                </Label>
+                <Input
+                  id="description"
+                  name="description"
+                  value={certificateForm.description}
+                  onChange={handleInputChange}
+                  placeholder="Brief description of certificate"
+                />
+              </div>
+
+              {isEditFileMode && (
+                <div>
+                  <Label
+                    htmlFor="certificateFile"
+                    className="text-sm font-medium mb-1 block"
+                  >
+                    Certificate File* (Replace Existing)
+                  </Label>
+                  <Input
+                    id="certificateFile"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="cursor-pointer"
+                    onChange={handleFileChange}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Accept PDF, JPG, JPEG or PNG. Max size 5MB.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => setIsEditFileMode(!isEditFileMode)}
+              >
+                {isEditFileMode ? "Cancel File Update" : "Replace Certificate File"}
+              </Button>
+
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditCertificateOpen(false);
+                    setSelectedCertificate(null);
+                    setIsEditFileMode(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                
+                <Button
+                  onClick={() => {
+                    // Validation
+                    if (!certificateForm.certificateNo || !certificateForm.issueDate || !certificateForm.expiryDate) {
+                      toast({
+                        title: "Error",
+                        description: "Please fill all required fields",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    
+                    // Check if we're updating with a new file or just metadata
+                    if (isEditFileMode) {
+                      if (!certificateFile) {
+                        toast({
+                          title: "Error",
+                          description: "Please select a certificate file",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      
+                      // Handle file update
+                      const formData = new FormData();
+                      formData.append("file", certificateFile);
+                      
+                      updateCertificateFileMutation.mutate({
+                        certificateId: selectedCertificate!.id,
+                        formData
+                      });
+                    } else {
+                      // Handle metadata update
+                      const formData = {
+                        certificateType: certificateForm.certificateType,
+                        certificateNo: certificateForm.certificateNo,
+                        description: certificateForm.description || "",
+                        issueDate: certificateForm.issueDate,
+                        expiryDate: certificateForm.expiryDate,
+                        status: certificateForm.status || "Active",
+                        wpqrId: certificateForm.wpqrId ? parseInt(certificateForm.wpqrId) : null
+                      };
+                      
+                      updateCertificateMutation.mutate({
+                        certificateId: selectedCertificate!.id,
+                        formData
+                      });
+                    }
+                  }}
+                  disabled={updateCertificateMutation.isPending || updateCertificateFileMutation.isPending}
+                >
+                  {updateCertificateMutation.isPending || updateCertificateFileMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...
+                    </>
+                  ) : (
+                    "Update Certificate"
+                  )}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

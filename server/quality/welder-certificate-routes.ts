@@ -479,7 +479,9 @@ router.put('/:certificateId/file', ensureAuthenticated, upload.single('file'), a
     const filePath = `/QMS/WELDERS/${welderIdString}/${fileName}`;
     
     const bucket = gcsClient.bucket(bucketName);
-    const file = bucket.file(filePath.slice(1)); // Remove leading slash
+    // Remove leading slash if present
+    const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+    const file = bucket.file(cleanPath);
     
     await file.save(req.file.buffer, {
       metadata: {
@@ -555,7 +557,9 @@ router.delete('/:certificateId', ensureAuthenticated, async (req: Request, res: 
     // Try to delete file from GCS
     try {
       const bucket = gcsClient.bucket(bucketName);
-      const file = bucket.file(filePath.slice(1)); // Remove leading slash
+      // Remove leading slash if present
+      const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+      const file = bucket.file(cleanPath);
       await file.delete();
     } catch (fileError) {
       console.error('Error deleting file from GCS:', fileError);
