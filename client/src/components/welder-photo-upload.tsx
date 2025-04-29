@@ -113,10 +113,26 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
         console.warn("No welder ID or code provided for photo upload");
       }
       
+      // IMPORTANT: The server expects 'welderId' field, not 'welderCode'
+      // If we have welderCode but no welderId, still use the 'welderId' field name
+      if (welderCode && !formData.has('welderId')) {
+        console.log(`Converting welderCode to welderId field: ${welderCode}`);
+        formData.append('welderId', welderCode); 
+      }
+      
+      // Debug log all form data fields
+      console.log("Form data entries:");
+      const formEntries: {[key: string]: string} = {};
+      formData.forEach((value, key) => {
+        formEntries[key] = value instanceof File ? value.name : String(value);
+      });
+      console.log(formEntries);
+      
       console.log("Sending photo upload request to /api/upload/welder-photo");
       const response = await fetch('/api/upload/welder-photo', {
         method: 'POST',
         body: formData,
+        credentials: 'include', // Important for authenticated requests
       });
       
       console.log("Upload response status:", response.status);
