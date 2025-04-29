@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UploadIcon, Loader2 } from 'lucide-react';
+import { UploadIcon, Loader2, AlertCircle } from 'lucide-react';
 
 interface WelderPhotoUploadProps {
   welderId?: number;
@@ -176,6 +176,52 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
     }
   };
   
+  const [isTestingGcs, setIsTestingGcs] = useState(false);
+  const [gcsStatus, setGcsStatus] = useState<any>(null);
+  
+  // Function to test GCS connectivity
+  const testGcsConnectivity = async () => {
+    setIsTestingGcs(true);
+    try {
+      console.log("Testing GCS connectivity...");
+      const response = await fetch('/api/test/gcs-connectivity', {
+        credentials: 'include' // Important for authenticated requests
+      });
+      
+      console.log("GCS test response status:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("GCS test error:", errorText);
+        toast({
+          title: "GCS Test Failed",
+          description: `Status: ${response.status} - ${errorText}`,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const data = await response.json();
+      console.log("GCS connectivity test result:", data);
+      setGcsStatus(data);
+      
+      toast({
+        title: data.success ? "GCS Connection Success" : "GCS Connection Failed",
+        description: `Bucket: ${data.bucketName}, Write: ${data.canWrite ? 'Yes' : 'No'}, Read: ${data.bucketExists ? 'Yes' : 'No'}`,
+        variant: data.success && data.canWrite ? "default" : "destructive"
+      });
+    } catch (error) {
+      console.error("Error testing GCS connectivity:", error);
+      toast({
+        title: "GCS Test Error",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestingGcs(false);
+    }
+  };
+
   return (
     <Card className="w-full">
       <CardContent className="pt-4">
@@ -216,6 +262,39 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
                 </>
               )}
             </Button>
+            
+            <Button
+              type="button"
+              onClick={testGcsConnectivity}
+              disabled={isTestingGcs}
+              variant="outline"
+              className="w-full mt-2"
+            >
+              {isTestingGcs ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Testing GCS...
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="mr-2 h-4 w-4" />
+                  Test GCS Connection
+                </>
+              )}
+            </Button>
+            
+            {gcsStatus && (
+              <div className="mt-2 text-xs border rounded p-2">
+                <div><strong>Bucket:</strong> {gcsStatus.bucketName}</div>
+                <div><strong>Success:</strong> {gcsStatus.success ? 'Yes' : 'No'}</div>
+                <div><strong>Permissions:</strong> Read: {gcsStatus.permissions?.read ? 'Yes' : 'No'}, 
+                  Write: {gcsStatus.permissions?.write ? 'Yes' : 'No'}, 
+                  List: {gcsStatus.permissions?.list ? 'Yes' : 'No'}</div>
+                {gcsStatus.sampleFiles && gcsStatus.sampleFiles.length > 0 && (
+                  <div><strong>Sample Files:</strong> {gcsStatus.sampleFiles.join(', ')}</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </CardContent>

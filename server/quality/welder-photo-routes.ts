@@ -23,7 +23,63 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
 }
 
 // Register routes
-export function registerWelderPhotoRoutes(app: express.Router) {
+export function registerWelderPhotoRoutes(app: any) {
+  // Verify GCS credentials endpoint
+  app.get('/api/test/gcs-credentials', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const credentialsStr = process.env.GOOGLE_CLOUD_CREDENTIALS;
+      
+      if (!credentialsStr) {
+        return res.status(500).json({
+          success: false,
+          error: 'GOOGLE_CLOUD_CREDENTIALS environment variable is not set'
+        });
+      }
+      
+      // Check if it's a valid JSON string
+      try {
+        const credentials = JSON.parse(credentialsStr);
+        
+        // Return a redacted version of the credentials
+        return res.status(200).json({
+          success: true,
+          credentialsLength: credentialsStr.length,
+          hasRequiredFields: {
+            type: !!credentials.type,
+            project_id: !!credentials.project_id,
+            client_email: !!credentials.client_email,
+            private_key: !!credentials.private_key,
+          },
+          isValidServiceAccount: credentials.type === 'service_account',
+          redactedInfo: {
+            type: credentials.type,
+            project_id: credentials.project_id,
+            client_email: credentials.client_email,
+            private_key_id: credentials.private_key_id ? 
+              `${credentials.private_key_id.substring(0, 4)}...${credentials.private_key_id.substring(credentials.private_key_id.length - 4)}` : 
+              'Not present',
+            private_key: credentials.private_key ? 
+              `${credentials.private_key.substring(0, 15)}...${credentials.private_key.substring(credentials.private_key.length - 15)}` : 
+              'Not present'
+          }
+        });
+      } catch (parseError) {
+        return res.status(500).json({
+          success: false,
+          error: 'GOOGLE_CLOUD_CREDENTIALS is not valid JSON',
+          credentialsLength: credentialsStr.length,
+          firstChars: credentialsStr.substring(0, 20) + '...'
+        });
+      }
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Error checking GCS credentials',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Simple GCS connectivity test endpoint
   app.get('/api/test/gcs-connectivity', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
