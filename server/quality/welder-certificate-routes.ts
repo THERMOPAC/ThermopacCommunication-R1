@@ -376,6 +376,149 @@ router.get('/:certificateId/url', ensureAuthenticated, async (req: Request, res:
   }
 });
 
+// Update certificate metadata (without changing the file)
+router.put('/:certificateId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { certificateId } = req.params;
+    
+    if (!certificateId || isNaN(parseInt(certificateId))) {
+      return res.status(400).json({ error: 'Invalid certificate ID' });
+    }
+    
+    const certificateIdInt = parseInt(certificateId);
+    
+    // Get certificate details first
+    const certResult = await db.execute(sql`
+      SELECT * FROM welder_certificates WHERE id = ${certificateIdInt}
+    `);
+    
+    if (certResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Certificate not found' });
+    }
+    
+    const { certificateType, certificateNo, description, issueDate, expiryDate, status, wpqrId } = req.body;
+    
+    // Basic validation
+    if (!certificateType || !certificateNo || !issueDate || !expiryDate) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Update certificate in database
+    const updateResult = await db.execute(sql`
+      UPDATE welder_certificates SET
+        certificate_type = ${certificateType},
+        certificate_no = ${certificateNo},
+        description = ${description || null},
+        issue_date = ${issueDate},
+        expiry_date = ${expiryDate},
+        status = ${status || 'Active'},
+        wpqr_id = ${wpqrId ? parseInt(wpqrId) : null},
+        updated_at = NOW()
+      WHERE id = ${certificateIdInt}
+      RETURNING *
+    `);
+    
+    res.json({
+      success: true,
+      message: 'Certificate updated successfully',
+      certificate: updateResult.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating certificate:', error);
+    res.status(500).json({
+      error: 'Failed to update certificate',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Update certificate with new file
+router.put('/:certificateId/file', ensureAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const { certificateId } = req.params;
+    
+    if (!certificateId || isNaN(parseInt(certificateId))) {
+      return res.status(400).json({ error: 'Invalid certificate ID' });
+    }
+    
+    const certificateIdInt = parseInt(certificateId);
+    
+    // Get certificate and welder details
+    const certResult = await db.execute(sql`
+      SELECT c.*, w."welderId"
+      FROM welder_certificates c
+      JOIN welders w ON c.welder_id = w.id
+      WHERE c.id = ${certificateIdInt}
+    `);
+    
+    if (certResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Certificate not found' });
+    }
+    
+    const certificate = certResult.rows[0];
+    const welderIdString = certificate.welderId;
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    // Delete old file if it exists
+    if (certificate.file_path) {
+      try {
+        const bucket = gcsClient.bucket(bucketName);
+        const oldFile = bucket.file(certificate.file_path.slice(1)); // Remove leading slash
+        await oldFile.delete();
+      } catch (fileError) {
+        console.error('Error deleting old file from GCS:', fileError);
+        // Continue even if old file deletion fails
+      }
+    }
+    
+    // Upload new file to GCS
+    const fileName = `${welderIdString}_${certificate.certificate_no}.pdf`;
+    const filePath = `/QMS/WELDERS/${welderIdString}/${fileName}`;
+    
+    const bucket = gcsClient.bucket(bucketName);
+    const file = bucket.file(filePath.slice(1)); // Remove leading slash
+    
+    await file.save(req.file.buffer, {
+      metadata: {
+        contentType: req.file.mimetype
+      }
+    });
+    
+    // Generate a signed URL that will be valid for 7 days
+    const [signedUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+      responseDisposition: 'attachment', // Force download rather than viewing in browser
+    });
+    
+    // Update certificate record with new file information
+    const updateResult = await db.execute(sql`
+      UPDATE welder_certificates SET
+        file_path = ${filePath},
+        file_url = ${signedUrl},
+        updated_at = NOW()
+      WHERE id = ${certificateIdInt}
+      RETURNING *
+    `);
+    
+    res.json({
+      success: true,
+      message: 'Certificate file updated successfully',
+      certificate: updateResult.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating certificate file:', error);
+    res.status(500).json({
+      error: 'Failed to update certificate file',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Delete a certificate
 router.delete('/:certificateId', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
