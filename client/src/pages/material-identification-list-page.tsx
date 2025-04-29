@@ -76,9 +76,9 @@ export default function MaterialIdentificationListPage() {
   
   // State for filters
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [selectedProject, setSelectedProject] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [selectedMaterialGrade, setSelectedMaterialGrade] = useState<string>("");
+  const [selectedProject, setSelectedProject] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedMaterialGrade, setSelectedMaterialGrade] = useState<string>("all");
   const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
   const [toDate, setToDate] = useState<Date | undefined>(undefined);
 
@@ -104,9 +104,9 @@ export default function MaterialIdentificationListPage() {
   // Construct query parameters for backend filtering
   const queryParams = {
     search: searchTerm,
-    ...(selectedProject && { projectId: selectedProject }),
-    ...(selectedMaterialGrade && { materialGrade: selectedMaterialGrade }),
-    ...(selectedStatus && { status: selectedStatus }),
+    ...(selectedProject && selectedProject !== 'all' && { projectId: selectedProject }),
+    ...(selectedMaterialGrade && selectedMaterialGrade !== 'all' && { materialGrade: selectedMaterialGrade }),
+    ...(selectedStatus && selectedStatus !== 'all' && { status: selectedStatus }),
     ...(fromDate && { fromDate: format(fromDate, 'yyyy-MM-dd') }),
     ...(toDate && { toDate: format(toDate, 'yyyy-MM-dd') }),
     page: currentPage.toString(),
@@ -192,7 +192,7 @@ export default function MaterialIdentificationListPage() {
                       <SelectValue placeholder="Filter by Project" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Projects</SelectItem>
+                      <SelectItem value="all">All Projects</SelectItem>
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id.toString()}>
                           {project.projectNumber} - {project.name}
@@ -209,7 +209,7 @@ export default function MaterialIdentificationListPage() {
                       <SelectValue placeholder="Filter by Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Statuses</SelectItem>
+                      <SelectItem value="all">All Statuses</SelectItem>
                       <SelectItem value="Accepted">Accepted</SelectItem>
                       <SelectItem value="Rejected">Rejected</SelectItem>
                       <SelectItem value="Hold">Hold</SelectItem>
@@ -224,10 +224,10 @@ export default function MaterialIdentificationListPage() {
                       <SelectValue placeholder="Filter by Material Grade" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Grades</SelectItem>
+                      <SelectItem value="all">All Grades</SelectItem>
                       {uniqueMaterialGrades.map((grade: string) => (
-                        <SelectItem key={grade} value={grade}>
-                          {grade}
+                        <SelectItem key={grade} value={grade || 'unknown'}>
+                          {grade || 'Unknown'}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -292,11 +292,12 @@ export default function MaterialIdentificationListPage() {
                     variant="outline"
                     onClick={() => {
                       setSearchTerm("");
-                      setSelectedProject("");
-                      setSelectedStatus("");
-                      setSelectedMaterialGrade("");
+                      setSelectedProject("all");
+                      setSelectedStatus("all");
+                      setSelectedMaterialGrade("all");
                       setFromDate(undefined);
                       setToDate(undefined);
+                      setCurrentPage(1);
                     }}
                     className="w-full"
                   >
