@@ -296,39 +296,6 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
                 </>
               )}
             </Button>
-            
-            <Button
-              type="button"
-              onClick={testGcsConnectivity}
-              disabled={isTestingGcs}
-              variant="outline"
-              className="w-full mt-2"
-            >
-              {isTestingGcs ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Testing GCS...
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="mr-2 h-4 w-4" />
-                  Test GCS Connection
-                </>
-              )}
-            </Button>
-            
-            {gcsStatus && (
-              <div className="mt-2 text-xs border rounded p-2">
-                <div><strong>Bucket:</strong> {gcsStatus.bucketName}</div>
-                <div><strong>Success:</strong> {gcsStatus.success ? 'Yes' : 'No'}</div>
-                <div><strong>Permissions:</strong> Read: {gcsStatus.permissions?.read ? 'Yes' : 'No'}, 
-                  Write: {gcsStatus.permissions?.write ? 'Yes' : 'No'}, 
-                  List: {gcsStatus.permissions?.list ? 'Yes' : 'No'}</div>
-                {gcsStatus.sampleFiles && gcsStatus.sampleFiles.length > 0 && (
-                  <div><strong>Sample Files:</strong> {gcsStatus.sampleFiles.join(', ')}</div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </CardContent>
