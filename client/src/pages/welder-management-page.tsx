@@ -1146,6 +1146,16 @@ export default function WelderManagementPage() {
                         </Button>
                       </div>
                     </TabsContent>
+                    <TabsContent value="certificates" className="space-y-4 mt-4">
+                      <div className="space-y-4">
+                        <div className="p-4 border rounded-lg bg-muted/20">
+                          <h3 className="text-lg font-medium mb-2">Certificate Upload</h3>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            You can upload welder certificates after saving the welder information.
+                          </p>
+                        </div>
+                      </div>
+                    </TabsContent>
                   </Tabs>
                 </form>
               </Form>
