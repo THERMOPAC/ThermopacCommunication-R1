@@ -71,6 +71,12 @@ interface Welder {
   trade: string;
   status: string;
   remarks: string;
+  photoPath?: string;
+  dateOfBirth?: string;
+  contactNumber?: string;
+  hireDate?: string;
+  identificationType?: string;
+  identificationNumber?: string;
 }
 
 interface WelderCertificate {
