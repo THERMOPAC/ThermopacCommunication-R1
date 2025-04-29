@@ -382,4 +382,20 @@ export function setupWelderRoutes(app: any) {
       res.status(500).json({ error: 'Failed to fetch expiring certifications' });
     }
   });
+  
+  // Get expired certificates (welders whose certificates have expired)
+  app.get('/api/quality/welders/expired', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const welders = await db.execute(sql`
+        SELECT * FROM welders 
+        WHERE "certificateExpiryDate" < CURRENT_DATE
+        ORDER BY "certificateExpiryDate" DESC
+      `);
+      
+      res.json(welders.rows);
+    } catch (error) {
+      console.error('Error fetching expired certifications:', error);
+      res.status(500).json({ error: 'Failed to fetch expired certifications' });
+    }
+  });
 }

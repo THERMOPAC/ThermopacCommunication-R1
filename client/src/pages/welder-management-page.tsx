@@ -147,6 +147,11 @@ export default function WelderManagementPage() {
   const { data: welders = [], isLoading, refetch } = useQuery<any[]>({
     queryKey: ["/api/quality/welders"],
   });
+  
+  // Fetch expired welders
+  const { data: expiredWeldersList = [] } = useQuery<any[]>({
+    queryKey: ["/api/quality/welders/expired"],
+  });
 
   // Create new welder mutation with direct fetch approach
   const createWelderMutation = useMutation({
@@ -321,7 +326,7 @@ export default function WelderManagementPage() {
     thirtyDaysLater.setDate(today.getDate() + 30);
     return expiryDate <= thirtyDaysLater && expiryDate > today;
   }).length : 0;
-  const expiredWelders = Array.isArray(welders) ? welders.filter((w: any) => w.status === "Expired").length : 0;
+  const expiredWelders = expiredWeldersList.length;
 
   // Filter welders based on search term and status filter
   const filteredWelders = Array.isArray(welders) ? welders.filter((welder: any) => {
