@@ -497,19 +497,13 @@ export default function WelderCertificatesPage() {
                                       description: "Certificate file is being loaded...",
                                     });
                                     
-                                    // Open in new tab - with error handling on the URL
-                                    const newTab = window.open("about:blank", "_blank");
-                                    if (!newTab) {
-                                      throw new Error("Could not open new tab. Please check your popup blocker settings.");
-                                    }
-                                    
-                                    try {
-                                      // Try to navigate to the URL
-                                      newTab.location.href = data.fileUrl;
-                                    } catch (navigateError) {
-                                      newTab.close();
-                                      throw new Error("The file could not be accessed. It may be unavailable or have restricted permissions.");
-                                    }
+                                    // Create a download link instead of opening in a new tab
+                                    const downloadLink = document.createElement('a');
+                                    downloadLink.href = data.fileUrl;
+                                    downloadLink.download = `Certificate_${data.certificateNo || cert.certificateNo || 'file'}.pdf`;
+                                    document.body.appendChild(downloadLink);
+                                    downloadLink.click();
+                                    document.body.removeChild(downloadLink);
                                   } catch (error) {
                                     toast({
                                       title: "Error",
