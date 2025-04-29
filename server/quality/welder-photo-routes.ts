@@ -83,8 +83,8 @@ export function registerWelderPhotoRoutes(app: any) {
   // Simple GCS connectivity test endpoint
   app.get('/api/test/gcs-connectivity', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const storage = require('../utils/storage-config').default;
-      const bucketName = require('../utils/storage-config').bucketName;
+      // Import storage configuration using ES modules
+      const { default: storage, bucketName } = await import('../utils/storage-config');
       
       console.log(`Testing GCS connectivity to bucket: ${bucketName}`);
       

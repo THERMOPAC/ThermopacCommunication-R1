@@ -7,6 +7,46 @@ import { Storage } from '@google-cloud/storage';
  * 2. A bucket name
  */
 
+/**
+ * Get the GCS credentials from environment variables
+ * Will throw an error if credentials are not available or invalid
+ */
+export function getGcsCredentials() {
+  // Check if we have explicit credentials in the environment
+  if (!process.env.GOOGLE_CLOUD_CREDENTIALS) {
+    throw new Error('GOOGLE_CLOUD_CREDENTIALS environment variable is not set');
+  }
+  
+  // Parse the credentials from the environment variable
+  const credentialsStr = process.env.GOOGLE_CLOUD_CREDENTIALS.trim();
+  
+  try {
+    const credentials = JSON.parse(credentialsStr);
+    
+    // Validate required fields in credentials
+    if (!credentials.type || credentials.type !== 'service_account') {
+      throw new Error(`Invalid credentials type: ${credentials.type || 'missing'}, should be "service_account"`);
+    }
+    
+    if (!credentials.project_id) {
+      throw new Error('Credentials missing project_id');
+    }
+    
+    if (!credentials.client_email) {
+      throw new Error('Credentials missing client_email');
+    }
+    
+    if (!credentials.private_key) {
+      throw new Error('Credentials missing private_key');
+    }
+    
+    return credentials;
+  } catch (parseError) {
+    console.error('Error parsing GOOGLE_CLOUD_CREDENTIALS:', parseError);
+    throw new Error('Failed to parse GOOGLE_CLOUD_CREDENTIALS. Please check the format.');
+  }
+}
+
 // Use the bucket name from environment variable if defined, otherwise use default
 // Explicitly check for typos in the bucket name
 const envBucketName = process.env.GOOGLE_CLOUD_BUCKET || '';
