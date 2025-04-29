@@ -2040,12 +2040,7 @@ export default function WelderManagementPage() {
                         <Button 
                           type="button"
                           disabled={!selectedWelder || uploadCertificateMutation.isPending}
-                          onClick={() => {
-                            // Handle certificate upload
-                            if (!selectedWelder) return;
-                            
-                            // Upload certificate logic goes here
-                          }}
+                          onClick={handleCertificateUpload}
                         >
                           {uploadCertificateMutation.isPending ? (
                             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
