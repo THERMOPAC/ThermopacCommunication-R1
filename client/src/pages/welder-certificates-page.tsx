@@ -106,6 +106,7 @@ export default function WelderCertificatesPage() {
     expiryDate: "",
     description: "",
     wpqrId: "",
+    status: "Active"
   });
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
 
@@ -190,6 +191,7 @@ export default function WelderCertificatesPage() {
       expiryDate: "",
       description: "",
       wpqrId: "",
+      status: "Active"
     });
     setCertificateFile(null);
   };

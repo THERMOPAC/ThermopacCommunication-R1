@@ -466,7 +466,11 @@ router.put('/:certificateId/file', ensureAuthenticated, upload.single('file'), a
     if (certificate.file_path) {
       try {
         const bucket = gcsClient.bucket(bucketName);
-        const oldFile = bucket.file(certificate.file_path.slice(1)); // Remove leading slash
+        // Get file path and ensure it's a string
+        const filePath = typeof certificate.file_path === 'string' ? certificate.file_path : String(certificate.file_path || '');
+        // Remove leading slash if present
+        const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+        const oldFile = bucket.file(cleanPath);
         await oldFile.delete();
       } catch (fileError) {
         console.error('Error deleting old file from GCS:', fileError);
