@@ -487,6 +487,32 @@ export default function WelderManagementPage() {
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <div className="flex mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-medium">Personal Information</h3>
+                    </div>
+                    <div className="w-48">
+                      <FormField
+                        control={form.control}
+                        name="photoFile"
+                        render={({ field: { value, onChange } }) => (
+                          <FormItem>
+                            <FormControl>
+                              <WelderPhotoUpload
+                                onPhotoUploadSuccess={(path) => {
+                                  // When a photo is uploaded, update the form data
+                                  // with the path so we can use it in form submission
+                                  form.setValue("photoPath", path);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                  
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -654,28 +680,7 @@ export default function WelderManagementPage() {
                     />
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="photoFile"
-                      render={({ field: { value, onChange } }) => (
-                        <FormItem>
-                          <FormLabel>Welder Photo</FormLabel>
-                          <FormControl>
-                            <div className="pt-2">
-                              <WelderPhotoUpload
-                                onPhotoUploadSuccess={(path) => {
-                                  // When a photo is uploaded, update the form data
-                                  // with the path so we can use it in form submission
-                                  form.setValue("photoPath", path);
-                                }}
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <div className="grid grid-cols-1 gap-4">
                     <FormField
                       control={form.control}
                       name="remarks"
@@ -1040,6 +1045,34 @@ export default function WelderManagementPage() {
             </DialogHeader>
             <Form {...editForm}>
               <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6">
+                <div className="flex mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-medium">Personal Information</h3>
+                  </div>
+                  <div className="w-48">
+                    <FormField
+                      control={editForm.control}
+                      name="photoFile"
+                      render={({ field: { value, onChange } }) => (
+                        <FormItem>
+                          <FormControl>
+                            <WelderPhotoUpload
+                              onPhotoUploadSuccess={(path) => {
+                                // When a photo is uploaded, update the form data
+                                // with the path so we can use it in form submission
+                                editForm.setValue("photoPath", path);
+                              }}
+                              welderId={selectedWelder?.id}
+                              existingPhotoUrl={selectedWelder?.photoPath ? `/api/welder-photos/${selectedWelder.id}` : undefined}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={editForm.control}
@@ -1209,30 +1242,7 @@ export default function WelderManagementPage() {
                   />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={editForm.control}
-                    name="photoFile"
-                    render={({ field: { value, onChange } }) => (
-                      <FormItem>
-                        <FormLabel>Update Welder Photo</FormLabel>
-                        <FormControl>
-                          <div className="pt-2">
-                            <WelderPhotoUpload
-                              welderId={selectedWelder?.id}
-                              existingPhotoUrl={selectedWelder?.photoPath ? `/api/welder-photos/${selectedWelder.id}` : undefined}
-                              onPhotoUploadSuccess={(path) => {
-                                // When a photo is uploaded, update the form data
-                                // with the path so we can use it in form submission
-                                editForm.setValue("photoPath", path);
-                              }}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div className="grid grid-cols-1 gap-4">
                   <FormField
                     control={editForm.control}
                     name="remarks"
