@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
 import GcsDebugTool from '@/components/gcs-debug-tool';
 import WelderPhotoUpload from '@/components/welder-photo-upload';
+import FileUploadTest from '@/components/file-upload-test';
 import { Separator } from '@/components/ui/separator';
 import Layout from '@/components/layout';
 
@@ -44,6 +45,10 @@ export default function GcsDiagnosticPage() {
 
         <div className="grid gap-6">
           <GcsDebugTool />
+          
+          <Separator className="my-4" />
+          
+          <FileUploadTest />
           
           <Separator className="my-4" />
           

@@ -96,6 +96,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // These should be registered BEFORE app.use("*", ...) in setupVite
   setupDedicatedTestRoutes(app);
   
+  // Set up file upload test routes for GCS diagnostics
+  registerFileUploadTestRoutes(app);
+  
   // Set up dispatch and shipping routes
   setupDispatchRoutes(app);
   
