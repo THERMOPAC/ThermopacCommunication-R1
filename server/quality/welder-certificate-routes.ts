@@ -158,7 +158,7 @@ router.get('/welder/:welderId', ensureAuthenticated, async (req: Request, res: R
 });
 
 // Upload a new certificate for a welder
-router.post('/:welderId', ensureAuthenticated, upload.single('certificate'), async (req: Request, res: Response) => {
+router.post('/:welderId', ensureAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     const { welderId } = req.params;
