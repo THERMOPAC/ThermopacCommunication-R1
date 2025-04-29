@@ -100,7 +100,7 @@ export function registerWelderRoutes(app: express.Express) {
       }
       
       // Generate next welder ID
-      const welderId = await generateNextWelderId();
+      const welderId = await generateWelderId();
       console.log(`Generated new welder ID: ${welderId}`);
       
       // Insert into database
