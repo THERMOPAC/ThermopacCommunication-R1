@@ -434,9 +434,25 @@ export default function WelderManagementPage() {
   
   const expiredCertificates = allCertificates.filter(cert => {
     try {
-      const expiryDate = parseISO(cert.expiryDate);
-      return isBefore(expiryDate, today);
+      // Handle both camelCase and snake_case properties
+      const expiryDateStr = cert.expiryDate || cert.expiry_date;
+      console.log('Certificate:', cert.certificateNo, 'Expiry date:', expiryDateStr);
+      
+      if (!expiryDateStr) return false;
+      
+      // Try different date formats and parsing methods
+      const expiryDate = new Date(expiryDateStr);
+      const currentDate = new Date();
+      
+      // Remove time part for comparison
+      const expiryDateOnly = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate());
+      const todayOnly = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+      
+      console.log('Certificate:', cert.certificateNo, 'Parsed date:', expiryDateOnly, 'Today:', todayOnly, 'Is before:', expiryDateOnly < todayOnly);
+      
+      return expiryDateOnly < todayOnly;
     } catch (e) {
+      console.error('Error parsing date for certificate:', cert, e);
       return false;
     }
   });
@@ -465,9 +481,27 @@ export default function WelderManagementPage() {
     .filter(({ certificates }) => 
       certificates.some(cert => {
         try {
-          const expiryDate = parseISO(cert.expiryDate);
-          return isAfter(expiryDate, today) && isBefore(expiryDate, thirtyDaysFromNow);
+          // Handle both camelCase and snake_case properties
+          const expiryDateStr = cert.expiryDate || cert.expiry_date;
+          
+          if (!expiryDateStr) return false;
+          
+          // Try different date formats and parsing methods
+          const expiryDate = new Date(expiryDateStr);
+          const currentDate = new Date();
+          
+          // Calculate today and 30 days from now with time part removed
+          const expiryDateOnly = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate());
+          const todayOnly = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+          
+          // Calculate 30 days from now
+          const thirtyDaysFromNowOnly = new Date(todayOnly);
+          thirtyDaysFromNowOnly.setDate(todayOnly.getDate() + 30);
+          
+          // Expiring soon if: today < expiry date <= today + 30 days
+          return expiryDateOnly > todayOnly && expiryDateOnly <= thirtyDaysFromNowOnly;
         } catch (e) {
+          console.error('Error parsing date for certificate in weldersWithExpiringSoonCertificates:', cert, e);
           return false;
         }
       })
@@ -478,9 +512,22 @@ export default function WelderManagementPage() {
     .filter(({ certificates }) => 
       certificates.some(cert => {
         try {
-          const expiryDate = parseISO(cert.expiryDate);
-          return isBefore(expiryDate, today);
+          // Handle both camelCase and snake_case properties
+          const expiryDateStr = cert.expiryDate || cert.expiry_date;
+          
+          if (!expiryDateStr) return false;
+          
+          // Try different date formats and parsing methods
+          const expiryDate = new Date(expiryDateStr);
+          const currentDate = new Date();
+          
+          // Remove time part for comparison
+          const expiryDateOnly = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate());
+          const todayOnly = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+          
+          return expiryDateOnly < todayOnly;
         } catch (e) {
+          console.error('Error parsing date for certificate in weldersWithExpiredCertificates:', cert, e);
           return false;
         }
       })
@@ -960,9 +1007,27 @@ export default function WelderManagementPage() {
                         certificates
                           .filter(cert => {
                             try {
-                              const expiryDate = parseISO(cert.expiryDate);
-                              return isAfter(expiryDate, today) && isBefore(expiryDate, thirtyDaysFromNow);
+                              // Handle both camelCase and snake_case properties
+                              const expiryDateStr = cert.expiryDate || cert.expiry_date;
+                              
+                              if (!expiryDateStr) return false;
+                              
+                              // Try different date formats and parsing methods
+                              const expiryDate = new Date(expiryDateStr);
+                              const currentDate = new Date();
+                              
+                              // Calculate today and 30 days from now with time part removed
+                              const expiryDateOnly = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate());
+                              const todayOnly = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+                              
+                              // Calculate 30 days from now
+                              const thirtyDaysFromNowOnly = new Date(todayOnly);
+                              thirtyDaysFromNowOnly.setDate(todayOnly.getDate() + 30);
+                              
+                              // Expiring soon if: today < expiry date <= today + 30 days
+                              return expiryDateOnly > todayOnly && expiryDateOnly <= thirtyDaysFromNowOnly;
                             } catch (e) {
+                              console.error('Error parsing date for certificate in expiring soon tab:', cert, e);
                               return false;
                             }
                           })
@@ -973,7 +1038,15 @@ export default function WelderManagementPage() {
                               <TableCell>{cert.certificateNo}</TableCell>
                               <TableCell>
                                 <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-400">
-                                  {format(parseISO(cert.expiryDate), "dd MMM yyyy")}
+                                  {(() => {
+                                    try {
+                                      const expiryDateStr = cert.expiryDate || cert.expiry_date;
+                                      if (!expiryDateStr) return 'Invalid date';
+                                      return format(new Date(expiryDateStr), "dd MMM yyyy");
+                                    } catch (e) {
+                                      return 'Invalid date';
+                                    }
+                                  })()}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right">
@@ -1020,8 +1093,22 @@ export default function WelderManagementPage() {
                         certificates
                           .filter(cert => {
                             try {
-                              return isBefore(parseISO(cert.expiryDate), today);
+                              // Handle both camelCase and snake_case properties
+                              const expiryDateStr = cert.expiryDate || cert.expiry_date;
+                              
+                              if (!expiryDateStr) return false;
+                              
+                              // Try different date formats and parsing methods
+                              const expiryDate = new Date(expiryDateStr);
+                              const currentDate = new Date();
+                              
+                              // Remove time part for comparison
+                              const expiryDateOnly = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate());
+                              const todayOnly = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+                              
+                              return expiryDateOnly < todayOnly;
                             } catch (e) {
+                              console.error('Error parsing date for certificate in expired tab:', cert, e);
                               return false;
                             }
                           })
@@ -1032,7 +1119,15 @@ export default function WelderManagementPage() {
                               <TableCell>{cert.certificateNo}</TableCell>
                               <TableCell>
                                 <Badge variant="destructive">
-                                  {format(parseISO(cert.expiryDate), "dd MMM yyyy")}
+                                  {(() => {
+                                    try {
+                                      const expiryDateStr = cert.expiryDate || cert.expiry_date;
+                                      if (!expiryDateStr) return 'Invalid date';
+                                      return format(new Date(expiryDateStr), "dd MMM yyyy");
+                                    } catch (e) {
+                                      return 'Invalid date';
+                                    }
+                                  })()}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right">
