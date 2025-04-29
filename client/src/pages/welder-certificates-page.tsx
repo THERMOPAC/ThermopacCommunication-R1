@@ -752,7 +752,7 @@ export default function WelderCertificatesPage() {
                     <SelectValue placeholder="Select related WPQR document" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {wpqrData.map((wpqr) => (
                       <SelectItem key={wpqr.id} value={wpqr.id.toString()}>
                         {wpqr.documentId} - {wpqr.title}
@@ -931,7 +931,7 @@ export default function WelderCertificatesPage() {
                         <SelectValue placeholder="Select related WPQR document" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {wpqrData.map((wpqr) => (
                           <SelectItem key={wpqr.id} value={wpqr.id.toString()}>
                             {wpqr.documentId} - {wpqr.title}
