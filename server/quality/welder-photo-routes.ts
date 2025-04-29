@@ -35,7 +35,14 @@ export function registerWelderPhotoRoutes(app: express.Router) {
         }
 
         const { buffer, originalname, mimetype } = req.file;
-        const welderId = req.body.welderId || ''; // Optional welder ID
+        // Welder ID is now required for the new directory structure
+        if (!req.body.welderId) {
+          return res.status(400).json({ error: 'Welder ID is required for photo upload' });
+        }
+        
+        // Get the welder ID
+        const welderId = req.body.welderId;
+        console.log(`Processing photo upload for welder ID: ${welderId}`);
 
         // Upload the file to GCS
         const result = await uploadWelderPhoto(

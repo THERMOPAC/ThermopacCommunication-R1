@@ -22,18 +22,18 @@ export async function uploadWelderPhoto(
   error?: any;
 }> {
   try {
-    // Get file extension from original filename or default to .jpg
-    const fileExtension = originalFilename.includes('.')
-      ? `.${originalFilename.split('.').pop()}`
-      : '.jpg';
+    // Ensure we have a welder ID
+    if (!welderId || welderId.trim() === '') {
+      console.error('Welder ID is required for photo upload');
+      return {
+        success: false,
+        error: 'Welder ID is required for photo upload'
+      };
+    }
     
-    // Use welder ID for filename if provided, otherwise use a UUID
-    const filename = welderId
-      ? `${welderId}${fileExtension}`
-      : `${uuidv4()}${fileExtension}`;
-    
-    // Set the GCS path in the QMS/WELDERS directory
-    const gcsPath = `QMS/WELDERS/PHOTOS/${filename}`;
+    // Always use .pdf extension as requested in the new path format
+    // Set the GCS path in the QMS/WELDERS/{Welder ID} directory
+    const gcsPath = `QMS/WELDERS/${welderId}/${welderId}.pdf`;
     
     console.log(`Uploading welder photo to: ${gcsPath}`);
     
@@ -41,11 +41,11 @@ export async function uploadWelderPhoto(
     const bucket = storage.bucket(bucketName);
     const file = bucket.file(gcsPath);
     
-    // Upload the file to GCS
+    // Always set content type to PDF for the new path structure
     await file.save(buffer, {
-      contentType: mimeType,
+      contentType: 'application/pdf',
       metadata: {
-        contentType: mimeType,
+        contentType: 'application/pdf',
         cacheControl: 'public, max-age=31536000', // Cache for 1 year
       },
     });
