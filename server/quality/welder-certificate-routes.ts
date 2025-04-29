@@ -285,6 +285,7 @@ router.post('/:welderId', ensureAuthenticated, upload.single('file'), async (req
       version: 'v4',
       action: 'read',
       expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+      responseDisposition: 'attachment', // Force download rather than viewing in browser
     });
     
     // Store the file path and URL in the database
@@ -358,6 +359,7 @@ router.get('/:certificateId/url', ensureAuthenticated, async (req: Request, res:
       version: 'v4',
       action: 'read',
       expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+      responseDisposition: 'attachment', // Force download rather than viewing in browser
     });
     
     res.json({

@@ -1400,10 +1400,28 @@ export default function WelderManagementPage() {
                                     throw new Error("Failed to get certificate URL");
                                   }
                                   const data = await response.json();
-                                  if (data.fileUrl) {
-                                    window.open(data.fileUrl, "_blank");
-                                  } else {
+                                  if (!data.fileUrl) {
                                     throw new Error("No file URL returned");
+                                  }
+                                  
+                                  // Show a loading toast
+                                  toast({
+                                    title: "Opening certificate",
+                                    description: "Certificate file is being loaded...",
+                                  });
+                                  
+                                  // Open in new tab - with error handling on the URL
+                                  const newTab = window.open("about:blank", "_blank");
+                                  if (!newTab) {
+                                    throw new Error("Could not open new tab. Please check your popup blocker settings.");
+                                  }
+                                  
+                                  try {
+                                    // Try to navigate to the URL
+                                    newTab.location.href = data.fileUrl;
+                                  } catch (navigateError) {
+                                    newTab.close();
+                                    throw new Error("The file could not be accessed. It may be unavailable or have restricted permissions.");
                                   }
                                 } catch (error) {
                                   toast({
