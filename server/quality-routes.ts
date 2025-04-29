@@ -6,7 +6,7 @@ import { previewInspectionOrders, generateInspectionOrders } from './quality/ins
 import { db } from './db';
 import { inspectionOrders, inspectionOrderItems } from '@shared/schema';
 import { eq } from 'drizzle-orm';
-import { setupWelderRoutes } from './quality/welder-routes';
+import { registerWelderRoutes } from './quality/welder-routes';
 import { registerWelderCertificateRoutes } from './quality/welder-certificate-routes';
 import { registerWelderPhotoRoutes } from './quality/welder-photo-routes';
 
@@ -141,7 +141,7 @@ export function setupQualityRoutes(app: Express) {
   app.use('/api/quality', router);
   
   // Setup welder management routes directly
-  setupWelderRoutes(app);
+  registerWelderRoutes(app);
   
   // Setup welder certificate routes
   registerWelderCertificateRoutes(app);

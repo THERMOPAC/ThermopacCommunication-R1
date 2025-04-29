@@ -1,271 +1,167 @@
-import { Request, Response } from 'express';
+import express, { Request, Response } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
+import { ensureAuthenticated } from '../auth-middleware';
+import { generateNextWelderId } from '../utils/id-generators';
 
-// Define ensureAuthenticated middleware
-function ensureAuthenticated(req: Request, res: Response, next: Function) {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  res.status(401).json({ error: 'Unauthorized' });
-}
-
-// Helper function to generate next Welder ID
-async function generateNextWelderId() {
-  const result = await db.execute(sql`
-    SELECT MAX(CAST(SUBSTRING("welderId" FROM 3) AS INTEGER)) as max_id
-    FROM welders
-  `);
-  
-  const maxIdStr = result.rows[0]?.max_id as string | undefined;
-  const maxId = maxIdStr ? parseInt(maxIdStr) : 0;
-  const nextId = maxId + 1;
-  return `W-${nextId.toString().padStart(3, '0')}`;
-}
-
-// Helper function to generate next Certificate Number
-async function generateNextCertificateNo() {
-  const result = await db.execute(sql`
-    SELECT MAX(CAST(SUBSTRING("certificateNo" FROM 5) AS INTEGER)) as max_id
-    FROM welders
-  `);
-  
-  const maxIdStr = result.rows[0]?.max_id as string | undefined;
-  const maxId = maxIdStr ? parseInt(maxIdStr) : 0;
-  const nextId = maxId + 1;
-  return `WQC-${nextId.toString().padStart(3, '0')}`;
-}
-
-// Helper function to check and update welder status based on certificate expiry date
-function checkAndUpdateWelderStatus(welder: any) {
-  // Skip if no certificate expiry date
-  if (!welder.certificateExpiryDate) return welder;
-  
-  // Convert string date to Date object
-  const expiryDate = new Date(welder.certificateExpiryDate);
-  const today = new Date();
-  
-  // Update status if expired and status is not already "Expired"
-  if (expiryDate < today && welder.status !== "Expired") {
-    welder.statusNote = "Auto-detected expired certificate";
-    welder.status = "Expired";
-  }
-  
-  return welder;
-}
-
-export function setupWelderRoutes(app: any) {
+export function registerWelderRoutes(app: express.Express) {
   // Get all welders
   app.get('/api/quality/welders', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const welders = await db.execute(sql`
-        SELECT * FROM welders ORDER BY "welderId" ASC
+        SELECT 
+          id, 
+          "welderId", 
+          name, 
+          trade, 
+          status, 
+          remarks,
+          photo_path as "photoPath",
+          date_of_birth as "dateOfBirth",
+          contact_number as "contactNumber",
+          hire_date as "hireDate",
+          identification_type as "identificationType",
+          identification_number as "identificationNumber",
+          "createdAt", 
+          "updatedAt"
+        FROM welders 
+        ORDER BY id DESC
       `);
       
-      // Auto-update status based on certificate expiry date
-      const updatedWelders = welders.rows.map(welder => checkAndUpdateWelderStatus(welder));
-      
-      res.json(updatedWelders);
+      return res.status(200).json(welders.rows);
     } catch (error) {
-      console.error('Error fetching welders:', error);
-      res.status(500).json({ error: 'Failed to fetch welders' });
-    }
-  });
-  
-  // Get expired certificates (welders whose certificates have expired)
-  // This must be defined BEFORE the /:id route to avoid path conflicts
-  app.get('/api/quality/welders/expired', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const welders = await db.execute(sql`
-        SELECT * FROM welders 
-        WHERE "certificateExpiryDate" < CURRENT_DATE
-        ORDER BY "certificateExpiryDate" DESC
-      `);
-      
-      // Auto-update status based on certificate expiry date
-      const updatedWelders = welders.rows.map(welder => checkAndUpdateWelderStatus(welder));
-      
-      res.json(updatedWelders);
-    } catch (error) {
-      console.error('Error fetching expired certifications:', error);
-      res.status(500).json({ error: 'Failed to fetch expired certifications' });
-    }
-  });
-  
-  // Get expiring certificates (welders whose certificates expire within 30 days)
-  // This must be defined BEFORE the /:id route to avoid path conflicts
-  app.get('/api/quality/welders/expiring-soon', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const welders = await db.execute(sql`
-        SELECT * FROM welders 
-        WHERE "certificateExpiryDate" <= (CURRENT_DATE + INTERVAL '30 days')
-        AND "certificateExpiryDate" > CURRENT_DATE
-        ORDER BY "certificateExpiryDate" ASC
-      `);
-      
-      // Auto-update status based on certificate expiry date (not needed for this endpoint
-      // but including for consistency)
-      const updatedWelders = welders.rows.map(welder => checkAndUpdateWelderStatus(welder));
-      
-      res.json(updatedWelders);
-    } catch (error) {
-      console.error('Error fetching expiring certifications:', error);
-      res.status(500).json({ error: 'Failed to fetch expiring certifications' });
+      console.error('Error in /api/quality/welders GET route:', error);
+      return res.status(500).json({
+        error: 'Server error',
+        message: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
-  // Get welder by ID - this must come AFTER more specific routes
+  // Get welder by ID
   app.get('/api/quality/welders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       
-      const welder = await db.execute(sql`
-        SELECT * FROM welders WHERE id = ${id}
+      const result = await db.execute(sql`
+        SELECT 
+          id, 
+          "welderId", 
+          name, 
+          trade, 
+          status, 
+          remarks,
+          photo_path as "photoPath",
+          date_of_birth as "dateOfBirth",
+          contact_number as "contactNumber",
+          hire_date as "hireDate",
+          identification_type as "identificationType",
+          identification_number as "identificationNumber",
+          "createdAt", 
+          "updatedAt"
+        FROM welders 
+        WHERE id = ${id}
       `);
       
-      if (welder.rows.length === 0) {
+      if (result.rows && result.rows.length > 0) {
+        return res.status(200).json(result.rows[0]);
+      } else {
         return res.status(404).json({ error: 'Welder not found' });
       }
-      
-      // Auto-update status based on certificate expiry date
-      const updatedWelder = checkAndUpdateWelderStatus(welder.rows[0]);
-      
-      res.json(updatedWelder);
     } catch (error) {
-      console.error('Error fetching welder:', error);
-      res.status(500).json({ error: 'Failed to fetch welder' });
+      console.error('Error in /api/quality/welders/:id GET route:', error);
+      return res.status(500).json({
+        error: 'Server error',
+        message: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
-  // Create new welder
+  // Create welder
   app.post('/api/quality/welders', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       console.log("Received welder creation request:", JSON.stringify(req.body, null, 2));
-      res.setHeader('Content-Type', 'application/json');
       
       const {
         name,
         trade,
-        processQualified,
-        materialGroupQualified,
-        thicknessRange,
-        positionQualified,
-        wpsNumber,
-        testDate,
-        testResults,
-        certificateExpiryDate,
         status,
-        remarks
+        remarks,
+        dateOfBirth,
+        contactNumber,
+        hireDate,
+        identificationType,
+        identificationNumber
       } = req.body;
       
       // Validate required fields
-      if (!name || !trade || !wpsNumber || !testDate || !certificateExpiryDate || !status) {
-        return res.status(400).json({ error: 'Missing required fields' });
+      if (!name || !trade || !status) {
+        return res.status(400).json({ error: 'Missing required fields: name, trade and status are required' });
       }
       
-      console.log("All required fields are present");
+      // Generate next welder ID
+      const welderId = await generateNextWelderId();
+      console.log(`Generated new welder ID: ${welderId}`);
       
-      // Ensure arrays are properly handled
-      const processArray = Array.isArray(processQualified) ? processQualified : [];
-      const materialArray = Array.isArray(materialGroupQualified) ? materialGroupQualified : [];
-      const positionArray = Array.isArray(positionQualified) ? positionQualified : [];
+      // Insert into database
+      const result = await db.execute(sql`
+        INSERT INTO welders (
+          "welderId", 
+          name, 
+          trade, 
+          status, 
+          remarks,
+          date_of_birth,
+          contact_number,
+          hire_date,
+          identification_type,
+          identification_number,
+          "createdAt", 
+          "updatedAt"
+        ) 
+        VALUES (
+          ${welderId}, 
+          ${name}, 
+          ${trade}, 
+          ${status}, 
+          ${remarks || ""}, 
+          ${dateOfBirth || null},
+          ${contactNumber || null},
+          ${hireDate || null},
+          ${identificationType || null},
+          ${identificationNumber || null},
+          NOW(), 
+          NOW()
+        )
+        RETURNING 
+          id, 
+          "welderId", 
+          name, 
+          trade, 
+          status, 
+          remarks,
+          date_of_birth as "dateOfBirth",
+          contact_number as "contactNumber",
+          hire_date as "hireDate",
+          identification_type as "identificationType",
+          identification_number as "identificationNumber"
+      `);
       
-      console.log("Sanitized arrays:", {
-        processArray,
-        materialArray,
-        positionArray
-      });
-      
-      // Validate date formats
-      try {
-        if (testDate) {
-          const parsedTestDate = new Date(testDate);
-          if (isNaN(parsedTestDate.getTime())) {
-            return res.status(400).json({ error: 'Invalid test date format. Use YYYY-MM-DD format.' });
-          }
-        }
-        
-        if (certificateExpiryDate) {
-          const parsedExpiryDate = new Date(certificateExpiryDate);
-          if (isNaN(parsedExpiryDate.getTime())) {
-            return res.status(400).json({ error: 'Invalid certificate expiry date format. Use YYYY-MM-DD format.' });
-          }
-        }
-        
-        console.log("Date validation passed");
-      } catch (dateError) {
-        console.error("Date validation error:", dateError);
-        return res.status(400).json({ error: 'Invalid date format', details: String(dateError) });
-      }
-
-      // Generate IDs
-      let welderId, certificateNo;
-      try {
-        welderId = await generateNextWelderId();
-        certificateNo = await generateNextCertificateNo();
-        console.log("Generated IDs successfully. Welder ID:", welderId, "Certificate No:", certificateNo);
-      } catch (idError) {
-        console.error("Error generating IDs:", idError);
-        return res.status(500).json({ 
-          error: 'Failed to generate IDs',
-          message: idError instanceof Error ? idError.message : String(idError)
+      if (result.rows && result.rows.length > 0) {
+        console.log("Welder created successfully:", result.rows[0]);
+        return res.status(201).json({
+          success: true,
+          message: 'Welder created successfully',
+          data: result.rows[0]
         });
-      }
-      
-      // Database insert
-      try {
-        console.log("Executing database insert");
-        
-        // Create welder record with proper PostgreSQL array handling
-        const result = await db.execute(sql`
-          INSERT INTO welders (
-            "welderId", name, trade, "processQualified", "materialGroupQualified", 
-            "thicknessRange", "positionQualified", "wpsNumber", "testDate", 
-            "testResults", "certificateNo", "certificateExpiryDate", status, 
-            remarks, "createdAt"
-          ) 
-          VALUES (
-            ${welderId}, ${name}, ${trade}, 
-            ${`{${processArray.join(',')}}`}::text[], 
-            ${`{${materialArray.join(',')}}`}::text[],
-            ${thicknessRange || ''}, 
-            ${`{${positionArray.join(',')}}`}::text[], 
-            ${wpsNumber}, ${testDate},
-            ${testResults || 'Pass'}, ${certificateNo}, ${certificateExpiryDate}, ${status},
-            ${remarks || ""}, NOW()
-          )
-          RETURNING id, "welderId", name, trade
-        `);
-        
-        if (result.rows && result.rows.length > 0) {
-          console.log("Welder created successfully:", result.rows[0]);
-          return res.status(201).json({
-            success: true,
-            message: 'Welder created successfully',
-            data: result.rows[0]
-          });
-        } else {
-          console.error('No rows returned from insert');
-          return res.status(500).json({ 
-            error: 'Database insert did not return expected data',
-            success: false
-          });
-        }
-      } catch (dbError) {
-        console.error('Database error:', dbError);
-        return res.status(500).json({ 
-          error: 'Database error',
-          message: dbError instanceof Error ? dbError.message : String(dbError),
-          success: false
-        });
+      } else {
+        return res.status(500).json({ error: 'Failed to create welder' });
       }
     } catch (error) {
-      console.error('Error creating welder:', error);
-      // Send a more detailed error response
-      return res.status(500).json({ 
-        error: 'Failed to create welder', 
-        message: error instanceof Error ? error.message : String(error),
-        success: false
+      console.error('Error in /api/quality/welders POST route:', error);
+      return res.status(500).json({
+        error: 'Server error',
+        message: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -280,49 +176,35 @@ export function setupWelderRoutes(app: any) {
       const {
         name,
         trade,
-        processQualified,
-        materialGroupQualified,
-        thicknessRange,
-        positionQualified,
-        wpsNumber,
-        testDate,
-        testResults,
-        certificateExpiryDate,
         status,
-        remarks
+        remarks,
+        dateOfBirth,
+        contactNumber,
+        hireDate,
+        identificationType,
+        identificationNumber
       } = req.body;
       
-      // Validate required fields
-      if (!name || !trade || !wpsNumber || !testDate || !certificateExpiryDate || !status) {
-        return res.status(400).json({ error: 'Missing required fields' });
+      // Validate required fields - simplified now that qualification details are in certificate table
+      if (!name || !trade || !status) {
+        return res.status(400).json({ error: 'Missing required fields: name, trade and status are required' });
       }
       
       console.log("All required fields are present");
       
-      // Ensure arrays are properly handled
-      const processArray = Array.isArray(processQualified) ? processQualified : [];
-      const materialArray = Array.isArray(materialGroupQualified) ? materialGroupQualified : [];
-      const positionArray = Array.isArray(positionQualified) ? positionQualified : [];
-      
-      console.log("Sanitized arrays:", {
-        processArray,
-        materialArray,
-        positionArray
-      });
-      
-      // Validate date formats
+      // Validate date formats if present
       try {
-        if (testDate) {
-          const parsedTestDate = new Date(testDate);
-          if (isNaN(parsedTestDate.getTime())) {
-            return res.status(400).json({ error: 'Invalid test date format. Use YYYY-MM-DD format.' });
+        if (dateOfBirth) {
+          const parsedDateOfBirth = new Date(dateOfBirth);
+          if (isNaN(parsedDateOfBirth.getTime())) {
+            return res.status(400).json({ error: 'Invalid date of birth format. Use YYYY-MM-DD format.' });
           }
         }
         
-        if (certificateExpiryDate) {
-          const parsedExpiryDate = new Date(certificateExpiryDate);
-          if (isNaN(parsedExpiryDate.getTime())) {
-            return res.status(400).json({ error: 'Invalid certificate expiry date format. Use YYYY-MM-DD format.' });
+        if (hireDate) {
+          const parsedHireDate = new Date(hireDate);
+          if (isNaN(parsedHireDate.getTime())) {
+            return res.status(400).json({ error: 'Invalid hire date format. Use YYYY-MM-DD format.' });
           }
         }
         
@@ -334,27 +216,30 @@ export function setupWelderRoutes(app: any) {
       
       // Database update
       try {
-        console.log("Executing database update");
+        console.log("Executing database update for welder personal information");
         
-        // Update welder record with proper PostgreSQL array handling
+        // Update welder record with new personal info fields
         const result = await db.execute(sql`
           UPDATE welders 
           SET 
             name = ${name}, 
             trade = ${trade}, 
-            "processQualified" = ${`{${processArray.join(',')}}`}::text[], 
-            "materialGroupQualified" = ${`{${materialArray.join(',')}}`}::text[], 
-            "thicknessRange" = ${thicknessRange}, 
-            "positionQualified" = ${`{${positionArray.join(',')}}`}::text[], 
-            "wpsNumber" = ${wpsNumber}, 
-            "testDate" = ${testDate}, 
-            "testResults" = ${testResults}, 
-            "certificateExpiryDate" = ${certificateExpiryDate}, 
             status = ${status}, 
             remarks = ${remarks || ""},
+            date_of_birth = ${dateOfBirth || null},
+            contact_number = ${contactNumber || null},
+            hire_date = ${hireDate || null},
+            identification_type = ${identificationType || null},
+            identification_number = ${identificationNumber || null},
             "updatedAt" = NOW()
           WHERE id = ${id}
-          RETURNING id, "welderId", name, trade
+          RETURNING id, "welderId", name, trade, status, remarks, 
+                   date_of_birth as "dateOfBirth", 
+                   contact_number as "contactNumber", 
+                   hire_date as "hireDate", 
+                   identification_type as "identificationType", 
+                   identification_number as "identificationNumber",
+                   photo_path as "photoPath"
         `);
         
         if (result.rows && result.rows.length > 0) {
@@ -380,10 +265,9 @@ export function setupWelderRoutes(app: any) {
         });
       }
     } catch (error) {
-      console.error('Error updating welder:', error);
-      // Send a more detailed error response
-      return res.status(500).json({ 
-        error: 'Failed to update welder', 
+      console.error('Error in /api/quality/welders/:id PUT route:', error);
+      return res.status(500).json({
+        error: 'Server error',
         message: error instanceof Error ? error.message : String(error),
         success: false
       });
@@ -395,44 +279,26 @@ export function setupWelderRoutes(app: any) {
     try {
       const { id } = req.params;
       
-      const result = await db.execute(sql`
-        DELETE FROM welders 
-        WHERE id = ${id}
-        RETURNING *
-      `);
+      // First, check if welder exists
+      const checkResult = await db.execute(sql`SELECT id FROM welders WHERE id = ${id}`);
       
-      if (result.rows.length === 0) {
+      if (!checkResult.rows || checkResult.rows.length === 0) {
         return res.status(404).json({ error: 'Welder not found' });
       }
       
-      res.json({ message: 'Welder deleted successfully' });
+      // Delete welder
+      await db.execute(sql`DELETE FROM welders WHERE id = ${id}`);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Welder deleted successfully'
+      });
     } catch (error) {
-      console.error('Error deleting welder:', error);
-      res.status(500).json({ error: 'Failed to delete welder' });
-    }
-  });
-
-  // Get active welders for a specific WPS
-  app.get('/api/quality/welders/by-wps/:wpsNumber', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const { wpsNumber } = req.params;
-      
-      const welders = await db.execute(sql`
-        SELECT * FROM welders 
-        WHERE "wpsNumber" = ${wpsNumber}
-        ORDER BY name ASC
-      `);
-      
-      // Auto-update status based on certificate expiry date
-      const updatedWelders = welders.rows.map(welder => checkAndUpdateWelderStatus(welder));
-      
-      // Filter to only active welders (after status has been updated)
-      const activeWelders = updatedWelders.filter(welder => welder.status === 'Active');
-      
-      res.json(activeWelders);
-    } catch (error) {
-      console.error('Error fetching welders by WPS:', error);
-      res.status(500).json({ error: 'Failed to fetch welders' });
+      console.error('Error in /api/quality/welders/:id DELETE route:', error);
+      return res.status(500).json({
+        error: 'Server error',
+        message: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 }
