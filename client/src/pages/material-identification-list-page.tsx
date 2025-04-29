@@ -88,12 +88,7 @@ export default function MaterialIdentificationListPage() {
   const [totalItems, setTotalItems] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
 
-  // Create a debounced version of search term to avoid too many queries
-  const [debouncedSearchTerm] = useState(() => {
-    return searchTerm;
-  });
-
-  // Use effect to handle debouncing search term
+  // Use effect to handle debouncing search term and reset page
   useEffect(() => {
     const timerId = setTimeout(() => {
       setCurrentPage(1); // Reset to first page on search change
