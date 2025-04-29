@@ -336,7 +336,12 @@ export default function WelderManagementPage() {
       welder.wpsNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (Array.isArray(welder.processQualified) && welder.processQualified.some((p: string) => p.toLowerCase().includes(searchTerm.toLowerCase())));
     
-    const matchesStatusFilter = statusFilter === null || welder.status === statusFilter;
+    // For expired status, check both status field and certificate expiry date
+    const isExpired = welder.certificateExpiryDate && new Date(welder.certificateExpiryDate) < new Date();
+    const matchesStatusFilter = 
+      statusFilter === null || 
+      welder.status === statusFilter || 
+      (statusFilter === "Expired" && isExpired);
     
     return matchesSearch && matchesStatusFilter;
   }) : [];
@@ -481,7 +486,19 @@ export default function WelderManagementPage() {
   };
 
   // Get status badge color
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, expiryDateStr?: string) => {
+    // Check if certificate is expired based on date
+    const isExpired = expiryDateStr && new Date(expiryDateStr) < new Date();
+    
+    if (isExpired) {
+      return (
+        <div className="flex items-center gap-2">
+          <Badge variant="destructive">Expired Certificate</Badge>
+          {status !== "Expired" && <Badge variant="secondary">{status}</Badge>}
+        </div>
+      );
+    }
+    
     switch(status) {
       case "Active":
         return <Badge className="bg-green-500">{status}</Badge>;
@@ -1178,7 +1195,7 @@ export default function WelderManagementPage() {
                     <TableCell className={isExpiringSoon(welder.certificateExpiryDate) ? "text-amber-500 font-medium" : ""}>
                       {new Date(welder.certificateExpiryDate).toLocaleDateString()}
                     </TableCell>
-                    <TableCell>{getStatusBadge(welder.status)}</TableCell>
+                    <TableCell>{getStatusBadge(welder.status, welder.certificateExpiryDate)}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

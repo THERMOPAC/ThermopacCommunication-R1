@@ -36,6 +36,24 @@ async function generateNextCertificateNo() {
   return `WQC-${nextId.toString().padStart(3, '0')}`;
 }
 
+// Helper function to check and update welder status based on certificate expiry date
+function checkAndUpdateWelderStatus(welder: any) {
+  // Skip if no certificate expiry date
+  if (!welder.certificateExpiryDate) return welder;
+  
+  // Convert string date to Date object
+  const expiryDate = new Date(welder.certificateExpiryDate);
+  const today = new Date();
+  
+  // Update status if expired and status is not already "Expired"
+  if (expiryDate < today && welder.status !== "Expired") {
+    welder.statusNote = "Auto-detected expired certificate";
+    welder.status = "Expired";
+  }
+  
+  return welder;
+}
+
 export function setupWelderRoutes(app: any) {
   // Get all welders
   app.get('/api/quality/welders', ensureAuthenticated, async (req: Request, res: Response) => {
@@ -44,7 +62,10 @@ export function setupWelderRoutes(app: any) {
         SELECT * FROM welders ORDER BY "welderId" ASC
       `);
       
-      res.json(welders.rows);
+      // Auto-update status based on certificate expiry date
+      const updatedWelders = welders.rows.map(welder => checkAndUpdateWelderStatus(welder));
+      
+      res.json(updatedWelders);
     } catch (error) {
       console.error('Error fetching welders:', error);
       res.status(500).json({ error: 'Failed to fetch welders' });
