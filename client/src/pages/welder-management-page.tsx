@@ -1392,14 +1392,23 @@ export default function WelderManagementPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => {
-                                const fileUrl = certificate.fileUrl || (certificate as any).file_url;
-                                if (fileUrl) {
-                                  window.open(fileUrl, "_blank");
-                                } else {
+                              onClick={async () => {
+                                try {
+                                  // Get a fresh signed URL for this certificate
+                                  const response = await fetch(`/api/quality/welder-certificates/${certificate.id}/url`);
+                                  if (!response.ok) {
+                                    throw new Error("Failed to get certificate URL");
+                                  }
+                                  const data = await response.json();
+                                  if (data.fileUrl) {
+                                    window.open(data.fileUrl, "_blank");
+                                  } else {
+                                    throw new Error("No file URL returned");
+                                  }
+                                } catch (error) {
                                   toast({
                                     title: "Error",
-                                    description: "Certificate file URL not available",
+                                    description: error instanceof Error ? error.message : "Failed to view certificate",
                                     variant: "destructive"
                                   });
                                 }

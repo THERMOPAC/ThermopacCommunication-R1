@@ -92,7 +92,7 @@ async function generateCertificateNumber() {
   return `CERT-${nextId.toString().padStart(3, '0')}`;
 }
 
-// Get all certificates across all welders
+// Get all certificates across all welders with fresh signed URLs
 router.get('/all', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Get all certificates with welder and creator info
@@ -105,7 +105,35 @@ router.get('/all', ensureAuthenticated, async (req: Request, res: Response) => {
       ORDER BY wc.created_at DESC
     `);
     
-    res.json(certificates.rows);
+    // Generate fresh signed URLs for each certificate
+    const bucket = gcsClient.bucket(bucketName);
+    const certificatesWithSignedUrls = await Promise.all(
+      certificates.rows.map(async (cert: any) => {
+        // If we have a file path, generate a fresh signed URL
+        if (cert.file_path) {
+          try {
+            const filePath = cert.file_path.startsWith('/') ? cert.file_path.slice(1) : cert.file_path;
+            const file = bucket.file(filePath);
+            
+            // Generate a signed URL valid for 24 hours
+            const [signedUrl] = await file.getSignedUrl({
+              version: 'v4',
+              action: 'read',
+              expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+            });
+            
+            // Update the file_url with the fresh signed URL
+            return { ...cert, file_url: signedUrl };
+          } catch (error) {
+            console.error('Error generating signed URL:', error);
+            return cert; // Return the original cert if there was an error
+          }
+        }
+        return cert;
+      })
+    );
+    
+    res.json(certificatesWithSignedUrls);
   } catch (error) {
     console.error('Error fetching all welder certificates:', error);
     res.status(500).json({ 
@@ -115,7 +143,7 @@ router.get('/all', ensureAuthenticated, async (req: Request, res: Response) => {
   }
 });
 
-// Get all certificates for a welder
+// Get all certificates for a welder with fresh signed URLs
 router.get('/welder/:welderId', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { welderId } = req.params;
@@ -147,7 +175,35 @@ router.get('/welder/:welderId', ensureAuthenticated, async (req: Request, res: R
       ORDER BY wc.created_at DESC
     `);
     
-    res.json(certificates.rows);
+    // Generate fresh signed URLs for each certificate
+    const bucket = gcsClient.bucket(bucketName);
+    const certificatesWithSignedUrls = await Promise.all(
+      certificates.rows.map(async (cert: any) => {
+        // If we have a file path, generate a fresh signed URL
+        if (cert.file_path) {
+          try {
+            const filePath = cert.file_path.startsWith('/') ? cert.file_path.slice(1) : cert.file_path;
+            const file = bucket.file(filePath);
+            
+            // Generate a signed URL valid for 24 hours
+            const [signedUrl] = await file.getSignedUrl({
+              version: 'v4',
+              action: 'read',
+              expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+            });
+            
+            // Update the file_url with the fresh signed URL
+            return { ...cert, file_url: signedUrl };
+          } catch (error) {
+            console.error('Error generating signed URL:', error);
+            return cert; // Return the original cert if there was an error
+          }
+        }
+        return cert;
+      })
+    );
+    
+    res.json(certificatesWithSignedUrls);
   } catch (error) {
     console.error('Error fetching welder certificates:', error);
     res.status(500).json({ 
@@ -224,8 +280,15 @@ router.post('/:welderId', ensureAuthenticated, upload.single('file'), async (req
       }
     });
     
-    // Generate a public URL
-    const fileUrl = `https://storage.googleapis.com/${bucketName}${filePath}`;
+    // Generate a signed URL that will be valid for 7 days
+    const [signedUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+    });
+    
+    // Store the file path and URL in the database
+    const fileUrl = signedUrl;
     
     // Insert certificate record into the database
     const result = await db.execute(sql`
@@ -254,6 +317,59 @@ router.post('/:welderId', ensureAuthenticated, upload.single('file'), async (req
       error: 'Failed to upload welder certificate',
       details: error instanceof Error ? error.message : 'Unknown error',
       success: false
+    });
+  }
+});
+
+// Get a fresh signed URL for a specific certificate
+router.get('/:certificateId/url', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { certificateId } = req.params;
+    
+    if (!certificateId || isNaN(parseInt(certificateId))) {
+      return res.status(400).json({ error: 'Invalid certificate ID' });
+    }
+    
+    const certificateIdInt = parseInt(certificateId);
+    
+    // Get certificate details
+    const certResult = await db.execute(sql`
+      SELECT file_path, certificate_no FROM welder_certificates WHERE id = ${certificateIdInt}
+    `);
+    
+    if (certResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Certificate not found' });
+    }
+    
+    const filePathRaw = certResult.rows[0].file_path;
+    const certificateNo = certResult.rows[0].certificate_no;
+    
+    if (!filePathRaw) {
+      return res.status(404).json({ error: 'Certificate file path not found' });
+    }
+    
+    const filePath = typeof filePathRaw === 'string' ? filePathRaw : String(filePathRaw);
+    
+    // Generate a fresh signed URL
+    const bucket = gcsClient.bucket(bucketName);
+    const file = bucket.file(filePath.slice(1)); // Remove leading slash
+    
+    const [signedUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+    });
+    
+    res.json({
+      success: true,
+      fileUrl: signedUrl,
+      certificateNo
+    });
+  } catch (error) {
+    console.error('Error generating signed URL for certificate:', error);
+    res.status(500).json({
+      error: 'Failed to generate signed URL',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
