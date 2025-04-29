@@ -76,7 +76,7 @@ export default function FileUploadTest() {
               Test direct file uploads to Google Cloud Storage
             </CardDescription>
           </div>
-          <Badge variant={uploadResult?.success ? 'success' : error ? 'destructive' : 'outline'}>
+          <Badge variant={uploadResult?.success ? 'default' : error ? 'destructive' : 'outline'} className={uploadResult?.success ? 'bg-green-600 hover:bg-green-700' : ''}>
             {uploadResult?.success ? 'Success' : error ? 'Failed' : 'Ready'}
           </Badge>
         </div>
@@ -139,7 +139,7 @@ export default function FileUploadTest() {
 
           {uploadResult && (
             <div className="space-y-3">
-              <Alert variant={uploadResult.success ? 'success' : 'destructive'}>
+              <Alert variant={uploadResult.success ? 'default' : 'destructive'} className={uploadResult.success ? 'bg-green-100 text-green-800 [&>svg]:text-green-800 border-green-500' : ''}>
                 {uploadResult.success ? (
                   <CheckCircle className="h-4 w-4" />
                 ) : (

@@ -93,7 +93,7 @@ export function registerWelderPhotoRoutes(app: any) {
       
       // Try to list files (requires list permission)
       let canListFiles = false;
-      let filesList = [];
+      let filesList: any[] = [];
       try {
         [filesList] = await storage.bucket(bucketName).getFiles({ maxResults: 5 });
         canListFiles = true;
