@@ -109,20 +109,20 @@ export default function MaterialIdentificationListPage() {
   };
 
   // Fetch material identifications with server-side filtering
-  const { data: miResponse, isLoading: isLoadingMI } = useQuery({
+  const { data: response, isLoading: isLoadingMI } = useQuery({
     queryKey: ['/api/quality/material-identification', queryParams],
-    select: (data: any) => {
-      // Process pagination data
-      if (data.pagination) {
-        setTotalItems(data.pagination.total);
-        setTotalPages(data.pagination.totalPages);
-      }
-      return data.data || [];
-    }
   });
 
-  // Use response data for display
-  const materialIdentifications = miResponse || [];
+  // Process response data outside the select function
+  const materialIdentifications = response?.data || [];
+  
+  // Update pagination data
+  useEffect(() => {
+    if (response?.pagination) {
+      setTotalItems(response.pagination.total);
+      setTotalPages(response.pagination.totalPages);
+    }
+  }, [response]);
 
   // Fetch projects for filter
   const { data: projects = [] } = useQuery<Project[]>({
