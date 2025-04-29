@@ -31,6 +31,34 @@ export async function uploadWelderPhoto(
       };
     }
     
+    // Get the actual welder ID from the database - could be numeric or W-xxx format
+    // For cloud storage, use either the format W-xxx if available, or construct it
+    let welderCodeForPath: string;
+    
+    // Check if the provided welderId is numeric (database ID) or already in W-xxx format
+    if (/^W-\d+$/.test(welderId)) {
+      // Already in the correct format like W-001
+      welderCodeForPath = welderId;
+      console.log(`Using provided welder code format: ${welderCodeForPath}`);
+    } else {
+      // It's likely a numeric database ID, so convert to W-xxx format
+      try {
+        const numericId = parseInt(welderId);
+        if (!isNaN(numericId)) {
+          // Format as W-001, W-002, etc.
+          welderCodeForPath = `W-${numericId.toString().padStart(3, '0')}`;
+          console.log(`Converted numeric ID ${welderId} to welder code: ${welderCodeForPath}`);
+        } else {
+          // If conversion fails, use the provided ID as-is
+          welderCodeForPath = welderId;
+          console.warn(`Unable to parse welder ID as number: ${welderId}, using as-is`);
+        }
+      } catch (error) {
+        welderCodeForPath = welderId;
+        console.warn(`Error converting welder ID: ${welderId}, using as-is`, error);
+      }
+    }
+    
     // Get file extension from the original filename or use jpg as default
     const originalExt = originalFilename.split('.').pop()?.toLowerCase() || 'jpg';
     
@@ -49,7 +77,7 @@ export async function uploadWelderPhoto(
     }
     
     // Set the GCS path in the QMS/WELDERS/{Welder ID} directory
-    const gcsPath = `QMS/WELDERS/${welderId}/${welderId}.${originalExt}`;
+    const gcsPath = `QMS/WELDERS/${welderCodeForPath}/${welderCodeForPath}.${originalExt}`;
     
     console.log(`Uploading welder photo to: ${gcsPath} with content type: ${contentType}`);
     

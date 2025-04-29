@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { ensureAuthenticated } from '../auth-middleware';
-import { generateNextWelderId } from '../utils/id-generators';
+import { generateWelderId } from '../utils/id-generators';
 
 export function registerWelderRoutes(app: express.Express) {
   // Get all welders

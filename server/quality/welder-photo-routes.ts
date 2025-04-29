@@ -59,11 +59,20 @@ export function registerWelderPhotoRoutes(app: express.Router) {
         // If a welder ID was provided, update the welder record with the photo path
         if (welderId && welderId.trim() !== '') {
           try {
-            const welderId = parseInt(req.body.welderId);
-            if (!isNaN(welderId)) {
+            // Try to parse welder ID as number (numeric database ID)
+            const welderDbId = parseInt(req.body.welderId);
+            
+            console.log(`Attempting to update photoPath in database for welder ID: ${welderDbId}, path: ${result.filePath}`);
+            
+            if (!isNaN(welderDbId)) {
+              // Update the database with the new photo path
               await db.update(schema.welders)
                 .set({ photoPath: result.filePath })
-                .where(eq(schema.welders.id, welderId));
+                .where(eq(schema.welders.id, welderDbId));
+                
+              console.log(`Successfully updated welder record ${welderDbId} with photo path: ${result.filePath}`);
+            } else {
+              console.error(`Invalid welder ID format for database update: ${req.body.welderId}`);
             }
           } catch (dbError) {
             console.error('Error updating welder record with photo path:', dbError);
