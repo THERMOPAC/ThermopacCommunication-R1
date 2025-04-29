@@ -1267,6 +1267,13 @@ export const welders = pgTable('welders', {
   trade: varchar('trade', { length: 50 }).notNull(),
   status: varchar('status', { length: 20 }).notNull().default('Active'),
   remarks: text('remarks'),
+  // Personal information fields
+  photoPath: varchar('photo_path', { length: 255 }),
+  dateOfBirth: date('date_of_birth'),
+  contactNumber: varchar('contact_number', { length: 20 }),
+  hireDate: date('hire_date'),
+  identificationType: varchar('identification_type', { length: 50 }),
+  identificationNumber: varchar('identification_number', { length: 50 }),
   createdAt: timestamp('createdAt').defaultNow(),
   updatedAt: timestamp('updatedAt').defaultNow()
 });
