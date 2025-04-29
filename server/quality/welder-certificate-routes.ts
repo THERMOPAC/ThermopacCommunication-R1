@@ -205,10 +205,12 @@ router.post('/:welderId', ensureAuthenticated, upload.single('file'), async (req
       SELECT COUNT(*) as count FROM welder_certificates WHERE welder_id = ${welderIdInt}
     `);
     
-    const existingCertCount = parseInt(countResult.rows[0].count) + 1;
+    const count = countResult.rows[0]?.count;
+    const countStr = typeof count === 'string' ? count : String(count);
+    const existingCertCount = parseInt(countStr) + 1;
     
     // Upload the file to Google Cloud Storage
-    const filePath = `/QMS/WELDERS/${welderIdString}_${existingCertCount}.pdf`;
+    const filePath = `/QMS/WELDERS/${welderIdString}/${welderIdString}_${existingCertCount}.pdf`;
     const fileBuffer = req.file.buffer;
     const fileType = req.file.mimetype;
     
@@ -276,7 +278,8 @@ router.delete('/:certificateId', ensureAuthenticated, async (req: Request, res: 
       return res.status(404).json({ error: 'Certificate not found' });
     }
     
-    const filePath = certResult.rows[0].file_path;
+    const filePathRaw = certResult.rows[0].file_path;
+    const filePath = typeof filePathRaw === 'string' ? filePathRaw : String(filePathRaw);
     
     // Delete from database
     const result = await db.execute(sql`
