@@ -1202,24 +1202,22 @@ export default function WelderManagementPage() {
                   <FormField
                     control={editForm.control}
                     name="photoFile"
-                    render={({ field: { value, onChange, ...fieldProps } }) => (
+                    render={({ field: { value, onChange } }) => (
                       <FormItem>
                         <FormLabel>Update Welder Photo</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="file" 
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] || null;
-                              onChange(file);
-                            }}
-                            {...fieldProps}
-                          />
+                          <div className="pt-2">
+                            <WelderPhotoUpload
+                              welderId={selectedWelder?.id}
+                              existingPhotoUrl={selectedWelder?.photoPath ? `/api/welder-photos/${selectedWelder.id}` : undefined}
+                              onPhotoUploadSuccess={(path) => {
+                                // Form doesn't need to keep the actual file since we already uploaded it
+                                // This is handled in the form submission
+                              }}
+                            />
+                          </div>
                         </FormControl>
                         <FormMessage />
-                        {selectedWelder?.photoPath && (
-                          <p className="text-sm text-muted-foreground">Current photo: {selectedWelder.photoPath.split('/').pop()}</p>
-                        )}
                       </FormItem>
                     )}
                   />
