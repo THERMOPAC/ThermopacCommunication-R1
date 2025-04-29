@@ -321,7 +321,7 @@ export default function WelderCertificatesPage() {
           <p>Please select a welder to view their certificates.</p>
           <Button
             className="mt-4"
-            onClick={() => navigate("/quality/welder-management")}
+            onClick={() => navigate("/welder-management")}
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Return to Welder Management
           </Button>
@@ -337,7 +337,7 @@ export default function WelderCertificatesPage() {
           <div>
             <Button
               variant="outline"
-              onClick={() => navigate("/quality/welder-management")}
+              onClick={() => navigate("/welder-management")}
             >
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Welder Management
             </Button>

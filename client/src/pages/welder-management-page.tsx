@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import {
   Table,
   TableBody,
@@ -141,6 +142,7 @@ const statusOptions = ["Active", "Expired", "Revoked"];
 
 export default function WelderManagementPage() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [isAddWelderOpen, setIsAddWelderOpen] = useState(false);
   const [isEditWelderOpen, setIsEditWelderOpen] = useState(false);
   const [selectedWelder, setSelectedWelder] = useState<Welder | null>(null);
