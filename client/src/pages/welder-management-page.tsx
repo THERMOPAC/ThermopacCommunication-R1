@@ -74,15 +74,6 @@ interface Welder {
   welderId: string;
   name: string;
   trade: string;
-  processQualified: string[];
-  materialGroupQualified: string[];
-  thicknessRange: string;
-  positionQualified: string[];
-  wpsNumber: string;
-  testDate: string;
-  testResults: string;
-  certificateNo: string;
-  certificateExpiryDate: string;
   status: string;
   remarks: string;
 }
@@ -100,35 +91,25 @@ interface WelderCertificate {
   status: string;
   createdAt: string;
   createdByUsername: string;
+  wpqrId?: number;
+  wpqrDocumentId?: string;
+  processQualified?: string[];
+  materialGroupQualified?: string[];
+  thicknessRange?: string;
+  positionQualified?: string[];
 }
 
 interface WelderFormData {
   name: string;
   trade: string;
-  processQualified: string[];
-  materialGroupQualified: string[];
-  thicknessRange: string;
-  positionQualified: string[];
-  wpsNumber: string;
-  testDate: string;
-  testResults: string;
-  certificateExpiryDate: string;
   status: string;
   remarks: string;
 }
 
-// Form validation schema
+// Form validation schema - simplified for basic welder information
 const welderFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   trade: z.string().min(1, "Please select a trade"),
-  processQualified: z.array(z.string()).min(1, "Select at least one process"),
-  materialGroupQualified: z.array(z.string()).min(1, "Select at least one material group"),
-  thicknessRange: z.string().min(1, "Thickness range is required"),
-  positionQualified: z.array(z.string()).min(1, "Select at least one position"),
-  wpsNumber: z.string().min(1, "WPQR number is required"),
-  testDate: z.string().min(1, "Test date is required"),
-  testResults: z.string().min(1, "Test result is required"),
-  certificateExpiryDate: z.string().min(1, "Certificate expiry date is required"),
   status: z.string().min(1, "Status is required"),
   remarks: z.string().optional().or(z.literal("")),
 });
@@ -723,9 +704,8 @@ export default function WelderManagementPage() {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <Tabs defaultValue="basic" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="basic">Basic Information</TabsTrigger>
-                      <TabsTrigger value="qualification">Qualification Details</TabsTrigger>
                       <TabsTrigger value="certificates">Certificates</TabsTrigger>
                     </TabsList>
                     <TabsContent value="basic" className="space-y-4 mt-4">
