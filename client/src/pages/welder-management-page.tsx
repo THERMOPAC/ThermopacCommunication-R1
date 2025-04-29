@@ -152,6 +152,52 @@ export default function WelderManagementPage() {
     setStatusFilter(value === "all_statuses" ? null : value);
   };
   
+  // Certificate form state
+  const [certificateForm, setCertificateForm] = useState({
+    certificateType: "WELDER_QUALIFICATION",
+    certificateNo: "",
+    issueDate: "",
+    expiryDate: "",
+    description: "",
+  });
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  
+  // Handle certificate form input changes
+  const handleCertificateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCertificateForm({
+      ...certificateForm,
+      [name]: value,
+    });
+  };
+  
+  // Handle certificate type selection
+  const handleCertificateTypeChange = (value: string) => {
+    setCertificateForm({
+      ...certificateForm,
+      certificateType: value,
+    });
+  };
+  
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setCertificateFile(e.target.files[0]);
+    }
+  };
+  
+  // Reset certificate form
+  const resetCertificateForm = () => {
+    setCertificateForm({
+      certificateType: "WELDER_QUALIFICATION",
+      certificateNo: "",
+      issueDate: "",
+      expiryDate: "",
+      description: "",
+    });
+    setCertificateFile(null);
+  };
+  
   // Certificate upload mutation
   const uploadCertificateMutation = useMutation({
     mutationFn: async ({ welderId, formData }: { welderId: number, formData: FormData }) => {
@@ -174,6 +220,7 @@ export default function WelderManagementPage() {
         description: "Certificate uploaded successfully",
       });
       refetchCertificates();
+      resetCertificateForm();
     },
     onError: (error: Error) => {
       toast({
@@ -183,6 +230,49 @@ export default function WelderManagementPage() {
       });
     },
   });
+  
+  // Handle certificate upload
+  const handleCertificateUpload = () => {
+    if (!selectedWelder) {
+      toast({
+        title: "Error",
+        description: "No welder selected",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!certificateFile) {
+      toast({
+        title: "Error",
+        description: "Please select a certificate file",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!certificateForm.certificateNo || !certificateForm.issueDate || !certificateForm.expiryDate) {
+      toast({
+        title: "Error",
+        description: "Please fill all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append("file", certificateFile);
+    formData.append("certificateType", certificateForm.certificateType);
+    formData.append("certificateNo", certificateForm.certificateNo);
+    formData.append("issueDate", certificateForm.issueDate);
+    formData.append("expiryDate", certificateForm.expiryDate);
+    formData.append("description", certificateForm.description || "");
+    
+    uploadCertificateMutation.mutate({
+      welderId: selectedWelder.id,
+      formData,
+    });
+  };
   
   // Certificate delete mutation
   const deleteCertificateMutation = useMutation({
@@ -1866,6 +1956,169 @@ export default function WelderManagementPage() {
                           "Update Welder"
                         )}
                       </Button>
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="certificates" className="space-y-4 mt-4">
+                    <div className="space-y-6">
+                      {/* Certificate upload form */}
+                      <div className="p-4 border rounded-lg">
+                        <h3 className="text-lg font-medium mb-4">Upload New Certificate</h3>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Certificate Type*</label>
+                            <Select
+                              defaultValue={certificateForm.certificateType}
+                              onValueChange={handleCertificateTypeChange}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select certificate type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="WELDER_QUALIFICATION">Welder Qualification</SelectItem>
+                                <SelectItem value="SAFETY_TRAINING">Safety Training</SelectItem>
+                                <SelectItem value="SPECIALIZED_SKILL">Specialized Skill</SelectItem>
+                                <SelectItem value="OTHER">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Certificate Number*</label>
+                            <Input 
+                              name="certificateNo"
+                              value={certificateForm.certificateNo}
+                              onChange={handleCertificateInputChange}
+                              placeholder="Enter certificate number" 
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Issue Date*</label>
+                            <Input 
+                              type="date" 
+                              name="issueDate"
+                              value={certificateForm.issueDate}
+                              onChange={handleCertificateInputChange}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Expiry Date*</label>
+                            <Input 
+                              type="date" 
+                              name="expiryDate"
+                              value={certificateForm.expiryDate}
+                              onChange={handleCertificateInputChange}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Description</label>
+                          <Input 
+                            name="description"
+                            value={certificateForm.description}
+                            onChange={handleCertificateInputChange}
+                            placeholder="Brief description of certificate" 
+                          />
+                        </div>
+                        
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Certificate File*</label>
+                          <Input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="cursor-pointer"
+                            onChange={handleFileChange}
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Accept PDF, JPG, JPEG or PNG. Max size 5MB.
+                          </p>
+                        </div>
+                        
+                        <Button 
+                          type="button"
+                          disabled={!selectedWelder || uploadCertificateMutation.isPending}
+                          onClick={() => {
+                            // Handle certificate upload
+                            if (!selectedWelder) return;
+                            
+                            // Upload certificate logic goes here
+                          }}
+                        >
+                          {uploadCertificateMutation.isPending ? (
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
+                          ) : (
+                            "Upload Certificate"
+                          )}
+                        </Button>
+                      </div>
+                      
+                      {/* Certificates list */}
+                      <div className="p-4 border rounded-lg">
+                        <h3 className="text-lg font-medium mb-4">Existing Certificates</h3>
+                        
+                        {certificates.length === 0 ? (
+                          <div className="text-center py-8">
+                            <p className="text-muted-foreground">No certificates uploaded yet.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {certificates.map((cert) => (
+                              <div key={cert.id} className="flex items-start border-b pb-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center">
+                                    <h4 className="font-medium">{cert.certificateType}</h4>
+                                    <Badge 
+                                      className="ml-2" 
+                                      variant={cert.status === "Active" ? "default" : "destructive"}
+                                    >
+                                      {cert.status}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground mb-1">
+                                    Certificate No: {cert.certificateNo}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground mb-1">
+                                    Valid from {new Date(cert.issueDate).toLocaleDateString()} to {new Date(cert.expiryDate).toLocaleDateString()}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Description: {cert.description || 'N/A'}
+                                  </p>
+                                </div>
+                                <div className="flex space-x-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      // Open certificate in new tab
+                                      if (cert.fileUrl) {
+                                        window.open(cert.fileUrl, '_blank');
+                                      }
+                                    }}
+                                  >
+                                    View
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-destructive border-destructive hover:bg-destructive/10"
+                                    onClick={() => {
+                                      // Delete certificate
+                                      if (confirm("Are you sure you want to delete this certificate?")) {
+                                        deleteCertificateMutation.mutate(cert.id);
+                                      }
+                                    }}
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </TabsContent>
                 </Tabs>
