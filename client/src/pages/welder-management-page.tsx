@@ -86,6 +86,21 @@ interface Welder {
   remarks: string;
 }
 
+interface WelderCertificate {
+  id: number;
+  welderId: number;
+  certificateNo: string;
+  certificateType: string;
+  description: string;
+  issueDate: string;
+  expiryDate: string;
+  filePath: string;
+  fileUrl: string;
+  status: string;
+  createdAt: string;
+  createdByUsername: string;
+}
+
 interface WelderFormData {
   name: string;
   trade: string;
@@ -137,6 +152,69 @@ export default function WelderManagementPage() {
     setStatusFilter(value === "all_statuses" ? null : value);
   };
   
+  // Certificate upload mutation
+  const uploadCertificateMutation = useMutation({
+    mutationFn: async ({ welderId, formData }: { welderId: number, formData: FormData }) => {
+      const response = await fetch(`/api/quality/welder-certificates/${welderId}`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to upload certificate");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Certificate uploaded successfully",
+      });
+      refetchCertificates();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error uploading certificate",
+        description: error.message || "Failed to upload certificate",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Certificate delete mutation
+  const deleteCertificateMutation = useMutation({
+    mutationFn: async (certificateId: number) => {
+      const response = await fetch(`/api/quality/welder-certificates/${certificateId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to delete certificate");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Certificate deleted successfully",
+      });
+      refetchCertificates();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error deleting certificate",
+        description: error.message || "Failed to delete certificate",
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Fetch WPQR data for dropdown
   const { data: wpqrData = [] } = useQuery<any[]>({
     queryKey: ["/api/quality/wpqr"],
@@ -151,6 +229,20 @@ export default function WelderManagementPage() {
   // Fetch expired welders
   const { data: expiredWeldersList = [] } = useQuery<any[]>({
     queryKey: ["/api/quality/welders/expired"],
+  });
+  
+  // Fetch certificates for selected welder when dialog is open
+  const { data: certificates = [], refetch: refetchCertificates } = useQuery<WelderCertificate[]>({
+    queryKey: ["/api/quality/welder-certificates", selectedWelder?.id],
+    queryFn: async () => {
+      if (!selectedWelder) return [];
+      const response = await fetch(`/api/quality/welder-certificates/welder/${selectedWelder.id}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch certificates");
+      }
+      return response.json();
+    },
+    enabled: !!selectedWelder,
   });
 
   // Create new welder mutation with direct fetch approach
@@ -539,9 +631,10 @@ export default function WelderManagementPage() {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <Tabs defaultValue="basic" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="basic">Basic Information</TabsTrigger>
                       <TabsTrigger value="qualification">Qualification Details</TabsTrigger>
+                      <TabsTrigger value="certificates">Certificates</TabsTrigger>
                     </TabsList>
                     <TabsContent value="basic" className="space-y-4 mt-4">
                       <div className="grid grid-cols-2 gap-4">
@@ -1249,9 +1342,10 @@ export default function WelderManagementPage() {
             <Form {...editForm}>
               <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-6">
                 <Tabs defaultValue="basic" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="basic">Basic Information</TabsTrigger>
                     <TabsTrigger value="qualification">Qualification Details</TabsTrigger>
+                    <TabsTrigger value="certificates">Certificates</TabsTrigger>
                   </TabsList>
                   <TabsContent value="basic" className="space-y-4 mt-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -1776,4 +1870,3 @@ export default function WelderManagementPage() {
 
 // Helper function to format date
 import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
