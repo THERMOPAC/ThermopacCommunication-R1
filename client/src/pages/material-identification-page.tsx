@@ -76,9 +76,17 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   
   // Update form disabled state whenever edit mode changes
   useEffect(() => {
-    console.log('Updating formDisabled state based on view mode:', isViewMode);
-    setFormDisabled(isViewMode);
-  }, [isViewMode, isEditMode]);
+    console.log('Updating formDisabled state - isViewMode:', isViewMode, 'isEditMode:', isEditMode);
+    
+    // In edit mode, enable the form
+    // In view mode, disable the form
+    const newDisabledState = !isEditMode && isViewMode;
+    
+    if (newDisabledState !== formDisabled) {
+      console.log(`Setting form disabled state from ${formDisabled} to ${newDisabledState}`);
+      setFormDisabled(newDisabledState);
+    }
+  }, [isViewMode, isEditMode, formDisabled]);
   
   console.log('Current formDisabled state:', formDisabled);
   
@@ -221,21 +229,20 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     remarks: ''
   };
 
+  // Use a form key that changes whenever the disabled state or edit mode changes
+  // This will completely remount the form with the new disabled state
+  const formKey = `form-${isEditMode ? 'edit' : 'view'}-${formDisabled ? 'disabled' : 'enabled'}-${Date.now()}`;
+  
   // Initialize form with disabled state based on formDisabled value
   const form = useForm<MaterialIdentificationFormValues>({
     resolver: zodResolver(materialIdentificationSchema),
     defaultValues,
     mode: "onBlur",
-    disabled: formDisabled // Disable all inputs only when in view-only mode (not edit mode)
+    disabled: formDisabled // This needs to be set here initially
   });
   
   // Log the form's disabled state on every render for debugging
-  console.log("Form initialization - disabled state:", formDisabled, "Form object:", form);
-  
-  // Instead of trying to update the form state, completely force a form remount
-  // when edit mode changes by using a timestamp in the key
-  // This will cause React to completely unmount and remount the form component
-  const formKey = isEditMode ? `edit-mode-${Date.now()}` : `view-mode-${Date.now()}`;
+  console.log("Form initialized with - disabled state:", formDisabled, "formKey:", formKey);
   
   useEffect(() => {
     console.log("Edit mode changed:", { isEditMode, formDisabled, key: formKey });
@@ -969,28 +976,15 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                                 form.reset(existingRecord);
                               }
                               
-                              // Force all form inputs to be disabled using direct DOM manipulation
-                              setTimeout(() => {
-                                const formInputs = document.querySelectorAll('input, select, textarea');
-                                Array.from(formInputs).forEach((input: Element) => {
-                                  // Type cast to HTMLElement to access the properties
-                                  const htmlInput = input as HTMLElement;
-                                  htmlInput.setAttribute('disabled', 'true');
-                                  htmlInput.removeAttribute('data-manually-enabled');
-                                });
-                                console.log("All form elements manually disabled via DOM");
-                              }, 100); // Small delay to ensure DOM is ready
-                              
-                              // Update React state
-                              setFormDisabled(true);
-                              setIsEditModeState(false);
+                              // Cancel edit mode by changing URL (which will trigger React state updates)
+                              navigate(`/quality/material-identification/${recordId}`);
                               
                               toast({
                                 title: "Edit Mode Canceled",
                                 description: "No changes were saved.",
                               });
                               
-                              console.log("Edit mode canceled manually - formDisabled set to true");
+                              console.log("Edit mode canceled by changing URL to remove ?edit=true");
                             }}
                           >
                             Cancel Edit
