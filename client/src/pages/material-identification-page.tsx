@@ -540,7 +540,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         <Select
                           onValueChange={field.onChange}
                           value={field.value || ""}
-                          disabled={!selectedProject || isViewMode}
+                          disabled={!selectedProject || formDisabled}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -603,7 +603,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         <Select
                           onValueChange={field.onChange}
                           value={field.value || ""}
-                          disabled={isViewMode}
+                          disabled={formDisabled}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -636,7 +636,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         <Select
                           onValueChange={field.onChange}
                           value={field.value || ""}
-                          disabled={isViewMode}
+                          disabled={formDisabled}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -779,7 +779,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         <Select
                           onValueChange={field.onChange}
                           value={field.value || ""}
-                          disabled={isViewMode}
+                          disabled={formDisabled}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -829,6 +829,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                                   "w-full pl-3 text-left font-normal",
                                   !field.value && "text-muted-foreground"
                                 )}
+                                disabled={formDisabled}
                               >
                                 {field.value instanceof Date && !isNaN(field.value.getTime()) ? (
                                   format(field.value, "PPP")
