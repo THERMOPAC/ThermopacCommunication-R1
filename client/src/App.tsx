@@ -120,14 +120,14 @@ function Router() {
       {/* Material Identification routes with /quality prefix */}
       <ProtectedRoute path="/quality/material-identification/new" component={MaterialIdentificationPage} />
       <ProtectedRoute path="/quality/material-identification" component={MaterialIdentificationListPage} />
-      <ProtectedRoute path="/quality/material-identification/view/:id" component={() => (
-        // @ts-ignore - dynamic import
-        require("./pages/material-identification-view-page").default({ params: { id: window.location.pathname.split('/').pop() } })
-      )} />
-      <ProtectedRoute path="/quality/material-identification/edit/:id" component={() => (
-        // @ts-ignore - dynamic import
-        require("./pages/material-identification-edit-page").default({ params: { id: window.location.pathname.split('/').pop() } })
-      )} />
+      <ProtectedRoute 
+        path="/quality/material-identification/view/:id" 
+        component={() => <MaterialIdentificationViewPage params={{ id: window.location.pathname.split('/').pop() }} />} 
+      />
+      <ProtectedRoute 
+        path="/quality/material-identification/edit/:id" 
+        component={() => <MaterialIdentificationEditPage params={{ id: window.location.pathname.split('/').pop() }} />} 
+      />
       
       {/* Legacy route for backward compatibility, redirects to view page */}
       <Route path="/quality/material-identification/:id">
