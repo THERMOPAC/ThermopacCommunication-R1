@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -230,17 +230,42 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
 
   // Handle form submission
   const onSubmit = (data: MaterialIdentificationFormValues) => {
+    console.log("Form data submitted:", data);
+    
     // Format inspection date
     let formattedDate = '';
     if (data.inspectionDate instanceof Date && !isNaN(data.inspectionDate.getTime())) {
       formattedDate = format(data.inspectionDate, "yyyy-MM-dd");
+    } else if (typeof data.inspectionDate === 'string' && data.inspectionDate) {
+      try {
+        const parsedDate = parseISO(data.inspectionDate);
+        formattedDate = format(parsedDate, "yyyy-MM-dd");
+      } catch (e) {
+        console.error("Error parsing date string:", e);
+        formattedDate = format(new Date(), "yyyy-MM-dd");
+      }
     } else {
       formattedDate = format(new Date(), "yyyy-MM-dd");
     }
     
+    console.log("Formatted date:", formattedDate);
+    
+    // Get all current form values and ensure they're included
+    const currentFormValues = form.getValues();
+    
+    // Material description and other fields that might not be getting submitted correctly
+    const materialDescription = data.materialDescription || currentFormValues.materialDescription || '';
+    const quantity = data.quantity || currentFormValues.quantity || '';
+    const materialStatus = data.materialStatus || currentFormValues.materialStatus || '';
+    const remarks = data.remarks !== undefined ? data.remarks : (currentFormValues.remarks || '');
+    
     // Format data and update
     const formattedData = {
       ...data,
+      materialDescription,
+      quantity,
+      materialStatus,
+      remarks,
       inspectionDate: formattedDate,
       id: recordId,
       projectId: selectedProject // Add the projectId
@@ -559,43 +584,63 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                   <FormField
                     control={form.control}
                     name="inspectionDate"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Inspection Date</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
-                              }
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      // Parse the date string to a Date object if it's a string
+                      let dateValue = field.value;
+                      if (typeof dateValue === 'string' && dateValue) {
+                        try {
+                          dateValue = parseISO(dateValue);
+                        } catch (e) {
+                          console.error("Error parsing date:", e);
+                          dateValue = new Date();
+                        }
+                      }
+                      
+                      return (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Inspection Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className={cn(
+                                    "pl-3 text-left font-normal w-full",
+                                    !dateValue && "text-muted-foreground"
+                                  )}
+                                >
+                                  {dateValue && dateValue instanceof Date && !isNaN(dateValue.getTime()) ? (
+                                    format(dateValue, "PPP")
+                                  ) : (
+                                    <span>Pick a date</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={dateValue instanceof Date ? dateValue : undefined}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    field.onChange(date);
+                                    console.log("Selected date:", date);
+                                    form.setValue("inspectionDate", date as Date);
+                                  }
+                                }}
+                                disabled={(date) =>
+                                  date > new Date() || date < new Date("1900-01-01")
+                                }
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 </div>
                 
