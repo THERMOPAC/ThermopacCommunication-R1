@@ -305,54 +305,6 @@ router.post("/", validateSchema(materialIdentificationSchema), async (req, res) 
   }
 });
 
-// Get material identification by ID
-router.get("/:id", async (req, res) => {
-  try {
-    const id = req.params.id;
-    
-    // Special case for "new" route
-    if (id === 'new') {
-      // Return an empty response for a new record
-      return res.json({
-        material_identification_id: '',
-        project_id: null,
-        project_number: '',
-        project_name: '',
-        inspection_order_number: '',
-        material_description: '',
-        material_code: '',
-        specification: '',
-        material_grade: '',
-        heat_number: '',
-        batch_number: null,
-        mill_name: '',
-        mill_test_certificate_number: '',
-        quantity: '',
-        dimensions: '',
-        material_status: '',
-        inspector_name: '',
-        inspection_date: new Date().toISOString().split('T')[0],
-        remarks: null
-      });
-    }
-    
-    // Regular case - get by ID
-    const materialIdentification = await db.execute(sql`
-      SELECT * FROM material_identification
-      WHERE id = ${id}
-    `) as any;
-    
-    if (!materialIdentification || !materialIdentification.rows || materialIdentification.rows.length === 0) {
-      return res.status(404).json({ error: "Material identification not found" });
-    }
-    
-    res.json(materialIdentification.rows[0]);
-  } catch (error) {
-    console.error("Error getting material identification:", error);
-    res.status(500).json({ error: "Failed to get material identification" });
-  }
-});
-
 // Get material identifications by project ID
 router.get("/project/:projectId", async (req, res) => {
   try {
@@ -368,6 +320,59 @@ router.get("/project/:projectId", async (req, res) => {
   } catch (error) {
     console.error("Error getting material identifications for project:", error);
     res.status(500).json({ error: "Failed to get material identifications for project" });
+  }
+});
+
+// Special case for "new" record creation
+router.get("/new", async (req, res) => {
+  try {
+    // Return an empty template for a new record
+    return res.json({
+      material_identification_id: '',
+      project_id: null,
+      project_number: '',
+      project_name: '',
+      inspection_order_number: '',
+      material_description: '',
+      material_code: '',
+      specification: '',
+      material_grade: '',
+      heat_number: '',
+      batch_number: null,
+      mill_name: '',
+      mill_test_certificate_number: '',
+      quantity: '',
+      dimensions: '',
+      material_status: '',
+      inspector_name: '',
+      inspection_date: new Date().toISOString().split('T')[0],
+      remarks: null
+    });
+  } catch (error) {
+    console.error("Error creating new material identification template:", error);
+    res.status(500).json({ error: "Failed to create new material identification template" });
+  }
+});
+
+// Get material identification by ID - this must come after all other specific routes
+router.get("/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    
+    // Regular case - get by ID
+    const materialIdentification = await db.execute(sql`
+      SELECT * FROM material_identification
+      WHERE id = ${id}
+    `) as any;
+    
+    if (!materialIdentification || !materialIdentification.rows || materialIdentification.rows.length === 0) {
+      return res.status(404).json({ error: "Material identification not found" });
+    }
+    
+    res.json(materialIdentification.rows[0]);
+  } catch (error) {
+    console.error("Error getting material identification:", error);
+    res.status(500).json({ error: "Failed to get material identification" });
   }
 });
 
