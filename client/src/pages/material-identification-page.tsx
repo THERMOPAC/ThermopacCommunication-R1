@@ -74,7 +74,8 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   // Define types for the API responses
   interface Project {
     id: number;
-    projectNumber: string;
+    projectNumber?: string; // Legacy field
+    projectCode: string;    // This is what we want to display
     name: string;
   }
   
@@ -269,8 +270,13 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     // Find project by ID
     const project = projects.find(p => p.id === id);
     if (project) {
-      form.setValue('projectNumber', project.projectNumber);
+      // Store the project info in the form
+      // Use projectCode as the primary identifier (new format) with fallbacks for compatibility
+      const projectValue = (project.projectCode || project.projectNumber || '') as string;
+      form.setValue('projectNumber', projectValue);
       form.setValue('projectName', project.name);
+      
+      console.log('Selected project:', project);
       
       // MI ID is now auto-generated from the server and already set
     }
@@ -461,7 +467,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                           <SelectContent>
                             {projects.map((project) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
-                                {project.projectNumber}
+                                {project.projectCode || project.projectNumber || `Project ${project.id}`}
                               </SelectItem>
                             ))}
                           </SelectContent>
