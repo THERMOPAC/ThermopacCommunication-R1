@@ -57,16 +57,48 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   // Use a React state for edit mode instead of URL parameters
   const [isEditModeState, setIsEditModeState] = useState(false);
   
-  // Handle query params for edit mode as a fallback
-  const fullLocation = window.location.href;
-  const searchParams = new URLSearchParams(fullLocation.split('?')[1] || '');
-  const editParam = searchParams.get('edit');
-  
-  console.log('Edit param from window location:', editParam);
-  console.log('Full window location:', fullLocation);
+  // Handle query params for edit mode as a fallback - more robust implementation
+  useEffect(() => {
+    console.log('Checking for edit mode in URL...');
+    
+    // Check if URL contains edit=true parameter in the search part
+    const urlParams = new URLSearchParams(window.location.search);
+    const editParam = urlParams.get('edit');
+    
+    console.log('Edit parameter from URLSearchParams:', editParam);
+    console.log('Full window location:', window.location.href);
+    
+    // Update edit mode state if the parameter exists
+    if (editParam === 'true' && !isEditModeState) {
+      console.log('Setting edit mode to true based on URL parameter');
+      setIsEditModeState(true);
+      setFormDisabled(false);
+      
+      // Force-enable fields after a short delay
+      setTimeout(() => {
+        console.log('Force enabling all form fields');
+        const formInputs = document.querySelectorAll('input, select, textarea');
+        formInputs.forEach((input: Element) => {
+          const htmlInput = input as HTMLElement;
+          if (htmlInput.hasAttribute('disabled')) {
+            htmlInput.removeAttribute('disabled');
+          }
+        });
+      }, 300);
+    }
+  }, [window.location.search, isEditModeState]);
   
   // Either URL parameter or state can trigger edit mode
-  const isEditMode = isEditModeState || editParam === 'true';
+  const isEditMode = isEditModeState;
+  
+  // Extra check to see if URL has edit=true
+  const checkEditParam = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    console.log('Current URL search params:', window.location.search);
+    return urlParams.get('edit') === 'true';
+  };
+  
+  console.log('Direct edit param check:', checkEditParam());
   console.log('isEditMode:', isEditMode);
   const isViewMode = recordId && !isNewRecord && !isEditMode;
   console.log('isViewMode:', isViewMode);
@@ -233,12 +265,13 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   // This will completely remount the form with the new disabled state
   const formKey = `form-${isEditMode ? 'edit' : 'view'}-${formDisabled ? 'disabled' : 'enabled'}-${Date.now()}`;
   
-  // Initialize form with disabled state based on formDisabled value
+  // Initialize form with disabled state explicitly set
+  const shouldDisableForm = isViewMode && !isEditMode;
   const form = useForm<MaterialIdentificationFormValues>({
     resolver: zodResolver(materialIdentificationSchema),
     defaultValues,
     mode: "onBlur",
-    // We're going to manually control disabled state per field instead of at the form level
+    disabled: shouldDisableForm // Explicitly set disabled state based on edit mode
   });
   
   // Use an effect to manually override disabled state for all fields if needed
