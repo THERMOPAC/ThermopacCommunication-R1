@@ -48,10 +48,22 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const [location, navigate] = useLocation();
-  const [, routeParams] = useRoute('/quality/material-identification/:id');
+  const [routeMatch, routeParams] = useRoute('/quality/material-identification/:id');
+  
+  // Extract ID from route params and ensure it's the actual database ID (not material_identification_id)
   const recordId = params?.id || (routeParams as any)?.id;
-  const isEditMode = recordId && location.includes('edit=true');
+  
+  // Handle query params for edit mode
+  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const isEditMode = searchParams.get('edit') === 'true';
   const isViewMode = recordId && !isEditMode;
+  
+  // Debug logs
+  console.log('Route params:', routeParams);
+  console.log('Record ID:', recordId);
+  console.log('Location:', location);
+  console.log('Is Edit Mode:', isEditMode);
+  console.log('Is View Mode:', isViewMode);
   
   // Define types for the API responses
   interface Project {
@@ -92,6 +104,15 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     queryKey: ['/api/quality/material-identification', recordId],
     enabled: !!recordId,
     select: (data: any) => {
+      // Debug log to see the raw API response
+      console.log('API response data:', data);
+      
+      // Check if we have valid data or error response
+      if (!data || data.error) {
+        console.error('Invalid API response:', data);
+        return null;
+      }
+      
       // Transform snake_case DB fields to camelCase for the form
       const record = {
         materialIdentificationId: data.material_identification_id,
@@ -111,10 +132,20 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
         dimensions: data.dimensions,
         materialStatus: data.material_status,
         inspectorName: data.inspector_name,
-        inspectionDate: new Date(data.inspection_date),
+        inspectionDate: data.inspection_date ? new Date(data.inspection_date) : new Date(),
         remarks: data.remarks || ''
       };
+      
+      console.log('Transformed record:', record);
       return record;
+    },
+    onError: (err) => {
+      console.error('Error fetching record:', err);
+      toast({
+        title: "Error Loading Record",
+        description: "Failed to load the Material Identification record. Please try again.",
+        variant: "destructive",
+      });
     }
   });
 
