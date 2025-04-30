@@ -310,6 +310,33 @@ router.get("/:id", async (req, res) => {
   try {
     const id = req.params.id;
     
+    // Special case for "new" route
+    if (id === 'new') {
+      // Return an empty response for a new record
+      return res.json({
+        material_identification_id: '',
+        project_id: null,
+        project_number: '',
+        project_name: '',
+        inspection_order_number: '',
+        material_description: '',
+        material_code: '',
+        specification: '',
+        material_grade: '',
+        heat_number: '',
+        batch_number: null,
+        mill_name: '',
+        mill_test_certificate_number: '',
+        quantity: '',
+        dimensions: '',
+        material_status: '',
+        inspector_name: '',
+        inspection_date: new Date().toISOString().split('T')[0],
+        remarks: null
+      });
+    }
+    
+    // Regular case - get by ID
     const materialIdentification = await db.execute(sql`
       SELECT * FROM material_identification
       WHERE id = ${id}

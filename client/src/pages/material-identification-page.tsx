@@ -52,15 +52,16 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   
   // Extract ID from route params and ensure it's the actual database ID (not material_identification_id)
   const recordId = params?.id || (routeParams as any)?.id;
+  const isNewRecord = recordId === 'new';
   
   // Handle query params for edit mode
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
   const editParam = searchParams.get('edit');
   console.log('Edit param:', editParam);
   const isEditMode = editParam === 'true';
-  const isViewMode = recordId && !isEditMode;
+  const isViewMode = recordId && !isNewRecord && !isEditMode;
   
-  // Force form to be editable when explicit edit=true param is present
+  // Force form to be editable when explicit edit=true param is present or creating new record
   const formDisabled = isViewMode;
   
   // Debug logs
@@ -101,7 +102,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   // Fetch the next auto-generated MI ID (only needed for new records)
   const { data: nextIdData, refetch: refetchNextId } = useQuery<NextIdResponse>({
     queryKey: ['/api/quality/material-identification/next-id'],
-    enabled: !recordId // Only fetch if not in edit/view mode
+    enabled: isNewRecord || !recordId // Enable for new records or when no record ID is provided
   });
   
   // Fetch existing record for edit or view mode
@@ -200,11 +201,13 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
 
   // Set next MI ID from API (for new records) or populate form with existing data (for edit/view)
   useEffect(() => {
-    if (nextIdData?.nextId && !recordId) {
+    // For new records, fetch and set the next MI ID
+    if (nextIdData?.nextId && (isNewRecord || !recordId)) {
       form.setValue('materialIdentificationId', nextIdData.nextId);
     }
     
-    if (existingRecord && recordId) {
+    // For existing records (edit/view mode), populate with data from server
+    if (existingRecord && recordId && !isNewRecord) {
       console.log('Setting form values from existing record:', existingRecord);
       
       // Reset the form with default values first to clear any previous data
@@ -238,7 +241,12 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
         setSelectedProject(existingRecord.projectId);
       }
     }
-  }, [nextIdData, existingRecord, form, recordId, defaultValues]);
+    
+    // For the special "new" case, ensure we reset the form properly
+    if (isNewRecord) {
+      form.reset(defaultValues);
+    }
+  }, [nextIdData, existingRecord, form, recordId, defaultValues, isNewRecord]);
 
   // Handle project selection
   const handleProjectSelect = (projectId: string) => {
