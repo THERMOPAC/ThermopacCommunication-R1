@@ -157,8 +157,23 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     if (existingRecord && recordId) {
       // Populate form with existing record data
       Object.entries(existingRecord).forEach(([key, value]) => {
-        // @ts-ignore: Dynamic key access
-        form.setValue(key, value);
+        // Handle date fields specifically
+        if (key === 'inspectionDate' && value) {
+          try {
+            // Convert string date to Date object
+            const dateValue = new Date(value);
+            if (!isNaN(dateValue.getTime())) {
+              // @ts-ignore: Dynamic key access
+              form.setValue(key, dateValue);
+            }
+          } catch (error) {
+            console.error('Error parsing date:', error);
+          }
+        } else {
+          // For non-date fields, set the value directly
+          // @ts-ignore: Dynamic key access
+          form.setValue(key, value);
+        }
       });
       
       // Set selected project for proper dropdown population
@@ -275,10 +290,18 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
 
   // Handle form submission
   const onSubmit = (data: MaterialIdentificationFormValues) => {
-    // Format the inspection date
+    // Format the inspection date if it's valid
+    let formattedDate = '';
+    if (data.inspectionDate instanceof Date && !isNaN(data.inspectionDate.getTime())) {
+      formattedDate = format(data.inspectionDate, "yyyy-MM-dd");
+    } else {
+      // Default to today if date is invalid
+      formattedDate = format(new Date(), "yyyy-MM-dd");
+    }
+    
     const formattedData = {
       ...data,
-      inspectionDate: format(data.inspectionDate, "yyyy-MM-dd"),
+      inspectionDate: formattedDate,
     };
     
     // Submit the data to the appropriate mutation based on mode
@@ -680,7 +703,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                                   !field.value && "text-muted-foreground"
                                 )}
                               >
-                                {field.value ? (
+                                {field.value instanceof Date && !isNaN(field.value.getTime()) ? (
                                   format(field.value, "PPP")
                                 ) : (
                                   <span>Select date</span>
@@ -692,7 +715,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                           <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
                               mode="single"
-                              selected={field.value}
+                              selected={field.value instanceof Date && !isNaN(field.value.getTime()) ? field.value : undefined}
                               onSelect={field.onChange}
                               disabled={(date) =>
                                 date > new Date() || date < new Date("1900-01-01")
