@@ -187,8 +187,17 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
     if (project) {
       // Update form with project data
       const projectValue = (project.code || project.projectCode || project.projectNumber || '') as string;
+      
+      // Explicitly set the project number and name
+      console.log(`Setting project number to: ${projectValue}`);
+      console.log(`Setting project name to: ${project.name}`);
+      
       form.setValue('projectNumber', projectValue);
       form.setValue('projectName', project.name);
+      
+      // This is important - mark fields as touched to ensure they're included in the submission
+      form.trigger('projectNumber');
+      form.trigger('projectName');
     }
   };
 
@@ -259,16 +268,28 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
     const materialStatus = data.materialStatus || currentFormValues.materialStatus || '';
     const remarks = data.remarks !== undefined ? data.remarks : (currentFormValues.remarks || '');
     
-    // Format data and update
+    // Make sure we explicitly map all fields, focusing on the problematic ones
     const formattedData = {
-      ...data,
-      materialDescription,
-      quantity,
-      materialStatus,
-      remarks,
+      materialIdentificationId: data.materialIdentificationId,
+      projectId: selectedProject, // Add the projectId
+      projectNumber: data.projectNumber || currentFormValues.projectNumber,
+      projectName: data.projectName || currentFormValues.projectName,
+      inspectionOrderNumber: data.inspectionOrderNumber || '',
+      materialDescription: materialDescription,
+      materialCode: data.materialCode || currentFormValues.materialCode,
+      specification: data.specification || currentFormValues.specification,
+      materialGrade: data.materialGrade || currentFormValues.materialGrade,
+      heatNumber: data.heatNumber || currentFormValues.heatNumber,
+      batchNumber: data.batchNumber || currentFormValues.batchNumber,
+      millName: data.millName || currentFormValues.millName,
+      millTestCertificateNumber: data.millTestCertificateNumber || currentFormValues.millTestCertificateNumber,
+      quantity: quantity,
+      dimensions: data.dimensions || currentFormValues.dimensions,
+      materialStatus: materialStatus,
+      inspectorName: data.inspectorName || currentFormValues.inspectorName,
       inspectionDate: formattedDate,
-      id: recordId,
-      projectId: selectedProject // Add the projectId
+      remarks: remarks,
+      id: recordId
     };
     
     console.log("Submitting data:", formattedData);
@@ -673,10 +694,18 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                   </Button>
                   
                   <Button 
+                    type="submit"
                     variant="default" 
-                    onClick={form.handleSubmit(onSubmit)}
                     className="flex items-center gap-2"
                     disabled={updateMutation.isPending}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      // Mark all fields as touched to ensure they're included in validation and submission
+                      Object.keys(form.getValues()).forEach(fieldName => {
+                        form.trigger(fieldName as any);
+                      });
+                      form.handleSubmit(onSubmit)();
+                    }}
                   >
                     <Save className="h-4 w-4" />
                     {updateMutation.isPending ? "Saving..." : "Save Changes"}
