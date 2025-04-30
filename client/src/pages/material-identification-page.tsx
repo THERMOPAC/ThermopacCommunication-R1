@@ -225,33 +225,42 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   // Log the form's disabled state on every render for debugging
   console.log("Form initialization - disabled state:", formDisabled, "Form object:", form);
   
-  // Create a key that changes when edit mode changes
-  // This will force React to remount the Form component with new disabled state
-  const formKey = isEditMode ? 'edit-mode' : 'view-mode';
+  // Instead of trying to update the form state, completely force a form remount
+  // when edit mode changes by using a timestamp in the key
+  // This will cause React to completely unmount and remount the form component
+  const formKey = isEditMode ? `edit-mode-${Date.now()}` : `view-mode-${Date.now()}`;
   
   useEffect(() => {
-    console.log("Edit mode or form disabled state changed:", { isEditMode, formDisabled });
+    console.log("Edit mode changed:", { isEditMode, formDisabled, key: formKey });
     
     if (form) {
-      // Store current values
-      const currentValues = form.getValues();
-      
-      // Log the form's status before and after reset
-      console.log("Form state before reset:", form.formState);
-      
-      // Make sure the form has the correct disabled state
-      form.reset(currentValues, { 
-        keepValues: true,
-        keepDirty: isEditMode,
-        keepTouched: isEditMode,
-        keepDefaultValues: true,
-        keepIsSubmitted: false,
-        keepIsValid: true,
-      });
-      
-      console.log("Form reset with disabled:", formDisabled, "Form state after reset:", form.formState);
+      // If in edit mode, we want to preserve existing values
+      if (isEditMode && existingRecord) {
+        console.log("Re-initializing form for edit mode with existingRecord");
+        // Set the actual form values directly from the server data
+        Object.entries(existingRecord).forEach(([key, value]) => {
+          if (value === null || value === undefined) return;
+          
+          // Handle date fields specifically
+          if (key === 'inspectionDate' && value) {
+            try {
+              const dateValue = new Date(value);
+              if (!isNaN(dateValue.getTime())) {
+                // @ts-ignore: Dynamic key access
+                form.setValue(key, dateValue);
+              }
+            } catch (error) {
+              console.error('Error parsing date:', error);
+            }
+          } else {
+            // For non-date fields, set the value directly
+            // @ts-ignore: Dynamic key access
+            form.setValue(key, value);
+          }
+        });
+      }
     }
-  }, [isEditMode, formDisabled, form]);
+  }, [isEditMode, formDisabled, formKey]);
 
   // Set next MI ID from API (for new records) or populate form with existing data (for edit/view)
   useEffect(() => {
@@ -948,21 +957,16 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                             type="button"
                             variant="outline"
                             onClick={() => {
-                              // Return to view mode
+                              // Return to view mode - this will remount the form with formDisabled=true
                               setIsEditModeState(false);
-                              // Repopulate form with original data if we have it
-                              if (existingRecord) {
-                                form.reset();
-                                Object.entries(existingRecord).forEach(([key, value]) => {
-                                  if (value === null || value === undefined) return;
-                                  // @ts-ignore: Dynamic key access
-                                  form.setValue(key, value);
-                                });
-                              }
+                              
+                              // We don't need to manually reset the form since it will be remounted
                               toast({
                                 title: "Edit Mode Canceled",
                                 description: "No changes were saved.",
                               });
+                              
+                              console.log("Edit mode canceled - form will be remounted with disabled=true");
                             }}
                           >
                             Cancel Edit
@@ -979,22 +983,14 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                           // Use React state to enable edit mode
                           setIsEditModeState(true);
                           
-                          // Form will be enabled automatically when formDisabled becomes false
-                          
-                          // Reset form with previous values but in editable mode
-                          const currentValues = form.getValues();
-                          form.reset(currentValues, {
-                            keepValues: true,
-                            keepDefaultValues: true
-                          });
-                          
+                          // Force immediate remount of the form with new formDisabled=false
+                          // We don't need any fancy form state management since the form will be completely recreated
                           toast({
                             title: "Edit Mode Activated",
                             description: "You can now make changes to this record.",
                           });
                           
-                          // Log the form's status
-                          console.log("Form enabled in edit button, disabled status:", form.formState.disabled);
+                          console.log("Edit mode activated - form will be remounted with disabled=false");
                         }}
                       >
                         Edit Record
