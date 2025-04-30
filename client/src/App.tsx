@@ -115,9 +115,21 @@ function Router() {
       <ProtectedRoute path="/quality/welder-certificates/:welderId" component={WelderCertificatesPage} />
       <ProtectedRoute path="/welder-test" component={WelderTestPage} />
       <ProtectedRoute path="/calibration-management" component={CalibrationManagementPage} />
+      {/* Material Identification routes with /quality prefix */}
       <ProtectedRoute path="/quality/material-identification/new" component={MaterialIdentificationPage} />
       <ProtectedRoute path="/quality/material-identification" component={MaterialIdentificationListPage} />
       <ProtectedRoute path="/quality/material-identification/:id" component={MaterialIdentificationPage} />
+      
+      {/* Redirects from old to new routes */}
+      <Route path="/material-identification/new">
+        <Redirect to="/quality/material-identification/new" />
+      </Route>
+      <Route path="/material-identification">
+        <Redirect to="/quality/material-identification" />
+      </Route>
+      <Route path="/material-identification/:id">
+        {(params) => <Redirect to={`/quality/material-identification/${params.id}`} />}
+      </Route>
       <ProtectedRoute path="/inspections" component={InspectionsPage} />
       <ProtectedRoute path="/inspection-management" component={InspectionManagementPage} />
       <ProtectedRoute path="/quality-reports" component={QualityReportsPage} />

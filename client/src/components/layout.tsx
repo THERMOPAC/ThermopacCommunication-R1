@@ -66,6 +66,7 @@ export default function Layout({ children }: LayoutProps) {
                         location === '/wps-pqr/wps' ||
                         location === '/wps-pqr/pqr' ||
                         location === '/welder-management' ||
+                        location.startsWith('/quality/material-identification') ||
                         location === '/material-identification' ||
                         location === '/inspections' ||
                         location === '/inspection-management' ||
@@ -157,7 +158,7 @@ export default function Layout({ children }: LayoutProps) {
         { icon: FileCheck, label: "WPS and PQR", href: "/wps-pqr-management" },
         { icon: FileCheck, label: "WPQR Documents", href: "/wpqr" },
         { icon: UserCheck, label: "Welder Management", href: "/welder-management" },
-        { icon: CheckSquare, label: "Material Identification", href: "/material-identification" },
+        { icon: CheckSquare, label: "Material Identification", href: "/quality/material-identification" },
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
         { icon: FileCheck, label: "Inspection Management", href: "/inspection-management" },
         { icon: Award, label: "Quality Reports", href: "/quality-reports" },
