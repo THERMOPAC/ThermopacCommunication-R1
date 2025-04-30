@@ -100,18 +100,28 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   });
   
   // Fetch existing record for edit or view mode
-  const { data: existingRecord, isLoading: isLoadingRecord } = useQuery({
+  const { data: existingRecord, isLoading: isLoadingRecord, error: recordError } = useQuery({
     queryKey: ['/api/quality/material-identification', recordId],
     enabled: !!recordId,
+    queryFn: async ({ queryKey }) => {
+      // Get the record ID from the queryKey
+      const id = queryKey[1];
+      if (!id) throw new Error('No record ID provided');
+      
+      console.log('Fetching record with ID:', id);
+      
+      // Make direct fetch to ensure we have control over error handling
+      const response = await fetch(`/api/quality/material-identification/${id}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to load record');
+      }
+      
+      return response.json();
+    },
     select: (data: any) => {
       // Debug log to see the raw API response
       console.log('API response data:', data);
-      
-      // Check if we have valid data or error response
-      if (!data || data.error) {
-        console.error('Invalid API response:', data);
-        return null;
-      }
       
       // Transform snake_case DB fields to camelCase for the form
       const record = {
@@ -138,16 +148,20 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
       
       console.log('Transformed record:', record);
       return record;
-    },
-    onError: (err) => {
-      console.error('Error fetching record:', err);
+    }
+  });
+  
+  // Handle record loading error
+  useEffect(() => {
+    if (recordError) {
+      console.error('Error fetching record:', recordError);
       toast({
         title: "Error Loading Record",
-        description: "Failed to load the Material Identification record. Please try again.",
+        description: recordError instanceof Error ? recordError.message : "Failed to load the Material Identification record.",
         variant: "destructive",
       });
     }
-  });
+  }, [recordError, toast]);
 
   // Default values for the form
   const defaultValues: Partial<MaterialIdentificationFormValues> = {
@@ -186,8 +200,15 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     }
     
     if (existingRecord && recordId) {
+      console.log('Setting form values from existing record:', existingRecord);
+      
+      // Reset the form with default values first to clear any previous data
+      form.reset(defaultValues);
+      
       // Populate form with existing record data
       Object.entries(existingRecord).forEach(([key, value]) => {
+        if (value === null || value === undefined) return;
+        
         // Handle date fields specifically
         if (key === 'inspectionDate' && value) {
           try {
@@ -212,7 +233,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
         setSelectedProject(existingRecord.projectId);
       }
     }
-  }, [nextIdData, existingRecord, form, recordId]);
+  }, [nextIdData, existingRecord, form, recordId, defaultValues]);
 
   // Handle project selection
   const handleProjectSelect = (projectId: string) => {
@@ -403,7 +424,8 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         <FormLabel>Project No.</FormLabel>
                         <Select
                           onValueChange={(value) => handleProjectSelect(value)}
-                          defaultValue=""
+                          value={selectedProject?.toString() || ""}
+                          disabled={isViewMode}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -465,8 +487,8 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         <FormLabel>Inspection Order No.</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          disabled={!selectedProject}
+                          value={field.value || ""}
+                          disabled={!selectedProject || isViewMode}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -542,7 +564,8 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         <FormLabel>Material Grade</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value || ""}
+                          disabled={isViewMode}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -572,6 +595,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                             <SelectItem value="ASTM A106 Gr B">ASTM A106 Gr B</SelectItem>
                             <SelectItem value="ASTM A333 Gr 6">ASTM A333 Gr 6</SelectItem>
                             <SelectItem value="ASTM A515 Gr 70">ASTM A515 Gr 70</SelectItem>
+                            <SelectItem value="Gr.B">Gr.B</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -683,7 +707,8 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         <FormLabel>Material Status</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value || ""}
+                          disabled={isViewMode}
                         >
                           <FormControl>
                             <SelectTrigger>
