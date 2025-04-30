@@ -354,6 +354,65 @@ router.get("/new", async (req, res) => {
   }
 });
 
+// Update (edit) material identification record
+router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const data = req.body;
+    
+    // If user is authenticated, add user ID as updater
+    if (req.user) {
+      data.updatedBy = req.user.id;
+    }
+    
+    // Check if the record exists
+    const checkRecord = await db.execute(sql`
+      SELECT id FROM material_identification WHERE id = ${id}
+    `) as any;
+    
+    if (!checkRecord || !checkRecord.rows || checkRecord.rows.length === 0) {
+      return res.status(404).json({ error: "Material identification record not found" });
+    }
+    
+    // Update the record
+    const result = await db.execute(sql`
+      UPDATE material_identification SET
+        material_identification_id = ${data.materialIdentificationId},
+        project_id = ${data.projectId},
+        project_number = ${data.projectNumber},
+        project_name = ${data.projectName},
+        inspection_order_number = ${data.inspectionOrderNumber},
+        material_description = ${data.materialDescription},
+        material_code = ${data.materialCode},
+        specification = ${data.specification},
+        material_grade = ${data.materialGrade},
+        heat_number = ${data.heatNumber},
+        batch_number = ${data.batchNumber || null},
+        mill_name = ${data.millName},
+        mill_test_certificate_number = ${data.millTestCertificateNumber},
+        quantity = ${data.quantity},
+        dimensions = ${data.dimensions},
+        material_status = ${data.materialStatus},
+        inspector_name = ${data.inspectorName},
+        inspection_date = ${data.inspectionDate},
+        remarks = ${data.remarks || null},
+        updated_by = ${data.updatedBy || null},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${id}
+      RETURNING *
+    `);
+    
+    if (result && result.rows && result.rows.length > 0) {
+      res.json(result.rows[0]);
+    } else {
+      throw new Error("No data returned from update operation");
+    }
+  } catch (error) {
+    console.error("Error updating material identification:", error);
+    res.status(500).json({ error: "Failed to update material identification" });
+  }
+});
+
 // Get material identification by ID - this must come after all other specific routes
 router.get("/:id", async (req, res) => {
   try {
