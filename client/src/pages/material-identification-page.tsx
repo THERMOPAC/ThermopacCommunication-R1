@@ -58,11 +58,17 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
   const editParam = searchParams.get('edit');
   console.log('Edit param:', editParam);
+  console.log('URL location:', location);
+  console.log('Search params string:', location.split('?')[1] || '');
+  
   const isEditMode = editParam === 'true';
+  console.log('isEditMode:', isEditMode);
   const isViewMode = recordId && !isNewRecord && !isEditMode;
+  console.log('isViewMode:', isViewMode);
   
   // Force form to be editable when explicit edit=true param is present or creating new record
   const formDisabled = isViewMode;
+  console.log('formDisabled:', formDisabled);
   
   // Debug logs
   console.log('Route params:', routeParams);
