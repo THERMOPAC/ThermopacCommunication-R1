@@ -146,8 +146,8 @@ export default function MaterialIdentificationViewPage({ params }: { params?: { 
     if (existingRecord && recordId) {
       console.log('Setting form values from existing record:', existingRecord);
       
-      // Reset the form with default values first to clear any previous data
-      form.reset(defaultValues);
+      // Collect all values into a single object to avoid multiple setValue calls
+      const formValues = {...defaultValues};
       
       // Populate form with existing record data
       Object.entries(existingRecord).forEach(([key, value]) => {
@@ -160,7 +160,7 @@ export default function MaterialIdentificationViewPage({ params }: { params?: { 
             const dateValue = new Date(value);
             if (!isNaN(dateValue.getTime())) {
               // @ts-ignore: Dynamic key access
-              form.setValue(key, dateValue);
+              formValues[key] = dateValue;
             }
           } catch (error) {
             console.error('Error parsing date:', error);
@@ -168,11 +168,14 @@ export default function MaterialIdentificationViewPage({ params }: { params?: { 
         } else {
           // For non-date fields, set the value directly
           // @ts-ignore: Dynamic key access
-          form.setValue(key, value);
+          formValues[key] = value;
         }
       });
+      
+      // Reset with all values at once
+      form.reset(formValues);
     }
-  }, [existingRecord, form, recordId, defaultValues]);
+  }, [existingRecord, recordId]); // Remove form and defaultValues from dependencies
 
   // Loading state while fetching record data
   if (isLoadingRecord && recordId) {
