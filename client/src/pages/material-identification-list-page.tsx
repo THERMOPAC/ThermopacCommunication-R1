@@ -399,7 +399,7 @@ export default function MaterialIdentificationListPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  navigate(`/quality/material-identification/${mi.id}`)
+                                  navigate(`/quality/material-identification/view/${mi.id}`)
                                 }
                               >
                                 View
@@ -408,7 +408,7 @@ export default function MaterialIdentificationListPage() {
                                 variant="default"
                                 size="sm"
                                 onClick={() =>
-                                  navigate(`/quality/material-identification/${mi.id}?edit=true`)
+                                  navigate(`/quality/material-identification/edit/${mi.id}`)
                                 }
                               >
                                 Edit

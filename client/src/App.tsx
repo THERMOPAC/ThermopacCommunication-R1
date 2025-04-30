@@ -24,6 +24,8 @@ import InspectionsPage from "@/pages/inspections-page";
 import InspectionManagementPage from "@/pages/inspection-management-page";
 import MaterialIdentificationPage from "@/pages/material-identification-page";
 import MaterialIdentificationListPage from "@/pages/material-identification-list-page";
+import MaterialIdentificationViewPage from "@/pages/material-identification-view-page";
+import MaterialIdentificationEditPage from "@/pages/material-identification-edit-page";
 import WpsPqrPage from "@/pages/wps-pqr-page";
 import WpsPqrManagementPage from "@/pages/wps-pqr-management-page";
 import WpqrPage from "@/pages/wpqr-page";
@@ -118,7 +120,19 @@ function Router() {
       {/* Material Identification routes with /quality prefix */}
       <ProtectedRoute path="/quality/material-identification/new" component={MaterialIdentificationPage} />
       <ProtectedRoute path="/quality/material-identification" component={MaterialIdentificationListPage} />
-      <ProtectedRoute path="/quality/material-identification/:id" component={MaterialIdentificationPage} />
+      <ProtectedRoute path="/quality/material-identification/view/:id" component={() => (
+        // @ts-ignore - dynamic import
+        require("./pages/material-identification-view-page").default({ params: { id: window.location.pathname.split('/').pop() } })
+      )} />
+      <ProtectedRoute path="/quality/material-identification/edit/:id" component={() => (
+        // @ts-ignore - dynamic import
+        require("./pages/material-identification-edit-page").default({ params: { id: window.location.pathname.split('/').pop() } })
+      )} />
+      
+      {/* Legacy route for backward compatibility, redirects to view page */}
+      <Route path="/quality/material-identification/:id">
+        {(params) => <Redirect to={`/quality/material-identification/view/${params.id}`} />}
+      </Route>
       
       {/* Redirects from old to new routes */}
       <Route path="/material-identification/new">
@@ -128,7 +142,7 @@ function Router() {
         <Redirect to="/quality/material-identification" />
       </Route>
       <Route path="/material-identification/:id">
-        {(params) => <Redirect to={`/quality/material-identification/${params.id}`} />}
+        {(params) => <Redirect to={`/quality/material-identification/view/${params.id}`} />}
       </Route>
       <ProtectedRoute path="/inspections" component={InspectionsPage} />
       <ProtectedRoute path="/inspection-management" component={InspectionManagementPage} />
