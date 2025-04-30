@@ -600,9 +600,28 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Specification</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="e.g., ASTM / ASME / API Standard" />
-                        </FormControl>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || ""}
+                          disabled={isViewMode}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select specification standard" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="API">API</SelectItem>
+                            <SelectItem value="ASME">ASME</SelectItem>
+                            <SelectItem value="ASTM">ASTM</SelectItem>
+                            <SelectItem value="ATEX">ATEX</SelectItem>
+                            <SelectItem value="BS">BS</SelectItem>
+                            <SelectItem value="DIN">DIN</SelectItem>
+                            <SelectItem value="EN">EN</SelectItem>
+                            <SelectItem value="IECEx">IECEx</SelectItem>
+                            <SelectItem value="ISO">ISO</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
