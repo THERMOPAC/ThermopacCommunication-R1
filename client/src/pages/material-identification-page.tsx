@@ -75,7 +75,8 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   interface Project {
     id: number;
     projectNumber?: string; // Legacy field
-    projectCode: string;    // This is what we want to display
+    projectCode?: string;   // Might be used in some cases
+    code: string;          // The actual field from the projects table
     name: string;
   }
   
@@ -271,9 +272,18 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     const project = projects.find(p => p.id === id);
     if (project) {
       // Store the project info in the form
-      // Use projectCode as the primary identifier (new format) with fallbacks for compatibility
-      const projectValue = (project.projectCode || project.projectNumber || '') as string;
+      // Use code field as the primary identifier from the projects table
+      const projectValue = (project.code || project.projectCode || project.projectNumber || '') as string;
       form.setValue('projectNumber', projectValue);
+      
+      // Debug information about the project data
+      console.log('Selected project data:', {
+        id: project.id,
+        code: project.code,
+        projectCode: project.projectCode,
+        projectNumber: project.projectNumber,
+        name: project.name
+      });
       form.setValue('projectName', project.name);
       
       console.log('Selected project:', project);
@@ -467,7 +477,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                           <SelectContent>
                             {projects.map((project) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
-                                {project.projectCode || project.projectNumber || `Project ${project.id}`}
+                                {project.code || project.projectCode || project.projectNumber || `Project ${project.id}`}
                               </SelectItem>
                             ))}
                           </SelectContent>
