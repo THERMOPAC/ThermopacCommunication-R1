@@ -144,6 +144,8 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   const form = useForm<MaterialIdentificationFormValues>({
     resolver: zodResolver(materialIdentificationSchema),
     defaultValues,
+    mode: "onBlur",
+    disabled: isViewMode // Disable all inputs when in view-only mode
   });
 
   // Set next MI ID from API (for new records) or populate form with existing data (for edit/view)
@@ -726,15 +728,31 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                   />
                 </div>
                 
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-between gap-2">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => form.reset(defaultValues)}
+                    onClick={() => navigate('/quality/material-identification')}
                   >
-                    Reset
+                    Back to List
                   </Button>
-                  <Button type="submit">Create Material Identification</Button>
+                  
+                  <div className="flex space-x-2">
+                    {!isViewMode && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => form.reset(isEditMode ? existingRecord : defaultValues)}
+                        >
+                          {isEditMode ? 'Reset Changes' : 'Clear Form'}
+                        </Button>
+                        <Button type="submit">
+                          {isEditMode ? 'Update' : 'Create'} Material Identification
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </form>
             </Form>
