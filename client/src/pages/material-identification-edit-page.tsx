@@ -1,22 +1,22 @@
-import { useEffect, useState } from "react";
+import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { format } from "date-fns";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { CalendarIcon, Save, X } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, ArrowLeft, Save, X } from "lucide-react";
 
 // Define the form schema
 const materialIdentificationSchema = z.object({
@@ -44,16 +44,33 @@ const materialIdentificationSchema = z.object({
 
 type MaterialIdentificationFormValues = z.infer<typeof materialIdentificationSchema>;
 
+// Edit page component
 export default function MaterialIdentificationEditPage({ params }: { params?: { id?: string } }) {
   const { toast } = useToast();
-  const [selectedProject, setSelectedProject] = useState<number | null>(null);
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
+  const [selectedProject, setSelectedProject] = React.useState<number | null>(null);
   
   // Extract ID from route params
   const recordId = params?.id;
   
-  // Default values for the form
-  const defaultValues: Partial<MaterialIdentificationFormValues> = {
+  // Define types for API responses
+  interface Project {
+    id: number;
+    projectNumber?: string; // Legacy field
+    projectCode?: string;   // Might be used in some cases
+    code: string;          // The actual field from the projects table
+    name: string;
+    status: string;        // Project status (active, completed, etc.)
+  }
+  
+  interface InspectionOrder {
+    id: number;
+    inspectionOrderNumber: string;
+    title: string;
+  }
+  
+  // Default form values
+  const defaultValues = React.useMemo<Partial<MaterialIdentificationFormValues>>(() => ({
     materialIdentificationId: '',
     projectName: '',
     projectNumber: '',
@@ -72,75 +89,47 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
     inspectorName: '',
     inspectionDate: new Date(),
     remarks: ''
-  };
-  
-  // Initialize form - explicitly not disabled since this is the edit page
+  }), []);
+
+  // Initialize form
   const form = useForm<MaterialIdentificationFormValues>({
     resolver: zodResolver(materialIdentificationSchema),
     defaultValues,
-    mode: "onBlur",
-    disabled: false, // Explicitly set to false for edit mode
+    mode: "onBlur"
   });
-
-  // Define types for the API responses
-  interface Project {
-    id: number;
-    projectNumber?: string; // Legacy field
-    projectCode?: string;   // Might be used in some cases
-    code: string;          // The actual field from the projects table
-    name: string;
-    status: string;        // Project status (active, completed, etc.)
-  }
-  
-  interface InspectionOrder {
-    id: number;
-    inspectionOrderNumber: string;
-    title: string;
-  }
 
   // Fetch projects
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ['/api/projects'],
-    select: (data) => {
-      // Log projects status for debugging
-      console.log('All projects:', data.map(p => ({ id: p.id, code: p.code, status: p.status })));
-      console.log('Active projects:', data.filter(p => p.status === 'active').map(p => ({ id: p.id, code: p.code })));
-      return data;
-    }
   });
-  
-  // Fetch inspection orders for the selected project
+
+  // Fetch inspection orders for selected project
   const { data: inspectionOrders = [] } = useQuery<InspectionOrder[]>({
     queryKey: ['/api/quality/inspection-orders/project', selectedProject],
     enabled: !!selectedProject,
   });
 
-  // Fetch existing record for edit
-  const { data: existingRecord, isLoading: isLoadingRecord, error: recordError } = useQuery({
+  // Fetch existing record
+  const { 
+    data: existingRecord, 
+    isLoading: isLoadingRecord, 
+    error: recordError 
+  } = useQuery({
     queryKey: ['/api/quality/material-identification', recordId],
     enabled: !!recordId,
-    queryFn: async ({ queryKey }) => {
-      // Get the record ID from the queryKey
-      const id = queryKey[1];
-      if (!id) throw new Error('No record ID provided');
+    queryFn: async () => {
+      if (!recordId) throw new Error('No record ID provided');
       
-      console.log('Fetching record with ID:', id);
-      
-      // Make direct fetch to ensure we have control over error handling
-      const response = await fetch(`/api/quality/material-identification/${id}`);
+      const response = await fetch(`/api/quality/material-identification/${recordId}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to load record');
       }
       
-      return response.json();
-    },
-    select: (data: any) => {
-      // Debug log to see the raw API response
-      console.log('API response data:', data);
+      const data = await response.json();
       
-      // Transform snake_case DB fields to camelCase for the form
-      const record = {
+      // Transform the data for the form
+      return {
         materialIdentificationId: data.material_identification_id,
         projectId: data.project_id,
         projectName: data.project_name,
@@ -161,110 +150,51 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
         inspectionDate: data.inspection_date ? new Date(data.inspection_date) : new Date(),
         remarks: data.remarks || ''
       };
-      
-      console.log('Transformed record:', record);
-      return record;
     }
   });
   
   // Handle record loading error
-  useEffect(() => {
+  React.useEffect(() => {
     if (recordError) {
-      console.error('Error fetching record:', recordError);
       toast({
         title: "Error Loading Record",
-        description: recordError instanceof Error ? recordError.message : "Failed to load the Material Identification record.",
+        description: recordError instanceof Error ? recordError.message : "Failed to load the record",
         variant: "destructive",
       });
     }
   }, [recordError, toast]);
 
-  // Populate form with existing data once it's available
-  useEffect(() => {
+  // Set form values when record is loaded
+  React.useEffect(() => {
     if (existingRecord && recordId) {
-      console.log('Setting form values from existing record:', existingRecord);
+      // Set form values
+      form.reset(existingRecord);
       
-      // Create a new object with all values to set at once
-      const formValues = {...defaultValues};
-      
-      // Populate object with existing record data
-      Object.entries(existingRecord).forEach(([key, value]) => {
-        if (value === null || value === undefined) return;
-        
-        // Handle date fields specifically
-        if (key === 'inspectionDate' && value) {
-          try {
-            // Convert string date to Date object
-            const dateValue = new Date(value);
-            if (!isNaN(dateValue.getTime())) {
-              // @ts-ignore: Dynamic key access
-              formValues[key] = dateValue;
-            }
-          } catch (error) {
-            console.error('Error parsing date:', error);
-          }
-        } else {
-          // For non-date fields, set the value directly
-          // @ts-ignore: Dynamic key access
-          formValues[key] = value;
-        }
-      });
-      
-      // Reset with all values at once
-      form.reset(formValues, {
-        keepDirty: false,
-        keepValues: true,
-        keepDefaultValues: false,
-      });
-      
-      // Set selected project for proper dropdown population
+      // Set selected project
       if (existingRecord.projectId) {
         setSelectedProject(existingRecord.projectId);
       }
     }
-  }, [existingRecord, recordId]); // Remove form and defaultValues from dependencies
+  }, [existingRecord, form, recordId]);
 
   // Handle project selection
   const handleProjectSelect = (projectId: string) => {
     const id = parseInt(projectId, 10);
     setSelectedProject(id);
     
-    // Find project by ID
+    // Find project data
     const project = projects.find(p => p.id === id);
     if (project) {
-      // Store the project info in the form
-      // Use code field as the primary identifier from the projects table
+      // Update form with project data
       const projectValue = (project.code || project.projectCode || project.projectNumber || '') as string;
       form.setValue('projectNumber', projectValue);
-      
-      // Debug information about the project data
-      console.log('Selected project data:', {
-        id: project.id,
-        code: project.code,
-        projectCode: project.projectCode,
-        projectNumber: project.projectNumber,
-        name: project.name
-      });
       form.setValue('projectName', project.name);
-      
-      console.log('Selected project:', project);
     }
   };
 
-  // Type for API response
-  interface MaterialIdentificationResponse {
-    id: number;
-    materialIdentificationId: string;
-    // other fields as needed
-  }
-
-  // Create a mutation for updating existing records
-  const updateMutation = useMutation<
-    MaterialIdentificationResponse, 
-    Error, 
-    Omit<MaterialIdentificationFormValues, 'inspectionDate'> & { inspectionDate: string, id: string }
-  >({
-    mutationFn: async (formData) => {
+  // Create mutation for update
+  const updateMutation = useMutation({
+    mutationFn: async (formData: any) => {
       const response = await fetch(`/api/quality/material-identification/${recordId}`, {
         method: 'PUT',
         headers: {
@@ -275,7 +205,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update material identification record');
+        throw new Error(errorData.message || 'Failed to update record');
       }
       
       return response.json();
@@ -286,7 +216,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
         description: `MI ID: ${form.getValues().materialIdentificationId} has been updated successfully.`,
       });
       
-      // Navigate back to the view page
+      // Navigate back to view page
       navigate(`/quality/material-identification/view/${recordId}`);
     },
     onError: (error: Error) => {
@@ -300,29 +230,26 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
 
   // Handle form submission
   const onSubmit = (data: MaterialIdentificationFormValues) => {
-    // Format the inspection date if it's valid
+    // Format inspection date
     let formattedDate = '';
     if (data.inspectionDate instanceof Date && !isNaN(data.inspectionDate.getTime())) {
       formattedDate = format(data.inspectionDate, "yyyy-MM-dd");
     } else {
-      // Default to today if date is invalid
       formattedDate = format(new Date(), "yyyy-MM-dd");
     }
     
+    // Format data and update
     const formattedData = {
       ...data,
       inspectionDate: formattedDate,
+      id: recordId
     };
     
-    // Submit the data to update the record
-    updateMutation.mutate({
-      ...formattedData,
-      id: recordId || ''
-    });
+    updateMutation.mutate(formattedData);
   };
 
-  // Loading state while fetching record data
-  if (isLoadingRecord && recordId) {
+  // Show loading state
+  if (isLoadingRecord) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-[60vh]">
@@ -360,9 +287,10 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
               variant="default" 
               onClick={form.handleSubmit(onSubmit)}
               className="flex items-center gap-2"
+              disabled={updateMutation.isPending}
             >
               <Save className="h-4 w-4" />
-              Save Changes
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </div>
@@ -419,7 +347,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                       <FormItem>
                         <FormLabel>Project Name</FormLabel>
                         <FormControl>
-                          <Input {...field} readOnly={true} />
+                          <Input {...field} readOnly />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -433,7 +361,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                       <FormItem>
                         <FormLabel>MI ID</FormLabel>
                         <FormControl>
-                          <Input {...field} readOnly={true} />
+                          <Input {...field} readOnly />
                         </FormControl>
                         <FormDescription>
                           Format: MI-YYYY-N (Year-Sequence)
@@ -515,27 +443,9 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Specification</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value || ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select specification standard" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="API">API</SelectItem>
-                            <SelectItem value="ASME">ASME</SelectItem>
-                            <SelectItem value="ASTM">ASTM</SelectItem>
-                            <SelectItem value="ATEX">ATEX</SelectItem>
-                            <SelectItem value="BS">BS</SelectItem>
-                            <SelectItem value="DIN">DIN</SelectItem>
-                            <SelectItem value="EN">EN</SelectItem>
-                            <SelectItem value="IECEx">IECEx</SelectItem>
-                            <SelectItem value="ISO">ISO</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -547,41 +457,9 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Material Grade</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value || ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select material grade" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="SA-516 Gr 60">SA-516 Gr 60</SelectItem>
-                            <SelectItem value="SA-516 Gr 70">SA-516 Gr 70</SelectItem>
-                            <SelectItem value="SA-106 Gr B">SA-106 Gr B</SelectItem>
-                            <SelectItem value="SA-106 Gr C">SA-106 Gr C</SelectItem>
-                            <SelectItem value="SA-36">SA-36</SelectItem>
-                            <SelectItem value="SA-537 Cl 1">SA-537 Cl 1</SelectItem>
-                            <SelectItem value="SA-537 Cl 2">SA-537 Cl 2</SelectItem>
-                            <SelectItem value="SA-240 Type 304">SA-240 Type 304</SelectItem>
-                            <SelectItem value="SA-240 Type 316">SA-240 Type 316</SelectItem>
-                            <SelectItem value="SA-312 TP304">SA-312 TP304</SelectItem>
-                            <SelectItem value="SA-312 TP316">SA-312 TP316</SelectItem>
-                            <SelectItem value="SA-387 Gr 11 Cl 2">SA-387 Gr 11 Cl 2</SelectItem>
-                            <SelectItem value="SA-387 Gr 22 Cl 2">SA-387 Gr 22 Cl 2</SelectItem>
-                            <SelectItem value="SA-213 TP304">SA-213 TP304</SelectItem>
-                            <SelectItem value="SA-213 TP316">SA-213 TP316</SelectItem>
-                            <SelectItem value="API 5L Gr B">API 5L Gr B</SelectItem>
-                            <SelectItem value="API 5L X42">API 5L X42</SelectItem>
-                            <SelectItem value="API 5L X52">API 5L X52</SelectItem>
-                            <SelectItem value="ASTM A36">ASTM A36</SelectItem>
-                            <SelectItem value="ASTM A106 Gr B">ASTM A106 Gr B</SelectItem>
-                            <SelectItem value="ASTM A333 Gr 6">ASTM A333 Gr 6</SelectItem>
-                            <SelectItem value="ASTM A515 Gr 70">ASTM A515 Gr 70</SelectItem>
-                            <SelectItem value="Gr.B">Gr.B</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -628,7 +506,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                       <FormItem>
                         <FormLabel>Mill Name</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Manufacturer/Mill Name" />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -659,7 +537,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                       <FormItem>
                         <FormLabel>Quantity</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="e.g., 10 Pcs" />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -673,7 +551,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                       <FormItem>
                         <FormLabel>Dimensions</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Size, Dimensions, or Thickness" />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -681,8 +559,8 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                   />
                 </div>
                 
-                {/* Eighth row: Material Status */}
-                <div className="grid grid-cols-1 gap-4">
+                {/* Eighth row: Material Status and Inspector Name */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="materialStatus"
@@ -691,7 +569,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                         <FormLabel>Material Status</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          value={field.value || ""}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -701,23 +579,21 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                           <SelectContent>
                             <SelectItem value="Accepted">Accepted</SelectItem>
                             <SelectItem value="Rejected">Rejected</SelectItem>
-                            <SelectItem value="Hold">Hold</SelectItem>
+                            <SelectItem value="On Hold">On Hold</SelectItem>
+                            <SelectItem value="Pending Inspection">Pending Inspection</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-                
-                {/* Ninth row: Inspector Name and Inspection Date */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
                   <FormField
                     control={form.control}
                     name="inspectorName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Inspector's Name</FormLabel>
+                        <FormLabel>Inspector Name</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -725,7 +601,10 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                       </FormItem>
                     )}
                   />
-                  
+                </div>
+                
+                {/* Ninth row: Inspection Date */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="inspectionDate"
@@ -736,7 +615,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                           <PopoverTrigger asChild>
                             <FormControl>
                               <Button
-                                variant={"outline"}
+                                variant="outline"
                                 className={cn(
                                   "pl-3 text-left font-normal",
                                   !field.value && "text-muted-foreground"
@@ -784,21 +663,6 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                       </FormItem>
                     )}
                   />
-                </div>
-                
-                {/* Action buttons */}
-                <div className="flex justify-end space-x-2">
-                  <Button 
-                    variant="outline" 
-                    type="button"
-                    onClick={() => navigate(`/quality/material-identification/view/${recordId}`)}
-                  >
-                    Cancel
-                  </Button>
-                  
-                  <Button type="submit">
-                    Save Changes
-                  </Button>
                 </div>
               </form>
             </Form>

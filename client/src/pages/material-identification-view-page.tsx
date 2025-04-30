@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,11 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Pencil } from "lucide-react";
 
-// Define the form schema (same as in the original file)
+// Define the form schema
 const materialIdentificationSchema = z.object({
   materialIdentificationId: z.string().min(1, "MI ID is required"),
   projectName: z.string().min(1, "Project Name is required"),
@@ -40,15 +39,16 @@ const materialIdentificationSchema = z.object({
 
 type MaterialIdentificationFormValues = z.infer<typeof materialIdentificationSchema>;
 
+// Component to display material identification record details
 export default function MaterialIdentificationViewPage({ params }: { params?: { id?: string } }) {
   const { toast } = useToast();
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
   
   // Extract ID from route params
   const recordId = params?.id;
   
-  // Default values for the form
-  const defaultValues: Partial<MaterialIdentificationFormValues> = {
+  // Default form values
+  const defaultValues: Partial<MaterialIdentificationFormValues> = React.useMemo(() => ({
     materialIdentificationId: '',
     projectName: '',
     projectNumber: '',
@@ -67,42 +67,29 @@ export default function MaterialIdentificationViewPage({ params }: { params?: { 
     inspectorName: '',
     inspectionDate: new Date(),
     remarks: ''
-  };
+  }), []);
   
-  // Initialize form with disabled state since this is view-only
-  const form = useForm<MaterialIdentificationFormValues>({
-    resolver: zodResolver(materialIdentificationSchema),
-    defaultValues,
-    mode: "onBlur",
-    disabled: true // Always disabled since this is view-only
-  });
-
-  // Fetch existing record
-  const { data: existingRecord, isLoading: isLoadingRecord, error: recordError } = useQuery({
+  // Fetch record data
+  const { 
+    data: record, 
+    isLoading, 
+    error 
+  } = useQuery({
     queryKey: ['/api/quality/material-identification', recordId],
     enabled: !!recordId,
-    queryFn: async ({ queryKey }) => {
-      // Get the record ID from the queryKey
-      const id = queryKey[1];
-      if (!id) throw new Error('No record ID provided');
+    queryFn: async () => {
+      if (!recordId) throw new Error('No record ID provided');
       
-      console.log('Fetching record with ID:', id);
-      
-      // Make direct fetch to ensure we have control over error handling
-      const response = await fetch(`/api/quality/material-identification/${id}`);
+      const response = await fetch(`/api/quality/material-identification/${recordId}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to load record');
       }
       
-      return response.json();
-    },
-    select: (data: any) => {
-      // Debug log to see the raw API response
-      console.log('API response data:', data);
+      const data = await response.json();
       
-      // Transform snake_case DB fields to camelCase for the form
-      const record = {
+      // Transform the data for the form
+      return {
         materialIdentificationId: data.material_identification_id,
         projectId: data.project_id,
         projectName: data.project_name,
@@ -123,62 +110,32 @@ export default function MaterialIdentificationViewPage({ params }: { params?: { 
         inspectionDate: data.inspection_date ? new Date(data.inspection_date) : new Date(),
         remarks: data.remarks || ''
       };
-      
-      console.log('Transformed record:', record);
-      return record;
-    }
+    },
+    staleTime: 60000 // 1 minute
   });
   
-  // Handle record loading error
-  useEffect(() => {
-    if (recordError) {
-      console.error('Error fetching record:', recordError);
+  // Initialize form with data or defaults
+  const form = useForm<MaterialIdentificationFormValues>({
+    resolver: zodResolver(materialIdentificationSchema),
+    defaultValues: record || defaultValues,
+    values: record,
+    mode: "onBlur",
+    disabled: true // Always disabled since this is view-only
+  });
+  
+  // Show error message if data fetch fails
+  React.useEffect(() => {
+    if (error) {
       toast({
         title: "Error Loading Record",
-        description: recordError instanceof Error ? recordError.message : "Failed to load the Material Identification record.",
+        description: error instanceof Error ? error.message : "Failed to load record",
         variant: "destructive",
       });
     }
-  }, [recordError, toast]);
-
-  // Populate form with existing data once it's available
-  useEffect(() => {
-    if (existingRecord && recordId) {
-      console.log('Setting form values from existing record:', existingRecord);
-      
-      // Collect all values into a single object to avoid multiple setValue calls
-      const formValues = {...defaultValues};
-      
-      // Populate form with existing record data
-      Object.entries(existingRecord).forEach(([key, value]) => {
-        if (value === null || value === undefined) return;
-        
-        // Handle date fields specifically
-        if (key === 'inspectionDate' && value) {
-          try {
-            // Convert string date to Date object
-            const dateValue = new Date(value);
-            if (!isNaN(dateValue.getTime())) {
-              // @ts-ignore: Dynamic key access
-              formValues[key] = dateValue;
-            }
-          } catch (error) {
-            console.error('Error parsing date:', error);
-          }
-        } else {
-          // For non-date fields, set the value directly
-          // @ts-ignore: Dynamic key access
-          formValues[key] = value;
-        }
-      });
-      
-      // Reset with all values at once
-      form.reset(formValues);
-    }
-  }, [existingRecord, recordId]); // Remove form and defaultValues from dependencies
-
-  // Loading state while fetching record data
-  if (isLoadingRecord && recordId) {
+  }, [error, toast]);
+  
+  // Loading state
+  if (isLoading) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-[60vh]">
@@ -223,312 +180,311 @@ export default function MaterialIdentificationViewPage({ params }: { params?: { 
           </div>
         </div>
         
-        <Card className="max-w-4xl">
-          <CardHeader>
-            <CardTitle>
-              View Material Identification Record
-            </CardTitle>
-            <CardDescription>
-              Details for Material Identification: {form.getValues().materialIdentificationId || ''}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form className="space-y-6">
-                {/* First row: Project No, Project Name, and MI ID */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="projectNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Project No.</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+        {record && (
+          <Card className="max-w-4xl">
+            <CardHeader>
+              <CardTitle>
+                View Material Identification Record
+              </CardTitle>
+              <CardDescription>
+                Details for Material Identification: {record.materialIdentificationId}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...form}>
+                <div className="space-y-6">
+                  {/* First row: Project No, Project Name, and MI ID */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="projectNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Project No.</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="projectName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Project Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="materialIdentificationId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>MI ID</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormDescription>
+                            Format: MI-YYYY-N (Year-Sequence)
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="projectName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Project Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Second row: Inspection Order Number */}
+                  <div className="grid grid-cols-1 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="inspectionOrderNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Inspection Order No.</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="materialIdentificationId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>MI ID</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormDescription>
-                          Format: MI-YYYY-N (Year-Sequence)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                {/* Second row: Inspection Order Number */}
-                <div className="grid grid-cols-1 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="inspectionOrderNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Inspection Order No.</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                {/* Third row: Material details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="materialDescription"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Material Description</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Third row: Material details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="materialDescription"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Material Description</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="materialCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Material Code</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="materialCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Material Code</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                {/* Fourth row: Specification and Material Grade */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="specification"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Specification</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Fourth row: Specification and Material Grade */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="specification"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Specification</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="materialGrade"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Material Grade</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="materialGrade"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Material Grade</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                {/* Fifth row: Heat Number and Batch Number */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="heatNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Heat Number</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Fifth row: Heat Number and Batch Number */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="heatNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Heat Number</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="batchNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Batch Number (Optional)</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="batchNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Batch Number (Optional)</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                {/* Sixth row: Mill Name and MTC Number */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="millName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Mill Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Sixth row: Mill Name and MTC Number */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="millName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mill Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="millTestCertificateNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mill Test Certificate No.</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="millTestCertificateNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Mill Test Certificate No.</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                {/* Seventh row: Quantity and Dimensions */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="quantity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quantity</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Seventh row: Quantity and Dimensions */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="quantity"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Quantity</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="dimensions"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dimensions</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="dimensions"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Dimensions</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                {/* Eighth row: Material Status */}
-                <div className="grid grid-cols-1 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="materialStatus"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Material Status</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                {/* Ninth row: Inspector Name and Inspection Date */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="inspectorName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Inspector's Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Eighth row: Material Status and Inspector Name */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="materialStatus"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Material Status</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="inspectorName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Inspector Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="inspectionDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Inspection Date</FormLabel>
-                        <FormControl>
-                          <Input 
-                            value={field.value instanceof Date 
-                              ? field.value.toLocaleDateString() 
-                              : ''
-                            } 
-                            readOnly 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Ninth row: Inspection Date */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="inspectionDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Inspection Date</FormLabel>
+                          <FormControl>
+                            <Input 
+                              value={field.value ? new Date(field.value).toLocaleDateString() : ''}
+                              readOnly
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  {/* Tenth row: Remarks */}
+                  <div className="grid grid-cols-1 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="remarks"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Remarks</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} readOnly />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
-                
-                {/* Tenth row: Remarks */}
-                <div className="grid grid-cols-1 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="remarks"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Remarks</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} readOnly />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+              </Form>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );
