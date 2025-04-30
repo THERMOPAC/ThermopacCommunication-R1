@@ -972,7 +972,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                               // Force all form inputs to be disabled using direct DOM manipulation
                               setTimeout(() => {
                                 const formInputs = document.querySelectorAll('input, select, textarea');
-                                formInputs.forEach((input) => {
+                                Array.from(formInputs).forEach((input: Element) => {
                                   // Type cast to HTMLElement to access the properties
                                   const htmlInput = input as HTMLElement;
                                   htmlInput.setAttribute('disabled', 'true');
@@ -1007,9 +1007,11 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                           // Force all form inputs to be enabled using direct DOM manipulation
                           setTimeout(() => {
                             const formInputs = document.querySelectorAll('input, select, textarea');
-                            formInputs.forEach((input: HTMLElement) => {
-                              input.removeAttribute('disabled');
-                              input.setAttribute('data-manually-enabled', 'true');
+                            Array.from(formInputs).forEach((input: Element) => {
+                              // Type cast to HTMLElement to access the properties
+                              const htmlInput = input as HTMLElement;
+                              htmlInput.removeAttribute('disabled');
+                              htmlInput.setAttribute('data-manually-enabled', 'true');
                             });
                             console.log("All form elements manually enabled via DOM");
                           }, 100); // Small delay to ensure DOM is ready
