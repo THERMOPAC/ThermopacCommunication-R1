@@ -474,7 +474,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         <Select
                           onValueChange={(value) => handleProjectSelect(value)}
                           value={selectedProject?.toString() || ""}
-                          disabled={isViewMode}
+                          disabled={formDisabled}
                         >
                           <FormControl>
                             <SelectTrigger>
