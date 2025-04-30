@@ -267,33 +267,12 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Material Identification</h1>
             <p className="text-muted-foreground mt-2">
               Edit material identification details for quality assurance and traceability.
             </p>
-          </div>
-          
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate(`/quality/material-identification/view/${recordId}`)}
-              className="flex items-center gap-2"
-            >
-              <X className="h-4 w-4" />
-              Cancel
-            </Button>
-            
-            <Button 
-              variant="default" 
-              onClick={form.handleSubmit(onSubmit)}
-              className="flex items-center gap-2"
-              disabled={updateMutation.isPending}
-            >
-              <Save className="h-4 w-4" />
-              {updateMutation.isPending ? "Saving..." : "Save Changes"}
-            </Button>
           </div>
         </div>
         
@@ -349,7 +328,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                       <FormItem>
                         <FormLabel>Project Name</FormLabel>
                         <FormControl>
-                          <Input {...field} readOnly />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -635,6 +614,28 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
                       </FormItem>
                     )}
                   />
+                </div>
+                
+                {/* Action buttons at the bottom */}
+                <div className="flex justify-end gap-4 mt-6 pt-4 border-t">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate(`/quality/material-identification/view/${recordId}`)}
+                    className="flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </Button>
+                  
+                  <Button 
+                    variant="default" 
+                    onClick={form.handleSubmit(onSubmit)}
+                    className="flex items-center gap-2"
+                    disabled={updateMutation.isPending}
+                  >
+                    <Save className="h-4 w-4" />
+                    {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
                 </div>
               </form>
             </Form>
