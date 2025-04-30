@@ -222,17 +222,34 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     disabled: formDisabled // Disable all inputs only when in view-only mode (not edit mode)
   });
   
-  // Effect to update form state when edit mode changes
+  // Log the form's disabled state on every render for debugging
+  console.log("Form initialization - disabled state:", formDisabled, "Form object:", form);
+  
+  // Create a key that changes when edit mode changes
+  // This will force React to remount the Form component with new disabled state
+  const formKey = isEditMode ? 'edit-mode' : 'view-mode';
+  
   useEffect(() => {
+    console.log("Edit mode or form disabled state changed:", { isEditMode, formDisabled });
+    
     if (form) {
-      // This will recreate the entire form when edit mode changes
+      // Store current values
       const currentValues = form.getValues();
+      
+      // Log the form's status before and after reset
+      console.log("Form state before reset:", form.formState);
+      
+      // Make sure the form has the correct disabled state
       form.reset(currentValues, { 
         keepValues: true,
-        keepDirty: true,
+        keepDirty: isEditMode,
+        keepTouched: isEditMode,
+        keepDefaultValues: true,
         keepIsSubmitted: false,
-        keepDefaultValues: true
+        keepIsValid: true,
       });
+      
+      console.log("Form reset with disabled:", formDisabled, "Form state after reset:", form.formState);
     }
   }, [isEditMode, formDisabled, form]);
 
@@ -486,7 +503,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
+            <Form {...form} key={formKey}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 {/* First row: Project No, Project Name, and MI ID */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -961,12 +978,23 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         onClick={() => {
                           // Use React state to enable edit mode
                           setIsEditModeState(true);
+                          
+                          // Form will be enabled automatically when formDisabled becomes false
+                          
                           // Reset form with previous values but in editable mode
-                          form.reset(form.getValues());
+                          const currentValues = form.getValues();
+                          form.reset(currentValues, {
+                            keepValues: true,
+                            keepDefaultValues: true
+                          });
+                          
                           toast({
                             title: "Edit Mode Activated",
                             description: "You can now make changes to this record.",
                           });
+                          
+                          // Log the form's status
+                          console.log("Form enabled in edit button, disabled status:", form.formState.disabled);
                         }}
                       >
                         Edit Record
