@@ -99,10 +99,13 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     enabled: !!selectedProject,
   });
   
-  // Fetch the next auto-generated MI ID (only needed for new records)
-  const { data: nextIdData, refetch: refetchNextId } = useQuery<NextIdResponse>({
+  // Fetch the next auto-generated MI ID (needed for new records)
+  const { data: nextIdData, refetch: refetchNextId, isLoading: isLoadingMiId } = useQuery<NextIdResponse>({
     queryKey: ['/api/quality/material-identification/next-id'],
-    enabled: isNewRecord || !recordId // Enable for new records or when no record ID is provided
+    enabled: true, // Always enable this query as we need it for all new records
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    staleTime: 0 // Consider the data immediately stale to force a refetch
   });
   
   // Fetch existing record for edit or view mode
@@ -201,8 +204,11 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
 
   // Set next MI ID from API (for new records) or populate form with existing data (for edit/view)
   useEffect(() => {
+    console.log('nextIdData:', nextIdData, 'isNewRecord:', isNewRecord, 'recordId:', recordId);
+    
     // For new records, fetch and set the next MI ID
     if (nextIdData?.nextId && (isNewRecord || !recordId)) {
+      console.log('Setting MI ID to:', nextIdData.nextId);
       form.setValue('materialIdentificationId', nextIdData.nextId);
     }
     
@@ -242,9 +248,16 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
       }
     }
     
-    // For the special "new" case, ensure we reset the form properly
+    // For the special "new" case, ensure we reset the form properly with default values
+    // and set the auto-generated MI ID
     if (isNewRecord) {
+      console.log('Initializing new record form');
       form.reset(defaultValues);
+      
+      if (nextIdData?.nextId) {
+        console.log('Setting MI ID from newly fetched data:', nextIdData.nextId);
+        form.setValue('materialIdentificationId', nextIdData.nextId);
+      }
     }
   }, [nextIdData, existingRecord, form, recordId, defaultValues, isNewRecord]);
 
