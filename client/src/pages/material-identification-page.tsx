@@ -54,22 +54,24 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   const recordId = params?.id || (routeParams as any)?.id;
   const isNewRecord = recordId === 'new';
   
-  // Handle query params for edit mode - Fix for wouter compatibility
-  // Get the full window location instead of just the wouter path
+  // Use a React state for edit mode instead of URL parameters
+  const [isEditModeState, setIsEditModeState] = useState(false);
+  
+  // Handle query params for edit mode as a fallback
   const fullLocation = window.location.href;
   const searchParams = new URLSearchParams(fullLocation.split('?')[1] || '');
   const editParam = searchParams.get('edit');
   
   console.log('Edit param from window location:', editParam);
   console.log('Full window location:', fullLocation);
-  console.log('Search params string:', fullLocation.split('?')[1] || '');
   
-  const isEditMode = editParam === 'true';
+  // Either URL parameter or state can trigger edit mode
+  const isEditMode = isEditModeState || editParam === 'true';
   console.log('isEditMode:', isEditMode);
   const isViewMode = recordId && !isNewRecord && !isEditMode;
   console.log('isViewMode:', isViewMode);
   
-  // Force form to be editable when explicit edit=true param is present or creating new record
+  // Force form to be editable when in edit mode or creating new record
   const formDisabled = isViewMode;
   console.log('formDisabled:', formDisabled);
   
@@ -213,19 +215,26 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   };
 
   // Initialize form with disabled state based on formDisabled value
-  const formMethods = useForm<MaterialIdentificationFormValues>({
+  const form = useForm<MaterialIdentificationFormValues>({
     resolver: zodResolver(materialIdentificationSchema),
     defaultValues,
     mode: "onBlur",
     disabled: formDisabled // Disable all inputs only when in view-only mode (not edit mode)
   });
   
-  // Create a new form instance when the formDisabled state changes
-  // This is a workaround for react-hook-form not updating the disabled state dynamically
-  const form = useMemo(() => {
-    console.log('Re-initializing form with disabled state:', formDisabled);
-    return formMethods;
-  }, [formMethods, formDisabled]);
+  // Effect to update form state when edit mode changes
+  useEffect(() => {
+    if (form) {
+      // This will recreate the entire form when edit mode changes
+      const currentValues = form.getValues();
+      form.reset(currentValues, { 
+        keepValues: true,
+        keepDirty: true,
+        keepIsSubmitted: false,
+        keepDefaultValues: true
+      });
+    }
+  }, [isEditMode, formDisabled, form]);
 
   // Set next MI ID from API (for new records) or populate form with existing data (for edit/view)
   useEffect(() => {
@@ -917,6 +926,31 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         <Button type="submit">
                           {isEditMode ? 'Update' : 'Create'} Material Identification
                         </Button>
+                        {isEditMode && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              // Return to view mode
+                              setIsEditModeState(false);
+                              // Repopulate form with original data if we have it
+                              if (existingRecord) {
+                                form.reset();
+                                Object.entries(existingRecord).forEach(([key, value]) => {
+                                  if (value === null || value === undefined) return;
+                                  // @ts-ignore: Dynamic key access
+                                  form.setValue(key, value);
+                                });
+                              }
+                              toast({
+                                title: "Edit Mode Canceled",
+                                description: "No changes were saved.",
+                              });
+                            }}
+                          >
+                            Cancel Edit
+                          </Button>
+                        )}
                       </>
                     )}
                     
@@ -925,9 +959,14 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         type="button"
                         variant="default"
                         onClick={() => {
-                          // Force a page reload with the edit flag to ensure proper edit mode
-                          window.location.href = `/quality/material-identification/${recordId}?edit=true`;
-                          // This will cause a full page reload which guarantees a clean state
+                          // Use React state to enable edit mode
+                          setIsEditModeState(true);
+                          // Reset form with previous values but in editable mode
+                          form.reset(form.getValues());
+                          toast({
+                            title: "Edit Mode Activated",
+                            description: "You can now make changes to this record.",
+                          });
                         }}
                       >
                         Edit Record
