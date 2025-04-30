@@ -78,6 +78,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     projectCode?: string;   // Might be used in some cases
     code: string;          // The actual field from the projects table
     name: string;
+    status: string;        // Project status (active, completed, etc.)
   }
   
   interface InspectionOrder {
@@ -93,6 +94,12 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   // Fetch projects
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ['/api/projects'],
+    select: (data) => {
+      // Log projects status for debugging
+      console.log('All projects:', data.map(p => ({ id: p.id, code: p.code, status: p.status })));
+      console.log('Active projects:', data.filter(p => p.status === 'active').map(p => ({ id: p.id, code: p.code })));
+      return data;
+    }
   });
   
   // Fetch inspection orders for the selected project
@@ -475,11 +482,14 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {projects.map((project) => (
-                              <SelectItem key={project.id} value={project.id.toString()}>
-                                {project.code || project.projectCode || project.projectNumber || `Project ${project.id}`}
-                              </SelectItem>
-                            ))}
+                            {projects
+                              .filter(project => project.status === 'active')
+                              .map((project) => (
+                                <SelectItem key={project.id} value={project.id.toString()}>
+                                  {project.code || project.projectCode || project.projectNumber || `Project ${project.id}`}
+                                </SelectItem>
+                              ))
+                            }
                           </SelectContent>
                         </Select>
                         <FormMessage />
