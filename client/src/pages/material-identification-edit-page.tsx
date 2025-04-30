@@ -79,6 +79,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
     resolver: zodResolver(materialIdentificationSchema),
     defaultValues,
     mode: "onBlur",
+    disabled: false, // Explicitly set to false for edit mode
   });
 
   // Define types for the API responses
@@ -183,10 +184,10 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
     if (existingRecord && recordId) {
       console.log('Setting form values from existing record:', existingRecord);
       
-      // Reset the form with default values first to clear any previous data
-      form.reset(defaultValues);
+      // Create a new object with all values to set at once
+      const formValues = {...defaultValues};
       
-      // Populate form with existing record data
+      // Populate object with existing record data
       Object.entries(existingRecord).forEach(([key, value]) => {
         if (value === null || value === undefined) return;
         
@@ -197,7 +198,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
             const dateValue = new Date(value);
             if (!isNaN(dateValue.getTime())) {
               // @ts-ignore: Dynamic key access
-              form.setValue(key, dateValue);
+              formValues[key] = dateValue;
             }
           } catch (error) {
             console.error('Error parsing date:', error);
@@ -205,8 +206,15 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
         } else {
           // For non-date fields, set the value directly
           // @ts-ignore: Dynamic key access
-          form.setValue(key, value);
+          formValues[key] = value;
         }
+      });
+      
+      // Reset with all values at once
+      form.reset(formValues, {
+        keepDirty: false,
+        keepValues: true,
+        keepDefaultValues: false,
       });
       
       // Set selected project for proper dropdown population
@@ -214,7 +222,7 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
         setSelectedProject(existingRecord.projectId);
       }
     }
-  }, [existingRecord, form, recordId, defaultValues]);
+  }, [existingRecord, recordId]); // Remove form and defaultValues from dependencies
 
   // Handle project selection
   const handleProjectSelect = (projectId: string) => {
