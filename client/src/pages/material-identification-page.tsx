@@ -1050,15 +1050,32 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         type="button"
                         variant="default"
                         onClick={() => {
-                          // Switch to edit mode by using the URL parameter
-                          navigate(`/quality/material-identification/${recordId}?edit=true`);
+                          // Direct state manipulation instead of URL parameters
+                          console.log("Edit button clicked - enabling edit mode");
+                          setIsEditModeState(true);
+                          setFormDisabled(false);
+                          
+                          // Manual form field enabling via DOM
+                          setTimeout(() => {
+                            console.log("Manually enabling all form fields");
+                            const formInputs = document.querySelectorAll('input, select, textarea');
+                            formInputs.forEach((input: Element) => {
+                              const htmlInput = input as HTMLElement;
+                              if (htmlInput.hasAttribute('disabled')) {
+                                htmlInput.removeAttribute('disabled');
+                                console.log("Enabled field:", htmlInput);
+                              }
+                            });
+                            
+                            // Force the form to completely reset with the current values but not disabled
+                            const currentValues = form.getValues();
+                            form.reset(currentValues);
+                          }, 50);
                           
                           toast({
                             title: "Edit Mode Activated",
                             description: "You can now make changes to this record.",
                           });
-                          
-                          console.log("Edit mode activated by adding ?edit=true to URL");
                         }}
                       >
                         Edit Record
