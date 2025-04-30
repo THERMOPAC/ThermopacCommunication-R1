@@ -23,7 +23,7 @@ const materialIdentificationSchema = z.object({
   materialIdentificationId: z.string().min(1, "MI ID is required"),
   projectName: z.string().min(1, "Project Name is required"),
   projectNumber: z.string().min(1, "Project Number is required"),
-  inspectionOrderNumber: z.string().min(1, "Inspection Order Number is required"),
+  inspectionOrderNumber: z.string().optional(), // Made optional
   materialDescription: z.string().min(1, "Material Description is required"),
   materialCode: z.string().min(1, "Material Code is required"),
   specification: z.string().min(1, "Specification is required"),
@@ -646,37 +646,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                   />
                 </div>
                 
-                {/* Second row: Inspection Order Number */}
-                <div className="grid grid-cols-1 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="inspectionOrderNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Inspection Order No.</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value || ""}
-                          disabled={!selectedProject || (isViewMode && !isEditMode)}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select an inspection order" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {inspectionOrders.map((order) => (
-                              <SelectItem key={order.id} value={order.inspectionOrderNumber}>
-                                {order.inspectionOrderNumber} - {order.title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                {/* Inspection Order Number row has been removed */}
                 
                 {/* Third row: Material details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
