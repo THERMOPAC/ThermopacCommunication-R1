@@ -242,9 +242,11 @@ export default function MaterialIdentificationEditPage({ params }: { params?: { 
     const formattedData = {
       ...data,
       inspectionDate: formattedDate,
-      id: recordId
+      id: recordId,
+      projectId: selectedProject // Add the projectId
     };
     
+    console.log("Submitting data:", formattedData);
     updateMutation.mutate(formattedData);
   };
 
