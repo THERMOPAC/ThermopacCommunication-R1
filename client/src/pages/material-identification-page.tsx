@@ -238,8 +238,27 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     resolver: zodResolver(materialIdentificationSchema),
     defaultValues,
     mode: "onBlur",
-    disabled: formDisabled // This needs to be set here initially
+    // We're going to manually control disabled state per field instead of at the form level
   });
+  
+  // Use an effect to manually override disabled state for all fields if needed
+  useEffect(() => {
+    if (isEditMode) {
+      // If we're in edit mode but the form is still showing as disabled,
+      // manually remove the disabled attribute from all form elements
+      console.log("In edit mode - ensuring all fields are enabled");
+      setTimeout(() => {
+        const formInputs = document.querySelectorAll('input, select, textarea');
+        formInputs.forEach((input: Element) => {
+          const htmlInput = input as HTMLElement;
+          if (htmlInput.hasAttribute('disabled')) {
+            htmlInput.removeAttribute('disabled');
+            console.log("Manually enabled field:", htmlInput);
+          }
+        });
+      }, 200); // Wait for the DOM to be updated
+    }
+  }, [isEditMode, formKey]); // Run when edit mode or form key changes
   
   // Log the form's disabled state on every render for debugging
   console.log("Form initialized with - disabled state:", formDisabled, "formKey:", formKey);
@@ -539,7 +558,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         <Select
                           onValueChange={(value) => handleProjectSelect(value)}
                           value={selectedProject?.toString() || ""}
-                          disabled={formDisabled}
+                          disabled={isViewMode && !isEditMode}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -605,7 +624,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         <Select
                           onValueChange={field.onChange}
                           value={field.value || ""}
-                          disabled={!selectedProject || formDisabled}
+                          disabled={!selectedProject || (isViewMode && !isEditMode)}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -998,32 +1017,15 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         type="button"
                         variant="default"
                         onClick={() => {
-                          // Force all form inputs to be enabled using direct DOM manipulation
-                          setTimeout(() => {
-                            const formInputs = document.querySelectorAll('input, select, textarea');
-                            Array.from(formInputs).forEach((input: Element) => {
-                              // Type cast to HTMLElement to access the properties
-                              const htmlInput = input as HTMLElement;
-                              htmlInput.removeAttribute('disabled');
-                              htmlInput.setAttribute('data-manually-enabled', 'true');
-                            });
-                            console.log("All form elements manually enabled via DOM");
-                          }, 100); // Small delay to ensure DOM is ready
-                          
-                          // Update React state
-                          setFormDisabled(false);
-                          setIsEditModeState(true);
-                          
-                          // Reset form with current values
-                          const currentValues = form.getValues();
-                          form.reset(currentValues);
+                          // Switch to edit mode by using the URL parameter
+                          navigate(`/quality/material-identification/${recordId}?edit=true`);
                           
                           toast({
                             title: "Edit Mode Activated",
                             description: "You can now make changes to this record.",
                           });
                           
-                          console.log("Edit mode activated manually - formDisabled set to false");
+                          console.log("Edit mode activated by adding ?edit=true to URL");
                         }}
                       >
                         Edit Record
