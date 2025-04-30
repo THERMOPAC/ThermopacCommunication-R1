@@ -55,8 +55,13 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   
   // Handle query params for edit mode
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
-  const isEditMode = searchParams.get('edit') === 'true';
+  const editParam = searchParams.get('edit');
+  console.log('Edit param:', editParam);
+  const isEditMode = editParam === 'true';
   const isViewMode = recordId && !isEditMode;
+  
+  // Force form to be editable when explicit edit=true param is present
+  const formDisabled = isViewMode;
   
   // Debug logs
   console.log('Route params:', routeParams);
@@ -190,7 +195,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     resolver: zodResolver(materialIdentificationSchema),
     defaultValues,
     mode: "onBlur",
-    disabled: isViewMode // Disable all inputs when in view-only mode
+    disabled: formDisabled // Disable all inputs when in view-only mode
   });
 
   // Set next MI ID from API (for new records) or populate form with existing data (for edit/view)
@@ -817,7 +822,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                   </Button>
                   
                   <div className="flex space-x-2">
-                    {!isViewMode && (
+                    {!formDisabled && (
                       <>
                         <Button
                           type="button"
@@ -830,6 +835,16 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                           {isEditMode ? 'Update' : 'Create'} Material Identification
                         </Button>
                       </>
+                    )}
+                    
+                    {isViewMode && (
+                      <Button
+                        type="button"
+                        variant="default"
+                        onClick={() => navigate(`/quality/material-identification/${recordId}?edit=true`)}
+                      >
+                        Edit Record
+                      </Button>
                     )}
                   </div>
                 </div>
