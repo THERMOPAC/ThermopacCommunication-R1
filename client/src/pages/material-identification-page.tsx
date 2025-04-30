@@ -71,9 +71,16 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   const isViewMode = recordId && !isNewRecord && !isEditMode;
   console.log('isViewMode:', isViewMode);
   
-  // Force form to be editable when in edit mode or creating new record
-  const formDisabled = isViewMode;
-  console.log('formDisabled:', formDisabled);
+  // Use state to control form disabled status
+  const [formDisabled, setFormDisabled] = useState(isViewMode);
+  
+  // Update form disabled state whenever edit mode changes
+  useEffect(() => {
+    console.log('Updating formDisabled state based on view mode:', isViewMode);
+    setFormDisabled(isViewMode);
+  }, [isViewMode, isEditMode]);
+  
+  console.log('Current formDisabled state:', formDisabled);
   
   // Debug logs
   console.log('Route params:', routeParams);
@@ -957,16 +964,33 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                             type="button"
                             variant="outline"
                             onClick={() => {
-                              // Return to view mode - this will remount the form with formDisabled=true
+                              // First, revert to the original data from the server (if any)
+                              if (existingRecord) {
+                                form.reset(existingRecord);
+                              }
+                              
+                              // Force all form inputs to be disabled using direct DOM manipulation
+                              setTimeout(() => {
+                                const formInputs = document.querySelectorAll('input, select, textarea');
+                                formInputs.forEach((input) => {
+                                  // Type cast to HTMLElement to access the properties
+                                  const htmlInput = input as HTMLElement;
+                                  htmlInput.setAttribute('disabled', 'true');
+                                  htmlInput.removeAttribute('data-manually-enabled');
+                                });
+                                console.log("All form elements manually disabled via DOM");
+                              }, 100); // Small delay to ensure DOM is ready
+                              
+                              // Update React state
+                              setFormDisabled(true);
                               setIsEditModeState(false);
                               
-                              // We don't need to manually reset the form since it will be remounted
                               toast({
                                 title: "Edit Mode Canceled",
                                 description: "No changes were saved.",
                               });
                               
-                              console.log("Edit mode canceled - form will be remounted with disabled=true");
+                              console.log("Edit mode canceled manually - formDisabled set to true");
                             }}
                           >
                             Cancel Edit
@@ -980,17 +1004,30 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         type="button"
                         variant="default"
                         onClick={() => {
-                          // Use React state to enable edit mode
+                          // Force all form inputs to be enabled using direct DOM manipulation
+                          setTimeout(() => {
+                            const formInputs = document.querySelectorAll('input, select, textarea');
+                            formInputs.forEach((input: HTMLElement) => {
+                              input.removeAttribute('disabled');
+                              input.setAttribute('data-manually-enabled', 'true');
+                            });
+                            console.log("All form elements manually enabled via DOM");
+                          }, 100); // Small delay to ensure DOM is ready
+                          
+                          // Update React state
+                          setFormDisabled(false);
                           setIsEditModeState(true);
                           
-                          // Force immediate remount of the form with new formDisabled=false
-                          // We don't need any fancy form state management since the form will be completely recreated
+                          // Reset form with current values
+                          const currentValues = form.getValues();
+                          form.reset(currentValues);
+                          
                           toast({
                             title: "Edit Mode Activated",
                             description: "You can now make changes to this record.",
                           });
                           
-                          console.log("Edit mode activated - form will be remounted with disabled=false");
+                          console.log("Edit mode activated manually - formDisabled set to false");
                         }}
                       >
                         Edit Record
