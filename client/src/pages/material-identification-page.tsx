@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation, useRoute } from "wouter";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, Info } from "lucide-react";
+import { CalendarIcon, Info, ArrowLeft } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 
 // Define the form schema
@@ -43,9 +44,14 @@ const materialIdentificationSchema = z.object({
 
 type MaterialIdentificationFormValues = z.infer<typeof materialIdentificationSchema>;
 
-export default function MaterialIdentificationPage() {
+export default function MaterialIdentificationPage({ params }: { params?: { id?: string } }) {
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
+  const [location, navigate] = useLocation();
+  const [, routeParams] = useRoute('/quality/material-identification/:id');
+  const recordId = params?.id || (routeParams as any)?.id;
+  const isEditMode = recordId && location.includes('edit=true');
+  const isViewMode = recordId && !isEditMode;
   
   // Define types for the API responses
   interface Project {
@@ -75,9 +81,41 @@ export default function MaterialIdentificationPage() {
     enabled: !!selectedProject,
   });
   
-  // Fetch the next auto-generated MI ID
+  // Fetch the next auto-generated MI ID (only needed for new records)
   const { data: nextIdData, refetch: refetchNextId } = useQuery<NextIdResponse>({
     queryKey: ['/api/quality/material-identification/next-id'],
+    enabled: !recordId // Only fetch if not in edit/view mode
+  });
+  
+  // Fetch existing record for edit or view mode
+  const { data: existingRecord, isLoading: isLoadingRecord } = useQuery({
+    queryKey: ['/api/quality/material-identification', recordId],
+    enabled: !!recordId,
+    select: (data: any) => {
+      // Transform snake_case DB fields to camelCase for the form
+      const record = {
+        materialIdentificationId: data.material_identification_id,
+        projectId: data.project_id,
+        projectName: data.project_name,
+        projectNumber: data.project_number,
+        inspectionOrderNumber: data.inspection_order_number,
+        materialDescription: data.material_description,
+        materialCode: data.material_code,
+        specification: data.specification,
+        materialGrade: data.material_grade, 
+        heatNumber: data.heat_number,
+        batchNumber: data.batch_number || '',
+        millName: data.mill_name,
+        millTestCertificateNumber: data.mill_test_certificate_number,
+        quantity: data.quantity,
+        dimensions: data.dimensions,
+        materialStatus: data.material_status,
+        inspectorName: data.inspector_name,
+        inspectionDate: new Date(data.inspection_date),
+        remarks: data.remarks || ''
+      };
+      return record;
+    }
   });
 
   // Default values for the form
@@ -108,12 +146,25 @@ export default function MaterialIdentificationPage() {
     defaultValues,
   });
 
-  // Set next MI ID from API 
+  // Set next MI ID from API (for new records) or populate form with existing data (for edit/view)
   useEffect(() => {
-    if (nextIdData?.nextId) {
+    if (nextIdData?.nextId && !recordId) {
       form.setValue('materialIdentificationId', nextIdData.nextId);
     }
-  }, [nextIdData, form]);
+    
+    if (existingRecord && recordId) {
+      // Populate form with existing record data
+      Object.entries(existingRecord).forEach(([key, value]) => {
+        // @ts-ignore: Dynamic key access
+        form.setValue(key, value);
+      });
+      
+      // Set selected project for proper dropdown population
+      if (existingRecord.projectId) {
+        setSelectedProject(existingRecord.projectId);
+      }
+    }
+  }, [nextIdData, existingRecord, form, recordId]);
 
   // Handle project selection
   const handleProjectSelect = (projectId: string) => {
@@ -137,8 +188,8 @@ export default function MaterialIdentificationPage() {
     // other fields as needed
   }
 
-  // Create a mutation for submitting the form
-  const submitMutation = useMutation<
+  // Create a mutation for submitting new records
+  const createMutation = useMutation<
     MaterialIdentificationResponse, 
     Error, 
     Omit<MaterialIdentificationFormValues, 'inspectionDate'> & { inspectionDate: string }
@@ -179,6 +230,46 @@ export default function MaterialIdentificationPage() {
       });
     }
   });
+  
+  // Create a mutation for updating existing records
+  const updateMutation = useMutation<
+    MaterialIdentificationResponse, 
+    Error, 
+    Omit<MaterialIdentificationFormValues, 'inspectionDate'> & { inspectionDate: string, id: string }
+  >({
+    mutationFn: async (formData) => {
+      const response = await fetch(`/api/quality/material-identification/${recordId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update material identification record');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Material Identification Updated",
+        description: `MI ID: ${form.getValues().materialIdentificationId} has been updated successfully.`,
+      });
+      
+      // Navigate back to the list page
+      navigate('/quality/material-identification');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
 
   // Handle form submission
   const onSubmit = (data: MaterialIdentificationFormValues) => {
@@ -188,25 +279,59 @@ export default function MaterialIdentificationPage() {
       inspectionDate: format(data.inspectionDate, "yyyy-MM-dd"),
     };
     
-    // Submit the data
-    submitMutation.mutate(formattedData);
+    // Submit the data to the appropriate mutation based on mode
+    if (isEditMode && recordId) {
+      updateMutation.mutate({
+        ...formattedData,
+        id: recordId
+      });
+    } else {
+      createMutation.mutate(formattedData);
+    }
   };
+
+  // Loading state while fetching record data
+  if (isLoadingRecord && recordId) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p className="text-lg">Loading material identification record...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Material Identification</h1>
-          <p className="text-muted-foreground mt-2">
-            Record material identification details for quality assurance and traceability.
-          </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Material Identification</h1>
+            <p className="text-muted-foreground mt-2">
+              {isEditMode ? 'Edit' : isViewMode ? 'View' : 'Create'} material identification details for quality assurance and traceability.
+            </p>
+          </div>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/quality/material-identification')}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to List
+          </Button>
         </div>
         
         <Card className="max-w-4xl">
           <CardHeader>
-            <CardTitle>Material Identification Form</CardTitle>
+            <CardTitle>
+              {isEditMode ? 'Edit' : isViewMode ? 'View' : 'Create'} Material Identification Record
+            </CardTitle>
             <CardDescription>
-              Fill in all the required details to create a new Material Identification record.
+              {isEditMode ? 'Update' : isViewMode ? 'View' : 'Fill in all'} the required details for this Material Identification record.
             </CardDescription>
           </CardHeader>
           <CardContent>

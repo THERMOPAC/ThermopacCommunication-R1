@@ -394,15 +394,26 @@ export default function MaterialIdentificationListPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                navigate(`/quality/material-identification/${mi.id}`)
-                              }
-                            >
-                              View
-                            </Button>
+                            <div className="flex space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  navigate(`/quality/material-identification/${mi.id}`)
+                                }
+                              >
+                                View
+                              </Button>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() =>
+                                  navigate(`/quality/material-identification/${mi.id}?edit=true`)
+                                }
+                              >
+                                Edit
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
