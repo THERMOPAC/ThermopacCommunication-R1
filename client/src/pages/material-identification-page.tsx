@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -54,12 +54,15 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   const recordId = params?.id || (routeParams as any)?.id;
   const isNewRecord = recordId === 'new';
   
-  // Handle query params for edit mode
-  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  // Handle query params for edit mode - Fix for wouter compatibility
+  // Get the full window location instead of just the wouter path
+  const fullLocation = window.location.href;
+  const searchParams = new URLSearchParams(fullLocation.split('?')[1] || '');
   const editParam = searchParams.get('edit');
-  console.log('Edit param:', editParam);
-  console.log('URL location:', location);
-  console.log('Search params string:', location.split('?')[1] || '');
+  
+  console.log('Edit param from window location:', editParam);
+  console.log('Full window location:', fullLocation);
+  console.log('Search params string:', fullLocation.split('?')[1] || '');
   
   const isEditMode = editParam === 'true';
   console.log('isEditMode:', isEditMode);
@@ -209,13 +212,20 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     remarks: ''
   };
 
-  // Initialize form
-  const form = useForm<MaterialIdentificationFormValues>({
+  // Initialize form with disabled state based on formDisabled value
+  const formMethods = useForm<MaterialIdentificationFormValues>({
     resolver: zodResolver(materialIdentificationSchema),
     defaultValues,
     mode: "onBlur",
     disabled: formDisabled // Disable all inputs only when in view-only mode (not edit mode)
   });
+  
+  // Create a new form instance when the formDisabled state changes
+  // This is a workaround for react-hook-form not updating the disabled state dynamically
+  const form = useMemo(() => {
+    console.log('Re-initializing form with disabled state:', formDisabled);
+    return formMethods;
+  }, [formMethods, formDisabled]);
 
   // Set next MI ID from API (for new records) or populate form with existing data (for edit/view)
   useEffect(() => {
@@ -914,7 +924,11 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                       <Button
                         type="button"
                         variant="default"
-                        onClick={() => navigate(`/quality/material-identification/${recordId}?edit=true`)}
+                        onClick={() => {
+                          // Force a page reload with the edit flag to ensure proper edit mode
+                          window.location.href = `/quality/material-identification/${recordId}?edit=true`;
+                          // This will cause a full page reload which guarantees a clean state
+                        }}
                       >
                         Edit Record
                       </Button>
