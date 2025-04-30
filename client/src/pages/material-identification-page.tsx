@@ -208,7 +208,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
     resolver: zodResolver(materialIdentificationSchema),
     defaultValues,
     mode: "onBlur",
-    disabled: formDisabled // Disable all inputs when in view-only mode
+    disabled: formDisabled // Disable all inputs only when in view-only mode (not edit mode)
   });
 
   // Set next MI ID from API (for new records) or populate form with existing data (for edit/view)
@@ -504,7 +504,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                       <FormItem>
                         <FormLabel>Project Name</FormLabel>
                         <FormControl>
-                          <Input {...field} readOnly />
+                          <Input {...field} readOnly={true} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -518,7 +518,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                       <FormItem>
                         <FormLabel>MI ID</FormLabel>
                         <FormControl>
-                          <Input {...field} readOnly />
+                          <Input {...field} readOnly={true} />
                         </FormControl>
                         <FormDescription>
                           Format: MI-YYYY-N (Year-Sequence)
