@@ -1,0 +1,56 @@
+<div class="card mb-4">
+  <div class="card-header">
+    <h5 class="mb-0">Material Traceability</h5>
+  </div>
+  <div class="card-body">
+    <div class="d-flex flex-nowrap overflow-auto">
+      <!-- Material Identification -->
+      <div class="material-field me-3" style="width: 200px;">
+        <label for="material-id" class="form-label">Material Identification</label>
+        <input type="text" class="form-control" id="material-id" placeholder="Select MI ID">
+      </div>
+
+      <!-- Certificate Number -->
+      <div class="material-field me-3" style="width: 200px;">
+        <label for="certificate-number" class="form-label">Certificate Number</label>
+        <input type="text" class="form-control" id="certificate-number" placeholder="Certificate number">
+      </div>
+
+      <!-- Heat Number -->
+      <div class="material-field me-3" style="width: 150px;">
+        <label for="heat-number" class="form-label">Heat Number</label>
+        <input type="text" class="form-control" id="heat-number" placeholder="Heat number">
+      </div>
+
+      <!-- Material Grade -->
+      <div class="material-field me-3" style="width: 150px;">
+        <label for="material-grade" class="form-label">Material Grade</label>
+        <input type="text" class="form-control" id="material-grade" placeholder="Material grade">
+      </div>
+
+      <!-- Material Specification -->
+      <div class="material-field me-3" style="width: 200px;">
+        <label for="material-spec" class="form-label">Material Specification</label>
+        <input type="text" class="form-control" id="material-spec" placeholder="Material specification">
+      </div>
+
+      <!-- Allocated Quantity -->
+      <div class="material-field me-3" style="width: 150px;">
+        <label for="allocated-quantity" class="form-label">Allocated Quantity</label>
+        <input type="number" class="form-control" id="allocated-quantity" placeholder="Enter quantity">
+      </div>
+
+      <!-- Unit -->
+      <div class="material-field me-3" style="width: 100px;">
+        <label for="unit" class="form-label">Unit</label>
+        <input type="text" class="form-control" id="unit" placeholder="Unit">
+      </div>
+
+      <!-- Remarks -->
+      <div class="material-field me-3" style="width: 250px;">
+        <label for="remarks" class="form-label">Remarks</label>
+        <input type="text" class="form-control" id="remarks" placeholder="Optional notes">
+      </div>
+    </div>
+  </div>
+</div>
