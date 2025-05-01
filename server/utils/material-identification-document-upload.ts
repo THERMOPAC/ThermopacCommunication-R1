@@ -4,19 +4,36 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Get Google Cloud Storage instance
 const getGcsClient = () => {
-  const gcsCredentialsJson = process.env.GCS_CREDENTIALS;
-  const bucketName = process.env.GCS_BUCKET || 'thermopac_storage';
+  // Use the same environment variables as the rest of the application
+  const gcsCredentialsJson = process.env.GOOGLE_CLOUD_CREDENTIALS;
+  const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage';
   
-  let storageOptions = {};
+  console.log(`Material ID doc upload - Using bucket: ${bucketName}`);
+  
+  let storageOptions: any = {};
   
   if (gcsCredentialsJson) {
     try {
       // Parse the JSON credentials string
+      console.log(`Material ID doc upload - Found GCS credentials, length: ${gcsCredentialsJson.length}`);
       const credentials = JSON.parse(gcsCredentialsJson);
-      storageOptions = { credentials };
+      
+      // Log the project ID for debugging
+      console.log(`Material ID doc upload - Using project ID: ${credentials.project_id}`);
+      
+      storageOptions = {
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || credentials.project_id,
+        credentials
+      };
     } catch (error) {
       console.error('Error parsing GCS credentials:', error);
       throw new Error('Invalid GCS credentials format');
+    }
+  } else {
+    console.warn('Material ID doc upload - No GCS credentials found in environment variables');
+    // Use project ID if available
+    if (process.env.GOOGLE_CLOUD_PROJECT_ID) {
+      storageOptions.projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
     }
   }
   
