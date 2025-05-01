@@ -1782,7 +1782,7 @@ export default function InspectionsPage() {
                                         updateMaterialRow(index, selectedMaterial || null);
                                       }}
                                     >
-                                      <SelectTrigger id={`material-id-${index}`} className="h-9">
+                                      <SelectTrigger id={`material-id-${index}`} className="h-9 w-[30px]">
                                         <SelectValue placeholder="Select Material Identification" />
                                       </SelectTrigger>
                                       <SelectContent>
@@ -1822,7 +1822,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Certificate number"
-                                      className="bg-gray-50 h-9 w-full"
+                                      className="bg-gray-50 h-9 w-[30px]"
                                       readOnly
                                     />
                                   </div>
@@ -1844,7 +1844,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Heat number"
-                                      className="bg-gray-50 h-9 w-full"
+                                      className="bg-gray-50 h-9 w-[30px]"
                                       readOnly
                                     />
                                   </div>
@@ -1866,7 +1866,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Material grade"
-                                      className="bg-gray-50 h-9 w-full"
+                                      className="bg-gray-50 h-9 w-[30px]"
                                       readOnly
                                     />
                                   </div>
@@ -1888,7 +1888,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Material specification"
-                                      className="bg-gray-50 h-9 w-full"
+                                      className="bg-gray-50 h-9 w-[30px]"
                                       readOnly
                                     />
                                   </div>
@@ -1910,7 +1910,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Enter quantity"
-                                      className="h-9 w-full"
+                                      className="h-9 w-[30px]"
                                     />
                                   </div>
                                 </div>
@@ -1931,7 +1931,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Unit"
-                                      className="h-9 w-full"
+                                      className="h-9 w-[30px]"
                                     />
                                   </div>
                                 </div>
@@ -1952,7 +1952,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Optional notes"
-                                      className="h-9 w-full"
+                                      className="h-9 w-[30px]"
                                     />
                                   </div>
                                 </div>
