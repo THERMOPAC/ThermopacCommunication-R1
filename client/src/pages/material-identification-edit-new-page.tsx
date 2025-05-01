@@ -1076,35 +1076,42 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                       </tr>
                     </thead>
                     <tbody>
-                      {documents.map((doc) => (
-                        <tr key={doc.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <td className="py-3 px-4">{doc.file_name}</td>
-                          <td className="py-3 px-4">{doc.document_type}</td>
-                          <td className="py-3 px-4">{doc.description || "-"}</td>
-                          <td className="py-3 px-4">
-                            {new Date(doc.created_at).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDownloadDocument(doc.id, doc.file_name)}
-                              title="Download"
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteDocument(doc.id)}
-                              title="Delete"
-                              className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/20"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
+                      {documents.map((doc) => {
+                        // Extract the actual filename from the file_path
+                        // Format: QMS/Material_Identification/{MI ID}/{Document Type}.{extension}
+                        const pathParts = doc.file_path.split('/');
+                        const fileName = pathParts[pathParts.length - 1]; // Last part contains the filename
+                        
+                        return (
+                          <tr key={doc.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td className="py-3 px-4">{fileName}</td>
+                            <td className="py-3 px-4">{doc.document_type}</td>
+                            <td className="py-3 px-4">{doc.description || "-"}</td>
+                            <td className="py-3 px-4">
+                              {new Date(doc.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDownloadDocument(doc.id, fileName)}
+                                title="Download"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteDocument(doc.id)}
+                                title="Delete"
+                                className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/20"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

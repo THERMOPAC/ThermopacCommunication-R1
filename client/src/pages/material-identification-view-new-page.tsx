@@ -564,7 +564,9 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
               <div className="flex items-center p-4 border rounded-md bg-gray-50">
                 <FileText className="h-8 w-8 mr-3 text-blue-500" />
                 <div>
-                  <p className="font-medium">{documentToDelete.file_name}</p>
+                  <p className="font-medium">
+                    {documentToDelete.file_path.split('/').pop()}
+                  </p>
                   <p className="text-xs text-gray-500">
                     Type: {documentToDelete.document_type}, 
                     Uploaded: {formatDate(documentToDelete.created_at)}
