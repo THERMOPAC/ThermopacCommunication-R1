@@ -68,13 +68,18 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
     const fileType = req.file.mimetype;
     const fileSize = req.file.size;
     
-    // Generate a unique filename
+    // Generate a filename based on document type
     const fileExtension = originalFileName.split('.').pop() || 'pdf';
-    const uniqueIdentifier = uuidv4().substring(0, 8);
-    const fileName = `MI_${materialIdentificationId}_${documentType}_${uniqueIdentifier}.${fileExtension}`;
     
-    // Format file path - store in QMS/Material_Identification directory
-    const filePath = `QMS/Material_Identification/${fileName}`;
+    // Clean up document type for use in file name (remove spaces, special chars)
+    const cleanDocumentType = documentType.replace(/[^a-zA-Z0-9]/g, '_');
+    
+    // If there are multiple files of the same type, add a unique identifier
+    const uniqueIdentifier = uuidv4().substring(0, 8);
+    const fileName = `${cleanDocumentType}_${uniqueIdentifier}.${fileExtension}`;
+    
+    // Format file path according to required structure: QMS/Material_Identification/{MI ID}/{Document Type}.pdf
+    const filePath = `QMS/Material_Identification/${materialIdentificationId}/${fileName}`;
     
     // Create a new blob in the bucket and upload the file data
     const blob = bucket.file(filePath);

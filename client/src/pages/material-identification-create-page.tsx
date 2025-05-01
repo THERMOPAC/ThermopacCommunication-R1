@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useToast } from "@/hooks/use-toast";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -16,8 +17,16 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Upload, X, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
 
 // Define interfaces for the data types
 interface Project {
@@ -28,6 +37,21 @@ interface Project {
   status: string;
   projectCode?: string;
   projectNumber?: string;
+}
+
+// Define interface for document
+interface Document {
+  id: number;
+  material_identification_id: number;
+  file_name: string;
+  file_path: string;
+  file_url: string;
+  file_type: string;
+  file_size: number;
+  document_type: string;
+  description: string;
+  uploaded_by: number;
+  created_at: string;
 }
 
 // Define schema for Material Identification form
@@ -60,6 +84,17 @@ type MaterialIdentificationFormValues = z.infer<typeof materialIdentificationSch
 
 export default function MaterialIdentificationCreatePage() {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Document upload states
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentType, setDocumentType] = useState('general');
+  const [documentDescription, setDocumentDescription] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [createdRecordId, setCreatedRecordId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   interface NextIdResponse {
     nextId: string;
@@ -198,15 +233,18 @@ export default function MaterialIdentificationCreatePage() {
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const responseData = await response.json();
+        
+        // Store the created record's ID for document uploads
+        setCreatedRecordId(responseData.id || formattedData.materialIdentificationId);
         
         toast({
           title: "Material Identification Created",
           description: `Material Identification ${formattedData.materialIdentificationId} has been created successfully.`,
         });
         
-        // Navigate to the list view
-        navigate('/quality/material-identification');
+        // Show document upload dialog
+        setUploadDialogOpen(true);
       } else {
         throw new Error('Failed to create record');
       }
@@ -217,6 +255,84 @@ export default function MaterialIdentificationCreatePage() {
         description: "Failed to create Material Identification record. Please try again.",
         variant: "destructive",
       });
+    }
+  };
+  
+  // Handle file selection
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+  
+  // Reset upload form
+  const resetUploadForm = () => {
+    setSelectedFile(null);
+    setDocumentType('general');
+    setDocumentDescription('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
+  // Close upload dialog and navigate
+  const handleFinishUploads = () => {
+    setUploadDialogOpen(false);
+    navigate('/quality/material-identification');
+  };
+  
+  // Upload document
+  const handleUpload = async () => {
+    if (!createdRecordId) {
+      toast({
+        title: "Error",
+        description: "Cannot upload document - record ID not found",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!selectedFile) {
+      toast({
+        title: "No file selected",
+        description: "Please select a file to upload",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('documentType', documentType);
+      formData.append('description', documentDescription);
+      
+      const response = await fetch(`/api/quality/material-identification/${createdRecordId}/documents`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload document');
+      }
+      
+      toast({
+        title: "Document uploaded",
+        description: "Document has been successfully uploaded",
+      });
+      
+      resetUploadForm();
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload document. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
   
