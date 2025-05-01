@@ -216,13 +216,37 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
     try {
       console.log("Submitting form with data:", data);
       
+      // Check for empty select fields and use our state variables if needed
+      if (!data.specification && specificationValue) {
+        data.specification = specificationValue;
+        console.log("Using state value for specification:", specificationValue);
+      }
+      
+      if (!data.materialGrade && materialGradeValue) {
+        data.materialGrade = materialGradeValue;
+        console.log("Using state value for materialGrade:", materialGradeValue);
+      }
+      
+      if (!data.materialStatus && materialStatusValue) {
+        data.materialStatus = materialStatusValue;
+        console.log("Using state value for materialStatus:", materialStatusValue);
+      }
+      
       // Format date for API
       const formattedData = {
         ...data,
+        specification: data.specification || specificationValue,
+        materialGrade: data.materialGrade || materialGradeValue,
+        materialStatus: data.materialStatus || materialStatusValue,
         inspectionDate: format(data.inspectionDate, 'yyyy-MM-dd'),
       };
       
       console.log("Formatted data for API:", formattedData);
+      console.log("Current state values:", {
+        specificationValue,
+        materialGradeValue,
+        materialStatusValue
+      });
       
       // Submit to API
       const response = await fetch(`/api/quality/material-identification/${recordId}`, {
@@ -591,8 +615,11 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                         <FormItem>
                           <FormLabel>Material Status</FormLabel>
                           <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
+                            value={materialStatusValue}
+                            onValueChange={(value) => {
+                              setMaterialStatusValue(value);
+                              field.onChange(value);
+                            }}
                           >
                             <FormControl>
                               <SelectTrigger className="w-full">
