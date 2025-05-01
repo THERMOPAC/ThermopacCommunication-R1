@@ -84,8 +84,10 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   console.log('Is Edit Mode:', isEditMode);
   console.log('Is View Mode:', isViewMode);
   
-  // IMPORTANT: We only disable the form for View mode (never for new or edit)
+  // IMPORTANT SIMPLIFIED APPROACH: 
+  // We only disable the form for View mode (never for new or edit records)
   // This directly sets whether the form will be disabled without complex state management
+  // This single variable controls form field editability throughout the component
   const formDisabled = isViewMode;
   
   // Debug logs
