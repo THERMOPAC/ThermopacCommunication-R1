@@ -1,6 +1,30 @@
 import { Request } from 'express';
-import { getGcsClient } from '../gcs';
+import { Storage } from '@google-cloud/storage';
 import { v4 as uuidv4 } from 'uuid';
+
+// Get Google Cloud Storage instance
+const getGcsClient = () => {
+  const gcsCredentialsJson = process.env.GCS_CREDENTIALS;
+  const bucketName = process.env.GCS_BUCKET || 'thermopac_storage';
+  
+  let storageOptions = {};
+  
+  if (gcsCredentialsJson) {
+    try {
+      // Parse the JSON credentials string
+      const credentials = JSON.parse(gcsCredentialsJson);
+      storageOptions = { credentials };
+    } catch (error) {
+      console.error('Error parsing GCS credentials:', error);
+      throw new Error('Invalid GCS credentials format');
+    }
+  }
+  
+  return {
+    storage: new Storage(storageOptions),
+    bucketName
+  };
+};
 
 /**
  * Upload a Material Identification document to Google Cloud Storage
@@ -61,7 +85,7 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
     
     // Return a promise that resolves when the file is uploaded
     return new Promise((resolve, reject) => {
-      blobStream.on('error', (err) => {
+      blobStream.on('error', (err: any) => {
         console.error('Error uploading Material Identification document:', err);
         reject({
           error: 'Failed to upload Material Identification document',
@@ -83,7 +107,7 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
             file_type: fileType,
             file_size: fileSize
           });
-        } catch (err) {
+        } catch (err: any) {
           console.error('Error making blob public:', err);
           reject({
             error: 'Failed to make document public',
@@ -93,9 +117,9 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
       });
       
       // Write the file data to the stream
-      blobStream.end(req.file.buffer);
+      blobStream.end(req.file?.buffer);
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error in upload process:', err);
     return {
       error: 'Failed to process document upload',
@@ -135,7 +159,7 @@ export const deleteMaterialIdentificationDocument = async (filePath: string): Pr
     return {
       success: true
     };
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error deleting document from GCS:', err);
     return {
       error: 'Failed to delete document from storage',

@@ -4,6 +4,17 @@ import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { Request, Response, NextFunction } from "express";
 import { AnyZodObject } from "zod";
+import multer from "multer";
+import { uploadMaterialIdentificationDocument, deleteMaterialIdentificationDocument } from "../utils/material-identification-document-upload";
+
+// Configure multer for in-memory file storage
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage, 
+  limits: { 
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  } 
+});
 
 // Inline middleware to validate request body against a Zod schema
 const validateSchema = (schema: AnyZodObject) => {
@@ -555,6 +566,145 @@ router.get("/:id", async (req, res) => {
   } catch (error) {
     console.error("Error getting material identification:", error);
     res.status(500).json({ error: "Failed to get material identification" });
+  }
+});
+
+// Document upload for material identification
+router.post("/:id/documents", upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const materialIdentificationId = req.params.id;
+    
+    if (!materialIdentificationId) {
+      return res.status(400).json({ error: "Material identification ID is required" });
+    }
+    
+    // Make sure the material identification exists
+    const miRecord = await db.execute(sql`
+      SELECT id FROM material_identification WHERE id = ${materialIdentificationId}
+    `) as any;
+    
+    if (!miRecord || !miRecord.rows || miRecord.rows.length === 0) {
+      return res.status(404).json({ error: "Material identification not found" });
+    }
+    
+    // Set materialIdentificationId in request body for the upload util
+    req.body.materialIdentificationId = materialIdentificationId;
+    
+    // Upload document
+    const uploadResult = await uploadMaterialIdentificationDocument(req);
+    
+    if (!uploadResult.success) {
+      return res.status(500).json({ error: uploadResult.error || "Document upload failed" });
+    }
+    
+    // Get user ID if authenticated
+    const userId = req.user ? req.user.id : null;
+    
+    // Store document details in database
+    const documentRecord = await db.execute(sql`
+      INSERT INTO material_identification_documents (
+        material_identification_id,
+        file_name,
+        file_path,
+        file_url,
+        file_type,
+        file_size,
+        document_type,
+        description,
+        uploaded_by
+      ) VALUES (
+        ${parseInt(materialIdentificationId)},
+        ${uploadResult.file_name || 'unnamed'},
+        ${uploadResult.document_file_path || ''},
+        ${uploadResult.document_url || ''},
+        ${uploadResult.file_type || 'application/pdf'},
+        ${uploadResult.file_size || 0},
+        ${req.body.documentType || 'general'},
+        ${req.body.description || ''},
+        ${userId}
+      ) RETURNING *
+    `) as any;
+    
+    if (!documentRecord || !documentRecord.rows || documentRecord.rows.length === 0) {
+      return res.status(500).json({ error: "Failed to store document record" });
+    }
+    
+    res.status(201).json({
+      success: true,
+      message: "Document uploaded successfully",
+      document: documentRecord.rows[0]
+    });
+  } catch (error) {
+    console.error("Error uploading document:", error);
+    res.status(500).json({ error: "Failed to upload document" });
+  }
+});
+
+// Get all documents for a material identification
+router.get("/:id/documents", async (req: Request, res: Response) => {
+  try {
+    const materialIdentificationId = req.params.id;
+    
+    if (!materialIdentificationId) {
+      return res.status(400).json({ error: "Material identification ID is required" });
+    }
+    
+    // Get documents
+    const documents = await db.execute(sql`
+      SELECT * FROM material_identification_documents
+      WHERE material_identification_id = ${materialIdentificationId}
+      ORDER BY created_at DESC
+    `) as any;
+    
+    res.json(documents.rows || []);
+  } catch (error) {
+    console.error("Error getting documents:", error);
+    res.status(500).json({ error: "Failed to get documents" });
+  }
+});
+
+// Delete a document
+router.delete("/documents/:documentId", async (req: Request, res: Response) => {
+  try {
+    const documentId = req.params.documentId;
+    
+    if (!documentId) {
+      return res.status(400).json({ error: "Document ID is required" });
+    }
+    
+    // Get document details first
+    const document = await db.execute(sql`
+      SELECT * FROM material_identification_documents
+      WHERE id = ${documentId}
+    `) as any;
+    
+    if (!document || !document.rows || document.rows.length === 0) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+    
+    const documentDetails = document.rows[0];
+    
+    // Delete from GCS
+    const deleteResult = await deleteMaterialIdentificationDocument(documentDetails.file_path);
+    
+    if (!deleteResult.success) {
+      console.warn("Warning: Failed to delete file from GCS:", deleteResult.error);
+      // Continue with database deletion even if GCS deletion fails
+    }
+    
+    // Delete from database
+    await db.execute(sql`
+      DELETE FROM material_identification_documents
+      WHERE id = ${documentId}
+    `);
+    
+    res.json({
+      success: true,
+      message: "Document deleted successfully"
+    });
+  } catch (error) {
+    console.error("Error deleting document:", error);
+    res.status(500).json({ error: "Failed to delete document" });
   }
 });
 
