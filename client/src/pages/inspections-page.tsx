@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
 import { 
@@ -702,9 +702,9 @@ export default function InspectionsPage() {
   }, [editInspectionOrderDetails, editForm]);
   
   // Helper function to sync material rows with form
-  const syncMaterialRowsWithForm = useCallback(() => {
+  const syncMaterialRowsWithForm = () => {
     editForm.setValue('materials', materialRows);
-  }, [materialRows, editForm]);
+  };
 
   // Update form values when inspection order details are loaded
   useEffect(() => {
