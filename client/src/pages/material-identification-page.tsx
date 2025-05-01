@@ -398,7 +398,17 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
       // Store the project info in the form
       // Use code field as the primary identifier from the projects table
       const projectValue = (project.code || project.projectCode || project.projectNumber || '') as string;
+      
+      // Explicitly set the project number and name
+      console.log(`Setting project number to: ${projectValue}`);
+      console.log(`Setting project name to: ${project.name}`);
+      
       form.setValue('projectNumber', projectValue);
+      form.setValue('projectName', project.name);
+      
+      // This is important - mark fields as touched to ensure they're included in the submission
+      form.trigger('projectNumber');
+      form.trigger('projectName');
       
       // Debug information about the project data
       console.log('Selected project data:', {
@@ -408,7 +418,6 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
         projectNumber: project.projectNumber,
         name: project.name
       });
-      form.setValue('projectName', project.name);
       
       console.log('Selected project:', project);
       
