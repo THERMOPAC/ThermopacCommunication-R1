@@ -420,36 +420,43 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {documents.map((doc: Document) => (
-                          <tr key={doc.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm">{doc.file_name}</td>
-                            <td className="px-4 py-3 text-sm">{doc.document_type}</td>
-                            <td className="px-4 py-3 text-sm">{formatDate(doc.created_at)}</td>
-                            <td className="px-4 py-3 text-sm text-right">
-                              <div className="flex justify-end gap-2">
-                                <a 
-                                  href={doc.file_url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-200 hover:bg-gray-100"
-                                  title="Download"
-                                >
-                                  <Download className="h-4 w-4" />
-                                </a>
-                                <button
-                                  className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-200 hover:bg-red-100 hover:text-red-500"
-                                  title="Delete"
-                                  onClick={() => {
-                                    setDocumentToDelete(doc);
-                                    setDeleteDialogOpen(true);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                        {documents.map((doc: Document) => {
+                          // Extract the actual filename from the file_path
+                          // Format: QMS/Material_Identification/{MI ID}/{Document Type}.{extension}
+                          const pathParts = doc.file_path.split('/');
+                          const fileName = pathParts[pathParts.length - 1]; // Last part contains the filename
+                          
+                          return (
+                            <tr key={doc.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm">{fileName}</td>
+                              <td className="px-4 py-3 text-sm">{doc.document_type}</td>
+                              <td className="px-4 py-3 text-sm">{formatDate(doc.created_at)}</td>
+                              <td className="px-4 py-3 text-sm text-right">
+                                <div className="flex justify-end gap-2">
+                                  <a 
+                                    href={doc.file_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-200 hover:bg-gray-100"
+                                    title="Download"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </a>
+                                  <button
+                                    className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-200 hover:bg-red-100 hover:text-red-500"
+                                    title="Delete"
+                                    onClick={() => {
+                                      setDocumentToDelete(doc);
+                                      setDeleteDialogOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
