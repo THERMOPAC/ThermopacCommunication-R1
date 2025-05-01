@@ -2389,7 +2389,7 @@ export const materialInspectionLinks = pgTable('material_inspection_links', {
   materialSpecification: text('material_specification'),
   allocatedQuantity: text('allocated_quantity'),
   quantityUnit: text('quantity_unit'),
-  remarks: text('remarks'),
+  description: text('description'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -2536,7 +2536,7 @@ export const materialIdentification = pgTable('material_identification', {
   // Inspection details
   inspectorName: text('inspector_name').notNull(),
   inspectionDate: date('inspection_date').notNull(),
-  remarks: text('remarks'),
+  description: text('description'),
   
   // Tracking and metadata
   createdBy: integer('created_by').notNull().references(() => users.id),

@@ -383,7 +383,7 @@ router.get("/new", async (req, res) => {
       material_status: '',
       inspector_name: '',
       inspection_date: new Date().toISOString().split('T')[0],
-      remarks: null
+      description: null
     });
   } catch (error) {
     console.error("Error creating new material identification template:", error);
@@ -465,7 +465,7 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
         material_status = ${data.materialStatus},
         inspector_name = ${data.inspectorName},
         inspection_date = ${data.inspectionDate},
-        remarks = ${data.remarks || null},
+        description = ${data.description || null},
         updated_by = ${updatedBy},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${parseInt(id)}
@@ -478,7 +478,7 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
       'inspection_order_number', 'material_description', 'material_code', 'specification',
       'material_grade', 'heat_number', 'batch_number', 'mill_name', 'mill_test_certificate_number',
       'quantity', 'dimensions', 'material_status', 'inspector_name', 'inspection_date',
-      'remarks', 'updated_by', 'updated_at'
+      'description', 'updated_by', 'updated_at'
     ]);
     
     console.log("UPDATE query result:", updateResult && updateResult.rows ? updateResult.rows[0] : "No result");
