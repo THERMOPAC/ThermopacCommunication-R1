@@ -47,6 +47,21 @@ interface MaterialIdentification {
   updated_at: string;
 }
 
+// Define interface for document
+interface Document {
+  id: number;
+  material_identification_id: number;
+  file_name: string;
+  file_path: string;
+  file_url: string;
+  file_type: string;
+  file_size: number;
+  document_type: string;
+  description: string;
+  uploaded_by: number;
+  created_at: string;
+}
+
 interface MaterialIdentificationViewProps {
   params: {
     id: string;
@@ -56,6 +71,17 @@ interface MaterialIdentificationViewProps {
 export default function MaterialIdentificationViewNewPage({ params }: MaterialIdentificationViewProps) {
   const [, navigate] = useLocation();
   const recordId = params.id;
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // State for upload dialog
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentType, setDocumentType] = useState('general');
+  const [documentDescription, setDocumentDescription] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
   
   // Fetch the Material Identification record
   const { data, isLoading, error } = useQuery({
@@ -64,6 +90,19 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
       const response = await fetch(`/api/quality/material-identification/${recordId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch material identification record');
+      }
+      return response.json();
+    },
+    enabled: !!recordId && recordId !== 'new',
+  });
+  
+  // Fetch documents for this material identification
+  const { data: documents, isLoading: isLoadingDocuments } = useQuery({
+    queryKey: ['/api/quality/material-identification', recordId, 'documents'],
+    queryFn: async () => {
+      const response = await fetch(`/api/quality/material-identification/${recordId}/documents`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents');
       }
       return response.json();
     },
@@ -98,6 +137,104 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
   // Navigate to edit page for this record
   const handleEdit = () => {
     navigate(`/quality/material-identification/edit/${recordId}`);
+  };
+  
+  // Handle file input change
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setSelectedFile(event.target.files[0]);
+    }
+  };
+  
+  // Reset upload form
+  const resetUploadForm = () => {
+    setSelectedFile(null);
+    setDocumentType('general');
+    setDocumentDescription('');
+    setUploadDialogOpen(false);
+    setIsUploading(false);
+  };
+  
+  // Upload document
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "No file selected",
+        description: "Please select a file to upload",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('documentType', documentType);
+      formData.append('description', documentDescription);
+      
+      const response = await fetch(`/api/quality/material-identification/${recordId}/documents`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload document');
+      }
+      
+      // Invalidate document cache to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['/api/quality/material-identification', recordId, 'documents'] });
+      
+      toast({
+        title: "Document uploaded",
+        description: "Document has been successfully uploaded",
+      });
+      
+      resetUploadForm();
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload document. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  
+  // Delete document
+  const handleDeleteDocument = async () => {
+    if (!documentToDelete) return;
+    
+    try {
+      const response = await fetch(`/api/quality/material-identification/documents/${documentToDelete.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete document');
+      }
+      
+      // Invalidate document cache to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['/api/quality/material-identification', recordId, 'documents'] });
+      
+      toast({
+        title: "Document deleted",
+        description: "Document has been successfully deleted",
+      });
+      
+      setDeleteDialogOpen(false);
+      setDocumentToDelete(null);
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete document. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   if (isLoading) {
@@ -253,13 +390,75 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
                 </div>
               </div>
 
-              {/* Document Section (placeholder for future GCS integration) */}
+              {/* Document Section with GCS integration */}
               <div className="mt-6">
-                <h3 className="text-sm font-medium text-gray-500 mb-3">Documents</h3>
-                <div className="bg-gray-50 p-4 rounded-md text-center">
-                  <FileText className="h-10 w-10 mx-auto text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-500">Document upload functionality will be implemented in future updates.</p>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-sm font-medium text-gray-500">Documents</h3>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setUploadDialogOpen(true)}
+                  >
+                    <FileUp className="h-4 w-4 mr-2" />
+                    Upload Document
+                  </Button>
                 </div>
+                
+                {isLoadingDocuments ? (
+                  <div className="flex justify-center items-center h-20">
+                    <span className="loading loading-spinner text-primary"></span>
+                  </div>
+                ) : documents && documents.length > 0 ? (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-xs font-medium text-gray-500 text-left">Filename</th>
+                          <th className="px-4 py-2 text-xs font-medium text-gray-500 text-left">Type</th>
+                          <th className="px-4 py-2 text-xs font-medium text-gray-500 text-left">Date</th>
+                          <th className="px-4 py-2 text-xs font-medium text-gray-500 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {documents.map((doc: Document) => (
+                          <tr key={doc.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm">{doc.file_name}</td>
+                            <td className="px-4 py-3 text-sm">{doc.document_type}</td>
+                            <td className="px-4 py-3 text-sm">{formatDate(doc.created_at)}</td>
+                            <td className="px-4 py-3 text-sm text-right">
+                              <div className="flex justify-end gap-2">
+                                <a 
+                                  href={doc.file_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-200 hover:bg-gray-100"
+                                  title="Download"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </a>
+                                <button
+                                  className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-200 hover:bg-red-100 hover:text-red-500"
+                                  title="Delete"
+                                  onClick={() => {
+                                    setDocumentToDelete(doc);
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 p-4 rounded-md text-center">
+                    <FileText className="h-10 w-10 mx-auto text-gray-400" />
+                    <p className="mt-2 text-sm text-gray-500">No documents have been uploaded yet.</p>
+                  </div>
+                )}
               </div>
 
               {/* Metadata and Timestamps */}
@@ -271,6 +470,119 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
           </CardContent>
         </Card>
       </div>
+      {/* Document Upload Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload Document</DialogTitle>
+            <DialogDescription>
+              Upload a document for Material Identification record {record.material_identification_id}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid w-full items-center gap-1.5">
+              <Label htmlFor="file">File</Label>
+              <Input 
+                id="file" 
+                type="file" 
+                onChange={handleFileChange} 
+                disabled={isUploading}
+              />
+              {selectedFile && (
+                <p className="text-xs text-gray-500">
+                  Selected: {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
+                </p>
+              )}
+            </div>
+            
+            <div className="grid w-full items-center gap-1.5">
+              <Label htmlFor="documentType">Document Type</Label>
+              <select 
+                id="documentType"
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                value={documentType}
+                onChange={(e) => setDocumentType(e.target.value)}
+                disabled={isUploading}
+              >
+                <option value="general">General</option>
+                <option value="mill_certificate">Mill Certificate</option>
+                <option value="test_report">Test Report</option>
+                <option value="inspection_report">Inspection Report</option>
+                <option value="certification">Certification</option>
+              </select>
+            </div>
+            
+            <div className="grid w-full items-center gap-1.5">
+              <Label htmlFor="description">Description (Optional)</Label>
+              <Input 
+                id="description" 
+                placeholder="Brief description of the document"
+                value={documentDescription}
+                onChange={(e) => setDocumentDescription(e.target.value)}
+                disabled={isUploading}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex space-x-2 justify-end">
+            <Button 
+              variant="outline" 
+              onClick={resetUploadForm}
+              disabled={isUploading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpload}
+              disabled={!selectedFile || isUploading}
+            >
+              {isUploading ? 'Uploading...' : 'Upload'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Document Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Document</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this document? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {documentToDelete && (
+              <div className="flex items-center p-4 border rounded-md bg-gray-50">
+                <FileText className="h-8 w-8 mr-3 text-blue-500" />
+                <div>
+                  <p className="font-medium">{documentToDelete.file_name}</p>
+                  <p className="text-xs text-gray-500">
+                    Type: {documentToDelete.document_type}, 
+                    Uploaded: {formatDate(documentToDelete.created_at)}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex space-x-2 justify-end">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setDocumentToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteDocument}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
