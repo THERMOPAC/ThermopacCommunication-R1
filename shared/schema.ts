@@ -2377,12 +2377,48 @@ export const insertInspectionOrderSchema = createInsertSchema(inspectionOrders)
 export const insertInspectionOrderItemSchema = createInsertSchema(inspectionOrderItems)
   .omit({ id: true, createdAt: true, updatedAt: true });
 
+// Material Inspection Links - for traceability
+export const materialInspectionLinks = pgTable('material_inspection_links', {
+  id: serial('id').primaryKey(),
+  inspectionOrderId: integer('inspection_order_id').notNull().references(() => inspectionOrders.id, { onDelete: 'cascade' }),
+  materialId: integer('material_id').notNull().references(() => materialIdentification.id, { onDelete: 'cascade' }),
+  materialIdentificationId: text('material_identification_id').notNull(),
+  materialCertificateNumber: text('material_certificate_number'),
+  heatNumber: text('heat_number'),
+  materialGrade: text('material_grade'),
+  materialSpecification: text('material_specification'),
+  allocatedQuantity: text('allocated_quantity'),
+  quantityUnit: text('quantity_unit'),
+  remarks: text('remarks'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Relations for material inspection links
+export const materialInspectionLinksRelations = relations(materialInspectionLinks, ({ one }) => ({
+  inspectionOrder: one(inspectionOrders, {
+    fields: [materialInspectionLinks.inspectionOrderId],
+    references: [inspectionOrders.id],
+  }),
+  material: one(materialIdentification, {
+    fields: [materialInspectionLinks.materialId],
+    references: [materialIdentification.id],
+  }),
+}));
+
+// Schemas for material inspection links
+export const insertMaterialInspectionLinkSchema = createInsertSchema(materialInspectionLinks)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
 // Export types
 export type InspectionOrder = typeof inspectionOrders.$inferSelect;
 export type InsertInspectionOrder = z.infer<typeof insertInspectionOrderSchema>;
 
 export type InspectionOrderItem = typeof inspectionOrderItems.$inferSelect;
 export type InsertInspectionOrderItem = z.infer<typeof insertInspectionOrderItemSchema>;
+
+export type MaterialInspectionLink = typeof materialInspectionLinks.$inferSelect;
+export type InsertMaterialInspectionLink = z.infer<typeof insertMaterialInspectionLinkSchema>;
 
 // WPS Documents schema
 export const wpsDocuments = pgTable('wps_documents', {
