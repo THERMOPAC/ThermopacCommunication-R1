@@ -763,6 +763,118 @@ export default function MaterialIdentificationCreatePage() {
             )}
           </CardContent>
         </Card>
+        
+        {/* Document Upload Dialog */}
+        <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
+          if (!open) {
+            // If dialog is being closed, navigate to list
+            navigate('/quality/material-identification');
+          }
+          setUploadDialogOpen(open);
+        }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Upload Document</DialogTitle>
+              <DialogDescription>
+                Upload relevant documents for this Material Identification record.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="documentType" className="text-sm font-medium">Document Type</label>
+                <Select
+                  value={documentType}
+                  onValueChange={setDocumentType}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select document type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="mill_test_certificate">Mill Test Certificate</SelectItem>
+                    <SelectItem value="inspection_report">Inspection Report</SelectItem>
+                    <SelectItem value="material_certificate">Material Certificate</SelectItem>
+                    <SelectItem value="test_report">Test Report</SelectItem>
+                    <SelectItem value="technical_datasheet">Technical Datasheet</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="documentDescription" className="text-sm font-medium">Description</label>
+                <Input 
+                  id="documentDescription"
+                  value={documentDescription}
+                  onChange={(e) => setDocumentDescription(e.target.value)}
+                  placeholder="Enter document description"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="file" className="text-sm font-medium">File</label>
+                <div className="border rounded-md p-2">
+                  <Input 
+                    id="file" 
+                    type="file" 
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                    className="w-full"
+                  />
+                </div>
+                {selectedFile && (
+                  <div className="flex items-center mt-2 text-sm">
+                    <FileText className="h-4 w-4 mr-1" />
+                    <span className="truncate">{selectedFile.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto h-6 w-6 p-0"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = '';
+                        }
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleFinishUploads}
+              >
+                Skip & Finish
+              </Button>
+              <Button 
+                type="button" 
+                onClick={handleUpload}
+                disabled={isUploading || !selectedFile}
+              >
+                {isUploading ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs mr-2"></span>
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
