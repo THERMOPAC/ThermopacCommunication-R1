@@ -9,14 +9,34 @@ import { AnyZodObject } from "zod";
 const validateSchema = (schema: AnyZodObject) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      const validatedData = schema.parse(req.body);
-      req.body = validatedData;
+      // Log the incoming data before validation
+      console.log("==== VALIDATION MIDDLEWARE ====");
+      console.log("Raw request body:", JSON.stringify(req.body, null, 2));
+      
+      // Use schema.safeParse instead of parse to get detailed error information
+      const result = schema.safeParse(req.body);
+      
+      if (!result.success) {
+        console.error("Validation errors:", result.error.format());
+        console.error("Validation error issues:", result.error.issues);
+        return res.status(400).json({
+          error: "Validation failed",
+          details: result.error.format(),
+          issues: result.error.issues
+        });
+      }
+      
+      // Replace the request body with the validated data
+      req.body = result.data;
+      console.log("Validated data:", JSON.stringify(req.body, null, 2));
+      
       next();
-    } catch (error) {
-      console.error("Validation error:", error);
+    } catch (err) {
+      const error = err as Error;
+      console.error("Unexpected validation error:", error);
       return res.status(400).json({
         error: "Validation failed",
-        details: error
+        message: error.message || "Unknown validation error"
       });
     }
   };
@@ -360,6 +380,12 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
     const id = req.params.id;
     const data = req.body;
     
+    // Debug logging for troubleshooting
+    console.log("==== UPDATE REQUEST DATA ====");
+    console.log("Request params ID:", id);
+    console.log("Request body fields:", Object.keys(data));
+    console.log("Full request body:", JSON.stringify(data, null, 2));
+    
     // If user is authenticated, add user ID as updater
     if (req.user) {
       data.updatedBy = req.user.id;
@@ -374,11 +400,14 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
       return res.status(404).json({ error: "Material identification record not found" });
     }
     
-    // Update the record
-    const result = await db.execute(sql`
+    // Update the record - use a more direct approach with explicit field mapping
+    console.log("Preparing to execute UPDATE query for material identification ID:", id);
+    
+    // Create the SQL query explicitly
+    const updateQuery = sql`
       UPDATE material_identification SET
         material_identification_id = ${data.materialIdentificationId},
-        project_id = ${data.projectId},
+        project_id = ${parseInt(data.projectId.toString())},
         project_number = ${data.projectNumber},
         project_name = ${data.projectName},
         inspection_order_number = ${data.inspectionOrderNumber || ''},
@@ -398,18 +427,59 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
         remarks = ${data.remarks || null},
         updated_by = ${data.updatedBy || null},
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
+      WHERE id = ${parseInt(id)}
       RETURNING *
-    `);
+    `;
+    
+    // Log the query details (safely - don't log the actual SQL query)
+    console.log("UPDATE query will update these fields:", [
+      'material_identification_id', 'project_id', 'project_number', 'project_name',
+      'inspection_order_number', 'material_description', 'material_code', 'specification',
+      'material_grade', 'heat_number', 'batch_number', 'mill_name', 'mill_test_certificate_number',
+      'quantity', 'dimensions', 'material_status', 'inspector_name', 'inspection_date',
+      'remarks', 'updated_by', 'updated_at'
+    ]);
+    
+    // Execute the query
+    const result = await db.execute(updateQuery);
     
     if (result && result.rows && result.rows.length > 0) {
       res.json(result.rows[0]);
     } else {
       throw new Error("No data returned from update operation");
     }
-  } catch (error) {
+  } catch (err) {
+    // Convert unknown type to a more useful error object
+    const error = err as Error;
+    
+    // Detailed error logging
     console.error("Error updating material identification:", error);
-    res.status(500).json({ error: "Failed to update material identification" });
+    console.error("Error type:", typeof error);
+    console.error("Error message:", error.message || 'Unknown error');
+    
+    if (error.stack) {
+      console.error("Error stack:", error.stack);
+    }
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        error: "Validation error", 
+        details: error.message,
+        fields: (error as any).errors || []
+      });
+    }
+    
+    if (error.name === 'SyntaxError') {
+      return res.status(400).json({ 
+        error: "Syntax error in request", 
+        details: error.message
+      });
+    }
+    
+    res.status(500).json({ 
+      error: "Failed to update material identification", 
+      message: error.message || 'Unknown server error'
+    });
   }
 });
 
