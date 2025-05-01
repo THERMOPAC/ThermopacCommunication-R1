@@ -54,7 +54,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Eye, Edit2, Trash2 } from "lucide-react";
+import { Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Eye, Edit2, Trash2, X, FileCheck } from "lucide-react";
 import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -182,6 +182,78 @@ export default function InspectionsPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingInspectionOrder, setEditingInspectionOrder] = useState<number | null>(null);
+  const [materialRows, setMaterialRows] = useState<{
+    id?: number;
+    materialId?: number;
+    materialIdentificationId?: string;
+    materialCertificateNumber?: string;
+    heatNumber?: string;
+    materialGrade?: string;
+    materialSpecification?: string;
+    allocatedQuantity?: string;
+    quantityUnit?: string;
+    remarks?: string;
+  }[]>([]);
+  
+  // Helper function to add a new material row
+  const addMaterialRow = () => {
+    setMaterialRows([...materialRows, {
+      materialId: undefined,
+      materialIdentificationId: '',
+      materialCertificateNumber: '',
+      heatNumber: '',
+      materialGrade: '',
+      materialSpecification: '',
+      allocatedQuantity: '',
+      quantityUnit: '',
+      remarks: ''
+    }]);
+  };
+  
+  // Helper function to remove a material row
+  const removeMaterialRow = (index: number) => {
+    const updatedRows = [...materialRows];
+    updatedRows.splice(index, 1);
+    setMaterialRows(updatedRows);
+  };
+  
+  // Helper function to update a material row with selected material data
+  const updateMaterialRow = (index: number, material: MaterialIdentification | null) => {
+    const updatedRows = [...materialRows];
+    
+    if (material) {
+      updatedRows[index] = {
+        ...updatedRows[index],
+        materialId: material.id,
+        materialIdentificationId: material.material_identification_id,
+        materialCertificateNumber: material.mill_test_certificate_number || '',
+        heatNumber: material.heat_number || '',
+        materialGrade: material.material_grade || '',
+        materialSpecification: material.specification || '',
+        // Keep user-editable fields
+        allocatedQuantity: updatedRows[index].allocatedQuantity || '',
+        quantityUnit: updatedRows[index].quantityUnit || '',
+        remarks: updatedRows[index].remarks || ''
+      };
+    } else {
+      // Reset the material selection
+      updatedRows[index] = {
+        ...updatedRows[index],
+        materialId: undefined,
+        materialIdentificationId: '',
+        materialCertificateNumber: '',
+        heatNumber: '',
+        materialGrade: '',
+        materialSpecification: '',
+        // Keep user-editable fields
+        allocatedQuantity: updatedRows[index].allocatedQuantity || '',
+        quantityUnit: updatedRows[index].quantityUnit || '',
+        remarks: updatedRows[index].remarks || ''
+      };
+    }
+    
+    setMaterialRows(updatedRows);
+  };
   
   // Fetch projects for dropdown
   const { data: projects, isLoading: isLoadingProjects } = useQuery({
@@ -583,67 +655,6 @@ export default function InspectionsPage() {
     }
   };
   
-  // State for material rows management
-  const [materialRows, setMaterialRows] = useState<{
-    id?: number;
-    materialId?: number;
-    materialIdentificationId?: string;
-    materialCertificateNumber?: string;
-    heatNumber?: string;
-    materialGrade?: string;
-    materialSpecification?: string;
-    allocatedQuantity?: string;
-    quantityUnit?: string;
-    remarks?: string;
-  }[]>([]);
-  
-  // Add a new empty material row
-  const addMaterialRow = () => {
-    setMaterialRows([
-      ...materialRows,
-      {
-        materialId: undefined,
-        materialIdentificationId: undefined,
-        materialCertificateNumber: '',
-        heatNumber: '',
-        materialGrade: '',
-        materialSpecification: '',
-        allocatedQuantity: '',
-        quantityUnit: '',
-        remarks: ''
-      }
-    ]);
-  };
-  
-  // Remove a material row
-  const removeMaterialRow = (index: number) => {
-    const updatedRows = [...materialRows];
-    updatedRows.splice(index, 1);
-    setMaterialRows(updatedRows);
-  };
-  
-  // Update a material row when user selects an MI ID
-  const updateMaterialRow = (index: number, materialIdentification: MaterialIdentification | null) => {
-    if (!materialIdentification) return;
-    
-    const updatedRows = [...materialRows];
-    updatedRows[index] = {
-      ...updatedRows[index],
-      materialId: materialIdentification.id,
-      materialIdentificationId: materialIdentification.material_identification_id,
-      materialCertificateNumber: materialIdentification.mill_test_certificate_number,
-      heatNumber: materialIdentification.heat_number,
-      materialGrade: materialIdentification.material_grade,
-      materialSpecification: materialIdentification.specification,
-      // Keep existing values for these
-      allocatedQuantity: updatedRows[index].allocatedQuantity,
-      quantityUnit: updatedRows[index].quantityUnit || materialIdentification.quantity.split(' ')[1] || '',
-      remarks: updatedRows[index].remarks
-    };
-    
-    setMaterialRows(updatedRows);
-  };
-  
   // Form for editing inspection order
   const editForm = useForm<InspectionOrderEditFormValues>({
     resolver: zodResolver(inspectionOrderEditSchema),
@@ -659,6 +670,36 @@ export default function InspectionsPage() {
       materials: [], // Initialize with empty array for materials
     }
   });
+
+  // Update material rows when the inspection order details are loaded
+  useEffect(() => {
+    if (editInspectionOrderDetails?.materials && editInspectionOrderDetails.materials.length > 0) {
+      // Convert the API material data to our material rows format
+      const materials = editInspectionOrderDetails.materials.map(material => ({
+        id: material.id,
+        materialId: material.materialId,
+        materialIdentificationId: material.materialIdentificationId,
+        materialCertificateNumber: material.materialCertificateNumber,
+        heatNumber: material.heatNumber,
+        materialGrade: material.materialGrade,
+        materialSpecification: material.materialSpecification,
+        allocatedQuantity: material.allocatedQuantity || '',
+        quantityUnit: material.quantityUnit || '',
+        remarks: material.remarks || ''
+      }));
+      
+      setMaterialRows(materials);
+    } else {
+      setMaterialRows([]);
+    }
+  }, [editInspectionOrderDetails]);
+  
+  // Sync material rows with the form whenever they change
+  useEffect(() => {
+    if (materialRows.length > 0) {
+      editForm.setValue('materials', materialRows);
+    }
+  }, [materialRows, editForm]);
 
   // Update form values when inspection order details are loaded
   useEffect(() => {
@@ -688,9 +729,17 @@ export default function InspectionsPage() {
         itemCode: editInspectionOrderDetails.itemCode || (firstItem ? firstItem.itemCode : ""),
         description: editInspectionOrderDetails.description || (firstItem ? firstItem.description : ""),
         drawingNo: drawingNumber,
+        // Set legacy material fields
+        materialCertificateNumber: editInspectionOrderDetails.materialCertificateNumber || '',
+        heatNumber: editInspectionOrderDetails.heatNumber || '',
+        materialGrade: editInspectionOrderDetails.materialGrade || '',
+        materialSpecification: editInspectionOrderDetails.materialSpecification || '',
+        materialSupplier: editInspectionOrderDetails.materialSupplier || '',
+        // Initialize the materials array (will be populated by the materialRows useEffect)
+        materials: materialRows,
       });
     }
-  }, [editInspectionOrderDetails, editForm]);
+  }, [editInspectionOrderDetails, editForm, materialRows]);
 
   // Handle inspection order update
   const handleUpdateInspectionOrder = async (data: InspectionOrderEditFormValues) => {
@@ -1592,96 +1641,320 @@ export default function InspectionsPage() {
                   {/* Material Traceability Tab */}
                   <TabsContent value="material" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Material Traceability</h3>
-                      <div className="grid grid-cols-12 gap-4">
-                        <div className="col-span-6">
-                          <FormField
-                            control={editForm.control}
-                            name="materialCertificateNumber"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Material Certificate Number</FormLabel>
-                                <FormControl>
-                                  <Input {...field} placeholder="Enter certificate number" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-6">
-                          <FormField
-                            control={editForm.control}
-                            name="heatNumber"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Heat Number</FormLabel>
-                                <FormControl>
-                                  <Input {...field} placeholder="Enter heat number" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="materialGrade"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Material Grade</FormLabel>
-                                <FormControl>
-                                  <Input {...field} placeholder="Enter material grade" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="materialSpecification"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Material Specification</FormLabel>
-                                <FormControl>
-                                  <Input {...field} placeholder="Enter specification" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="materialSupplier"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Material Supplier</FormLabel>
-                                <FormControl>
-                                  <Input {...field} placeholder="Enter supplier name" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <div className="flex items-center gap-2 mt-4">
-                            <Button type="button" variant="outline" size="sm">
-                              <FileText className="h-4 w-4 mr-2" />
-                              Upload Certificate
-                            </Button>
-                            <Button type="button" variant="outline" size="sm">
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Attachments
-                            </Button>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium">Material Traceability</h3>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={addMaterialRow}
+                          className="flex items-center"
+                        >
+                          <Plus className="h-4 w-4 mr-1" /> Add Material
+                        </Button>
+                      </div>
+                      
+                      {/* Legacy single material fields (keeping for backward compatibility) */}
+                      {materialRows.length === 0 && (
+                        <div className="grid grid-cols-12 gap-4 mb-6 border-b pb-4">
+                          <div className="col-span-12">
+                            <p className="text-sm text-muted-foreground mb-2">Legacy Material Information:</p>
+                          </div>
+                          <div className="col-span-6">
+                            <FormField
+                              control={editForm.control}
+                              name="materialCertificateNumber"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Material Certificate Number</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} placeholder="Enter certificate number" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="col-span-6">
+                            <FormField
+                              control={editForm.control}
+                              name="heatNumber"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Heat Number</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} placeholder="Enter heat number" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="col-span-4">
+                            <FormField
+                              control={editForm.control}
+                              name="materialGrade"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Material Grade</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} placeholder="Enter material grade" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="col-span-4">
+                            <FormField
+                              control={editForm.control}
+                              name="materialSpecification"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Material Specification</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} placeholder="Enter specification" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="col-span-4">
+                            <FormField
+                              control={editForm.control}
+                              name="materialSupplier"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Material Supplier</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} placeholder="Enter supplier name" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="col-span-12">
+                            <div className="flex items-center gap-2 mt-4">
+                              <Button type="button" variant="outline" size="sm">
+                                <FileText className="h-4 w-4 mr-2" />
+                                Upload Certificate
+                              </Button>
+                              <Button type="button" variant="outline" size="sm">
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Attachments
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
+                      
+                      {/* Material rows with dynamic row addition functionality */}
+                      {materialRows.length > 0 ? (
+                        <div className="space-y-6">
+                          {materialRows.map((materialRow, index) => (
+                            <div key={index} className="border rounded-md p-4 relative">
+                              <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon"
+                                className="absolute top-2 right-2 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                onClick={() => removeMaterialRow(index)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                              
+                              <div className="grid grid-cols-12 gap-4">
+                                <div className="col-span-12">
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`material-id-${index}`}>Material Identification (MI ID)</Label>
+                                    <Select
+                                      value={materialRow.materialId?.toString() || ""}
+                                      onValueChange={(value) => {
+                                        const selectedMaterial = availableMaterials.find(m => m.id === parseInt(value));
+                                        updateMaterialRow(index, selectedMaterial || null);
+                                      }}
+                                    >
+                                      <SelectTrigger id={`material-id-${index}`}>
+                                        <SelectValue placeholder="Select Material Identification" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {isLoadingMaterials ? (
+                                          <div className="flex items-center justify-center p-2">
+                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                            Loading materials...
+                                          </div>
+                                        ) : availableMaterials.length === 0 ? (
+                                          <div className="p-2 text-center text-sm text-muted-foreground">
+                                            No materials available
+                                          </div>
+                                        ) : (
+                                          availableMaterials.map((material) => (
+                                            <SelectItem key={material.id} value={material.id.toString()}>
+                                              {material.material_identification_id} - {material.material_description}
+                                            </SelectItem>
+                                          ))
+                                        )}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                
+                                <div className="col-span-6">
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`certificate-number-${index}`}>Material Certificate Number</Label>
+                                    <Input
+                                      id={`certificate-number-${index}`}
+                                      value={materialRow.materialCertificateNumber || ''}
+                                      onChange={(e) => {
+                                        const updatedRows = [...materialRows];
+                                        updatedRows[index] = {
+                                          ...updatedRows[index],
+                                          materialCertificateNumber: e.target.value
+                                        };
+                                        setMaterialRows(updatedRows);
+                                      }}
+                                      placeholder="Certificate number"
+                                      className="bg-gray-50"
+                                      readOnly
+                                    />
+                                  </div>
+                                </div>
+                                
+                                <div className="col-span-6">
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`heat-number-${index}`}>Heat Number</Label>
+                                    <Input
+                                      id={`heat-number-${index}`}
+                                      value={materialRow.heatNumber || ''}
+                                      onChange={(e) => {
+                                        const updatedRows = [...materialRows];
+                                        updatedRows[index] = {
+                                          ...updatedRows[index],
+                                          heatNumber: e.target.value
+                                        };
+                                        setMaterialRows(updatedRows);
+                                      }}
+                                      placeholder="Heat number"
+                                      className="bg-gray-50"
+                                      readOnly
+                                    />
+                                  </div>
+                                </div>
+                                
+                                <div className="col-span-6">
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`material-grade-${index}`}>Material Grade</Label>
+                                    <Input
+                                      id={`material-grade-${index}`}
+                                      value={materialRow.materialGrade || ''}
+                                      onChange={(e) => {
+                                        const updatedRows = [...materialRows];
+                                        updatedRows[index] = {
+                                          ...updatedRows[index],
+                                          materialGrade: e.target.value
+                                        };
+                                        setMaterialRows(updatedRows);
+                                      }}
+                                      placeholder="Material grade"
+                                      className="bg-gray-50"
+                                      readOnly
+                                    />
+                                  </div>
+                                </div>
+                                
+                                <div className="col-span-6">
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`material-spec-${index}`}>Material Specification</Label>
+                                    <Input
+                                      id={`material-spec-${index}`}
+                                      value={materialRow.materialSpecification || ''}
+                                      onChange={(e) => {
+                                        const updatedRows = [...materialRows];
+                                        updatedRows[index] = {
+                                          ...updatedRows[index],
+                                          materialSpecification: e.target.value
+                                        };
+                                        setMaterialRows(updatedRows);
+                                      }}
+                                      placeholder="Material specification"
+                                      className="bg-gray-50"
+                                      readOnly
+                                    />
+                                  </div>
+                                </div>
+                                
+                                <div className="col-span-4">
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`quantity-${index}`}>Allocated Quantity</Label>
+                                    <Input
+                                      id={`quantity-${index}`}
+                                      value={materialRow.allocatedQuantity || ''}
+                                      onChange={(e) => {
+                                        const updatedRows = [...materialRows];
+                                        updatedRows[index] = {
+                                          ...updatedRows[index],
+                                          allocatedQuantity: e.target.value
+                                        };
+                                        setMaterialRows(updatedRows);
+                                      }}
+                                      placeholder="Enter quantity"
+                                    />
+                                  </div>
+                                </div>
+                                
+                                <div className="col-span-4">
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`unit-${index}`}>Unit</Label>
+                                    <Input
+                                      id={`unit-${index}`}
+                                      value={materialRow.quantityUnit || ''}
+                                      onChange={(e) => {
+                                        const updatedRows = [...materialRows];
+                                        updatedRows[index] = {
+                                          ...updatedRows[index],
+                                          quantityUnit: e.target.value
+                                        };
+                                        setMaterialRows(updatedRows);
+                                      }}
+                                      placeholder="e.g., kg, m, pcs"
+                                    />
+                                  </div>
+                                </div>
+                                
+                                <div className="col-span-4">
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`remarks-${index}`}>Remarks</Label>
+                                    <Input
+                                      id={`remarks-${index}`}
+                                      value={materialRow.remarks || ''}
+                                      onChange={(e) => {
+                                        const updatedRows = [...materialRows];
+                                        updatedRows[index] = {
+                                          ...updatedRows[index],
+                                          remarks: e.target.value
+                                        };
+                                        setMaterialRows(updatedRows);
+                                      }}
+                                      placeholder="Optional notes"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-6 border rounded-md mt-4">
+                          <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
+                          <p className="mt-2 text-muted-foreground">
+                            No materials linked to this inspection order.
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Click "Add Material" to link materials from Material Identification module.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   
