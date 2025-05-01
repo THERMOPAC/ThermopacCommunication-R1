@@ -572,9 +572,27 @@ router.get("/:id", async (req, res) => {
 // Document upload for material identification
 router.post("/:id/documents", upload.single('file'), async (req: Request, res: Response) => {
   try {
+    console.log('Material identification document upload request received');
+    console.log('Request params:', req.params);
+    console.log('Request body:', req.body);
+    console.log('Request file:', req.file ? 'File present' : 'No file found');
+    
+    // Check if file exists in request
+    if (!req.file) {
+      console.error('No file uploaded in request');
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+    
+    console.log('File details:', {
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+    
     const materialIdentificationId = req.params.id;
     
     if (!materialIdentificationId) {
+      console.error('Missing materialIdentificationId in request parameters');
       return res.status(400).json({ error: "Material identification ID is required" });
     }
     
@@ -584,23 +602,31 @@ router.post("/:id/documents", upload.single('file'), async (req: Request, res: R
     `) as any;
     
     if (!miRecord || !miRecord.rows || miRecord.rows.length === 0) {
+      console.error(`Material identification with ID ${materialIdentificationId} not found`);
       return res.status(404).json({ error: "Material identification not found" });
     }
+    
+    console.log(`Material identification ${materialIdentificationId} found, proceeding with upload`);
     
     // Set materialIdentificationId in request body for the upload util
     req.body.materialIdentificationId = materialIdentificationId;
     
     // Upload document
+    console.log('Starting document upload to GCS...');
     const uploadResult = await uploadMaterialIdentificationDocument(req);
+    console.log('Upload result:', uploadResult);
     
     if (!uploadResult.success) {
+      console.error('Upload failed:', uploadResult.error);
       return res.status(500).json({ error: uploadResult.error || "Document upload failed" });
     }
     
     // Get user ID if authenticated
     const userId = req.user ? req.user.id : null;
+    console.log(`User ID for document upload: ${userId || 'Not authenticated'}`);
     
     // Store document details in database
+    console.log('Storing document metadata in database...');
     const documentRecord = await db.execute(sql`
       INSERT INTO material_identification_documents (
         material_identification_id,
@@ -626,9 +652,11 @@ router.post("/:id/documents", upload.single('file'), async (req: Request, res: R
     `) as any;
     
     if (!documentRecord || !documentRecord.rows || documentRecord.rows.length === 0) {
+      console.error('Failed to store document record in database');
       return res.status(500).json({ error: "Failed to store document record" });
     }
     
+    console.log('Document successfully uploaded and recorded in database');
     res.status(201).json({
       success: true,
       message: "Document uploaded successfully",
@@ -636,7 +664,7 @@ router.post("/:id/documents", upload.single('file'), async (req: Request, res: R
     });
   } catch (error) {
     console.error("Error uploading document:", error);
-    res.status(500).json({ error: "Failed to upload document" });
+    res.status(500).json({ error: "Failed to upload document", details: error?.toString?.() });
   }
 });
 
