@@ -136,6 +136,12 @@ function Router() {
         component={() => <MaterialIdentificationEditNewPage params={{ id: window.location.pathname.split('/').pop() || '' }} />} 
       />
       
+      {/* Test page for direct updates */}
+      <ProtectedRoute 
+        path="/quality/material-identification/direct-update/:id" 
+        component={() => <MaterialIdentificationDirectUpdate />} 
+      />
+      
       {/* Legacy route for backward compatibility, redirects to view page */}
       <Route path="/quality/material-identification/:id">
         {(params) => <Redirect to={`/quality/material-identification/view/${params.id}`} />}

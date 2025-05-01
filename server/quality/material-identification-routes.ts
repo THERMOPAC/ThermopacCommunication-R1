@@ -387,9 +387,7 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
     console.log("Full request body:", JSON.stringify(data, null, 2));
     
     // If user is authenticated, add user ID as updater
-    if (req.user) {
-      data.updatedBy = req.user.id;
-    }
+    const updatedBy = req.user ? req.user.id : null;
     
     // Check if the record exists
     const checkRecord = await db.execute(sql`
@@ -400,12 +398,14 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
       return res.status(404).json({ error: "Material identification record not found" });
     }
     
-    // Update the record - use a more direct approach with explicit field mapping
+    // Update the record using a direct SQL approach to bypass potential issues with ORM
     console.log("Preparing to execute UPDATE query for material identification ID:", id);
     
-    // Create the SQL query explicitly
-    const updateQuery = sql`
-      UPDATE material_identification SET
+    // Create the SQL query with explicit field setting
+    // IMPORTANT CHANGE: Use direct field setting to ensure each field gets updated properly
+    const updateResult = await db.execute(sql`
+      UPDATE material_identification 
+      SET
         material_identification_id = ${data.materialIdentificationId},
         project_id = ${parseInt(data.projectId.toString())},
         project_number = ${data.projectNumber},
@@ -425,14 +425,14 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
         inspector_name = ${data.inspectorName},
         inspection_date = ${data.inspectionDate},
         remarks = ${data.remarks || null},
-        updated_by = ${data.updatedBy || null},
+        updated_by = ${updatedBy},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${parseInt(id)}
       RETURNING *
-    `;
+    `);
     
-    // Log the query details (safely - don't log the actual SQL query)
-    console.log("UPDATE query will update these fields:", [
+    // Log the query details and response
+    console.log("UPDATE query complete for fields:", [
       'material_identification_id', 'project_id', 'project_number', 'project_name',
       'inspection_order_number', 'material_description', 'material_code', 'specification',
       'material_grade', 'heat_number', 'batch_number', 'mill_name', 'mill_test_certificate_number',
@@ -440,8 +440,10 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
       'remarks', 'updated_by', 'updated_at'
     ]);
     
-    // Execute the query
-    const result = await db.execute(updateQuery);
+    console.log("UPDATE query result:", updateResult && updateResult.rows ? updateResult.rows[0] : "No result");
+    
+    // Assign the result for consistency with existing code
+    const result = updateResult;
     
     if (result && result.rows && result.rows.length > 0) {
       res.json(result.rows[0]);
@@ -493,55 +495,25 @@ router.put("/test-update/:id", async (req, res) => {
     console.log("Request params ID:", id);
     console.log("Raw request body:", data);
     
-    // Build SQL query directly from the received fields
-    let updateValues = [];
-    let setClause = [];
-    
-    // Manually map fields
-    if (data.materialDescription) {
-      setClause.push("material_description = $" + (updateValues.length + 1));
-      updateValues.push(data.materialDescription);
-    }
-    
-    if (data.materialCode) {
-      setClause.push("material_code = $" + (updateValues.length + 1));
-      updateValues.push(data.materialCode);
-    }
-    
-    if (data.specification) {
-      setClause.push("specification = $" + (updateValues.length + 1));
-      updateValues.push(data.specification);
-    }
-    
-    if (data.materialGrade) {
-      setClause.push("material_grade = $" + (updateValues.length + 1));
-      updateValues.push(data.materialGrade);
-    }
-    
-    if (data.millName) {
-      setClause.push("mill_name = $" + (updateValues.length + 1));
-      updateValues.push(data.millName);
-    }
-    
-    // Always update the timestamp
-    setClause.push("updated_at = CURRENT_TIMESTAMP");
-    
-    // Add the WHERE parameter
-    updateValues.push(parseInt(id));
-    
-    // Construct and execute query
-    const query = `
-      UPDATE material_identification 
-      SET ${setClause.join(", ")}
-      WHERE id = $${updateValues.length}
+    // Use drizzle's sql template for the update instead of raw SQL
+    // This should automatically handle the query execution correctly
+    const updateResult = await db.execute(sql`
+      UPDATE material_identification
+      SET
+        material_description = ${data.materialDescription || sql`material_description`},
+        material_code = ${data.materialCode || sql`material_code`},
+        specification = ${data.specification || sql`specification`},
+        material_grade = ${data.materialGrade || sql`material_grade`},
+        mill_name = ${data.millName || sql`mill_name`},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${parseInt(id)}
       RETURNING *
-    `;
+    `);
     
-    console.log("Generated SQL structure:", query);
-    console.log("Update values:", updateValues);
+    console.log("Update executed using drizzle SQL template");
     
-    // Execute the query directly
-    const result = await db.query(query, updateValues);
+    // Assign the result to match expected format
+    const result = updateResult;
     
     if (result && result.rows && result.rows.length > 0) {
       console.log("Test update successful:", result.rows[0]);

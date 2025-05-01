@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { useParams } from "wouter";
-import { Layout } from "../layout";
+import Layout from "@/components/layout";
 
 // Simple component to test direct updates
 export default function MaterialIdentificationDirectUpdate() {
