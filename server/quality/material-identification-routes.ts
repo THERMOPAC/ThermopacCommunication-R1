@@ -118,7 +118,21 @@ router.get("/", async (req, res) => {
     }
     
     if (projectId) {
-      conditions.push(sql`project_id = ${projectId}`);
+      // First, try to get the project code from the projects table
+      const projectResult = await db.execute(sql`
+        SELECT code FROM projects WHERE id = ${projectId}
+      `) as any;
+      
+      if (projectResult && projectResult.rows && projectResult.rows.length > 0) {
+        const projectCode = projectResult.rows[0].code;
+        console.log("Filtering by project code:", projectCode);
+        
+        // Filter material identifications by project_number that matches exactly the project code
+        conditions.push(sql`project_number = ${projectCode}`);
+      } else {
+        // Fallback to filtering by project_id if we couldn't find the project code
+        conditions.push(sql`project_id = ${projectId}`);
+      }
     }
     
     if (materialGrade) {
