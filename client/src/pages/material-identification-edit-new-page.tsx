@@ -248,6 +248,11 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
         materialStatusValue
       });
       
+      // Add detailed debugging before submission
+      console.log("==== FORM SUBMISSION DETAILS ====");
+      console.log("Fields being submitted:", Object.keys(formattedData));
+      console.log("Final data for API:", JSON.stringify(formattedData, null, 2));
+      
       // Submit to API
       const response = await fetch(`/api/quality/material-identification/${recordId}`, {
         method: 'PUT',
@@ -257,9 +262,22 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
         body: JSON.stringify(formattedData),
       });
       
+      // Log the response status for debugging
+      console.log("API Response Status:", response.status);
+      
+      // Get response body and handle success/error
+      const responseText = await response.text();
+      console.log("API Response Text:", responseText);
+      
       if (response.ok) {
-        const responseData = await response.json();
-        console.log("API response:", responseData);
+        // Try to parse the response as JSON
+        let responseData;
+        try {
+          responseData = JSON.parse(responseText);
+          console.log("API response parsed:", responseData);
+        } catch (e) {
+          console.error("Failed to parse response as JSON:", e);
+        }
         
         toast({
           title: "Material Identification Updated",
@@ -269,9 +287,8 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
         // Navigate to the view page
         navigate(`/quality/material-identification/view/${recordId}`);
       } else {
-        const errorText = await response.text();
-        console.error("Error response:", errorText);
-        throw new Error(`Failed to update record: ${errorText}`);
+        console.error("Error response:", responseText);
+        throw new Error(`Failed to update record: ${responseText}`);
       }
     } catch (error) {
       console.error("Error updating material identification:", error);
