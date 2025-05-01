@@ -93,6 +93,11 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
   const [, navigate] = useLocation();
   const recordId = params.id;
   
+  // State to track select field values
+  const [specificationValue, setSpecificationValue] = useState("");
+  const [materialGradeValue, setMaterialGradeValue] = useState("");
+  const [materialStatusValue, setMaterialStatusValue] = useState("");
+  
   // Fetch the Material Identification record
   const { data: recordData, isLoading: isLoadingRecord, error } = useQuery({
     queryKey: ['/api/quality/material-identification', recordId],
@@ -175,6 +180,17 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
       form.setValue("specification", formattedData.specification);
       form.setValue("materialStatus", formattedData.materialStatus);
       form.setValue("materialGrade", formattedData.materialGrade);
+      
+      // Also set our state variables
+      setSpecificationValue(formattedData.specification);
+      setMaterialGradeValue(formattedData.materialGrade);
+      setMaterialStatusValue(formattedData.materialStatus);
+      
+      console.log("Set dropdown values:", {
+        specification: formattedData.specification,
+        materialGrade: formattedData.materialGrade,
+        materialStatus: formattedData.materialStatus
+      });
     }
   }, [recordData, form]);
   
@@ -395,8 +411,11 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                         <FormItem>
                           <FormLabel>Specification</FormLabel>
                           <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
+                            value={specificationValue}
+                            onValueChange={(value) => {
+                              setSpecificationValue(value);
+                              field.onChange(value);
+                            }}
                           >
                             <FormControl>
                               <SelectTrigger className="w-full">
@@ -427,8 +446,11 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                         <FormItem>
                           <FormLabel>Material Grade</FormLabel>
                           <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
+                            value={materialGradeValue}
+                            onValueChange={(value) => {
+                              setMaterialGradeValue(value);
+                              field.onChange(value);
+                            }}
                           >
                             <FormControl>
                               <SelectTrigger className="w-full">
