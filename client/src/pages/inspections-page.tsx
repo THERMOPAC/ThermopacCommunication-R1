@@ -75,7 +75,7 @@ const materialRowSchema = z.object({
   materialSpecification: z.string().optional(),
   allocatedQuantity: z.string().optional(),
   quantityUnit: z.string().optional(),
-  remarks: z.string().optional(),
+  description: z.string().optional(),
 });
 
 // Schema for Inspection Order Edit
@@ -192,7 +192,7 @@ export default function InspectionsPage() {
     materialSpecification?: string;
     allocatedQuantity?: string;
     quantityUnit?: string;
-    remarks?: string;
+    description?: string;
   }[]>([]);
   
   // Helper function to add a new material row
@@ -206,7 +206,7 @@ export default function InspectionsPage() {
       materialSpecification: '',
       allocatedQuantity: '',
       quantityUnit: '',
-      remarks: ''
+      description: ''
     }];
     setMaterialRows(newRows);
     editForm.setValue('materials', newRows);
@@ -236,7 +236,7 @@ export default function InspectionsPage() {
         // Keep user-editable fields
         allocatedQuantity: updatedRows[index].allocatedQuantity || '',
         quantityUnit: updatedRows[index].quantityUnit || '',
-        remarks: updatedRows[index].remarks || ''
+        description: updatedRows[index].description || ''
       };
     } else {
       // Reset the material selection
@@ -251,7 +251,7 @@ export default function InspectionsPage() {
         // Keep user-editable fields
         allocatedQuantity: updatedRows[index].allocatedQuantity || '',
         quantityUnit: updatedRows[index].quantityUnit || '',
-        remarks: updatedRows[index].remarks || ''
+        description: updatedRows[index].description || ''
       };
     }
     
@@ -1771,6 +1771,28 @@ export default function InspectionsPage() {
                               
                               {/* All fields in one horizontal row with specific widths */}
                               <div className="flex flex-nowrap overflow-auto">
+                                {/* Description - 140px (Moved to the beginning) */}
+                                <div className="me-2" style={{width: "140px"}}>
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`description-${index}`} className="text-xs">Description</Label>
+                                    <Input
+                                      id={`description-${index}`}
+                                      value={materialRow.description || ''}
+                                      onChange={(e) => {
+                                        const updatedRows = [...materialRows];
+                                        updatedRows[index] = {
+                                          ...updatedRows[index],
+                                          description: e.target.value
+                                        };
+                                        setMaterialRows(updatedRows);
+                                        editForm.setValue('materials', updatedRows);
+                                      }}
+                                      placeholder="Enter description"
+                                      className="h-9 w-full"
+                                    />
+                                  </div>
+                                </div>
+                              
                                 {/* Material Identification (MI ID) - 120px */}
                                 <div className="me-2" style={{width: "120px"}}>
                                   <div className="space-y-1">
