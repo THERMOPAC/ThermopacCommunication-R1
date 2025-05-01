@@ -197,7 +197,7 @@ export default function InspectionsPage() {
   
   // Helper function to add a new material row
   const addMaterialRow = () => {
-    setMaterialRows([...materialRows, {
+    const newRows = [...materialRows, {
       materialId: undefined,
       materialIdentificationId: '',
       materialCertificateNumber: '',
@@ -207,7 +207,9 @@ export default function InspectionsPage() {
       allocatedQuantity: '',
       quantityUnit: '',
       remarks: ''
-    }]);
+    }];
+    setMaterialRows(newRows);
+    editForm.setValue('materials', newRows);
   };
   
   // Helper function to remove a material row
@@ -215,6 +217,7 @@ export default function InspectionsPage() {
     const updatedRows = [...materialRows];
     updatedRows.splice(index, 1);
     setMaterialRows(updatedRows);
+    editForm.setValue('materials', updatedRows);
   };
   
   // Helper function to update a material row with selected material data
@@ -253,6 +256,7 @@ export default function InspectionsPage() {
     }
     
     setMaterialRows(updatedRows);
+    editForm.setValue('materials', updatedRows);
   };
   
   // Fetch projects for dropdown
@@ -689,16 +693,17 @@ export default function InspectionsPage() {
       }));
       
       setMaterialRows(materials);
+      // Set the form materials value directly here
+      editForm.setValue('materials', materials);
     } else {
       setMaterialRows([]);
+      editForm.setValue('materials', []);
     }
-  }, [editInspectionOrderDetails]);
+  }, [editInspectionOrderDetails, editForm]);
   
-  // Sync material rows with the form whenever they change
-  useEffect(() => {
-    if (materialRows.length > 0) {
-      editForm.setValue('materials', materialRows);
-    }
+  // Helper function to sync material rows with form
+  const syncMaterialRowsWithForm = useCallback(() => {
+    editForm.setValue('materials', materialRows);
   }, [materialRows, editForm]);
 
   // Update form values when inspection order details are loaded
