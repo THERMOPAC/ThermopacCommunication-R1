@@ -26,6 +26,12 @@ import MaterialIdentificationPage from "@/pages/material-identification-page";
 import MaterialIdentificationListPage from "@/pages/material-identification-list-page";
 import MaterialIdentificationViewPage from "@/pages/material-identification-view-page";
 import MaterialIdentificationEditPage from "@/pages/material-identification-edit-page";
+
+// New Material Identification pages
+import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";
+import MaterialIdentificationListNewPage from "@/pages/material-identification-list-new-page";
+import MaterialIdentificationViewNewPage from "@/pages/material-identification-view-new-page";
+import MaterialIdentificationEditNewPage from "@/pages/material-identification-edit-new-page";
 import WpsPqrPage from "@/pages/wps-pqr-page";
 import WpsPqrManagementPage from "@/pages/wps-pqr-management-page";
 import WpqrPage from "@/pages/wpqr-page";
@@ -117,16 +123,16 @@ function Router() {
       <ProtectedRoute path="/quality/welder-certificates/:welderId" component={WelderCertificatesPage} />
       <ProtectedRoute path="/welder-test" component={WelderTestPage} />
       <ProtectedRoute path="/calibration-management" component={CalibrationManagementPage} />
-      {/* Material Identification routes with /quality prefix */}
-      <ProtectedRoute path="/quality/material-identification/new" component={MaterialIdentificationPage} />
-      <ProtectedRoute path="/quality/material-identification" component={MaterialIdentificationListPage} />
+      {/* Material Identification routes with /quality prefix - NEW IMPLEMENTATION */}
+      <ProtectedRoute path="/quality/material-identification/new" component={MaterialIdentificationCreatePage} />
+      <ProtectedRoute path="/quality/material-identification" component={MaterialIdentificationListNewPage} />
       <ProtectedRoute 
         path="/quality/material-identification/view/:id" 
-        component={() => <MaterialIdentificationViewPage params={{ id: window.location.pathname.split('/').pop() }} />} 
+        component={() => <MaterialIdentificationViewNewPage params={{ id: window.location.pathname.split('/').pop() }} />} 
       />
       <ProtectedRoute 
         path="/quality/material-identification/edit/:id" 
-        component={() => <MaterialIdentificationEditPage params={{ id: window.location.pathname.split('/').pop() }} />} 
+        component={() => <MaterialIdentificationEditNewPage params={{ id: window.location.pathname.split('/').pop() }} />} 
       />
       
       {/* Legacy route for backward compatibility, redirects to view page */}
