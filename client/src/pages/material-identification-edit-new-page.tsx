@@ -58,7 +58,7 @@ interface MaterialIdentification {
 // Define schema for Material Identification form
 const materialIdentificationSchema = z.object({
   materialIdentificationId: z.string().min(1, "MI ID is required"),
-  projectId: z.number().or(z.string().transform(id => parseInt(id, 10))),
+  projectId: z.number().nullable().or(z.string().transform(id => parseInt(id, 10))).optional(),
   projectName: z.string().min(1, "Project Name is required"),
   projectNumber: z.string().min(1, "Project Number is required"),
   inspectionOrderNumber: z.string().optional(),

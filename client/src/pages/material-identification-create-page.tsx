@@ -33,7 +33,7 @@ interface Project {
 // Define schema for Material Identification form
 const materialIdentificationSchema = z.object({
   materialIdentificationId: z.string().min(1, "MI ID is required"),
-  projectId: z.number().or(z.string().transform(id => parseInt(id, 10))),
+  projectId: z.number().nullable().or(z.string().transform(id => parseInt(id, 10))).optional(),
   projectName: z.string().min(1, "Project Name is required"),
   projectNumber: z.string().min(1, "Project Number is required"),
   inspectionOrderNumber: z.string().optional(),
@@ -137,7 +137,7 @@ export default function MaterialIdentificationCreatePage() {
       // Transform API response to match form field names
       const formattedData = {
         materialIdentificationId: nextIdData.nextId || "",
-        projectId: templateData.project_id,
+        projectId: templateData.project_id || undefined,
         projectName: templateData.project_name || "",
         projectNumber: templateData.project_number || "",
         inspectionOrderNumber: templateData.inspection_order_number || "",

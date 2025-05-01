@@ -128,11 +128,11 @@ function Router() {
       <ProtectedRoute path="/quality/material-identification" component={MaterialIdentificationListNewPage} />
       <ProtectedRoute 
         path="/quality/material-identification/view/:id" 
-        component={() => <MaterialIdentificationViewNewPage params={{ id: window.location.pathname.split('/').pop() }} />} 
+        component={() => <MaterialIdentificationViewNewPage params={{ id: window.location.pathname.split('/').pop() || '' }} />} 
       />
       <ProtectedRoute 
         path="/quality/material-identification/edit/:id" 
-        component={() => <MaterialIdentificationEditNewPage params={{ id: window.location.pathname.split('/').pop() }} />} 
+        component={() => <MaterialIdentificationEditNewPage params={{ id: window.location.pathname.split('/').pop() || '' }} />} 
       />
       
       {/* Legacy route for backward compatibility, redirects to view page */}
