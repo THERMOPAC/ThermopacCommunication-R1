@@ -145,15 +145,28 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
     const fileType = req.file.mimetype;
     const fileSize = req.file.size;
     
-    // Generate a filename based on document type
+    // Get the file extension from the original filename
     const fileExtension = originalFileName.split('.').pop() || 'pdf';
     
-    // Clean up document type for use in file name (remove spaces, special chars)
-    const cleanDocumentType = documentType.replace(/[^a-zA-Z0-9]/g, '_');
+    // Map document type codes to proper display names
+    const documentTypeMap: {[key: string]: string} = {
+      'general': 'General Document',
+      'mill_test_certificate': 'Mill Test Certificate',
+      'inspection_report': 'Inspection Report',
+      'material_certificate': 'Material Certificate',
+      'test_report': 'Test Report',
+      'technical_datasheet': 'Technical Datasheet',
+      'other': 'Other Document'
+    };
     
-    // If there are multiple files of the same type, add a unique identifier
+    // Use the display name from the map, or use the documentType as-is if not found in the map
+    const documentTypeName = documentTypeMap[documentType] || documentType;
+    
+    // If there are multiple files of the same type, we'll need a unique identifier
     const uniqueIdentifier = uuidv4().substring(0, 8);
-    const fileName = `${cleanDocumentType}_${uniqueIdentifier}.${fileExtension}`;
+    
+    // Format filename: "{Document Type} - {unique id}.{extension}"
+    const fileName = `${documentTypeName} - ${uniqueIdentifier}.${fileExtension}`;
     console.log(`uploadMaterialIdentificationDocument: Generated filename: ${fileName}`);
     
     // Format file path according to required structure: QMS/Material_Identification/{MI ID}/{Document Type}.pdf

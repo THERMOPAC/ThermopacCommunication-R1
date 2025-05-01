@@ -992,14 +992,13 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                           <SelectValue placeholder="Select document type" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Mill Test Certificate">Mill Test Certificate</SelectItem>
-                          <SelectItem value="Inspection Report">Inspection Report</SelectItem>
-                          <SelectItem value="Chemical Analysis">Chemical Analysis</SelectItem>
-                          <SelectItem value="Mechanical Test">Mechanical Test</SelectItem>
-                          <SelectItem value="Certificate of Conformity">Certificate of Conformity</SelectItem>
-                          <SelectItem value="Certificate of Origin">Certificate of Origin</SelectItem>
-                          <SelectItem value="Material Certificate">Material Certificate</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
+                          <SelectItem value="general">General Document</SelectItem>
+                          <SelectItem value="mill_test_certificate">Mill Test Certificate</SelectItem>
+                          <SelectItem value="inspection_report">Inspection Report</SelectItem>
+                          <SelectItem value="material_certificate">Material Certificate</SelectItem>
+                          <SelectItem value="test_report">Test Report</SelectItem>
+                          <SelectItem value="technical_datasheet">Technical Datasheet</SelectItem>
+                          <SelectItem value="other">Other Document</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

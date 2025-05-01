@@ -791,13 +791,13 @@ export default function MaterialIdentificationCreatePage() {
                     <SelectValue placeholder="Select document type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="general">General Document</SelectItem>
                     <SelectItem value="mill_test_certificate">Mill Test Certificate</SelectItem>
                     <SelectItem value="inspection_report">Inspection Report</SelectItem>
                     <SelectItem value="material_certificate">Material Certificate</SelectItem>
                     <SelectItem value="test_report">Test Report</SelectItem>
                     <SelectItem value="technical_datasheet">Technical Datasheet</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="other">Other Document</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
