@@ -188,12 +188,42 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
       
       blobStream.on('finish', async () => {
         console.log('uploadMaterialIdentificationDocument: Upload stream finished');
-        // Make the file public and get the URL
         try {
-          console.log('uploadMaterialIdentificationDocument: Making blob public');
-          await blob.makePublic();
+          // For uniform bucket-level access, we don't need to make individual files public
+          // Instead we'll generate a public URL based on the bucket's configurations
+          
+          // Generate a signed URL for temporary access if bucket is not public
+          const [signedUrl] = await blob.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days expiration
+          });
+          
+          // Also store the permanent storage URL (this will work if bucket has public access)
           const publicUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
-          console.log(`uploadMaterialIdentificationDocument: Public URL: ${publicUrl}`);
+          
+          console.log(`uploadMaterialIdentificationDocument: Signed URL created with 7-day expiration`);
+          console.log(`uploadMaterialIdentificationDocument: Storage URL: ${publicUrl}`);
+          
+          resolve({
+            success: true,
+            document_file_path: filePath,
+            document_url: signedUrl, // Use signed URL which will work regardless of bucket permissions
+            file_name: originalFileName,
+            file_type: fileType,
+            file_size: fileSize
+          });
+        } catch (err: any) {
+          console.error('Error creating file access URL:', err);
+          console.error('Error details:', {
+            code: err.code,
+            message: err.message,
+            stack: err.stack,
+          });
+          
+          // Even if getting a signed URL fails, we'll still return success since the file was uploaded
+          // Just use the standard storage URL instead
+          const publicUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
+          console.log(`uploadMaterialIdentificationDocument: Fallback to storage URL: ${publicUrl}`);
           
           resolve({
             success: true,
@@ -202,17 +232,6 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
             file_name: originalFileName,
             file_type: fileType,
             file_size: fileSize
-          });
-        } catch (err: any) {
-          console.error('Error making blob public:', err);
-          console.error('Error details:', {
-            code: err.code,
-            message: err.message,
-            stack: err.stack,
-          });
-          reject({
-            error: `Failed to make document public: ${err.message || 'Unknown error'}`,
-            success: false
           });
         }
       });
