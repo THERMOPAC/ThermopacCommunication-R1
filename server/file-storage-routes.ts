@@ -34,6 +34,30 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
  */
 export function setupFileStorageRoutes(app: Router) {
   /**
+   * Test endpoint for checking GCS connectivity and permissions
+   */
+  app.get('/api/storage/test-gcs', async (req: Request, res: Response) => {
+    try {
+      console.log('Testing GCS connectivity and permissions');
+      const result = await checkGcsPermissions();
+      
+      console.log('GCS check result:', result);
+      
+      res.json({
+        success: result.success,
+        message: 'GCS connection test completed',
+        result
+      });
+    } catch (error) {
+      console.error('Error testing GCS connection:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error testing GCS connection',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  /**
    * Get all available directory templates
    * Used by the frontend to show available templates when creating directories
    */

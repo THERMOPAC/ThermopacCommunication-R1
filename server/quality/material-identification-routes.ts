@@ -736,4 +736,29 @@ router.delete("/documents/:documentId", async (req: Request, res: Response) => {
   }
 });
 
+// Test route to check GCS connectivity
+router.get("/test-gcs-connection", async (req, res) => {
+  try {
+    console.log("Testing GCS connection for Material Identification documents");
+    const { checkGcsPermissions } = require('../utils/gcs-permissions-check');
+    
+    // Run the permissions check
+    const result = await checkGcsPermissions();
+    console.log("GCS Permissions Check Result:", result);
+    
+    res.json({
+      success: result.success,
+      message: "GCS connection test completed",
+      result
+    });
+  } catch (error) {
+    console.error("Error testing GCS connection:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error testing GCS connection",
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
 export default router;
