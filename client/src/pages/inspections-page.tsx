@@ -1773,6 +1773,7 @@ export default function InspectionsPage() {
                                     const selectedMaterial = availableMaterials.find(m => m.id === parseInt(value));
                                     updateMaterialRow(index, selectedMaterial || null);
                                   }}
+                                  className="w-[calc(100%-30px)]"
                                 >
                                   <SelectTrigger id={`material-id-${index}`}>
                                     <SelectValue placeholder="Select Material Identification" />
@@ -1816,7 +1817,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Certificate number"
-                                      className="bg-gray-50 h-9"
+                                      className="bg-gray-50 h-9 w-[calc(100%-30px)]"
                                       readOnly
                                     />
                                   </div>
@@ -1838,7 +1839,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Heat number"
-                                      className="bg-gray-50 h-9"
+                                      className="bg-gray-50 h-9 w-[calc(100%-30px)]"
                                       readOnly
                                     />
                                   </div>
@@ -1860,7 +1861,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Material grade"
-                                      className="bg-gray-50 h-9"
+                                      className="bg-gray-50 h-9 w-[calc(100%-30px)]"
                                       readOnly
                                     />
                                   </div>
@@ -1882,7 +1883,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Material specification"
-                                      className="bg-gray-50 h-9"
+                                      className="bg-gray-50 h-9 w-[calc(100%-30px)]"
                                       readOnly
                                     />
                                   </div>
@@ -1904,7 +1905,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Enter quantity"
-                                      className="h-9"
+                                      className="h-9 w-[calc(100%-30px)]"
                                     />
                                   </div>
                                 </div>
@@ -1925,7 +1926,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Unit"
-                                      className="h-9"
+                                      className="h-9 w-[calc(100%-30px)]"
                                     />
                                   </div>
                                 </div>
@@ -1946,7 +1947,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Optional notes"
-                                      className="h-9"
+                                      className="h-9 w-[calc(100%-30px)]"
                                     />
                                   </div>
                                 </div>
