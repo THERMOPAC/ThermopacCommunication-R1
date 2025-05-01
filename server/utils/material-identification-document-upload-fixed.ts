@@ -1,8 +1,5 @@
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { eq } from 'drizzle-orm';
-import { materialIdentification } from '../../shared/schema';
 import { pool } from '../db';
 import { Storage } from '@google-cloud/storage';
 
@@ -92,17 +89,16 @@ export const uploadMaterialIdentificationDocument = async (req: Request): Promis
     
     // Get the full material_identification_id from the database using a direct SQL query
     // since we're having issues with the Drizzle query builder
-    try {
-      const queryResult = await pool.query(
-        'SELECT material_identification_id FROM material_identification WHERE id = $1',
-        [parseInt(materialIdentificationId)]
-      );
-      
-      if (!queryResult.rows || queryResult.rows.length === 0) {
-        throw new Error(`Material Identification record with ID ${materialIdentificationId} not found`);
-      }
-      
-      const miId = queryResult.rows[0].material_identification_id;
+    const queryResult = await pool.query(
+      'SELECT material_identification_id FROM material_identification WHERE id = $1',
+      [parseInt(materialIdentificationId)]
+    );
+    
+    if (!queryResult.rows || queryResult.rows.length === 0) {
+      throw new Error(`Material Identification record with ID ${materialIdentificationId} not found`);
+    }
+    
+    const miId = queryResult.rows[0].material_identification_id;
     console.log(`uploadMaterialIdentificationDocument: Using Material Identification ID: ${miId}`);
     
     // Format: QMS/Material_Identification/{MI ID}/{Document Type}.{extension}

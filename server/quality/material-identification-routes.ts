@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Request, Response, NextFunction } from "express";
 import { AnyZodObject } from "zod";
 import multer from "multer";
-import { uploadMaterialIdentificationDocument, deleteMaterialIdentificationDocument } from "../utils/material-identification-document-upload-new";
+import { uploadMaterialIdentificationDocument, deleteMaterialIdentificationDocument } from "../utils/material-identification-document-upload-fixed";
 import { checkGcsPermissions } from '../utils/gcs-permissions-check';
 
 // Configure multer for in-memory file storage
