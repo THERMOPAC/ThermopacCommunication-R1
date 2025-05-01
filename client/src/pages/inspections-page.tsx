@@ -1399,7 +1399,7 @@ export default function InspectionsPage() {
       
       {/* Edit Inspection Order Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-5xl w-10/12 max-h-[95vh]">
+        <DialogContent className="max-w-7xl w-11/12 max-h-[95vh]">
           <DialogHeader>
             <DialogTitle>Edit Inspection Order</DialogTitle>
             <DialogDescription>
@@ -1753,7 +1753,7 @@ export default function InspectionsPage() {
                       {materialRows.length > 0 ? (
                         <div className="space-y-6">
                           {materialRows.map((materialRow, index) => (
-                            <div key={index} className="border rounded-md p-4 relative">
+                            <div key={index} className="border rounded-md p-4 relative mb-4">
                               <Button 
                                 type="button" 
                                 variant="ghost" 
@@ -1764,45 +1764,46 @@ export default function InspectionsPage() {
                                 <X className="h-4 w-4" />
                               </Button>
                               
-                              <div className="grid grid-cols-12 gap-4">
-                                <div className="col-span-12">
+                              {/* Section 1: MI ID Selection */}
+                              <div className="flex flex-col mb-4">
+                                <Label htmlFor={`material-id-${index}`} className="mb-1">Material Identification (MI ID)</Label>
+                                <Select
+                                  value={materialRow.materialId?.toString() || ""}
+                                  onValueChange={(value) => {
+                                    const selectedMaterial = availableMaterials.find(m => m.id === parseInt(value));
+                                    updateMaterialRow(index, selectedMaterial || null);
+                                  }}
+                                >
+                                  <SelectTrigger id={`material-id-${index}`}>
+                                    <SelectValue placeholder="Select Material Identification" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {isLoadingMaterials ? (
+                                      <div className="flex items-center justify-center p-2">
+                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                        Loading materials...
+                                      </div>
+                                    ) : availableMaterials.length === 0 ? (
+                                      <div className="p-2 text-center text-sm text-muted-foreground">
+                                        No materials available
+                                      </div>
+                                    ) : (
+                                      availableMaterials.map((material) => (
+                                        <SelectItem key={material.id} value={material.id.toString()}>
+                                          {material.material_identification_id} - {material.material_description}
+                                        </SelectItem>
+                                      ))
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              {/* Section 2: Material Information - All fields in one row */}
+                              <div className="grid grid-cols-16 gap-2">
+                                {/* Material Certificate Number - Read only */}
+                                <div className="col-span-3">
                                   <div className="space-y-1">
-                                    <Label htmlFor={`material-id-${index}`}>Material Identification (MI ID)</Label>
-                                    <Select
-                                      value={materialRow.materialId?.toString() || ""}
-                                      onValueChange={(value) => {
-                                        const selectedMaterial = availableMaterials.find(m => m.id === parseInt(value));
-                                        updateMaterialRow(index, selectedMaterial || null);
-                                      }}
-                                    >
-                                      <SelectTrigger id={`material-id-${index}`}>
-                                        <SelectValue placeholder="Select Material Identification" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {isLoadingMaterials ? (
-                                          <div className="flex items-center justify-center p-2">
-                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                            Loading materials...
-                                          </div>
-                                        ) : availableMaterials.length === 0 ? (
-                                          <div className="p-2 text-center text-sm text-muted-foreground">
-                                            No materials available
-                                          </div>
-                                        ) : (
-                                          availableMaterials.map((material) => (
-                                            <SelectItem key={material.id} value={material.id.toString()}>
-                                              {material.material_identification_id} - {material.material_description}
-                                            </SelectItem>
-                                          ))
-                                        )}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-                                
-                                <div className="col-span-6">
-                                  <div className="space-y-1">
-                                    <Label htmlFor={`certificate-number-${index}`}>Material Certificate Number</Label>
+                                    <Label htmlFor={`certificate-number-${index}`} className="text-xs">Certificate Number</Label>
                                     <Input
                                       id={`certificate-number-${index}`}
                                       value={materialRow.materialCertificateNumber || ''}
@@ -1815,15 +1816,16 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Certificate number"
-                                      className="bg-gray-50"
+                                      className="bg-gray-50 h-9"
                                       readOnly
                                     />
                                   </div>
                                 </div>
                                 
-                                <div className="col-span-6">
+                                {/* Heat Number - Read only */}
+                                <div className="col-span-2">
                                   <div className="space-y-1">
-                                    <Label htmlFor={`heat-number-${index}`}>Heat Number</Label>
+                                    <Label htmlFor={`heat-number-${index}`} className="text-xs">Heat Number</Label>
                                     <Input
                                       id={`heat-number-${index}`}
                                       value={materialRow.heatNumber || ''}
@@ -1836,15 +1838,16 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Heat number"
-                                      className="bg-gray-50"
+                                      className="bg-gray-50 h-9"
                                       readOnly
                                     />
                                   </div>
                                 </div>
                                 
-                                <div className="col-span-6">
+                                {/* Material Grade - Read only */}
+                                <div className="col-span-2">
                                   <div className="space-y-1">
-                                    <Label htmlFor={`material-grade-${index}`}>Material Grade</Label>
+                                    <Label htmlFor={`material-grade-${index}`} className="text-xs">Material Grade</Label>
                                     <Input
                                       id={`material-grade-${index}`}
                                       value={materialRow.materialGrade || ''}
@@ -1857,15 +1860,16 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Material grade"
-                                      className="bg-gray-50"
+                                      className="bg-gray-50 h-9"
                                       readOnly
                                     />
                                   </div>
                                 </div>
                                 
-                                <div className="col-span-6">
+                                {/* Material Specification - Read only */}
+                                <div className="col-span-3">
                                   <div className="space-y-1">
-                                    <Label htmlFor={`material-spec-${index}`}>Material Specification</Label>
+                                    <Label htmlFor={`material-spec-${index}`} className="text-xs">Material Specification</Label>
                                     <Input
                                       id={`material-spec-${index}`}
                                       value={materialRow.materialSpecification || ''}
@@ -1878,15 +1882,16 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Material specification"
-                                      className="bg-gray-50"
+                                      className="bg-gray-50 h-9"
                                       readOnly
                                     />
                                   </div>
                                 </div>
                                 
-                                <div className="col-span-4">
+                                {/* Allocated Quantity - Editable */}
+                                <div className="col-span-2">
                                   <div className="space-y-1">
-                                    <Label htmlFor={`quantity-${index}`}>Allocated Quantity</Label>
+                                    <Label htmlFor={`quantity-${index}`} className="text-xs">Allocated Quantity</Label>
                                     <Input
                                       id={`quantity-${index}`}
                                       value={materialRow.allocatedQuantity || ''}
@@ -1899,13 +1904,15 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Enter quantity"
+                                      className="h-9"
                                     />
                                   </div>
                                 </div>
                                 
-                                <div className="col-span-4">
+                                {/* Unit - Editable */}
+                                <div className="col-span-1">
                                   <div className="space-y-1">
-                                    <Label htmlFor={`unit-${index}`}>Unit</Label>
+                                    <Label htmlFor={`unit-${index}`} className="text-xs">Unit</Label>
                                     <Input
                                       id={`unit-${index}`}
                                       value={materialRow.quantityUnit || ''}
@@ -1917,14 +1924,16 @@ export default function InspectionsPage() {
                                         };
                                         setMaterialRows(updatedRows);
                                       }}
-                                      placeholder="e.g., kg, m, pcs"
+                                      placeholder="Unit"
+                                      className="h-9"
                                     />
                                   </div>
                                 </div>
                                 
-                                <div className="col-span-4">
+                                {/* Remarks - Editable */}
+                                <div className="col-span-3">
                                   <div className="space-y-1">
-                                    <Label htmlFor={`remarks-${index}`}>Remarks</Label>
+                                    <Label htmlFor={`remarks-${index}`} className="text-xs">Remarks</Label>
                                     <Input
                                       id={`remarks-${index}`}
                                       value={materialRow.remarks || ''}
@@ -1937,6 +1946,7 @@ export default function InspectionsPage() {
                                         setMaterialRows(updatedRows);
                                       }}
                                       placeholder="Optional notes"
+                                      className="h-9"
                                     />
                                   </div>
                                 </div>
