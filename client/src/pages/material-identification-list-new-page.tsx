@@ -73,18 +73,49 @@ interface PaginationInfo {
   totalPages: number;
 }
 
+// Project interface
+interface Project {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  status: string;
+  created_at: string;
+}
+
 export default function MaterialIdentificationListNewPage() {
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(10);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [showRecords, setShowRecords] = useState(false);
   
-  // Fetch Material Identification records with search and pagination
+  // Fetch projects for the dropdown
+  const { data: projectsData, isLoading: projectsLoading } = useQuery({
+    queryKey: ['/api/projects'],
+    queryFn: async () => {
+      const response = await fetch('/api/projects');
+      if (!response.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      return response.json() as Promise<Project[]>;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+  
+  // Filter to only active projects
+  const activeProjects = projectsData?.filter(project => 
+    project.status?.toLowerCase() === 'active' || project.status?.toLowerCase() === 'in progress'
+  ) || [];
+  
+  // Fetch Material Identification records with search, project filter, and pagination
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['/api/quality/material-identification', searchTerm, currentPage, limit],
+    queryKey: ['/api/quality/material-identification', searchTerm, selectedProjectId, currentPage, limit],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
+      if (selectedProjectId) params.append('projectId', selectedProjectId.toString());
       params.append('page', currentPage.toString());
       params.append('limit', limit.toString());
       
@@ -95,6 +126,7 @@ export default function MaterialIdentificationListNewPage() {
       return response.json();
     },
     staleTime: 60 * 1000, // 1 minute
+    enabled: showRecords && !!selectedProjectId, // Only fetch when a project is selected and showRecords is true
   });
   
   // Trigger search after a short delay
@@ -230,41 +262,93 @@ export default function MaterialIdentificationListNewPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            {/* Search and filter bar */}
-            <div className="flex items-center mb-6 gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                <Input
-                  type="text"
-                  placeholder="Search by ID, description, material, heat number..."
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
+            {/* Project selection section */}
+            <div className="mb-6 border rounded-md p-4 bg-gray-50">
+              <h3 className="text-lg font-medium mb-3">Project Selection</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Select a project to view its material identification records.
+              </p>
               
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="ml-auto">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filter
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Filter by</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>Status: All</DropdownMenuItem>
-                  <DropdownMenuItem>Status: Accepted</DropdownMenuItem>
-                  <DropdownMenuItem>Status: Rejected</DropdownMenuItem>
-                  <DropdownMenuItem>Status: Hold</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>Project</DropdownMenuItem>
-                  <DropdownMenuItem>Date Range</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  {projectsLoading ? (
+                    <div className="h-10 flex items-center">Loading projects...</div>
+                  ) : (
+                    <select 
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2"
+                      value={selectedProjectId || ""}
+                      onChange={(e) => {
+                        const id = e.target.value ? parseInt(e.target.value) : null;
+                        setSelectedProjectId(id);
+                        setShowRecords(false); // Reset when project changes
+                      }}
+                    >
+                      <option value="">-- Select a project --</option>
+                      {activeProjects.map(project => (
+                        <option key={project.id} value={project.id}>
+                          {project.code} - {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                
+                <Button 
+                  onClick={() => setShowRecords(true)}
+                  disabled={!selectedProjectId}
+                >
+                  View Records
+                </Button>
+              </div>
             </div>
             
-            {isLoading ? (
+            {/* Search and filter bar - only show when project is selected */}
+            {showRecords && selectedProjectId && (
+              <div className="flex items-center mb-6 gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                  <Input
+                    type="text"
+                    placeholder="Search by ID, description, material, heat number..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="ml-auto">
+                      <Filter className="h-4 w-4 mr-2" />
+                      Filter
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Filter by</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>Status: All</DropdownMenuItem>
+                    <DropdownMenuItem>Status: Accepted</DropdownMenuItem>
+                    <DropdownMenuItem>Status: Rejected</DropdownMenuItem>
+                    <DropdownMenuItem>Status: Hold</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>Date Range</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+            
+            {/* Display state messages based on conditions */}
+            {!showRecords && selectedProjectId ? (
+              <div className="flex flex-col items-center justify-center h-40 text-center text-gray-500">
+                <h3 className="text-lg font-medium">Click "View Records" to display material identification data</h3>
+                <p className="text-sm">You've selected a project. Now click the button to view its records.</p>
+              </div>
+            ) : !selectedProjectId ? (
+              <div className="flex flex-col items-center justify-center h-40 text-center text-gray-500">
+                <h3 className="text-lg font-medium">Please select a project</h3>
+                <p className="text-sm">Material identification records will be displayed after selecting a project.</p>
+              </div>
+            ) : isLoading ? (
               <div className="flex justify-center items-center h-40">
                 <span className="loading loading-spinner text-primary"></span>
               </div>
@@ -272,7 +356,7 @@ export default function MaterialIdentificationListNewPage() {
               <div className="flex flex-col items-center justify-center h-40 text-center text-gray-500">
                 <FileText className="h-10 w-10 mb-2" />
                 <h3 className="text-lg font-medium">No records found</h3>
-                <p className="text-sm">Try adjusting your search or create a new material identification record.</p>
+                <p className="text-sm">No material identification records exist for this project. Create a new record or select a different project.</p>
               </div>
             ) : (
               <>
