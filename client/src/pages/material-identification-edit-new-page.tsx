@@ -953,6 +953,166 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
             )}
           </CardContent>
         </Card>
+        
+        {/* Document Management Section (if record is loaded) */}
+        {!isLoading && recordData && (
+          <Card className="mt-6">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Documents</CardTitle>
+                <CardDescription>
+                  Manage documents related to this Material Identification record.
+                </CardDescription>
+              </div>
+              <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" onClick={() => setUploadDialogOpen(true)}>
+                    <FileUp className="h-4 w-4 mr-2" />
+                    Upload Document
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Upload Document</DialogTitle>
+                    <DialogDescription>
+                      Add a document to this Material Identification record.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="documentType" className="text-right">
+                        Document Type *
+                      </Label>
+                      <Select 
+                        value={documentType} 
+                        onValueChange={setDocumentType}
+                      >
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select document type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Mill Test Certificate">Mill Test Certificate</SelectItem>
+                          <SelectItem value="Inspection Report">Inspection Report</SelectItem>
+                          <SelectItem value="Chemical Analysis">Chemical Analysis</SelectItem>
+                          <SelectItem value="Mechanical Test">Mechanical Test</SelectItem>
+                          <SelectItem value="Certificate of Conformity">Certificate of Conformity</SelectItem>
+                          <SelectItem value="Certificate of Origin">Certificate of Origin</SelectItem>
+                          <SelectItem value="Material Certificate">Material Certificate</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="description" className="text-right">
+                        Description
+                      </Label>
+                      <Input
+                        id="description"
+                        placeholder="Enter document description"
+                        className="col-span-3"
+                        value={documentDescription}
+                        onChange={(e) => setDocumentDescription(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="file" className="text-right">
+                        File *
+                      </Label>
+                      <div className="col-span-3">
+                        <Input
+                          id="file"
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                        />
+                        {selectedFile && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            Selected: {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setUploadDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="button" 
+                      onClick={handleDocumentUpload}
+                      disabled={isUploading || !selectedFile || !documentType}
+                    >
+                      {isUploading ? "Uploading..." : "Upload"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            
+            <CardContent>
+              {isLoadingDocuments ? (
+                <div className="flex justify-center items-center h-20">
+                  <span className="loading loading-spinner text-primary"></span>
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="text-center py-6 text-gray-500">
+                  <FileText className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                  <p>No documents available</p>
+                  <p className="text-sm">Click "Upload Document" to add files to this record.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4 font-medium">Document Name</th>
+                        <th className="text-left py-3 px-4 font-medium">Type</th>
+                        <th className="text-left py-3 px-4 font-medium">Description</th>
+                        <th className="text-left py-3 px-4 font-medium">Uploaded On</th>
+                        <th className="text-right py-3 px-4 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {documents.map((doc) => (
+                        <tr key={doc.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <td className="py-3 px-4">{doc.file_name}</td>
+                          <td className="py-3 px-4">{doc.document_type}</td>
+                          <td className="py-3 px-4">{doc.description || "-"}</td>
+                          <td className="py-3 px-4">
+                            {new Date(doc.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDownloadDocument(doc.id, doc.file_name)}
+                              title="Download"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteDocument(doc.id)}
+                              title="Delete"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/20"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );
