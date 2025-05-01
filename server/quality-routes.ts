@@ -4,8 +4,8 @@ import wpqrRoutes from './quality/wpqr-routes';
 import materialIdentificationRoutes from './quality/material-identification-routes';
 import { previewInspectionOrders, generateInspectionOrders } from './quality/inspection-order-generator';
 import { db } from './db';
-import { inspectionOrders, inspectionOrderItems } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { inspectionOrders, inspectionOrderItems, materialInspectionLinks } from '@shared/schema';
+import { eq, and } from 'drizzle-orm';
 import { registerWelderRoutes } from './quality/welder-routes';
 import { registerWelderCertificateRoutes } from './quality/welder-certificate-routes';
 import { registerWelderPhotoRoutes } from './quality/welder-photo-routes';
@@ -78,10 +78,16 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       orderBy: (items) => [items.sequenceNumber]
     });
     
-    // Return detailed inspection order with items
+    // Fetch material links for this inspection order
+    const materials = await db.query.materialInspectionLinks.findMany({
+      where: eq(materialInspectionLinks.inspectionOrderId, orderId)
+    });
+    
+    // Return detailed inspection order with items and materials
     res.json({
       ...inspectionOrder,
-      items: orderItems
+      items: orderItems,
+      materials: materials
     });
   } catch (error) {
     console.error('Error fetching inspection order details:', error);
@@ -110,16 +116,53 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       return res.status(404).json({ error: 'Inspection order not found' });
     }
 
+    // Extract materials from the request body
+    const { materials, ...orderData } = req.body;
+
     // Update inspection order
     const updatedOrder = await db.update(inspectionOrders)
       .set({
-        ...req.body,
+        ...orderData,
         updatedAt: new Date()
       })
       .where(eq(inspectionOrders.id, orderId))
       .returning();
     
-    res.json(updatedOrder[0]);
+    // If materials are provided, update material links
+    if (materials && Array.isArray(materials)) {
+      // First, delete existing material links
+      await db.delete(materialInspectionLinks)
+        .where(eq(materialInspectionLinks.inspectionOrderId, orderId));
+      
+      // Then insert new material links
+      if (materials.length > 0) {
+        const materialLinksToInsert = materials.map(material => ({
+          inspectionOrderId: orderId,
+          materialId: material.materialId,
+          materialIdentificationId: material.materialIdentificationId,
+          materialCertificateNumber: material.materialCertificateNumber,
+          heatNumber: material.heatNumber,
+          materialGrade: material.materialGrade,
+          materialSpecification: material.materialSpecification,
+          allocatedQuantity: material.allocatedQuantity,
+          quantityUnit: material.quantityUnit,
+          remarks: material.remarks
+        }));
+        
+        await db.insert(materialInspectionLinks).values(materialLinksToInsert);
+      }
+    }
+    
+    // Fetch the updated materials for this order
+    const updatedMaterials = await db.query.materialInspectionLinks.findMany({
+      where: eq(materialInspectionLinks.inspectionOrderId, orderId)
+    });
+    
+    // Return updated order with materials
+    res.json({
+      ...updatedOrder[0],
+      materials: updatedMaterials
+    });
   } catch (error) {
     console.error('Error updating inspection order:', error);
     res.status(500).json({ 
