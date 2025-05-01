@@ -396,7 +396,7 @@ export default function InspectionsPage() {
       materialSpecification: string;
       allocatedQuantity?: string;
       quantityUnit?: string;
-      remarks?: string;
+      description?: string;
     }>;
   }>({
     queryKey: ['/api/quality/inspection-orders', editingInspectionOrder],
@@ -689,7 +689,7 @@ export default function InspectionsPage() {
         materialSpecification: material.materialSpecification,
         allocatedQuantity: material.allocatedQuantity || '',
         quantityUnit: material.quantityUnit || '',
-        remarks: material.remarks || ''
+        description: material.description || ''
       }));
       
       setMaterialRows(materials);
@@ -1962,27 +1962,7 @@ export default function InspectionsPage() {
                                   </div>
                                 </div>
                                 
-                                {/* Remarks - 140px */}
-                                <div className="me-2" style={{width: "140px"}}>
-                                  <div className="space-y-1">
-                                    <Label htmlFor={`remarks-${index}`} className="text-xs">Remarks</Label>
-                                    <Input
-                                      id={`remarks-${index}`}
-                                      value={materialRow.remarks || ''}
-                                      onChange={(e) => {
-                                        const updatedRows = [...materialRows];
-                                        updatedRows[index] = {
-                                          ...updatedRows[index],
-                                          remarks: e.target.value
-                                        };
-                                        setMaterialRows(updatedRows);
-                                        editForm.setValue('materials', updatedRows);
-                                      }}
-                                      placeholder="Notes"
-                                      className="h-9 w-full"
-                                    />
-                                  </div>
-                                </div>
+
                                 
                                 {/* Actions - Edit/Delete */}
                                 <div style={{width: "80px"}}>
