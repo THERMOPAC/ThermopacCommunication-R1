@@ -483,6 +483,87 @@ router.put("/:id", validateSchema(materialIdentificationSchema), async (req, res
   }
 });
 
+// Special test endpoint for direct updates without validation middleware
+router.put("/test-update/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const data = req.body;
+    
+    console.log("==== TEST UPDATE ENDPOINT ====");
+    console.log("Request params ID:", id);
+    console.log("Raw request body:", data);
+    
+    // Build SQL query directly from the received fields
+    let updateValues = [];
+    let setClause = [];
+    
+    // Manually map fields
+    if (data.materialDescription) {
+      setClause.push("material_description = $" + (updateValues.length + 1));
+      updateValues.push(data.materialDescription);
+    }
+    
+    if (data.materialCode) {
+      setClause.push("material_code = $" + (updateValues.length + 1));
+      updateValues.push(data.materialCode);
+    }
+    
+    if (data.specification) {
+      setClause.push("specification = $" + (updateValues.length + 1));
+      updateValues.push(data.specification);
+    }
+    
+    if (data.materialGrade) {
+      setClause.push("material_grade = $" + (updateValues.length + 1));
+      updateValues.push(data.materialGrade);
+    }
+    
+    if (data.millName) {
+      setClause.push("mill_name = $" + (updateValues.length + 1));
+      updateValues.push(data.millName);
+    }
+    
+    // Always update the timestamp
+    setClause.push("updated_at = CURRENT_TIMESTAMP");
+    
+    // Add the WHERE parameter
+    updateValues.push(parseInt(id));
+    
+    // Construct and execute query
+    const query = `
+      UPDATE material_identification 
+      SET ${setClause.join(", ")}
+      WHERE id = $${updateValues.length}
+      RETURNING *
+    `;
+    
+    console.log("Generated SQL structure:", query);
+    console.log("Update values:", updateValues);
+    
+    // Execute the query directly
+    const result = await db.query(query, updateValues);
+    
+    if (result && result.rows && result.rows.length > 0) {
+      console.log("Test update successful:", result.rows[0]);
+      res.json({
+        success: true,
+        message: "Test update successful",
+        data: result.rows[0]
+      });
+    } else {
+      throw new Error("No data returned from test update operation");
+    }
+  } catch (err) {
+    const error = err as Error;
+    console.error("Error in test update:", error);
+    res.status(500).json({
+      success: false,
+      message: "Test update failed",
+      error: error.message
+    });
+  }
+});
+
 // Get material identification by ID - this must come after all other specific routes
 router.get("/:id", async (req, res) => {
   try {

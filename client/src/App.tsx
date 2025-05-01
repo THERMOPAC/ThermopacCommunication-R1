@@ -32,6 +32,7 @@ import MaterialIdentificationCreatePage from "@/pages/material-identification-cr
 import MaterialIdentificationListNewPage from "@/pages/material-identification-list-new-page";
 import MaterialIdentificationViewNewPage from "@/pages/material-identification-view-new-page";
 import MaterialIdentificationEditNewPage from "@/pages/material-identification-edit-new-page";
+import MaterialIdentificationDirectUpdate from "@/pages/material-identification-direct-update";
 import WpsPqrPage from "@/pages/wps-pqr-page";
 import WpsPqrManagementPage from "@/pages/wps-pqr-management-page";
 import WpqrPage from "@/pages/wpqr-page";
