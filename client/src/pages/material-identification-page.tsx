@@ -105,22 +105,40 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   const isViewMode = recordId && !isNewRecord && !isEditMode;
   console.log('isViewMode:', isViewMode);
   
-  // Use state to control form disabled status
-  const [formDisabled, setFormDisabled] = useState(isViewMode);
+  // Use state to control form disabled status - explicitly set to false for new records
+  const [formDisabled, setFormDisabled] = useState(isViewMode && !isNewRecord);
   
-  // Update form disabled state whenever edit mode changes
+  // Update form disabled state whenever edit mode or view mode changes
   useEffect(() => {
-    console.log('Updating formDisabled state - isViewMode:', isViewMode, 'isEditMode:', isEditMode);
+    console.log('Updating formDisabled state - isViewMode:', isViewMode, 'isEditMode:', isEditMode, 'isNewRecord:', isNewRecord);
     
-    // In edit mode, enable the form
-    // In view mode, disable the form
-    const newDisabledState = !isEditMode && isViewMode;
+    // Set disabled state based on the current mode:
+    // - New record: never disabled
+    // - Edit mode: never disabled
+    // - View mode (existing record): disabled
+    const newDisabledState = !isEditMode && isViewMode && !isNewRecord;
+    
+    console.log(`Should the form be disabled? ${newDisabledState}`);
     
     if (newDisabledState !== formDisabled) {
       console.log(`Setting form disabled state from ${formDisabled} to ${newDisabledState}`);
       setFormDisabled(newDisabledState);
+      
+      // Force enable all fields for new records
+      if (isNewRecord) {
+        setTimeout(() => {
+          console.log("Force enabling all form fields for new record");
+          const formInputs = document.querySelectorAll('input, select, textarea');
+          formInputs.forEach((input: Element) => {
+            const htmlInput = input as HTMLElement;
+            if (htmlInput.hasAttribute('disabled')) {
+              htmlInput.removeAttribute('disabled');
+            }
+          });
+        }, 100);
+      }
     }
-  }, [isViewMode, isEditMode, formDisabled]);
+  }, [isViewMode, isEditMode, isNewRecord, formDisabled]);
   
   console.log('Current formDisabled state:', formDisabled);
   
@@ -268,13 +286,15 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   // This will completely remount the form with the new disabled state
   const formKey = `form-${isEditMode ? 'edit' : 'view'}-${formDisabled ? 'disabled' : 'enabled'}-${Date.now()}`;
   
-  // Initialize form with disabled state explicitly set
-  const shouldDisableForm = isViewMode && !isEditMode;
+  // Initialize form with disabled state explicitly set - NEVER disable for new records
+  const shouldDisableForm = isViewMode && !isEditMode && !isNewRecord;
+  console.log("Form initialization - shouldDisableForm:", shouldDisableForm, "isNewRecord:", isNewRecord);
+  
   const form = useForm<MaterialIdentificationFormValues>({
     resolver: zodResolver(materialIdentificationSchema),
     defaultValues,
     mode: "onBlur",
-    disabled: shouldDisableForm // Explicitly set disabled state based on edit mode
+    disabled: shouldDisableForm // Explicitly set disabled state based on mode
   });
   
   // Use an effect to manually override disabled state for all fields if needed
