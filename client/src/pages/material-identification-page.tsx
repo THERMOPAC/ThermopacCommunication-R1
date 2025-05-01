@@ -600,7 +600,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                           disabled={isViewMode && !isEditMode}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="w-full">
                               <SelectValue placeholder="Select project number" />
                             </SelectTrigger>
                           </FormControl>
@@ -703,7 +703,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                           disabled={formDisabled}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="w-full">
                               <SelectValue placeholder="Select specification standard" />
                             </SelectTrigger>
                           </FormControl>
@@ -740,7 +740,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                           disabled={formDisabled}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="w-full">
                               <SelectValue placeholder="Select material grade" />
                             </SelectTrigger>
                           </FormControl>
@@ -887,7 +887,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                           disabled={formDisabled}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="w-full">
                               <SelectValue placeholder="Select material status" />
                             </SelectTrigger>
                           </FormControl>
