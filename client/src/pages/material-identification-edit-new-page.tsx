@@ -283,8 +283,11 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
           description: `Material Identification ${formData.materialIdentificationId} has been updated successfully.`,
         });
         
-        // Navigate to the view page
-        navigate(`/quality/material-identification/view/${recordId}`);
+        // Option 1: Refresh page to get the latest data instead of navigating
+        window.location.reload();
+        
+        // Option 2: Uncomment to navigate to view page instead
+        // navigate(`/quality/material-identification/view/${recordId}`);
       } else {
         // Show error information
         console.error("API Error Status:", response.status);
