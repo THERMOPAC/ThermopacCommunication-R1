@@ -1754,248 +1754,222 @@ export default function InspectionsPage() {
                         </div>
                       )}
                       
-                      {/* Material rows with dynamic row addition functionality */}
+                      {/* Material rows with Excel-like layout */}
                       {materialRows.length > 0 ? (
-                        <div className="space-y-6">
-                          {materialRows.map((materialRow, index) => (
-                            <div key={index} className="border rounded-md p-4 relative mb-4">
-                              <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="icon"
-                                className="absolute top-2 right-2 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                onClick={() => removeMaterialRow(index)}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                              
-                              {/* All fields in one horizontal row with specific widths */}
-                              <div className="flex flex-nowrap overflow-auto">
-                                {/* Description - 390px (Moved to the beginning) */}
+                        <div className="border rounded-md overflow-hidden">
+                          {/* Table header - shown only once at the top */}
+                          <div className="flex flex-nowrap bg-gray-100 py-2 px-3 border-b text-xs font-semibold">
+                            <div className="me-2" style={{width: "390px"}}>Description</div>
+                            <div className="me-2" style={{width: "120px"}}>Material ID</div>
+                            <div className="me-2" style={{width: "120px"}}>Certificate #</div>
+                            <div className="me-2" style={{width: "100px"}}>Heat #</div>
+                            <div className="me-2" style={{width: "100px"}}>Grade</div>
+                            <div className="me-2" style={{width: "120px"}}>Spec</div>
+                            <div className="me-2" style={{width: "80px"}}>Qty</div>
+                            <div className="me-2" style={{width: "50px"}}>Unit</div>
+                            <div style={{width: "80px"}}>Actions</div>
+                          </div>
+                          
+                          {/* Material rows - compact layout without individual labels */}
+                          <div className="max-h-[500px] overflow-auto">
+                            {materialRows.map((materialRow, index) => (
+                              <div key={index} className="flex flex-nowrap py-1 px-3 border-b hover:bg-gray-50">
+                                {/* Description - 390px */}
                                 <div className="me-2" style={{width: "390px"}}>
-                                  <div className="space-y-1">
-                                    <Label htmlFor={`description-${index}`} className="text-xs">Description</Label>
-                                    <Input
-                                      id={`description-${index}`}
-                                      value={materialRow.description || ''}
-                                      onChange={(e) => {
-                                        const updatedRows = [...materialRows];
-                                        updatedRows[index] = {
-                                          ...updatedRows[index],
-                                          description: e.target.value
-                                        };
-                                        setMaterialRows(updatedRows);
-                                        editForm.setValue('materials', updatedRows);
-                                      }}
-                                      placeholder="Enter description"
-                                      className="h-9 w-full"
-                                    />
-                                  </div>
+                                  <Input
+                                    id={`description-${index}`}
+                                    value={materialRow.description || ''}
+                                    onChange={(e) => {
+                                      const updatedRows = [...materialRows];
+                                      updatedRows[index] = {
+                                        ...updatedRows[index],
+                                        description: e.target.value
+                                      };
+                                      setMaterialRows(updatedRows);
+                                      editForm.setValue('materials', updatedRows);
+                                    }}
+                                    placeholder="Enter description"
+                                    className="h-8 w-full text-sm"
+                                  />
                                 </div>
                               
                                 {/* Material Identification (MI ID) - 120px */}
                                 <div className="me-2" style={{width: "120px"}}>
-                                  <div className="space-y-1">
-                                    <Label htmlFor={`material-id-${index}`} className="text-xs">Material ID</Label>
-                                    <Select
-                                      value={materialRow.materialId?.toString() || ""}
-                                      onValueChange={(value) => {
-                                        const selectedMaterial = availableMaterials.find(m => m.id === parseInt(value));
-                                        updateMaterialRow(index, selectedMaterial || null);
-                                      }}
-                                    >
-                                      <SelectTrigger id={`material-id-${index}`} className="h-9 w-full">
-                                        <SelectValue placeholder="Select MI ID" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {isLoadingMaterials ? (
-                                          <div className="flex items-center justify-center p-2">
-                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                            Loading materials...
-                                          </div>
-                                        ) : availableMaterials.length === 0 ? (
-                                          <div className="p-2 text-center text-sm text-muted-foreground">
-                                            No materials available
-                                          </div>
-                                        ) : (
-                                          availableMaterials.map((material) => (
-                                            <SelectItem key={material.id} value={material.id.toString()}>
-                                              {material.material_identification_id}
-                                            </SelectItem>
-                                          ))
-                                        )}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
+                                  <Select
+                                    value={materialRow.materialId?.toString() || ""}
+                                    onValueChange={(value) => {
+                                      const selectedMaterial = availableMaterials.find(m => m.id === parseInt(value));
+                                      updateMaterialRow(index, selectedMaterial || null);
+                                    }}
+                                  >
+                                    <SelectTrigger id={`material-id-${index}`} className="h-8 w-full text-sm">
+                                      <SelectValue placeholder="Select MI ID" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {isLoadingMaterials ? (
+                                        <div className="flex items-center justify-center p-2">
+                                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                          Loading materials...
+                                        </div>
+                                      ) : availableMaterials.length === 0 ? (
+                                        <div className="p-2 text-center text-sm text-muted-foreground">
+                                          No materials available
+                                        </div>
+                                      ) : (
+                                        availableMaterials.map((material) => (
+                                          <SelectItem key={material.id} value={material.id.toString()}>
+                                            {material.material_identification_id}
+                                          </SelectItem>
+                                        ))
+                                      )}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                                 
                                 {/* Certificate Number - 120px */}
                                 <div className="me-2" style={{width: "120px"}}>
-                                  <div className="space-y-1">
-                                    <Label htmlFor={`certificate-number-${index}`} className="text-xs">Certificate #</Label>
-                                    <Input
-                                      id={`certificate-number-${index}`}
-                                      value={materialRow.materialCertificateNumber || ''}
-                                      onChange={(e) => {
-                                        const updatedRows = [...materialRows];
-                                        updatedRows[index] = {
-                                          ...updatedRows[index],
-                                          materialCertificateNumber: e.target.value
-                                        };
-                                        setMaterialRows(updatedRows);
-                                      }}
-                                      placeholder="Certificate #"
-                                      className="bg-gray-50 h-9 w-full"
-                                      readOnly
-                                    />
-                                  </div>
+                                  <Input
+                                    id={`certificate-number-${index}`}
+                                    value={materialRow.materialCertificateNumber || ''}
+                                    onChange={(e) => {
+                                      const updatedRows = [...materialRows];
+                                      updatedRows[index] = {
+                                        ...updatedRows[index],
+                                        materialCertificateNumber: e.target.value
+                                      };
+                                      setMaterialRows(updatedRows);
+                                    }}
+                                    placeholder="Certificate #"
+                                    className="bg-gray-50 h-8 w-full text-sm"
+                                    readOnly
+                                  />
                                 </div>
                                 
                                 {/* Heat Number - 100px */}
                                 <div className="me-2" style={{width: "100px"}}>
-                                  <div className="space-y-1">
-                                    <Label htmlFor={`heat-number-${index}`} className="text-xs">Heat #</Label>
-                                    <Input
-                                      id={`heat-number-${index}`}
-                                      value={materialRow.heatNumber || ''}
-                                      onChange={(e) => {
-                                        const updatedRows = [...materialRows];
-                                        updatedRows[index] = {
-                                          ...updatedRows[index],
-                                          heatNumber: e.target.value
-                                        };
-                                        setMaterialRows(updatedRows);
-                                      }}
-                                      placeholder="Heat #"
-                                      className="bg-gray-50 h-9 w-full"
-                                      readOnly
-                                    />
-                                  </div>
+                                  <Input
+                                    id={`heat-number-${index}`}
+                                    value={materialRow.heatNumber || ''}
+                                    onChange={(e) => {
+                                      const updatedRows = [...materialRows];
+                                      updatedRows[index] = {
+                                        ...updatedRows[index],
+                                        heatNumber: e.target.value
+                                      };
+                                      setMaterialRows(updatedRows);
+                                    }}
+                                    placeholder="Heat #"
+                                    className="bg-gray-50 h-8 w-full text-sm"
+                                    readOnly
+                                  />
                                 </div>
                                 
                                 {/* Material Grade - 100px */}
                                 <div className="me-2" style={{width: "100px"}}>
-                                  <div className="space-y-1">
-                                    <Label htmlFor={`material-grade-${index}`} className="text-xs">Grade</Label>
-                                    <Input
-                                      id={`material-grade-${index}`}
-                                      value={materialRow.materialGrade || ''}
-                                      onChange={(e) => {
-                                        const updatedRows = [...materialRows];
-                                        updatedRows[index] = {
-                                          ...updatedRows[index],
-                                          materialGrade: e.target.value
-                                        };
-                                        setMaterialRows(updatedRows);
-                                      }}
-                                      placeholder="Grade"
-                                      className="bg-gray-50 h-9 w-full"
-                                      readOnly
-                                    />
-                                  </div>
+                                  <Input
+                                    id={`material-grade-${index}`}
+                                    value={materialRow.materialGrade || ''}
+                                    onChange={(e) => {
+                                      const updatedRows = [...materialRows];
+                                      updatedRows[index] = {
+                                        ...updatedRows[index],
+                                        materialGrade: e.target.value
+                                      };
+                                      setMaterialRows(updatedRows);
+                                    }}
+                                    placeholder="Grade"
+                                    className="bg-gray-50 h-8 w-full text-sm"
+                                    readOnly
+                                  />
                                 </div>
                                 
                                 {/* Material Specification - 120px */}
                                 <div className="me-2" style={{width: "120px"}}>
-                                  <div className="space-y-1">
-                                    <Label htmlFor={`material-spec-${index}`} className="text-xs">Spec</Label>
-                                    <Input
-                                      id={`material-spec-${index}`}
-                                      value={materialRow.materialSpecification || ''}
-                                      onChange={(e) => {
-                                        const updatedRows = [...materialRows];
-                                        updatedRows[index] = {
-                                          ...updatedRows[index],
-                                          materialSpecification: e.target.value
-                                        };
-                                        setMaterialRows(updatedRows);
-                                      }}
-                                      placeholder="Specification"
-                                      className="bg-gray-50 h-9 w-full"
-                                      readOnly
-                                    />
-                                  </div>
+                                  <Input
+                                    id={`material-spec-${index}`}
+                                    value={materialRow.materialSpecification || ''}
+                                    onChange={(e) => {
+                                      const updatedRows = [...materialRows];
+                                      updatedRows[index] = {
+                                        ...updatedRows[index],
+                                        materialSpecification: e.target.value
+                                      };
+                                      setMaterialRows(updatedRows);
+                                    }}
+                                    placeholder="Specification"
+                                    className="bg-gray-50 h-8 w-full text-sm"
+                                    readOnly
+                                  />
                                 </div>
                                 
                                 {/* Allocated Quantity - 80px */}
                                 <div className="me-2" style={{width: "80px"}}>
-                                  <div className="space-y-1">
-                                    <Label htmlFor={`quantity-${index}`} className="text-xs">Qty</Label>
-                                    <Input
-                                      id={`quantity-${index}`}
-                                      value={materialRow.allocatedQuantity || ''}
-                                      onChange={(e) => {
-                                        const updatedRows = [...materialRows];
-                                        updatedRows[index] = {
-                                          ...updatedRows[index],
-                                          allocatedQuantity: e.target.value
-                                        };
-                                        setMaterialRows(updatedRows);
-                                        editForm.setValue('materials', updatedRows);
-                                      }}
-                                      placeholder="Quantity"
-                                      className="h-9 w-full"
-                                      type="number"
-                                    />
-                                  </div>
+                                  <Input
+                                    id={`quantity-${index}`}
+                                    value={materialRow.allocatedQuantity || ''}
+                                    onChange={(e) => {
+                                      const updatedRows = [...materialRows];
+                                      updatedRows[index] = {
+                                        ...updatedRows[index],
+                                        allocatedQuantity: e.target.value
+                                      };
+                                      setMaterialRows(updatedRows);
+                                      editForm.setValue('materials', updatedRows);
+                                    }}
+                                    placeholder="Quantity"
+                                    className="h-8 w-full text-sm"
+                                    type="number"
+                                  />
                                 </div>
                                 
                                 {/* Unit - 50px */}
                                 <div className="me-2" style={{width: "50px"}}>
-                                  <div className="space-y-1">
-                                    <Label htmlFor={`unit-${index}`} className="text-xs">Unit</Label>
-                                    <Input
-                                      id={`unit-${index}`}
-                                      value={materialRow.quantityUnit || ''}
-                                      onChange={(e) => {
-                                        const updatedRows = [...materialRows];
-                                        updatedRows[index] = {
-                                          ...updatedRows[index],
-                                          quantityUnit: e.target.value
-                                        };
-                                        setMaterialRows(updatedRows);
-                                        editForm.setValue('materials', updatedRows);
-                                      }}
-                                      placeholder="Unit"
-                                      className="h-9 w-full"
-                                    />
-                                  </div>
+                                  <Input
+                                    id={`unit-${index}`}
+                                    value={materialRow.quantityUnit || ''}
+                                    onChange={(e) => {
+                                      const updatedRows = [...materialRows];
+                                      updatedRows[index] = {
+                                        ...updatedRows[index],
+                                        quantityUnit: e.target.value
+                                      };
+                                      setMaterialRows(updatedRows);
+                                      editForm.setValue('materials', updatedRows);
+                                    }}
+                                    placeholder="Unit"
+                                    className="h-8 w-full text-sm"
+                                  />
                                 </div>
-                                
-
                                 
                                 {/* Actions - Edit/Delete */}
                                 <div style={{width: "80px"}}>
-                                  <div className="space-y-1">
-                                    <Label className="text-xs">Actions</Label>
-                                    <div className="flex space-x-1 h-9 items-center">
-                                      <Button 
-                                        type="button" 
-                                        variant="ghost" 
-                                        size="icon"
-                                        className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                        onClick={() => {
-                                          // Edit functionality can be added here if needed
-                                          // Currently, editing is already possible directly in the fields
-                                        }}
-                                      >
-                                        <Edit2 className="h-4 w-4" />
-                                      </Button>
-                                      <Button 
-                                        type="button" 
-                                        variant="ghost" 
-                                        size="icon"
-                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
-                                        onClick={() => removeMaterialRow(index)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
+                                  <div className="flex space-x-1 items-center">
+                                    <Button 
+                                      type="button" 
+                                      variant="ghost" 
+                                      size="icon"
+                                      className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                      onClick={() => {
+                                        // Edit functionality can be added here if needed
+                                        // Currently, editing is already possible directly in the fields
+                                      }}
+                                    >
+                                      <Edit2 className="h-3 w-3" />
+                                    </Button>
+                                    <Button 
+                                      type="button" 
+                                      variant="ghost" 
+                                      size="icon"
+                                      className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                      onClick={() => removeMaterialRow(index)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
                       ) : (
                         <div className="text-center py-6 border rounded-md mt-4">
