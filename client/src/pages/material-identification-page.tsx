@@ -56,91 +56,37 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   const recordId = params?.id || (routeParams as any)?.id;
   const isNewRecord = recordId === 'new';
   
-  // Use a React state for edit mode instead of URL parameters
+  // SIMPLIFIED APPROACH: Only use View Mode for determining when to disable fields
+  // New or Edit modes should always be enabled
   const [isEditModeState, setIsEditModeState] = useState(false);
   
-  // Handle query params for edit mode as a fallback - more robust implementation
+  // Check for edit=true parameter in the URL
   useEffect(() => {
-    console.log('Checking for edit mode in URL...');
-    
-    // Check if URL contains edit=true parameter in the search part
     const urlParams = new URLSearchParams(window.location.search);
     const editParam = urlParams.get('edit');
     
-    console.log('Edit parameter from URLSearchParams:', editParam);
-    console.log('Full window location:', window.location.href);
-    
-    // Update edit mode state if the parameter exists
+    // Set edit mode if URL has edit=true
     if (editParam === 'true' && !isEditModeState) {
-      console.log('Setting edit mode to true based on URL parameter');
+      console.log('Setting edit mode based on URL parameter');
       setIsEditModeState(true);
-      setFormDisabled(false);
-      
-      // Force-enable fields after a short delay
-      setTimeout(() => {
-        console.log('Force enabling all form fields');
-        const formInputs = document.querySelectorAll('input, select, textarea');
-        formInputs.forEach((input: Element) => {
-          const htmlInput = input as HTMLElement;
-          if (htmlInput.hasAttribute('disabled')) {
-            htmlInput.removeAttribute('disabled');
-          }
-        });
-      }, 300);
     }
   }, [window.location.search, isEditModeState]);
   
-  // Either URL parameter or state can trigger edit mode
+  // Determine page modes
   const isEditMode = isEditModeState;
   
-  // Extra check to see if URL has edit=true
-  const checkEditParam = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    console.log('Current URL search params:', window.location.search);
-    return urlParams.get('edit') === 'true';
-  };
-  
-  console.log('Direct edit param check:', checkEditParam());
-  console.log('isEditMode:', isEditMode);
+  // View mode is only active for existing records that are not in edit mode
   const isViewMode = recordId && !isNewRecord && !isEditMode;
-  console.log('isViewMode:', isViewMode);
   
-  // Use state to control form disabled status - explicitly set to false for new records
-  const [formDisabled, setFormDisabled] = useState(isViewMode && !isNewRecord);
+  // Debug logging
+  console.log('Record ID:', recordId);
+  console.log('Is New Record:', isNewRecord);
+  console.log('Is Edit Mode:', isEditMode);
+  console.log('Is View Mode:', isViewMode);
   
-  // Update form disabled state whenever edit mode or view mode changes
-  useEffect(() => {
-    console.log('Updating formDisabled state - isViewMode:', isViewMode, 'isEditMode:', isEditMode, 'isNewRecord:', isNewRecord);
-    
-    // Set disabled state based on the current mode:
-    // - New record: never disabled
-    // - Edit mode: never disabled
-    // - View mode (existing record): disabled
-    const newDisabledState = !isEditMode && isViewMode && !isNewRecord;
-    
-    console.log(`Should the form be disabled? ${newDisabledState}`);
-    
-    if (newDisabledState !== formDisabled) {
-      console.log(`Setting form disabled state from ${formDisabled} to ${newDisabledState}`);
-      setFormDisabled(newDisabledState);
-      
-      // Force enable all fields for new records
-      if (isNewRecord) {
-        setTimeout(() => {
-          console.log("Force enabling all form fields for new record");
-          const formInputs = document.querySelectorAll('input, select, textarea');
-          formInputs.forEach((input: Element) => {
-            const htmlInput = input as HTMLElement;
-            if (htmlInput.hasAttribute('disabled')) {
-              htmlInput.removeAttribute('disabled');
-            }
-          });
-        }, 100);
-      }
-    }
-  }, [isViewMode, isEditMode, isNewRecord, formDisabled]);
-  
-  console.log('Current formDisabled state:', formDisabled);
+  // IMPORTANT: We only disable the form for View mode (never for new or edit)
+  // This directly sets whether the form will be disabled without complex state management
+  const formDisabled = isViewMode;
   
   // Debug logs
   console.log('Route params:', routeParams);
@@ -286,15 +232,14 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   // This will completely remount the form with the new disabled state
   const formKey = `form-${isEditMode ? 'edit' : 'view'}-${formDisabled ? 'disabled' : 'enabled'}-${Date.now()}`;
   
-  // Initialize form with disabled state explicitly set - NEVER disable for new records
-  const shouldDisableForm = isViewMode && !isEditMode && !isNewRecord;
-  console.log("Form initialization - shouldDisableForm:", shouldDisableForm, "isNewRecord:", isNewRecord);
-  
+  // CRITICAL FIX: ONLY disable the form for view mode (never for new or edit records)
+  // Setting disabled at the form level is crucial - this is the primary control for field editability
+  // Form is only disabled in view mode of existing records
   const form = useForm<MaterialIdentificationFormValues>({
     resolver: zodResolver(materialIdentificationSchema),
     defaultValues,
     mode: "onBlur",
-    disabled: shouldDisableForm // Explicitly set disabled state based on mode
+    disabled: isViewMode // ONLY disable in view mode, otherwise always enable
   });
   
   // Use an effect to manually override disabled state for all fields if needed
@@ -1127,7 +1072,6 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                           // Direct state manipulation instead of URL parameters
                           console.log("Edit button clicked - enabling edit mode");
                           setIsEditModeState(true);
-                          setFormDisabled(false);
                           
                           // Manual form field enabling via DOM
                           setTimeout(() => {
