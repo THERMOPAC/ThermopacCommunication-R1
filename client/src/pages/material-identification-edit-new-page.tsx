@@ -211,90 +211,96 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
     }
   };
   
-  // Handle form submission
+  // Handle form submission - completely rebuilt version
   const onSubmit = async (data: MaterialIdentificationFormValues) => {
     try {
-      console.log("Submitting form with data:", data);
+      console.log("Starting form submission");
       
-      // Check for empty select fields and use our state variables if needed
-      if (!data.specification && specificationValue) {
-        data.specification = specificationValue;
-        console.log("Using state value for specification:", specificationValue);
-      }
-      
-      if (!data.materialGrade && materialGradeValue) {
-        data.materialGrade = materialGradeValue;
-        console.log("Using state value for materialGrade:", materialGradeValue);
-      }
-      
-      if (!data.materialStatus && materialStatusValue) {
-        data.materialStatus = materialStatusValue;
-        console.log("Using state value for materialStatus:", materialStatusValue);
-      }
-      
-      // Format date for API
-      const formattedData = {
-        ...data,
-        specification: data.specification || specificationValue,
-        materialGrade: data.materialGrade || materialGradeValue,
-        materialStatus: data.materialStatus || materialStatusValue,
+      // Gather all form data with explicit values from state
+      const formData = {
+        // Required fields from the server schema
+        materialIdentificationId: data.materialIdentificationId,
+        projectId: data.projectId,
+        projectNumber: data.projectNumber,
+        projectName: data.projectName,
+        
+        // All other fields with explicit values
+        inspectionOrderNumber: data.inspectionOrderNumber || "",
+        materialDescription: data.materialDescription,
+        materialCode: data.materialCode,
+        
+        // Use state values for dropdowns to ensure they're always included
+        specification: specificationValue,
+        materialGrade: materialGradeValue,
+        materialStatus: materialStatusValue,
+        
+        heatNumber: data.heatNumber,
+        batchNumber: data.batchNumber || "",
+        millName: data.millName,
+        millTestCertificateNumber: data.millTestCertificateNumber,
+        quantity: data.quantity,
+        dimensions: data.dimensions,
+        inspectorName: data.inspectorName,
         inspectionDate: format(data.inspectionDate, 'yyyy-MM-dd'),
+        remarks: data.remarks || ""
       };
       
-      console.log("Formatted data for API:", formattedData);
-      console.log("Current state values:", {
-        specificationValue,
-        materialGradeValue,
-        materialStatusValue
-      });
+      // Debug logging
+      console.log("==== DIRECT SUBMISSION DATA ====");
+      console.log("All fields being submitted:", Object.keys(formData));
+      console.log("Final data for API:", JSON.stringify(formData, null, 2));
       
-      // Add detailed debugging before submission
-      console.log("==== FORM SUBMISSION DETAILS ====");
-      console.log("Fields being submitted:", Object.keys(formattedData));
-      console.log("Final data for API:", JSON.stringify(formattedData, null, 2));
-      
-      // Submit to API
+      // Make a direct API request with explicit data
       const response = await fetch(`/api/quality/material-identification/${recordId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formattedData),
+        body: JSON.stringify(formData),
       });
       
-      // Log the response status for debugging
-      console.log("API Response Status:", response.status);
+      // Store the response text for error handling
+      let responseText = "";
+      let parsedResponse = null;
       
-      // Get response body and handle success/error
-      const responseText = await response.text();
-      console.log("API Response Text:", responseText);
-      
-      if (response.ok) {
-        // Try to parse the response as JSON
-        let responseData;
-        try {
-          responseData = JSON.parse(responseText);
-          console.log("API response parsed:", responseData);
-        } catch (e) {
-          console.error("Failed to parse response as JSON:", e);
-        }
+      try {
+        // Try to get and parse the response
+        responseText = await response.text();
+        console.log("Raw API response:", responseText);
         
+        if (responseText) {
+          parsedResponse = JSON.parse(responseText);
+          console.log("Parsed API response:", parsedResponse);
+        }
+      } catch (parseError) {
+        console.error("Error parsing response:", parseError);
+      }
+      
+      // Handle the response
+      if (response.ok) {
         toast({
-          title: "Material Identification Updated",
-          description: `Material Identification ${formattedData.materialIdentificationId} has been updated successfully.`,
+          title: "Success",
+          description: `Material Identification ${formData.materialIdentificationId} has been updated successfully.`,
         });
         
         // Navigate to the view page
         navigate(`/quality/material-identification/view/${recordId}`);
       } else {
-        console.error("Error response:", responseText);
-        throw new Error(`Failed to update record: ${responseText}`);
+        // Show error information
+        console.error("API Error Status:", response.status);
+        console.error("API Error Response:", responseText);
+        
+        toast({
+          title: "Update Failed",
+          description: "Could not update the Material Identification record. See console for details.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      console.error("Error updating material identification:", error);
+      console.error("Exception during update:", error);
       toast({
         title: "Error",
-        description: "Failed to update Material Identification record. Please try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     }
