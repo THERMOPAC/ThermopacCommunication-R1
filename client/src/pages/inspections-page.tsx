@@ -64,6 +64,20 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+// Define a schema for a single material row
+const materialRowSchema = z.object({
+  id: z.number().optional(), // For existing links, optional for new rows
+  materialId: z.number().optional(), // Material ID from the database
+  materialIdentificationId: z.string().optional(), // MI ID (e.g., "MI-2025-001")
+  materialCertificateNumber: z.string().optional(),
+  heatNumber: z.string().optional(),
+  materialGrade: z.string().optional(),
+  materialSpecification: z.string().optional(),
+  allocatedQuantity: z.string().optional(),
+  quantityUnit: z.string().optional(),
+  remarks: z.string().optional(),
+});
+
 // Schema for Inspection Order Edit
 const inspectionOrderEditSchema = z.object({
   // Basic inspection order info
@@ -76,7 +90,10 @@ const inspectionOrderEditSchema = z.object({
   description: z.string().min(1, { message: "Description is required" }),
   drawingNo: z.string().optional(),
   
-  // Material traceability fields
+  // Material traceability fields - array for multiple materials
+  materials: z.array(materialRowSchema).optional(),
+  
+  // Legacy material fields (keeping for backward compatibility)
   materialCertificateNumber: z.string().optional(),
   heatNumber: z.string().optional(),
   materialGrade: z.string().optional(),
@@ -230,6 +247,27 @@ export default function InspectionsPage() {
     enabled: !!selectedProject,
   });
   
+  // Define an interface for Material Identification records
+  interface MaterialIdentification {
+    id: number;
+    material_identification_id: string;
+    material_description: string;
+    material_code: string;
+    specification: string;
+    material_grade: string;
+    heat_number: string;
+    batch_number: string | null;
+    mill_name: string;
+    mill_test_certificate_number: string;
+    quantity: string;
+    dimensions: string;
+    material_status: string;
+    project_id: number;
+    project_number: string;
+    project_name: string;
+    inspection_order_number: string;
+  }
+
   // Fetch details for a specific inspection order for editing
   const {
     data: editInspectionOrderDetails,
@@ -252,6 +290,7 @@ export default function InspectionsPage() {
     sequenceNumber?: number;
     parentInspectionOrderId?: number;
     projectCode?: string;
+    projectId?: number;
     creator?: {
       id: number;
       username: string;
@@ -270,6 +309,19 @@ export default function InspectionsPage() {
       drawingNo?: string;
       drawingNumber?: string;
     }>;
+    // Materials linked to this inspection order (will be added in future API update)
+    materials?: Array<{
+      id: number;
+      materialId: number;
+      materialIdentificationId: string;
+      materialCertificateNumber: string;
+      heatNumber: string;
+      materialGrade: string;
+      materialSpecification: string;
+      allocatedQuantity?: string;
+      quantityUnit?: string;
+      remarks?: string;
+    }>;
   }>({
     queryKey: ['/api/quality/inspection-orders', editingInspectionOrder],
     queryFn: async ({ queryKey }) => {
@@ -284,6 +336,26 @@ export default function InspectionsPage() {
       return response.json();
     },
     enabled: !!editingInspectionOrder,
+  });
+  
+  // Fetch material identification records for the project of the inspection order being edited
+  const {
+    data: availableMaterials = [],
+    isLoading: isLoadingMaterials,
+  } = useQuery<MaterialIdentification[]>({
+    queryKey: ['/api/quality/material-identification/project', editInspectionOrderDetails?.projectId],
+    queryFn: async ({ queryKey }) => {
+      const [_, projectId] = queryKey;
+      if (!projectId) throw new Error("Project ID is required");
+      
+      const response = await fetch(`/api/quality/material-identification/project/${projectId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch material identification records");
+      }
+      return response.json();
+    },
+    enabled: !!editInspectionOrderDetails?.projectId,
   });
 
   // Fetch details for a specific inspection order for viewing
@@ -511,6 +583,67 @@ export default function InspectionsPage() {
     }
   };
   
+  // State for material rows management
+  const [materialRows, setMaterialRows] = useState<{
+    id?: number;
+    materialId?: number;
+    materialIdentificationId?: string;
+    materialCertificateNumber?: string;
+    heatNumber?: string;
+    materialGrade?: string;
+    materialSpecification?: string;
+    allocatedQuantity?: string;
+    quantityUnit?: string;
+    remarks?: string;
+  }[]>([]);
+  
+  // Add a new empty material row
+  const addMaterialRow = () => {
+    setMaterialRows([
+      ...materialRows,
+      {
+        materialId: undefined,
+        materialIdentificationId: undefined,
+        materialCertificateNumber: '',
+        heatNumber: '',
+        materialGrade: '',
+        materialSpecification: '',
+        allocatedQuantity: '',
+        quantityUnit: '',
+        remarks: ''
+      }
+    ]);
+  };
+  
+  // Remove a material row
+  const removeMaterialRow = (index: number) => {
+    const updatedRows = [...materialRows];
+    updatedRows.splice(index, 1);
+    setMaterialRows(updatedRows);
+  };
+  
+  // Update a material row when user selects an MI ID
+  const updateMaterialRow = (index: number, materialIdentification: MaterialIdentification | null) => {
+    if (!materialIdentification) return;
+    
+    const updatedRows = [...materialRows];
+    updatedRows[index] = {
+      ...updatedRows[index],
+      materialId: materialIdentification.id,
+      materialIdentificationId: materialIdentification.material_identification_id,
+      materialCertificateNumber: materialIdentification.mill_test_certificate_number,
+      heatNumber: materialIdentification.heat_number,
+      materialGrade: materialIdentification.material_grade,
+      materialSpecification: materialIdentification.specification,
+      // Keep existing values for these
+      allocatedQuantity: updatedRows[index].allocatedQuantity,
+      quantityUnit: updatedRows[index].quantityUnit || materialIdentification.quantity.split(' ')[1] || '',
+      remarks: updatedRows[index].remarks
+    };
+    
+    setMaterialRows(updatedRows);
+  };
+  
   // Form for editing inspection order
   const editForm = useForm<InspectionOrderEditFormValues>({
     resolver: zodResolver(inspectionOrderEditSchema),
@@ -523,6 +656,7 @@ export default function InspectionsPage() {
       itemCode: "",
       description: "",
       drawingNo: "",
+      materials: [], // Initialize with empty array for materials
     }
   });
 
