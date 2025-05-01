@@ -4,7 +4,7 @@ import { pool } from '../db';
 import { Storage } from '@google-cloud/storage';
 
 // Helper function to get GCS client
-const getGcsClient = () => {
+export const getGcsClient = () => {
   const bucketName = process.env.GOOGLE_CLOUD_BUCKET || 'thermopac_storage';
   let storageOptions: any = {};
 

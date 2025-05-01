@@ -1,11 +1,10 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { Request, Response, NextFunction } from "express";
 import { AnyZodObject } from "zod";
 import multer from "multer";
-import { uploadMaterialIdentificationDocument, deleteMaterialIdentificationDocument } from "../utils/material-identification-document-upload-fixed";
+import { uploadMaterialIdentificationDocument, deleteMaterialIdentificationDocument, getGcsClient } from "../utils/material-identification-document-upload-fixed";
 import { checkGcsPermissions } from '../utils/gcs-permissions-check';
 
 // Configure multer for in-memory file storage
@@ -702,14 +701,58 @@ router.get("/:id/documents", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Material identification ID is required" });
     }
     
-    // Get documents
+    // Get documents from database
     const documents = await db.execute(sql`
       SELECT * FROM material_identification_documents
       WHERE material_identification_id = ${materialIdentificationId}
       ORDER BY created_at DESC
     `) as any;
     
-    res.json(documents.rows || []);
+    if (!documents.rows || documents.rows.length === 0) {
+      return res.json([]);
+    }
+    
+    // Get GCS client to check file existence
+    const { storage, bucketName } = getGcsClient();
+    const bucket = storage.bucket(bucketName);
+    
+    // Filter documents that actually exist in GCS
+    const validDocuments = [];
+    const invalidDocumentIds = [];
+    
+    for (const doc of documents.rows) {
+      try {
+        // Check if file exists in GCS
+        const file = bucket.file(doc.file_path);
+        const [exists] = await file.exists();
+        
+        if (exists) {
+          validDocuments.push(doc);
+        } else {
+          console.warn(`Document in database but not in GCS: ${doc.file_path}`);
+          invalidDocumentIds.push(doc.id);
+        }
+      } catch (err) {
+        console.error(`Error checking document existence: ${doc.file_path}`, err);
+        // Include document in response even if check fails
+        validDocuments.push(doc);
+      }
+    }
+    
+    // Clean up database by removing references to files that don't exist in GCS
+    if (invalidDocumentIds.length > 0) {
+      try {
+        await db.execute(sql`
+          DELETE FROM material_identification_documents
+          WHERE id = ANY(${invalidDocumentIds})
+        `);
+        console.log(`Cleaned up ${invalidDocumentIds.length} invalid document references`);
+      } catch (err) {
+        console.error("Error cleaning up invalid document references:", err);
+      }
+    }
+    
+    res.json(validDocuments);
   } catch (error) {
     console.error("Error getting documents:", error);
     res.status(500).json({ error: "Failed to get documents" });
