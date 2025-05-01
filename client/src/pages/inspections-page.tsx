@@ -1941,7 +1941,7 @@ export default function InspectionsPage() {
                                 </div>
                                 
                                 {/* Remarks - 140px */}
-                                <div style={{width: "140px"}}>
+                                <div className="me-2" style={{width: "140px"}}>
                                   <div className="space-y-1">
                                     <Label htmlFor={`remarks-${index}`} className="text-xs">Remarks</Label>
                                     <Input
@@ -1959,6 +1959,36 @@ export default function InspectionsPage() {
                                       placeholder="Notes"
                                       className="h-9 w-full"
                                     />
+                                  </div>
+                                </div>
+                                
+                                {/* Actions - Edit/Delete */}
+                                <div style={{width: "80px"}}>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Actions</Label>
+                                    <div className="flex space-x-1 h-9 items-center">
+                                      <Button 
+                                        type="button" 
+                                        variant="ghost" 
+                                        size="icon"
+                                        className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                        onClick={() => {
+                                          // Edit functionality can be added here if needed
+                                          // Currently, editing is already possible directly in the fields
+                                        }}
+                                      >
+                                        <Edit2 className="h-4 w-4" />
+                                      </Button>
+                                      <Button 
+                                        type="button" 
+                                        variant="ghost" 
+                                        size="icon"
+                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
+                                        onClick={() => removeMaterialRow(index)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
