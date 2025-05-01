@@ -6,6 +6,7 @@ import { Request, Response, NextFunction } from "express";
 import { AnyZodObject } from "zod";
 import multer from "multer";
 import { uploadMaterialIdentificationDocument, deleteMaterialIdentificationDocument } from "../utils/material-identification-document-upload";
+import { checkGcsPermissions } from '../utils/gcs-permissions-check';
 
 // Configure multer for in-memory file storage
 const storage = multer.memoryStorage();
@@ -382,6 +383,30 @@ router.get("/new", async (req, res) => {
   } catch (error) {
     console.error("Error creating new material identification template:", error);
     res.status(500).json({ error: "Failed to create new material identification template" });
+  }
+});
+
+// Test route to check GCS connectivity - MUST come before /:id routes
+router.get("/test-gcs-connection", async (req, res) => {
+  try {
+    console.log("Testing GCS connection for Material Identification documents");
+    
+    // Run the permissions check using the imported function
+    const result = await checkGcsPermissions();
+    console.log("GCS Permissions Check Result:", result);
+    
+    res.json({
+      success: result.success,
+      message: "GCS connection test completed",
+      result
+    });
+  } catch (error) {
+    console.error("Error testing GCS connection:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error testing GCS connection",
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 });
 
