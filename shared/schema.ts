@@ -2536,7 +2536,7 @@ export const materialIdentification = pgTable('material_identification', {
   // Inspection details
   inspectorName: text('inspector_name').notNull(),
   inspectionDate: date('inspection_date').notNull(),
-  description: text('description'),
+  remarks: text('remarks'),
   
   // Tracking and metadata
   createdBy: integer('created_by').notNull().references(() => users.id),
