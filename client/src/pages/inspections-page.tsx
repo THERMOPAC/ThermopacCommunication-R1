@@ -1771,8 +1771,8 @@ export default function InspectionsPage() {
                               
                               {/* All fields in one horizontal row with specific widths */}
                               <div className="flex flex-nowrap overflow-auto">
-                                {/* Description - 140px (Moved to the beginning) */}
-                                <div className="me-2" style={{width: "140px"}}>
+                                {/* Description - 390px (Moved to the beginning) */}
+                                <div className="me-2" style={{width: "390px"}}>
                                   <div className="space-y-1">
                                     <Label htmlFor={`description-${index}`} className="text-xs">Description</Label>
                                     <Input
@@ -1917,8 +1917,8 @@ export default function InspectionsPage() {
                                   </div>
                                 </div>
                                 
-                                {/* Allocated Quantity - 100px */}
-                                <div className="me-2" style={{width: "100px"}}>
+                                {/* Allocated Quantity - 80px */}
+                                <div className="me-2" style={{width: "80px"}}>
                                   <div className="space-y-1">
                                     <Label htmlFor={`quantity-${index}`} className="text-xs">Qty</Label>
                                     <Input
@@ -1940,8 +1940,8 @@ export default function InspectionsPage() {
                                   </div>
                                 </div>
                                 
-                                {/* Unit - 80px */}
-                                <div className="me-2" style={{width: "80px"}}>
+                                {/* Unit - 50px */}
+                                <div className="me-2" style={{width: "50px"}}>
                                   <div className="space-y-1">
                                     <Label htmlFor={`unit-${index}`} className="text-xs">Unit</Label>
                                     <Input
