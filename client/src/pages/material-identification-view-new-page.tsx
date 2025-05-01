@@ -504,11 +504,13 @@ export default function MaterialIdentificationViewNewPage({ params }: MaterialId
                 onChange={(e) => setDocumentType(e.target.value)}
                 disabled={isUploading}
               >
-                <option value="general">General</option>
-                <option value="mill_certificate">Mill Certificate</option>
-                <option value="test_report">Test Report</option>
+                <option value="general">General Document</option>
+                <option value="mill_test_certificate">Mill Test Certificate</option>
                 <option value="inspection_report">Inspection Report</option>
-                <option value="certification">Certification</option>
+                <option value="material_certificate">Material Certificate</option>
+                <option value="test_report">Test Report</option>
+                <option value="technical_datasheet">Technical Datasheet</option>
+                <option value="other">Other Document</option>
               </select>
             </div>
             
