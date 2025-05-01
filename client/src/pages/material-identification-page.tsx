@@ -21,6 +21,8 @@ import { Calendar } from "@/components/ui/calendar";
 // Define the form schema
 const materialIdentificationSchema = z.object({
   materialIdentificationId: z.string().min(1, "MI ID is required"),
+  // IMPORTANT: We need projectId for server-side validation (it's required by the API)
+  projectId: z.number().or(z.string().transform(id => parseInt(id, 10))).optional(),
   projectName: z.string().min(1, "Project Name is required"),
   projectNumber: z.string().min(1, "Project Number is required"),
   inspectionOrderNumber: z.string().optional(), // Made optional
@@ -242,6 +244,7 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
   // Default values for the form
   const defaultValues: Partial<MaterialIdentificationFormValues> = {
     materialIdentificationId: '',
+    projectId: undefined, // Include projectId field
     projectName: '',
     projectNumber: '',
     inspectionOrderNumber: '',
@@ -399,14 +402,18 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
       // Use code field as the primary identifier from the projects table
       const projectValue = (project.code || project.projectCode || project.projectNumber || '') as string;
       
-      // Explicitly set the project number and name
+      // Explicitly set project ID, number, and name
+      console.log(`Setting project ID to: ${project.id}`);
       console.log(`Setting project number to: ${projectValue}`);
       console.log(`Setting project name to: ${project.name}`);
       
+      // CRITICAL: Set projectId for server-side validation
+      form.setValue('projectId', project.id);
       form.setValue('projectNumber', projectValue);
       form.setValue('projectName', project.name);
       
       // This is important - mark fields as touched to ensure they're included in the submission
+      form.trigger('projectId');
       form.trigger('projectNumber');
       form.trigger('projectName');
       
@@ -526,10 +533,31 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
       formattedDate = format(new Date(), "yyyy-MM-dd");
     }
     
+    // Log all form values for debugging
+    console.log("Form submission values:", data);
+    
+    // Make sure projectId is correctly set and not undefined
+    if (!data.projectId && selectedProject) {
+      console.log("Setting projectId from selectedProject in onSubmit:", selectedProject);
+      data.projectId = selectedProject;
+    }
+    
+    // Double-check projectId is available
+    if (!data.projectId) {
+      toast({
+        title: "Missing Project",
+        description: "Please select a project before submitting the form.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const formattedData = {
       ...data,
       inspectionDate: formattedDate,
     };
+    
+    console.log("Submitting formatted data:", formattedData);
     
     // Submit the data to the appropriate mutation based on mode
     if (isEditMode && recordId) {
@@ -538,6 +566,8 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
         id: recordId
       });
     } else {
+      // For create, ensure we're explicitly sending projectId
+      console.log("Creating new material identification with projectId:", formattedData.projectId);
       createMutation.mutate(formattedData);
     }
   };
@@ -1010,10 +1040,33 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                           type="submit"
                           onClick={(e) => {
                             e.preventDefault();
+                            console.log("Submit button clicked");
+                            
+                            // Log the current form values
+                            const formValues = form.getValues();
+                            console.log("Current form values:", formValues);
+                            
+                            // Make sure projectId is included
+                            if (!formValues.projectId) {
+                              if (selectedProject) {
+                                console.log("Setting projectId from selectedProject:", selectedProject);
+                                form.setValue('projectId', selectedProject);
+                              } else {
+                                toast({
+                                  title: "Missing Project",
+                                  description: "Please select a project before submitting the form.",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                            }
+                            
                             // Mark all fields as touched to ensure they're included in validation and submission
-                            Object.keys(form.getValues()).forEach(fieldName => {
+                            Object.keys(formValues).forEach(fieldName => {
                               form.trigger(fieldName as any);
                             });
+                            
+                            // Submit the form
                             form.handleSubmit(onSubmit)();
                           }}
                         >
