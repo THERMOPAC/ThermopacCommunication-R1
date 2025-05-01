@@ -269,41 +269,33 @@ export default function MaterialIdentificationListNewPage() {
                 Select a project to view its material identification records.
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1">
-                  {projectsLoading ? (
-                    <div className="h-10 flex items-center">Loading projects...</div>
-                  ) : (
-                    <select 
-                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2"
-                      value={selectedProjectId || ""}
-                      onChange={(e) => {
-                        const id = e.target.value ? parseInt(e.target.value) : null;
-                        setSelectedProjectId(id);
-                        setShowRecords(false); // Reset when project changes
-                      }}
-                    >
-                      <option value="">-- Select a project --</option>
-                      {activeProjects.map(project => (
-                        <option key={project.id} value={project.id}>
-                          {project.code} - {project.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                
-                <Button 
-                  onClick={() => setShowRecords(true)}
-                  disabled={!selectedProjectId}
-                >
-                  View Records
-                </Button>
+              <div className="flex-1">
+                {projectsLoading ? (
+                  <div className="h-10 flex items-center">Loading projects...</div>
+                ) : (
+                  <select 
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-2"
+                    value={selectedProjectId || ""}
+                    onChange={(e) => {
+                      const id = e.target.value ? parseInt(e.target.value) : null;
+                      setSelectedProjectId(id);
+                      // Automatically show records when project is selected
+                      setShowRecords(!!id);
+                    }}
+                  >
+                    <option value="">-- Select a project --</option>
+                    {activeProjects.map(project => (
+                      <option key={project.id} value={project.id}>
+                        {project.code} - {project.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
             
             {/* Search and filter bar - only show when project is selected */}
-            {showRecords && selectedProjectId && (
+            {selectedProjectId && (
               <div className="flex items-center mb-6 gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
@@ -338,12 +330,7 @@ export default function MaterialIdentificationListNewPage() {
             )}
             
             {/* Display state messages based on conditions */}
-            {!showRecords && selectedProjectId ? (
-              <div className="flex flex-col items-center justify-center h-40 text-center text-gray-500">
-                <h3 className="text-lg font-medium">Click "View Records" to display material identification data</h3>
-                <p className="text-sm">You've selected a project. Now click the button to view its records.</p>
-              </div>
-            ) : !selectedProjectId ? (
+            {!selectedProjectId ? (
               <div className="flex flex-col items-center justify-center h-40 text-center text-gray-500">
                 <h3 className="text-lg font-medium">Please select a project</h3>
                 <p className="text-sm">Material identification records will be displayed after selecting a project.</p>

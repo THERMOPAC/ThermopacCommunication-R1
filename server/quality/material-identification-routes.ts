@@ -94,61 +94,52 @@ router.get("/", async (req, res) => {
       limit = "20"
     } = req.query;
 
-    // Build where conditions
-    const conditions: string[] = [];
-    const params: any[] = [];
-    
-    if (search) {
-      conditions.push(`
-        (
-          material_identification_id ILIKE ${sql.placeholder} OR
-          material_description ILIKE ${sql.placeholder} OR
-          material_code ILIKE ${sql.placeholder} OR
-          heat_number ILIKE ${sql.placeholder} OR
-          mill_test_certificate_number ILIKE ${sql.placeholder} OR
-          inspector_name ILIKE ${sql.placeholder}
-        )
-      `);
-      const searchParam = `%${search}%`;
-      params.push(searchParam, searchParam, searchParam, searchParam, searchParam, searchParam);
-    }
-    
-    if (projectId) {
-      conditions.push(`project_id = ${sql.placeholder}`);
-      params.push(projectId);
-    }
-    
-    if (materialGrade) {
-      conditions.push(`material_grade = ${sql.placeholder}`);
-      params.push(materialGrade);
-    }
-    
-    if (status) {
-      conditions.push(`material_status = ${sql.placeholder}`);
-      params.push(status);
-    }
-    
-    if (fromDate) {
-      conditions.push(`inspection_date >= ${sql.placeholder}`);
-      params.push(fromDate);
-    }
-    
-    if (toDate) {
-      conditions.push(`inspection_date <= ${sql.placeholder}`);
-      params.push(toDate);
-    }
-    
     // Parse pagination parameters
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const offset = (pageNum - 1) * limitNum;
     
-    // Create base query
+    // Create base query and build conditions directly with SQL template literals
     let baseQuery = sql`SELECT * FROM material_identification`;
     
-    // Add where conditions if there are any
+    // Build WHERE conditions
+    const conditions = [];
+    
+    if (search) {
+      const searchParam = `%${search}%`;
+      conditions.push(sql`(
+        material_identification_id ILIKE ${searchParam} OR
+        material_description ILIKE ${searchParam} OR
+        material_code ILIKE ${searchParam} OR
+        heat_number ILIKE ${searchParam} OR
+        mill_test_certificate_number ILIKE ${searchParam} OR
+        inspector_name ILIKE ${searchParam}
+      )`);
+    }
+    
+    if (projectId) {
+      conditions.push(sql`project_id = ${projectId}`);
+    }
+    
+    if (materialGrade) {
+      conditions.push(sql`material_grade = ${materialGrade}`);
+    }
+    
+    if (status) {
+      conditions.push(sql`material_status = ${status}`);
+    }
+    
+    if (fromDate) {
+      conditions.push(sql`inspection_date >= ${fromDate}`);
+    }
+    
+    if (toDate) {
+      conditions.push(sql`inspection_date <= ${toDate}`);
+    }
+    
+    // Add WHERE clause if there are conditions
     if (conditions.length > 0) {
-      baseQuery = sql`${baseQuery} WHERE ${sql.join(conditions.map(c => sql.raw(c)), sql` AND `)}`;
+      baseQuery = sql`${baseQuery} WHERE ${sql.join(conditions, sql` AND `)}`;
     }
     
     // Add order by and pagination
@@ -162,7 +153,8 @@ router.get("/", async (req, res) => {
     
     // Add the same conditions to count query
     if (conditions.length > 0) {
-      countQuery = sql`${countQuery} WHERE ${sql.join(conditions.map(c => sql.raw(c)), sql` AND `)}`;
+      // Use the same SQL template conditions as the main query
+      countQuery = sql`${countQuery} WHERE ${sql.join(conditions, sql` AND `)}`;
     }
     
     // Execute count query
