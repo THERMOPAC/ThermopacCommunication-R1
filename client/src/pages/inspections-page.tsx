@@ -735,11 +735,11 @@ export default function InspectionsPage() {
         materialGrade: editInspectionOrderDetails.materialGrade || '',
         materialSpecification: editInspectionOrderDetails.materialSpecification || '',
         materialSupplier: editInspectionOrderDetails.materialSupplier || '',
-        // Initialize the materials array (will be populated by the materialRows useEffect)
-        materials: materialRows,
+        // Initialize the materials array with any existing materials
+        materials: editInspectionOrderDetails.materials || [],
       });
     }
-  }, [editInspectionOrderDetails, editForm, materialRows]);
+  }, [editInspectionOrderDetails, editForm]);
 
   // Handle inspection order update
   const handleUpdateInspectionOrder = async (data: InspectionOrderEditFormValues) => {
