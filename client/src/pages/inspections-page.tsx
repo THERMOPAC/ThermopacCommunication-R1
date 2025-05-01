@@ -1769,12 +1769,12 @@ export default function InspectionsPage() {
                                 <X className="h-4 w-4" />
                               </Button>
                               
-                              {/* All fields in one row - Material Info */}
-                              <div className="grid grid-cols-16 gap-2">
-                                {/* Section 1: MI ID Selection */}
-                                <div className="col-span-4">
+                              {/* All fields in one horizontal row with specific widths */}
+                              <div className="flex flex-nowrap overflow-auto">
+                                {/* Material Identification (MI ID) - 120px */}
+                                <div className="me-2" style={{width: "120px"}}>
                                   <div className="space-y-1">
-                                    <Label htmlFor={`material-id-${index}`} className="text-xs">Material Identification (MI ID)</Label>
+                                    <Label htmlFor={`material-id-${index}`} className="text-xs">Material ID</Label>
                                     <Select
                                       value={materialRow.materialId?.toString() || ""}
                                       onValueChange={(value) => {
@@ -1783,7 +1783,7 @@ export default function InspectionsPage() {
                                       }}
                                     >
                                       <SelectTrigger id={`material-id-${index}`} className="h-9 w-full">
-                                        <SelectValue placeholder="Select Material Identification" />
+                                        <SelectValue placeholder="Select MI ID" />
                                       </SelectTrigger>
                                       <SelectContent>
                                         {isLoadingMaterials ? (
@@ -1798,7 +1798,7 @@ export default function InspectionsPage() {
                                         ) : (
                                           availableMaterials.map((material) => (
                                             <SelectItem key={material.id} value={material.id.toString()}>
-                                              {material.material_identification_id} - {material.material_description}
+                                              {material.material_identification_id}
                                             </SelectItem>
                                           ))
                                         )}
@@ -1806,10 +1806,11 @@ export default function InspectionsPage() {
                                     </Select>
                                   </div>
                                 </div>
-                                {/* Material Certificate Number - Read only */}
-                                <div className="col-span-3">
+                                
+                                {/* Certificate Number - 120px */}
+                                <div className="me-2" style={{width: "120px"}}>
                                   <div className="space-y-1">
-                                    <Label htmlFor={`certificate-number-${index}`} className="text-xs">Certificate Number</Label>
+                                    <Label htmlFor={`certificate-number-${index}`} className="text-xs">Certificate #</Label>
                                     <Input
                                       id={`certificate-number-${index}`}
                                       value={materialRow.materialCertificateNumber || ''}
@@ -1821,17 +1822,17 @@ export default function InspectionsPage() {
                                         };
                                         setMaterialRows(updatedRows);
                                       }}
-                                      placeholder="Certificate number"
+                                      placeholder="Certificate #"
                                       className="bg-gray-50 h-9 w-full"
                                       readOnly
                                     />
                                   </div>
                                 </div>
                                 
-                                {/* Heat Number - Read only */}
-                                <div className="col-span-2">
+                                {/* Heat Number - 100px */}
+                                <div className="me-2" style={{width: "100px"}}>
                                   <div className="space-y-1">
-                                    <Label htmlFor={`heat-number-${index}`} className="text-xs">Heat Number</Label>
+                                    <Label htmlFor={`heat-number-${index}`} className="text-xs">Heat #</Label>
                                     <Input
                                       id={`heat-number-${index}`}
                                       value={materialRow.heatNumber || ''}
@@ -1843,17 +1844,17 @@ export default function InspectionsPage() {
                                         };
                                         setMaterialRows(updatedRows);
                                       }}
-                                      placeholder="Heat number"
+                                      placeholder="Heat #"
                                       className="bg-gray-50 h-9 w-full"
                                       readOnly
                                     />
                                   </div>
                                 </div>
                                 
-                                {/* Material Grade - Read only */}
-                                <div className="col-span-2">
+                                {/* Material Grade - 100px */}
+                                <div className="me-2" style={{width: "100px"}}>
                                   <div className="space-y-1">
-                                    <Label htmlFor={`material-grade-${index}`} className="text-xs">Material Grade</Label>
+                                    <Label htmlFor={`material-grade-${index}`} className="text-xs">Grade</Label>
                                     <Input
                                       id={`material-grade-${index}`}
                                       value={materialRow.materialGrade || ''}
@@ -1865,17 +1866,17 @@ export default function InspectionsPage() {
                                         };
                                         setMaterialRows(updatedRows);
                                       }}
-                                      placeholder="Material grade"
+                                      placeholder="Grade"
                                       className="bg-gray-50 h-9 w-full"
                                       readOnly
                                     />
                                   </div>
                                 </div>
                                 
-                                {/* Material Specification - Read only */}
-                                <div className="col-span-3">
+                                {/* Material Specification - 120px */}
+                                <div className="me-2" style={{width: "120px"}}>
                                   <div className="space-y-1">
-                                    <Label htmlFor={`material-spec-${index}`} className="text-xs">Material Specification</Label>
+                                    <Label htmlFor={`material-spec-${index}`} className="text-xs">Spec</Label>
                                     <Input
                                       id={`material-spec-${index}`}
                                       value={materialRow.materialSpecification || ''}
@@ -1887,17 +1888,17 @@ export default function InspectionsPage() {
                                         };
                                         setMaterialRows(updatedRows);
                                       }}
-                                      placeholder="Material specification"
+                                      placeholder="Specification"
                                       className="bg-gray-50 h-9 w-full"
                                       readOnly
                                     />
                                   </div>
                                 </div>
                                 
-                                {/* Allocated Quantity - Editable */}
-                                <div className="col-span-2">
+                                {/* Allocated Quantity - 100px */}
+                                <div className="me-2" style={{width: "100px"}}>
                                   <div className="space-y-1">
-                                    <Label htmlFor={`quantity-${index}`} className="text-xs">Allocated Quantity</Label>
+                                    <Label htmlFor={`quantity-${index}`} className="text-xs">Qty</Label>
                                     <Input
                                       id={`quantity-${index}`}
                                       value={materialRow.allocatedQuantity || ''}
@@ -1908,15 +1909,17 @@ export default function InspectionsPage() {
                                           allocatedQuantity: e.target.value
                                         };
                                         setMaterialRows(updatedRows);
+                                        editForm.setValue('materials', updatedRows);
                                       }}
-                                      placeholder="Enter quantity"
+                                      placeholder="Quantity"
                                       className="h-9 w-full"
+                                      type="number"
                                     />
                                   </div>
                                 </div>
                                 
-                                {/* Unit - Editable */}
-                                <div className="col-span-1">
+                                {/* Unit - 80px */}
+                                <div className="me-2" style={{width: "80px"}}>
                                   <div className="space-y-1">
                                     <Label htmlFor={`unit-${index}`} className="text-xs">Unit</Label>
                                     <Input
@@ -1929,6 +1932,7 @@ export default function InspectionsPage() {
                                           quantityUnit: e.target.value
                                         };
                                         setMaterialRows(updatedRows);
+                                        editForm.setValue('materials', updatedRows);
                                       }}
                                       placeholder="Unit"
                                       className="h-9 w-full"
@@ -1936,8 +1940,8 @@ export default function InspectionsPage() {
                                   </div>
                                 </div>
                                 
-                                {/* Remarks - Editable */}
-                                <div className="col-span-3">
+                                {/* Remarks - 140px */}
+                                <div style={{width: "140px"}}>
                                   <div className="space-y-1">
                                     <Label htmlFor={`remarks-${index}`} className="text-xs">Remarks</Label>
                                     <Input
@@ -1950,8 +1954,9 @@ export default function InspectionsPage() {
                                           remarks: e.target.value
                                         };
                                         setMaterialRows(updatedRows);
+                                        editForm.setValue('materials', updatedRows);
                                       }}
-                                      placeholder="Optional notes"
+                                      placeholder="Notes"
                                       className="h-9 w-full"
                                     />
                                   </div>
