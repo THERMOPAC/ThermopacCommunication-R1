@@ -141,6 +141,8 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
   // Update form with record data when loaded
   useEffect(() => {
     if (recordData) {
+      console.log("Record data loaded:", recordData);
+      
       // Transform API response to match form field names
       const formattedData = {
         materialIdentificationId: recordData.material_identification_id,
@@ -164,8 +166,15 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
         remarks: recordData.remarks || "",
       };
       
+      console.log("Formatted form data:", formattedData);
+      
       // Reset form with formatted data
       form.reset(formattedData);
+      
+      // Manually set each dropdown field to ensure they're properly updated
+      form.setValue("specification", formattedData.specification);
+      form.setValue("materialStatus", formattedData.materialStatus);
+      form.setValue("materialGrade", formattedData.materialGrade);
     }
   }, [recordData, form]);
   
@@ -189,11 +198,15 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
   // Handle form submission
   const onSubmit = async (data: MaterialIdentificationFormValues) => {
     try {
+      console.log("Submitting form with data:", data);
+      
       // Format date for API
       const formattedData = {
         ...data,
         inspectionDate: format(data.inspectionDate, 'yyyy-MM-dd'),
       };
+      
+      console.log("Formatted data for API:", formattedData);
       
       // Submit to API
       const response = await fetch(`/api/quality/material-identification/${recordId}`, {
@@ -205,7 +218,8 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const responseData = await response.json();
+        console.log("API response:", responseData);
         
         toast({
           title: "Material Identification Updated",
@@ -215,7 +229,9 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
         // Navigate to the view page
         navigate(`/quality/material-identification/view/${recordId}`);
       } else {
-        throw new Error('Failed to update record');
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+        throw new Error(`Failed to update record: ${errorText}`);
       }
     } catch (error) {
       console.error("Error updating material identification:", error);
