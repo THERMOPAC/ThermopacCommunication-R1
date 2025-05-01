@@ -697,7 +697,11 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                       <FormItem>
                         <FormLabel>Specification</FormLabel>
                         <Select
-                          onValueChange={field.onChange}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            form.trigger('specification');
+                            console.log(`Setting specification to: ${value}`);
+                          }}
                           value={field.value || ""}
                           disabled={formDisabled}
                         >
@@ -730,7 +734,11 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                       <FormItem>
                         <FormLabel>Material Grade</FormLabel>
                         <Select
-                          onValueChange={field.onChange}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            form.trigger('materialGrade');
+                            console.log(`Setting material grade to: ${value}`);
+                          }}
                           value={field.value || ""}
                           disabled={formDisabled}
                         >
@@ -873,7 +881,11 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                       <FormItem>
                         <FormLabel>Material Status</FormLabel>
                         <Select
-                          onValueChange={field.onChange}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            form.trigger('materialStatus');
+                            console.log(`Setting material status to: ${value}`);
+                          }}
                           value={field.value || ""}
                           disabled={formDisabled}
                         >
@@ -994,7 +1006,17 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                         >
                           {isEditMode ? 'Reset Changes' : 'Clear Form'}
                         </Button>
-                        <Button type="submit">
+                        <Button 
+                          type="submit"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            // Mark all fields as touched to ensure they're included in validation and submission
+                            Object.keys(form.getValues()).forEach(fieldName => {
+                              form.trigger(fieldName as any);
+                            });
+                            form.handleSubmit(onSubmit)();
+                          }}
+                        >
                           {isEditMode ? 'Update' : 'Create'} Material Identification
                         </Button>
                         {isEditMode && (
