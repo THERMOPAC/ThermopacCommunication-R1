@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import Layout from "@/components/layout";
@@ -16,8 +16,18 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, FileText, FileUp, Download, Trash2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 // Define interfaces for the data types
 interface Project {
@@ -53,6 +63,21 @@ interface MaterialIdentification {
   remarks: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// Define interface for document
+interface Document {
+  id: number;
+  material_identification_id: number;
+  file_name: string;
+  file_path: string;
+  file_url: string;
+  file_type: string;
+  file_size: number;
+  document_type: string;
+  description: string;
+  uploaded_by: number;
+  created_at: string;
 }
 
 // Define schema for Material Identification form
@@ -92,11 +117,20 @@ interface MaterialIdentificationEditProps {
 export default function MaterialIdentificationEditNewPage({ params }: MaterialIdentificationEditProps) {
   const [, navigate] = useLocation();
   const recordId = params.id;
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   // State to track select field values
   const [specificationValue, setSpecificationValue] = useState("");
   const [materialGradeValue, setMaterialGradeValue] = useState("");
   const [materialStatusValue, setMaterialStatusValue] = useState("");
+  
+  // State for document upload dialog
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [documentType, setDocumentType] = useState("");
+  const [documentDescription, setDocumentDescription] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Fetch the Material Identification record
   const { data: recordData, isLoading: isLoadingRecord, error } = useQuery({
@@ -115,6 +149,19 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
     queryKey: ['/api/projects'],
     staleTime: 5 * 60 * 1000 // 5 minutes
+  });
+  
+  // Fetch documents for this material identification record
+  const { data: documents = [], isLoading: isLoadingDocuments, refetch: refetchDocuments } = useQuery<Document[]>({
+    queryKey: ['/api/quality/material-identification', recordId, 'documents'],
+    queryFn: async () => {
+      const response = await fetch(`/api/quality/material-identification/${recordId}/documents`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch material identification documents');
+      }
+      return response.json();
+    },
+    enabled: !!recordId && recordId !== 'new',
   });
   
   // Create form with default values
@@ -309,7 +356,141 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
     }
   };
   
-  const isLoading = isLoadingRecord || isLoadingProjects;
+  // File input reference for document upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle file selection
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  // Handle document upload
+  const handleDocumentUpload = async () => {
+    if (!selectedFile || !documentType) {
+      toast({
+        title: "Missing information",
+        description: "Please select a file and specify the document type.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("documentType", documentType);
+      formData.append("description", documentDescription || "");
+      
+      const response = await fetch(`/api/quality/material-identification/${recordId}/documents`, {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to upload document: ${errorText}`);
+      }
+      
+      toast({
+        title: "Success",
+        description: "Document uploaded successfully.",
+      });
+      
+      // Reset form
+      setSelectedFile(null);
+      setDocumentType("");
+      setDocumentDescription("");
+      setUploadDialogOpen(false);
+      
+      // Refresh documents list
+      refetchDocuments();
+      
+    } catch (error) {
+      console.error("Document upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload document.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Handle document deletion
+  const handleDeleteDocument = async (documentId: number) => {
+    if (!confirm("Are you sure you want to delete this document?")) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/quality/material-identification/${recordId}/documents/${documentId}`, {
+        method: "DELETE",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to delete document");
+      }
+      
+      toast({
+        title: "Success",
+        description: "Document deleted successfully.",
+      });
+      
+      // Refresh documents list
+      refetchDocuments();
+      
+    } catch (error) {
+      console.error("Document deletion error:", error);
+      toast({
+        title: "Deletion Failed",
+        description: "Failed to delete the document.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle document download
+  const handleDownloadDocument = async (documentId: number, fileName: string) => {
+    try {
+      const response = await fetch(`/api/quality/material-identification/${recordId}/documents/${documentId}/download`);
+      
+      if (!response.ok) {
+        throw new Error("Failed to download document");
+      }
+      
+      // Get file content as blob
+      const blob = await response.blob();
+      
+      // Create object URL
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create temporary link and trigger download
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+    } catch (error) {
+      console.error("Document download error:", error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to download the document.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const isLoading = isLoadingRecord || isLoadingProjects || isLoadingDocuments;
   
   if (error) {
     return (
