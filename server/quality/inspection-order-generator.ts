@@ -511,6 +511,14 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       return previewInspectionOrders(req, res);
     }
     
+    // Special fix for Project ID 3 (2025-1)
+    if (projectId === 3) {
+      console.log('== REDIRECTING TO SPECIAL FIX FOR PROJECT 3 (2025-1) - GENERATION MODE ==');
+      // Import dynamically to avoid circular dependencies
+      const { generateInspectionOrdersForProject3 } = require('./project3-special-fix');
+      return generateInspectionOrdersForProject3(req, res);
+    }
+    
     // Fetch project details
     const project = await db.query.projects.findFirst({
       where: eq(projects.id, projectId)
