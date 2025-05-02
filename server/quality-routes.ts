@@ -122,8 +122,13 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       return res.status(404).json({ error: 'Inspection order not found' });
     }
 
-    // Extract materials from the request body
-    const { materials, ...orderData } = req.body;
+    // Extract materials and NDT records from the request body
+    const { materials, ndtRecords, ...orderData } = req.body;
+    
+    // Store NDT records in the orderData as a JSON string if they exist
+    if (ndtRecords && Array.isArray(ndtRecords)) {
+      orderData.ndtData = JSON.stringify(ndtRecords);
+    }
 
     // Update inspection order
     const updatedOrder = await db.update(inspectionOrders)
