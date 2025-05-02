@@ -78,6 +78,17 @@ const materialRowSchema = z.object({
   description: z.string().optional(),
 });
 
+// Define a schema for NDT records
+const ndtRecordSchema = z.object({
+  id: z.string(),
+  ndtMethod: z.string(),
+  ndtStandard: z.string(),
+  ndtExtent: z.string(),
+  ndtTechnician: z.string().optional(),
+  ndtDate: z.string().optional(),
+  ndtResults: z.string(),
+});
+
 // Schema for Inspection Order Edit
 const inspectionOrderEditSchema = z.object({
   // Basic inspection order info
@@ -109,7 +120,10 @@ const inspectionOrderEditSchema = z.object({
   weldProcess: z.string().optional(),
   weldingNotes: z.string().optional(),
   
-  // NDT fields
+  // NDT records - array for multiple NDT records
+  ndtRecords: z.array(ndtRecordSchema).optional(),
+  
+  // Legacy NDT fields (keeping for backward compatibility)
   ndtMethod: z.string().optional(),
   ndtStandard: z.string().optional(),
   ndtExtent: z.number().optional(),
@@ -1005,12 +1019,25 @@ export default function InspectionsPage() {
     if (!editingInspectionOrder) return;
     
     try {
+      // Filter out any material rows without a materialId to avoid DB constraint errors
+      let materialRows = data.materials || [];
+      const validMaterialRows = materialRows.filter(row => row.materialId);
+      
+      // Combine the form data with the NDT records from the state
+      const updateData = {
+        ...data,
+        materials: validMaterialRows,
+        ndtRecords: ndtRecords
+      };
+      
+      console.log("Updating inspection order with data:", updateData);
+      
       const response = await fetch(`/api/quality/inspection-orders/${editingInspectionOrder}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(updateData),
       });
       
       if (!response.ok) {
