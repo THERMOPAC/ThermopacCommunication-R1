@@ -658,7 +658,26 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       0;
     
     // Generate unique inspection order numbers
-    const nextSeqNumber = existingInspectionOrders.length + 1;
+    let nextSeqNumber = 1;
+    if (existingInspectionOrders.length > 0) {
+      nextSeqNumber = Math.max(...existingInspectionOrders.map(order => order.sequenceNumber || 0)) + 1;
+    }
+    
+    // Get max order number to ensure unique order numbers
+    let maxOrderNumber = 0;
+    for (const order of existingInspectionOrders) {
+      if (order.inspectionOrderNumber) {
+        const parts = order.inspectionOrderNumber.split('-');
+        if (parts.length > 0) {
+          const lastPart = parts[parts.length - 1];
+          const num = parseInt(lastPart);
+          if (!isNaN(num) && num > maxOrderNumber) {
+            maxOrderNumber = num;
+          }
+        }
+      }
+    }
+    console.log(`Max order number for this project: ${maxOrderNumber}`);
     
     // Create individual inspection orders for each Make item
     if (filteredMakeItems.length > 0) {
@@ -673,7 +692,8 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       for (const [index, item] of filteredMakeItems.entries()) {
         console.log(`Creating make item order ${index + 1}/${filteredMakeItems.length}: Item ID ${item.id}`);
         const masterItem = masterItemsMap.get(item.itemId);
-        const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-${index + 1}`;
+        const orderSequence = maxOrderNumber + index + 1;
+        const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-${orderSequence}`;
         
         // Extract drawing number from master item or derive it from item code
         let drawingNumber = masterItem?.drawingNo || "";
@@ -748,7 +768,8 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       for (const [index, item] of filteredBuyItems.entries()) {
         console.log(`Creating buy item order ${index + 1}/${filteredBuyItems.length}: Item ID ${item.id}`);
         const masterItem = masterItemsMap.get(item.itemId);
-        const buyInspectionOrderNumber = `IO-${year}-${projectNumber}-B-${index + 1}`;
+        const orderSequence = maxOrderNumber + filteredMakeItems.length + index + 1;
+        const buyInspectionOrderNumber = `IO-${year}-${projectNumber}-B-${orderSequence}`;
         
         // Extract drawing number from master item or derive it from item code
         let drawingNumber = masterItem?.drawingNo || "";
@@ -834,7 +855,8 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           masterItemsMap.get(parentProjectItem.itemId) : 
           null;
           
-        const componentInspectionOrderNumber = `IO-${year}-${projectNumber}-C-${index + 1}`;
+        const orderSequence = maxOrderNumber + filteredMakeItems.length + filteredBuyItems.length + index + 1;
+        const componentInspectionOrderNumber = `IO-${year}-${projectNumber}-C-${orderSequence}`;
         
         // Extract drawing number from master item or derive it from item code
         let drawingNumber = masterItem?.drawingNo || "";
