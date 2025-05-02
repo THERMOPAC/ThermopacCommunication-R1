@@ -123,9 +123,6 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
         const masterItem = masterItemsMap.get(item.itemId);
         if (!masterItem) continue;
         
-        // Generate order number
-        const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-${index + 1}`;
-        
         // Extract drawing number from master item or item code
         let drawingNumber = masterItem.drawingNo || "";
         
@@ -149,6 +146,13 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
           }
         }
         
+        // Parse quantity and ensure it's an integer
+        const parsedQuantity = parseInt(String(item.quantity)) || 1;
+        
+        // Create a unique inspection order number with maxOrderNumber + index
+        const orderSequence = maxOrderNumber + index + 1;
+        const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-${orderSequence}`;
+
         // Create inspection order
         const makeOrder = await db.insert(inspectionOrders).values({
           projectId: project.id,
@@ -158,7 +162,7 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
           description: masterItem.description || 'No description',
           status: 'pending',
           inspectionType: 'in-process',
-          quantity: Number(item.quantity) || 1,
+          quantity: parsedQuantity,
           unit: masterItem.uom || 'EA',
           makeOrBuy: 'Make',
           itemId: item.id,
@@ -171,13 +175,13 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
         if (makeOrder && makeOrder.length > 0) {
           createdInspectionOrders.push(makeOrder[0]);
           
-          // Create inspection order item
+          // Create inspection order item with parsed quantity
           const orderItem = await db.insert(inspectionOrderItems).values({
             inspectionOrderId: makeOrder[0].id,
             itemId: item.id,
             itemCode: masterItem.itemCode || 'Unknown',
             description: masterItem.description || 'No description',
-            quantity: Number(item.quantity) || 1,
+            quantity: parsedQuantity,
             unit: masterItem.uom || 'EA',
             makeOrBuy: 'Make',
             sequenceNumber: 1 // Only one item per order
@@ -198,8 +202,12 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
         const masterItem = masterItemsMap.get(item.itemId);
         if (!masterItem) continue;
         
-        // Generate order number
-        const buyInspectionOrderNumber = `IO-${year}-${projectNumber}-B-${index + 1}`;
+        // Parse quantity and ensure it's an integer
+        const parsedQuantity = parseInt(String(item.quantity)) || 1;
+        
+        // Create a unique inspection order number with maxOrderNumber + makeItems.length + index
+        const orderSequence = maxOrderNumber + makeItems.length + index + 1;
+        const buyInspectionOrderNumber = `IO-${year}-${projectNumber}-B-${orderSequence}`;
         
         // Extract drawing number from master item or item code
         let drawingNumber = masterItem.drawingNo || "";
@@ -233,7 +241,7 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
           description: masterItem.description || 'No description',
           status: 'pending',
           inspectionType: 'incoming',
-          quantity: Number(item.quantity) || 1,
+          quantity: parsedQuantity,
           unit: masterItem.uom || 'EA',
           makeOrBuy: 'Buy',
           itemId: item.id,
@@ -252,7 +260,7 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
             itemId: item.id,
             itemCode: masterItem.itemCode || 'Unknown',
             description: masterItem.description || 'No description',
-            quantity: Number(item.quantity) || 1,
+            quantity: parsedQuantity,
             unit: masterItem.uom || 'EA',
             makeOrBuy: 'Buy',
             sequenceNumber: 1 // Only one item per order
