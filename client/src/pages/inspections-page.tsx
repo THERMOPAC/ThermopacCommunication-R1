@@ -349,7 +349,7 @@ export default function InspectionsPage() {
   const {
     data: editInspectionOrderDetails,
     isLoading: isLoadingEditDetails,
-  } = useQuery<{
+  } = useQuery<any, any, {
     id: number;
     inspectionOrderNumber: string;
     title: string;
@@ -711,6 +711,9 @@ export default function InspectionsPage() {
   // Update form values when inspection order details are loaded
   useEffect(() => {
     if (editInspectionOrderDetails) {
+      // Log the data to see what drawing info is available
+      console.log("Edit Inspection Order Details:", editInspectionOrderDetails);
+      
       // Get the item code and description from the first item if available
       const firstItem = editInspectionOrderDetails.items && editInspectionOrderDetails.items.length > 0 
         ? editInspectionOrderDetails.items[0] 
@@ -720,11 +723,15 @@ export default function InspectionsPage() {
       const unitValue = editInspectionOrderDetails.uom || editInspectionOrderDetails.unit || (firstItem ? firstItem.unit : "");
       
       // Use drawingNumber from the details or first item
+      console.log("First Item:", firstItem);
+      
       const drawingNumber = (editInspectionOrderDetails as any).drawingNumber || 
                            editInspectionOrderDetails.drawingNo || 
                            (firstItem && (firstItem as any).drawingNumber) || 
                            (firstItem && firstItem.drawingNo) || 
                            "";
+                           
+      console.log("Drawing Number Value:", drawingNumber);
         
       editForm.reset({
         inspectionOrderNumber: editInspectionOrderDetails.inspectionOrderNumber || "",
