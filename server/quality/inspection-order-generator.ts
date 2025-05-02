@@ -53,6 +53,14 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Project not found' });
     }
     
+    // Check if project is active
+    if (project.status !== 'active') {
+      return res.status(400).json({ 
+        error: 'Cannot generate inspection orders for inactive projects',
+        projectStatus: project.status 
+      });
+    }
+    
     console.log(`Generating inspection orders preview for project ${projectId}: ${project.code}`);
     
     // Fetch all project items
@@ -90,8 +98,7 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     
     console.log(`Found ${existingInspectionOrders.length} existing inspection orders`);
     
-    // CRITICAL FIX: Create a set of PROJECT ITEM IDs that already have inspection orders
-    // The itemId in inspection orders references project item ID, not master item ID
+    // CRITICAL: Create a set of PROJECT ITEM IDs that already have inspection orders
     const projectItemsWithInspectionOrders = new Set();
     existingInspectionOrders.forEach(order => {
       if (order.itemId) {
@@ -99,28 +106,55 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       }
     });
     
-    console.log(`Total project items: ${projectItemsList.length}`);
+    console.log(`Found ${projectItemsWithInspectionOrders.size} project items with existing inspection orders`);
     
     // Separate items into "Make" items and "Buy" items
-    const makeParentItems = projectItemsList.filter(item => {
+    const makeItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
       return masterItem?.makeOrBuy === 'Make';
     });
     
-    const buyParentItems = projectItemsList.filter(item => {
+    const buyItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
       return masterItem?.makeOrBuy === 'Buy';
     });
     
-    console.log(`Found ${makeParentItems.length} make items and ${buyParentItems.length} buy items before filtering`);
+    console.log(`Found ${makeItems.length} make items and ${buyItems.length} buy items before filtering`);
     
-    // Find all child components for the Make items
-    // Create a map of parent to children for faster lookups
+    // Try to build parent-child relationships if possible
+    // We need to handle both cases: with and without parentItemId field
     const parentToChildrenMap = new Map();
     const childToParentMap = new Map();
     
-    // Note: Older projects don't have parentItemId field
-    // We'll keep these maps empty, treating all items as parent items
+    try {
+      // First check if projectItemsList has parentItemId field or similar
+      const firstItem = projectItemsList[0];
+      const hasParentField = 'parentItemId' in firstItem || 'parentId' in firstItem;
+      
+      if (hasParentField) {
+        console.log('Project items have parent-child relationships');
+        
+        projectItemsList.forEach(item => {
+          // @ts-ignore - Handle potential different field names
+          const parentId = item.parentItemId || item.parentId;
+          
+          if (parentId) {
+            if (!parentToChildrenMap.has(parentId)) {
+              parentToChildrenMap.set(parentId, []);
+            }
+            parentToChildrenMap.get(parentId).push(item);
+            childToParentMap.set(item.id, parentId);
+          }
+        });
+      } else {
+        // If no direct parent-child relationship exists in schema,
+        // we could try to infer relationships based on work orders or BOM structure
+        // For now, we'll treat all items as parent items
+        console.log('No parent-child relationships found in project items schema');
+      }
+    } catch (err) {
+      console.log('Error processing parent-child relationships, treating all items as parents:', err);
+    }
     
     // Function to get all descendants of a parent item
     const getAllDescendants = (parentItemId: number, depth = 0): any[] => {
@@ -137,21 +171,23 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     
     // Get all component items including nested ones
     let allComponentItems: any[] = [];
-    for (const makeItem of makeParentItems) {
+    for (const makeItem of makeItems) {
       const descendants = getAllDescendants(makeItem.id);
       allComponentItems = [...allComponentItems, ...descendants];
     }
     
-    // CRITICAL FIX: Filter out items that already have inspection orders
-    // comparing against project item ID, not master item ID
-    const filteredMakeParentItems = makeParentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
-    const filteredBuyParentItems = buyParentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
+    console.log(`Found ${allComponentItems.length} component items (children of make items)`);
+    
+    // Filter out items that already have inspection orders
+    // comparing against project item ID
+    const filteredMakeItems = makeItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
+    const filteredBuyItems = buyItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
     const filteredComponentItems = allComponentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
     
-    console.log(`After filtering: ${filteredMakeParentItems.length} make parents, ${filteredBuyParentItems.length} buy parents, ${filteredComponentItems.length} components`);
+    console.log(`After filtering: ${filteredMakeItems.length} make items, ${filteredBuyItems.length} buy items, ${filteredComponentItems.length} components available for inspection orders`);
     
     // If no new items to inspect, return appropriate message
-    if (filteredMakeParentItems.length === 0 && filteredBuyParentItems.length === 0 && filteredComponentItems.length === 0) {
+    if (filteredMakeItems.length === 0 && filteredBuyItems.length === 0 && filteredComponentItems.length === 0) {
       return res.status(200).json({
         requiresConfirmation: true,
         message: 'No new inspection orders need to be generated for this project',
@@ -161,8 +197,8 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
           name: project.name
         },
         itemCount: 0,
-        makeParentCount: 0,
-        buyParentCount: 0,
+        makeItemCount: 0,
+        buyItemCount: 0,
         componentCount: 0,
         items: [],
         noItemsToDisplay: true,
@@ -183,14 +219,16 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
           makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
           itemType: isParent ? 'Parent' : 'Child',
           parentItemCode: isParent ? null : (
-            masterItemsMap.get(childToParentMap.get(item.id))?.itemCode || 'Unknown'
+            childToParentMap.has(item.id) ? 
+              masterItemsMap.get(projectItemsList.find(pi => pi.id === childToParentMap.get(item.id))?.itemId)?.itemCode || 'Unknown' 
+              : 'Unknown'
           )
         };
       });
     };
     
-    const makeParentPreviewItems = mapItemsToPreview(filteredMakeParentItems, true);
-    const buyParentPreviewItems = mapItemsToPreview(filteredBuyParentItems, true);
+    const makeItemPreviewItems = mapItemsToPreview(filteredMakeItems, true);
+    const buyItemPreviewItems = mapItemsToPreview(filteredBuyItems, true);
     const componentPreviewItems = mapItemsToPreview(filteredComponentItems, false);
     
     // Generate sample inspection order number formats for preview
@@ -202,14 +240,14 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     const projectNumber = projectCodeParts[1];
     
     // Format for individual orders
-    const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-[1..${filteredMakeParentItems.length}]`;
-    const buyInspectionOrderNumber = `IO-${year}-${projectNumber}-B-[1..${filteredBuyParentItems.length}]`;
+    const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-[1..${filteredMakeItems.length}]`;
+    const buyInspectionOrderNumber = `IO-${year}-${projectNumber}-B-[1..${filteredBuyItems.length}]`;
     const componentInspectionOrderNumber = `IO-${year}-${projectNumber}-C-[1..${filteredComponentItems.length}]`;
     
     // Combine all preview items
     const allPreviewItems = [
-      ...makeParentPreviewItems,
-      ...buyParentPreviewItems,
+      ...makeItemPreviewItems,
+      ...buyItemPreviewItems,
       ...componentPreviewItems
     ];
     
@@ -219,21 +257,22 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       project: {
         id: project.id,
         code: project.code,
-        name: project.name
+        name: project.name,
+        status: project.status
       },
       itemCount: allPreviewItems.length,
-      makeParentCount: filteredMakeParentItems.length,
-      buyParentCount: filteredBuyParentItems.length,
+      makeItemCount: filteredMakeItems.length,
+      buyItemCount: filteredBuyItems.length,
       componentCount: filteredComponentItems.length,
       makeInspectionOrderNumber,
       buyInspectionOrderNumber,
       componentInspectionOrderNumber,
       items: allPreviewItems,
       willCreateSeparateOrders: 
-        (filteredMakeParentItems.length > 0 || filteredBuyParentItems.length > 0) && 
+        (filteredMakeItems.length > 0 || filteredBuyItems.length > 0) && 
         filteredComponentItems.length > 0,
       willCreateIndividualOrders: true,
-      totalOrderCount: filteredMakeParentItems.length + filteredBuyParentItems.length + filteredComponentItems.length,
+      totalOrderCount: filteredMakeItems.length + filteredBuyItems.length + filteredComponentItems.length,
       newItemsFound: true,
       existingInspectionOrderCount: existingInspectionOrders.length
     });
@@ -273,6 +312,14 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Project not found' });
     }
     
+    // Check if project is active
+    if (project.status !== 'active') {
+      return res.status(400).json({ 
+        error: 'Cannot generate inspection orders for inactive projects',
+        projectStatus: project.status 
+      });
+    }
+    
     console.log(`Generating inspection orders for project ${projectId}: ${project.code} (confirmed)`);
     
     // Fetch all project items
@@ -303,8 +350,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       where: eq(inspectionOrders.projectId, projectId)
     });
     
-    // CRITICAL FIX: Create a set of PROJECT ITEM IDs that already have inspection orders
-    // The itemId in inspection orders references project item ID, not master item ID
+    // CRITICAL: Create a set of PROJECT ITEM IDs that already have inspection orders
     const projectItemsWithInspectionOrders = new Set();
     existingInspectionOrders.forEach(order => {
       if (order.itemId) {
@@ -312,26 +358,47 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       }
     });
     
-    console.log(`Total project items: ${projectItemsList.length} (generation mode)`);
-    
     // Separate items into "Make" items and "Buy" items
-    const makeParentItems = projectItemsList.filter(item => {
+    const makeItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
       return masterItem?.makeOrBuy === 'Make';
     });
     
-    const buyParentItems = projectItemsList.filter(item => {
+    const buyItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
       return masterItem?.makeOrBuy === 'Buy';
     });
     
-    // Find all child components for the Make items
-    // Create a map of parent to children for faster lookups
+    // Try to build parent-child relationships if possible
     const parentToChildrenMap = new Map();
     const childToParentMap = new Map();
     
-    // Note: Older projects don't have parentItemId field
-    // We'll keep these maps empty, treating all items as parent items
+    try {
+      // First check if projectItemsList has parentItemId field or similar
+      const firstItem = projectItemsList[0];
+      const hasParentField = 'parentItemId' in firstItem || 'parentId' in firstItem;
+      
+      if (hasParentField) {
+        console.log('Project items have parent-child relationships');
+        
+        projectItemsList.forEach(item => {
+          // @ts-ignore - Handle potential different field names
+          const parentId = item.parentItemId || item.parentId;
+          
+          if (parentId) {
+            if (!parentToChildrenMap.has(parentId)) {
+              parentToChildrenMap.set(parentId, []);
+            }
+            parentToChildrenMap.get(parentId).push(item);
+            childToParentMap.set(item.id, parentId);
+          }
+        });
+      } else {
+        console.log('No parent-child relationships found in project items schema');
+      }
+    } catch (err) {
+      console.log('Error processing parent-child relationships, treating all items as parents:', err);
+    }
     
     // Function to get all descendants of a parent item
     const getAllDescendants = (parentItemId: number, depth = 0): any[] => {
@@ -348,50 +415,49 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     
     // Get all component items including nested ones
     let allComponentItems: any[] = [];
-    for (const makeItem of makeParentItems) {
+    for (const makeItem of makeItems) {
       const descendants = getAllDescendants(makeItem.id);
       allComponentItems = [...allComponentItems, ...descendants];
     }
     
-    // CRITICAL FIX: Filter out items that already have inspection orders
-    // comparing against project item ID, not master item ID
-    const filteredMakeParentItems = newItemsOnly ? 
-      makeParentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
-      makeParentItems;
+    // Filter out items that already have inspection orders if newItemsOnly is true
+    const filteredMakeItems = newItemsOnly ? 
+      makeItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
+      makeItems;
       
-    const filteredBuyParentItems = newItemsOnly ? 
-      buyParentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
-      buyParentItems;
+    const filteredBuyItems = newItemsOnly ? 
+      buyItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
+      buyItems;
       
     const filteredComponentItems = newItemsOnly ? 
       allComponentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
       allComponentItems;
     
-    console.log(`After filtering: ${filteredMakeParentItems.length} make parents, ${filteredBuyParentItems.length} buy parents, ${filteredComponentItems.length} components`);
+    console.log(`After filtering: ${filteredMakeItems.length} make items, ${filteredBuyItems.length} buy items, ${filteredComponentItems.length} components available`);
     
     // Arrays to store created inspection orders
     const createdInspectionOrders = [];
     const createdInspectionOrderItems = [];
     const skippedItemCount = newItemsOnly ? 
-      (makeParentItems.length + buyParentItems.length + allComponentItems.length) - 
-      (filteredMakeParentItems.length + filteredBuyParentItems.length + filteredComponentItems.length) : 
+      (makeItems.length + buyItems.length + allComponentItems.length) - 
+      (filteredMakeItems.length + filteredBuyItems.length + filteredComponentItems.length) : 
       0;
     
     // Generate unique inspection order numbers
     const nextSeqNumber = existingInspectionOrders.length + 1;
     
-    // Create individual inspection orders for each Make parent item
-    if (filteredMakeParentItems.length > 0) {
+    // Create individual inspection orders for each Make item
+    if (filteredMakeItems.length > 0) {
       // Extract project number from the project code - handle both old and new format
       const projectCodeParts = project.code.split('-');
       const year = projectCodeParts[0];
       const projectNumber = projectCodeParts[1];
       
-      console.log(`Creating ${filteredMakeParentItems.length} make item inspection orders`);
+      console.log(`Creating ${filteredMakeItems.length} make item inspection orders`);
       
       // Create individual inspection orders for each make item
-      for (const [index, item] of filteredMakeParentItems.entries()) {
-        console.log(`Creating make item order ${index + 1}/${filteredMakeParentItems.length}: Item ID ${item.id}`);
+      for (const [index, item] of filteredMakeItems.entries()) {
+        console.log(`Creating make item order ${index + 1}/${filteredMakeItems.length}: Item ID ${item.id}`);
         const masterItem = masterItemsMap.get(item.itemId);
         const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-${index + 1}`;
         
@@ -455,18 +521,18 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       }
     }
     
-    // Create individual inspection orders for each Buy parent item
-    if (filteredBuyParentItems.length > 0) {
+    // Create individual inspection orders for each Buy item
+    if (filteredBuyItems.length > 0) {
       // Extract project number from the project code - handle both old and new format
       const projectCodeParts = project.code.split('-');
       const year = projectCodeParts[0];
       const projectNumber = projectCodeParts[1];
       
-      console.log(`Creating ${filteredBuyParentItems.length} buy item inspection orders`);
+      console.log(`Creating ${filteredBuyItems.length} buy item inspection orders`);
       
       // Create individual inspection orders for each buy item
-      for (const [index, item] of filteredBuyParentItems.entries()) {
-        console.log(`Creating buy item order ${index + 1}/${filteredBuyParentItems.length}: Item ID ${item.id}`);
+      for (const [index, item] of filteredBuyItems.entries()) {
+        console.log(`Creating buy item order ${index + 1}/${filteredBuyItems.length}: Item ID ${item.id}`);
         const masterItem = masterItemsMap.get(item.itemId);
         const buyInspectionOrderNumber = `IO-${year}-${projectNumber}-B-${index + 1}`;
         
@@ -507,8 +573,8 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           makeOrBuy: 'Buy',
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
-          drawingNo: drawingNumber, // Add drawing number field
-          sequenceNumber: nextSeqNumber + filteredMakeParentItems.length + index,
+          drawingNo: drawingNumber,
+          sequenceNumber: nextSeqNumber + filteredMakeItems.length + index,
           createdBy: req.user?.id || 0
         }).returning();
         
@@ -543,8 +609,17 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       for (const [index, item] of filteredComponentItems.entries()) {
         console.log(`Creating component order ${index + 1}/${filteredComponentItems.length}: Item ID ${item.id}`);
         const masterItem = masterItemsMap.get(item.itemId);
+        
+        // Get parent item info for the component
         const parentItemId = childToParentMap.get(item.id);
-        const parentMasterItem = parentItemId ? masterItemsMap.get(parentItemId) : null;
+        const parentProjectItem = parentItemId ? 
+          projectItemsList.find(pi => pi.id === parentItemId) : 
+          null;
+          
+        const parentMasterItem = parentProjectItem ? 
+          masterItemsMap.get(parentProjectItem.itemId) : 
+          null;
+          
         const componentInspectionOrderNumber = `IO-${year}-${projectNumber}-C-${index + 1}`;
         
         // Extract drawing number from master item or derive it from item code
@@ -584,9 +659,9 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           makeOrBuy: masterItem?.makeOrBuy || 'Make',
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
-          drawingNo: drawingNumber, // Add drawing number field
+          drawingNo: drawingNumber,
           parentItemCode: parentMasterItem?.itemCode || null,
-          sequenceNumber: nextSeqNumber + filteredMakeParentItems.length + filteredBuyParentItems.length + index,
+          sequenceNumber: nextSeqNumber + filteredMakeItems.length + filteredBuyItems.length + index,
           createdBy: req.user?.id || 0
         }).returning();
         
