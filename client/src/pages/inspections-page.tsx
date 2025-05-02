@@ -733,21 +733,29 @@ export default function InspectionsPage() {
                          (firstItem && firstItem.drawingNo) || 
                          "";
                            
-      // If we still don't have a drawing number, extract it from the item code
-      // Many drawing numbers follow a pattern like "C10165x-WPC-WRS-3000" where we can use part of it
+      // If we still don't have a drawing number, try to extract it from item code or use a numeric format
+      // Drawing numbers come in two formats:
+      // 1. Alpha-numeric with hyphens like "C10165x-WPC-WRS-3000" → extract "C10165x-WPC-WRS"
+      // 2. Numeric like "482300200100100"
       if (!drawingNumber && firstItem && firstItem.itemCode) {
-        // Extract drawing number based on common conventions in industry
-        // For example, using the first part before the hyphen, or the full code
         const itemCode = firstItem.itemCode;
-        if (itemCode.includes('-')) {
-          // Usually the part before the last hyphen is considered the drawing number
+        
+        // Check if the item code might be numeric-style (just digits)
+        if (/^\d+$/.test(itemCode)) {
+          // For numeric drawing numbers, use as-is
+          drawingNumber = itemCode;
+        } 
+        // For alpha-numeric with hyphens, extract the part before the last segment
+        else if (itemCode.includes('-')) {
           const parts = itemCode.split('-');
           if (parts.length >= 2) {
-            // Use the first parts as the drawing number (excluding the last part)
             drawingNumber = parts.slice(0, -1).join('-');
+          } else {
+            drawingNumber = itemCode;
           }
-        } else {
-          // If no hyphen, just use the item code itself
+        } 
+        // If no hyphen but has letters and numbers, use as-is
+        else {
           drawingNumber = itemCode;
         }
       }
