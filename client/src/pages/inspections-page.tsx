@@ -2854,134 +2854,176 @@ export default function InspectionsPage() {
                   {/* Visual Inspection Tab */}
                   <TabsContent value="visual" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Visual Inspection</h3>
-                      <div className="grid grid-cols-12 gap-4">
-                        <div className="col-span-6">
-                          <FormField
-                            control={editForm.control}
-                            name="visualInspectionStandard"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Inspection Standard</FormLabel>
-                                <FormControl>
-                                  <Input {...field} placeholder="Enter applicable standard" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                      <h3 className="text-lg font-medium">Visual Inspection Records</h3>
+                      
+                      {/* Table of visual inspection records */}
+                      <div className="border rounded-md">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>ID</TableHead>
+                              <TableHead>Standard</TableHead>
+                              <TableHead>Inspector</TableHead>
+                              <TableHead>Dimensional Checks</TableHead>
+                              <TableHead>Surface Condition</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Observations</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {visualRecords.map((record, index) => (
+                              <TableRow key={record.id}>
+                                <TableCell>{record.id}</TableCell>
+                                <TableCell>
+                                  {editingVisualIndex === index ? (
+                                    <Input 
+                                      value={record.standard} 
+                                      onChange={(e) => updateVisualField(index, 'standard', e.target.value)}
+                                      className="w-[120px]"
+                                    />
+                                  ) : (
+                                    record.standard || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingVisualIndex === index ? (
+                                    <Input 
+                                      value={record.inspector} 
+                                      onChange={(e) => updateVisualField(index, 'inspector', e.target.value)}
+                                      className="w-[120px]"
+                                    />
+                                  ) : (
+                                    record.inspector || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingVisualIndex === index ? (
+                                    <Select 
+                                      value={record.dimensionalChecks}
+                                      onValueChange={(value) => updateVisualField(index, 'dimensionalChecks', value)}
+                                    >
+                                      <SelectTrigger className="w-[150px]">
+                                        <SelectValue placeholder="Select result" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="acceptable">Acceptable</SelectItem>
+                                        <SelectItem value="notAcceptable">Not Acceptable</SelectItem>
+                                        <SelectItem value="conditionallyAcceptable">Conditionally Acceptable</SelectItem>
+                                        <SelectItem value="notApplicable">Not Applicable</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    record.dimensionalChecks || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingVisualIndex === index ? (
+                                    <Select 
+                                      value={record.surfaceCondition}
+                                      onValueChange={(value) => updateVisualField(index, 'surfaceCondition', value)}
+                                    >
+                                      <SelectTrigger className="w-[150px]">
+                                        <SelectValue placeholder="Select condition" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="acceptable">Acceptable</SelectItem>
+                                        <SelectItem value="notAcceptable">Not Acceptable</SelectItem>
+                                        <SelectItem value="conditionallyAcceptable">Conditionally Acceptable</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    record.surfaceCondition || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingVisualIndex === index ? (
+                                    <Input 
+                                      type="date" 
+                                      value={record.inspectionDate} 
+                                      onChange={(e) => updateVisualField(index, 'inspectionDate', e.target.value)}
+                                      className="w-[130px]"
+                                    />
+                                  ) : (
+                                    record.inspectionDate || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingVisualIndex === index ? (
+                                    <Input 
+                                      value={record.observations} 
+                                      onChange={(e) => updateVisualField(index, 'observations', e.target.value)}
+                                      className="w-[200px]"
+                                    />
+                                  ) : (
+                                    record.observations || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end space-x-1">
+                                    {editingVisualIndex === index ? (
+                                      <Button 
+                                        type="button" 
+                                        variant="default" 
+                                        size="icon" 
+                                        onClick={() => setEditingVisualIndex(null)}
+                                        className="h-7 w-7"
+                                      >
+                                        <Check className="h-3.5 w-3.5" />
+                                      </Button>
+                                    ) : (
+                                      <>
+                                        <Button 
+                                          type="button" 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          onClick={() => startEditingVisual(index)}
+                                          className="h-7 w-7"
+                                        >
+                                          <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button 
+                                          type="button" 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          onClick={() => deleteVisualRecord(index)}
+                                          className="h-7 w-7 text-destructive"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-between mt-4">
+                        <div>
+                          <Button 
+                            type="button" 
+                            variant="default" 
+                            size="sm" 
+                            onClick={addVisualRecord}
+                            className="mr-2"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Visual Inspection
+                          </Button>
                         </div>
-                        <div className="col-span-6">
-                          <FormField
-                            control={editForm.control}
-                            name="visualInspector"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Inspector Name</FormLabel>
-                                <FormControl>
-                                  <Input {...field} placeholder="Enter inspector name" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <FormField
-                            control={editForm.control}
-                            name="dimensionalChecks"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Dimensional Checks</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select result" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="acceptable">Acceptable</SelectItem>
-                                    <SelectItem value="notAcceptable">Not Acceptable</SelectItem>
-                                    <SelectItem value="conditionallyAcceptable">Conditionally Acceptable</SelectItem>
-                                    <SelectItem value="notApplicable">Not Applicable</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-6">
-                          <FormField
-                            control={editForm.control}
-                            name="surfaceCondition"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Surface Condition</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select condition" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="acceptable">Acceptable</SelectItem>
-                                    <SelectItem value="notAcceptable">Not Acceptable</SelectItem>
-                                    <SelectItem value="conditionallyAcceptable">Conditionally Acceptable</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-6">
-                          <FormField
-                            control={editForm.control}
-                            name="visualInspectionDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Inspection Date</FormLabel>
-                                <FormControl>
-                                  <Input {...field} type="date" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <FormField
-                            control={editForm.control}
-                            name="visualInspectionObservations"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Observations & Findings</FormLabel>
-                                <FormControl>
-                                  <Textarea {...field} placeholder="Enter visual inspection observations" rows={3} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <div className="flex items-center gap-2 mt-2">
-                            <Button type="button" variant="outline" size="sm">
-                              <FileText className="h-4 w-4 mr-2" />
-                              Upload Photos
-                            </Button>
-                            <Button type="button" variant="outline" size="sm">
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Photos
-                            </Button>
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="outline" size="sm">
+                            <FileText className="h-4 w-4 mr-2" />
+                            Upload Photos
+                          </Button>
+                          <Button type="button" variant="outline" size="sm">
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Photos
+                          </Button>
                         </div>
                       </div>
                     </div>

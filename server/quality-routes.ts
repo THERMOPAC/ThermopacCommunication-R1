@@ -99,12 +99,23 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       }
     }
     
-    // Return detailed inspection order with items, materials, and NDT records
+    // Parse Visual Inspection data if it exists
+    let visualRecords = [];
+    if (inspectionOrder.visualData) {
+      try {
+        visualRecords = JSON.parse(inspectionOrder.visualData);
+      } catch (e) {
+        console.error('Error parsing Visual Inspection data:', e);
+      }
+    }
+    
+    // Return detailed inspection order with items, materials, NDT records, and Visual Inspection records
     res.json({
       ...inspectionOrder,
       items: orderItems,
       materials: materials,
-      ndtRecords: ndtRecords
+      ndtRecords: ndtRecords,
+      visualRecords: visualRecords
     });
   } catch (error) {
     console.error('Error fetching inspection order details:', error);
@@ -133,12 +144,17 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       return res.status(404).json({ error: 'Inspection order not found' });
     }
 
-    // Extract materials and NDT records from the request body
-    const { materials, ndtRecords, ...orderData } = req.body;
+    // Extract materials, NDT records, and Visual Inspection records from the request body
+    const { materials, ndtRecords, visualRecords, ...orderData } = req.body;
     
     // Store NDT records in the orderData as a JSON string if they exist
     if (ndtRecords && Array.isArray(ndtRecords)) {
       orderData.ndtData = JSON.stringify(ndtRecords);
+    }
+    
+    // Store Visual Inspection records in the orderData as a JSON string if they exist
+    if (visualRecords && Array.isArray(visualRecords)) {
+      orderData.visualData = JSON.stringify(visualRecords);
     }
 
     // Update inspection order
@@ -190,11 +206,22 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       }
     }
     
-    // Return updated order with materials and NDT records
+    // Parse Visual Inspection data for the response
+    let parsedVisualRecords = [];
+    if (updatedOrder[0].visualData) {
+      try {
+        parsedVisualRecords = JSON.parse(updatedOrder[0].visualData);
+      } catch (e) {
+        console.error('Error parsing Visual Inspection data in response:', e);
+      }
+    }
+    
+    // Return updated order with materials, NDT records, and Visual Inspection records
     res.json({
       ...updatedOrder[0],
       materials: updatedMaterials,
-      ndtRecords: parsedNdtRecords
+      ndtRecords: parsedNdtRecords,
+      visualRecords: parsedVisualRecords
     });
   } catch (error) {
     console.error('Error updating inspection order:', error);
