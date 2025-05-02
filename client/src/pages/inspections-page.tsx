@@ -236,6 +236,26 @@ export default function InspectionsPage() {
   }]);
   const [editingNdtIndex, setEditingNdtIndex] = useState<number | null>(null);
   
+  // Visual Inspection management state
+  const [visualRecords, setVisualRecords] = useState<{
+    id: string;
+    standard: string;
+    inspector: string;
+    dimensionalChecks: string;
+    surfaceCondition: string;
+    inspectionDate: string;
+    observations: string;
+  }[]>([{
+    id: 'VI-1',
+    standard: 'ISO 13920',
+    inspector: '',
+    dimensionalChecks: 'acceptable',
+    surfaceCondition: 'acceptable',
+    inspectionDate: '',
+    observations: ''
+  }]);
+  const [editingVisualIndex, setEditingVisualIndex] = useState<number | null>(null);
+  
   // Material rows state
   const [materialRows, setMaterialRows] = useState<{
     id?: number;
@@ -446,6 +466,55 @@ export default function InspectionsPage() {
       [field]: value
     };
     setNdtRecords(updatedRecords);
+  };
+  
+  // Add new visual inspection record
+  const addVisualRecord = () => {
+    const newVisualNumber = visualRecords.length + 1;
+    setVisualRecords([
+      ...visualRecords, 
+      {
+        id: `VI-${newVisualNumber}`,
+        standard: 'ISO 13920',
+        inspector: '',
+        dimensionalChecks: 'acceptable',
+        surfaceCondition: 'acceptable',
+        inspectionDate: '',
+        observations: ''
+      }
+    ]);
+  };
+  
+  // Delete a visual inspection record
+  const deleteVisualRecord = (index: number) => {
+    const updatedRecords = [...visualRecords];
+    updatedRecords.splice(index, 1);
+    
+    // Renumber visual records after deletion
+    const renumberedRecords = updatedRecords.map((record, idx) => ({
+      ...record,
+      id: `VI-${idx + 1}`
+    }));
+    
+    setVisualRecords(renumberedRecords);
+    if (editingVisualIndex === index) {
+      setEditingVisualIndex(null);
+    }
+  };
+  
+  // Edit a visual inspection record
+  const startEditingVisual = (index: number) => {
+    setEditingVisualIndex(index);
+  };
+  
+  // Update a visual inspection field
+  const updateVisualField = (index: number, field: string, value: string) => {
+    const updatedRecords = [...visualRecords];
+    updatedRecords[index] = {
+      ...updatedRecords[index],
+      [field]: value
+    };
+    setVisualRecords(updatedRecords);
   };
   
   // Fetch projects for dropdown
@@ -985,6 +1054,59 @@ export default function InspectionsPage() {
     }
   }, [editInspectionOrderDetails]);
   
+  // Update Visual Inspection records when inspection order details are loaded
+  useEffect(() => {
+    if (editInspectionOrderDetails) {
+      // Check if the response has Visual Inspection data in the expected format
+      console.log("Checking for Visual Inspection data:", editInspectionOrderDetails);
+      
+      const visualData = (editInspectionOrderDetails as any).visualData || (editInspectionOrderDetails as any).visual_data;
+      
+      if (visualData) {
+        try {
+          // If the data is already parsed as an object, use it directly
+          // Otherwise, try to parse it from JSON string
+          const parsedVisualRecords = Array.isArray(visualData) 
+            ? visualData 
+            : typeof visualData === 'string' 
+              ? JSON.parse(visualData) 
+              : null;
+          
+          if (parsedVisualRecords && Array.isArray(parsedVisualRecords) && parsedVisualRecords.length > 0) {
+            console.log("Found Visual Inspection records:", parsedVisualRecords);
+            
+            // Map the Visual records to match our state format
+            const formattedRecords = parsedVisualRecords.map((record, index) => ({
+              id: record.id || `VI-${index + 1}`,
+              standard: record.standard || 'ISO 13920',
+              inspector: record.inspector || '',
+              dimensionalChecks: record.dimensionalChecks || 'acceptable',
+              surfaceCondition: record.surfaceCondition || 'acceptable',
+              inspectionDate: record.inspectionDate || record.date || '',
+              observations: record.observations || ''
+            }));
+            
+            setVisualRecords(formattedRecords);
+            return;
+          }
+        } catch (error) {
+          console.error("Error parsing Visual Inspection records:", error);
+        }
+      }
+      
+      // If no valid Visual records were found, initialize with a default record
+      setVisualRecords([{
+        id: 'VI-1',
+        standard: 'ISO 13920',
+        inspector: '',
+        dimensionalChecks: 'acceptable',
+        surfaceCondition: 'acceptable',
+        inspectionDate: '',
+        observations: ''
+      }]);
+    }
+  }, [editInspectionOrderDetails]);
+  
   // Helper function to sync material rows with form
   const syncMaterialRowsWithForm = () => {
     editForm.setValue('materials', materialRows);
@@ -1076,11 +1198,12 @@ export default function InspectionsPage() {
       let materialRows = data.materials || [];
       const validMaterialRows = materialRows.filter(row => row.materialId);
       
-      // Combine the form data with the NDT records from the state
+      // Combine the form data with the NDT records and Visual records from the state
       const updateData = {
         ...data,
         materials: validMaterialRows,
-        ndtRecords: ndtRecords
+        ndtRecords: ndtRecords,
+        visualRecords: visualRecords
       };
       
       console.log("Updating inspection order with data:", updateData);
