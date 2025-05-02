@@ -1228,6 +1228,7 @@ export default function InspectionsPage() {
                     <TableRow>
                       <TableHead>Order #</TableHead>
                       <TableHead>Title</TableHead>
+                      <TableHead>Drawing No</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Date Created</TableHead>
@@ -1240,6 +1241,7 @@ export default function InspectionsPage() {
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">{order.inspectionOrderNumber}</TableCell>
                         <TableCell>{order.title}</TableCell>
+                        <TableCell>{order.drawingNo || 'N/A'}</TableCell>
                         <TableCell>{order.inspectionType}</TableCell>
                         <TableCell>{getStatusBadge(order.status)}</TableCell>
                         <TableCell>{format(new Date(order.createdAt), 'dd MMM yyyy')}</TableCell>
@@ -1378,6 +1380,7 @@ export default function InspectionsPage() {
                         <TableRow>
                           <TableHead>Order #</TableHead>
                           <TableHead>Item Code</TableHead>
+                          <TableHead>Drawing No</TableHead>
                           <TableHead>Description</TableHead>
                           <TableHead>Quantity</TableHead>
                           <TableHead>Status</TableHead>
@@ -1388,6 +1391,7 @@ export default function InspectionsPage() {
                           <TableRow key={item.id}>
                             <TableCell className="font-medium">{item.inspectionOrderNumber}</TableCell>
                             <TableCell>{item.itemCode}</TableCell>
+                            <TableCell>{item.drawingNo || 'N/A'}</TableCell>
                             <TableCell>{item.description}</TableCell>
                             <TableCell>{item.quantity} {item.unit}</TableCell>
                             <TableCell>{getStatusBadge(item.status)}</TableCell>
