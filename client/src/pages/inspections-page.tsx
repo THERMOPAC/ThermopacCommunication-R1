@@ -502,7 +502,15 @@ export default function InspectionsPage() {
       const [_, projectId] = queryKey;
       if (!projectId) throw new Error("Project ID is required");
       
-      const response = await fetch(`/api/quality/inspection-orders/preview/${projectId}`);
+      // The preview endpoint is registered as POST, not GET
+      const response = await fetch(`/api/quality/inspection-orders/preview/${projectId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}) // Empty body for preview
+      });
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to fetch preview data");
@@ -563,9 +571,9 @@ export default function InspectionsPage() {
       setIsGeneratingOrders(true);
       console.log("Generating inspection orders for project ID:", projectId);
       
-      // Using the same URL format as the preview function (which works)
+      // Both preview and generate should use consistent naming patterns
       const response = await fetch(
-        `/api/quality/inspection-orders/generate/${projectId}`,
+        `/api/quality/inspection-orders/generate-for-project/${projectId}`,
         {
           method: 'POST',
           headers: {
