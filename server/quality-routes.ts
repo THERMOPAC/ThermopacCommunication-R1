@@ -172,6 +172,47 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
   }
 });
 
+// Delete an inspection order
+router.delete('/inspection-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    
+    if (isNaN(orderId)) {
+      return res.status(400).json({ error: 'Invalid inspection order ID' });
+    }
+    
+    // Fetch inspection order to make sure it exists
+    const existingOrder = await db.query.inspectionOrders.findFirst({
+      where: eq(inspectionOrders.id, orderId)
+    });
+    
+    if (!existingOrder) {
+      return res.status(404).json({ error: 'Inspection order not found' });
+    }
+
+    // First, delete all associated material links
+    await db.delete(materialInspectionLinks)
+      .where(eq(materialInspectionLinks.inspectionOrderId, orderId));
+    
+    // Then, delete all child inspection order items
+    await db.delete(inspectionOrderItems)
+      .where(eq(inspectionOrderItems.inspectionOrderId, orderId));
+    
+    // Finally, delete the inspection order itself
+    const deletedOrder = await db.delete(inspectionOrders)
+      .where(eq(inspectionOrders.id, orderId))
+      .returning();
+    
+    res.json({ success: true, message: 'Inspection order deleted successfully', deletedOrder: deletedOrder[0] });
+  } catch (error) {
+    console.error('Error deleting inspection order:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete inspection order',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Route for generating inspection orders (preview and create)
 router.post('/inspection-orders/preview/:projectId', ensureAuthenticated, previewInspectionOrders);
 router.post('/inspection-orders/generate/:projectId', ensureAuthenticated, generateInspectionOrders);
