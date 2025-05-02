@@ -1236,9 +1236,8 @@ export default function InspectionsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Order #</TableHead>
-                      <TableHead>Title</TableHead>
+                      <TableHead>Description</TableHead>
                       <TableHead>Drawing No</TableHead>
-                      <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Date Created</TableHead>
                       <TableHead>Quantity</TableHead>
@@ -1249,9 +1248,8 @@ export default function InspectionsPage() {
                     {inspectionOrders.map((order: any) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">{order.inspectionOrderNumber}</TableCell>
-                        <TableCell>{order.title}</TableCell>
+                        <TableCell>{order.description || order.title}</TableCell>
                         <TableCell>{order.drawingNo || 'N/A'}</TableCell>
-                        <TableCell>{order.inspectionType}</TableCell>
                         <TableCell>{getStatusBadge(order.status)}</TableCell>
                         <TableCell>{format(new Date(order.createdAt), 'dd MMM yyyy')}</TableCell>
                         <TableCell>{order.quantity} {order.unit}</TableCell>
