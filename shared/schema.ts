@@ -2299,6 +2299,9 @@ export const inspectionOrders = pgTable('inspection_orders', {
   parentInspectionOrderId: integer('parent_inspection_order_id').references(() => inspectionOrders.id, { onDelete: 'set null' }),
   sequenceNumber: integer('sequence_number').notNull(),
   
+  // NDT data - stored as JSON string
+  ndtData: text('ndt_data'),
+  
   // Timing
   plannedDate: timestamp('planned_date'),
   completedDate: timestamp('completed_date'),
@@ -2373,6 +2376,7 @@ export const insertInspectionOrderSchema = createInsertSchema(inspectionOrders)
     makeOrBuy: z.enum(['Make', 'Buy']).optional(),
     plannedDate: z.string().optional().transform(dateStringToDate),
     completedDate: z.string().optional().transform(dateStringToDate),
+    ndtData: z.string().optional(),
   });
 
 export const insertInspectionOrderItemSchema = createInsertSchema(inspectionOrderItems)

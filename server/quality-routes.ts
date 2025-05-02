@@ -89,11 +89,22 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       where: eq(materialInspectionLinks.inspectionOrderId, orderId)
     });
     
-    // Return detailed inspection order with items and materials
+    // Parse NDT data if it exists
+    let ndtRecords = [];
+    if (inspectionOrder.ndtData) {
+      try {
+        ndtRecords = JSON.parse(inspectionOrder.ndtData);
+      } catch (e) {
+        console.error('Error parsing NDT data:', e);
+      }
+    }
+    
+    // Return detailed inspection order with items, materials, and NDT records
     res.json({
       ...inspectionOrder,
       items: orderItems,
-      materials: materials
+      materials: materials,
+      ndtRecords: ndtRecords
     });
   } catch (error) {
     console.error('Error fetching inspection order details:', error);
@@ -169,10 +180,21 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       where: eq(materialInspectionLinks.inspectionOrderId, orderId)
     });
     
-    // Return updated order with materials
+    // Parse NDT data for the response
+    let parsedNdtRecords = [];
+    if (updatedOrder[0].ndtData) {
+      try {
+        parsedNdtRecords = JSON.parse(updatedOrder[0].ndtData);
+      } catch (e) {
+        console.error('Error parsing NDT data in response:', e);
+      }
+    }
+    
+    // Return updated order with materials and NDT records
     res.json({
       ...updatedOrder[0],
-      materials: updatedMaterials
+      materials: updatedMaterials,
+      ndtRecords: parsedNdtRecords
     });
   } catch (error) {
     console.error('Error updating inspection order:', error);
