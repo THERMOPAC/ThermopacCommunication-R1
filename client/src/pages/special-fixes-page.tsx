@@ -1,7 +1,12 @@
 import React from "react";
 import { useTitle } from "react-use";
 import Project3InspectionOrderFix from "@/components/special-fixes/Project3InspectionOrderFix";
+import Project4InspectionOrderFix from "@/components/special-fixes/Project4InspectionOrderFix";
+import Project5InspectionOrderFix from "@/components/special-fixes/Project5InspectionOrderFix";
+import Project6InspectionOrderFix from "@/components/special-fixes/Project6InspectionOrderFix";
+import Project7InspectionOrderFix from "@/components/special-fixes/Project7InspectionOrderFix";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const SpecialFixesPage = () => {
   useTitle("Special Fixes | Thermopac");
@@ -30,7 +35,35 @@ const SpecialFixesPage = () => {
           </CardContent>
         </Card>
         
-        <Project3InspectionOrderFix />
+        <Tabs defaultValue="project-2025-1" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="project-2025-1">Project 2025-1</TabsTrigger>
+            <TabsTrigger value="project-2025-2">Project 2025-2</TabsTrigger>
+            <TabsTrigger value="project-2025-3">Project 2025-3</TabsTrigger>
+            <TabsTrigger value="project-2025-4">Project 2025-4</TabsTrigger>
+            <TabsTrigger value="project-2025-5">Project 2025-5</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="project-2025-1">
+            <Project3InspectionOrderFix />
+          </TabsContent>
+          
+          <TabsContent value="project-2025-2">
+            <Project4InspectionOrderFix />
+          </TabsContent>
+          
+          <TabsContent value="project-2025-3">
+            <Project5InspectionOrderFix />
+          </TabsContent>
+          
+          <TabsContent value="project-2025-4">
+            <Project6InspectionOrderFix />
+          </TabsContent>
+          
+          <TabsContent value="project-2025-5">
+            <Project7InspectionOrderFix />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
