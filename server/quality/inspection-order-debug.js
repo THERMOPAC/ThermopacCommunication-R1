@@ -1,44 +1,54 @@
-const { db } = require('../db');
-const { eq, inArray } = require('drizzle-orm');
-const { 
+// Debugging script for inspection order generation
+import { db } from '../db.ts';
+import { 
+  eq, 
+  inArray,
+} from 'drizzle-orm';
+import { 
   projects, 
   projectItems, 
   masterItems,
-  inspectionOrders,
-  inspectionOrderItems
-} = require('../../shared/schema');
+  inspectionOrders
+} from '../../shared/schema.ts';
 
-/**
- * Run this debugging script to see why inspection orders are not being generated
- */
-async function debugInspectionOrderGeneration(projectId = 3) {
+async function debugInspectionOrderGeneration() {
   try {
-    console.log(`DEBUGGING INSPECTION ORDER GENERATION FOR PROJECT ${projectId}`);
+    const projectId = 3; // Project 2025-1
     
-    // Get project details
+    console.log('\n=== INSPECTION ORDER GENERATION DEBUG SCRIPT ===\n');
+    
+    // 1. Fetch project details
     const project = await db.query.projects.findFirst({
       where: eq(projects.id, projectId)
     });
     
     if (!project) {
-      console.log('Project not found!');
+      console.log('❌ ERROR: Project not found');
       return;
     }
     
-    console.log(`Found project: ${project.code} (${project.name})`);
+    console.log(`✅ Project found: ${project.id} ${project.code}`);
+    console.log(`Project status: ${project.status}`);
     
-    // Get all project items
+    // 2. Fetch all project items
     const projectItemsList = await db.query.projectItems.findMany({
       where: eq(projectItems.projectId, projectId)
     });
     
-    console.log(`Found ${projectItemsList.length} project items`);
+    if (!projectItemsList.length) {
+      console.log('❌ ERROR: No project items found for this project');
+      return;
+    }
     
-    // Get master items for these project items
+    console.log(`✅ Found ${projectItemsList.length} project items`);
+    
+    // 3. Get all master items for these project items
     const masterItemIds = projectItemsList.map(item => item.itemId);
     const masterItemsArray = await db.query.masterItems.findMany({
       where: inArray(masterItems.id, masterItemIds)
     });
+    
+    console.log(`✅ Found ${masterItemsArray.length} master items out of ${masterItemIds.length} requested`);
     
     // Create a map for faster lookups
     const masterItemsMap = new Map();
@@ -46,33 +56,25 @@ async function debugInspectionOrderGeneration(projectId = 3) {
       masterItemsMap.set(item.id, item);
     });
     
-    // Get existing inspection orders for this project
+    // 4. Get existing inspection orders for this project
     const existingInspectionOrders = await db.query.inspectionOrders.findMany({
       where: eq(inspectionOrders.projectId, projectId)
     });
     
-    console.log(`Found ${existingInspectionOrders.length} existing inspection orders`);
+    console.log(`✅ Found ${existingInspectionOrders.length} existing inspection orders`);
     
-    // Print the first few inspection orders
-    if (existingInspectionOrders.length > 0) {
-      const sampleOrders = existingInspectionOrders.slice(0, 3);
-      console.log('Sample inspection orders:');
-      sampleOrders.forEach(order => {
-        console.log(`ID: ${order.id}, Number: ${order.inspectionOrderNumber}, ItemID: ${order.itemId}`);
-      });
-    }
-    
-    // Create a set of item IDs that already have inspection orders
-    const itemsWithInspectionOrders = new Set();
+    // 5. Create a set of PROJECT ITEM IDs that already have inspection orders
+    const projectItemsWithInspectionOrders = new Set();
     existingInspectionOrders.forEach(order => {
       if (order.itemId) {
-        itemsWithInspectionOrders.add(order.itemId);
+        projectItemsWithInspectionOrders.add(order.itemId);
       }
     });
     
-    console.log(`Found ${itemsWithInspectionOrders.size} unique items with inspection orders`);
+    console.log(`✅ Found ${projectItemsWithInspectionOrders.size} project items with existing inspection orders`);
+    console.log('Project items with existing inspection orders:', Array.from(projectItemsWithInspectionOrders));
     
-    // Separate items into "Make" and "Buy" items
+    // 6. Separate items into "Make" items and "Buy" items
     const makeItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
       return masterItem?.makeOrBuy === 'Make';
@@ -83,89 +85,45 @@ async function debugInspectionOrderGeneration(projectId = 3) {
       return masterItem?.makeOrBuy === 'Buy';
     });
     
-    console.log(`Found ${makeItems.length} make items and ${buyItems.length} buy items before filtering`);
+    console.log(`✅ Found ${makeItems.length} make items and ${buyItems.length} buy items before filtering`);
     
-    // Filter out items that already have inspection orders
-    const filteredMakeItems = makeItems.filter(item => !itemsWithInspectionOrders.has(item.itemId));
-    const filteredBuyItems = buyItems.filter(item => !itemsWithInspectionOrders.has(item.itemId));
+    // 7. Filter out items that already have inspection orders
+    const filteredMakeItems = makeItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
+    const filteredBuyItems = buyItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
     
-    console.log(`After filtering: ${filteredMakeItems.length} make items and ${filteredBuyItems.length} buy items available for inspection orders`);
+    console.log(`✅ After filtering: ${filteredMakeItems.length} make items, ${filteredBuyItems.length} buy items available for inspection orders`);
     
-    // Print information about available items
-    if (filteredMakeItems.length > 0) {
-      console.log('\nAvailable Make items:');
-      filteredMakeItems.forEach(item => {
-        const masterItem = masterItemsMap.get(item.itemId);
-        console.log(`- Item ID: ${item.id}, Master Item ID: ${item.itemId}, Code: ${masterItem?.itemCode}, Description: ${masterItem?.description}`);
-      });
-    }
+    // 8. List all eligible items
+    console.log('\n--- Make Items Eligible for Inspection Orders ---');
+    filteredMakeItems.forEach((item, index) => {
+      const masterItem = masterItemsMap.get(item.itemId);
+      console.log(`${index + 1}. Project Item ID: ${item.id}, Master Item ID: ${item.itemId}, Code: ${masterItem?.itemCode}, Make/Buy: ${masterItem?.makeOrBuy}`);
+    });
     
-    if (filteredBuyItems.length > 0) {
-      console.log('\nAvailable Buy items:');
-      filteredBuyItems.forEach(item => {
-        const masterItem = masterItemsMap.get(item.itemId);
-        console.log(`- Item ID: ${item.id}, Master Item ID: ${item.itemId}, Code: ${masterItem?.itemCode}, Description: ${masterItem?.description}`);
-      });
-    }
+    console.log('\n--- Buy Items Eligible for Inspection Orders ---');
+    filteredBuyItems.forEach((item, index) => {
+      const masterItem = masterItemsMap.get(item.itemId);
+      console.log(`${index + 1}. Project Item ID: ${item.id}, Master Item ID: ${item.itemId}, Code: ${masterItem?.itemCode}, Make/Buy: ${masterItem?.makeOrBuy}`);
+    });
     
-    // Check the deleted inspection orders
-    const uniqueItemIds = new Set(projectItemsList.map(item => item.itemId));
-    console.log(`\nProject has ${uniqueItemIds.size} unique master items`);
+    // 9. Summary
+    console.log('\n=== SUMMARY ===');
+    console.log(`Total project items: ${projectItemsList.length}`);
+    console.log(`Make items: ${makeItems.length}, Buy items: ${buyItems.length}`);
+    console.log(`Make items eligible for inspection: ${filteredMakeItems.length}`);
+    console.log(`Buy items eligible for inspection: ${filteredBuyItems.length}`);
+    console.log(`Total eligible items: ${filteredMakeItems.length + filteredBuyItems.length}`);
     
-    // Determine which items have no inspection orders
-    const itemsWithoutOrders = [...uniqueItemIds].filter(id => !itemsWithInspectionOrders.has(id));
-    console.log(`\nFound ${itemsWithoutOrders.length} master items without inspection orders`);
-    
-    if (itemsWithoutOrders.length > 0) {
-      console.log('\nItems without inspection orders:');
-      itemsWithoutOrders.forEach(itemId => {
-        const relatedItems = projectItemsList.filter(item => item.itemId === itemId);
-        const masterItem = masterItemsMap.get(itemId);
-        relatedItems.forEach(item => {
-          console.log(`- Project Item ID: ${item.id}, Master Item ID: ${itemId}, Code: ${masterItem?.itemCode}, Description: ${masterItem?.description}, makeOrBuy: ${masterItem?.makeOrBuy}`);
-        });
-      });
+    if (filteredMakeItems.length === 0 && filteredBuyItems.length === 0) {
+      console.log('\n❌ No items available for inspection order generation');
     } else {
-      console.log('\nAll master items have inspection orders. Nothing to generate.');
+      console.log('\n✅ Items available for inspection order generation');
     }
-    
-    // Check for project item IDs versus inspection order item IDs
-    console.log(`\nInspection order item IDs: ${Array.from(itemsWithInspectionOrders).join(', ')}`);
-    const projectItemIds = projectItemsList.map(item => item.id);
-    console.log(`\nProject item IDs: ${projectItemIds.join(', ')}`);
-    
-    // Critical check: comparison between itemId fields
-    const inspectionOrderItemIds = existingInspectionOrders.map(order => order.itemId);
-    console.log('\nCRITICAL COMPARISON:');
-    console.log(`Inspection orders itemId field data type: ${typeof inspectionOrderItemIds[0]}`);
-    console.log(`First few inspection order itemIds: ${inspectionOrderItemIds.slice(0, 5).join(', ')}`);
-    
-    const projectItemIds2 = projectItemsList.map(item => item.itemId);
-    console.log(`Project items itemId field data type: ${typeof projectItemIds2[0]}`);
-    console.log(`First few project item itemIds: ${projectItemIds2.slice(0, 5).join(', ')}`);
-    
-    // Check if the inspection orders reference project item IDs instead of master item IDs
-    const usingProjectItemIds = existingInspectionOrders.some(order => 
-      projectItemIds.includes(order.itemId)
-    );
-    
-    console.log(`\nINSPECTION ORDERS ARE REFERENCING ${usingProjectItemIds ? 'PROJECT ITEM IDs' : 'MASTER ITEM IDs'}`);
-    
-    return {
-      project,
-      projectItemsCount: projectItemsList.length,
-      masterItemsCount: masterItemsArray.length,
-      inspectionOrdersCount: existingInspectionOrders.length,
-      makeItemsCount: makeItems.length,
-      buyItemsCount: buyItems.length,
-      availableMakeItemsCount: filteredMakeItems.length,
-      availableBuyItemsCount: filteredBuyItems.length,
-      usingProjectItemIds
-    };
     
   } catch (error) {
-    console.error('Error in debugging script:', error);
+    console.error('Error in debug script:', error);
   }
 }
 
-module.exports = { debugInspectionOrderGeneration };
+// Run the debug script
+debugInspectionOrderGeneration();
