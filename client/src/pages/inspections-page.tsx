@@ -1348,6 +1348,9 @@ export default function InspectionsPage() {
                       <div className="text-sm font-medium">Item Code:</div>
                       <div className="text-sm">{inspectionOrderDetails?.itemCode || 'N/A'}</div>
                       
+                      <div className="text-sm font-medium">Drawing No:</div>
+                      <div className="text-sm">{inspectionOrderDetails?.drawingNo || 'N/A'}</div>
+                      
                       <div className="text-sm font-medium">Description:</div>
                       <div className="text-sm">{inspectionOrderDetails?.description || 'N/A'}</div>
                       
