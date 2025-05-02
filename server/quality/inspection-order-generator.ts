@@ -53,6 +53,7 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Project not found' });
     }
     
+    console.log(`======= DEBUGGING INSPECTION ORDER GENERATION =======`);
     console.log(`Generating inspection orders preview for project ${projectId}: ${project.code}`);
     
     // Fetch all project items
@@ -61,6 +62,7 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     });
     
     if (!projectItemsList.length) {
+      console.log(`ERROR: No project items found for project ${projectId} (${project.code})`);
       return res.status(404).json({ error: 'No project items found for this project' });
     }
     
@@ -68,15 +70,30 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     // Print the first few items for debugging
     if (projectItemsList.length > 0) {
       console.log(`First project item: ${JSON.stringify(projectItemsList[0])}`);
+      // Check if parentItemId exists in the schema
+      console.log(`Does first item have parentItemId property? ${projectItemsList[0].hasOwnProperty('parentItemId')}`);
+      console.log(`First item properties: ${Object.keys(projectItemsList[0]).join(', ')}`);
     }
     
     // Get all master items for these project items
     const masterItemIds = projectItemsList.map(item => item.itemId);
+    console.log(`Looking up master items with IDs: ${masterItemIds.join(', ')}`);
+    
     const masterItemsArray = await db.query.masterItems.findMany({
       where: inArray(masterItems.id, masterItemIds)
     });
     
-    console.log(`Found ${masterItemsArray.length} master items`);
+    console.log(`Found ${masterItemsArray.length} master items out of ${masterItemIds.length} requested`);
+    
+    // Show first master item for debugging
+    if (masterItemsArray.length > 0) {
+      console.log(`First master item: ${JSON.stringify(masterItemsArray[0])}`);
+      // Check if makeOrBuy exists
+      console.log(`Does first master item have makeOrBuy property? ${masterItemsArray[0].hasOwnProperty('makeOrBuy')}`);
+      console.log(`First master item properties: ${Object.keys(masterItemsArray[0]).join(', ')}`);
+    } else {
+      console.log(`WARNING: No master items found for project ${projectId}!`);
+    }
     
     // Create a map for faster lookups
     const masterItemsMap = new Map();
