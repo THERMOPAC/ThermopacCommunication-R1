@@ -1235,13 +1235,12 @@ export default function InspectionsPage() {
                   <TableCaption>Inspection orders for the selected project.</TableCaption>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Order #</TableHead>
-                      <TableHead>Description</TableHead>
+                      <TableHead className="w-[150px]">Order #</TableHead>
+                      <TableHead className="w-[600px]">Description</TableHead>
                       <TableHead>Drawing No</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Date Created</TableHead>
                       <TableHead>Quantity</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="w-[150px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1251,7 +1250,6 @@ export default function InspectionsPage() {
                         <TableCell>{order.description || order.title}</TableCell>
                         <TableCell>{order.drawingNo || 'N/A'}</TableCell>
                         <TableCell>{getStatusBadge(order.status)}</TableCell>
-                        <TableCell>{format(new Date(order.createdAt), 'dd MMM yyyy')}</TableCell>
                         <TableCell>{order.quantity} {order.unit}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
