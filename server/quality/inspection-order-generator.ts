@@ -48,8 +48,9 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
   if (projectId === 3) {
     console.log('== REDIRECTING TO SPECIAL FIX FOR PROJECT 3 (2025-1) - PREVIEW MODE ==');
     // Import dynamically to avoid circular dependencies and redirect to the special fix
-    const { previewInspectionOrdersForProject3 } = require('./project3-special-fix');
-    return previewInspectionOrdersForProject3(req, res);
+    // Use dynamic import (ESM) instead of require (CommonJS)
+    const specialFixModule = await import('./project3-special-fix');
+    return specialFixModule.previewInspectionOrdersForProject3(req, res);
   }
   
   try {
@@ -514,8 +515,9 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     if (projectId === 3) {
       console.log('== REDIRECTING TO SPECIAL FIX FOR PROJECT 3 (2025-1) - GENERATION MODE ==');
       // Import dynamically to avoid circular dependencies
-      const { generateInspectionOrdersForProject3 } = require('./project3-special-fix');
-      return generateInspectionOrdersForProject3(req, res);
+      // Use dynamic import (ESM) instead of require (CommonJS)
+      const specialFixModule = await import('./project3-special-fix');
+      return specialFixModule.generateInspectionOrdersForProject3(req, res);
     }
     
     // Fetch project details
