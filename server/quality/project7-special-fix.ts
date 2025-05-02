@@ -93,12 +93,30 @@ export const generateInspectionOrdersForProject7 = async (req: Request, res: Res
     console.log(`Next sequence number for inspection orders: ${nextSeqNumber}`);
     
     // 6. Get max order number to ensure unique order numbers
-    const [maxOrder] = await db.select({
-      maxNumber: sql<number>`MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(${inspectionOrders.inspectionOrderNumber}, '-', -1), '-', 1) AS UNSIGNED))`
+    const existingOrderNumbers = await db.select({
+      orderNumber: inspectionOrders.inspectionOrderNumber
     }).from(inspectionOrders)
       .where(and(
         eq(inspectionOrders.projectCode, project.code)
       ));
+    
+    // Extract order numbers manually
+    let maxNum = 0;
+    for (const order of existingOrderNumbers) {
+      const orderNumber = order.orderNumber;
+      if (orderNumber) {
+        const parts = orderNumber.split('-');
+        if (parts.length > 0) {
+          const lastPart = parts[parts.length - 1];
+          const num = parseInt(lastPart);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        }
+      }
+    }
+    
+    const maxOrder = { maxNumber: maxNum };
     
     const maxOrderNumber = maxOrder?.maxNumber || 0;
     console.log(`Max order number for this project: ${maxOrderNumber}`);
