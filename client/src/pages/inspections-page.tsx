@@ -81,6 +81,7 @@ const materialRowSchema = z.object({
 // Schema for Inspection Order Edit
 const inspectionOrderEditSchema = z.object({
   // Basic inspection order info
+  inspectionOrderNumber: z.string().optional(), // Inspection Order Number (read-only)
   title: z.string().min(1, { message: "Title is required" }),
   status: z.string().min(1, { message: "Status is required" }),
   inspectionType: z.string().min(1, { message: "Inspection type is required" }),
@@ -663,6 +664,7 @@ export default function InspectionsPage() {
   const editForm = useForm<InspectionOrderEditFormValues>({
     resolver: zodResolver(inspectionOrderEditSchema),
     defaultValues: {
+      inspectionOrderNumber: "",
       title: "",
       status: "",
       inspectionType: "",
@@ -725,6 +727,7 @@ export default function InspectionsPage() {
                            "";
         
       editForm.reset({
+        inspectionOrderNumber: editInspectionOrderDetails.inspectionOrderNumber || "",
         title: editInspectionOrderDetails.title,
         status: editInspectionOrderDetails.status,
         inspectionType: editInspectionOrderDetails.inspectionType,
