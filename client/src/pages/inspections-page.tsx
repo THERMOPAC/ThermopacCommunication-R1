@@ -563,8 +563,9 @@ export default function InspectionsPage() {
       setIsGeneratingOrders(true);
       console.log("Generating inspection orders for project ID:", projectId);
       
+      // Using the same URL format as the preview function (which works)
       const response = await fetch(
-        `/api/quality/inspection-orders/generate-for-project/${projectId}`,
+        `/api/quality/inspection-orders/generate/${projectId}`,
         {
           method: 'POST',
           headers: {
