@@ -146,7 +146,7 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
           materialSpecification: material.materialSpecification,
           allocatedQuantity: material.allocatedQuantity,
           quantityUnit: material.quantityUnit,
-          remarks: material.remarks
+          description: material.description
         }));
         
         await db.insert(materialInspectionLinks).values(materialLinksToInsert);
