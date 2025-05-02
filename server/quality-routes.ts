@@ -223,6 +223,9 @@ router.delete('/inspection-orders/:id', ensureAuthenticated, async (req: Request
 router.post('/inspection-orders/preview/:projectId', ensureAuthenticated, previewInspectionOrders);
 router.post('/inspection-orders/generate/:projectId', ensureAuthenticated, generateInspectionOrders);
 
+// Add the route that's being used by the frontend for compatibility
+router.post('/inspection-orders/generate-for-project/:projectId', ensureAuthenticated, generateInspectionOrders);
+
 // Special fix routes for various projects
 router.post('/inspection-orders/special-fix-project-3', ensureAuthenticated, generateInspectionOrdersForProject3);
 router.post('/inspection-orders/special-fix-project-4', ensureAuthenticated, generateInspectionOrdersForProject4);
