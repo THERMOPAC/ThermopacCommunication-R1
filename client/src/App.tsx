@@ -171,6 +171,7 @@ function Router() {
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
       <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />
+      <SuperuserRoute path="/special-fixes" component={SpecialFixesPage} />
       <Route component={NotFound} />
     </Switch>
   );
