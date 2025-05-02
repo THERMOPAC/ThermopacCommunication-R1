@@ -202,6 +202,26 @@ export default function InspectionsPage() {
   }]);
   const [editingWeldIndex, setEditingWeldIndex] = useState<number | null>(null);
   
+  // NDT management state
+  const [ndtRecords, setNdtRecords] = useState<{
+    id: string;
+    ndtMethod: string;
+    ndtStandard: string;
+    ndtExtent: string;
+    ndtTechnician: string;
+    ndtDate: string;
+    ndtResults: string;
+  }[]>([{
+    id: 'NDT-1',
+    ndtMethod: '',
+    ndtStandard: '',
+    ndtExtent: '',
+    ndtTechnician: '',
+    ndtDate: '',
+    ndtResults: ''
+  }]);
+  const [editingNdtIndex, setEditingNdtIndex] = useState<number | null>(null);
+  
   // Material rows state
   const [materialRows, setMaterialRows] = useState<{
     id?: number;
@@ -350,6 +370,68 @@ export default function InspectionsPage() {
       [field]: value
     };
     setWelds(updatedWelds);
+  };
+  
+  // Helper function to get NDT method display name
+  const getNdtMethodName = (method: string): string => {
+    const ndtMethods: Record<string, string> = {
+      'rt': 'RT (Radiographic Testing)',
+      'ut': 'UT (Ultrasonic Testing)',
+      'mt': 'MT (Magnetic Particle Testing)',
+      'pt': 'PT (Penetrant Testing)',
+      'et': 'ET (Eddy Current Testing)',
+      'vt': 'VT (Visual Testing)'
+    };
+    return ndtMethods[method] || method;
+  };
+  
+  // Add new NDT record
+  const addNdtRecord = () => {
+    const newNdtNumber = ndtRecords.length + 1;
+    setNdtRecords([
+      ...ndtRecords, 
+      {
+        id: `NDT-${newNdtNumber}`,
+        ndtMethod: '',
+        ndtStandard: '',
+        ndtExtent: '',
+        ndtTechnician: '',
+        ndtDate: '',
+        ndtResults: ''
+      }
+    ]);
+  };
+  
+  // Delete an NDT record
+  const deleteNdtRecord = (index: number) => {
+    const updatedRecords = [...ndtRecords];
+    updatedRecords.splice(index, 1);
+    
+    // Renumber NDT records after deletion
+    const renumberedRecords = updatedRecords.map((record, idx) => ({
+      ...record,
+      id: `NDT-${idx + 1}`
+    }));
+    
+    setNdtRecords(renumberedRecords);
+    if (editingNdtIndex === index) {
+      setEditingNdtIndex(null);
+    }
+  };
+  
+  // Edit an NDT record
+  const startEditingNdt = (index: number) => {
+    setEditingNdtIndex(index);
+  };
+  
+  // Update an NDT field
+  const updateNdtField = (index: number, field: string, value: string) => {
+    const updatedRecords = [...ndtRecords];
+    updatedRecords[index] = {
+      ...updatedRecords[index],
+      [field]: value
+    };
+    setNdtRecords(updatedRecords);
   };
   
   // Fetch projects for dropdown
@@ -2389,123 +2471,162 @@ export default function InspectionsPage() {
                   <TabsContent value="ndt" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Non-Destructive Testing (NDT)</h3>
-                      <div className="grid grid-cols-12 gap-4">
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="ndtMethod"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>NDT Method</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select NDT method" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="rt">RT (Radiographic Testing)</SelectItem>
-                                    <SelectItem value="ut">UT (Ultrasonic Testing)</SelectItem>
-                                    <SelectItem value="mt">MT (Magnetic Particle Testing)</SelectItem>
-                                    <SelectItem value="pt">PT (Penetrant Testing)</SelectItem>
-                                    <SelectItem value="et">ET (Eddy Current Testing)</SelectItem>
-                                    <SelectItem value="vt">VT (Visual Testing)</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                      
+                      {/* NDT list */}
+                      <div className="border rounded-md shadow-sm overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[80px]">NDT ID</TableHead>
+                              <TableHead className="w-[150px]">Method</TableHead>
+                              <TableHead className="w-[150px]">Standard</TableHead>
+                              <TableHead className="w-[120px]">Extent (%)</TableHead>
+                              <TableHead className="w-[150px]">Technician</TableHead>
+                              <TableHead className="w-[120px]">Date</TableHead>
+                              <TableHead>Results</TableHead>
+                              <TableHead className="w-[80px]">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {ndtRecords.map((record, index) => (
+                              <TableRow key={record.id}>
+                                <TableCell className="font-medium">{record.id}</TableCell>
+                                <TableCell>
+                                  {editingNdtIndex === index ? (
+                                    <Select 
+                                      value={record.ndtMethod}
+                                      onValueChange={(value) => updateNdtField(index, 'ndtMethod', value)}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select method" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="rt">RT (Radiographic Testing)</SelectItem>
+                                        <SelectItem value="ut">UT (Ultrasonic Testing)</SelectItem>
+                                        <SelectItem value="mt">MT (Magnetic Particle Testing)</SelectItem>
+                                        <SelectItem value="pt">PT (Penetrant Testing)</SelectItem>
+                                        <SelectItem value="et">ET (Eddy Current Testing)</SelectItem>
+                                        <SelectItem value="vt">VT (Visual Testing)</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    record.ndtMethod ? getNdtMethodName(record.ndtMethod) : "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingNdtIndex === index ? (
+                                    <Input 
+                                      value={record.ndtStandard} 
+                                      onChange={(e) => updateNdtField(index, 'ndtStandard', e.target.value)}
+                                      placeholder="Enter standard"
+                                      className="w-full"
+                                    />
+                                  ) : (
+                                    record.ndtStandard || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingNdtIndex === index ? (
+                                    <Input 
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      value={record.ndtExtent} 
+                                      onChange={(e) => updateNdtField(index, 'ndtExtent', e.target.value)}
+                                      placeholder="Enter %"
+                                      className="w-full"
+                                    />
+                                  ) : (
+                                    record.ndtExtent ? `${record.ndtExtent}%` : "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingNdtIndex === index ? (
+                                    <Input 
+                                      value={record.ndtTechnician} 
+                                      onChange={(e) => updateNdtField(index, 'ndtTechnician', e.target.value)}
+                                      placeholder="Enter name"
+                                      className="w-full"
+                                    />
+                                  ) : (
+                                    record.ndtTechnician || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingNdtIndex === index ? (
+                                    <Input 
+                                      type="date"
+                                      value={record.ndtDate} 
+                                      onChange={(e) => updateNdtField(index, 'ndtDate', e.target.value)}
+                                      className="w-full"
+                                    />
+                                  ) : (
+                                    record.ndtDate || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingNdtIndex === index ? (
+                                    <Input 
+                                      value={record.ndtResults} 
+                                      onChange={(e) => updateNdtField(index, 'ndtResults', e.target.value)}
+                                      placeholder="Enter results"
+                                      className="w-full"
+                                    />
+                                  ) : (
+                                    record.ndtResults || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center space-x-1">
+                                    <Button 
+                                      type="button" 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      onClick={() => startEditingNdt(index)}
+                                      className="h-7 w-7"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button 
+                                      type="button" 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      onClick={() => deleteNdtRecord(index)}
+                                      className="h-7 w-7 text-destructive"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-between mt-4">
+                        <div>
+                          <Button 
+                            type="button" 
+                            variant="default" 
+                            size="sm" 
+                            onClick={addNdtRecord}
+                            className="mr-2"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add NDT
+                          </Button>
                         </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="ndtStandard"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>NDT Standard</FormLabel>
-                                <FormControl>
-                                  <Input {...field} placeholder="Enter applicable standard" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="ndtExtent"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Extent of Examination (%)</FormLabel>
-                                <FormControl>
-                                  <Input {...field} type="number" min="0" max="100" placeholder="Enter percentage" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-6">
-                          <FormField
-                            control={editForm.control}
-                            name="ndtTechnician"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>NDT Technician</FormLabel>
-                                <FormControl>
-                                  <Input {...field} placeholder="Enter technician name" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-6">
-                          <FormField
-                            control={editForm.control}
-                            name="ndtDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>NDT Date</FormLabel>
-                                <FormControl>
-                                  <Input {...field} type="date" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <FormField
-                            control={editForm.control}
-                            name="ndtResults"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>NDT Results & Findings</FormLabel>
-                                <FormControl>
-                                  <Textarea {...field} placeholder="Enter NDT results and findings" rows={3} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <div className="flex items-center gap-2 mt-2">
-                            <Button type="button" variant="outline" size="sm">
-                              <FileText className="h-4 w-4 mr-2" />
-                              Upload NDT Reports
-                            </Button>
-                            <Button type="button" variant="outline" size="sm">
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Reports
-                            </Button>
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="outline" size="sm">
+                            <FileText className="h-4 w-4 mr-2" />
+                            Upload NDT Reports
+                          </Button>
+                          <Button type="button" variant="outline" size="sm">
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Reports
+                          </Button>
                         </div>
                       </div>
                     </div>
