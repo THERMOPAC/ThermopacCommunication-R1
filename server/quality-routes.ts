@@ -9,6 +9,7 @@ import { eq, and } from 'drizzle-orm';
 import { registerWelderRoutes } from './quality/welder-routes';
 import { registerWelderCertificateRoutes } from './quality/welder-certificate-routes';
 import { registerWelderPhotoRoutes } from './quality/welder-photo-routes';
+import debugRouter from './quality/debug-routes';
 
 // Define ensureAuthenticated middleware
 function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -232,6 +233,9 @@ export function setupQualityRoutes(app: Express) {
   
   // Setup welder photo upload routes
   registerWelderPhotoRoutes(app);
+  
+  // Setup debug routes
+  app.use('/api/debug/quality', debugRouter);
   
   console.log('Quality management routes registered');
 }
