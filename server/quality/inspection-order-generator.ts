@@ -65,16 +65,16 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       
       console.log(`Project details:`, project);
       
-      // Get project items
+      // Get project items for the requested project (not hardcoded to Project 3)
       const projectItemsList = await db.query.projectItems.findMany({
-        where: eq(projectItems.projectId, 3)
+        where: eq(projectItems.projectId, projectId)
       });
       
       if (projectItemsList.length === 0) {
         return res.status(404).json({ error: 'No project items found' });
       }
       
-      console.log(`Found ${projectItemsList.length} project items for Project 2025-1`);
+      console.log(`Found ${projectItemsList.length} project items for project ${project.code} (ID: ${projectId})`);
       
       // Get master items
       const masterItemIds = projectItemsList.map(item => item.itemId);
@@ -105,7 +105,7 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
         return masterItem?.makeOrBuy === 'Buy';
       });
       
-      console.log(`SPECIAL FIX: Found ${makeItems.length} Make items and ${buyItems.length} Buy items for Project 2025-1`);
+      console.log(`SPECIAL FIX: Found ${makeItems.length} Make items and ${buyItems.length} Buy items for project ${project.code} (ID: ${projectId})`);
       
       // Map items to preview format
       const mapItemsToPreview = (items: any[], isParent: boolean): PreviewItem[] => {
