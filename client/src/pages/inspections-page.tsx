@@ -213,12 +213,12 @@ export default function InspectionsPage() {
     ndtResults: string;
   }[]>([{
     id: 'NDT-1',
-    ndtMethod: '',
-    ndtStandard: '',
-    ndtExtent: '',
+    ndtMethod: 'rt',
+    ndtStandard: 'ASME',
+    ndtExtent: '10',
     ndtTechnician: '',
     ndtDate: '',
-    ndtResults: ''
+    ndtResults: 'Pass'
   }]);
   const [editingNdtIndex, setEditingNdtIndex] = useState<number | null>(null);
   
@@ -392,12 +392,12 @@ export default function InspectionsPage() {
       ...ndtRecords, 
       {
         id: `NDT-${newNdtNumber}`,
-        ndtMethod: '',
-        ndtStandard: '',
-        ndtExtent: '',
+        ndtMethod: 'rt',
+        ndtStandard: 'ASME',
+        ndtExtent: '10',
         ndtTechnician: '',
         ndtDate: '',
-        ndtResults: ''
+        ndtResults: 'Pass'
       }
     ]);
   };
@@ -2478,12 +2478,12 @@ export default function InspectionsPage() {
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-[80px]">NDT ID</TableHead>
-                              <TableHead className="w-[150px]">Method</TableHead>
+                              <TableHead className="w-[400px]">Method</TableHead> {/* Updated width */}
                               <TableHead className="w-[150px]">Standard</TableHead>
                               <TableHead className="w-[120px]">Extent (%)</TableHead>
                               <TableHead className="w-[150px]">Technician</TableHead>
                               <TableHead className="w-[120px]">Date</TableHead>
-                              <TableHead>Results</TableHead>
+                              <TableHead className="w-[150px]">Results</TableHead> {/* Updated width */}
                               <TableHead className="w-[80px]">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -2515,27 +2515,37 @@ export default function InspectionsPage() {
                                 </TableCell>
                                 <TableCell>
                                   {editingNdtIndex === index ? (
-                                    <Input 
-                                      value={record.ndtStandard} 
-                                      onChange={(e) => updateNdtField(index, 'ndtStandard', e.target.value)}
-                                      placeholder="Enter standard"
-                                      className="w-full"
-                                    />
+                                    <Select 
+                                      value={record.ndtStandard}
+                                      onValueChange={(value) => updateNdtField(index, 'ndtStandard', value)}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select standard" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="ASME">ASME</SelectItem>
+                                        <SelectItem value="API">API</SelectItem>
+                                        <SelectItem value="EN ISO">EN ISO</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   ) : (
                                     record.ndtStandard || "-"
                                   )}
                                 </TableCell>
                                 <TableCell>
                                   {editingNdtIndex === index ? (
-                                    <Input 
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      value={record.ndtExtent} 
-                                      onChange={(e) => updateNdtField(index, 'ndtExtent', e.target.value)}
-                                      placeholder="Enter %"
-                                      className="w-full"
-                                    />
+                                    <Select 
+                                      value={record.ndtExtent}
+                                      onValueChange={(value) => updateNdtField(index, 'ndtExtent', value)}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select %" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="10">10%</SelectItem>
+                                        <SelectItem value="100">100%</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   ) : (
                                     record.ndtExtent ? `${record.ndtExtent}%` : "-"
                                   )}
@@ -2566,12 +2576,18 @@ export default function InspectionsPage() {
                                 </TableCell>
                                 <TableCell>
                                   {editingNdtIndex === index ? (
-                                    <Input 
-                                      value={record.ndtResults} 
-                                      onChange={(e) => updateNdtField(index, 'ndtResults', e.target.value)}
-                                      placeholder="Enter results"
-                                      className="w-full"
-                                    />
+                                    <Select 
+                                      value={record.ndtResults}
+                                      onValueChange={(value) => updateNdtField(index, 'ndtResults', value)}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select result" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Pass">Pass</SelectItem>
+                                        <SelectItem value="Failed">Failed</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   ) : (
                                     record.ndtResults || "-"
                                   )}
