@@ -2875,27 +2875,24 @@ export default function InspectionsPage() {
                           <TableBody>
                             {visualRecords.map((record, index) => (
                               <TableRow key={record.id}>
-                                <TableCell>{record.id}</TableCell>
+                                <TableCell className="w-[150px]">{record.id}</TableCell>
                                 <TableCell>
                                   {editingVisualIndex === index ? (
-                                    <Input 
-                                      value={record.standard} 
-                                      onChange={(e) => updateVisualField(index, 'standard', e.target.value)}
-                                      className="w-[120px]"
-                                    />
+                                    <Select 
+                                      value={record.standard}
+                                      onValueChange={(value) => updateVisualField(index, 'standard', value)}
+                                    >
+                                      <SelectTrigger className="w-[150px]">
+                                        <SelectValue placeholder="Select standard" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="ASME">ASME</SelectItem>
+                                        <SelectItem value="API">API</SelectItem>
+                                        <SelectItem value="EN ISO">EN ISO</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   ) : (
                                     record.standard || "-"
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  {editingVisualIndex === index ? (
-                                    <Input 
-                                      value={record.inspector} 
-                                      onChange={(e) => updateVisualField(index, 'inspector', e.target.value)}
-                                      className="w-[120px]"
-                                    />
-                                  ) : (
-                                    record.inspector || "-"
                                   )}
                                 </TableCell>
                                 <TableCell>
@@ -2940,6 +2937,17 @@ export default function InspectionsPage() {
                                 <TableCell>
                                   {editingVisualIndex === index ? (
                                     <Input 
+                                      value={record.inspector} 
+                                      onChange={(e) => updateVisualField(index, 'inspector', e.target.value)}
+                                      className="w-[120px]"
+                                    />
+                                  ) : (
+                                    record.inspector || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingVisualIndex === index ? (
+                                    <Input 
                                       type="date" 
                                       value={record.inspectionDate} 
                                       onChange={(e) => updateVisualField(index, 'inspectionDate', e.target.value)}
@@ -2951,11 +2959,18 @@ export default function InspectionsPage() {
                                 </TableCell>
                                 <TableCell>
                                   {editingVisualIndex === index ? (
-                                    <Input 
-                                      value={record.observations} 
-                                      onChange={(e) => updateVisualField(index, 'observations', e.target.value)}
-                                      className="w-[200px]"
-                                    />
+                                    <Select 
+                                      value={record.observations}
+                                      onValueChange={(value) => updateVisualField(index, 'observations', value)}
+                                    >
+                                      <SelectTrigger className="w-[150px]">
+                                        <SelectValue placeholder="Select result" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Pass">Pass</SelectItem>
+                                        <SelectItem value="Failed">Failed</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   ) : (
                                     record.observations || "-"
                                   )}
