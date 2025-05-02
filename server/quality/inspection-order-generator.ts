@@ -46,17 +46,21 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
   
   // Special fix for Project ID 3 (2025-1)
   if (projectId === 3) {
-    console.log('== SPECIAL FIX FOR PROJECT 3 (2025-1) - PREVIEW MODE ==');
+    console.log('== REDIRECTING TO SPECIAL FIX FOR PROJECT 3 (2025-1) - PREVIEW MODE ==');
+    // Import dynamically to avoid circular dependencies and redirect to the special fix
+    const { previewInspectionOrdersForProject3 } = require('./project3-special-fix');
+    return previewInspectionOrdersForProject3(req, res);
+  }
+  
+  try {
+    // Get project details
+    const project = await db.query.projects.findFirst({
+      where: eq(projects.id, projectId)
+    });
     
-    try {
-      // Get project details
-      const project = await db.query.projects.findFirst({
-        where: eq(projects.id, 3)
-      });
-      
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
       
       console.log(`Project details:`, project);
       
@@ -189,7 +193,6 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
         details: error.message
       });
     }
-  }
   
   try {
     // Fetch project details
