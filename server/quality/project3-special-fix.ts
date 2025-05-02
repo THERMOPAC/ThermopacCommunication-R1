@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { projects, projectItems, masterItems, inspectionOrders, users } from '@shared/schema';
+import { projects, projectItems, masterItems, inspectionOrders, inspectionOrderItems, users } from '@shared/schema';
 import { eq, inArray, and, desc, sql } from 'drizzle-orm';
 
 /**
@@ -85,11 +85,6 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
     
     // 7. Get current user
     const userId = req.user?.id || 1; // Default to user ID 1 if not found
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId)
-    });
-    
-    const createdBy = user?.username || 'System';
     
     // 8. Get max inspection order number
     let maxOrderNumber = 0;
@@ -113,91 +108,172 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
     const year = projectCodeParts[0];
     const projectNumber = projectCodeParts[1];
     
-    // 10. Prepare items sets with any filtering needed
-    // For this special fix, we're not filtering based on existing orders
+    // 10. Prepare for orders generation
+    const createdInspectionOrders = [];
+    const createdInspectionOrderItems = [];
+    let nextSeqNumber = existingInspectionOrders.length > 0 
+      ? Math.max(...existingInspectionOrders.map(order => order.sequenceNumber || 0)) + 1 
+      : 1;
     
-    // 11. Generate inspection orders
-    const generatedOrders = [];
-    let orderCounter = maxOrderNumber;
-    
-    // Generate for Make items
-    for (const item of makeItems) {
-      const masterItem = masterItemsMap.get(item.itemId);
-      if (!masterItem) continue;
+    // 11. Generate orders for Make items
+    if (makeItems.length > 0) {
+      console.log(`Creating ${makeItems.length} make inspection orders`);
       
-      orderCounter++;
-      
-      const orderNumber = `IO-${year}-${projectNumber}-M-${orderCounter}`;
-      
-      // Create inspection order record
-      const newOrder = {
-        projectId: project.id,
-        ioNumber: orderNumber,
-        status: 'draft',
-        itemId: item.id,
-        itemCode: masterItem.itemCode,
-        description: masterItem.description,
-        createdBy,
-        createdAt: new Date(),
-      };
-      
-      generatedOrders.push(newOrder);
-    }
-    
-    // Generate for Buy items
-    for (const item of buyItems) {
-      const masterItem = masterItemsMap.get(item.itemId);
-      if (!masterItem) continue;
-      
-      orderCounter++;
-      
-      const orderNumber = `IO-${year}-${projectNumber}-B-${orderCounter}`;
-      
-      // Create inspection order record
-      const newOrder = {
-        projectId: project.id,
-        ioNumber: orderNumber,
-        status: 'draft',
-        itemId: item.id,
-        itemCode: masterItem.itemCode,
-        description: masterItem.description,
-        createdBy,
-        createdAt: new Date(),
-      };
-      
-      generatedOrders.push(newOrder);
-    }
-    
-    console.log(`Generated ${generatedOrders.length} new inspection orders`);
-    
-    // 12. Insert the new orders
-    if (generatedOrders.length > 0) {
-      const result = await db.insert(inspectionOrders).values(generatedOrders);
-      console.log(`Database insert result:`, result);
-      
-      return res.status(200).json({
-        success: true,
-        message: `Successfully generated ${generatedOrders.length} inspection orders`,
-        project: {
-          id: project.id,
-          code: project.code,
-          name: project.name
-        },
-        generatedCount: generatedOrders.length,
-        makeItemCount: makeItems.length,
-        buyItemCount: buyItems.length
-      });
-    } else {
-      return res.status(200).json({
-        success: false,
-        message: 'No inspection orders were generated',
-        project: {
-          id: project.id,
-          code: project.code,
-          name: project.name
+      for (const [index, item] of makeItems.entries()) {
+        const masterItem = masterItemsMap.get(item.itemId);
+        if (!masterItem) continue;
+        
+        // Generate order number
+        const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-${index + 1}`;
+        
+        // Extract drawing number from master item or item code
+        let drawingNumber = masterItem.drawingNo || "";
+        
+        // If no drawing number, try to extract it from item code
+        if (!drawingNumber && masterItem.itemCode) {
+          const itemCode = masterItem.itemCode;
+          if (/^\d+$/.test(itemCode)) {
+            // For numeric drawing numbers, use as-is
+            drawingNumber = itemCode;
+          } else if (itemCode.includes('-')) {
+            // For alpha-numeric with hyphens, extract the part before the last segment
+            const parts = itemCode.split('-');
+            if (parts.length >= 2) {
+              drawingNumber = parts.slice(0, -1).join('-');
+            } else {
+              drawingNumber = itemCode;
+            }
+          } else {
+            // If no hyphen, use as-is
+            drawingNumber = itemCode;
+          }
         }
-      });
+        
+        // Create inspection order
+        const makeOrder = await db.insert(inspectionOrders).values({
+          projectId: project.id,
+          projectCode: project.code,
+          inspectionOrderNumber: makeInspectionOrderNumber,
+          title: `Make Item Inspection - ${masterItem.itemCode || 'Unknown'}`,
+          description: masterItem.description || 'No description',
+          status: 'pending',
+          inspectionType: 'in-process',
+          quantity: Number(item.quantity) || 1,
+          unit: masterItem.uom || 'EA',
+          makeOrBuy: 'Make',
+          itemId: item.id,
+          itemCode: masterItem.itemCode || 'Unknown',
+          drawingNo: drawingNumber,
+          sequenceNumber: nextSeqNumber + index,
+          createdBy: userId
+        }).returning();
+        
+        if (makeOrder && makeOrder.length > 0) {
+          createdInspectionOrders.push(makeOrder[0]);
+          
+          // Create inspection order item
+          const orderItem = await db.insert(inspectionOrderItems).values({
+            inspectionOrderId: makeOrder[0].id,
+            itemId: item.id,
+            itemCode: masterItem.itemCode || 'Unknown',
+            description: masterItem.description || 'No description',
+            quantity: Number(item.quantity) || 1,
+            unit: masterItem.uom || 'EA',
+            makeOrBuy: 'Make',
+            sequenceNumber: 1 // Only one item per order
+          }).returning();
+          
+          if (orderItem && orderItem.length > 0) {
+            createdInspectionOrderItems.push(orderItem[0]);
+          }
+        }
+      }
     }
+    
+    // 12. Generate orders for Buy items
+    if (buyItems.length > 0) {
+      console.log(`Creating ${buyItems.length} buy inspection orders`);
+      
+      for (const [index, item] of buyItems.entries()) {
+        const masterItem = masterItemsMap.get(item.itemId);
+        if (!masterItem) continue;
+        
+        // Generate order number
+        const buyInspectionOrderNumber = `IO-${year}-${projectNumber}-B-${index + 1}`;
+        
+        // Extract drawing number from master item or item code
+        let drawingNumber = masterItem.drawingNo || "";
+        
+        // If no drawing number, try to extract it from item code
+        if (!drawingNumber && masterItem.itemCode) {
+          const itemCode = masterItem.itemCode;
+          if (/^\d+$/.test(itemCode)) {
+            // For numeric drawing numbers, use as-is
+            drawingNumber = itemCode;
+          } else if (itemCode.includes('-')) {
+            // For alpha-numeric with hyphens, extract the part before the last segment
+            const parts = itemCode.split('-');
+            if (parts.length >= 2) {
+              drawingNumber = parts.slice(0, -1).join('-');
+            } else {
+              drawingNumber = itemCode;
+            }
+          } else {
+            // If no hyphen, use as-is
+            drawingNumber = itemCode;
+          }
+        }
+        
+        // Create inspection order
+        const buyOrder = await db.insert(inspectionOrders).values({
+          projectId: project.id,
+          projectCode: project.code,
+          inspectionOrderNumber: buyInspectionOrderNumber,
+          title: `Buy Item Inspection - ${masterItem.itemCode || 'Unknown'}`,
+          description: masterItem.description || 'No description',
+          status: 'pending',
+          inspectionType: 'incoming',
+          quantity: Number(item.quantity) || 1,
+          unit: masterItem.uom || 'EA',
+          makeOrBuy: 'Buy',
+          itemId: item.id,
+          itemCode: masterItem.itemCode || 'Unknown',
+          drawingNo: drawingNumber,
+          sequenceNumber: nextSeqNumber + makeItems.length + index,
+          createdBy: userId
+        }).returning();
+        
+        if (buyOrder && buyOrder.length > 0) {
+          createdInspectionOrders.push(buyOrder[0]);
+          
+          // Create inspection order item
+          const orderItem = await db.insert(inspectionOrderItems).values({
+            inspectionOrderId: buyOrder[0].id,
+            itemId: item.id,
+            itemCode: masterItem.itemCode || 'Unknown',
+            description: masterItem.description || 'No description',
+            quantity: Number(item.quantity) || 1,
+            unit: masterItem.uom || 'EA',
+            makeOrBuy: 'Buy',
+            sequenceNumber: 1 // Only one item per order
+          }).returning();
+          
+          if (orderItem && orderItem.length > 0) {
+            createdInspectionOrderItems.push(orderItem[0]);
+          }
+        }
+      }
+    }
+    
+    // 13. Respond with results
+    return res.status(200).json({
+      success: true,
+      message: `Created ${createdInspectionOrders.length} inspection orders successfully (SPECIAL FIX)`,
+      ordersCreated: createdInspectionOrders.length,
+      itemsCreated: createdInspectionOrderItems.length,
+      makeItemCount: makeItems.length,
+      buyItemCount: buyItems.length
+    });
     
   } catch (error: any) {
     console.error('Error in special fix for Project 3:', error);
