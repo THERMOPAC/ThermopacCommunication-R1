@@ -2078,8 +2078,8 @@ export default function InspectionsPage() {
                             control={editForm.control}
                             name="weldingProcedure"
                             render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Welding Procedure Specification (WPS)</FormLabel>
+                              <FormItem className="w-[300px]">
+                                <FormLabel>WPS</FormLabel>
                                 <FormControl>
                                   <Input {...field} placeholder="Enter WPS reference" />
                                 </FormControl>
@@ -2093,8 +2093,8 @@ export default function InspectionsPage() {
                             control={editForm.control}
                             name="welderId"
                             render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Welder ID / Name</FormLabel>
+                              <FormItem className="w-[200px]">
+                                <FormLabel>Welder ID/Name</FormLabel>
                                 <FormControl>
                                   <Input {...field} placeholder="Enter welder ID" />
                                 </FormControl>
@@ -2108,8 +2108,8 @@ export default function InspectionsPage() {
                             control={editForm.control}
                             name="numberOfWelds"
                             render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Number of Welds</FormLabel>
+                              <FormItem className="w-[120px]">
+                                <FormLabel>No. of Welds</FormLabel>
                                 <FormControl>
                                   <Input {...field} type="number" min="0" placeholder="Enter number of welds" />
                                 </FormControl>
@@ -2123,7 +2123,7 @@ export default function InspectionsPage() {
                             control={editForm.control}
                             name="weldType"
                             render={({ field }) => (
-                              <FormItem>
+                              <FormItem className="w-[200px]">
                                 <FormLabel>Weld Type</FormLabel>
                                 <Select 
                                   onValueChange={field.onChange}
@@ -2152,7 +2152,7 @@ export default function InspectionsPage() {
                             control={editForm.control}
                             name="weldProcess"
                             render={({ field }) => (
-                              <FormItem>
+                              <FormItem className="w-[300px]">
                                 <FormLabel>Weld Process</FormLabel>
                                 <Select 
                                   onValueChange={field.onChange}
@@ -2181,8 +2181,8 @@ export default function InspectionsPage() {
                             control={editForm.control}
                             name="weldingNotes"
                             render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Welding Notes & Observations</FormLabel>
+                              <FormItem className="w-[200px]">
+                                <FormLabel>Welding Notes</FormLabel>
                                 <FormControl>
                                   <Textarea {...field} placeholder="Enter welding notes and observations" rows={3} />
                                 </FormControl>
