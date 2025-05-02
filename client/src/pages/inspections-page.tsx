@@ -720,9 +720,9 @@ export default function InspectionsPage() {
       const unitValue = editInspectionOrderDetails.uom || editInspectionOrderDetails.unit || (firstItem ? firstItem.unit : "");
       
       // Use drawingNumber from the details or first item
-      const drawingNumber = editInspectionOrderDetails.drawingNumber || 
+      const drawingNumber = (editInspectionOrderDetails as any).drawingNumber || 
                            editInspectionOrderDetails.drawingNo || 
-                           (firstItem && firstItem.drawingNumber) || 
+                           (firstItem && (firstItem as any).drawingNumber) || 
                            (firstItem && firstItem.drawingNo) || 
                            "";
         
@@ -738,11 +738,11 @@ export default function InspectionsPage() {
         description: editInspectionOrderDetails.description || (firstItem ? firstItem.description : ""),
         drawingNo: drawingNumber,
         // Set legacy material fields
-        materialCertificateNumber: editInspectionOrderDetails.materialCertificateNumber || '',
-        heatNumber: editInspectionOrderDetails.heatNumber || '',
-        materialGrade: editInspectionOrderDetails.materialGrade || '',
-        materialSpecification: editInspectionOrderDetails.materialSpecification || '',
-        materialSupplier: editInspectionOrderDetails.materialSupplier || '',
+        materialCertificateNumber: (editInspectionOrderDetails as any).materialCertificateNumber || '',
+        heatNumber: (editInspectionOrderDetails as any).heatNumber || '',
+        materialGrade: (editInspectionOrderDetails as any).materialGrade || '',
+        materialSpecification: (editInspectionOrderDetails as any).materialSpecification || '',
+        materialSupplier: (editInspectionOrderDetails as any).materialSupplier || '',
         // Initialize the materials array with any existing materials
         materials: editInspectionOrderDetails.materials || [],
       });
@@ -1424,8 +1424,35 @@ export default function InspectionsPage() {
               <div className="pb-6">
                   <Form {...editForm}>
                     <form onSubmit={editForm.handleSubmit(handleUpdateInspectionOrder)} className="space-y-4 mb-6">
+                {/* Inspection Order No row - Added first above everything else */}
+                <div className="grid grid-cols-12 gap-4 mb-4">
+                  <div className="col-span-12">
+                    <FormField
+                      control={editForm.control}
+                      name="inspectionOrderNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Inspection Order No</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              readOnly
+                              className="bg-gray-50"
+                              placeholder="Inspection Order Number" 
+                            />
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Read-only
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+                
                 <div className="grid grid-cols-12 gap-4">
-                  {/* First line: Item Code, Description, and Drawing No with custom widths */}
+                  {/* Second line: Item Code, Description, and Drawing No with custom widths */}
                   <div className="col-span-3">
                     <FormField
                       control={editForm.control}
