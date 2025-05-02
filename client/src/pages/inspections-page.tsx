@@ -932,6 +932,59 @@ export default function InspectionsPage() {
     }
   }, [editInspectionOrderDetails, editForm]);
   
+  // Update NDT records when inspection order details are loaded
+  useEffect(() => {
+    if (editInspectionOrderDetails) {
+      // Check if the response has NDT data in the expected format
+      console.log("Checking for NDT data:", editInspectionOrderDetails);
+      
+      const ndtData = (editInspectionOrderDetails as any).ndtData || (editInspectionOrderDetails as any).ndt_data;
+      
+      if (ndtData) {
+        try {
+          // If the data is already parsed as an object, use it directly
+          // Otherwise, try to parse it from JSON string
+          const parsedNdtRecords = Array.isArray(ndtData) 
+            ? ndtData 
+            : typeof ndtData === 'string' 
+              ? JSON.parse(ndtData) 
+              : null;
+          
+          if (parsedNdtRecords && Array.isArray(parsedNdtRecords) && parsedNdtRecords.length > 0) {
+            console.log("Found NDT records:", parsedNdtRecords);
+            
+            // Map the NDT records to match our state format
+            const formattedRecords = parsedNdtRecords.map((record, index) => ({
+              id: record.id || `NDT-${index + 1}`,
+              ndtMethod: record.ndtMethod || record.method || 'rt',
+              ndtStandard: record.ndtStandard || record.standard || 'ASME',
+              ndtExtent: record.ndtExtent || record.extent || '10',
+              ndtTechnician: record.ndtTechnician || record.technician || '',
+              ndtDate: record.ndtDate || record.date || '',
+              ndtResults: record.ndtResults || record.results || 'Pass'
+            }));
+            
+            setNdtRecords(formattedRecords);
+            return;
+          }
+        } catch (error) {
+          console.error("Error parsing NDT records:", error);
+        }
+      }
+      
+      // If no valid NDT records were found, initialize with a default record
+      setNdtRecords([{
+        id: 'NDT-1',
+        ndtMethod: 'rt',
+        ndtStandard: 'ASME',
+        ndtExtent: '10',
+        ndtTechnician: '',
+        ndtDate: '',
+        ndtResults: 'Pass'
+      }]);
+    }
+  }, [editInspectionOrderDetails]);
+  
   // Helper function to sync material rows with form
   const syncMaterialRowsWithForm = () => {
     editForm.setValue('materials', materialRows);
