@@ -2287,6 +2287,7 @@ export const inspectionOrders = pgTable('inspection_orders', {
   itemId: integer('item_id').references(() => projectItems.id, { onDelete: 'set null' }),
   itemCode: text('item_code'),
   description: text('description').notNull(),
+  drawingNo: text('drawing_no'), // Added drawing number field
   workOrderId: integer('work_order_id').references(() => workOrders.id, { onDelete: 'set null' }),
   
   // Order details

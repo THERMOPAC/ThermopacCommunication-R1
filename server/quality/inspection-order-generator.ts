@@ -405,6 +405,29 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
         const masterItem = masterItemsMap.get(item.itemId);
         const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-${index + 1}`;
         
+        // Extract drawing number from master item or derive it from item code
+        let drawingNumber = masterItem?.drawingNo || "";
+        
+        // If no drawing number, try to extract it from item code
+        if (!drawingNumber && masterItem?.itemCode) {
+          const itemCode = masterItem.itemCode;
+          if (/^\d+$/.test(itemCode)) {
+            // For numeric drawing numbers, use as-is
+            drawingNumber = itemCode;
+          } else if (itemCode.includes('-')) {
+            // For alpha-numeric with hyphens, extract the part before the last segment
+            const parts = itemCode.split('-');
+            if (parts.length >= 2) {
+              drawingNumber = parts.slice(0, -1).join('-');
+            } else {
+              drawingNumber = itemCode;
+            }
+          } else {
+            // If no hyphen, use as-is
+            drawingNumber = itemCode;
+          }
+        }
+        
         // Create individual inspection order for this item
         const makeItemOrder = await db.insert(inspectionOrders).values({
           projectId: project.id,
@@ -419,6 +442,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           makeOrBuy: 'Make',
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
+          drawingNo: drawingNumber, // Add drawing number field
           sequenceNumber: nextSeqNumber + index,
           createdBy: req.user.id
         }).returning();
@@ -456,6 +480,29 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
         const masterItem = masterItemsMap.get(item.itemId);
         const buyInspectionOrderNumber = `IO-${year}-${projectNumber}-B-${index + 1}`;
         
+        // Extract drawing number from master item or derive it from item code
+        let drawingNumber = masterItem?.drawingNo || "";
+        
+        // If no drawing number, try to extract it from item code
+        if (!drawingNumber && masterItem?.itemCode) {
+          const itemCode = masterItem.itemCode;
+          if (/^\d+$/.test(itemCode)) {
+            // For numeric drawing numbers, use as-is
+            drawingNumber = itemCode;
+          } else if (itemCode.includes('-')) {
+            // For alpha-numeric with hyphens, extract the part before the last segment
+            const parts = itemCode.split('-');
+            if (parts.length >= 2) {
+              drawingNumber = parts.slice(0, -1).join('-');
+            } else {
+              drawingNumber = itemCode;
+            }
+          } else {
+            // If no hyphen, use as-is
+            drawingNumber = itemCode;
+          }
+        }
+        
         // Create individual inspection order for this item
         const buyItemOrder = await db.insert(inspectionOrders).values({
           projectId: project.id,
@@ -470,6 +517,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           makeOrBuy: 'Buy',
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
+          drawingNo: drawingNumber, // Add drawing number field
           sequenceNumber: nextSeqNumber + filteredMakeParentItems.length + index,
           createdBy: req.user.id
         }).returning();
@@ -509,6 +557,29 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
         const parentMasterItem = parentItem ? masterItemsMap.get(parentItem.itemId) : null;
         const componentInspectionOrderNumber = `IO-${year}-${projectNumber}-C-${index + 1}`;
         
+        // Extract drawing number from master item or derive it from item code
+        let drawingNumber = masterItem?.drawingNo || "";
+        
+        // If no drawing number, try to extract it from item code
+        if (!drawingNumber && masterItem?.itemCode) {
+          const itemCode = masterItem.itemCode;
+          if (/^\d+$/.test(itemCode)) {
+            // For numeric drawing numbers, use as-is
+            drawingNumber = itemCode;
+          } else if (itemCode.includes('-')) {
+            // For alpha-numeric with hyphens, extract the part before the last segment
+            const parts = itemCode.split('-');
+            if (parts.length >= 2) {
+              drawingNumber = parts.slice(0, -1).join('-');
+            } else {
+              drawingNumber = itemCode;
+            }
+          } else {
+            // If no hyphen, use as-is
+            drawingNumber = itemCode;
+          }
+        }
+        
         // Create individual inspection order for this component
         const componentItemOrder = await db.insert(inspectionOrders).values({
           projectId: project.id,
@@ -523,6 +594,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
+          drawingNo: drawingNumber, // Add drawing number field
           parentItemId: item.parentItemId,
           sequenceNumber: nextSeqNumber + filteredMakeParentItems.length + filteredBuyParentItems.length + index,
           createdBy: req.user.id
