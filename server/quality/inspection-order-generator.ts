@@ -64,7 +64,11 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'No project items found for this project' });
     }
     
-    console.log(`Found ${projectItemsList.length} project items`);
+    console.log(`Found ${projectItemsList.length} project items for project ${projectId} (${project.code})`);
+    // Print the first few items for debugging
+    if (projectItemsList.length > 0) {
+      console.log(`First project item: ${JSON.stringify(projectItemsList[0])}`);
+    }
     
     // Get all master items for these project items
     const masterItemIds = projectItemsList.map(item => item.itemId);
@@ -292,6 +296,12 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     
     if (!projectItemsList.length) {
       return res.status(404).json({ error: 'No project items found for this project' });
+    }
+    
+    console.log(`Found ${projectItemsList.length} project items for project ${projectId} (${project.code}) - generation mode`);
+    // Print the first few items for debugging
+    if (projectItemsList.length > 0) {
+      console.log(`First project item (generation): ${JSON.stringify(projectItemsList[0])}`);
     }
     
     // Get all master items for these project items
