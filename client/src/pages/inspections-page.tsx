@@ -248,12 +248,12 @@ export default function InspectionsPage() {
     observations: string;
   }[]>([{
     id: 'VI-1',
-    standard: 'ISO 13920',
+    standard: 'ASME',
     inspector: '',
     dimensionalChecks: 'acceptable',
     surfaceCondition: 'acceptable',
     inspectionDate: '',
-    observations: ''
+    observations: 'Pass'
   }]);
   const [editingVisualIndex, setEditingVisualIndex] = useState<number | null>(null);
   
@@ -476,12 +476,12 @@ export default function InspectionsPage() {
       ...visualRecords, 
       {
         id: `VI-${newVisualNumber}`,
-        standard: 'ISO 13920',
+        standard: 'ASME',
         inspector: '',
         dimensionalChecks: 'acceptable',
         surfaceCondition: 'acceptable',
         inspectionDate: '',
-        observations: ''
+        observations: 'Pass'
       }
     ]);
   };
@@ -2864,9 +2864,9 @@ export default function InspectionsPage() {
                             <TableRow>
                               <TableHead>ID</TableHead>
                               <TableHead>Standard</TableHead>
-                              <TableHead>Inspector</TableHead>
                               <TableHead>Dimensional Checks</TableHead>
                               <TableHead>Surface Condition</TableHead>
+                              <TableHead>Inspector</TableHead>
                               <TableHead>Date</TableHead>
                               <TableHead>Observations</TableHead>
                               <TableHead className="text-right">Actions</TableHead>
