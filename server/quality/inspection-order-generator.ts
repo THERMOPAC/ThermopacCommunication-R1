@@ -122,34 +122,22 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       }
     });
     
-    // Check if we need to handle missing parentItemId field
-    const hasParentItemIdField = projectItemsList.length > 0 && 'parentItemId' in projectItemsList[0];
-    console.log(`Project items have parentItemId field: ${hasParentItemIdField}`);
+    console.log(`Total project items: ${projectItemsList.length}`);
     
-    // Separate items into parent "Make" items and "Buy" items
+    // Separate items into "Make" items and "Buy" items
+    // Simplified approach: treat all items as parent items
     const makeParentItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
-      if (!masterItem) return false;
-      
-      if (hasParentItemIdField) {
-        return masterItem.makeOrBuy === 'Make' && !item.parentItemId;
-      } else {
-        // If parentItemId doesn't exist in schema, treat all Make items as parent items
-        return masterItem.makeOrBuy === 'Make';
-      }
+      return masterItem?.makeOrBuy === 'Make';
     });
     
     const buyParentItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
-      if (!masterItem) return false;
-      
-      if (hasParentItemIdField) {
-        return masterItem.makeOrBuy === 'Buy' && !item.parentItemId;
-      } else {
-        // If parentItemId doesn't exist in schema, treat all Buy items as parent items
-        return masterItem.makeOrBuy === 'Buy';
-      }
+      return masterItem?.makeOrBuy === 'Buy';
     });
+    
+    console.log(`Found ${makeParentItems.length} make items and ${buyParentItems.length} buy items before filtering`);
+    
     
     // Find all child components for the Make items
     // Create a map of parent to children for faster lookups
@@ -357,33 +345,18 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       }
     });
     
-    // Check if we need to handle missing parentItemId field
-    const hasParentItemIdField = projectItemsList.length > 0 && 'parentItemId' in projectItemsList[0];
-    console.log(`Project items have parentItemId field: ${hasParentItemIdField} (generation mode)`);
+    console.log(`Total project items: ${projectItemsList.length} (generation mode)`);
     
-    // Separate items into parent "Make" items and "Buy" items
+    // Separate items into "Make" items and "Buy" items
+    // Simplified approach: treat all items as parent items
     const makeParentItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
-      if (!masterItem) return false;
-      
-      if (hasParentItemIdField) {
-        return masterItem.makeOrBuy === 'Make' && !item.parentItemId;
-      } else {
-        // If parentItemId doesn't exist in schema, treat all Make items as parent items
-        return masterItem.makeOrBuy === 'Make';
-      }
+      return masterItem?.makeOrBuy === 'Make';
     });
     
     const buyParentItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
-      if (!masterItem) return false;
-      
-      if (hasParentItemIdField) {
-        return masterItem.makeOrBuy === 'Buy' && !item.parentItemId;
-      } else {
-        // If parentItemId doesn't exist in schema, treat all Buy items as parent items
-        return masterItem.makeOrBuy === 'Buy';
-      }
+      return masterItem?.makeOrBuy === 'Buy';
     });
     
     // Find all child components for the Make items
