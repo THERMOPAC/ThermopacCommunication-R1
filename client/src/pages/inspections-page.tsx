@@ -1235,7 +1235,7 @@ export default function InspectionsPage() {
                   <TableCaption>Inspection orders for the selected project.</TableCaption>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[150px]">Order #</TableHead>
+                      <TableHead className="w-[300px]">Order #</TableHead>
                       <TableHead className="w-[600px]">Description</TableHead>
                       <TableHead>Drawing No</TableHead>
                       <TableHead>Status</TableHead>
@@ -1252,34 +1252,39 @@ export default function InspectionsPage() {
                         <TableCell>{getStatusBadge(order.status)}</TableCell>
                         <TableCell>{order.quantity} {order.unit}</TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1 justify-center">
                             <Button 
-                              variant="outline" 
-                              size="sm"
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8"
+                              title="View"
                               onClick={() => {
                                 setSelectedInspectionOrder(order.id);
                                 setIsDetailsDialogOpen(true);
                               }}
                             >
-                              <Eye className="h-4 w-4 mr-1" /> View
+                              <Eye className="h-4 w-4" />
                             </Button>
                             <Button 
-                              variant="outline" 
-                              size="sm"
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8"
+                              title="Edit"
                               onClick={() => {
                                 setEditingInspectionOrder(order.id);
                                 setIsEditDialogOpen(true);
                               }}
                             >
-                              <Edit2 className="h-4 w-4 mr-1" /> Edit
+                              <Edit2 className="h-4 w-4" />
                             </Button>
                             <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="text-red-500 hover:text-red-700"
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              title="Delete"
                               onClick={() => handleDeleteInspectionOrder(order.id)}
                             >
-                              <Trash2 className="h-4 w-4 mr-1" /> Delete
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </TableCell>
