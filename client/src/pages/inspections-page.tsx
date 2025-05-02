@@ -183,6 +183,26 @@ export default function InspectionsPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingInspectionOrder, setEditingInspectionOrder] = useState<number | null>(null);
+  
+  // Weld management state
+  const [welds, setWelds] = useState<{
+    id: string;
+    weldType: string;
+    weldProcess: string;
+    weldingProcedure: string;
+    welderId: string;
+    weldingNotes: string;
+  }[]>([{
+    id: 'W-1',
+    weldType: '',
+    weldProcess: '',
+    weldingProcedure: '',
+    welderId: '',
+    weldingNotes: ''
+  }]);
+  const [editingWeldIndex, setEditingWeldIndex] = useState<number | null>(null);
+  
+  // Material rows state
   const [materialRows, setMaterialRows] = useState<{
     id?: number;
     materialId?: number;
@@ -282,6 +302,54 @@ export default function InspectionsPage() {
       'saw': 'SAW (Submerged Arc Welding)'
     };
     return weldProcesses[weldProcess] || weldProcess;
+  };
+  
+  // Add new weld
+  const addWeld = () => {
+    const newWeldNumber = welds.length + 1;
+    setWelds([
+      ...welds, 
+      {
+        id: `W-${newWeldNumber}`,
+        weldType: '',
+        weldProcess: '',
+        weldingProcedure: '',
+        welderId: '',
+        weldingNotes: ''
+      }
+    ]);
+  };
+  
+  // Delete a weld
+  const deleteWeld = (index: number) => {
+    const updatedWelds = [...welds];
+    updatedWelds.splice(index, 1);
+    
+    // Renumber welds after deletion
+    const renumberedWelds = updatedWelds.map((weld, idx) => ({
+      ...weld,
+      id: `W-${idx + 1}`
+    }));
+    
+    setWelds(renumberedWelds);
+    if (editingWeldIndex === index) {
+      setEditingWeldIndex(null);
+    }
+  };
+  
+  // Edit a weld
+  const startEditingWeld = (index: number) => {
+    setEditingWeldIndex(index);
+  };
+  
+  // Update a weld field
+  const updateWeldField = (index: number, field: string, value: string) => {
+    const updatedWelds = [...welds];
+    updatedWelds[index] = {
+      ...updatedWelds[index],
+      [field]: value
+    };
+    setWelds(updatedWelds);
   };
   
   // Fetch projects for dropdown
@@ -2097,226 +2165,152 @@ export default function InspectionsPage() {
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Welding & Weld Maps</h3>
                       
-                      {/* Add state for welds */}
-                      {(() => {
-                        // Local state for welds management
-                        const [welds, setWelds] = React.useState<{
-                          id: string;
-                          weldType: string;
-                          weldProcess: string;
-                          weldingProcedure: string;
-                          welderId: string;
-                          weldingNotes: string;
-                        }[]>([{
-                          id: 'W-1',
-                          weldType: '',
-                          weldProcess: '',
-                          weldingProcedure: '',
-                          welderId: '',
-                          weldingNotes: ''
-                        }]);
-                        
-                        const [editingWeldIndex, setEditingWeldIndex] = React.useState<number | null>(null);
-                        
-                        // Add new weld
-                        const addWeld = () => {
-                          const newWeldNumber = welds.length + 1;
-                          setWelds([
-                            ...welds, 
-                            {
-                              id: `W-${newWeldNumber}`,
-                              weldType: '',
-                              weldProcess: '',
-                              weldingProcedure: '',
-                              welderId: '',
-                              weldingNotes: ''
-                            }
-                          ]);
-                        };
-                        
-                        // Delete a weld
-                        const deleteWeld = (index: number) => {
-                          const updatedWelds = [...welds];
-                          updatedWelds.splice(index, 1);
-                          
-                          // Renumber welds after deletion
-                          const renumberedWelds = updatedWelds.map((weld, idx) => ({
-                            ...weld,
-                            id: `W-${idx + 1}`
-                          }));
-                          
-                          setWelds(renumberedWelds);
-                          if (editingWeldIndex === index) {
-                            setEditingWeldIndex(null);
-                          }
-                        };
-                        
-                        // Edit a weld
-                        const startEditingWeld = (index: number) => {
-                          setEditingWeldIndex(index);
-                        };
-                        
-                        // Update a weld field
-                        const updateWeldField = (index: number, field: string, value: string) => {
-                          const updatedWelds = [...welds];
-                          updatedWelds[index] = {
-                            ...updatedWelds[index],
-                            [field]: value
-                          };
-                          setWelds(updatedWelds);
-                        };
-                        
-                        return (
-                          <>
-                            {/* Weld list */}
-                            <div className="border rounded-md shadow-sm overflow-hidden">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="w-[80px]">Actions</TableHead>
-                                    <TableHead className="w-[80px]">Weld ID</TableHead>
-                                    <TableHead className="w-[150px]">Weld Type</TableHead>
-                                    <TableHead className="w-[200px]">Weld Process</TableHead>
-                                    <TableHead className="w-[200px]">WPS</TableHead>
-                                    <TableHead className="w-[150px]">Welder ID/Name</TableHead>
-                                    <TableHead>Notes</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {welds.map((weld, index) => (
-                                    <TableRow key={weld.id}>
-                                      <TableCell>
-                                        <div className="flex items-center space-x-1">
-                                          <Button 
-                                            type="button" 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            onClick={() => startEditingWeld(index)}
-                                            className="h-7 w-7"
-                                          >
-                                            <Pencil className="h-3.5 w-3.5" />
-                                          </Button>
-                                          <Button 
-                                            type="button" 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            onClick={() => deleteWeld(index)}
-                                            className="h-7 w-7 text-destructive"
-                                          >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                          </Button>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="font-medium">{weld.id}</TableCell>
-                                      <TableCell>
-                                        {editingWeldIndex === index ? (
-                                          <Select 
-                                            value={weld.weldType}
-                                            onValueChange={(value) => updateWeldField(index, 'weldType', value)}
-                                          >
-                                            <SelectTrigger className="w-full">
-                                              <SelectValue placeholder="Select type" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="butt">Butt Weld</SelectItem>
-                                              <SelectItem value="fillet">Fillet Weld</SelectItem>
-                                              <SelectItem value="spot">Spot Weld</SelectItem>
-                                              <SelectItem value="seam">Seam Weld</SelectItem>
-                                              <SelectItem value="lap">Lap Weld</SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                        ) : (
-                                          weld.weldType ? getWeldTypeName(weld.weldType) : "-"
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        {editingWeldIndex === index ? (
-                                          <Select 
-                                            value={weld.weldProcess}
-                                            onValueChange={(value) => updateWeldField(index, 'weldProcess', value)}
-                                          >
-                                            <SelectTrigger className="w-full">
-                                              <SelectValue placeholder="Select process" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="smaw">SMAW (Shielded Metal Arc Welding)</SelectItem>
-                                              <SelectItem value="gtaw">GTAW (TIG Welding)</SelectItem>
-                                              <SelectItem value="gmaw">GMAW (MIG Welding)</SelectItem>
-                                              <SelectItem value="fcaw">FCAW (Flux-Cored Arc Welding)</SelectItem>
-                                              <SelectItem value="saw">SAW (Submerged Arc Welding)</SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                        ) : (
-                                          weld.weldProcess ? getWeldProcessName(weld.weldProcess) : "-"
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        {editingWeldIndex === index ? (
-                                          <Input 
-                                            value={weld.weldingProcedure} 
-                                            onChange={(e) => updateWeldField(index, 'weldingProcedure', e.target.value)}
-                                            placeholder="Enter WPS reference"
-                                          />
-                                        ) : (
-                                          weld.weldingProcedure || "-"
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        {editingWeldIndex === index ? (
-                                          <Input 
-                                            value={weld.welderId} 
-                                            onChange={(e) => updateWeldField(index, 'welderId', e.target.value)}
-                                            placeholder="Enter welder ID/name"
-                                          />
-                                        ) : (
-                                          weld.welderId || "-"
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        {editingWeldIndex === index ? (
-                                          <Input 
-                                            value={weld.weldingNotes} 
-                                            onChange={(e) => updateWeldField(index, 'weldingNotes', e.target.value)}
-                                            placeholder="Enter notes"
-                                          />
-                                        ) : (
-                                          weld.weldingNotes || "-"
-                                        )}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
-                            
-                            {/* Action buttons */}
-                            <div className="flex items-center justify-between mt-4">
-                              <div>
-                                <Button 
-                                  type="button" 
-                                  variant="default" 
-                                  size="sm" 
-                                  onClick={addWeld}
-                                  className="mr-2"
-                                >
-                                  <Plus className="h-4 w-4 mr-2" />
-                                  Add Weld
-                                </Button>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button type="button" variant="outline" size="sm">
-                                  <FileText className="h-4 w-4 mr-2" />
-                                  Upload Weld Map
-                                </Button>
-                                <Button type="button" variant="outline" size="sm">
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Attachments
-                                </Button>
-                              </div>
-                            </div>
-                          </>
-                        );
-                      })()}
+                      {/* Weld list */}
+                      <div className="border rounded-md shadow-sm overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[80px]">Actions</TableHead>
+                              <TableHead className="w-[80px]">Weld ID</TableHead>
+                              <TableHead className="w-[150px]">Weld Type</TableHead>
+                              <TableHead className="w-[200px]">Weld Process</TableHead>
+                              <TableHead className="w-[200px]">WPS</TableHead>
+                              <TableHead className="w-[150px]">Welder ID/Name</TableHead>
+                              <TableHead>Notes</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {welds.map((weld, index) => (
+                              <TableRow key={weld.id}>
+                                <TableCell>
+                                  <div className="flex items-center space-x-1">
+                                    <Button 
+                                      type="button" 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      onClick={() => startEditingWeld(index)}
+                                      className="h-7 w-7"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button 
+                                      type="button" 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      onClick={() => deleteWeld(index)}
+                                      className="h-7 w-7 text-destructive"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-medium">{weld.id}</TableCell>
+                                <TableCell>
+                                  {editingWeldIndex === index ? (
+                                    <Select 
+                                      value={weld.weldType}
+                                      onValueChange={(value) => updateWeldField(index, 'weldType', value)}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select type" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="butt">Butt Weld</SelectItem>
+                                        <SelectItem value="fillet">Fillet Weld</SelectItem>
+                                        <SelectItem value="spot">Spot Weld</SelectItem>
+                                        <SelectItem value="seam">Seam Weld</SelectItem>
+                                        <SelectItem value="lap">Lap Weld</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    weld.weldType ? getWeldTypeName(weld.weldType) : "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingWeldIndex === index ? (
+                                    <Select 
+                                      value={weld.weldProcess}
+                                      onValueChange={(value) => updateWeldField(index, 'weldProcess', value)}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select process" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="smaw">SMAW (Shielded Metal Arc Welding)</SelectItem>
+                                        <SelectItem value="gtaw">GTAW (TIG Welding)</SelectItem>
+                                        <SelectItem value="gmaw">GMAW (MIG Welding)</SelectItem>
+                                        <SelectItem value="fcaw">FCAW (Flux-Cored Arc Welding)</SelectItem>
+                                        <SelectItem value="saw">SAW (Submerged Arc Welding)</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    weld.weldProcess ? getWeldProcessName(weld.weldProcess) : "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingWeldIndex === index ? (
+                                    <Input 
+                                      value={weld.weldingProcedure} 
+                                      onChange={(e) => updateWeldField(index, 'weldingProcedure', e.target.value)}
+                                      placeholder="Enter WPS reference"
+                                    />
+                                  ) : (
+                                    weld.weldingProcedure || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingWeldIndex === index ? (
+                                    <Input 
+                                      value={weld.welderId} 
+                                      onChange={(e) => updateWeldField(index, 'welderId', e.target.value)}
+                                      placeholder="Enter welder ID/name"
+                                    />
+                                  ) : (
+                                    weld.welderId || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingWeldIndex === index ? (
+                                    <Input 
+                                      value={weld.weldingNotes} 
+                                      onChange={(e) => updateWeldField(index, 'weldingNotes', e.target.value)}
+                                      placeholder="Enter notes"
+                                    />
+                                  ) : (
+                                    weld.weldingNotes || "-"
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-between mt-4">
+                        <div>
+                          <Button 
+                            type="button" 
+                            variant="default" 
+                            size="sm" 
+                            onClick={addWeld}
+                            className="mr-2"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Weld
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="outline" size="sm">
+                            <FileText className="h-4 w-4 mr-2" />
+                            Upload Weld Map
+                          </Button>
+                          <Button type="button" variant="outline" size="sm">
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Attachments
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </TabsContent>
                   
