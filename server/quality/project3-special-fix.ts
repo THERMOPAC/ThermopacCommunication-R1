@@ -96,7 +96,7 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
     if (existingInspectionOrders.length > 0) {
       // Find the highest IO number to generate sequential numbers
       for (const order of existingInspectionOrders) {
-        const match = order.ioNumber.match(/IO-\d+-\d+-[MB]-(\d+)/);
+        const match = order.inspectionOrderNumber.match(/IO-\d+-\d+-[MB]-(\d+)/);
         if (match && match[1]) {
           const orderNum = parseInt(match[1]);
           if (orderNum > maxOrderNumber) {
