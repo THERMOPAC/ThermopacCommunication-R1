@@ -37,6 +37,7 @@ interface PreviewItem {
  * Generate a preview of inspection orders for a project
  */
 export const previewInspectionOrders = async (req: Request, res: Response) => {
+  console.log("\n\n======================= INSPECTION ORDER PREVIEW - START =======================");
   const projectId = parseInt(req.params.projectId);
   
   if (isNaN(projectId)) {
@@ -108,6 +109,20 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     
     console.log(`Found ${projectItemsWithInspectionOrders.size} project items with existing inspection orders`);
     
+    // Log sample items for debugging
+    console.log(`\nSample project items with their master items:`);
+    projectItemsList.slice(0, 5).forEach((item, index) => {
+      const masterItem = masterItemsMap.get(item.itemId);
+      if (masterItem) {
+        console.log(`Project Item ${index+1}: ID=${item.id}, Master ID=${item.itemId}, Make/Buy=${masterItem.makeOrBuy}, Code=${masterItem.itemCode}`);
+      } else {
+        console.log(`Project Item ${index+1}: ID=${item.id}, Master ID=${item.itemId} - WARNING: No matching master item found!`);
+      }
+    });
+    if (projectItemsList.length > 5) {
+      console.log(`... and ${projectItemsList.length - 5} more items (showing only first 5)`);
+    }
+    
     // Separate items into "Make" items and "Buy" items
     const makeItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
@@ -120,6 +135,27 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     });
     
     console.log(`Found ${makeItems.length} make items and ${buyItems.length} buy items before filtering`);
+    
+    // Log some sample make and buy items
+    if (makeItems.length > 0) {
+      console.log(`Sample make items (first 3):`);
+      makeItems.slice(0, 3).forEach(item => {
+        const masterItem = masterItemsMap.get(item.itemId);
+        console.log(`  Make Item: ID=${item.id}, Master ID=${item.itemId}, Code=${masterItem?.itemCode}`);
+      });
+    } else {
+      console.log(`WARNING: No make items found!`);
+    }
+    
+    if (buyItems.length > 0) {
+      console.log(`Sample buy items (first 3):`);
+      buyItems.slice(0, 3).forEach(item => {
+        const masterItem = masterItemsMap.get(item.itemId);
+        console.log(`  Buy Item: ID=${item.id}, Master ID=${item.itemId}, Code=${masterItem?.itemCode}`);
+      });
+    } else {
+      console.log(`WARNING: No buy items found!`);
+    }
     
     // Try to build parent-child relationships if possible
     // We need to handle both cases: with and without parentItemId field
