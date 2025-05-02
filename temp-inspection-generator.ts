@@ -53,6 +53,7 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Project not found' });
     }
     
+    console.log(`======= DEBUGGING INSPECTION ORDER GENERATION =======`);
     console.log(`Generating inspection orders preview for project ${projectId}: ${project.code}`);
     
     // Fetch all project items
@@ -69,6 +70,8 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     // Print the first few items for debugging
     if (projectItemsList.length > 0) {
       console.log(`First project item: ${JSON.stringify(projectItemsList[0])}`);
+      // Check if parentItemId exists in the schema
+      console.log(`Does first item have parentItemId property? ${projectItemsList[0].hasOwnProperty('parentItemId')}`);
       console.log(`First item properties: ${Object.keys(projectItemsList[0]).join(', ')}`);
     }
     
@@ -85,6 +88,8 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     // Show first master item for debugging
     if (masterItemsArray.length > 0) {
       console.log(`First master item: ${JSON.stringify(masterItemsArray[0])}`);
+      // Check if makeOrBuy exists
+      console.log(`Does first master item have makeOrBuy property? ${masterItemsArray[0].hasOwnProperty('makeOrBuy')}`);
       console.log(`First master item properties: ${Object.keys(masterItemsArray[0]).join(', ')}`);
     } else {
       console.log(`WARNING: No master items found for project ${projectId}!`);
@@ -122,51 +127,52 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       }
     });
     
-    // Check if we need to handle missing parentItemId field
-    const hasParentItemIdField = projectItemsList.length > 0 && 'parentItemId' in projectItemsList[0];
-    console.log(`Project items have parentItemId field: ${hasParentItemIdField}`);
-    
     // Separate items into parent "Make" items and "Buy" items
+    // Handle case where parentItemId might not exist in schema
+    console.log(`Project ID ${projectId}: Checking for parentItemId field in project items...`);
+    const hasParentField = projectItemsList.length > 0 ? Object.prototype.hasOwnProperty.call(projectItemsList[0], "parentItemId") : false;
+    console.log(`Project ID ${projectId}: parentItemId field exists: ${hasParentField}`);
+    
     const makeParentItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
       if (!masterItem) return false;
       
-      if (hasParentItemIdField) {
-        return masterItem.makeOrBuy === 'Make' && !item.parentItemId;
+      // Only check parentItemId if the field exists in schema
+      if (hasParentField) {
+        return masterItem.makeOrBuy === "Make" && !item.parentItemId;
       } else {
         // If parentItemId doesn't exist in schema, treat all Make items as parent items
-        return masterItem.makeOrBuy === 'Make';
+        return masterItem.makeOrBuy === "Make";
+    projectItemsList.forEach(item => {
+      // Only map parent-child relationships if the parentItemId field exists
+      if (hasParentField && item.parentItemId) {
+        if (!parentToChildrenMap.has(item.parentItemId)) {
+          parentToChildrenMap.set(item.parentItemId, []);
+        }
+        parentToChildrenMap.get(item.parentItemId).push(item);
+        childToParentMap.set(item.id, item.parentItemId);
       }
     });
-    
-    const buyParentItems = projectItemsList.filter(item => {
-      const masterItem = masterItemsMap.get(item.itemId);
-      if (!masterItem) return false;
-      
-      if (hasParentItemIdField) {
-        return masterItem.makeOrBuy === 'Buy' && !item.parentItemId;
+        return masterItem.makeOrBuy === "Buy" && !item.parentItemId;
       } else {
         // If parentItemId doesn't exist in schema, treat all Buy items as parent items
-        return masterItem.makeOrBuy === 'Buy';
+        return masterItem.makeOrBuy === "Buy";
       }
     });
-    
+
     // Find all child components for the Make items
     // Create a map of parent to children for faster lookups
     const parentToChildrenMap = new Map();
     const childToParentMap = new Map();
-    
-    if (hasParentItemIdField) {
-      projectItemsList.forEach(item => {
-        if (item.parentItemId) {
-          if (!parentToChildrenMap.has(item.parentItemId)) {
-            parentToChildrenMap.set(item.parentItemId, []);
-          }
-          parentToChildrenMap.get(item.parentItemId).push(item);
-          childToParentMap.set(item.id, item.parentItemId);
+    projectItemsList.forEach(item => {
+      if (item.parentItemId) {
+        if (!parentToChildrenMap.has(item.parentItemId)) {
+          parentToChildrenMap.set(item.parentItemId, []);
         }
-      });
-    }
+        parentToChildrenMap.get(item.parentItemId).push(item);
+        childToParentMap.set(item.id, item.parentItemId);
+      }
+    });
     
     // Function to get all descendants of a parent item
     const getAllDescendants = (parentItemId: number, depth = 0): any[] => {
@@ -331,22 +337,49 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     }
     
     console.log(`Found ${projectItemsList.length} project items for project ${projectId} (${project.code}) - generation mode`);
-    
-    // Get all master items for these project items
-    const masterItemIds = projectItemsList.map(item => item.itemId);
-    const masterItemsArray = await db.query.masterItems.findMany({
-      where: inArray(masterItems.id, masterItemIds)
+    // Print the first few items for debugging
+    if (projectItemsList.length > 0) {
+      console.log(`First project item (generation): ${JSON.stringify(projectItemsList[0])}`);
+    // Create a set of item IDs that already have inspection orders
+    const itemsWithInspectionOrders = new Set();
+    existingInspectionOrders.forEach(order => {
+      if (order.itemId) {
+        itemsWithInspectionOrders.add(order.itemId);
+      }
     });
     
-    // Create a map for faster lookups
-    const masterItemsMap = new Map();
-    masterItemsArray.forEach(item => {
-      masterItemsMap.set(item.id, item);
-    });
+    // Check if parentItemId field exists in project items
+    console.log(`Project ID ${projectId}: Checking for parentItemId field in project items (generation mode)...`);
+    const hasParentField = projectItemsList.length > 0 ? Object.prototype.hasOwnProperty.call(projectItemsList[0], "parentItemId") : false;
+    console.log(`Project ID ${projectId}: parentItemId field exists: ${hasParentField} (generation mode)`);
     
-    // Get existing inspection orders for this project to avoid duplicates
-    const existingInspectionOrders = await db.query.inspectionOrders.findMany({
-      where: eq(inspectionOrders.projectId, projectId)
+    // Separate items into parent "Make" items and "Buy" items
+    const makeParentItems = projectItemsList.filter(item => {
+      const masterItem = masterItemsMap.get(item.itemId);
+      if (!masterItem) return false;
+      
+      // Only check parentItemId if the field exists in schema
+      if (hasParentField) {
+        return masterItem.makeOrBuy === "Make" && !item.parentItemId;
+      } else {
+    projectItemsList.forEach(item => {
+      // Only map parent-child relationships if the parentItemId field exists
+      if (hasParentField && item.parentItemId) {
+        if (!parentToChildrenMap.has(item.parentItemId)) {
+          parentToChildrenMap.set(item.parentItemId, []);
+        }
+        parentToChildrenMap.get(item.parentItemId).push(item);
+        childToParentMap.set(item.id, item.parentItemId);
+      }
+    });
+      // Only check parentItemId if the field exists in schema
+      if (hasParentField) {
+        return masterItem.makeOrBuy === "Buy" && !item.parentItemId;
+      } else {
+        // If parentItemId doesn't exist in schema, treat all Buy items as parent items
+        return masterItem.makeOrBuy === "Buy";
+      }
+    });
     });
     
     // Create a set of item IDs that already have inspection orders
@@ -357,33 +390,15 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       }
     });
     
-    // Check if we need to handle missing parentItemId field
-    const hasParentItemIdField = projectItemsList.length > 0 && 'parentItemId' in projectItemsList[0];
-    console.log(`Project items have parentItemId field: ${hasParentItemIdField} (generation mode)`);
-    
     // Separate items into parent "Make" items and "Buy" items
     const makeParentItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
-      if (!masterItem) return false;
-      
-      if (hasParentItemIdField) {
-        return masterItem.makeOrBuy === 'Make' && !item.parentItemId;
-      } else {
-        // If parentItemId doesn't exist in schema, treat all Make items as parent items
-        return masterItem.makeOrBuy === 'Make';
-      }
+      return masterItem?.makeOrBuy === 'Make' && !item.parentItemId;
     });
     
     const buyParentItems = projectItemsList.filter(item => {
       const masterItem = masterItemsMap.get(item.itemId);
-      if (!masterItem) return false;
-      
-      if (hasParentItemIdField) {
-        return masterItem.makeOrBuy === 'Buy' && !item.parentItemId;
-      } else {
-        // If parentItemId doesn't exist in schema, treat all Buy items as parent items
-        return masterItem.makeOrBuy === 'Buy';
-      }
+      return masterItem?.makeOrBuy === 'Buy' && !item.parentItemId;
     });
     
     // Find all child components for the Make items
@@ -391,17 +406,15 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     const parentToChildrenMap = new Map();
     const childToParentMap = new Map();
     
-    if (hasParentItemIdField) {
-      projectItemsList.forEach(item => {
-        if (item.parentItemId) {
-          if (!parentToChildrenMap.has(item.parentItemId)) {
-            parentToChildrenMap.set(item.parentItemId, []);
-          }
-          parentToChildrenMap.get(item.parentItemId).push(item);
-          childToParentMap.set(item.id, item.parentItemId);
+    projectItemsList.forEach(item => {
+      if (item.parentItemId) {
+        if (!parentToChildrenMap.has(item.parentItemId)) {
+          parentToChildrenMap.set(item.parentItemId, []);
         }
-      });
-    }
+        parentToChildrenMap.get(item.parentItemId).push(item);
+        childToParentMap.set(item.id, item.parentItemId);
+      }
+    });
     
     // Function to get all descendants of a parent item
     const getAllDescendants = (parentItemId: number, depth = 0): any[] => {
@@ -613,8 +626,8 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       for (const [index, item] of filteredComponentItems.entries()) {
         console.log(`Creating component order ${index + 1}/${filteredComponentItems.length}: Item ID ${item.id}`);
         const masterItem = masterItemsMap.get(item.itemId);
-        const parentItemId = childToParentMap.get(item.id);
-        const parentMasterItem = parentItemId ? masterItemsMap.get(parentItemId) : null;
+        const parentItem = projectItemsList.find(parent => parent.id === item.parentItemId);
+        const parentMasterItem = parentItem ? masterItemsMap.get(parentItem.itemId) : null;
         const componentInspectionOrderNumber = `IO-${year}-${projectNumber}-C-${index + 1}`;
         
         // Extract drawing number from master item or derive it from item code
@@ -646,16 +659,16 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           projectCode: project.code,
           inspectionOrderNumber: componentInspectionOrderNumber,
           title: `Component Inspection - ${masterItem?.itemCode || 'Unknown'}`,
-          description: masterItem?.description || 'No description',
+          description: `${masterItem?.description || 'No description'} (for ${parentMasterItem?.itemCode || 'Unknown'})`,
           status: 'pending',
           inspectionType: 'in-process',
           quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
-          makeOrBuy: masterItem?.makeOrBuy || 'Make',
+          makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
           drawingNo: drawingNumber, // Add drawing number field
-          parentItemCode: parentMasterItem?.itemCode || null,
+          parentItemId: item.parentItemId,
           sequenceNumber: nextSeqNumber + filteredMakeParentItems.length + filteredBuyParentItems.length + index,
           createdBy: req.user.id
         }).returning();
@@ -667,30 +680,35 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           inspectionOrderId: componentItemOrder[0].id,
           itemId: item.id,
           itemCode: masterItem?.itemCode || 'Unknown',
-          description: masterItem?.description || 'No description',
+          description: `${masterItem?.description || 'No description'} (for ${parentMasterItem?.itemCode || 'Unknown'})`,
           quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
-          makeOrBuy: masterItem?.makeOrBuy || 'Make',
-          sequenceNumber: 1, // Only one item per order
-          parentItemCode: parentMasterItem?.itemCode || null
+          makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
+          sequenceNumber: 1 // Only one item per order
         }).returning();
         
         createdInspectionOrderItems.push(orderItem[0]);
       }
     }
     
+    // Return success response with created inspection orders information
+    console.log(`Orders generation complete: Created ${createdInspectionOrders.length} orders from ${filteredMakeParentItems.length} make items, ${filteredBuyParentItems.length} buy items, and ${filteredComponentItems.length} component items.`);
+    
     return res.status(200).json({
-      success: true,
-      message: `Created ${createdInspectionOrders.length} inspection orders successfully`,
-      orders: createdInspectionOrders,
-      skippedItemCount
+      message: 'Inspection orders generated successfully',
+      count: createdInspectionOrders.length,
+      makeParentCount: filteredMakeParentItems.length,
+      buyParentCount: filteredBuyParentItems.length,
+      componentCount: filteredComponentItems.length,
+      skippedItems: skippedItemCount,
+      totalInspectionOrderItems: createdInspectionOrderItems.length
     });
     
   } catch (error) {
     console.error('Error generating inspection orders:', error);
     return res.status(500).json({ 
       error: 'Failed to generate inspection orders',
-      details: error.message
+      details: error.message 
     });
   }
 };
