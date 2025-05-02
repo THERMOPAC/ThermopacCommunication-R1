@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
+import { Check, Edit, Trash } from "lucide-react";
 import { 
   Card, 
   CardContent, 
