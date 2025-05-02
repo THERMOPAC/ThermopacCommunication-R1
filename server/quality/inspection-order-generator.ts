@@ -179,10 +179,16 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     console.log(`Found ${allComponentItems.length} component items (children of make items)`);
     
     // Filter out items that already have inspection orders
-    // comparing against project item ID
-    const filteredMakeItems = makeItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
-    const filteredBuyItems = buyItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
-    const filteredComponentItems = allComponentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
+    // Important: Since we're managing a clean slate (all inspection orders have been deleted),
+    // we should have all items available for inspection order generation
+    const filteredMakeItems = makeItems;
+    const filteredBuyItems = buyItems;
+    const filteredComponentItems = allComponentItems;
+    
+    // Uncomment this if you want to filter out items that already have inspection orders
+    // const filteredMakeItems = makeItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
+    // const filteredBuyItems = buyItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
+    // const filteredComponentItems = allComponentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
     
     console.log(`After filtering: ${filteredMakeItems.length} make items, ${filteredBuyItems.length} buy items, ${filteredComponentItems.length} components available for inspection orders`);
     
@@ -420,18 +426,24 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       allComponentItems = [...allComponentItems, ...descendants];
     }
     
-    // Filter out items that already have inspection orders if newItemsOnly is true
-    const filteredMakeItems = newItemsOnly ? 
-      makeItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
-      makeItems;
-      
-    const filteredBuyItems = newItemsOnly ? 
-      buyItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
-      buyItems;
-      
-    const filteredComponentItems = newItemsOnly ? 
-      allComponentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
-      allComponentItems;
+    // Important: Since we're managing a clean slate (all inspection orders have been deleted),
+    // we should have all items available for inspection order generation
+    const filteredMakeItems = makeItems;
+    const filteredBuyItems = buyItems;
+    const filteredComponentItems = allComponentItems;
+    
+    // Uncomment this if you want to filter out items that already have inspection orders
+    // const filteredMakeItems = newItemsOnly ? 
+    //   makeItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
+    //   makeItems;
+    //   
+    // const filteredBuyItems = newItemsOnly ? 
+    //   buyItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
+    //   buyItems;
+    //   
+    // const filteredComponentItems = newItemsOnly ? 
+    //   allComponentItems.filter(item => !projectItemsWithInspectionOrders.has(item.id)) : 
+    //   allComponentItems;
     
     console.log(`After filtering: ${filteredMakeItems.length} make items, ${filteredBuyItems.length} buy items, ${filteredComponentItems.length} components available`);
     
