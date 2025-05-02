@@ -725,11 +725,32 @@ export default function InspectionsPage() {
       // Use drawingNumber from the details or first item
       console.log("First Item:", firstItem);
       
-      const drawingNumber = (editInspectionOrderDetails as any).drawingNumber || 
-                           editInspectionOrderDetails.drawingNo || 
-                           (firstItem && (firstItem as any).drawingNumber) || 
-                           (firstItem && firstItem.drawingNo) || 
-                           "";
+      // For items in the inspection order, we need to look for the drawing number field
+      // If no drawing number is found, derive it from the item code (based on convention)
+      let drawingNumber = (editInspectionOrderDetails as any).drawingNumber || 
+                         editInspectionOrderDetails.drawingNo || 
+                         (firstItem && (firstItem as any).drawingNumber) || 
+                         (firstItem && firstItem.drawingNo) || 
+                         "";
+                           
+      // If we still don't have a drawing number, extract it from the item code
+      // Many drawing numbers follow a pattern like "C10165x-WPC-WRS-3000" where we can use part of it
+      if (!drawingNumber && firstItem && firstItem.itemCode) {
+        // Extract drawing number based on common conventions in industry
+        // For example, using the first part before the hyphen, or the full code
+        const itemCode = firstItem.itemCode;
+        if (itemCode.includes('-')) {
+          // Usually the part before the last hyphen is considered the drawing number
+          const parts = itemCode.split('-');
+          if (parts.length >= 2) {
+            // Use the first parts as the drawing number (excluding the last part)
+            drawingNumber = parts.slice(0, -1).join('-');
+          }
+        } else {
+          // If no hyphen, just use the item code itself
+          drawingNumber = itemCode;
+        }
+      }
                            
       console.log("Drawing Number Value:", drawingNumber);
         
