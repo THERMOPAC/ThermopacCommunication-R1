@@ -136,6 +136,25 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     
     console.log(`Found ${makeItems.length} make items and ${buyItems.length} buy items before filtering`);
     
+    // Print first 5 project items and their master items to check Make/Buy status
+    console.log(`\n---------------- DETAILED PROJECT ITEMS DEBUG ----------------`);
+    for (let i = 0; i < Math.min(projectItemsList.length, 10); i++) {
+      const item = projectItemsList[i];
+      const masterItem = masterItemsMap.get(item.itemId);
+      console.log(`Project Item ${i+1}:`);
+      console.log(`  ID: ${item.id}`);
+      console.log(`  Project ID: ${item.projectId}`);
+      console.log(`  Master Item ID: ${item.itemId}`);
+      console.log(`  Master Item exists: ${masterItem ? 'YES' : 'NO'}`);
+      if (masterItem) {
+        console.log(`  Master Item Code: ${masterItem.itemCode}`);
+        console.log(`  Master Item Make/Buy: ${masterItem.makeOrBuy}`);
+        console.log(`  Master Item Description: ${masterItem.description}`);
+      }
+      console.log(`----------------------------------`);
+    }
+    console.log(`---------------- END DETAILED DEBUG ----------------\n`);
+    
     // Log some sample make and buy items
     if (makeItems.length > 0) {
       console.log(`Sample make items (first 3):`);
