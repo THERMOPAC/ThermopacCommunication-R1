@@ -138,13 +138,23 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     
     console.log(`Found ${makeParentItems.length} make items and ${buyParentItems.length} buy items before filtering`);
     
+    
     // Find all child components for the Make items
     // Create a map of parent to children for faster lookups
     const parentToChildrenMap = new Map();
     const childToParentMap = new Map();
     
-    // Note: Older projects don't have parentItemId field
-    // We'll keep these maps empty, treating all items as parent items
+    if (hasParentItemIdField) {
+      projectItemsList.forEach(item => {
+        if (item.parentItemId) {
+          if (!parentToChildrenMap.has(item.parentItemId)) {
+            parentToChildrenMap.set(item.parentItemId, []);
+          }
+          parentToChildrenMap.get(item.parentItemId).push(item);
+          childToParentMap.set(item.id, item.parentItemId);
+        }
+      });
+    }
     
     // Function to get all descendants of a parent item
     const getAllDescendants = (parentItemId: number, depth = 0): any[] => {
@@ -160,7 +170,7 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     };
     
     // Get all component items including nested ones
-    let allComponentItems: any[] = [];
+    let allComponentItems = [];
     for (const makeItem of makeParentItems) {
       const descendants = getAllDescendants(makeItem.id);
       allComponentItems = [...allComponentItems, ...descendants];
@@ -262,7 +272,7 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       existingInspectionOrderCount: existingInspectionOrders.length
     });
     
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error generating inspection orders preview:', error);
     return res.status(500).json({ 
       error: 'Failed to generate inspection orders preview',
@@ -354,8 +364,17 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     const parentToChildrenMap = new Map();
     const childToParentMap = new Map();
     
-    // Note: Older projects don't have parentItemId field
-    // We'll keep these maps empty, treating all items as parent items
+    if (hasParentItemIdField) {
+      projectItemsList.forEach(item => {
+        if (item.parentItemId) {
+          if (!parentToChildrenMap.has(item.parentItemId)) {
+            parentToChildrenMap.set(item.parentItemId, []);
+          }
+          parentToChildrenMap.get(item.parentItemId).push(item);
+          childToParentMap.set(item.id, item.parentItemId);
+        }
+      });
+    }
     
     // Function to get all descendants of a parent item
     const getAllDescendants = (parentItemId: number, depth = 0): any[] => {
@@ -371,7 +390,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     };
     
     // Get all component items including nested ones
-    let allComponentItems: any[] = [];
+    let allComponentItems = [];
     for (const makeItem of makeParentItems) {
       const descendants = getAllDescendants(makeItem.id);
       allComponentItems = [...allComponentItems, ...descendants];
@@ -458,7 +477,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           itemCode: masterItem?.itemCode || 'Unknown',
           drawingNo: drawingNumber, // Add drawing number field
           sequenceNumber: nextSeqNumber + index,
-          createdBy: req.user?.id || 0
+          createdBy: req.user.id
         }).returning();
         
         createdInspectionOrders.push(makeItemOrder[0]);
@@ -533,7 +552,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           itemCode: masterItem?.itemCode || 'Unknown',
           drawingNo: drawingNumber, // Add drawing number field
           sequenceNumber: nextSeqNumber + filteredMakeParentItems.length + index,
-          createdBy: req.user?.id || 0
+          createdBy: req.user.id
         }).returning();
         
         createdInspectionOrders.push(buyItemOrder[0]);
@@ -611,7 +630,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           drawingNo: drawingNumber, // Add drawing number field
           parentItemCode: parentMasterItem?.itemCode || null,
           sequenceNumber: nextSeqNumber + filteredMakeParentItems.length + filteredBuyParentItems.length + index,
-          createdBy: req.user?.id || 0
+          createdBy: req.user.id
         }).returning();
         
         createdInspectionOrders.push(componentItemOrder[0]);
@@ -640,7 +659,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       skippedItemCount
     });
     
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error generating inspection orders:', error);
     return res.status(500).json({ 
       error: 'Failed to generate inspection orders',
