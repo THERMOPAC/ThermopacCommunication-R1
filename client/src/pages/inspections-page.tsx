@@ -2072,136 +2072,124 @@ export default function InspectionsPage() {
                   <TabsContent value="welding" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Welding & Weld Maps</h3>
-                      <div className="grid grid-cols-12 gap-4">
-                        <div className="col-span-6">
-                          <FormField
-                            control={editForm.control}
-                            name="weldingProcedure"
-                            render={({ field }) => (
-                              <FormItem className="w-[300px]">
-                                <FormLabel>WPS</FormLabel>
+                      <div className="flex flex-row items-start gap-4 flex-wrap">
+                        <FormField
+                          control={editForm.control}
+                          name="numberOfWelds"
+                          render={({ field }) => (
+                            <FormItem className="w-[120px]">
+                              <FormLabel>No. of Welds</FormLabel>
+                              <FormControl>
+                                <Input {...field} type="number" min="0" placeholder="Enter number" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={editForm.control}
+                          name="weldType"
+                          render={({ field }) => (
+                            <FormItem className="w-[200px]">
+                              <FormLabel>Weld Type</FormLabel>
+                              <Select 
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
                                 <FormControl>
-                                  <Input {...field} placeholder="Enter WPS reference" />
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select type" />
+                                  </SelectTrigger>
                                 </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-6">
-                          <FormField
-                            control={editForm.control}
-                            name="welderId"
-                            render={({ field }) => (
-                              <FormItem className="w-[200px]">
-                                <FormLabel>Welder ID/Name</FormLabel>
+                                <SelectContent>
+                                  <SelectItem value="butt">Butt Weld</SelectItem>
+                                  <SelectItem value="fillet">Fillet Weld</SelectItem>
+                                  <SelectItem value="spot">Spot Weld</SelectItem>
+                                  <SelectItem value="seam">Seam Weld</SelectItem>
+                                  <SelectItem value="lap">Lap Weld</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={editForm.control}
+                          name="weldProcess"
+                          render={({ field }) => (
+                            <FormItem className="w-[300px]">
+                              <FormLabel>Weld Process</FormLabel>
+                              <Select 
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
                                 <FormControl>
-                                  <Input {...field} placeholder="Enter welder ID" />
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select process" />
+                                  </SelectTrigger>
                                 </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="numberOfWelds"
-                            render={({ field }) => (
-                              <FormItem className="w-[120px]">
-                                <FormLabel>No. of Welds</FormLabel>
-                                <FormControl>
-                                  <Input {...field} type="number" min="0" placeholder="Enter number of welds" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="weldType"
-                            render={({ field }) => (
-                              <FormItem className="w-[200px]">
-                                <FormLabel>Weld Type</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select weld type" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="butt">Butt Weld</SelectItem>
-                                    <SelectItem value="fillet">Fillet Weld</SelectItem>
-                                    <SelectItem value="spot">Spot Weld</SelectItem>
-                                    <SelectItem value="seam">Seam Weld</SelectItem>
-                                    <SelectItem value="lap">Lap Weld</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="weldProcess"
-                            render={({ field }) => (
-                              <FormItem className="w-[300px]">
-                                <FormLabel>Weld Process</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select process" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="smaw">SMAW (Shielded Metal Arc Welding)</SelectItem>
-                                    <SelectItem value="gtaw">GTAW (TIG Welding)</SelectItem>
-                                    <SelectItem value="gmaw">GMAW (MIG Welding)</SelectItem>
-                                    <SelectItem value="fcaw">FCAW (Flux-Cored Arc Welding)</SelectItem>
-                                    <SelectItem value="saw">SAW (Submerged Arc Welding)</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <FormField
-                            control={editForm.control}
-                            name="weldingNotes"
-                            render={({ field }) => (
-                              <FormItem className="w-[200px]">
-                                <FormLabel>Welding Notes</FormLabel>
-                                <FormControl>
-                                  <Textarea {...field} placeholder="Enter welding notes and observations" rows={3} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <div className="flex items-center gap-2 mt-2">
-                            <Button type="button" variant="outline" size="sm">
-                              <FileText className="h-4 w-4 mr-2" />
-                              Upload Weld Map
-                            </Button>
-                            <Button type="button" variant="outline" size="sm">
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Attachments
-                            </Button>
-                          </div>
+                                <SelectContent>
+                                  <SelectItem value="smaw">SMAW (Shielded Metal Arc Welding)</SelectItem>
+                                  <SelectItem value="gtaw">GTAW (TIG Welding)</SelectItem>
+                                  <SelectItem value="gmaw">GMAW (MIG Welding)</SelectItem>
+                                  <SelectItem value="fcaw">FCAW (Flux-Cored Arc Welding)</SelectItem>
+                                  <SelectItem value="saw">SAW (Submerged Arc Welding)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={editForm.control}
+                          name="weldingProcedure"
+                          render={({ field }) => (
+                            <FormItem className="w-[300px]">
+                              <FormLabel>WPS</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="Enter WPS reference" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={editForm.control}
+                          name="welderId"
+                          render={({ field }) => (
+                            <FormItem className="w-[200px]">
+                              <FormLabel>Welder ID/Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="Enter welder ID" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={editForm.control}
+                          name="weldingNotes"
+                          render={({ field }) => (
+                            <FormItem className="w-[200px]">
+                              <FormLabel>Welding Notes</FormLabel>
+                              <FormControl>
+                                <Textarea {...field} placeholder="Enter notes" rows={3} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Button type="button" variant="outline" size="sm">
+                            <FileText className="h-4 w-4 mr-2" />
+                            Upload Weld Map
+                          </Button>
+                          <Button type="button" variant="outline" size="sm">
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Attachments
+                          </Button>
                         </div>
                       </div>
                     </div>
