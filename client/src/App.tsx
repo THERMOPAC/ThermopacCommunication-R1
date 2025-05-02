@@ -26,6 +26,7 @@ import MaterialIdentificationPage from "@/pages/material-identification-page";
 import MaterialIdentificationListPage from "@/pages/material-identification-list-page";
 import MaterialIdentificationViewPage from "@/pages/material-identification-view-page";
 import MaterialIdentificationEditPage from "@/pages/material-identification-edit-page";
+import SpecialFixesPage from "@/pages/special-fixes-page";
 
 // New Material Identification pages
 import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";

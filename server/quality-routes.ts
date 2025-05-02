@@ -10,6 +10,7 @@ import { registerWelderRoutes } from './quality/welder-routes';
 import { registerWelderCertificateRoutes } from './quality/welder-certificate-routes';
 import { registerWelderPhotoRoutes } from './quality/welder-photo-routes';
 import debugRouter from './quality/debug-routes';
+import { generateInspectionOrdersForProject3 } from './quality/project3-special-fix';
 
 // Define ensureAuthenticated middleware
 function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -217,6 +218,9 @@ router.delete('/inspection-orders/:id', ensureAuthenticated, async (req: Request
 // Route for generating inspection orders (preview and create)
 router.post('/inspection-orders/preview/:projectId', ensureAuthenticated, previewInspectionOrders);
 router.post('/inspection-orders/generate/:projectId', ensureAuthenticated, generateInspectionOrders);
+
+// Special fix route for project ID 3 (2025-1)
+router.post('/inspection-orders/special-fix-project-3', ensureAuthenticated, generateInspectionOrdersForProject3);
 
 /**
  * Set up quality management routes
