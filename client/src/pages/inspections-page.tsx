@@ -257,6 +257,28 @@ export default function InspectionsPage() {
   }]);
   const [editingVisualIndex, setEditingVisualIndex] = useState<number | null>(null);
   
+  // Hydrotest management state
+  const [hydrotestRecords, setHydrotestRecords] = useState<{
+    id: string;
+    pressure: string;
+    duration: string;
+    medium: string;
+    operator: string;
+    testDate: string;
+    result: string;
+    notes: string;
+  }[]>([{
+    id: 'HT-1',
+    pressure: '10.0',
+    duration: '30',
+    medium: 'water',
+    operator: '',
+    testDate: '',
+    result: 'Pass',
+    notes: ''
+  }]);
+  const [editingHydrotestIndex, setEditingHydrotestIndex] = useState<number | null>(null);
+  
   // Material rows state
   const [materialRows, setMaterialRows] = useState<{
     id?: number;
@@ -516,6 +538,56 @@ export default function InspectionsPage() {
       [field]: value
     };
     setVisualRecords(updatedRecords);
+  };
+  
+  // Add new hydrotest record
+  const addHydrotestRecord = () => {
+    const newHydrotestNumber = hydrotestRecords.length + 1;
+    setHydrotestRecords([
+      ...hydrotestRecords, 
+      {
+        id: `HT-${newHydrotestNumber}`,
+        pressure: '10.0',
+        duration: '30',
+        medium: 'water',
+        operator: '',
+        testDate: '',
+        result: 'Pass',
+        notes: ''
+      }
+    ]);
+  };
+  
+  // Delete a hydrotest record
+  const deleteHydrotestRecord = (index: number) => {
+    const updatedRecords = [...hydrotestRecords];
+    updatedRecords.splice(index, 1);
+    
+    // Renumber hydrotest records after deletion
+    const renumberedRecords = updatedRecords.map((record, idx) => ({
+      ...record,
+      id: `HT-${idx + 1}`
+    }));
+    
+    setHydrotestRecords(renumberedRecords);
+    if (editingHydrotestIndex === index) {
+      setEditingHydrotestIndex(null);
+    }
+  };
+  
+  // Edit a hydrotest record
+  const startEditingHydrotest = (index: number) => {
+    setEditingHydrotestIndex(index);
+  };
+  
+  // Update a hydrotest field
+  const updateHydrotestField = (index: number, field: string, value: string) => {
+    const updatedRecords = [...hydrotestRecords];
+    updatedRecords[index] = {
+      ...updatedRecords[index],
+      [field]: value
+    };
+    setHydrotestRecords(updatedRecords);
   };
   
   // Fetch projects for dropdown
@@ -3049,148 +3121,192 @@ export default function InspectionsPage() {
                   <TabsContent value="hydrotest" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Hydrotest</h3>
-                      <div className="grid grid-cols-12 gap-4">
-                        <div className="col-span-6">
-                          <FormField
-                            control={editForm.control}
-                            name="hydrotestPressure"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Test Pressure (bar)</FormLabel>
-                                <FormControl>
-                                  <Input {...field} type="number" step="0.1" min="0" placeholder="Enter test pressure" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                      
+                      {/* Table of hydrotest records */}
+                      <div className="border rounded-md">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>ID</TableHead>
+                              <TableHead>Pressure (bar)</TableHead>
+                              <TableHead>Duration (min)</TableHead>
+                              <TableHead>Medium</TableHead>
+                              <TableHead>Operator</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Result</TableHead>
+                              <TableHead>Notes</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {hydrotestRecords.map((record, index) => (
+                              <TableRow key={record.id}>
+                                <TableCell>{record.id}</TableCell>
+                                <TableCell>
+                                  {editingHydrotestIndex === index ? (
+                                    <Input 
+                                      value={record.pressure} 
+                                      onChange={(e) => updateHydrotestField(index, 'pressure', e.target.value)}
+                                      type="number"
+                                      step="0.1"
+                                      min="0"
+                                      className="w-[100px]"
+                                    />
+                                  ) : (
+                                    record.pressure || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingHydrotestIndex === index ? (
+                                    <Input 
+                                      value={record.duration} 
+                                      onChange={(e) => updateHydrotestField(index, 'duration', e.target.value)}
+                                      type="number"
+                                      min="0"
+                                      className="w-[100px]"
+                                    />
+                                  ) : (
+                                    record.duration || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingHydrotestIndex === index ? (
+                                    <Select 
+                                      value={record.medium}
+                                      onValueChange={(value) => updateHydrotestField(index, 'medium', value)}
+                                    >
+                                      <SelectTrigger className="w-[120px]">
+                                        <SelectValue placeholder="Select medium" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="water">Water</SelectItem>
+                                        <SelectItem value="air">Air</SelectItem>
+                                        <SelectItem value="nitrogen">Nitrogen</SelectItem>
+                                        <SelectItem value="other">Other</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    record.medium || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingHydrotestIndex === index ? (
+                                    <Input 
+                                      value={record.operator} 
+                                      onChange={(e) => updateHydrotestField(index, 'operator', e.target.value)}
+                                      className="w-[120px]"
+                                    />
+                                  ) : (
+                                    record.operator || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingHydrotestIndex === index ? (
+                                    <Input 
+                                      type="date" 
+                                      value={record.testDate} 
+                                      onChange={(e) => updateHydrotestField(index, 'testDate', e.target.value)}
+                                      className="w-[130px]"
+                                    />
+                                  ) : (
+                                    record.testDate || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingHydrotestIndex === index ? (
+                                    <Select 
+                                      value={record.result}
+                                      onValueChange={(value) => updateHydrotestField(index, 'result', value)}
+                                    >
+                                      <SelectTrigger className="w-[100px]">
+                                        <SelectValue placeholder="Select result" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Pass">Pass</SelectItem>
+                                        <SelectItem value="Failed">Failed</SelectItem>
+                                        <SelectItem value="Conditional Pass">Conditional Pass</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    record.result || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingHydrotestIndex === index ? (
+                                    <Input 
+                                      value={record.notes} 
+                                      onChange={(e) => updateHydrotestField(index, 'notes', e.target.value)}
+                                      className="w-[150px]"
+                                    />
+                                  ) : (
+                                    record.notes || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end space-x-1">
+                                    {editingHydrotestIndex === index ? (
+                                      <Button 
+                                        type="button" 
+                                        variant="default" 
+                                        size="icon" 
+                                        onClick={() => setEditingHydrotestIndex(null)}
+                                        className="h-7 w-7"
+                                      >
+                                        <Check className="h-3.5 w-3.5" />
+                                      </Button>
+                                    ) : (
+                                      <>
+                                        <Button 
+                                          type="button" 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          onClick={() => startEditingHydrotest(index)}
+                                          className="h-7 w-7"
+                                        >
+                                          <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button 
+                                          type="button" 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          onClick={() => deleteHydrotestRecord(index)}
+                                          className="h-7 w-7 text-destructive"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-between mt-4">
+                        <div>
+                          <Button 
+                            type="button" 
+                            variant="default" 
+                            size="sm" 
+                            onClick={addHydrotestRecord}
+                            className="mr-2"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Hydrotest
+                          </Button>
                         </div>
-                        <div className="col-span-6">
-                          <FormField
-                            control={editForm.control}
-                            name="hydrotestDuration"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Test Duration (minutes)</FormLabel>
-                                <FormControl>
-                                  <Input {...field} type="number" min="0" placeholder="Enter test duration" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="hydrotestMedium"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Test Medium</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select medium" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="water">Water</SelectItem>
-                                    <SelectItem value="air">Air</SelectItem>
-                                    <SelectItem value="nitrogen">Nitrogen</SelectItem>
-                                    <SelectItem value="other">Other</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="hydrotestOperator"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Test Operator</FormLabel>
-                                <FormControl>
-                                  <Input {...field} placeholder="Enter operator name" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="hydrotestDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Test Date</FormLabel>
-                                <FormControl>
-                                  <Input {...field} type="date" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <FormField
-                            control={editForm.control}
-                            name="hydrotestResult"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Test Result</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select result" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="pass">Pass</SelectItem>
-                                    <SelectItem value="fail">Fail</SelectItem>
-                                    <SelectItem value="conditionalPass">Conditional Pass</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <FormField
-                            control={editForm.control}
-                            name="hydrotestNotes"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Notes & Observations</FormLabel>
-                                <FormControl>
-                                  <Textarea {...field} placeholder="Enter hydrotest notes and observations" rows={3} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <div className="flex items-center gap-2 mt-2">
-                            <Button type="button" variant="outline" size="sm">
-                              <FileText className="h-4 w-4 mr-2" />
-                              Upload Hydrotest Certificate
-                            </Button>
-                            <Button type="button" variant="outline" size="sm">
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Certificate
-                            </Button>
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="outline" size="sm">
+                            <FileText className="h-4 w-4 mr-2" />
+                            Upload Hydrotest Certificate
+                          </Button>
+                          <Button type="button" variant="outline" size="sm">
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Certificate
+                          </Button>
                         </div>
                       </div>
                     </div>
