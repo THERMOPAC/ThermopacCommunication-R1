@@ -189,16 +189,16 @@ export default function InspectionsPage() {
     id: string;
     weldType: string;
     weldProcess: string;
-    weldingProcedure: string;
+    wpqrDocument: string;  // Renamed from weldingProcedure to wpqrDocument
     welderId: string;
-    weldingNotes: string;
+    weldStatus: string;    // Renamed from weldingNotes to weldStatus
   }[]>([{
     id: 'W-1',
     weldType: '',
     weldProcess: '',
-    weldingProcedure: '',
+    wpqrDocument: '',
     welderId: '',
-    weldingNotes: ''
+    weldStatus: 'Pass'
   }]);
   const [editingWeldIndex, setEditingWeldIndex] = useState<number | null>(null);
   
@@ -313,9 +313,9 @@ export default function InspectionsPage() {
         id: `W-${newWeldNumber}`,
         weldType: '',
         weldProcess: '',
-        weldingProcedure: '',
+        wpqrDocument: '',
         welderId: '',
-        weldingNotes: ''
+        weldStatus: 'Pass'
       }
     ]);
   };
