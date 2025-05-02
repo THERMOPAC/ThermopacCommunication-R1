@@ -153,9 +153,10 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     }
     
     // Filter out items that already have inspection orders
-    const filteredMakeParentItems = makeParentItems.filter(item => !itemsWithInspectionOrders.has(item.id));
-    const filteredBuyParentItems = buyParentItems.filter(item => !itemsWithInspectionOrders.has(item.id));
-    const filteredComponentItems = allComponentItems.filter(item => !itemsWithInspectionOrders.has(item.id));
+    // Using itemId from project item to match with itemId (masterItemId) stored in inspection orders
+    const filteredMakeParentItems = makeParentItems.filter(item => !itemsWithInspectionOrders.has(item.itemId));
+    const filteredBuyParentItems = buyParentItems.filter(item => !itemsWithInspectionOrders.has(item.itemId));
+    const filteredComponentItems = allComponentItems.filter(item => !itemsWithInspectionOrders.has(item.itemId));
     
     console.log(`After filtering: ${filteredMakeParentItems.length} make parents, ${filteredBuyParentItems.length} buy parents, ${filteredComponentItems.length} components`);
     
@@ -365,16 +366,17 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     }
     
     // Filter out items that already have inspection orders if newItemsOnly is true
+    // Using itemId from project item to match with itemId (masterItemId) stored in inspection orders
     const filteredMakeParentItems = newItemsOnly ? 
-      makeParentItems.filter(item => !itemsWithInspectionOrders.has(item.id)) : 
+      makeParentItems.filter(item => !itemsWithInspectionOrders.has(item.itemId)) : 
       makeParentItems;
       
     const filteredBuyParentItems = newItemsOnly ? 
-      buyParentItems.filter(item => !itemsWithInspectionOrders.has(item.id)) : 
+      buyParentItems.filter(item => !itemsWithInspectionOrders.has(item.itemId)) : 
       buyParentItems;
       
     const filteredComponentItems = newItemsOnly ? 
-      allComponentItems.filter(item => !itemsWithInspectionOrders.has(item.id)) : 
+      allComponentItems.filter(item => !itemsWithInspectionOrders.has(item.itemId)) : 
       allComponentItems;
     
     console.log(`After filtering: ${filteredMakeParentItems.length} make parents, ${filteredBuyParentItems.length} buy parents, ${filteredComponentItems.length} components`);
