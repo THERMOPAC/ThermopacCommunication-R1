@@ -114,12 +114,27 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
     let nextSeqNumber = existingInspectionOrders.length > 0 
       ? Math.max(...existingInspectionOrders.map(order => order.sequenceNumber || 0)) + 1 
       : 1;
+      
+    // CRITICAL: Create a set of PROJECT ITEM IDs that already have inspection orders
+    // This prevents duplicate inspection orders for the same items
+    const projectItemsWithInspectionOrders = new Set();
+    existingInspectionOrders.forEach(order => {
+      if (order.itemId) {
+        projectItemsWithInspectionOrders.add(order.itemId);
+      }
+    });
+    
+    // Filter out items that already have inspection orders
+    const filteredMakeItems = makeItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
+    const filteredBuyItems = buyItems.filter(item => !projectItemsWithInspectionOrders.has(item.id));
+    
+    console.log(`After filtering: ${filteredMakeItems.length} of ${makeItems.length} make items and ${filteredBuyItems.length} of ${buyItems.length} buy items will be processed`);
     
     // 11. Generate orders for Make items
-    if (makeItems.length > 0) {
-      console.log(`Creating ${makeItems.length} make inspection orders`);
+    if (filteredMakeItems.length > 0) {
+      console.log(`Creating ${filteredMakeItems.length} make inspection orders`);
       
-      for (const [index, item] of makeItems.entries()) {
+      for (const [index, item] of filteredMakeItems.entries()) {
         const masterItem = masterItemsMap.get(item.itemId);
         if (!masterItem) continue;
         
@@ -195,18 +210,18 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
     }
     
     // 12. Generate orders for Buy items
-    if (buyItems.length > 0) {
-      console.log(`Creating ${buyItems.length} buy inspection orders`);
+    if (filteredBuyItems.length > 0) {
+      console.log(`Creating ${filteredBuyItems.length} buy inspection orders`);
       
-      for (const [index, item] of buyItems.entries()) {
+      for (const [index, item] of filteredBuyItems.entries()) {
         const masterItem = masterItemsMap.get(item.itemId);
         if (!masterItem) continue;
         
         // Parse quantity and ensure it's an integer
         const parsedQuantity = parseInt(String(item.quantity)) || 1;
         
-        // Create a unique inspection order number with maxOrderNumber + makeItems.length + index
-        const orderSequence = maxOrderNumber + makeItems.length + index + 1;
+        // Create a unique inspection order number with maxOrderNumber + filteredMakeItems.length + index
+        const orderSequence = maxOrderNumber + filteredMakeItems.length + index + 1;
         const buyInspectionOrderNumber = `IO-${year}-${projectNumber}-B-${orderSequence}`;
         
         // Extract drawing number from master item or item code
@@ -247,7 +262,7 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
           itemId: item.id,
           itemCode: masterItem.itemCode || 'Unknown',
           drawingNo: drawingNumber,
-          sequenceNumber: nextSeqNumber + makeItems.length + index,
+          sequenceNumber: nextSeqNumber + filteredMakeItems.length + index,
           createdBy: userId
         }).returning();
         
@@ -279,8 +294,16 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
       message: `Created ${createdInspectionOrders.length} inspection orders successfully (SPECIAL FIX)`,
       ordersCreated: createdInspectionOrders.length,
       itemsCreated: createdInspectionOrderItems.length,
-      makeItemCount: makeItems.length,
-      buyItemCount: buyItems.length
+      makeItemCount: {
+        total: makeItems.length,
+        processed: filteredMakeItems.length,
+        skipped: makeItems.length - filteredMakeItems.length
+      },
+      buyItemCount: {
+        total: buyItems.length,
+        processed: filteredBuyItems.length,
+        skipped: buyItems.length - filteredBuyItems.length
+      }
     });
     
   } catch (error: any) {
