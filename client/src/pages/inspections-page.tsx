@@ -2223,121 +2223,25 @@ export default function InspectionsPage() {
                         </Button>
                       </div>
                       
-                      {/* Legacy single material fields (keeping for backward compatibility) */}
-                      {materialRows.length === 0 && (
-                        <div className="grid grid-cols-12 gap-4 mb-6 border-b pb-4">
-                          <div className="col-span-12">
-                            <p className="text-sm text-muted-foreground mb-2">Legacy Material Information:</p>
-                          </div>
-                          <div className="col-span-6">
-                            <FormField
-                              control={editForm.control}
-                              name="materialCertificateNumber"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Material Certificate Number</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="Enter certificate number" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          <div className="col-span-6">
-                            <FormField
-                              control={editForm.control}
-                              name="heatNumber"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Heat Number</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="Enter heat number" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          <div className="col-span-4">
-                            <FormField
-                              control={editForm.control}
-                              name="materialGrade"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Material Grade</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="Enter material grade" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          <div className="col-span-4">
-                            <FormField
-                              control={editForm.control}
-                              name="materialSpecification"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Material Specification</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="Enter specification" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          <div className="col-span-4">
-                            <FormField
-                              control={editForm.control}
-                              name="materialSupplier"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Material Supplier</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="Enter supplier name" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          <div className="col-span-12">
-                            <div className="flex items-center gap-2 mt-4">
-                              <Button type="button" variant="outline" size="sm">
-                                <FileText className="h-4 w-4 mr-2" />
-                                Upload Certificate
-                              </Button>
-                              <Button type="button" variant="outline" size="sm">
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Attachments
-                              </Button>
-                            </div>
-                          </div>
+                      {/* Material rows with Excel-like layout - always show table format */}
+                      <div className="border rounded-md overflow-hidden">
+                        {/* Table header - always shown */}
+                        <div className="flex flex-nowrap bg-gray-100 py-2 px-3 border-b text-xs font-semibold">
+                          <div className="me-2" style={{width: "390px"}}>Description</div>
+                          <div className="me-2" style={{width: "120px"}}>Material ID</div>
+                          <div className="me-2" style={{width: "120px"}}>Certificate #</div>
+                          <div className="me-2" style={{width: "100px"}}>Heat #</div>
+                          <div className="me-2" style={{width: "100px"}}>Grade</div>
+                          <div className="me-2" style={{width: "120px"}}>Spec</div>
+                          <div className="me-2" style={{width: "80px"}}>Qty</div>
+                          <div className="me-2" style={{width: "50px"}}>Unit</div>
+                          <div style={{width: "80px"}}>Actions</div>
                         </div>
-                      )}
-                      
-                      {/* Material rows with Excel-like layout */}
-                      {materialRows.length > 0 ? (
-                        <div className="border rounded-md overflow-hidden">
-                          {/* Table header - shown only once at the top */}
-                          <div className="flex flex-nowrap bg-gray-100 py-2 px-3 border-b text-xs font-semibold">
-                            <div className="me-2" style={{width: "390px"}}>Description</div>
-                            <div className="me-2" style={{width: "120px"}}>Material ID</div>
-                            <div className="me-2" style={{width: "120px"}}>Certificate #</div>
-                            <div className="me-2" style={{width: "100px"}}>Heat #</div>
-                            <div className="me-2" style={{width: "100px"}}>Grade</div>
-                            <div className="me-2" style={{width: "120px"}}>Spec</div>
-                            <div className="me-2" style={{width: "80px"}}>Qty</div>
-                            <div className="me-2" style={{width: "50px"}}>Unit</div>
-                            <div style={{width: "80px"}}>Actions</div>
-                          </div>
-                          
-                          {/* Material rows - compact layout without individual labels */}
-                          <div className="max-h-[500px] overflow-auto">
-                            {materialRows.map((materialRow, index) => (
+                        
+                        {/* Material rows - compact layout without individual labels */}
+                        <div className="max-h-[500px] overflow-auto">
+                          {materialRows.length > 0 ? (
+                            materialRows.map((materialRow, index) => (
                               <div key={index} className="flex flex-nowrap py-1 px-3 border-b hover:bg-gray-50">
                                 {/* Description - 390px */}
                                 <div className="me-2" style={{width: "390px"}}>
@@ -2533,20 +2437,20 @@ export default function InspectionsPage() {
                                   </div>
                                 </div>
                               </div>
-                            ))}
-                          </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-10 border-b">
+                              <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
+                              <p className="mt-2 text-muted-foreground">
+                                No materials linked to this inspection order.
+                              </p>
+                              <p className="text-sm text-muted-foreground mb-2">
+                                Click "Add Material" to link materials from Material Identification module.
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="text-center py-6 border rounded-md mt-4">
-                          <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
-                          <p className="mt-2 text-muted-foreground">
-                            No materials linked to this inspection order.
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Click "Add Material" to link materials from Material Identification module.
-                          </p>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   </TabsContent>
                   
