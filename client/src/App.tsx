@@ -50,6 +50,7 @@ import DispatchShippingPage from "@/pages/dispatch-shipping-page";
 import AfterSalesPage from "@/pages/after-sales-page";
 import ProcurementPlanningPage from "@/pages/procurement-planning-page";
 import ProcurementTrackingPage from "@/pages/procurement-tracking-page";
+import TemplateManagementPage from "@/pages/template-management-page";
 import ModulePermissionsPage from "@/pages/module-permissions-page";
 import DiagnosticsPage from "@/pages/diagnostics-page";
 import GcsDiagnosticPage from "@/pages/gcs-diagnostic-page";
@@ -167,6 +168,7 @@ function Router() {
       <ProtectedRoute path="/project-commissioning" component={ProjectCommissioningPage} />
       <ProtectedRoute path="/dispatch-shipping" component={DispatchShippingPage} />
       <ProtectedRoute path="/after-sales" component={AfterSalesPage} />
+      <ProtectedRoute path="/template-management" component={TemplateManagementPage} />
       <SuperuserRoute path="/users" component={Dashboard} />
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
