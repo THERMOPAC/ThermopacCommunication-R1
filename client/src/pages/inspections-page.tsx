@@ -3732,7 +3732,12 @@ export default function InspectionsPage() {
                               <FormItem>
                                 <FormLabel>Dossier Number</FormLabel>
                                 <FormControl>
-                                  <Input {...field} placeholder="Enter dossier number" />
+                                  <Input 
+                                    {...field} 
+                                    placeholder="Enter dossier number" 
+                                    defaultValue={editInspectionOrderDetails ? `FD_${editInspectionOrderDetails.inspectionOrderNumber}` : ''}
+                                    disabled
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -3812,7 +3817,7 @@ export default function InspectionsPage() {
                               <>
                                 <InspectionDocumentUpload
                                   inspectionOrderNumber={editInspectionOrderDetails.inspectionOrderNumber}
-                                  tabName="FinalDossier"
+                                  tabName="Final Dossier"
                                   recordId="dossier"
                                   variant="outline"
                                   size="sm"
@@ -3838,10 +3843,23 @@ export default function InspectionsPage() {
                               <h4 className="text-md font-medium mb-2">Dossier Documents</h4>
                               <InspectionDocumentViewer
                                 inspectionOrderNumber={editInspectionOrderDetails.inspectionOrderNumber}
-                                tabName="FinalDossier"
+                                tabName="Final Dossier"
                                 recordId="dossier"
                                 className="mt-2"
                               />
+                              {dossierUrl && (
+                                <div className="mt-4">
+                                  <Button 
+                                    type="button"
+                                    variant="default"
+                                    onClick={() => window.open(dossierUrl, '_blank')}
+                                    className="w-full"
+                                  >
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    View Final Dossier PDF
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
