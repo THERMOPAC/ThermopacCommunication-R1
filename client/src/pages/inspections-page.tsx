@@ -2496,7 +2496,17 @@ export default function InspectionsPage() {
                 </div>
                 
                 {/* Inspection Tabs */}
-                <Tabs defaultValue="material" className="w-full mt-6">
+                <Tabs 
+                  defaultValue="material" 
+                  className="w-full mt-6"
+                  onValueChange={(value) => {
+                    // Check for existing final dossier when Final Dossier tab is selected
+                    if (value === 'final-dossier' && editInspectionOrderDetails?.inspectionOrderNumber) {
+                      console.log('Final Dossier tab selected, checking for existing dossier...');
+                      checkExistingFinalDossier(editInspectionOrderDetails.inspectionOrderNumber);
+                    }
+                  }}
+                >
                   <ScrollArea className="w-full whitespace-nowrap">
                     <TabsList className="flex w-full space-x-2">
                       <TabsTrigger value="material">Material Traceability</TabsTrigger>
@@ -3740,12 +3750,6 @@ export default function InspectionsPage() {
                   <TabsContent 
                     value="final-dossier" 
                     className="p-4 border rounded-md mt-4"
-                    onSelect={() => {
-                      // Auto-check for existing final dossier when tab is opened
-                      if (editInspectionOrderDetails?.inspectionOrderNumber) {
-                        checkExistingFinalDossier(editInspectionOrderDetails.inspectionOrderNumber);
-                      }
-                    }}
                   >
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
