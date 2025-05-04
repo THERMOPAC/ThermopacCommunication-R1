@@ -2657,6 +2657,8 @@ export interface TemplateSectionField {
   required: boolean;   // Is this field required?
   options?: string[];  // Options for select fields
   defaultValue?: any;  // Default value
+  databaseTable?: string; // Database table this field maps to
+  databaseColumn?: string; // Database column this field maps to
 }
 
 // Section configuration

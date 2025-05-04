@@ -177,7 +177,9 @@ const templateFormSchema = z.object({
           type: z.enum(['text', 'checkbox', 'date', 'number', 'select']),
           required: z.boolean().default(false),
           options: z.array(z.string()).optional(),
-          defaultValue: z.any().optional()
+          defaultValue: z.any().optional(),
+          databaseTable: z.string().optional(),
+          databaseColumn: z.string().optional()
         })
       )
     })
