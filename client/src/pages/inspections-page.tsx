@@ -1283,7 +1283,6 @@ export default function InspectionsPage() {
             // Map the NCR records to match our state format
             const formattedRecords = parsedNcrRecords.map((record, index) => ({
               id: record.id || `NCR-${index + 1}`,
-              ncrNumber: record.ncrNumber || '',
               ncrDate: record.ncrDate || '',
               ncrStatus: record.ncrStatus || 'open',
               ncrDescription: record.ncrDescription || '',
@@ -1302,7 +1301,6 @@ export default function InspectionsPage() {
       // If no valid NCR records were found, initialize with a default record
       setNcrRecords([{
         id: 'NCR-1',
-        ncrNumber: '',
         ncrDate: '',
         ncrStatus: 'open',
         ncrDescription: '',
@@ -3369,13 +3367,13 @@ export default function InspectionsPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[100px]">NCR ID</TableHead>
-                              <TableHead className="w-[120px]">Date</TableHead>
-                              <TableHead className="w-[100px]">Status</TableHead>
-                              <TableHead className="w-[200px]">Description</TableHead>
-                              <TableHead className="w-[150px]">Disposition</TableHead>
-                              <TableHead className="w-[200px]">Corrective Action</TableHead>
-                              <TableHead className="w-[80px] text-right">Actions</TableHead>
+                              <TableHead className="w-[80px]">NCR ID</TableHead>
+                              <TableHead className="w-[100px]">Date</TableHead>
+                              <TableHead className="w-[90px]">Status</TableHead>
+                              <TableHead className="w-[250px]">Description</TableHead>
+                              <TableHead className="w-[120px]">Disposition</TableHead>
+                              <TableHead className="w-[250px]">Corrective Action</TableHead>
+                              <TableHead className="w-[70px] text-right">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -3426,10 +3424,10 @@ export default function InspectionsPage() {
                                     <Textarea 
                                       value={record.ncrDescription} 
                                       onChange={(e) => updateNcrField(index, 'ncrDescription', e.target.value)}
-                                      className="w-[200px] h-[80px]"
+                                      className="w-[250px] h-[80px]"
                                     />
                                   ) : (
-                                    <div className="max-w-[200px] truncate" title={record.ncrDescription}>
+                                    <div className="max-w-[250px] truncate" title={record.ncrDescription}>
                                       {record.ncrDescription || "-"}
                                     </div>
                                   )}
@@ -3463,10 +3461,10 @@ export default function InspectionsPage() {
                                     <Textarea 
                                       value={record.ncrCorrectiveAction} 
                                       onChange={(e) => updateNcrField(index, 'ncrCorrectiveAction', e.target.value)}
-                                      className="w-[200px] h-[80px]"
+                                      className="w-[250px] h-[80px]"
                                     />
                                   ) : (
-                                    <div className="max-w-[200px] truncate" title={record.ncrCorrectiveAction}>
+                                    <div className="max-w-[250px] truncate" title={record.ncrCorrectiveAction}>
                                       {record.ncrCorrectiveAction || "-"}
                                     </div>
                                   )}
