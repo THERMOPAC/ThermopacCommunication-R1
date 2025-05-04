@@ -110,13 +110,24 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       }
     }
     
-    // Return detailed inspection order with items, materials, NDT records, and Visual Inspection records
+    // Parse Weld data if it exists
+    let weldRecords = [];
+    if (inspectionOrder.weldData) {
+      try {
+        weldRecords = JSON.parse(inspectionOrder.weldData);
+      } catch (e) {
+        console.error('Error parsing Weld data:', e);
+      }
+    }
+    
+    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, and Weld records
     res.json({
       ...inspectionOrder,
       items: orderItems,
       materials: materials,
       ndtRecords: ndtRecords,
-      visualRecords: visualRecords
+      visualRecords: visualRecords,
+      welds: weldRecords
     });
   } catch (error) {
     console.error('Error fetching inspection order details:', error);
@@ -145,8 +156,8 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       return res.status(404).json({ error: 'Inspection order not found' });
     }
 
-    // Extract materials, NDT records, and Visual Inspection records from the request body
-    const { materials, ndtRecords, visualRecords, ...orderData } = req.body;
+    // Extract materials, NDT records, Visual Inspection records, and Weld records from the request body
+    const { materials, ndtRecords, visualRecords, welds, ...orderData } = req.body;
     
     // Store NDT records in the orderData as a JSON string if they exist
     if (ndtRecords && Array.isArray(ndtRecords)) {
@@ -156,6 +167,11 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
     // Store Visual Inspection records in the orderData as a JSON string if they exist
     if (visualRecords && Array.isArray(visualRecords)) {
       orderData.visualData = JSON.stringify(visualRecords);
+    }
+    
+    // Store Weld records in the orderData as a JSON string if they exist
+    if (welds && Array.isArray(welds)) {
+      orderData.weldData = JSON.stringify(welds);
     }
 
     // Update inspection order
@@ -217,12 +233,23 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       }
     }
     
-    // Return updated order with materials, NDT records, and Visual Inspection records
+    // Parse Weld data for the response
+    let parsedWeldRecords = [];
+    if (updatedOrder[0].weldData) {
+      try {
+        parsedWeldRecords = JSON.parse(updatedOrder[0].weldData);
+      } catch (e) {
+        console.error('Error parsing Weld data in response:', e);
+      }
+    }
+    
+    // Return updated order with materials, NDT records, Visual Inspection records, and Weld records
     res.json({
       ...updatedOrder[0],
       materials: updatedMaterials,
       ndtRecords: parsedNdtRecords,
-      visualRecords: parsedVisualRecords
+      visualRecords: parsedVisualRecords,
+      welds: parsedWeldRecords
     });
   } catch (error) {
     console.error('Error updating inspection order:', error);
