@@ -217,6 +217,7 @@ export default function InspectionsPage() {
   
   // State for final dossier generation
   const [isGeneratingDossier, setIsGeneratingDossier] = useState(false);
+  const [isCheckingDossier, setIsCheckingDossier] = useState(false);
   const [dossierUrl, setDossierUrl] = useState<string | null>(null);
   
   // Weld management state
@@ -616,6 +617,38 @@ export default function InspectionsPage() {
   // Edit a hydrotest record
   const startEditingHydrotest = (index: number) => {
     setEditingHydrotestIndex(index);
+  };
+  
+  // Function to check if a final dossier already exists
+  const checkExistingFinalDossier = async (inspectionOrderNumber: string) => {
+    try {
+      setIsCheckingDossier(true);
+      
+      const response = await fetch(`/api/quality/final-dossier/check/${inspectionOrderNumber}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to check for existing final dossier");
+      }
+      
+      const data = await response.json();
+      
+      if (data.exists && data.url) {
+        setDossierUrl(data.url);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Error checking for existing final dossier:", error);
+      return false;
+    } finally {
+      setIsCheckingDossier(false);
+    }
   };
   
   // Function to generate the final dossier

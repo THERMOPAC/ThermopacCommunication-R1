@@ -15,6 +15,47 @@ const storage = new Storage({
 const bucket = storage.bucket(gcsBucketName);
 
 /**
+ * Check if a final dossier already exists for an inspection order
+ */
+export async function checkExistingFinalDossier(inspectionOrderNumber: string): Promise<{ exists: boolean, url: string, path: string }> {
+  try {
+    // Define the expected path for the final dossier in GCS
+    const expectedPath = `QMS/Inspections_Records/${inspectionOrderNumber}/Final Dossier/FD_${inspectionOrderNumber}.pdf`;
+    
+    // Check if the file exists in GCS
+    const file = bucket.file(expectedPath);
+    const [exists] = await file.exists();
+    
+    if (exists) {
+      // Generate signed URL for download if file exists
+      const [url] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // URL expires in 7 days
+      });
+      
+      return {
+        exists: true,
+        url,
+        path: expectedPath
+      };
+    }
+    
+    return {
+      exists: false,
+      url: '',
+      path: expectedPath
+    };
+  } catch (error) {
+    console.error('Error checking for existing final dossier:', error);
+    return {
+      exists: false,
+      url: '',
+      path: ''
+    };
+  }
+}
+
+/**
  * Generate a final dossier PDF for an inspection order
  */
 export async function generateFinalDossier(inspectionOrderId: number): Promise<{ url: string, path: string }> {
