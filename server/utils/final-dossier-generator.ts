@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFPage } from 'pdf-lib';
 import { db } from '../db';
 import { inspectionOrders, materialInspectionLinks } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -124,7 +124,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     const footerText = 'THERMOPAC PROCESS ENGINEERING LLP : 405, The Summit – Business Bay, Western Express Highway, Vile Parle, Mumbai, India – 400 057';
     
     // Function to add footer to a page
-    const addFooterToPage = (page) => {
+    const addFooterToPage = (page: PDFPage) => {
       page.drawText(footerText, {
         x: 50, // Left margin
         y: 30, // Position from bottom of page
@@ -1088,6 +1088,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
                     font: helveticaBold,
                     color: rgb(0, 0, 0),
                   });
+                  // Add footer to the new page
+                  addFooterToPage(newPage);
                   yPosition = 650;
                 }
               }
@@ -1140,6 +1142,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
                 font: helveticaBold,
                 color: rgb(0, 0, 0),
               });
+              // Add footer to the new page
+              addFooterToPage(newPage);
               yPosition = 650;
             }
           }
@@ -1167,6 +1171,14 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         color: rgb(1, 0, 0),
       });
     }
+    
+    // Add footers to all content pages
+    addFooterToPage(materialPage);
+    addFooterToPage(weldingPage);
+    addFooterToPage(ndtPage);
+    addFooterToPage(visualPage);
+    addFooterToPage(ncrPage);
+    addFooterToPage(appendicesPage);
     
     // Attempt to merge actual document PDFs as appendices
     try {
@@ -1223,7 +1235,14 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
               
               // Add each page to the main document
               for (const copiedPage of copiedPages) {
-                pdfDoc.addPage(copiedPage);
+                const page = pdfDoc.addPage(copiedPage);
+                
+                // Add our footer to each imported page
+                try {
+                  addFooterToPage(page);
+                } catch (footerError) {
+                  console.error('Error adding footer to imported page:', footerError);
+                }
               }
               
               console.log(`Successfully merged PDF: ${pdfPath}`);
