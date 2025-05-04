@@ -1,6 +1,13 @@
 import express, { Request, Response } from 'express';
 import { db } from '../db';
-import { reportTemplates, templateSectionTypes } from '@shared/schema';
+import { 
+  reportTemplates, 
+  templateSectionTypes, 
+  templatePaperSizes, 
+  templateOrientations,
+  TemplateSection,
+  TemplateSectionType
+} from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
 
 const router = express.Router();
@@ -77,6 +84,18 @@ router.post('/', ensureAuthenticated, async (req: Request, res: Response) => {
       headerText,
       footerText,
       sectionOrder,
+      
+      // New advanced fields
+      paperSize = 'A4',
+      orientation = 'Portrait',
+      marginTop = 25,
+      marginBottom = 25,
+      marginLeft = 25,
+      marginRight = 25,
+      sectionConfigurations,
+      showCompanyLogo = true,
+      logoPosition = 'header',
+      
       isDefault = false
     } = req.body;
     
@@ -99,6 +118,35 @@ router.post('/', ensureAuthenticated, async (req: Request, res: Response) => {
       }
     }
     
+    // Validate paper size
+    if (paperSize && !templatePaperSizes.includes(paperSize as any)) {
+      return res.status(400).json({
+        error: "Invalid paper size",
+        validPaperSizes: templatePaperSizes
+      });
+    }
+    
+    // Validate orientation
+    if (orientation && !templateOrientations.includes(orientation as any)) {
+      return res.status(400).json({
+        error: "Invalid orientation",
+        validOrientations: templateOrientations
+      });
+    }
+    
+    // If no section configurations provided, create default ones from section order
+    let finalSectionConfigs = sectionConfigurations;
+    if (!finalSectionConfigs && sectionOrder) {
+      finalSectionConfigs = sectionOrder.map((sectionType: TemplateSectionType) => {
+        return {
+          type: sectionType,
+          title: sectionType, // Default to same name
+          enabled: true,
+          fields: [] // No custom fields by default
+        };
+      });
+    }
+    
     // If this is set as default, update all other templates to not be default
     if (isDefault) {
       await db.update(reportTemplates)
@@ -117,6 +165,18 @@ router.post('/', ensureAuthenticated, async (req: Request, res: Response) => {
         headerText,
         footerText,
         sectionOrder,
+        
+        // Include new advanced fields
+        paperSize,
+        orientation,
+        marginTop,
+        marginBottom,
+        marginLeft,
+        marginRight,
+        sectionConfigurations: finalSectionConfigs,
+        showCompanyLogo,
+        logoPosition,
+        
         isDefault,
         createdBy: userId
       })
@@ -163,6 +223,18 @@ router.put('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
       headerText,
       footerText,
       sectionOrder,
+      
+      // New advanced fields
+      paperSize,
+      orientation,
+      marginTop,
+      marginBottom,
+      marginLeft,
+      marginRight,
+      sectionConfigurations,
+      showCompanyLogo,
+      logoPosition,
+      
       isDefault
     } = req.body;
     
@@ -185,6 +257,35 @@ router.put('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
       }
     }
     
+    // Validate paper size
+    if (paperSize && !templatePaperSizes.includes(paperSize as any)) {
+      return res.status(400).json({
+        error: "Invalid paper size",
+        validPaperSizes: templatePaperSizes
+      });
+    }
+    
+    // Validate orientation
+    if (orientation && !templateOrientations.includes(orientation as any)) {
+      return res.status(400).json({
+        error: "Invalid orientation",
+        validOrientations: templateOrientations
+      });
+    }
+    
+    // If sectionConfigurations not provided but sectionOrder changed, update sectionConfigurations
+    let finalSectionConfigs = sectionConfigurations;
+    if (!finalSectionConfigs && sectionOrder && !existingTemplate.sectionConfigurations) {
+      finalSectionConfigs = sectionOrder.map((sectionType: TemplateSectionType) => {
+        return {
+          type: sectionType,
+          title: sectionType, // Default to same name
+          enabled: true,
+          fields: [] // No custom fields by default
+        };
+      });
+    }
+    
     // Update values object
     const updateValues: any = {};
     
@@ -197,6 +298,17 @@ router.put('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     if (footerText !== undefined) updateValues.footerText = footerText;
     if (sectionOrder !== undefined) updateValues.sectionOrder = sectionOrder;
     if (isDefault !== undefined) updateValues.isDefault = isDefault;
+    
+    // Add new fields if provided
+    if (paperSize !== undefined) updateValues.paperSize = paperSize;
+    if (orientation !== undefined) updateValues.orientation = orientation;
+    if (marginTop !== undefined) updateValues.marginTop = marginTop;
+    if (marginBottom !== undefined) updateValues.marginBottom = marginBottom;
+    if (marginLeft !== undefined) updateValues.marginLeft = marginLeft;
+    if (marginRight !== undefined) updateValues.marginRight = marginRight;
+    if (finalSectionConfigs !== undefined) updateValues.sectionConfigurations = finalSectionConfigs;
+    if (showCompanyLogo !== undefined) updateValues.showCompanyLogo = showCompanyLogo;
+    if (logoPosition !== undefined) updateValues.logoPosition = logoPosition;
     
     // Always update the updatedAt timestamp
     updateValues.updatedAt = new Date();

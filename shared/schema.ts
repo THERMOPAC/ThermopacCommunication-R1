@@ -2649,9 +2649,35 @@ export const templateSectionTypes = [
 
 export type TemplateSectionType = typeof templateSectionTypes[number];
 
+// Templates can have custom fields in each section
+export interface TemplateSectionField {
+  id: string;          // Unique identifier for the field
+  name: string;        // Display name
+  type: 'text' | 'checkbox' | 'date' | 'number' | 'select'; // Field type
+  required: boolean;   // Is this field required?
+  options?: string[];  // Options for select fields
+  defaultValue?: any;  // Default value
+}
+
+// Section configuration
+export interface TemplateSection {
+  type: TemplateSectionType;  // Which section
+  title: string;              // Display title (customizable)
+  enabled: boolean;           // Is this section enabled?
+  fields: TemplateSectionField[]; // Custom fields in this section
+}
+
 // Available font sizes for templates
 export const templateFontSizes = ["Small", "Medium", "Large"] as const;
 export type TemplateFontSize = typeof templateFontSizes[number];
+
+// Paper sizes
+export const templatePaperSizes = ["A4", "Letter", "Legal"] as const;
+export type TemplatePaperSize = typeof templatePaperSizes[number];
+
+// Page orientations
+export const templateOrientations = ["Portrait", "Landscape"] as const;
+export type TemplateOrientation = typeof templateOrientations[number];
 
 // Template for document generation (QMS Final Dossier templates, etc.)
 export const reportTemplates = pgTable('report_templates', {
@@ -2668,8 +2694,23 @@ export const reportTemplates = pgTable('report_templates', {
   headerText: text('header_text'),
   footerText: text('footer_text'),
   
-  // Order of sections stored as JSON array
+  // Advanced options - new
+  paperSize: text('paper_size').default('A4'),
+  orientation: text('orientation').default('Portrait'),
+  marginTop: integer('margin_top').default(25),
+  marginBottom: integer('margin_bottom').default(25),
+  marginLeft: integer('margin_left').default(25),
+  marginRight: integer('margin_right').default(25),
+  
+  // Customized sections
+  sectionConfigurations: jsonb('section_configurations').$type<TemplateSection[]>(),
+  
+  // Order of sections stored as JSON array (keeping for backward compatibility)
   sectionOrder: jsonb('section_order').$type<TemplateSectionType[]>(),
+  
+  // Company Logo settings
+  showCompanyLogo: boolean('show_company_logo').default(true),
+  logoPosition: text('logo_position').default('header'),
   
   // Is this the default template for its type?
   isDefault: boolean('is_default').notNull().default(false),
