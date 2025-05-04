@@ -1,14 +1,6 @@
--- Add weld data field to inspection_orders table
-DO $$ 
-BEGIN
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_name = 'inspection_orders' 
-        AND column_name = 'weld_data'
-    ) THEN
-        ALTER TABLE inspection_orders ADD COLUMN weld_data TEXT;
-        RAISE NOTICE 'Added weld_data column to inspection_orders table';
-    ELSE
-        RAISE NOTICE 'weld_data column already exists in inspection_orders table';
-    END IF;
-END $$;
+-- Add weld_data column to inspection_orders table
+ALTER TABLE inspection_orders ADD COLUMN IF NOT EXISTS weld_data TEXT;
+
+-- Description: This migration adds a weld_data column to the inspection_orders table
+-- to store welding and weld maps information in JSON format.
+-- Date: May 4, 2025

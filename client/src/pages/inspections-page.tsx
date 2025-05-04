@@ -1264,6 +1264,59 @@ export default function InspectionsPage() {
     }
   }, [editInspectionOrderDetails]);
   
+  // Update Weld records when inspection order details are loaded
+  useEffect(() => {
+    if (editInspectionOrderDetails) {
+      // Check if the response has Weld data in the expected format
+      console.log("Checking for Weld data:", editInspectionOrderDetails);
+      
+      const weldData = (editInspectionOrderDetails as any).weldData || 
+                       (editInspectionOrderDetails as any).weld_data ||
+                       editInspectionOrderDetails.welds;
+      
+      if (weldData) {
+        try {
+          // If the data is already parsed as an object, use it directly
+          // Otherwise, try to parse it from JSON string
+          const parsedWeldRecords = Array.isArray(weldData) 
+            ? weldData 
+            : typeof weldData === 'string' 
+              ? JSON.parse(weldData) 
+              : null;
+          
+          if (parsedWeldRecords && Array.isArray(parsedWeldRecords) && parsedWeldRecords.length > 0) {
+            console.log("Found Weld records:", parsedWeldRecords);
+            
+            // Map the Weld records to match our state format
+            const formattedRecords = parsedWeldRecords.map((record, index) => ({
+              id: record.id || `W-${index + 1}`,
+              weldType: record.weldType || '',
+              weldProcess: record.weldProcess || '',
+              wpqrDocument: record.wpqrDocument || '',
+              welderId: record.welderId || '',
+              weldStatus: record.weldStatus || 'Pass'
+            }));
+            
+            setWelds(formattedRecords);
+            return;
+          }
+        } catch (error) {
+          console.error("Error parsing Weld records:", error);
+        }
+      }
+      
+      // If no valid Weld records were found, initialize with a default record
+      setWelds([{
+        id: 'W-1',
+        weldType: '',
+        weldProcess: '',
+        wpqrDocument: '',
+        welderId: '',
+        weldStatus: 'Pass'
+      }]);
+    }
+  }, [editInspectionOrderDetails]);
+  
   // Load NCR records from the inspection order data
   useEffect(() => {
     if (editInspectionOrderDetails) {
