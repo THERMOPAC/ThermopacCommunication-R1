@@ -57,11 +57,17 @@ import {
   TemplateSectionType, 
   templateSectionTypes, 
   templateFontSizes,
-  templatePaperSizes,
-  templateOrientations,
   TemplateSection,
   TemplateSectionField
 } from '@shared/schema';
+
+// Temporarily define these constants here until schema.ts is properly updated
+const templatePaperSizes = ["A4", "Letter", "Legal"] as const;
+const templateOrientations = ["Portrait", "Landscape"] as const;
+
+// Define paper size and orientation types to match constants
+type PaperSize = 'A4' | 'Letter' | 'Legal';
+type Orientation = 'Portrait' | 'Landscape';
 
 // Interface for the template data from API
 interface Template {
@@ -76,8 +82,8 @@ interface Template {
   sectionOrder: TemplateSectionType[] | null;
   
   // New advanced options
-  paperSize?: string;
-  orientation?: string;
+  paperSize?: PaperSize;
+  orientation?: Orientation;
   marginTop?: number;
   marginBottom?: number;
   marginLeft?: number;
@@ -350,8 +356,8 @@ export default function TemplateManagementPage() {
       sectionOrder: template.sectionOrder || [],
       
       // New advanced fields
-      paperSize: template.paperSize || 'A4',
-      orientation: template.orientation || 'Portrait',
+      paperSize: (template.paperSize || 'A4') as 'A4' | 'Letter' | 'Legal',
+      orientation: (template.orientation || 'Portrait') as 'Portrait' | 'Landscape',
       marginTop: template.marginTop || 25,
       marginBottom: template.marginBottom || 25,
       marginLeft: template.marginLeft || 25,
@@ -628,6 +634,36 @@ export default function TemplateManagementPage() {
                     {/* General Styling */}
                     <TabsContent value="general" className="space-y-6 pt-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="fontSize"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Font Size</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select font size" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {templateFontSizes.map((size) => (
+                                    <SelectItem key={size} value={size}>
+                                      {size}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormDescription>
+                                Choose the font size for the document.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                         <FormField
                           control={form.control}
                           name="hasCoverPage"

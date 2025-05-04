@@ -2671,11 +2671,11 @@ export interface TemplateSection {
 export const templateFontSizes = ["Small", "Medium", "Large"] as const;
 export type TemplateFontSize = typeof templateFontSizes[number];
 
-// Paper sizes
+// Available paper sizes for templates
 export const templatePaperSizes = ["A4", "Letter", "Legal"] as const;
 export type TemplatePaperSize = typeof templatePaperSizes[number];
 
-// Page orientations
+// Available page orientations for templates
 export const templateOrientations = ["Portrait", "Landscape"] as const;
 export type TemplateOrientation = typeof templateOrientations[number];
 
