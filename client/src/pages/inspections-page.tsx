@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
-import { Check, Edit, Trash, Eye } from "lucide-react";
+import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck } from "lucide-react";
 import InspectionDocumentUpload from "@/components/inspection-document-upload";
 import InspectionDocumentViewer from "@/components/inspection-document-viewer";
 import { 
@@ -57,7 +57,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck } from "lucide-react";
 import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -617,6 +616,59 @@ export default function InspectionsPage() {
   // Edit a hydrotest record
   const startEditingHydrotest = (index: number) => {
     setEditingHydrotestIndex(index);
+  };
+  
+  // Function to generate the final dossier
+  const generateFinalDossier = async () => {
+    if (!editInspectionOrderDetails || !editInspectionOrderDetails.id) {
+      toast({
+        title: "Error",
+        description: "Cannot generate final dossier: Inspection order details not found",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setIsGeneratingDossier(true);
+      setDossierUrl(null);
+      
+      const response = await fetch(`/api/quality/final-dossier/generate/${editInspectionOrderDetails.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || "Failed to generate final dossier");
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.url) {
+        setDossierUrl(data.url);
+        toast({
+          title: "Success",
+          description: "Final dossier generated successfully",
+        });
+        
+        // Refresh the document viewer
+        setShowDossierDocuments(true);
+      } else {
+        throw new Error("Failed to generate final dossier: No URL returned");
+      }
+    } catch (error) {
+      console.error("Error generating final dossier:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An error occurred while generating the final dossier",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingDossier(false);
+    }
   };
   
   // Update a hydrotest field
@@ -3647,7 +3699,30 @@ export default function InspectionsPage() {
                   {/* Final Dossier Tab */}
                   <TabsContent value="final-dossier" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Final Documentation Dossier</h3>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-medium">Final Documentation Dossier</h3>
+                        {editInspectionOrderDetails && (
+                          <Button 
+                            type="button"
+                            variant="default"
+                            onClick={generateFinalDossier}
+                            disabled={isGeneratingDossier}
+                            className="ml-auto"
+                          >
+                            {isGeneratingDossier ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Generating Dossier...
+                              </>
+                            ) : (
+                              <>
+                                <FileText className="h-4 w-4 mr-2" />
+                                Generate Final Dossier
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
                       <div className="grid grid-cols-12 gap-4">
                         <div className="col-span-6">
                           <FormField
