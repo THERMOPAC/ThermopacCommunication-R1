@@ -87,7 +87,10 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       color: rgb(0, 0, 0),
     });
     
-    coverPage.drawText(`Inspection Order: ${inspectionOrder.inspectionOrderNumber}`, {
+    // Define dossier number (FD prefix followed by inspection order number)
+    const dossierNumber = `FD_${inspectionOrder.inspectionOrderNumber}`;
+    
+    coverPage.drawText(`Final Dossier No: ${dossierNumber}`, {
       x: 150,
       y: 650,
       size: 16,
@@ -95,9 +98,17 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       color: rgb(0, 0, 0),
     });
     
-    coverPage.drawText(`Project: ${inspectionOrder.projectCode}`, {
+    coverPage.drawText(`Inspection Order: ${inspectionOrder.inspectionOrderNumber}`, {
       x: 150,
       y: 620,
+      size: 16,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    coverPage.drawText(`Project: ${inspectionOrder.projectCode}`, {
+      x: 150,
+      y: 590,
       size: 14,
       font: helvetica,
       color: rgb(0, 0, 0),
@@ -105,7 +116,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     coverPage.drawText(`Date: ${new Date().toLocaleDateString()}`, {
       x: 150,
-      y: 590,
+      y: 560,
       size: 14,
       font: helvetica,
       color: rgb(0, 0, 0),
@@ -540,8 +551,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Save the dossier
     const pdfBytes = await pdfDoc.save();
     
-    // Define the path for the final dossier in GCS
-    const gcsPath = `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Final_Dossier/${inspectionOrder.inspectionOrderNumber}_Final_Dossier.pdf`;
+    // Define the path for the final dossier in GCS with the required naming convention
+    // We're reusing the dossierNumber variable that was defined earlier on the cover page
+    const gcsPath = `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Final Dossier/${dossierNumber}.pdf`;
     
     // Upload to GCS
     const file = bucket.file(gcsPath);
