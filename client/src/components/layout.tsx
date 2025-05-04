@@ -4,6 +4,7 @@ import UserProfile from "@/components/user-profile";
 import { Separator } from "@/components/ui/separator";
 import {
   LayoutDashboard,
+  LayoutTemplate,
   Users,
   CheckSquare,
   MessageSquare,
@@ -162,7 +163,8 @@ export default function Layout({ children }: LayoutProps) {
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
         { icon: FileCheck, label: "Inspection Management", href: "/inspection-management" },
         { icon: Award, label: "Quality Reports", href: "/quality-reports" },
-        { icon: FileCheck, label: "Quality Assurance Plan", href: "/quality-assurance-plan" }
+        { icon: FileCheck, label: "Quality Assurance Plan", href: "/quality-assurance-plan" },
+        { icon: LayoutTemplate, label: "Template Management", href: "/template-management" }
       ]
     }] : []),
     ...(hasViewPermission("Project Commissioning") ? [{ icon: Briefcase, label: "Project Commissioning", href: "/project-commissioning" }] : []),
