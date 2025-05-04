@@ -1249,6 +1249,59 @@ export default function InspectionsPage() {
     }
   }, [editInspectionOrderDetails]);
   
+  // Load NCR records from the inspection order data
+  useEffect(() => {
+    if (editInspectionOrderDetails) {
+      // Check if the response has NCR data in the expected format
+      console.log("Checking for NCR data:", editInspectionOrderDetails);
+      
+      const ncrData = (editInspectionOrderDetails as any).ncrData || (editInspectionOrderDetails as any).ncr_data;
+      
+      if (ncrData) {
+        try {
+          // If the data is already parsed as an object, use it directly
+          // Otherwise, try to parse it from JSON string
+          const parsedNcrRecords = Array.isArray(ncrData) 
+            ? ncrData 
+            : typeof ncrData === 'string' 
+              ? JSON.parse(ncrData) 
+              : null;
+          
+          if (parsedNcrRecords && Array.isArray(parsedNcrRecords) && parsedNcrRecords.length > 0) {
+            console.log("Found NCR records:", parsedNcrRecords);
+            
+            // Map the NCR records to match our state format
+            const formattedRecords = parsedNcrRecords.map((record, index) => ({
+              id: record.id || `NCR-${index + 1}`,
+              ncrNumber: record.ncrNumber || '',
+              ncrDate: record.ncrDate || '',
+              ncrStatus: record.ncrStatus || 'open',
+              ncrDescription: record.ncrDescription || '',
+              ncrDisposition: record.ncrDisposition || 'rework',
+              ncrCorrectiveAction: record.ncrCorrectiveAction || ''
+            }));
+            
+            setNcrRecords(formattedRecords);
+            return;
+          }
+        } catch (error) {
+          console.error("Error parsing NCR records:", error);
+        }
+      }
+      
+      // If no valid NCR records were found, initialize with a default record
+      setNcrRecords([{
+        id: 'NCR-1',
+        ncrNumber: '',
+        ncrDate: '',
+        ncrStatus: 'open',
+        ncrDescription: '',
+        ncrDisposition: 'rework',
+        ncrCorrectiveAction: ''
+      }]);
+    }
+  }, [editInspectionOrderDetails]);
+  
   // Helper function to sync material rows with form
   const syncMaterialRowsWithForm = () => {
     editForm.setValue('materials', materialRows);
@@ -1340,12 +1393,13 @@ export default function InspectionsPage() {
       let materialRows = data.materials || [];
       const validMaterialRows = materialRows.filter(row => row.materialId);
       
-      // Combine the form data with the NDT records and Visual records from the state
+      // Combine the form data with the NDT records, Visual records, and NCR records from the state
       const updateData = {
         ...data,
         materials: validMaterialRows,
         ndtRecords: ndtRecords,
-        visualRecords: visualRecords
+        visualRecords: visualRecords,
+        ncrRecords: ncrRecords
       };
       
       console.log("Updating inspection order with data:", updateData);
