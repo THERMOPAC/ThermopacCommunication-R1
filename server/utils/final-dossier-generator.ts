@@ -123,21 +123,24 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Footer text to be added to each page
     const footerText = 'THERMOPAC PROCESS ENGINEERING LLP : 405, The Summit – Business Bay, Western Express Highway, Vile Parle, Mumbai, India – 400 057';
     
+    // Convert 10mm margins to points (10mm ≈ 28.3pt)
+    const pageMargin = 10 * 2.83; // 10mm margin
+    
     // Function to add footer to a page
     const addFooterToPage = (page: PDFPage) => {
       page.drawText(footerText, {
-        x: 50, // Left margin
+        x: pageMargin, // Left margin (10mm)
         y: 30, // Position from bottom of page
         size: 8, // Smaller font size for footer
         font: helvetica,
         color: rgb(0.4, 0.4, 0.4), // Gray color
-        maxWidth: 512, // Maximum width to prevent text overflow
+        maxWidth: 612 - (2 * pageMargin), // Maximum width with 10mm margins on both sides
       });
       
       // Draw a line above the footer
       page.drawLine({
-        start: { x: 50, y: 40 },
-        end: { x: 562, y: 40 },
+        start: { x: pageMargin, y: 40 },
+        end: { x: 612 - pageMargin, y: 40 },
         thickness: 0.5,
         color: rgb(0.8, 0.8, 0.8),
       });
@@ -154,26 +157,22 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       // Embed the image in the PDF
       const logoImage = await pdfDoc.embedJpg(logoImageBytes);
       
-      // Get the dimensions of the image - Scale down the logo to passport photo size
-      // Standard passport photo is about 35mm x 45mm which is roughly 100pt x 130pt in PDF
-      const originalAspectRatio = logoImage.width / logoImage.height;
-      const maxWidth = 100; // Passport photo width in points
-      const maxHeight = 130; // Passport photo height in points
+      // Size the logo to the requested dimensions - 15mm x 20mm
+      // Convert mm to points (1 mm ≈ 2.83 points in PDF)
+      const logoWidth = 15 * 2.83; // 15mm ≈ 42.5 points
+      const logoHeight = 20 * 2.83; // 20mm ≈ 56.7 points
       
-      // Calculate dimensions preserving aspect ratio
-      let width = maxWidth;
-      let height = width / originalAspectRatio;
-      
-      // If height exceeds maximum, scale based on height instead
-      if (height > maxHeight) {
-        height = maxHeight;
-        width = height * originalAspectRatio;
-      }
+      // Calculate dimensions - fixed size as per requirements
+      let width = logoWidth;
+      let height = logoHeight;
       
       // Draw the logo in the top-right corner
+      // Convert 10mm margins to points (10mm ≈ 28.3pt)
+      const pageMargin = 10 * 2.83; // 10mm margin
+      
       coverPage.drawImage(logoImage, {
-        x: 612 - width - 30, // Position from right edge with 30pt margin
-        y: 792 - height - 30, // Position from top edge with 30pt margin
+        x: 612 - width - pageMargin, // Position from right edge with 10mm margin
+        y: 792 - height - pageMargin, // Position from top edge with 10mm margin
         width: width,
         height: height,
       });
@@ -185,7 +184,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     // Cover page content
     coverPage.drawText('FINAL QUALITY DOSSIER', {
-      x: 150,
+      x: pageMargin, // Use 10mm left margin
       y: 700,
       size: 24,
       font: helveticaBold,
@@ -196,7 +195,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     const dossierNumber = `FD_${inspectionOrder.inspectionOrderNumber}`;
     
     coverPage.drawText(`Final Dossier No: ${dossierNumber}`, {
-      x: 150,
+      x: pageMargin,
       y: 650,
       size: 16,
       font: helveticaBold,
@@ -204,7 +203,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     });
     
     coverPage.drawText(`Inspection Order: ${inspectionOrder.inspectionOrderNumber}`, {
-      x: 150,
+      x: pageMargin,
       y: 620,
       size: 16,
       font: helveticaBold,
@@ -212,7 +211,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     });
     
     coverPage.drawText(`Project: ${inspectionOrder.projectCode}`, {
-      x: 150,
+      x: pageMargin,
       y: 590,
       size: 14,
       font: helvetica,
@@ -220,7 +219,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     });
     
     coverPage.drawText(`Date: ${new Date().toLocaleDateString()}`, {
-      x: 150,
+      x: pageMargin,
       y: 560,
       size: 14,
       font: helvetica,
@@ -233,7 +232,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Add table of contents
     const tocPage = pdfDoc.addPage([612, 792]);
     tocPage.drawText('TABLE OF CONTENTS', {
-      x: 50,
+      x: pageMargin,
       y: 700,
       size: 18,
       font: helveticaBold,
@@ -253,7 +252,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     for (const section of sections) {
       tocPage.drawText(section, {
-        x: 70,
+        x: pageMargin + 20, // Indent slightly from left margin
         y: yPosition,
         size: 12,
         font: helvetica,
@@ -268,7 +267,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Add material traceability section
     const materialPage = pdfDoc.addPage([612, 792]);
     materialPage.drawText('1. MATERIAL TRACEABILITY', {
-      x: 50,
+      x: pageMargin,
       y: 700,
       size: 16,
       font: helveticaBold,
@@ -397,7 +396,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Add welding section
     const weldingPage = pdfDoc.addPage([612, 792]);
     weldingPage.drawText('2. WELDING & WELD MAPS', {
-      x: 50,
+      x: pageMargin,
       y: 700,
       size: 16,
       font: helveticaBold,
@@ -542,7 +541,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Add NDT section
     const ndtPage = pdfDoc.addPage([612, 792]);
     ndtPage.drawText('3. NDT REPORTS', {
-      x: 50,
+      x: pageMargin,
       y: 700,
       size: 16,
       font: helveticaBold,
@@ -703,7 +702,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Add Visual Inspection section
     const visualPage = pdfDoc.addPage([612, 792]);
     visualPage.drawText('4. VISUAL INSPECTION RECORDS', {
-      x: 50,
+      x: pageMargin,
       y: 700,
       size: 16,
       font: helveticaBold,
