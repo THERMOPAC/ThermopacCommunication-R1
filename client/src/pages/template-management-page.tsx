@@ -327,6 +327,18 @@ export default function TemplateManagementPage() {
   // Handle opening edit dialog and populating form
   const handleEditTemplate = (template: Template) => {
     setEditingTemplate(template);
+    
+    // Create section configurations from section order if not available
+    let sectionConfigs = template.sectionConfigurations;
+    if (!sectionConfigs && template.sectionOrder) {
+      sectionConfigs = template.sectionOrder.map((type) => ({
+        type,
+        title: type,
+        enabled: true,
+        fields: []
+      }));
+    }
+    
     editForm.reset({
       name: template.name,
       type: template.type,
@@ -336,6 +348,23 @@ export default function TemplateManagementPage() {
       headerText: template.headerText || '',
       footerText: template.footerText || '',
       sectionOrder: template.sectionOrder || [],
+      
+      // New advanced fields
+      paperSize: template.paperSize || 'A4',
+      orientation: template.orientation || 'Portrait',
+      marginTop: template.marginTop || 25,
+      marginBottom: template.marginBottom || 25,
+      marginLeft: template.marginLeft || 25,
+      marginRight: template.marginRight || 25,
+      sectionConfigurations: sectionConfigs || templateSectionTypes.map(type => ({
+        type,
+        title: type,
+        enabled: true,
+        fields: []
+      })),
+      showCompanyLogo: template.showCompanyLogo !== undefined ? template.showCompanyLogo : true,
+      logoPosition: template.logoPosition || 'header',
+      
       isDefault: template.isDefault,
     });
     setIsEditDialogOpen(true);
@@ -589,111 +618,320 @@ export default function TemplateManagementPage() {
                 
                 {/* Layout & Styling Tab */}
                 <TabsContent value="styling" className="space-y-6 pt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="hasCoverPage"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Include Cover Page</FormLabel>
-                            <FormDescription>
-                              Add a cover page to the document.
-                            </FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
+                  <Tabs defaultValue="general">
+                    <TabsList className="w-full">
+                      <TabsTrigger value="general">General</TabsTrigger>
+                      <TabsTrigger value="layout">Page Layout</TabsTrigger>
+                      <TabsTrigger value="branding">Branding</TabsTrigger>
+                    </TabsList>
                     
-                    <FormField
-                      control={form.control}
-                      name="hasFooter"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Include Footer</FormLabel>
+                    {/* General Styling */}
+                    <TabsContent value="general" className="space-y-6 pt-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="hasCoverPage"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel>Include Cover Page</FormLabel>
+                                <FormDescription>
+                                  Add a cover page to the document.
+                                </FormDescription>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="hasFooter"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel>Include Footer</FormLabel>
+                                <FormDescription>
+                                  Add a footer to document pages.
+                                </FormDescription>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <FormField
+                        control={form.control}
+                        name="fontSize"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Font Size</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select font size" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {templateFontSizes.map((size) => (
+                                  <SelectItem key={size} value={size}>
+                                    {size}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormDescription>
-                              Add a footer to document pages.
+                              Select the font size for the document.
                             </FormDescription>
-                          </div>
-                        </FormItem>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="headerText"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Header Text</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter header text (optional)" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormDescription>
+                              Custom text to display in the document header.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="footerText"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Footer Text</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter footer text (optional)" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormDescription>
+                              Custom text to display in the document footer.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </TabsContent>
+                    
+                    {/* Page Layout */}
+                    <TabsContent value="layout" className="space-y-6 pt-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="paperSize"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Paper Size</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select paper size" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {templatePaperSizes.map((size) => (
+                                    <SelectItem key={size} value={size}>
+                                      {size}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormDescription>
+                                Standard paper sizes for documents
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="orientation"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Orientation</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select orientation" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {templateOrientations.map((orientation) => (
+                                    <SelectItem key={orientation} value={orientation}>
+                                      {orientation}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormDescription>
+                                Page orientation for documents
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <FormLabel>Margins (mm)</FormLabel>
+                        <div className="grid grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="marginTop"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Top</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    {...field}
+                                    onChange={(e) => field.onChange(Number(e.target.value))}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="marginBottom"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Bottom</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    {...field}
+                                    onChange={(e) => field.onChange(Number(e.target.value))}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="marginLeft"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Left</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    {...field}
+                                    onChange={(e) => field.onChange(Number(e.target.value))}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="marginRight"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Right</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    {...field}
+                                    onChange={(e) => field.onChange(Number(e.target.value))}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </TabsContent>
+                    
+                    {/* Branding */}
+                    <TabsContent value="branding" className="space-y-6 pt-4">
+                      <FormField
+                        control={form.control}
+                        name="showCompanyLogo"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel>Show Company Logo</FormLabel>
+                              <FormDescription>
+                                Include the company logo in the document.
+                              </FormDescription>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {form.watch('showCompanyLogo') && (
+                        <FormField
+                          control={form.control}
+                          name="logoPosition"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Logo Position</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select logo position" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="header">Header</SelectItem>
+                                  <SelectItem value="cover_page">Cover Page Only</SelectItem>
+                                  <SelectItem value="footer">Footer</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormDescription>
+                                Choose where to display the company logo.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="fontSize"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Font Size</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select font size" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {templateFontSizes.map((size) => (
-                              <SelectItem key={size} value={size}>
-                                {size}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Select the font size for the document.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="headerText"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Header Text</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter header text (optional)" {...field} value={field.value || ''} />
-                        </FormControl>
-                        <FormDescription>
-                          Custom text to display in the document header.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="footerText"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Footer Text</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter footer text (optional)" {...field} value={field.value || ''} />
-                        </FormControl>
-                        <FormDescription>
-                          Custom text to display in the document footer.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    </TabsContent>
+                  </Tabs>
                 </TabsContent>
                 
                 {/* Section Order Tab */}
