@@ -28,6 +28,7 @@ import { setupTestWelderRoute } from "./quality/test-welder-route";
 import { setupApiTestRoutes } from "./api-test-route";
 import { setupDedicatedTestRoutes } from "./dedicated-test-route";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
+import { registerTemplateManagementRoutes } from "./template-management/register-routes";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
 import { checkGcsPermissions } from "./utils/gcs-permissions-check";
@@ -107,6 +108,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);
+  
+  // Set up template management routes
+  registerTemplateManagementRoutes(app);
   
   // Set up module permissions routes
   app.use(modulePermissionRoutes);
