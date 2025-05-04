@@ -104,8 +104,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   // Create customer mutation
   const createMutation = useMutation({
     mutationFn: async (data: CustomerFormValues) => {
-      const res = await apiRequest("POST", "/api/customers", data);
-      return await res.json();
+      // Set parseJson to true so apiRequest will handle the JSON parsing
+      return await apiRequest("POST", "/api/customers", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
@@ -128,8 +128,8 @@ export default function CustomerManagement({ customers }: { customers: Customer[
   // Update customer mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: CustomerFormValues }) => {
-      const res = await apiRequest("PUT", `/api/customers/${id}`, data);
-      return await res.json();
+      // Set parseJson to true so apiRequest will handle the JSON parsing
+      return await apiRequest("PUT", `/api/customers/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
