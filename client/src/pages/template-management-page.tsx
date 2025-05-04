@@ -53,7 +53,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { TemplateSectionType, templateSectionTypes, templateFontSizes } from '@shared/schema';
+import { 
+  TemplateSectionType, 
+  templateSectionTypes, 
+  templateFontSizes,
+  templatePaperSizes,
+  templateOrientations,
+  TemplateSection,
+  TemplateSectionField
+} from '@shared/schema';
 
 // Interface for the template data from API
 interface Template {
@@ -66,6 +74,18 @@ interface Template {
   headerText: string | null;
   footerText: string | null;
   sectionOrder: TemplateSectionType[] | null;
+  
+  // New advanced options
+  paperSize?: string;
+  orientation?: string;
+  marginTop?: number;
+  marginBottom?: number;
+  marginLeft?: number;
+  marginRight?: number;
+  sectionConfigurations?: TemplateSection[];
+  showCompanyLogo?: boolean;
+  logoPosition?: string;
+  
   isDefault: boolean;
   createdBy: number;
   createdAt: string;
@@ -82,6 +102,34 @@ const templateFormSchema = z.object({
   headerText: z.string().nullable().optional(),
   footerText: z.string().nullable().optional(),
   sectionOrder: z.array(z.enum(templateSectionTypes)).optional(),
+  
+  // New advanced options
+  paperSize: z.enum(['A4', 'Letter', 'Legal']).default('A4'),
+  orientation: z.enum(['Portrait', 'Landscape']).default('Portrait'),
+  marginTop: z.number().min(0).max(100).default(25),
+  marginBottom: z.number().min(0).max(100).default(25),
+  marginLeft: z.number().min(0).max(100).default(25),
+  marginRight: z.number().min(0).max(100).default(25),
+  sectionConfigurations: z.array(
+    z.object({
+      type: z.enum(templateSectionTypes),
+      title: z.string(),
+      enabled: z.boolean().default(true),
+      fields: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          type: z.enum(['text', 'checkbox', 'date', 'number', 'select']),
+          required: z.boolean().default(false),
+          options: z.array(z.string()).optional(),
+          defaultValue: z.any().optional()
+        })
+      )
+    })
+  ).optional(),
+  showCompanyLogo: z.boolean().default(true),
+  logoPosition: z.string().default('header'),
+  
   isDefault: z.boolean().default(false),
 });
 
@@ -109,6 +157,23 @@ export default function TemplateManagementPage() {
       headerText: '',
       footerText: '',
       sectionOrder: ['Material Traceability', 'Welding & Weld Maps', 'NDT', 'Visual Inspection', 'Hydrotest', 'Non-Conformance'],
+      
+      // Add default values for new fields
+      paperSize: 'A4',
+      orientation: 'Portrait',
+      marginTop: 25,
+      marginBottom: 25,
+      marginLeft: 25,
+      marginRight: 25,
+      showCompanyLogo: true,
+      logoPosition: 'header',
+      sectionConfigurations: templateSectionTypes.map(type => ({
+        type,
+        title: type,
+        enabled: true,
+        fields: []
+      })),
+      
       isDefault: false,
     },
   });
@@ -125,6 +190,23 @@ export default function TemplateManagementPage() {
       headerText: '',
       footerText: '',
       sectionOrder: ['Material Traceability', 'Welding & Weld Maps', 'NDT', 'Visual Inspection', 'Hydrotest', 'Non-Conformance'],
+      
+      // Add default values for new fields
+      paperSize: 'A4',
+      orientation: 'Portrait',
+      marginTop: 25,
+      marginBottom: 25,
+      marginLeft: 25,
+      marginRight: 25,
+      showCompanyLogo: true,
+      logoPosition: 'header',
+      sectionConfigurations: templateSectionTypes.map(type => ({
+        type,
+        title: type,
+        enabled: true,
+        fields: []
+      })),
+      
       isDefault: false,
     },
   });
