@@ -2623,7 +2623,7 @@ export default function InspectionsPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {welds.map((weld, index) => (
+                            {Array.isArray(welds) && welds.map((weld, index) => (
                               <TableRow key={weld.id}>
                                 <TableCell className="font-medium">{weld.id}</TableCell>
                                 <TableCell>
@@ -2817,7 +2817,7 @@ export default function InspectionsPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {ndtRecords.map((record, index) => (
+                            {Array.isArray(ndtRecords) && ndtRecords.map((record, index) => (
                               <TableRow key={record.id}>
                                 <TableCell className="font-medium">{record.id}</TableCell>
                                 <TableCell>
@@ -2998,7 +2998,7 @@ export default function InspectionsPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {visualRecords.map((record, index) => (
+                            {Array.isArray(visualRecords) && visualRecords.map((record, index) => (
                               <TableRow key={record.id}>
                                 <TableCell className="w-[150px]">{record.id}</TableCell>
                                 <TableCell>
@@ -3192,7 +3192,7 @@ export default function InspectionsPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {hydrotestRecords.map((record, index) => (
+                            {Array.isArray(hydrotestRecords) && hydrotestRecords.map((record, index) => (
                               <TableRow key={record.id}>
                                 <TableCell>{record.id}</TableCell>
                                 <TableCell>
@@ -3384,7 +3384,7 @@ export default function InspectionsPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {ncrRecords.map((record, index) => (
+                            {Array.isArray(ncrRecords) && ncrRecords.map((record, index) => (
                               <TableRow key={record.id}>
                                 <TableCell className="font-medium">{record.id}</TableCell>
                                 <TableCell>
