@@ -373,6 +373,9 @@ export function setupQualityRoutes(app: Express) {
   // Setup inspection document routes
   app.use('/api/quality/inspection-documents', inspectionDocumentRoutes);
   
+  // Setup final dossier generation routes
+  app.use('/api/quality/final-dossier', finalDossierRoutes);
+  
   // Setup debug routes
   app.use('/api/debug/quality', debugRouter);
   
