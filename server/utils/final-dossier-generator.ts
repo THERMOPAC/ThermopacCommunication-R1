@@ -120,6 +120,31 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
     
+    // Try to add company logo to the top-right corner
+    try {
+      // Load the logo file
+      const logoPath = path.resolve(__dirname, '../../client/public/images/thermopac-logo.jpg');
+      const logoImageBytes = fs.readFileSync(logoPath);
+      
+      // Embed the image in the PDF
+      const logoImage = await pdfDoc.embedJpg(logoImageBytes);
+      
+      // Get the dimensions of the image
+      const logoDims = logoImage.scale(0.4); // Scale down the logo to 40% of its original size
+      
+      // Draw the logo in the top-right corner
+      coverPage.drawImage(logoImage, {
+        x: 612 - logoDims.width - 50, // Position from right edge with 50pt margin
+        y: 792 - logoDims.height - 50, // Position from top edge with 50pt margin
+        width: logoDims.width,
+        height: logoDims.height,
+      });
+      
+      console.log('Successfully added company logo to the cover page');
+    } catch (error) {
+      console.error('Error adding company logo to cover page:', error);
+    }
+    
     // Cover page content
     coverPage.drawText('FINAL QUALITY DOSSIER', {
       x: 150,
