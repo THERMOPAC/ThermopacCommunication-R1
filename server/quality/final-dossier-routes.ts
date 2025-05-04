@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import { generateFinalDossier, checkExistingFinalDossier } from '../utils/final-dossier-generator';
+import { listFilesInDirectory } from '../utils/list-gcs-files';
 
 const router = express.Router();
 
@@ -61,6 +62,53 @@ router.get('/check/:inspectionOrderNumber', ensureAuthenticated, async (req: Req
     console.error('Error checking for final dossier:', error);
     res.status(500).json({ 
       error: 'Failed to check for final dossier', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
+// List files in the Final Dossier directory for an inspection order
+router.get('/list-directory/:inspectionOrderNumber', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const inspectionOrderNumber = req.params.inspectionOrderNumber;
+    
+    if (!inspectionOrderNumber) {
+      return res.status(400).json({ error: 'Invalid inspection order number' });
+    }
+    
+    // Check main inspection records directory
+    console.log(`Listing files in QMS/Inspections_Records directory for inspection order: ${inspectionOrderNumber}`);
+    const inspectionDirPath = `QMS/Inspections_Records/${inspectionOrderNumber}`;
+    const files = await listFilesInDirectory(inspectionDirPath);
+    
+    // Also check the specific Final Dossier subdirectory
+    const dossierDirPath = `${inspectionDirPath}/Final Dossier`;
+    let dossierFiles: string[] = [];
+    try {
+      dossierFiles = await listFilesInDirectory(dossierDirPath);
+    } catch (e) {
+      console.log(`No Final Dossier directory found for ${inspectionOrderNumber}`);
+    }
+    
+    // Check 1 level up in case there's a path issue
+    const qmsDirPath = 'QMS/Inspections_Records';
+    const qmsFiles = await listFilesInDirectory(qmsDirPath);
+    
+    // Also check just "QMS" to see what directories exist
+    const baseQmsDirPath = 'QMS';
+    const baseQmsFiles = await listFilesInDirectory(baseQmsDirPath);
+    
+    res.json({
+      inspectionFiles: files,
+      dossierFiles: dossierFiles,
+      qmsDirectoryFiles: qmsFiles,
+      baseQmsFiles: baseQmsFiles,
+      expectedDossierPath: `${dossierDirPath}/FD_${inspectionOrderNumber}.pdf`
+    });
+  } catch (error) {
+    console.error('Error listing files in GCS directory:', error);
+    res.status(500).json({ 
+      error: 'Failed to list files', 
       details: error instanceof Error ? error.message : 'Unknown error' 
     });
   }

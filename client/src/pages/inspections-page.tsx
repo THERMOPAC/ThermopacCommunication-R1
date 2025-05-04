@@ -4,6 +4,7 @@ import Layout from "@/components/layout";
 import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck } from "lucide-react";
 import InspectionDocumentUpload from "@/components/inspection-document-upload";
 import InspectionDocumentViewer from "@/components/inspection-document-viewer";
+import { FinalDossierDebugButton } from "@/components/final-dossier-debug-button";
 import { 
   Card, 
   CardContent, 
@@ -3891,6 +3892,10 @@ export default function InspectionsPage() {
                                   <Eye className="h-4 w-4 mr-2" />
                                   {showDossierDocuments ? "Hide Documents" : "View Documents"}
                                 </Button>
+                                {/* Add Debug Button */}
+                                <FinalDossierDebugButton 
+                                  inspectionOrderNumber={editInspectionOrderDetails.inspectionOrderNumber} 
+                                />
                               </>
                             )}
                           </div>
