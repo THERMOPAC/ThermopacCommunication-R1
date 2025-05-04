@@ -191,7 +191,10 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
     
     // Store NCR records in the orderData as a JSON string if they exist
     if (ncrRecords && Array.isArray(ncrRecords)) {
+      console.log('Storing NCR records in order update:', ncrRecords);
       orderData.ncrData = JSON.stringify(ncrRecords);
+    } else {
+      console.log('No NCR records to store in order update:', ncrRecords);
     }
 
     // Update inspection order
@@ -265,12 +268,16 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
     
     // Parse NCR data for the response
     let parsedNcrRecords = [];
+    console.log('Checking for NCR data in updated order response:', updatedOrder[0].ncrData);
     if (updatedOrder[0].ncrData) {
       try {
         parsedNcrRecords = JSON.parse(updatedOrder[0].ncrData);
+        console.log('Successfully parsed NCR data in response:', parsedNcrRecords);
       } catch (e) {
         console.error('Error parsing NCR data in response:', e);
       }
+    } else {
+      console.log('No NCR data found in updated order response');
     }
     
     // Return updated order with materials, NDT records, Visual Inspection records, Weld records, and NCR records

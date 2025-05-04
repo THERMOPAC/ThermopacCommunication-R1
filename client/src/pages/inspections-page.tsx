@@ -628,21 +628,27 @@ export default function InspectionsPage() {
   // Add new NCR record
   const addNcrRecord = () => {
     const newNcrNumber = ncrRecords.length + 1;
-    setNcrRecords([
-      ...ncrRecords, 
-      {
-        id: `NCR-${newNcrNumber}`,
-        ncrDate: '',
-        ncrStatus: 'open',
-        ncrDescription: '',
-        ncrDisposition: 'rework',
-        ncrCorrectiveAction: ''
-      }
-    ]);
+    const newRecord = {
+      id: `NCR-${newNcrNumber}`,
+      ncrDate: '',
+      ncrStatus: 'open',
+      ncrDescription: '',
+      ncrDisposition: 'rework',
+      ncrCorrectiveAction: ''
+    };
+    console.log('Adding new NCR record:', newRecord);
+    console.log('Current NCR records before adding:', ncrRecords);
+    
+    const updatedRecords = [...ncrRecords, newRecord];
+    setNcrRecords(updatedRecords);
+    console.log('Updated NCR records after adding:', updatedRecords);
   };
   
   // Delete an NCR record
   const deleteNcrRecord = (index: number) => {
+    console.log('Deleting NCR record at index:', index);
+    console.log('Current NCR records before deletion:', ncrRecords);
+    
     const updatedRecords = [...ncrRecords];
     updatedRecords.splice(index, 1);
     
@@ -652,7 +658,9 @@ export default function InspectionsPage() {
       id: `NCR-${idx + 1}`
     }));
     
+    console.log('Updated NCR records after deletion and renumbering:', renumberedRecords);
     setNcrRecords(renumberedRecords);
+    
     if (editingNcrIndex === index) {
       setEditingNcrIndex(null);
     }
@@ -665,11 +673,16 @@ export default function InspectionsPage() {
   
   // Update an NCR field
   const updateNcrField = (index: number, field: string, value: string) => {
+    console.log(`Updating NCR field "${field}" at index ${index} with value "${value}"`);
+    console.log('Current NCR record before update:', ncrRecords[index]);
+    
     const updatedRecords = [...ncrRecords];
     updatedRecords[index] = {
       ...updatedRecords[index],
       [field]: value
     };
+    
+    console.log('Updated NCR record after change:', updatedRecords[index]);
     setNcrRecords(updatedRecords);
   };
   
@@ -1470,6 +1483,7 @@ export default function InspectionsPage() {
       };
       
       console.log("Updating inspection order with data:", updateData);
+      console.log("NCR records being sent to server:", ncrRecords);
       
       const response = await fetch(`/api/quality/inspection-orders/${editingInspectionOrder}`, {
         method: 'PATCH',
