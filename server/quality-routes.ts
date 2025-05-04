@@ -120,14 +120,25 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       }
     }
     
-    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, and Weld records
+    // Parse NCR data if it exists
+    let ncrRecords = [];
+    if (inspectionOrder.ncrData) {
+      try {
+        ncrRecords = JSON.parse(inspectionOrder.ncrData);
+      } catch (e) {
+        console.error('Error parsing NCR data:', e);
+      }
+    }
+    
+    // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, Weld records, and NCR records
     res.json({
       ...inspectionOrder,
       items: orderItems,
       materials: materials,
       ndtRecords: ndtRecords,
       visualRecords: visualRecords,
-      welds: weldRecords
+      welds: weldRecords,
+      ncrRecords: ncrRecords
     });
   } catch (error) {
     console.error('Error fetching inspection order details:', error);
@@ -156,8 +167,8 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       return res.status(404).json({ error: 'Inspection order not found' });
     }
 
-    // Extract materials, NDT records, Visual Inspection records, and Weld records from the request body
-    const { materials, ndtRecords, visualRecords, welds, ...orderData } = req.body;
+    // Extract materials, NDT records, Visual Inspection records, Weld records, and NCR records from the request body
+    const { materials, ndtRecords, visualRecords, welds, ncrRecords, ...orderData } = req.body;
     
     // Store NDT records in the orderData as a JSON string if they exist
     if (ndtRecords && Array.isArray(ndtRecords)) {
@@ -172,6 +183,11 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
     // Store Weld records in the orderData as a JSON string if they exist
     if (welds && Array.isArray(welds)) {
       orderData.weldData = JSON.stringify(welds);
+    }
+    
+    // Store NCR records in the orderData as a JSON string if they exist
+    if (ncrRecords && Array.isArray(ncrRecords)) {
+      orderData.ncrData = JSON.stringify(ncrRecords);
     }
 
     // Update inspection order
@@ -243,13 +259,24 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       }
     }
     
-    // Return updated order with materials, NDT records, Visual Inspection records, and Weld records
+    // Parse NCR data for the response
+    let parsedNcrRecords = [];
+    if (updatedOrder[0].ncrData) {
+      try {
+        parsedNcrRecords = JSON.parse(updatedOrder[0].ncrData);
+      } catch (e) {
+        console.error('Error parsing NCR data in response:', e);
+      }
+    }
+    
+    // Return updated order with materials, NDT records, Visual Inspection records, Weld records, and NCR records
     res.json({
       ...updatedOrder[0],
       materials: updatedMaterials,
       ndtRecords: parsedNdtRecords,
       visualRecords: parsedVisualRecords,
-      welds: parsedWeldRecords
+      welds: parsedWeldRecords,
+      ncrRecords: parsedNcrRecords
     });
   } catch (error) {
     console.error('Error updating inspection order:', error);
