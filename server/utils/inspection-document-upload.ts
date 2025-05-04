@@ -1,6 +1,7 @@
 import { Request } from 'express';
 import { Storage } from '@google-cloud/storage';
-import { getGcsClient } from './gcs-storage';
+import { gcsStorage } from './gcs-storage';
+import { bucketName } from './storage-config';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 
@@ -38,7 +39,7 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     
     // Get GCS client
     console.log('uploadInspectionDocument: Getting GCS client');
-    const { storage, bucketName } = getGcsClient();
+    const storage = gcsStorage;
     console.log(`uploadInspectionDocument: Using bucket: ${bucketName}`);
     const bucket = storage.bucket(bucketName);
     
@@ -75,7 +76,7 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     
     // Return a promise that resolves when the file is uploaded
     return new Promise((resolve, reject) => {
-      blobStream.on('error', (err) => {
+      blobStream.on('error', (err: any) => {
         console.error('Error uploading inspection document:', err);
         reject({
           error: 'Failed to upload inspection document',
