@@ -639,6 +639,13 @@ export default function InspectionsPage() {
       
       if (data.exists && data.url) {
         setDossierUrl(data.url);
+        // Automatically show the documents section when a dossier is found
+        setShowDossierDocuments(true);
+        // Display success toast to notify user
+        toast({
+          title: "Final Dossier Found",
+          description: "An existing Final Dossier was found and is ready to view",
+        });
         return true;
       }
       
@@ -3730,7 +3737,16 @@ export default function InspectionsPage() {
                   </TabsContent>
                   
                   {/* Final Dossier Tab */}
-                  <TabsContent value="final-dossier" className="p-4 border rounded-md mt-4">
+                  <TabsContent 
+                    value="final-dossier" 
+                    className="p-4 border rounded-md mt-4"
+                    onSelect={() => {
+                      // Auto-check for existing final dossier when tab is opened
+                      if (editInspectionOrderDetails?.inspectionOrderNumber) {
+                        checkExistingFinalDossier(editInspectionOrderDetails.inspectionOrderNumber);
+                      }
+                    }}
+                  >
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-medium">Final Documentation Dossier</h3>
@@ -3739,13 +3755,18 @@ export default function InspectionsPage() {
                             type="button"
                             variant="default"
                             onClick={generateFinalDossier}
-                            disabled={isGeneratingDossier}
+                            disabled={isGeneratingDossier || isCheckingDossier}
                             className="ml-auto"
                           >
                             {isGeneratingDossier ? (
                               <>
                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                 Generating Dossier...
+                              </>
+                            ) : isCheckingDossier ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Checking for Dossier...
                               </>
                             ) : (
                               <>
