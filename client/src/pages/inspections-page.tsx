@@ -3354,136 +3354,190 @@ export default function InspectionsPage() {
                   {/* Non-Conformance Tab */}
                   <TabsContent value="non-conformance" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Non-Conformance Report</h3>
-                      <div className="grid grid-cols-12 gap-4">
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="ncrNumber"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>NCR Number</FormLabel>
-                                <FormControl>
-                                  <Input {...field} placeholder="Enter NCR number" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                      <h3 className="text-lg font-medium">Non-Conformance Records</h3>
+                      <div className="border rounded-md">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[100px]">NCR ID</TableHead>
+                              <TableHead className="w-[120px]">NCR Number</TableHead>
+                              <TableHead className="w-[120px]">Date</TableHead>
+                              <TableHead className="w-[100px]">Status</TableHead>
+                              <TableHead className="w-[200px]">Description</TableHead>
+                              <TableHead className="w-[150px]">Disposition</TableHead>
+                              <TableHead className="w-[200px]">Corrective Action</TableHead>
+                              <TableHead className="w-[80px] text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {ncrRecords.map((record, index) => (
+                              <TableRow key={record.id}>
+                                <TableCell className="font-medium">{record.id}</TableCell>
+                                <TableCell>
+                                  {editingNcrIndex === index ? (
+                                    <Input 
+                                      value={record.ncrNumber} 
+                                      onChange={(e) => updateNcrField(index, 'ncrNumber', e.target.value)}
+                                      className="w-[100px]"
+                                    />
+                                  ) : (
+                                    record.ncrNumber || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingNcrIndex === index ? (
+                                    <Input 
+                                      type="date" 
+                                      value={record.ncrDate} 
+                                      onChange={(e) => updateNcrField(index, 'ncrDate', e.target.value)}
+                                      className="w-[130px]"
+                                    />
+                                  ) : (
+                                    record.ncrDate || "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingNcrIndex === index ? (
+                                    <Select 
+                                      value={record.ncrStatus}
+                                      onValueChange={(value) => updateNcrField(index, 'ncrStatus', value)}
+                                    >
+                                      <SelectTrigger className="w-[100px]">
+                                        <SelectValue placeholder="Select status" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="open">Open</SelectItem>
+                                        <SelectItem value="closed">Closed</SelectItem>
+                                        <SelectItem value="pending">Pending</SelectItem>
+                                        <SelectItem value="void">Void</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <Badge variant={
+                                      record.ncrStatus === 'open' ? 'outline' : 
+                                      record.ncrStatus === 'closed' ? 'default' : 
+                                      record.ncrStatus === 'pending' ? 'secondary' : 
+                                      'destructive'
+                                    }>
+                                      {record.ncrStatus.charAt(0).toUpperCase() + record.ncrStatus.slice(1)}
+                                    </Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingNcrIndex === index ? (
+                                    <Textarea 
+                                      value={record.ncrDescription} 
+                                      onChange={(e) => updateNcrField(index, 'ncrDescription', e.target.value)}
+                                      className="w-[200px] h-[80px]"
+                                    />
+                                  ) : (
+                                    <div className="max-w-[200px] truncate" title={record.ncrDescription}>
+                                      {record.ncrDescription || "-"}
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingNcrIndex === index ? (
+                                    <Select 
+                                      value={record.ncrDisposition}
+                                      onValueChange={(value) => updateNcrField(index, 'ncrDisposition', value)}
+                                    >
+                                      <SelectTrigger className="w-[100px]">
+                                        <SelectValue placeholder="Select disposition" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="rework">Rework</SelectItem>
+                                        <SelectItem value="repair">Repair</SelectItem>
+                                        <SelectItem value="useAsIs">Use As Is</SelectItem>
+                                        <SelectItem value="scrap">Scrap / Reject</SelectItem>
+                                        <SelectItem value="return">Return to Vendor</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <div className="capitalize">
+                                      {record.ncrDisposition === 'useAsIs' ? 'Use As Is' : 
+                                       record.ncrDisposition.replace(/([A-Z])/g, ' $1').trim() || "-"}
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingNcrIndex === index ? (
+                                    <Textarea 
+                                      value={record.ncrCorrectiveAction} 
+                                      onChange={(e) => updateNcrField(index, 'ncrCorrectiveAction', e.target.value)}
+                                      className="w-[200px] h-[80px]"
+                                    />
+                                  ) : (
+                                    <div className="max-w-[200px] truncate" title={record.ncrCorrectiveAction}>
+                                      {record.ncrCorrectiveAction || "-"}
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end space-x-1">
+                                    {editingNcrIndex === index ? (
+                                      <Button 
+                                        type="button" 
+                                        variant="default" 
+                                        size="icon" 
+                                        onClick={() => setEditingNcrIndex(null)}
+                                        className="h-7 w-7"
+                                      >
+                                        <Check className="h-3.5 w-3.5" />
+                                      </Button>
+                                    ) : (
+                                      <>
+                                        <Button 
+                                          type="button" 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          onClick={() => startEditingNcr(index)}
+                                          className="h-7 w-7"
+                                        >
+                                          <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button 
+                                          type="button" 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          onClick={() => deleteNcrRecord(index)}
+                                          className="h-7 w-7 text-destructive"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-between mt-4">
+                        <div>
+                          <Button 
+                            type="button" 
+                            variant="default" 
+                            size="sm" 
+                            onClick={addNcrRecord}
+                            className="mr-2"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add NCR
+                          </Button>
                         </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="ncrDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>NCR Date</FormLabel>
-                                <FormControl>
-                                  <Input {...field} type="date" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-4">
-                          <FormField
-                            control={editForm.control}
-                            name="ncrStatus"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>NCR Status</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select status" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="open">Open</SelectItem>
-                                    <SelectItem value="closed">Closed</SelectItem>
-                                    <SelectItem value="pending">Pending Approval</SelectItem>
-                                    <SelectItem value="void">Void</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <FormField
-                            control={editForm.control}
-                            name="ncrDescription"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Non-Conformance Description</FormLabel>
-                                <FormControl>
-                                  <Textarea {...field} placeholder="Describe the non-conformance" rows={3} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <FormField
-                            control={editForm.control}
-                            name="ncrDisposition"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Disposition / Corrective Action</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select disposition" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="rework">Rework</SelectItem>
-                                    <SelectItem value="repair">Repair</SelectItem>
-                                    <SelectItem value="useAsIs">Use As Is</SelectItem>
-                                    <SelectItem value="scrap">Scrap / Reject</SelectItem>
-                                    <SelectItem value="return">Return to Vendor</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <FormField
-                            control={editForm.control}
-                            name="ncrCorrectiveAction"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Corrective Action Description</FormLabel>
-                                <FormControl>
-                                  <Textarea {...field} placeholder="Describe the corrective action taken" rows={3} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="col-span-12">
-                          <div className="flex items-center gap-2 mt-2">
-                            <Button type="button" variant="outline" size="sm">
-                              <FileText className="h-4 w-4 mr-2" />
-                              Upload NCR Documents
-                            </Button>
-                            <Button type="button" variant="outline" size="sm">
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Documents
-                            </Button>
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="outline" size="sm">
+                            <FileText className="h-4 w-4 mr-2" />
+                            Upload NCR Document
+                          </Button>
+                          <Button type="button" variant="outline" size="sm">
+                            <Eye className="h-4 w-4 mr-2" />
+                            View NCR Document
+                          </Button>
                         </div>
                       </div>
                     </div>
