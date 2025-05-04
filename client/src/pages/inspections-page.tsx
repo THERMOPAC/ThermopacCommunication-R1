@@ -794,6 +794,7 @@ export default function InspectionsPage() {
   const {
     data: editInspectionOrderDetails,
     isLoading: isLoadingEditDetails,
+    refetch: refetchEditDetails
   } = useQuery<any, any, {
     id: number;
     inspectionOrderNumber: string;
@@ -1439,7 +1440,7 @@ export default function InspectionsPage() {
       await refetchInspectionOrders();
       
       // Refresh the current inspection order data
-      fetchInspectionOrderDetails(editingInspectionOrder);
+      await refetchEditDetails();
       
     } catch (error: any) {
       console.error("Error updating inspection order:", error);
