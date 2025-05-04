@@ -122,12 +122,16 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
     
     // Parse NCR data if it exists
     let ncrRecords = [];
+    console.log('Checking for NCR data in inspection order:', inspectionOrder.ncrData);
     if (inspectionOrder.ncrData) {
       try {
         ncrRecords = JSON.parse(inspectionOrder.ncrData);
+        console.log('Successfully parsed NCR data:', ncrRecords);
       } catch (e) {
         console.error('Error parsing NCR data:', e);
       }
+    } else {
+      console.log('No NCR data found in inspection order.');
     }
     
     // Return detailed inspection order with items, materials, NDT records, Visual Inspection records, Weld records, and NCR records
