@@ -216,6 +216,10 @@ export default function InspectionsPage() {
   const [showNcrDocuments, setShowNcrDocuments] = useState(false);
   const [showDossierDocuments, setShowDossierDocuments] = useState(false);
   
+  // State for final dossier generation
+  const [isGeneratingDossier, setIsGeneratingDossier] = useState(false);
+  const [dossierUrl, setDossierUrl] = useState<string | null>(null);
+  
   // Weld management state
   const [welds, setWelds] = useState<{
     id: string;
