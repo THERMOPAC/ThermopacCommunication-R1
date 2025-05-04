@@ -90,6 +90,17 @@ const ndtRecordSchema = z.object({
   ndtResults: z.string(),
 });
 
+// Define a schema for NCR records
+const ncrRecordSchema = z.object({
+  id: z.string(),
+  ncrNumber: z.string().optional(),
+  ncrDate: z.string().optional(),
+  ncrStatus: z.string(),
+  ncrDescription: z.string().optional(),
+  ncrDisposition: z.string(),
+  ncrCorrectiveAction: z.string().optional(),
+});
+
 // Schema for Inspection Order Edit
 const inspectionOrderEditSchema = z.object({
   // Basic inspection order info
@@ -149,7 +160,10 @@ const inspectionOrderEditSchema = z.object({
   hydrotestResult: z.string().optional(),
   hydrotestNotes: z.string().optional(),
   
-  // NCR fields
+  // NCR records - array for multiple NCR records
+  ncrRecords: z.array(ncrRecordSchema).optional(),
+  
+  // Legacy NCR fields (keeping for backward compatibility)
   ncrNumber: z.string().optional(),
   ncrDate: z.string().optional(),
   ncrStatus: z.string().optional(),
