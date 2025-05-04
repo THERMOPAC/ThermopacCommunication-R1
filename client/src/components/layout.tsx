@@ -73,7 +73,8 @@ export default function Layout({ children }: LayoutProps) {
                         location === '/inspection-management' ||
                         location.startsWith('/quality-reports') ||
                         location === '/quality-assurance-plan' ||
-                        location === '/calibration-management';
+                        location === '/calibration-management' ||
+                        location === '/template-management';
   
   // Auto-open menus based on current page
   useEffect(() => {
