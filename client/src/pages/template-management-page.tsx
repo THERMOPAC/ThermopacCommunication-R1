@@ -1194,7 +1194,7 @@ export default function TemplateManagementPage() {
                                                     value={field.databaseTable || ''}
                                                     onValueChange={(value) => {
                                                       const newConfigs = [...form.getValues().sectionConfigurations || []];
-                                                      newConfigs[sectionIndex].fields[fieldIndex].databaseTable = value || undefined;
+                                                      newConfigs[sectionIndex].fields[fieldIndex].databaseTable = value === 'none' ? undefined : value;
                                                       form.setValue('sectionConfigurations', newConfigs);
                                                     }}
                                                   >
@@ -1202,7 +1202,7 @@ export default function TemplateManagementPage() {
                                                       <SelectValue placeholder="Select table" />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                      <SelectItem value="">None</SelectItem>
+                                                      <SelectItem value="none">None</SelectItem>
                                                       {sectionDatabaseTables[sectionConfig.type]?.map((table) => (
                                                         <SelectItem key={table} value={table}>{table}</SelectItem>
                                                       ))}
@@ -1622,7 +1622,7 @@ export default function TemplateManagementPage() {
                                                     value={field.databaseTable || ''}
                                                     onValueChange={(value) => {
                                                       const newConfigs = [...editForm.getValues().sectionConfigurations || []];
-                                                      newConfigs[sectionIndex].fields[fieldIndex].databaseTable = value || undefined;
+                                                      newConfigs[sectionIndex].fields[fieldIndex].databaseTable = value === 'none' ? undefined : value;
                                                       editForm.setValue('sectionConfigurations', newConfigs);
                                                     }}
                                                   >
@@ -1630,7 +1630,7 @@ export default function TemplateManagementPage() {
                                                       <SelectValue placeholder="Select table" />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                      <SelectItem value="">None</SelectItem>
+                                                      <SelectItem value="none">None</SelectItem>
                                                       {sectionDatabaseTables[sectionConfig.type]?.map((table) => (
                                                         <SelectItem key={table} value={table}>{table}</SelectItem>
                                                       ))}
