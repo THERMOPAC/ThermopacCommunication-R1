@@ -277,9 +277,16 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Draw table headers
     yPosition = 650;
     
+    // Calculate column positions based on pageMargin
+    const col1 = pageMargin;
+    const col2 = pageMargin + 100;
+    const col3 = pageMargin + 200;
+    const col4 = pageMargin + 300;
+    const col5 = pageMargin + 400;
+    
     // Draw table header
     materialPage.drawText('Material ID', {
-      x: 70,
+      x: col1,
       y: yPosition,
       size: 10,
       font: helveticaBold,
@@ -287,7 +294,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     });
     
     materialPage.drawText('Certificate', {
-      x: 170,
+      x: col2,
       y: yPosition,
       size: 10,
       font: helveticaBold,
@@ -295,7 +302,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     });
     
     materialPage.drawText('Heat Number', {
-      x: 270,
+      x: col3,
       y: yPosition,
       size: 10,
       font: helveticaBold,
@@ -303,7 +310,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     });
     
     materialPage.drawText('Grade', {
-      x: 370,
+      x: col4,
       y: yPosition,
       size: 10,
       font: helveticaBold,
@@ -311,7 +318,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     });
     
     materialPage.drawText('Specification', {
-      x: 470,
+      x: col5,
       y: yPosition,
       size: 10,
       font: helveticaBold,
@@ -320,8 +327,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     // Draw a line under headers
     materialPage.drawLine({
-      start: { x: 70, y: yPosition - 5 },
-      end: { x: 540, y: yPosition - 5 },
+      start: { x: pageMargin, y: yPosition - 5 },
+      end: { x: 612 - pageMargin, y: yPosition - 5 },
       thickness: 1,
       color: rgb(0, 0, 0),
     });
@@ -332,7 +339,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       for (const material of materials) {
         // Draw material data in single-line tabular format
         materialPage.drawText(material.materialIdentificationId || 'N/A', {
-          x: 70,
+          x: col1,
           y: yPosition,
           size: 10,
           font: helvetica,
@@ -340,7 +347,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         });
         
         materialPage.drawText(material.materialCertificateNumber || 'N/A', {
-          x: 170,
+          x: col2,
           y: yPosition,
           size: 10,
           font: helvetica,
@@ -348,7 +355,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         });
         
         materialPage.drawText(material.heatNumber || 'N/A', {
-          x: 270,
+          x: col3,
           y: yPosition,
           size: 10,
           font: helvetica,
@@ -356,7 +363,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         });
         
         materialPage.drawText(material.materialGrade || 'N/A', {
-          x: 370,
+          x: col4,
           y: yPosition,
           size: 10,
           font: helvetica,
@@ -364,7 +371,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         });
         
         materialPage.drawText(material.materialSpecification || 'N/A', {
-          x: 470,
+          x: col5,
           y: yPosition,
           size: 10,
           font: helvetica,
@@ -374,8 +381,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         // Draw a light line between rows
         if (materials.length > 1) {
           materialPage.drawLine({
-            start: { x: 70, y: yPosition - 5 },
-            end: { x: 540, y: yPosition - 5 },
+            start: { x: pageMargin, y: yPosition - 5 },
+            end: { x: 612 - pageMargin, y: yPosition - 5 },
             thickness: 0.5,
             color: rgb(0.8, 0.8, 0.8),
           });
@@ -385,7 +392,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       }
     } else {
       materialPage.drawText('No material traceability records found.', {
-        x: 70,
+        x: pageMargin,
         y: yPosition,
         size: 10,
         font: helvetica,
@@ -406,9 +413,17 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Draw table headers
     yPosition = 650;
     
+    // Calculate column positions based on pageMargin
+    const wcol1 = pageMargin;
+    const wcol2 = pageMargin + 70;
+    const wcol3 = pageMargin + 140;
+    const wcol4 = pageMargin + 210;
+    const wcol5 = pageMargin + 300;
+    const wcol6 = pageMargin + 400;
+    
     // Draw table header
     weldingPage.drawText('Weld ID', {
-      x: 70,
+      x: wcol1,
       y: yPosition,
       size: 10,
       font: helveticaBold,
@@ -416,7 +431,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     });
     
     weldingPage.drawText('Type', {
-      x: 140,
+      x: wcol2,
       y: yPosition,
       size: 10,
       font: helveticaBold,
@@ -424,7 +439,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     });
     
     weldingPage.drawText('Process', {
-      x: 210,
+      x: wcol3,
       y: yPosition,
       size: 10,
       font: helveticaBold,
@@ -432,7 +447,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     });
     
     weldingPage.drawText('WPQR Doc', {
-      x: 280,
+      x: wcol4,
       y: yPosition,
       size: 10,
       font: helveticaBold,
@@ -440,7 +455,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     });
     
     weldingPage.drawText('Welder ID', {
-      x: 370,
+      x: wcol5,
       y: yPosition,
       size: 10,
       font: helveticaBold,
@@ -448,7 +463,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     });
     
     weldingPage.drawText('Status', {
-      x: 470,
+      x: wcol6,
       y: yPosition,
       size: 10,
       font: helveticaBold,
@@ -457,8 +472,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     // Draw a line under headers
     weldingPage.drawLine({
-      start: { x: 70, y: yPosition - 5 },
-      end: { x: 540, y: yPosition - 5 },
+      start: { x: pageMargin, y: yPosition - 5 },
+      end: { x: 612 - pageMargin, y: yPosition - 5 },
       thickness: 1,
       color: rgb(0, 0, 0),
     });
@@ -469,7 +484,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       for (const weld of weldRecords) {
         // Draw weld data in single-line tabular format
         weldingPage.drawText(weld.id || 'N/A', {
-          x: 70,
+          x: wcol1,
           y: yPosition,
           size: 10,
           font: helvetica,
@@ -477,7 +492,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         });
         
         weldingPage.drawText(weld.weldType || 'N/A', {
-          x: 140,
+          x: wcol2,
           y: yPosition,
           size: 10,
           font: helvetica,
@@ -485,7 +500,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         });
         
         weldingPage.drawText(weld.weldProcess || 'N/A', {
-          x: 210,
+          x: wcol3,
           y: yPosition,
           size: 10,
           font: helvetica,
@@ -493,7 +508,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         });
         
         weldingPage.drawText(weld.wpqrDocument || 'N/A', {
-          x: 280,
+          x: wcol4,
           y: yPosition,
           size: 10,
           font: helvetica,
@@ -501,7 +516,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         });
         
         weldingPage.drawText(weld.welderId || 'N/A', {
-          x: 370,
+          x: wcol5,
           y: yPosition,
           size: 10,
           font: helvetica,
@@ -509,7 +524,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         });
         
         weldingPage.drawText(weld.weldStatus || 'N/A', {
-          x: 470,
+          x: wcol6,
           y: yPosition,
           size: 10,
           font: helvetica,
@@ -519,8 +534,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         // Draw a light line between rows
         if (weldRecords.length > 1) {
           weldingPage.drawLine({
-            start: { x: 70, y: yPosition - 5 },
-            end: { x: 540, y: yPosition - 5 },
+            start: { x: pageMargin, y: yPosition - 5 },
+            end: { x: 612 - pageMargin, y: yPosition - 5 },
             thickness: 0.5,
             color: rgb(0.8, 0.8, 0.8),
           });
@@ -530,7 +545,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       }
     } else {
       weldingPage.drawText('No welding records found.', {
-        x: 70,
+        x: pageMargin,
         y: yPosition,
         size: 10,
         font: helvetica,
@@ -870,7 +885,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Add NCR section
     const ncrPage = pdfDoc.addPage([612, 792]);
     ncrPage.drawText('6. NON-CONFORMANCE REPORTS', {
-      x: 50,
+      x: pageMargin,
       y: 700,
       size: 16,
       font: helveticaBold,
@@ -1029,7 +1044,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Add appendices section for uploaded documents
     const appendicesPage = pdfDoc.addPage([612, 792]);
     appendicesPage.drawText('7. APPENDICES', {
-      x: 50,
+      x: pageMargin,
       y: 700,
       size: 16,
       font: helveticaBold,
@@ -1081,7 +1096,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
                 if (yPosition < 100) {
                   const newPage = pdfDoc.addPage([612, 792]);
                   newPage.drawText('7. APPENDICES (CONTINUED)', {
-                    x: 50,
+                    x: pageMargin,
                     y: 700,
                     size: 16,
                     font: helveticaBold,
@@ -1135,7 +1150,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
             if (yPosition < 100) {
               const newPage = pdfDoc.addPage([612, 792]);
               newPage.drawText('7. APPENDICES (CONTINUED)', {
-                x: 50,
+                x: pageMargin,
                 y: 700,
                 size: 16,
                 font: helveticaBold,
