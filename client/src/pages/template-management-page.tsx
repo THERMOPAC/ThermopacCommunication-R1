@@ -1118,6 +1118,8 @@ export default function TemplateManagementPage() {
                                             name: 'New Field',
                                             type: 'text',
                                             required: false,
+                                            databaseTable: undefined,
+                                            databaseColumn: undefined,
                                           }
                                         ];
                                         form.setValue('sectionConfigurations', newConfigs);
@@ -1180,6 +1182,49 @@ export default function TemplateManagementPage() {
                                                 }}
                                               />
                                               <Label htmlFor={`field-required-${field.id}`} className="ml-2">Required</Label>
+                                            </div>
+                                            
+                                            {/* Database table selection */}
+                                            <div className="col-span-2 mt-3 border-t pt-3">
+                                              <Label htmlFor={`field-database-table-${field.id}`}>Database Mapping</Label>
+                                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                                <div>
+                                                  <Label htmlFor={`field-database-table-${field.id}`} className="text-xs text-muted-foreground">Table</Label>
+                                                  <Select
+                                                    value={field.databaseTable || ''}
+                                                    onValueChange={(value) => {
+                                                      const newConfigs = [...form.getValues().sectionConfigurations || []];
+                                                      newConfigs[sectionIndex].fields[fieldIndex].databaseTable = value || undefined;
+                                                      form.setValue('sectionConfigurations', newConfigs);
+                                                    }}
+                                                  >
+                                                    <SelectTrigger id={`field-database-table-${field.id}`} className="mt-1">
+                                                      <SelectValue placeholder="Select table" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      <SelectItem value="">None</SelectItem>
+                                                      {sectionDatabaseTables[sectionConfig.type]?.map((table) => (
+                                                        <SelectItem key={table} value={table}>{table}</SelectItem>
+                                                      ))}
+                                                    </SelectContent>
+                                                  </Select>
+                                                </div>
+                                                <div>
+                                                  <Label htmlFor={`field-database-column-${field.id}`} className="text-xs text-muted-foreground">Column</Label>
+                                                  <Input
+                                                    id={`field-database-column-${field.id}`}
+                                                    value={field.databaseColumn || ''}
+                                                    onChange={(e) => {
+                                                      const newConfigs = [...form.getValues().sectionConfigurations || []];
+                                                      newConfigs[sectionIndex].fields[fieldIndex].databaseColumn = e.target.value || undefined;
+                                                      form.setValue('sectionConfigurations', newConfigs);
+                                                    }}
+                                                    placeholder="Column name"
+                                                    disabled={!field.databaseTable}
+                                                    className="mt-1"
+                                                  />
+                                                </div>
+                                              </div>
                                             </div>
                                           </div>
                                           
@@ -1501,6 +1546,8 @@ export default function TemplateManagementPage() {
                                             name: 'New Field',
                                             type: 'text',
                                             required: false,
+                                            databaseTable: undefined,
+                                            databaseColumn: undefined,
                                           }
                                         ];
                                         editForm.setValue('sectionConfigurations', newConfigs);
