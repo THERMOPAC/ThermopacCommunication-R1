@@ -2451,6 +2451,18 @@ export default function InspectionsPage() {
                           )}
                         </div>
                       </div>
+                      
+                      {/* Certificate Upload/View Buttons */}
+                      <div className="flex items-center gap-2 mt-4">
+                        <Button type="button" variant="outline" size="sm">
+                          <FileText className="h-4 w-4 mr-2" />
+                          Upload Certificate
+                        </Button>
+                        <Button type="button" variant="outline" size="sm">
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Attachments
+                        </Button>
+                      </div>
                     </div>
                   </TabsContent>
                   
