@@ -122,8 +122,10 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     // Try to add company logo to the top-right corner
     try {
-      // Load the logo file
-      const logoPath = path.resolve(__dirname, '../../client/public/images/thermopac-logo.jpg');
+      // Use a direct path approach instead of __dirname
+      const logoPath = './client/public/images/thermopac-logo.jpg';
+      console.log('Logo path:', logoPath);
+      
       const logoImageBytes = fs.readFileSync(logoPath);
       
       // Embed the image in the PDF
