@@ -48,7 +48,14 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, PlusCircle, Settings, FileText, Eye, LayoutTemplate, ArrowUpDown } from 'lucide-react';
+import { Loader2, PlusCircle, Settings, FileText, Eye, LayoutTemplate, ArrowUpDown, Trash2, GripVertical } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -972,6 +979,7 @@ export default function TemplateManagementPage() {
                 
                 {/* Section Order Tab */}
                 <TabsContent value="sections" className="space-y-6 pt-4">
+                  {/* Section Order panel */}
                   <FormField
                     control={form.control}
                     name="sectionOrder"
@@ -1002,6 +1010,161 @@ export default function TemplateManagementPage() {
                             </div>
                           )}
                         </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <Separator className="my-6" />
+                  
+                  {/* Section Configuration panel */}
+                  <FormField
+                    control={form.control}
+                    name="sectionConfigurations"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Section Configuration</FormLabel>
+                        <FormDescription className="mb-4">
+                          Customize which fields appear in each section and how they are presented.
+                        </FormDescription>
+                        
+                        <Accordion type="multiple" className="w-full">
+                          {field.value?.map((sectionConfig, sectionIndex) => (
+                            <AccordionItem key={sectionIndex} value={sectionConfig.type}>
+                              <AccordionTrigger className="hover:bg-muted px-3 rounded-md">
+                                <div className="flex items-center gap-2">
+                                  <Switch 
+                                    checked={sectionConfig.enabled}
+                                    onCheckedChange={(checked) => {
+                                      const newConfigs = [...form.getValues().sectionConfigurations || []];
+                                      newConfigs[sectionIndex].enabled = checked;
+                                      form.setValue('sectionConfigurations', newConfigs);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                  <span>{sectionConfig.title}</span>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="px-2">
+                                <div className="space-y-4 pt-2">
+                                  {/* Section Title */}
+                                  <div className="flex items-center gap-2">
+                                    <Label htmlFor={`section-title-${sectionIndex}`}>Section Title</Label>
+                                    <Input 
+                                      id={`section-title-${sectionIndex}`}
+                                      value={sectionConfig.title}
+                                      onChange={(e) => {
+                                        const newConfigs = [...form.getValues().sectionConfigurations || []];
+                                        newConfigs[sectionIndex].title = e.target.value;
+                                        form.setValue('sectionConfigurations', newConfigs);
+                                      }}
+                                      placeholder="Section title"
+                                      className="max-w-xs"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const newConfigs = [...form.getValues().sectionConfigurations || []];
+                                        newConfigs[sectionIndex].fields = [
+                                          ...newConfigs[sectionIndex].fields,
+                                          {
+                                            id: crypto.randomUUID(),
+                                            name: 'New Field',
+                                            type: 'text',
+                                            required: false,
+                                          }
+                                        ];
+                                        form.setValue('sectionConfigurations', newConfigs);
+                                      }}
+                                    >
+                                      <PlusCircle className="h-4 w-4 mr-1" /> Add Field
+                                    </Button>
+                                  </div>
+                                  
+                                  {/* Custom Fields */}
+                                  {sectionConfig.fields.length > 0 ? (
+                                    <div className="space-y-2">
+                                      {sectionConfig.fields.map((field, fieldIndex) => (
+                                        <div key={field.id} className="flex items-start gap-2 border rounded-md p-2">
+                                          <div className="grid grid-cols-2 gap-2 flex-1">
+                                            <div>
+                                              <Label htmlFor={`field-name-${field.id}`}>Field Name</Label>
+                                              <Input
+                                                id={`field-name-${field.id}`}
+                                                value={field.name}
+                                                onChange={(e) => {
+                                                  const newConfigs = [...form.getValues().sectionConfigurations || []];
+                                                  newConfigs[sectionIndex].fields[fieldIndex].name = e.target.value;
+                                                  form.setValue('sectionConfigurations', newConfigs);
+                                                }}
+                                                className="mt-1"
+                                              />
+                                            </div>
+                                            <div>
+                                              <Label htmlFor={`field-type-${field.id}`}>Field Type</Label>
+                                              <Select
+                                                value={field.type}
+                                                onValueChange={(value: 'text' | 'checkbox' | 'date' | 'number' | 'select') => {
+                                                  const newConfigs = [...form.getValues().sectionConfigurations || []];
+                                                  newConfigs[sectionIndex].fields[fieldIndex].type = value;
+                                                  form.setValue('sectionConfigurations', newConfigs);
+                                                }}
+                                              >
+                                                <SelectTrigger id={`field-type-${field.id}`} className="mt-1">
+                                                  <SelectValue placeholder="Select type" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="text">Text</SelectItem>
+                                                  <SelectItem value="checkbox">Checkbox</SelectItem>
+                                                  <SelectItem value="date">Date</SelectItem>
+                                                  <SelectItem value="number">Number</SelectItem>
+                                                  <SelectItem value="select">Select</SelectItem>
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
+                                            
+                                            <div className="flex items-center mt-2">
+                                              <Checkbox
+                                                id={`field-required-${field.id}`}
+                                                checked={field.required}
+                                                onCheckedChange={(checked) => {
+                                                  const newConfigs = [...form.getValues().sectionConfigurations || []];
+                                                  newConfigs[sectionIndex].fields[fieldIndex].required = !!checked;
+                                                  form.setValue('sectionConfigurations', newConfigs);
+                                                }}
+                                              />
+                                              <Label htmlFor={`field-required-${field.id}`} className="ml-2">Required</Label>
+                                            </div>
+                                          </div>
+                                          
+                                          <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() => {
+                                              const newConfigs = [...form.getValues().sectionConfigurations || []];
+                                              newConfigs[sectionIndex].fields.splice(fieldIndex, 1);
+                                              form.setValue('sectionConfigurations', newConfigs);
+                                            }}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-center p-4 text-muted-foreground text-sm italic">
+                                      No custom fields defined. Click "Add Field" to add a new field.
+                                    </div>
+                                  )}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          ))}
+                        </Accordion>
+                        
                         <FormMessage />
                       </FormItem>
                     )}
