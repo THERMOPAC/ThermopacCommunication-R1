@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 import { Storage } from '@google-cloud/storage';
 import { Readable } from 'stream';
 import { gcsCredentials, gcsBucketName } from './gcs-config';
+import { listFiles } from './list-gcs-files';
 
 // Initialize Google Cloud Storage
 const storage = new Storage({
@@ -955,6 +956,216 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         font: helvetica,
         color: rgb(0, 0, 0),
       });
+    }
+    
+    // Add appendices section for uploaded documents
+    const appendicesPage = pdfDoc.addPage([612, 792]);
+    appendicesPage.drawText('7. APPENDICES', {
+      x: 50,
+      y: 700,
+      size: 16,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    yPosition = 650;
+    appendicesPage.drawText('The following documents are included as appendices:', {
+      x: 70,
+      y: yPosition,
+      size: 12,
+      font: helvetica,
+      color: rgb(0, 0, 0),
+    });
+    yPosition -= 25;
+    
+    // Collect and list document references
+    try {
+      // 1. List material certificates
+      if (materials.length > 0) {
+        appendicesPage.drawText('Material Certificates:', {
+          x: 70,
+          y: yPosition,
+          size: 10,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 15;
+        
+        for (const material of materials) {
+          const materialId = material.materialIdentificationId;
+          if (materialId) {
+            const materialDocsPath = `QMS/Material_Identification/${materialId}`;
+            const materialDocs = await listFiles(materialDocsPath);
+            
+            if (materialDocs.length > 0) {
+              for (const docPath of materialDocs) {
+                const docName = docPath.split('/').pop() || docPath;
+                appendicesPage.drawText(`- ${docName} (${materialId})`, {
+                  x: 90,
+                  y: yPosition,
+                  size: 10,
+                  font: helvetica,
+                  color: rgb(0, 0, 0),
+                });
+                yPosition -= 15;
+                
+                // If page is full, add a new appendices page
+                if (yPosition < 100) {
+                  const newPage = pdfDoc.addPage([612, 792]);
+                  newPage.drawText('7. APPENDICES (CONTINUED)', {
+                    x: 50,
+                    y: 700,
+                    size: 16,
+                    font: helveticaBold,
+                    color: rgb(0, 0, 0),
+                  });
+                  yPosition = 650;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // 2. List inspection documents by tab
+      const sections = [
+        { name: 'Welding', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Welding` },
+        { name: 'NDT', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NDT` },
+        { name: 'Visual Inspection', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Visual Inspection` },
+        { name: 'NCR', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NCR` }
+      ];
+      
+      for (const section of sections) {
+        const sectionDocs = await listFiles(section.path);
+        
+        if (sectionDocs.length > 0) {
+          yPosition -= 10; // Add some extra space between sections
+          
+          appendicesPage.drawText(`${section.name} Documents:`, {
+            x: 70,
+            y: yPosition,
+            size: 10,
+            font: helveticaBold,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= 15;
+          
+          for (const docPath of sectionDocs) {
+            const docName = docPath.split('/').pop() || docPath;
+            appendicesPage.drawText(`- ${docName}`, {
+              x: 90,
+              y: yPosition,
+              size: 10,
+              font: helvetica,
+              color: rgb(0, 0, 0),
+            });
+            yPosition -= 15;
+            
+            // If page is full, add a new appendices page
+            if (yPosition < 100) {
+              const newPage = pdfDoc.addPage([612, 792]);
+              newPage.drawText('7. APPENDICES (CONTINUED)', {
+                x: 50,
+                y: 700,
+                size: 16,
+                font: helveticaBold,
+                color: rgb(0, 0, 0),
+              });
+              yPosition = 650;
+            }
+          }
+        }
+      }
+      
+      // If no documents were found
+      if (yPosition === 650) {
+        appendicesPage.drawText('No additional documents found.', {
+          x: 70,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error collecting document references:', error);
+      appendicesPage.drawText('Error collecting document references.', {
+        x: 70,
+        y: yPosition,
+        size: 10,
+        font: helvetica,
+        color: rgb(1, 0, 0),
+      });
+    }
+    
+    // Attempt to merge actual document PDFs as appendices
+    try {
+      // List of PDFs to merge
+      const pdfPaths: string[] = [];
+      
+      // Collect material certificate PDFs
+      for (const material of materials) {
+        const materialId = material.materialIdentificationId;
+        if (materialId) {
+          const materialDocsPath = `QMS/Material_Identification/${materialId}`;
+          const materialDocs = await listFiles(materialDocsPath);
+          for (const docPath of materialDocs) {
+            if (docPath.toLowerCase().endsWith('.pdf')) {
+              pdfPaths.push(docPath);
+            }
+          }
+        }
+      }
+      
+      // Collect inspection document PDFs by section
+      const sections = [
+        `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Welding`,
+        `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NDT`,
+        `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Visual Inspection`,
+        `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NCR`
+      ];
+      
+      for (const sectionPath of sections) {
+        const sectionDocs = await listFiles(sectionPath);
+        for (const docPath of sectionDocs) {
+          if (docPath.toLowerCase().endsWith('.pdf')) {
+            pdfPaths.push(docPath);
+          }
+        }
+      }
+      
+      // Merge PDFs
+      if (pdfPaths.length > 0) {
+        console.log(`Attempting to merge ${pdfPaths.length} PDFs into the final dossier`);
+        
+        for (const pdfPath of pdfPaths) {
+          try {
+            // Download the PDF from GCS
+            const file = bucket.file(pdfPath);
+            const [exists] = await file.exists();
+            
+            if (exists) {
+              const [fileBuffer] = await file.download();
+              
+              // Merge the PDF
+              const externalPdfDoc = await PDFDocument.load(fileBuffer);
+              const copiedPages = await pdfDoc.copyPages(externalPdfDoc, externalPdfDoc.getPageIndices());
+              
+              // Add each page to the main document
+              for (const copiedPage of copiedPages) {
+                pdfDoc.addPage(copiedPage);
+              }
+              
+              console.log(`Successfully merged PDF: ${pdfPath}`);
+            }
+          } catch (error) {
+            console.error(`Error merging PDF ${pdfPath}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error merging PDFs:', error);
     }
     
     // Save the dossier

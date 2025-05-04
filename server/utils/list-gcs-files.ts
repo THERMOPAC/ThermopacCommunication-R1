@@ -40,3 +40,54 @@ export async function listFilesInDirectory(directoryPath: string): Promise<strin
     throw error;
   }
 }
+
+/**
+ * List files that match a specific pattern or prefix
+ */
+export async function listFiles(prefixPattern: string): Promise<string[]> {
+  try {
+    console.log(`Listing files in GCS with pattern: ${prefixPattern}`);
+    
+    // Remove leading slash if present
+    const normalizedPattern = prefixPattern.startsWith('/') 
+      ? prefixPattern.substring(1) 
+      : prefixPattern;
+    
+    // List files with the prefix pattern
+    const [files] = await bucket.getFiles({ prefix: normalizedPattern });
+    
+    // Return the file paths
+    const filePaths = files.map(file => file.name);
+    console.log(`Found ${filePaths.length} files matching pattern ${normalizedPattern}`);
+    
+    return filePaths;
+  } catch (error) {
+    console.error('Error listing files with pattern in GCS:', error);
+    return [];
+  }
+}
+
+/**
+ * Get a signed URL for a file in GCS
+ */
+export async function getSignedUrl(filePath: string): Promise<string> {
+  try {
+    const file = bucket.file(filePath);
+    const [exists] = await file.exists();
+    
+    if (!exists) {
+      console.error(`File ${filePath} does not exist in GCS`);
+      return '';
+    }
+    
+    const [url] = await file.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // URL expires in 7 days
+    });
+    
+    return url;
+  } catch (error) {
+    console.error(`Error getting signed URL for ${filePath}:`, error);
+    return '';
+  }
+}
