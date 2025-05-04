@@ -68,13 +68,13 @@ import {
   TemplateSectionField
 } from '@shared/schema';
 
-// Temporarily define these constants here until schema.ts is properly updated
-const templatePaperSizes = ["A4", "Letter", "Legal"] as const;
-const templateOrientations = ["Portrait", "Landscape"] as const;
-
-// Define paper size and orientation types to match constants
-type PaperSize = 'A4' | 'Letter' | 'Legal';
-type Orientation = 'Portrait' | 'Landscape';
+// Use constants from schema.ts
+import { 
+  templatePaperSizes, 
+  templateOrientations,
+  type TemplatePaperSize,
+  type TemplateOrientation 
+} from '@shared/schema';
 
 // Helper function to generate unique IDs for field items
 function generateUniqueId(): string {
@@ -98,8 +98,8 @@ interface Template {
   sectionOrder: TemplateSectionType[] | null;
   
   // New advanced options
-  paperSize?: PaperSize;
-  orientation?: Orientation;
+  paperSize?: TemplatePaperSize;
+  orientation?: TemplateOrientation;
   marginTop?: number;
   marginBottom?: number;
   marginLeft?: number;
@@ -372,8 +372,8 @@ export default function TemplateManagementPage() {
       sectionOrder: template.sectionOrder || [],
       
       // New advanced fields
-      paperSize: (template.paperSize || 'A4') as 'A4' | 'Letter' | 'Legal',
-      orientation: (template.orientation || 'Portrait') as 'Portrait' | 'Landscape',
+      paperSize: (template.paperSize || 'A4') as TemplatePaperSize,
+      orientation: (template.orientation || 'Portrait') as TemplateOrientation,
       marginTop: template.marginTop || 25,
       marginBottom: template.marginBottom || 25,
       marginLeft: template.marginLeft || 25,
@@ -1610,7 +1610,11 @@ export default function TemplateManagementPage() {
                       
                       <div className="pt-8">
                         <p>Generated with template: {previewTemplate.name}</p>
-                        <p className="text-sm text-muted-foreground">Font size: {previewTemplate.fontSize}</p>
+                        <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                          <p>Font size: {previewTemplate.fontSize}</p>
+                          <p>Paper: {previewTemplate.paperSize || 'A4'} ({previewTemplate.orientation || 'Portrait'})</p>
+                          <p>Margins: {previewTemplate.marginTop || 25}mm (top), {previewTemplate.marginBottom || 25}mm (bottom), {previewTemplate.marginLeft || 25}mm (left), {previewTemplate.marginRight || 25}mm (right)</p>
+                        </div>
                       </div>
                     </div>
                   </div>
