@@ -2632,3 +2632,66 @@ export const insertInspectionDocumentSchema = createInsertSchema(inspectionDocum
 // Export Inspection Document types
 export type InspectionDocument = typeof inspectionDocuments.$inferSelect;
 export type InsertInspectionDocument = z.infer<typeof insertInspectionDocumentSchema>;
+
+// =============================================
+// Template Management Schema
+// =============================================
+
+// Available section types for final dossier templates
+export const templateSectionTypes = [
+  "Material Traceability", 
+  "Welding & Weld Maps", 
+  "NDT", 
+  "Visual Inspection", 
+  "Hydrotest", 
+  "Non-Conformance"
+] as const;
+
+export type TemplateSectionType = typeof templateSectionTypes[number];
+
+// Available font sizes for templates
+export const templateFontSizes = ["Small", "Medium", "Large"] as const;
+export type TemplateFontSize = typeof templateFontSizes[number];
+
+// Template for document generation (QMS Final Dossier templates, etc.)
+export const reportTemplates = pgTable('report_templates', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  type: text('type').notNull().default('QMS Final Dossier'), // For future expansion to other template types
+  
+  // Layout options
+  hasCoverPage: boolean('has_cover_page').notNull().default(true),
+  hasFooter: boolean('has_footer').notNull().default(true),
+  
+  // Styling options
+  fontSize: text('font_size').notNull().default('Medium'),
+  headerText: text('header_text'),
+  footerText: text('footer_text'),
+  
+  // Order of sections stored as JSON array
+  sectionOrder: jsonb('section_order').$type<TemplateSectionType[]>(),
+  
+  // Is this the default template for its type?
+  isDefault: boolean('is_default').notNull().default(false),
+  
+  // Tracking
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Relations for report templates
+export const reportTemplatesRelations = relations(reportTemplates, ({ one }) => ({
+  creator: one(users, {
+    fields: [reportTemplates.createdBy],
+    references: [users.id],
+  }),
+}));
+
+// Insert schema for Report Templates
+export const insertReportTemplateSchema = createInsertSchema(reportTemplates)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+// Export Report Template types
+export type ReportTemplate = typeof reportTemplates.$inferSelect;
+export type InsertReportTemplate = z.infer<typeof insertReportTemplateSchema>;
