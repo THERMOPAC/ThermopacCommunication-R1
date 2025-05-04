@@ -205,53 +205,114 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       color: rgb(0, 0, 0),
     });
     
+    // Draw table headers
     yPosition = 650;
+    
+    // Draw table header
+    materialPage.drawText('Material ID', {
+      x: 70,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    materialPage.drawText('Certificate', {
+      x: 170,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    materialPage.drawText('Heat Number', {
+      x: 270,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    materialPage.drawText('Grade', {
+      x: 370,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    materialPage.drawText('Specification', {
+      x: 470,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Draw a line under headers
+    materialPage.drawLine({
+      start: { x: 70, y: yPosition - 5 },
+      end: { x: 540, y: yPosition - 5 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    
+    yPosition -= 20;
+    
     if (materials.length > 0) {
       for (const material of materials) {
-        materialPage.drawText(`Material ID: ${material.materialIdentificationId || 'N/A'}`, {
-          x: 70,
-          y: yPosition,
-          size: 10,
-          font: helveticaBold,
-          color: rgb(0, 0, 0),
-        });
-        yPosition -= 15;
-        
-        materialPage.drawText(`Certificate: ${material.materialCertificateNumber || 'N/A'}`, {
+        // Draw material data in single-line tabular format
+        materialPage.drawText(material.materialIdentificationId || 'N/A', {
           x: 70,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        materialPage.drawText(`Heat Number: ${material.heatNumber || 'N/A'}`, {
-          x: 70,
+        materialPage.drawText(material.materialCertificateNumber || 'N/A', {
+          x: 170,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        materialPage.drawText(`Grade: ${material.materialGrade || 'N/A'}`, {
-          x: 70,
+        materialPage.drawText(material.heatNumber || 'N/A', {
+          x: 270,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        materialPage.drawText(`Specification: ${material.materialSpecification || 'N/A'}`, {
-          x: 70,
+        materialPage.drawText(material.materialGrade || 'N/A', {
+          x: 370,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 25;
+        
+        materialPage.drawText(material.materialSpecification || 'N/A', {
+          x: 470,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        // Draw a light line between rows
+        if (materials.length > 1) {
+          materialPage.drawLine({
+            start: { x: 70, y: yPosition - 5 },
+            end: { x: 540, y: yPosition - 5 },
+            thickness: 0.5,
+            color: rgb(0.8, 0.8, 0.8),
+          });
+        }
+        
+        yPosition -= 20;
       }
     } else {
       materialPage.drawText('No material traceability records found.', {
