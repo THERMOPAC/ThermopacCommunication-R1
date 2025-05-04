@@ -279,6 +279,26 @@ export default function InspectionsPage() {
   }]);
   const [editingHydrotestIndex, setEditingHydrotestIndex] = useState<number | null>(null);
   
+  // Non-Conformance Report state
+  const [ncrRecords, setNcrRecords] = useState<{
+    id: string;
+    ncrNumber: string;
+    ncrDate: string;
+    ncrStatus: string;
+    ncrDescription: string;
+    ncrDisposition: string;
+    ncrCorrectiveAction: string;
+  }[]>([{
+    id: 'NCR-1',
+    ncrNumber: '',
+    ncrDate: '',
+    ncrStatus: 'open',
+    ncrDescription: '',
+    ncrDisposition: 'rework',
+    ncrCorrectiveAction: ''
+  }]);
+  const [editingNcrIndex, setEditingNcrIndex] = useState<number | null>(null);
+  
   // Material rows state
   const [materialRows, setMaterialRows] = useState<{
     id?: number;
@@ -588,6 +608,55 @@ export default function InspectionsPage() {
       [field]: value
     };
     setHydrotestRecords(updatedRecords);
+  };
+  
+  // Add new NCR record
+  const addNcrRecord = () => {
+    const newNcrNumber = ncrRecords.length + 1;
+    setNcrRecords([
+      ...ncrRecords, 
+      {
+        id: `NCR-${newNcrNumber}`,
+        ncrNumber: '',
+        ncrDate: '',
+        ncrStatus: 'open',
+        ncrDescription: '',
+        ncrDisposition: 'rework',
+        ncrCorrectiveAction: ''
+      }
+    ]);
+  };
+  
+  // Delete an NCR record
+  const deleteNcrRecord = (index: number) => {
+    const updatedRecords = [...ncrRecords];
+    updatedRecords.splice(index, 1);
+    
+    // Renumber NCR records after deletion
+    const renumberedRecords = updatedRecords.map((record, idx) => ({
+      ...record,
+      id: `NCR-${idx + 1}`
+    }));
+    
+    setNcrRecords(renumberedRecords);
+    if (editingNcrIndex === index) {
+      setEditingNcrIndex(null);
+    }
+  };
+  
+  // Edit an NCR record
+  const startEditingNcr = (index: number) => {
+    setEditingNcrIndex(index);
+  };
+  
+  // Update an NCR field
+  const updateNcrField = (index: number, field: string, value: string) => {
+    const updatedRecords = [...ncrRecords];
+    updatedRecords[index] = {
+      ...updatedRecords[index],
+      [field]: value
+    };
+    setNcrRecords(updatedRecords);
   };
   
   // Fetch projects for dropdown
