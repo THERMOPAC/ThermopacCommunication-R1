@@ -1435,10 +1435,11 @@ export default function InspectionsPage() {
         description: "The inspection order has been updated successfully.",
       });
       
-      // Close edit dialog and refresh the inspection orders list
-      setIsEditDialogOpen(false);
-      setEditingInspectionOrder(null);
+      // Refresh the inspection orders list but keep the dialog open
       await refetchInspectionOrders();
+      
+      // Refresh the current inspection order data
+      fetchInspectionOrderDetails(editingInspectionOrder);
       
     } catch (error: any) {
       console.error("Error updating inspection order:", error);

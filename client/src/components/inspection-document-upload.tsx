@@ -118,9 +118,9 @@ const InspectionDocumentUpload: React.FC<InspectionDocumentUploadProps> = ({
       />
       <Button
         type="button"
-        variant={variant}
+        variant={variant === 'outline' ? 'default' : variant}
         size={size}
-        className={className}
+        className={`${className} shadow-sm hover:shadow-md transition-all border-2 ${isUploading ? 'opacity-80' : 'hover:border-primary'}`}
         onClick={triggerFileInput}
         disabled={isUploading}
       >
