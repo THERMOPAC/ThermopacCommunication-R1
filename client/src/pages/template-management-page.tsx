@@ -615,7 +615,7 @@ export default function TemplateManagementPage() {
       
       {/* Create Template Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" style={{ maxHeight: "90vh", overflowY: "auto" }}>
           <DialogHeader>
             <DialogTitle>Create New Template</DialogTitle>
             <DialogDescription>
@@ -1283,7 +1283,7 @@ export default function TemplateManagementPage() {
       
       {/* Edit Template Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" style={{ maxHeight: "90vh", overflowY: "auto" }}>
           <DialogHeader>
             <DialogTitle>Edit Template</DialogTitle>
             <DialogDescription>
