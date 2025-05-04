@@ -191,9 +191,7 @@ export default function TemplateManagementPage() {
   // Set default template mutation
   const setDefaultTemplateMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/templates/${id}/set-default`, {
-        method: 'POST',
-      });
+      return apiRequest('POST', `/api/templates/${id}/set-default`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/templates'] });
@@ -214,9 +212,7 @@ export default function TemplateManagementPage() {
   // Delete template mutation
   const deleteTemplateMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/templates/${id}`, {
-        method: 'DELETE',
-      });
+      return apiRequest('DELETE', `/api/templates/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/templates'] });
@@ -325,15 +321,13 @@ export default function TemplateManagementPage() {
   };
   
   return (
-    <Layout title="Template Management" showBackButton={false}>
+    <Layout>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Template Management</h1>
+        <p className="text-muted-foreground">Create and manage document templates for QMS Final Dossier</p>
+      </div>
       <div className="container mx-auto py-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">Template Management</h1>
-            <p className="text-muted-foreground">
-              Create and manage document templates for QMS Final Dossier
-            </p>
-          </div>
+        <div className="flex justify-end mb-6">
           <Button onClick={() => setIsCreateDialogOpen(true)}>
             <PlusCircle className="h-4 w-4 mr-2" /> Create Template
           </Button>
