@@ -93,7 +93,6 @@ const ndtRecordSchema = z.object({
 // Define a schema for NCR records
 const ncrRecordSchema = z.object({
   id: z.string(),
-  ncrNumber: z.string().optional(),
   ncrDate: z.string().optional(),
   ncrStatus: z.string(),
   ncrDescription: z.string().optional(),
@@ -296,7 +295,6 @@ export default function InspectionsPage() {
   // Non-Conformance Report state
   const [ncrRecords, setNcrRecords] = useState<{
     id: string;
-    ncrNumber: string;
     ncrDate: string;
     ncrStatus: string;
     ncrDescription: string;
@@ -304,7 +302,6 @@ export default function InspectionsPage() {
     ncrCorrectiveAction: string;
   }[]>([{
     id: 'NCR-1',
-    ncrNumber: '',
     ncrDate: '',
     ncrStatus: 'open',
     ncrDescription: '',
@@ -631,7 +628,6 @@ export default function InspectionsPage() {
       ...ncrRecords, 
       {
         id: `NCR-${newNcrNumber}`,
-        ncrNumber: '',
         ncrDate: '',
         ncrStatus: 'open',
         ncrDescription: '',
@@ -3374,7 +3370,6 @@ export default function InspectionsPage() {
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-[100px]">NCR ID</TableHead>
-                              <TableHead className="w-[120px]">NCR Number</TableHead>
                               <TableHead className="w-[120px]">Date</TableHead>
                               <TableHead className="w-[100px]">Status</TableHead>
                               <TableHead className="w-[200px]">Description</TableHead>
@@ -3387,17 +3382,6 @@ export default function InspectionsPage() {
                             {Array.isArray(ncrRecords) && ncrRecords.map((record, index) => (
                               <TableRow key={record.id}>
                                 <TableCell className="font-medium">{record.id}</TableCell>
-                                <TableCell>
-                                  {editingNcrIndex === index ? (
-                                    <Input 
-                                      value={record.ncrNumber} 
-                                      onChange={(e) => updateNcrField(index, 'ncrNumber', e.target.value)}
-                                      className="w-[100px]"
-                                    />
-                                  ) : (
-                                    record.ncrNumber || "-"
-                                  )}
-                                </TableCell>
                                 <TableCell>
                                   {editingNcrIndex === index ? (
                                     <Input 
