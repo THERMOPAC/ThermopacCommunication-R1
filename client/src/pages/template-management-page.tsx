@@ -1564,6 +1564,49 @@ export default function TemplateManagementPage() {
                                               />
                                               <Label htmlFor={`edit-field-required-${field.id}`} className="ml-2">Required</Label>
                                             </div>
+                                            
+                                            {/* Database table selection */}
+                                            <div className="col-span-2 mt-3 border-t pt-3">
+                                              <Label htmlFor={`edit-field-database-table-${field.id}`}>Database Mapping</Label>
+                                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                                <div>
+                                                  <Label htmlFor={`edit-field-database-table-${field.id}`} className="text-xs text-muted-foreground">Table</Label>
+                                                  <Select
+                                                    value={field.databaseTable || ''}
+                                                    onValueChange={(value) => {
+                                                      const newConfigs = [...editForm.getValues().sectionConfigurations || []];
+                                                      newConfigs[sectionIndex].fields[fieldIndex].databaseTable = value || undefined;
+                                                      editForm.setValue('sectionConfigurations', newConfigs);
+                                                    }}
+                                                  >
+                                                    <SelectTrigger id={`edit-field-database-table-${field.id}`} className="mt-1">
+                                                      <SelectValue placeholder="Select table" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      <SelectItem value="">None</SelectItem>
+                                                      {sectionDatabaseTables[sectionConfig.type]?.map((table) => (
+                                                        <SelectItem key={table} value={table}>{table}</SelectItem>
+                                                      ))}
+                                                    </SelectContent>
+                                                  </Select>
+                                                </div>
+                                                <div>
+                                                  <Label htmlFor={`edit-field-database-column-${field.id}`} className="text-xs text-muted-foreground">Column</Label>
+                                                  <Input
+                                                    id={`edit-field-database-column-${field.id}`}
+                                                    value={field.databaseColumn || ''}
+                                                    onChange={(e) => {
+                                                      const newConfigs = [...editForm.getValues().sectionConfigurations || []];
+                                                      newConfigs[sectionIndex].fields[fieldIndex].databaseColumn = e.target.value || undefined;
+                                                      editForm.setValue('sectionConfigurations', newConfigs);
+                                                    }}
+                                                    placeholder="Column name"
+                                                    disabled={!field.databaseTable}
+                                                    className="mt-1"
+                                                  />
+                                                </div>
+                                              </div>
+                                            </div>
                                           </div>
                                           
                                           <Button
