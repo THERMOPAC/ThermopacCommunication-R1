@@ -334,62 +334,130 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       color: rgb(0, 0, 0),
     });
     
+    // Draw table headers
     yPosition = 650;
+    
+    // Draw table header
+    weldingPage.drawText('Weld ID', {
+      x: 70,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    weldingPage.drawText('Type', {
+      x: 140,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    weldingPage.drawText('Process', {
+      x: 210,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    weldingPage.drawText('WPQR Doc', {
+      x: 280,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    weldingPage.drawText('Welder ID', {
+      x: 370,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    weldingPage.drawText('Status', {
+      x: 470,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Draw a line under headers
+    weldingPage.drawLine({
+      start: { x: 70, y: yPosition - 5 },
+      end: { x: 540, y: yPosition - 5 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    
+    yPosition -= 20;
+    
     if (weldRecords.length > 0) {
       for (const weld of weldRecords) {
-        weldingPage.drawText(`Weld ID: ${weld.id || 'N/A'}`, {
-          x: 70,
-          y: yPosition,
-          size: 10,
-          font: helveticaBold,
-          color: rgb(0, 0, 0),
-        });
-        yPosition -= 15;
-        
-        weldingPage.drawText(`Type: ${weld.weldType || 'N/A'}`, {
+        // Draw weld data in single-line tabular format
+        weldingPage.drawText(weld.id || 'N/A', {
           x: 70,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        weldingPage.drawText(`Process: ${weld.weldProcess || 'N/A'}`, {
-          x: 70,
+        weldingPage.drawText(weld.weldType || 'N/A', {
+          x: 140,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        weldingPage.drawText(`WPQR Document: ${weld.wpqrDocument || 'N/A'}`, {
-          x: 70,
+        weldingPage.drawText(weld.weldProcess || 'N/A', {
+          x: 210,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        weldingPage.drawText(`Welder ID: ${weld.welderId || 'N/A'}`, {
-          x: 70,
+        weldingPage.drawText(weld.wpqrDocument || 'N/A', {
+          x: 280,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        weldingPage.drawText(`Status: ${weld.weldStatus || 'N/A'}`, {
-          x: 70,
+        weldingPage.drawText(weld.welderId || 'N/A', {
+          x: 370,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 25;
+        
+        weldingPage.drawText(weld.weldStatus || 'N/A', {
+          x: 470,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        // Draw a light line between rows
+        if (weldRecords.length > 1) {
+          weldingPage.drawLine({
+            start: { x: 70, y: yPosition - 5 },
+            end: { x: 540, y: yPosition - 5 },
+            thickness: 0.5,
+            color: rgb(0.8, 0.8, 0.8),
+          });
+        }
+        
+        yPosition -= 20;
       }
     } else {
       weldingPage.drawText('No welding records found.', {
@@ -411,71 +479,146 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       color: rgb(0, 0, 0),
     });
     
+    // Draw table headers
     yPosition = 650;
+    
+    // Draw table header
+    ndtPage.drawText('NDT ID', {
+      x: 70,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    ndtPage.drawText('Method', {
+      x: 130,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    ndtPage.drawText('Standard', {
+      x: 190,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    ndtPage.drawText('Extent', {
+      x: 270,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    ndtPage.drawText('Technician', {
+      x: 330,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    ndtPage.drawText('Date', {
+      x: 410,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    ndtPage.drawText('Results', {
+      x: 470,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Draw a line under headers
+    ndtPage.drawLine({
+      start: { x: 70, y: yPosition - 5 },
+      end: { x: 540, y: yPosition - 5 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    
+    yPosition -= 20;
+    
     if (ndtRecords.length > 0) {
       for (const ndt of ndtRecords) {
-        ndtPage.drawText(`NDT ID: ${ndt.id || 'N/A'}`, {
-          x: 70,
-          y: yPosition,
-          size: 10,
-          font: helveticaBold,
-          color: rgb(0, 0, 0),
-        });
-        yPosition -= 15;
-        
-        ndtPage.drawText(`Method: ${ndt.ndtMethod || 'N/A'}`, {
+        // Draw NDT data in single-line tabular format
+        ndtPage.drawText(ndt.id || 'N/A', {
           x: 70,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        ndtPage.drawText(`Standard: ${ndt.ndtStandard || 'N/A'}`, {
-          x: 70,
+        ndtPage.drawText(ndt.ndtMethod || 'N/A', {
+          x: 130,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        ndtPage.drawText(`Extent: ${ndt.ndtExtent || 'N/A'}`, {
-          x: 70,
+        ndtPage.drawText(ndt.ndtStandard || 'N/A', {
+          x: 190,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        ndtPage.drawText(`Technician: ${ndt.ndtTechnician || 'N/A'}`, {
-          x: 70,
+        ndtPage.drawText(ndt.ndtExtent || 'N/A', {
+          x: 270,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        ndtPage.drawText(`Date: ${ndt.ndtDate || 'N/A'}`, {
-          x: 70,
+        ndtPage.drawText(ndt.ndtTechnician || 'N/A', {
+          x: 330,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        ndtPage.drawText(`Results: ${ndt.ndtResults || 'N/A'}`, {
-          x: 70,
+        ndtPage.drawText(ndt.ndtDate || 'N/A', {
+          x: 410,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 25;
+        
+        ndtPage.drawText(ndt.ndtResults || 'N/A', {
+          x: 470,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        // Draw a light line between rows
+        if (ndtRecords.length > 1) {
+          ndtPage.drawLine({
+            start: { x: 70, y: yPosition - 5 },
+            end: { x: 540, y: yPosition - 5 },
+            thickness: 0.5,
+            color: rgb(0.8, 0.8, 0.8),
+          });
+        }
+        
+        yPosition -= 20;
       }
     } else {
       ndtPage.drawText('No NDT records found.', {
@@ -497,71 +640,153 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       color: rgb(0, 0, 0),
     });
     
+    // Draw table headers
     yPosition = 650;
+    
+    // Draw table header
+    visualPage.drawText('ID', {
+      x: 70,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    visualPage.drawText('Standard', {
+      x: 110,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    visualPage.drawText('Inspector', {
+      x: 180,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    visualPage.drawText('Dimensional', {
+      x: 250,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    visualPage.drawText('Surface', {
+      x: 340,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    visualPage.drawText('Date', {
+      x: 410,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    visualPage.drawText('Observations', {
+      x: 470,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Draw a line under headers
+    visualPage.drawLine({
+      start: { x: 70, y: yPosition - 5 },
+      end: { x: 540, y: yPosition - 5 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    
+    yPosition -= 20;
+    
     if (visualRecords.length > 0) {
       for (const visual of visualRecords) {
-        visualPage.drawText(`Visual Inspection ID: ${visual.id || 'N/A'}`, {
-          x: 70,
-          y: yPosition,
-          size: 10,
-          font: helveticaBold,
-          color: rgb(0, 0, 0),
-        });
-        yPosition -= 15;
-        
-        visualPage.drawText(`Standard: ${visual.standard || 'N/A'}`, {
+        // Draw Visual Inspection data in single-line tabular format
+        visualPage.drawText(visual.id || 'N/A', {
           x: 70,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        visualPage.drawText(`Inspector: ${visual.inspector || 'N/A'}`, {
-          x: 70,
+        visualPage.drawText(visual.standard || 'N/A', {
+          x: 110,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        visualPage.drawText(`Dimensional Checks: ${visual.dimensionalChecks || 'N/A'}`, {
-          x: 70,
+        visualPage.drawText(visual.inspector || 'N/A', {
+          x: 180,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        visualPage.drawText(`Surface Condition: ${visual.surfaceCondition || 'N/A'}`, {
-          x: 70,
+        visualPage.drawText(visual.dimensionalChecks || 'N/A', {
+          x: 250,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        visualPage.drawText(`Inspection Date: ${visual.inspectionDate || 'N/A'}`, {
-          x: 70,
+        visualPage.drawText(visual.surfaceCondition || 'N/A', {
+          x: 340,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        visualPage.drawText(`Observations: ${visual.observations || 'N/A'}`, {
-          x: 70,
+        visualPage.drawText(visual.inspectionDate || 'N/A', {
+          x: 410,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 25;
+        
+        // Truncate observations if too long
+        const observations = visual.observations || 'N/A';
+        const maxLength = 10;
+        const displayObservations = observations.length > maxLength 
+          ? observations.substring(0, maxLength) + '...' 
+          : observations;
+          
+        visualPage.drawText(displayObservations, {
+          x: 470,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        // Draw a light line between rows
+        if (visualRecords.length > 1) {
+          visualPage.drawLine({
+            start: { x: 70, y: yPosition - 5 },
+            end: { x: 540, y: yPosition - 5 },
+            thickness: 0.5,
+            color: rgb(0.8, 0.8, 0.8),
+          });
+        }
+        
+        yPosition -= 20;
       }
     } else {
       visualPage.drawText('No visual inspection records found.', {
@@ -583,62 +808,144 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       color: rgb(0, 0, 0),
     });
     
+    // Draw table headers
     yPosition = 650;
+    
+    // Draw table header
+    ncrPage.drawText('NCR ID', {
+      x: 70,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    ncrPage.drawText('Date', {
+      x: 140,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    ncrPage.drawText('Status', {
+      x: 210,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    ncrPage.drawText('Description', {
+      x: 270,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    ncrPage.drawText('Disposition', {
+      x: 370,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    ncrPage.drawText('Corrective Action', {
+      x: 460,
+      y: yPosition,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Draw a line under headers
+    ncrPage.drawLine({
+      start: { x: 70, y: yPosition - 5 },
+      end: { x: 540, y: yPosition - 5 },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    
+    yPosition -= 20;
+    
     if (ncrRecords.length > 0) {
       for (const ncr of ncrRecords) {
-        ncrPage.drawText(`NCR ID: ${ncr.id || 'N/A'}`, {
-          x: 70,
-          y: yPosition,
-          size: 10,
-          font: helveticaBold,
-          color: rgb(0, 0, 0),
-        });
-        yPosition -= 15;
-        
-        ncrPage.drawText(`Date: ${ncr.ncrDate || 'N/A'}`, {
+        // Draw NCR data in single-line tabular format
+        ncrPage.drawText(ncr.id || 'N/A', {
           x: 70,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        ncrPage.drawText(`Status: ${ncr.ncrStatus || 'N/A'}`, {
-          x: 70,
+        ncrPage.drawText(ncr.ncrDate || 'N/A', {
+          x: 140,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        ncrPage.drawText(`Description: ${ncr.ncrDescription || 'N/A'}`, {
-          x: 70,
+        ncrPage.drawText(ncr.ncrStatus || 'N/A', {
+          x: 210,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        ncrPage.drawText(`Disposition: ${ncr.ncrDisposition || 'N/A'}`, {
-          x: 70,
+        // Truncate description if too long
+        const description = ncr.ncrDescription || 'N/A';
+        const maxDescLength = 12;
+        const displayDescription = description.length > maxDescLength 
+          ? description.substring(0, maxDescLength) + '...' 
+          : description;
+          
+        ncrPage.drawText(displayDescription, {
+          x: 270,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 15;
         
-        ncrPage.drawText(`Corrective Action: ${ncr.ncrCorrectiveAction || 'N/A'}`, {
-          x: 70,
+        ncrPage.drawText(ncr.ncrDisposition || 'N/A', {
+          x: 370,
           y: yPosition,
           size: 10,
           font: helvetica,
           color: rgb(0, 0, 0),
         });
-        yPosition -= 25;
+        
+        // Truncate corrective action if too long
+        const correctiveAction = ncr.ncrCorrectiveAction || 'N/A';
+        const maxActionLength = 10;
+        const displayAction = correctiveAction.length > maxActionLength 
+          ? correctiveAction.substring(0, maxActionLength) + '...' 
+          : correctiveAction;
+          
+        ncrPage.drawText(displayAction, {
+          x: 460,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        // Draw a light line between rows
+        if (ncrRecords.length > 1) {
+          ncrPage.drawLine({
+            start: { x: 70, y: yPosition - 5 },
+            end: { x: 540, y: yPosition - 5 },
+            thickness: 0.5,
+            color: rgb(0.8, 0.8, 0.8),
+          });
+        }
+        
+        yPosition -= 20;
       }
     } else {
       ncrPage.drawText('No non-conformance records found.', {
