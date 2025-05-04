@@ -2584,3 +2584,39 @@ export const insertMaterialIdentificationCounterSchema = createInsertSchema(mate
 export type MaterialIdentification = typeof materialIdentification.$inferSelect;
 export type InsertMaterialIdentification = z.infer<typeof insertMaterialIdentificationSchema>;
 export type InsertWpsDocument = z.infer<typeof wpsDocumentSchema>;
+
+// Inspection Documents table for storing uploaded files associated with inspection records
+export const inspectionDocuments = pgTable('inspection_documents', {
+  id: serial('id').primaryKey(),
+  inspectionOrderId: integer('inspection_order_id').notNull().references(() => inspectionOrders.id, { onDelete: 'cascade' }),
+  tabName: text('tab_name').notNull(), // e.g., 'Welding & Weld Maps', 'NDT', etc.
+  recordId: text('record_id').notNull(), // ID of the specific record in the tab e.g., 'W-1', 'NDT-1'
+  fileName: text('file_name').notNull(),
+  filePath: text('file_path').notNull(),
+  fileUrl: text('file_url'),
+  fileType: text('file_type'),
+  fileSize: integer('file_size'),
+  uploadedBy: integer('uploaded_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Relations for inspection documents
+export const inspectionDocumentsRelations = relations(inspectionDocuments, ({ one }) => ({
+  inspectionOrder: one(inspectionOrders, {
+    fields: [inspectionDocuments.inspectionOrderId],
+    references: [inspectionOrders.id],
+  }),
+  uploader: one(users, {
+    fields: [inspectionDocuments.uploadedBy],
+    references: [users.id],
+  }),
+}));
+
+// Insert schema for Inspection Documents
+export const insertInspectionDocumentSchema = createInsertSchema(inspectionDocuments)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+// Export Inspection Document types
+export type InspectionDocument = typeof inspectionDocuments.$inferSelect;
+export type InsertInspectionDocument = z.infer<typeof insertInspectionDocumentSchema>;
