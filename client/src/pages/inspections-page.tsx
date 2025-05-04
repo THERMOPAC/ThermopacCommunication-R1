@@ -674,7 +674,7 @@ export default function InspectionsPage() {
   };
   
   // Fetch projects for dropdown
-  const { data: projects, isLoading: isLoadingProjects } = useQuery({
+  const { data: projects = [], isLoading: isLoadingProjects } = useQuery({
     queryKey: ['/api/projects'],
   });
 
@@ -1727,7 +1727,7 @@ export default function InspectionsPage() {
                   <SelectValue placeholder="Select a project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects?.map((project: any) => (
+                  {Array.isArray(projects) && projects.map((project: any) => (
                     <SelectItem key={project.id} value={project.id.toString()}>
                       {project.code}: {project.name}
                     </SelectItem>
@@ -1748,7 +1748,7 @@ export default function InspectionsPage() {
               <div className="flex items-center justify-center h-64">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
-            ) : inspections?.length === 0 ? (
+            ) : !Array.isArray(inspections) || inspections.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 rounded-lg p-4">
                 <ClipboardCheck className="h-16 w-16 text-gray-400 mb-2" />
                 <h3 className="text-lg font-medium">No Inspection Reports Found</h3>
@@ -3740,7 +3740,7 @@ export default function InspectionsPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {projects?.map((project: any) => (
+                              {Array.isArray(projects) && projects.map((project: any) => (
                                 <SelectItem key={project.id} value={project.id.toString()}>
                                   {project.code}: {project.name}
                                 </SelectItem>
