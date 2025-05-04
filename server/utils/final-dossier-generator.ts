@@ -120,6 +120,29 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
     
+    // Footer text to be added to each page
+    const footerText = 'THERMOPAC PROCESS ENGINEERING LLP : 405, The Summit – Business Bay, Western Express Highway, Vile Parle, Mumbai, India – 400 057';
+    
+    // Function to add footer to a page
+    const addFooterToPage = (page) => {
+      page.drawText(footerText, {
+        x: 50, // Left margin
+        y: 30, // Position from bottom of page
+        size: 8, // Smaller font size for footer
+        font: helvetica,
+        color: rgb(0.4, 0.4, 0.4), // Gray color
+        maxWidth: 512, // Maximum width to prevent text overflow
+      });
+      
+      // Draw a line above the footer
+      page.drawLine({
+        start: { x: 50, y: 40 },
+        end: { x: 562, y: 40 },
+        thickness: 0.5,
+        color: rgb(0.8, 0.8, 0.8),
+      });
+    };
+    
     // Try to add company logo to the top-right corner
     try {
       // Use a direct path approach instead of __dirname
@@ -131,15 +154,28 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       // Embed the image in the PDF
       const logoImage = await pdfDoc.embedJpg(logoImageBytes);
       
-      // Get the dimensions of the image
-      const logoDims = logoImage.scale(0.4); // Scale down the logo to 40% of its original size
+      // Get the dimensions of the image - Scale down the logo to passport photo size
+      // Standard passport photo is about 35mm x 45mm which is roughly 100pt x 130pt in PDF
+      const originalAspectRatio = logoImage.width / logoImage.height;
+      const maxWidth = 100; // Passport photo width in points
+      const maxHeight = 130; // Passport photo height in points
+      
+      // Calculate dimensions preserving aspect ratio
+      let width = maxWidth;
+      let height = width / originalAspectRatio;
+      
+      // If height exceeds maximum, scale based on height instead
+      if (height > maxHeight) {
+        height = maxHeight;
+        width = height * originalAspectRatio;
+      }
       
       // Draw the logo in the top-right corner
       coverPage.drawImage(logoImage, {
-        x: 612 - logoDims.width - 50, // Position from right edge with 50pt margin
-        y: 792 - logoDims.height - 50, // Position from top edge with 50pt margin
-        width: logoDims.width,
-        height: logoDims.height,
+        x: 612 - width - 30, // Position from right edge with 30pt margin
+        y: 792 - height - 30, // Position from top edge with 30pt margin
+        width: width,
+        height: height,
       });
       
       console.log('Successfully added company logo to the cover page');
@@ -191,6 +227,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       color: rgb(0, 0, 0),
     });
     
+    // Add footer to cover page
+    addFooterToPage(coverPage);
+    
     // Add table of contents
     const tocPage = pdfDoc.addPage([612, 792]);
     tocPage.drawText('TABLE OF CONTENTS', {
@@ -222,6 +261,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       });
       yPosition -= 25;
     }
+    
+    // Add footer to table of contents page
+    addFooterToPage(tocPage);
     
     // Add material traceability section
     const materialPage = pdfDoc.addPage([612, 792]);
