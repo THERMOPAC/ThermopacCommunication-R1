@@ -110,7 +110,7 @@ const InspectionDocumentViewer: React.FC<InspectionDocumentViewerProps> = ({
               {document.fileName}
             </CardTitle>
             <CardDescription className="text-xs">
-              Uploaded on {formatDate(document.createdAt)}
+              Uploaded on {formatDate(new Date(document.createdAt))}
               {document.fileSize ? ` • ${formatBytes(document.fileSize)}` : ''}
             </CardDescription>
           </CardHeader>

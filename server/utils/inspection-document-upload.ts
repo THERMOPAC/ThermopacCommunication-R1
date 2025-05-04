@@ -38,11 +38,11 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
   try {
     console.log('uploadInspectionDocument: Starting upload process');
     console.log('File details:', {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
-      encoding: req.file.encoding,
-      buffer: req.file.buffer ? `${req.file.buffer.length} bytes` : 'No buffer'
+      originalname: uploadedFile.originalname,
+      mimetype: uploadedFile.mimetype,
+      size: uploadedFile.size,
+      encoding: uploadedFile.encoding,
+      buffer: uploadedFile.buffer ? `${uploadedFile.buffer.length} bytes` : 'No buffer'
     });
     
     // Get required parameters from request body
@@ -62,7 +62,7 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     }
     
     // Extract file extension from the original file name
-    const fileExtension = path.extname(req.file.originalname).substring(1) || 'pdf';
+    const fileExtension = path.extname(uploadedFile.originalname).substring(1) || 'pdf';
     
     // Format: QMS/Inspections_Records/{Inspection Order No}/{Tab Name}/{array id}.{extension}
     const filePath = `QMS/Inspections_Records/${inspectionOrderNumber}/${tabName}/${recordId}.${fileExtension}`;
@@ -78,10 +78,10 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     // Create a write stream to upload the file
     const stream = file.createWriteStream({
       resumable: false,
-      contentType: req.file.mimetype,
+      contentType: uploadedFile.mimetype,
       metadata: {
-        contentType: req.file.mimetype,
-        contentDisposition: `inline; filename="${req.file.originalname}"`,
+        contentType: uploadedFile.mimetype,
+        contentDisposition: `inline; filename="${uploadedFile.originalname}"`,
       }
     });
     
@@ -109,9 +109,9 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
             success: true,
             document_file_path: filePath,
             document_url: signedUrl,
-            file_name: req.file?.originalname || 'document.pdf',
-            file_type: req.file?.mimetype || 'application/pdf',
-            file_size: req.file?.size || 0
+            file_name: uploadedFile.originalname,
+            file_type: uploadedFile.mimetype,
+            file_size: uploadedFile.size
           });
         } catch (err) {
           console.error('Error generating signed URL:', err);
@@ -132,8 +132,8 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
       });
       
       // Write the file buffer to the stream and end it
-      if (req.file && req.file.buffer) {
-        stream.end(req.file.buffer);
+      if (uploadedFile.buffer) {
+        stream.end(uploadedFile.buffer);
       } else {
         stream.end();
         reject({
