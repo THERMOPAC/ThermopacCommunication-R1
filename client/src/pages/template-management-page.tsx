@@ -85,6 +85,39 @@ function generateUniqueId(): string {
   return `id-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+// Define relevant database tables for each section type
+const sectionDatabaseTables: Record<TemplateSectionType, string[]> = {
+  "Material Traceability": [
+    "materialIdentification", 
+    "materialInspections", 
+    "certificates"
+  ],
+  "Welding & Weld Maps": [
+    "weldingProcedures", 
+    "weldMaps", 
+    "welders", 
+    "welds"
+  ],
+  "NDT": [
+    "ndtInspections", 
+    "ndtReports", 
+    "ndtCalibration"
+  ],
+  "Visual Inspection": [
+    "visualInspections", 
+    "dimensionalInspections"
+  ],
+  "Hydrotest": [
+    "hydrotestResults", 
+    "pressureTests"
+  ],
+  "Non-Conformance": [
+    "nonConformanceReports", 
+    "dispositions", 
+    "correctiveActions"
+  ]
+};
+
 // Interface for the template data from API
 interface Template {
   id: number;
