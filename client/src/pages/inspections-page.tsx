@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
-import { Check, Edit, Trash } from "lucide-react";
+import { Check, Edit, Trash, Eye } from "lucide-react";
+import InspectionDocumentUpload from "@/components/inspection-document-upload";
+import InspectionDocumentViewer from "@/components/inspection-document-viewer";
 import { 
   Card, 
   CardContent, 
@@ -55,7 +57,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Eye, Edit2, Pencil, Trash2, X, FileCheck } from "lucide-react";
+import { Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck } from "lucide-react";
 import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -211,6 +213,8 @@ export default function InspectionsPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingInspectionOrder, setEditingInspectionOrder] = useState<number | null>(null);
+  const [showNcrDocuments, setShowNcrDocuments] = useState(false);
+  const [showDossierDocuments, setShowDossierDocuments] = useState(false);
   
   // Weld management state
   const [welds, setWelds] = useState<{
@@ -3526,16 +3530,43 @@ export default function InspectionsPage() {
                           </Button>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button type="button" variant="outline" size="sm">
-                            <FileText className="h-4 w-4 mr-2" />
-                            Upload NCR Document
-                          </Button>
-                          <Button type="button" variant="outline" size="sm">
-                            <Eye className="h-4 w-4 mr-2" />
-                            View NCR Document
-                          </Button>
+                          {editInspectionOrderDetails && ncrRecords && ncrRecords.length > 0 && ncrRecords[0].id && (
+                            <>
+                              <InspectionDocumentUpload
+                                inspectionOrderNumber={editInspectionOrderDetails.inspectionOrderNumber}
+                                tabName="NonConformance"
+                                recordId={ncrRecords[0].id}
+                                variant="outline"
+                                size="sm"
+                              />
+                              <Button 
+                                type="button"
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  setShowNcrDocuments(!showNcrDocuments);
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                {showNcrDocuments ? "Hide Documents" : "View Documents"}
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
+                      
+                      {/* Document viewer section */}
+                      {showNcrDocuments && editInspectionOrderDetails && ncrRecords && ncrRecords.length > 0 && ncrRecords[0].id && (
+                        <div className="mt-4 border rounded-md p-3">
+                          <h4 className="text-md font-medium mb-2">NCR Documents</h4>
+                          <InspectionDocumentViewer
+                            inspectionOrderNumber={editInspectionOrderDetails.inspectionOrderNumber}
+                            tabName="NonConformance"
+                            recordId={ncrRecords[0].id}
+                            className="mt-2"
+                          />
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   
@@ -3628,15 +3659,42 @@ export default function InspectionsPage() {
                         </div>
                         <div className="col-span-12">
                           <div className="flex items-center gap-2 mt-2">
-                            <Button type="button" variant="outline" size="sm">
-                              <FileText className="h-4 w-4 mr-2" />
-                              Upload Dossier
-                            </Button>
-                            <Button type="button" variant="outline" size="sm">
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Dossier
-                            </Button>
+                            {editInspectionOrderDetails && (
+                              <>
+                                <InspectionDocumentUpload
+                                  inspectionOrderNumber={editInspectionOrderDetails.inspectionOrderNumber}
+                                  tabName="FinalDossier"
+                                  recordId="dossier"
+                                  variant="outline"
+                                  size="sm"
+                                />
+                                <Button 
+                                  type="button"
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setShowDossierDocuments(!showDossierDocuments);
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  {showDossierDocuments ? "Hide Documents" : "View Documents"}
+                                </Button>
+                              </>
+                            )}
                           </div>
+                          
+                          {/* Document viewer section */}
+                          {showDossierDocuments && editInspectionOrderDetails && (
+                            <div className="mt-4 border rounded-md p-3">
+                              <h4 className="text-md font-medium mb-2">Dossier Documents</h4>
+                              <InspectionDocumentViewer
+                                inspectionOrderNumber={editInspectionOrderDetails.inspectionOrderNumber}
+                                tabName="FinalDossier"
+                                recordId="dossier"
+                                className="mt-2"
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

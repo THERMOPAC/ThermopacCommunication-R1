@@ -25,10 +25,11 @@ export function formatFileSize(bytes: number): string {
  * @param date Date object or string to format
  * @returns Formatted date string (e.g., "Apr 28, 2025")
  */
-export function formatDate(date: Date): string {
+export function formatDate(date: Date | string): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  }).format(date);
+  }).format(dateObj);
 }

@@ -1,9 +1,13 @@
 import { Request } from 'express';
 import { Storage } from '@google-cloud/storage';
-import { gcsStorage } from './gcs-storage';
-import { bucketName } from './storage-config';
-import { v4 as uuidv4 } from 'uuid';
+import storage, { bucketName } from './storage-config';
 import path from 'path';
+import { Pool } from '@neondatabase/serverless';
+
+// Export the pool instance to reuse between functions
+// Using a separate connection just for the document upload logic to avoid 
+// transaction conflicts with the main db connection
+export const pool = new Pool({ connectionString: process.env.DATABASE_URL || '' });
 
 /**
  * Upload an Inspection Record document to Google Cloud Storage
@@ -19,6 +23,7 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
   file_type?: string;
   file_size?: number;
 }> => {
+  // Runtime check and type assertion - if this fails, we'll return early
   if (!req.file) {
     console.error('uploadInspectionDocument: No file was uploaded');
     return {
@@ -26,6 +31,9 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
       success: false
     };
   }
+  
+  // We'll use this typed reference for the rest of the function
+  const uploadedFile = req.file;
   
   try {
     console.log('uploadInspectionDocument: Starting upload process');
@@ -36,12 +44,6 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
       encoding: req.file.encoding,
       buffer: req.file.buffer ? `${req.file.buffer.length} bytes` : 'No buffer'
     });
-    
-    // Get GCS client
-    console.log('uploadInspectionDocument: Getting GCS client');
-    const storage = gcsStorage;
-    console.log(`uploadInspectionDocument: Using bucket: ${bucketName}`);
-    const bucket = storage.bucket(bucketName);
     
     // Get required parameters from request body
     const inspectionOrderNumber = req.body.inspectionOrderNumber;
@@ -67,55 +69,78 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     
     console.log(`uploadInspectionDocument: File path: ${filePath}`);
     
+    // Get the storage bucket
+    const bucket = storage.bucket(bucketName);
+    
     // Create a new blob in the bucket and upload the file data
-    const blob = bucket.file(filePath);
-    const blobStream = blob.createWriteStream({
+    const file = bucket.file(filePath);
+    
+    // Create a write stream to upload the file
+    const stream = file.createWriteStream({
       resumable: false,
-      contentType: req.file.mimetype
+      contentType: req.file.mimetype,
+      metadata: {
+        contentType: req.file.mimetype,
+        contentDisposition: `inline; filename="${req.file.originalname}"`,
+      }
     });
     
-    // Return a promise that resolves when the file is uploaded
+    // Handle errors during upload
+    stream.on('error', (err) => {
+      console.error('Error uploading file to GCS:', err);
+      throw new Error(`Failed to upload file to GCS: ${err.message}`);
+    });
+    
+    // Create a promise to handle the upload process
     return new Promise((resolve, reject) => {
-      blobStream.on('error', (err: any) => {
-        console.error('Error uploading inspection document:', err);
-        reject({
-          error: 'Failed to upload inspection document',
-          success: false
-        });
-      });
-      
-      blobStream.on('finish', async () => {
-        // Create a signed URL for accessing the file
+      // When the upload is complete
+      stream.on('finish', async () => {
         try {
-          const signedUrlConfig = {
-            action: 'read' as const,
+          // Create a signed URL for the file with 7-day expiration
+          const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
             expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-          };
+          });
           
-          const [url] = await blob.getSignedUrl(signedUrlConfig);
-          
-          console.log(`uploadInspectionDocument: File uploaded successfully to ${filePath}`);
-          console.log(`uploadInspectionDocument: Signed URL: ${url}`);
+          console.log(`File uploaded successfully to GCS: ${filePath}`);
+          console.log(`Signed URL: ${signedUrl}`);
           
           resolve({
             success: true,
             document_file_path: filePath,
-            document_url: url,
-            file_name: req.file.originalname,
-            file_type: req.file.mimetype,
-            file_size: req.file.size
+            document_url: signedUrl,
+            file_name: req.file?.originalname || 'document.pdf',
+            file_type: req.file?.mimetype || 'application/pdf',
+            file_size: req.file?.size || 0
           });
-        } catch (error) {
-          console.error('Error getting signed URL:', error);
+        } catch (err) {
+          console.error('Error generating signed URL:', err);
           reject({
-            error: 'Failed to generate signed URL for uploaded document',
-            success: false
+            success: false,
+            error: 'Failed to generate signed URL for uploaded file'
           });
         }
       });
       
-      // End the stream with the file buffer
-      blobStream.end(req.file.buffer);
+      // Handle upload errors
+      stream.on('error', (err) => {
+        console.error('Error in upload stream:', err);
+        reject({ 
+          success: false, 
+          error: `Upload stream error: ${err.message}` 
+        });
+      });
+      
+      // Write the file buffer to the stream and end it
+      if (req.file && req.file.buffer) {
+        stream.end(req.file.buffer);
+      } else {
+        stream.end();
+        reject({
+          success: false,
+          error: 'No file buffer available for upload'
+        });
+      }
     });
   } catch (error) {
     console.error('Error in uploadInspectionDocument:', error);
