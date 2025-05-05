@@ -2020,20 +2020,7 @@ export default function InspectionsPage() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
             ) : !Array.isArray(inspections) || inspections.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 rounded-lg p-4">
-                <ClipboardCheck className="h-16 w-16 text-gray-400 mb-2" />
-                <h3 className="text-lg font-medium">No Inspection Reports Found</h3>
-                <p className="text-muted-foreground mt-2">
-                  There are no inspection reports for this project yet. Create your first one!
-                </p>
-                <Button 
-                  onClick={() => setIsCreateDialogOpen(true)} 
-                  variant="outline" 
-                  className="mt-4"
-                >
-                  <Plus className="mr-2 h-4 w-4" /> Create Inspection Report
-                </Button>
-              </div>
+              <div></div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
