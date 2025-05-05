@@ -422,7 +422,7 @@ export default function WpqrPage() {
                       <td className="p-2 break-words">{document.certificateNo || "-"}</td>
                       <td className="p-2">{document.inspectionAuthority || "-"}</td>
                       <td className="p-2 text-right">
-                        <div className="flex justify-end gap-1">
+                        <div className="flex justify-end gap-3 pr-4">
                           <Button
                             variant="ghost"
                             size="icon"
