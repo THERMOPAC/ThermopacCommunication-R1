@@ -545,7 +545,7 @@ export default function WelderManagementPage() {
                 Add New Welder
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Welder</DialogTitle>
               </DialogHeader>
@@ -1152,7 +1152,7 @@ export default function WelderManagementPage() {
 
         {/* Edit Welder Dialog */}
         <Dialog open={isEditWelderOpen} onOpenChange={setIsEditWelderOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Welder</DialogTitle>
             </DialogHeader>
@@ -1390,13 +1390,13 @@ export default function WelderManagementPage() {
 
         {/* View Certificates Dialog */}
         <Dialog open={isViewCertificatesOpen} onOpenChange={setIsViewCertificatesOpen}>
-          <DialogContent className="max-w-4xl">
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {selectedWelder?.name} - Certificates
               </DialogTitle>
             </DialogHeader>
-            <div className="max-h-[60vh] overflow-y-auto">
+            <div>
               {certificates.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-gray-500">No certificates found for this welder.</p>
