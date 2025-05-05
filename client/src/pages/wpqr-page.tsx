@@ -20,13 +20,13 @@ import Layout from "@/components/layout";
 
 // Define form schema for WPQR document upload
 const wpqrFormSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters"),
+  title: z.string().min(3, "Title must be at least 3 characters").max(100, "Title must be 100 characters or less"),
   description: z.string().optional(),
   welderProcess: z.string().min(1, "Welder process is required"),
   baseMetalGrade: z.string().min(1, "Base metal grade is required"),
   jointType: z.string().min(1, "Joint type is required"),
-  certificateNo: z.string().optional(),
-  inspectionAuthority: z.string().optional(),
+  certificateNo: z.string().max(20, "Certificate Number must be 20 characters or less").optional(),
+  inspectionAuthority: z.string().max(50, "Inspection Authority must be 50 characters or less").optional(),
   document: z.instanceof(FileList).refine(files => files.length > 0, {
     message: "Document file is required",
   }),
