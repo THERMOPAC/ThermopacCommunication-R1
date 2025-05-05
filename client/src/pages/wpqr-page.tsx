@@ -468,7 +468,7 @@ export default function WpqrPage() {
 
         {/* Create WPQR Dialog */}
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create WPQR Document</DialogTitle>
               <DialogDescription>
@@ -682,7 +682,7 @@ export default function WpqrPage() {
 
         {/* Edit WPQR Dialog */}
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit WPQR Document</DialogTitle>
               <DialogDescription>
@@ -899,7 +899,7 @@ export default function WpqrPage() {
         {/* View Document Details */}
         {selectedDocument && (
           <Dialog open={!!selectedDocument} onOpenChange={handleCloseDetails}>
-            <DialogContent>
+            <DialogContent className="max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>WPQR Document Details</DialogTitle>
               </DialogHeader>
