@@ -1,10 +1,31 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
-import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck } from "lucide-react";
+import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck, BarChart3, ListChecks, FileOutput, Download, Upload, Filter } from "lucide-react";
 import InspectionDocumentUpload from "@/components/inspection-document-upload";
 import InspectionDocumentViewer from "@/components/inspection-document-viewer";
 import { FinalDossierDebugButton } from "@/components/final-dossier-debug-button";
+import { 
+  ChartContainer, 
+  ChartTooltip, 
+  ChartTooltipContent, 
+  ChartLegend, 
+  ChartLegendContent 
+} from "@/components/ui/chart";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  Tooltip,
+  Legend
+} from "recharts";
 import { 
   Card, 
   CardContent, 
@@ -220,6 +241,16 @@ export default function InspectionsPage() {
   const [isGeneratingDossier, setIsGeneratingDossier] = useState(false);
   const [isCheckingDossier, setIsCheckingDossier] = useState(false);
   const [dossierUrl, setDossierUrl] = useState<string | null>(null);
+  
+  // Inspection Orders section state
+  const [activeOrdersTab, setActiveOrdersTab] = useState<string>("dashboard");
+  const [ordersByStatus, setOrdersByStatus] = useState<{ status: string; count: number }[]>([]);
+  const [ordersByMonth, setOrdersByMonth] = useState<{ month: string; count: number }[]>([]);
+  const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>('month');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [inspectionSchedule, setInspectionSchedule] = useState<any[]>([]);
+  const [filteredReports, setFilteredReports] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   
   // Weld management state
   const [welds, setWelds] = useState<{
