@@ -21,7 +21,6 @@ import WorkOrderDetailPage from "@/pages/work-order-detail-page";
 import WorkOrderEditPage from "@/pages/work-order-edit-page";
 import ShopFloorPage from "@/pages/shop-floor-page";
 import InspectionsPage from "@/pages/inspections-page";
-import InspectionManagementPage from "@/pages/inspection-management-page";
 import MaterialIdentificationPage from "@/pages/material-identification-page";
 import MaterialIdentificationListPage from "@/pages/material-identification-list-page";
 import MaterialIdentificationViewPage from "@/pages/material-identification-view-page";
@@ -160,7 +159,6 @@ function Router() {
         {(params) => <Redirect to={`/quality/material-identification/view/${params.id}`} />}
       </Route>
       <ProtectedRoute path="/inspections" component={InspectionsPage} />
-      <ProtectedRoute path="/inspection-management" component={InspectionManagementPage} />
       <ProtectedRoute path="/quality-reports" component={QualityReportsPage} />
       <ProtectedRoute path="/quality-assurance-plan" component={QualityAssurancePlanPage} />
       <ProtectedRoute path="/quality-assurance-plan/form/:id?" component={CreateQAPPage} />
