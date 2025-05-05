@@ -391,18 +391,18 @@ export default function WpqrPage() {
             </p>
           </div>
         ) : (
-          <div className="w-full">
-            <div className="rounded-md border">
+          <div className="w-full overflow-x-auto">
+            <div className="rounded-md border min-w-full">
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-2 text-left font-medium w-[15%]">Document ID</th>
-                    <th className="p-2 text-left font-medium w-[12%]">Welding Process</th>
-                    <th className="p-2 text-left font-medium w-[15%]">Base Metal Grade</th>
+                    <th className="p-2 text-left font-medium" style={{ width: '300px' }}>Document ID</th>
+                    <th className="p-2 text-left font-medium" style={{ width: '500px' }}>Welding Process</th>
+                    <th className="p-2 text-left font-medium" style={{ width: '300px' }}>Base Metal Grade</th>
                     <th className="p-2 text-left font-medium w-[10%]">Joint Type</th>
                     <th className="p-2 text-left font-medium w-[25%]">Certificate No</th>
                     <th className="p-2 text-left font-medium w-[13%]">Inspection Authority</th>
-                    <th className="p-2 text-right font-medium w-[10%]">Actions</th>
+                    <th className="p-2 text-right font-medium" style={{ width: '300px' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
