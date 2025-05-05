@@ -448,7 +448,16 @@ export default function InspectionsPage() {
       'gtaw': 'GTAW (TIG Welding)',
       'gmaw': 'GMAW (MIG Welding)',
       'fcaw': 'FCAW (Flux-Cored Arc Welding)',
-      'saw': 'SAW (Submerged Arc Welding)'
+      'saw': 'SAW (Submerged Arc Welding)',
+      'gtaw_smaw': 'GTAW (141) + SMAW (111)',
+      'gtaw_gmaw': 'GTAW (141) + GMAW (135)',
+      'gtaw_fcaw': 'GTAW (141) + FCAW (136/137)',
+      'smaw_gmaw': 'SMAW (111) + GMAW (135)',
+      'smaw_fcaw': 'SMAW (111) + FCAW (136/137)',
+      'smaw_saw': 'SMAW (111) + SAW (121)',
+      'gtaw_saw': 'GTAW (141) + SAW (121)',
+      'gmaw_fcaw': 'GMAW (135) + FCAW (136/137)',
+      'gmaw_saw': 'GMAW (135) + SAW (121)'
     };
     return weldProcesses[weldProcess] || weldProcess;
   };
@@ -3410,6 +3419,15 @@ export default function InspectionsPage() {
                                         <SelectItem value="gmaw">GMAW (MIG Welding)</SelectItem>
                                         <SelectItem value="fcaw">FCAW (Flux-Cored Arc Welding)</SelectItem>
                                         <SelectItem value="saw">SAW (Submerged Arc Welding)</SelectItem>
+                                        <SelectItem value="gtaw_smaw">GTAW (141) + SMAW (111)</SelectItem>
+                                        <SelectItem value="gtaw_gmaw">GTAW (141) + GMAW (135)</SelectItem>
+                                        <SelectItem value="gtaw_fcaw">GTAW (141) + FCAW (136/137)</SelectItem>
+                                        <SelectItem value="smaw_gmaw">SMAW (111) + GMAW (135)</SelectItem>
+                                        <SelectItem value="smaw_fcaw">SMAW (111) + FCAW (136/137)</SelectItem>
+                                        <SelectItem value="smaw_saw">SMAW (111) + SAW (121)</SelectItem>
+                                        <SelectItem value="gtaw_saw">GTAW (141) + SAW (121)</SelectItem>
+                                        <SelectItem value="gmaw_fcaw">GMAW (135) + FCAW (136/137)</SelectItem>
+                                        <SelectItem value="gmaw_saw">GMAW (135) + SAW (121)</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   ) : (
