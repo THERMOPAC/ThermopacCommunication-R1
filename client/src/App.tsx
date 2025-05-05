@@ -39,7 +39,6 @@ import WelderManagementPage from "@/pages/welder-management-page";
 import WelderCertificatesPage from "@/pages/welder-certificates-page";
 import WelderTestPage from "@/pages/welder-test-page";
 import CalibrationManagementPage from "@/pages/calibration-management-page";
-import QualityReportsPage from "@/pages/quality-reports-page";
 import QualityAssurancePlanPage from "@/pages/quality-assurance-plan-page";
 import CreateQAPPage from "@/pages/create-qap-page";
 import ViewEditQAPPage from "@/pages/view-edit-qap-page";
@@ -157,7 +156,6 @@ function Router() {
         {(params) => <Redirect to={`/quality/material-identification/view/${params.id}`} />}
       </Route>
       <ProtectedRoute path="/inspections" component={InspectionsPage} />
-      <ProtectedRoute path="/quality-reports" component={QualityReportsPage} />
       <ProtectedRoute path="/quality-assurance-plan" component={QualityAssurancePlanPage} />
       <ProtectedRoute path="/quality-assurance-plan/form/:id?" component={CreateQAPPage} />
       <ProtectedRoute path="/quality-assurance-plan/view/:id" component={ViewEditQAPPage} />

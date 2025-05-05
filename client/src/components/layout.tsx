@@ -160,7 +160,6 @@ export default function Layout({ children }: LayoutProps) {
         { icon: UserCheck, label: "Welder Management", href: "/welder-management" },
         { icon: CheckSquare, label: "Material Identification", href: "/quality/material-identification" },
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
-        { icon: Award, label: "Quality Reports", href: "/quality-reports" },
         { icon: FileCheck, label: "Quality Assurance Plan", href: "/quality-assurance-plan" },
         { icon: LayoutTemplate, label: "Template Management", href: "/template-management" }
       ]
