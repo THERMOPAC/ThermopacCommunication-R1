@@ -201,6 +201,8 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
       return res.status(401).json({ error: 'User not authenticated' });
     }
     
+    console.log('Creating WPQR document for user:', userId);
+    
     // Validate the request body
     let { 
       title, 
@@ -213,21 +215,45 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
       status = 'Active'
     } = req.body;
     
+    // Log the input values for debugging
+    console.log('WPQR document input values:', {
+      title: title ? `${title.substring(0, 20)}... (${title.length} chars)` : null,
+      welderProcess: welderProcess ? `${welderProcess.substring(0, 10)}... (${welderProcess.length} chars)` : null,
+      baseMetalGrade: baseMetalGrade ? `${baseMetalGrade.substring(0, 10)}... (${baseMetalGrade.length} chars)` : null,
+      jointType: jointType ? `${jointType.substring(0, 10)}... (${jointType.length} chars)` : null,
+      certificateNo: certificateNo ? `${certificateNo.substring(0, 10)}... (${certificateNo.length} chars)` : null,
+      inspectionAuthority: inspectionAuthority ? `${inspectionAuthority.substring(0, 10)}... (${inspectionAuthority.length} chars)` : null
+    });
+    
     // Ensure values don't exceed database column lengths
     if (welderProcess && welderProcess.length > 20) {
+      console.log(`Trimming welderProcess from ${welderProcess.length} to 20 characters`);
       welderProcess = welderProcess.substring(0, 20);
     }
     
     if (certificateNo && certificateNo.length > 100) {
+      console.log(`Trimming certificateNo from ${certificateNo.length} to 100 characters`);
       certificateNo = certificateNo.substring(0, 100);
     }
     
     if (inspectionAuthority && inspectionAuthority.length > 50) {
+      console.log(`Trimming inspectionAuthority from ${inspectionAuthority.length} to 50 characters`);
       inspectionAuthority = inspectionAuthority.substring(0, 50);
     }
     
     if (title && title.length > 100) {
+      console.log(`Trimming title from ${title.length} to 100 characters`);
       title = title.substring(0, 100);
+    }
+    
+    if (baseMetalGrade && baseMetalGrade.length > 100) {
+      console.log(`Trimming baseMetalGrade from ${baseMetalGrade.length} to 100 characters`);
+      baseMetalGrade = baseMetalGrade.substring(0, 100);
+    }
+    
+    if (jointType && jointType.length > 50) {
+      console.log(`Trimming jointType from ${jointType.length} to 50 characters`);
+      jointType = jointType.substring(0, 50);
     }
     
     // Basic validation for required fields
@@ -284,9 +310,34 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
     res.status(201).json(insertedDocument);
   } catch (error) {
     console.error('Error creating WPQR document:', error);
+    
+    // Create more detailed error with stack trace
+    let errorDetails = 'Unknown error';
+    
+    if (error instanceof Error) {
+      errorDetails = `${error.message}\n${error.stack}`;
+      
+      // Log additional information about the error
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
+    // Check if it's a database constraint violation
+    const errorStr = String(error);
+    if (errorStr.includes('violates') || errorStr.includes('constraint')) {
+      console.error('Database constraint violation detected');
+      
+      // Try to extract the constraint name
+      const constraintMatch = errorStr.match(/constraint "([^"]+)"/);
+      if (constraintMatch && constraintMatch[1]) {
+        console.error('Constraint name:', constraintMatch[1]);
+      }
+    }
+    
     res.status(500).json({ 
       error: 'Failed to create WPQR document',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: errorDetails
     });
   }
 });
@@ -296,6 +347,13 @@ router.patch('/:id', ensureAuthenticated, async (req: Request, res: Response) =>
   try {
     const { id } = req.params;
     const documentId = parseInt(id);
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
+    console.log(`Updating WPQR document ${documentId} by user ${userId}`);
     
     if (isNaN(documentId)) {
       return res.status(400).json({ error: 'Invalid document ID' });
@@ -323,21 +381,45 @@ router.patch('/:id', ensureAuthenticated, async (req: Request, res: Response) =>
     let inspectionAuthority = req.body.inspectionAuthority !== undefined ? req.body.inspectionAuthority : document.inspectionAuthority;
     let status = req.body.status || document.status;
 
+    // Log the input values for debugging
+    console.log('WPQR document update values:', {
+      title: title ? `${title.substring(0, 20)}... (${title.length} chars)` : null,
+      welderProcess: welderProcess ? `${welderProcess.substring(0, 10)}... (${welderProcess.length} chars)` : null,
+      baseMetalGrade: baseMetalGrade ? `${baseMetalGrade.substring(0, 10)}... (${baseMetalGrade.length} chars)` : null,
+      jointType: jointType ? `${jointType.substring(0, 10)}... (${jointType.length} chars)` : null,
+      certificateNo: certificateNo ? `${certificateNo.substring(0, 10)}... (${certificateNo.length} chars)` : null,
+      inspectionAuthority: inspectionAuthority ? `${inspectionAuthority.substring(0, 10)}... (${inspectionAuthority.length} chars)` : null
+    });
+
     // Ensure values don't exceed database column lengths
     if (welderProcess && welderProcess.length > 20) {
+      console.log(`Trimming welderProcess from ${welderProcess.length} to 20 characters`);
       welderProcess = welderProcess.substring(0, 20);
     }
     
     if (certificateNo && certificateNo.length > 100) {
+      console.log(`Trimming certificateNo from ${certificateNo.length} to 100 characters`);
       certificateNo = certificateNo.substring(0, 100);
     }
     
     if (inspectionAuthority && inspectionAuthority.length > 50) {
+      console.log(`Trimming inspectionAuthority from ${inspectionAuthority.length} to 50 characters`);
       inspectionAuthority = inspectionAuthority.substring(0, 50);
     }
     
     if (title && title.length > 100) {
+      console.log(`Trimming title from ${title.length} to 100 characters`);
       title = title.substring(0, 100);
+    }
+    
+    if (baseMetalGrade && baseMetalGrade.length > 100) {
+      console.log(`Trimming baseMetalGrade from ${baseMetalGrade.length} to 100 characters`);
+      baseMetalGrade = baseMetalGrade.substring(0, 100);
+    }
+    
+    if (jointType && jointType.length > 50) {
+      console.log(`Trimming jointType from ${jointType.length} to 50 characters`);
+      jointType = jointType.substring(0, 50);
     }
     
     // Prepare update data
@@ -365,9 +447,34 @@ router.patch('/:id', ensureAuthenticated, async (req: Request, res: Response) =>
     res.json(updatedDocuments[0]);
   } catch (error) {
     console.error('Error updating WPQR document:', error);
+    
+    // Create more detailed error with stack trace
+    let errorDetails = 'Unknown error';
+    
+    if (error instanceof Error) {
+      errorDetails = `${error.message}\n${error.stack}`;
+      
+      // Log additional information about the error
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
+    // Check if it's a database constraint violation
+    const errorStr = String(error);
+    if (errorStr.includes('violates') || errorStr.includes('constraint')) {
+      console.error('Database constraint violation detected');
+      
+      // Try to extract the constraint name
+      const constraintMatch = errorStr.match(/constraint "([^"]+)"/);
+      if (constraintMatch && constraintMatch[1]) {
+        console.error('Constraint name:', constraintMatch[1]);
+      }
+    }
+    
     res.status(500).json({ 
       error: 'Failed to update WPQR document',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: errorDetails
     });
   }
 });
