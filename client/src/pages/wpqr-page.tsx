@@ -25,7 +25,7 @@ const wpqrFormSchema = z.object({
   welderProcess: z.string().min(1, "Welder process is required"),
   baseMetalGrade: z.string().min(1, "Base metal grade is required"),
   jointType: z.string().min(1, "Joint type is required"),
-  certificateNo: z.string().max(20, "Certificate Number must be 20 characters or less").optional(),
+  certificateNo: z.string().max(100, "Certificate Number must be 100 characters or less").optional(),
   inspectionAuthority: z.string().max(50, "Inspection Authority must be 50 characters or less").optional(),
   document: z.instanceof(FileList).refine(files => files.length > 0, {
     message: "Document file is required",
