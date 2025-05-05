@@ -70,7 +70,6 @@ export default function Layout({ children }: LayoutProps) {
                         location.startsWith('/quality/material-identification') ||
                         location === '/material-identification' ||
                         location === '/inspections' ||
-                        location === '/inspection-management' ||
                         location.startsWith('/quality-reports') ||
                         location === '/quality-assurance-plan' ||
                         location === '/calibration-management' ||
@@ -162,7 +161,6 @@ export default function Layout({ children }: LayoutProps) {
         { icon: UserCheck, label: "Welder Management", href: "/welder-management" },
         { icon: CheckSquare, label: "Material Identification", href: "/quality/material-identification" },
         { icon: CheckSquare, label: "Inspections", href: "/inspections" },
-        { icon: FileCheck, label: "Inspection Management", href: "/inspection-management" },
         { icon: Award, label: "Quality Reports", href: "/quality-reports" },
         { icon: FileCheck, label: "Quality Assurance Plan", href: "/quality-assurance-plan" },
         { icon: LayoutTemplate, label: "Template Management", href: "/template-management" }
