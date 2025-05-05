@@ -401,8 +401,8 @@ export default function WpqrPage() {
                     <th className="p-2 text-left font-medium" style={{ width: '300px' }}>Base Metal Grade</th>
                     <th className="p-2 text-left font-medium w-[10%]">Joint Type</th>
                     <th className="p-2 text-left font-medium w-[25%]">Certificate No</th>
-                    <th className="p-2 text-left font-medium w-[13%]">Inspection Authority</th>
-                    <th className="p-2 text-right font-medium" style={{ width: '300px' }}>Actions</th>
+                    <th className="p-1 text-left font-medium" style={{ width: '150px' }}>Inspection Authority</th>
+                    <th className="p-1 text-right font-medium" style={{ width: '150px' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -420,7 +420,7 @@ export default function WpqrPage() {
                       <td className="p-2">{document.baseMetalGrade}</td>
                       <td className="p-2">{document.jointType}</td>
                       <td className="p-2 break-words">{document.certificateNo || "-"}</td>
-                      <td className="p-2">{document.inspectionAuthority || "-"}</td>
+                      <td className="p-1">{document.inspectionAuthority || "-"}</td>
                       <td className="p-1 text-right">
                         <div className="flex justify-end gap-0">
                           <Button
