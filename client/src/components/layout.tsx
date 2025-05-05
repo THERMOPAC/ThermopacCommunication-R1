@@ -213,8 +213,8 @@ export default function Layout({ children }: LayoutProps) {
           <div className="space-y-6">
             {/* Dashboard Section */}
             <div>
-              <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-3 px-3">Main</h3>
-              <ul className="space-y-3">
+              <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Main</h3>
+              <ul className="space-y-1">
                 {menuItems.slice(0, 3).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
@@ -224,13 +224,13 @@ export default function Layout({ children }: LayoutProps) {
                       {item.href && (
                         <Link href={item.href || ''}>
                           <button
-                            className={`flex items-center gap-3 px-3 py-3 w-full text-left text-[#1F2937] transition-all
+                            className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-all
                               ${isActive
                                 ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
                                 : 'hover:bg-[#F3F4F6] rounded-md'
                               }`}
                           >
-                            <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-gray-500'}`} />
+                            <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
                             <span>{item.label}</span>
                           </button>
                         </Link>
@@ -243,33 +243,33 @@ export default function Layout({ children }: LayoutProps) {
             
             {/* Modules Section */}
             <div>
-              <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-3 px-3">Modules</h3>
-              <ul className="space-y-3">
+              <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Modules</h3>
+              <ul className="space-y-1">
                 {menuItems.filter(item => item.isSubmenu).map((item, index) => {
                   const Icon = item.icon;
                   // Check if any child is active
                   const isChildActive = item.children?.some(child => location.startsWith(child.href?.split('?')[0] || ''));
                   
                   return (
-                    <li key={`submenu-${index}`} className="space-y-2">
+                    <li key={`submenu-${index}`} className="space-y-1">
                       <button
                         onClick={item.toggle}
-                        className={`flex items-center justify-between gap-3 px-3 py-3 w-full text-left text-[#1F2937] transition-colors rounded-md
+                        className={`flex items-center justify-between gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-colors rounded-md
                           ${isChildActive ? 'bg-[#E0F2FE] font-semibold' : 'hover:bg-[#F3F4F6]'}`}
                       >
                         <div className="flex items-center gap-3">
-                          <Icon className={`h-5 w-5 ${isChildActive ? 'text-[#3B82F6]' : 'text-gray-500'}`} />
+                          <Icon className={`h-5 w-5 ${isChildActive ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
                           <span>{item.label}</span>
                         </div>
                         {item.isOpen ? (
-                          <ChevronDown className="h-4 w-4 text-gray-500" />
+                          <ChevronDown className="h-4 w-4 text-[#3B82F6]" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 text-gray-500" />
+                          <ChevronRight className="h-4 w-4 text-[#3B82F6]" />
                         )}
                       </button>
                       
                       {item.isOpen && (
-                        <ul className="pl-10 space-y-3 mt-1">
+                        <ul className="pl-10 space-y-1 mt-1">
                           {item.children?.map((child, childIndex) => {
                             const ChildIcon = child.icon;
                             // Check if current location starts with child.href to handle query parameters
@@ -281,13 +281,13 @@ export default function Layout({ children }: LayoutProps) {
                               <li key={`${index}-${childIndex}`}>
                                 <Link href={child.href || ''}>
                                   <button
-                                    className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#1F2937] transition-colors
+                                    className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#EF4444] transition-colors
                                       ${isExactMatch || isChildActive
                                         ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold rounded-r-md'
                                         : 'hover:bg-[#F3F4F6] rounded-md'
                                       }`}
                                   >
-                                    <ChildIcon className={`h-4 w-4 ${isExactMatch || isChildActive ? 'text-[#3B82F6]' : 'text-gray-500'}`} />
+                                    <ChildIcon className={`h-4 w-4 ${isExactMatch || isChildActive ? 'text-[#EF4444]' : 'text-[#EF4444]'}`} />
                                     <span>{child.label}</span>
                                   </button>
                                 </Link>
@@ -304,8 +304,8 @@ export default function Layout({ children }: LayoutProps) {
             
             {/* General Section */}
             <div>
-              <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-3 px-3">General</h3>
-              <ul className="space-y-3">
+              <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">General</h3>
+              <ul className="space-y-1">
                 {menuItems.slice(menuItems.findIndex(item => item.href === '/team'), -3).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
@@ -315,13 +315,13 @@ export default function Layout({ children }: LayoutProps) {
                       {item.href && (
                         <Link href={item.href || ''}>
                           <button
-                            className={`flex items-center gap-3 px-3 py-3 w-full text-left text-[#1F2937] transition-colors
+                            className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-colors
                               ${isActive
                                 ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
                                 : 'hover:bg-[#F3F4F6] rounded-md'
                               }`}
                           >
-                            <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-gray-500'}`} />
+                            <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
                             <span>{item.label}</span>
                           </button>
                         </Link>
@@ -335,8 +335,8 @@ export default function Layout({ children }: LayoutProps) {
             {/* Admin Section */}
             {(user?.role === "Superuser" || user?.role === "General Manager") && (
               <div>
-                <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-3 px-3">Administration</h3>
-                <ul className="space-y-3">
+                <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Administration</h3>
+                <ul className="space-y-1">
                   {menuItems.slice(-3).map((item, index) => {
                     const Icon = item.icon;
                     const isActive = item.href ? location === item.href : false;
@@ -346,13 +346,13 @@ export default function Layout({ children }: LayoutProps) {
                         {item.href && (
                           <Link href={item.href || ''}>
                             <button
-                              className={`flex items-center gap-3 px-3 py-3 w-full text-left text-[#1F2937] transition-colors
+                              className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#3B82F6] transition-colors
                                 ${isActive
                                   ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
                                   : 'hover:bg-[#F3F4F6] rounded-md'
                                 }`}
                             >
-                              <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-gray-500'}`} />
+                              <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-[#3B82F6]'}`} />
                               <span>{item.label}</span>
                             </button>
                           </Link>
