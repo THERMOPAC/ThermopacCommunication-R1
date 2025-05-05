@@ -273,18 +273,38 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
     const fileBuffer = req.file.buffer;
     const fileType = req.file.mimetype;
     
-    // Upload file to GCS
-    const bucket = gcsClient.bucket(bucketName);
-    const file = bucket.file(filePath.slice(1)); // Remove leading slash
-    
-    await file.save(fileBuffer, {
-      metadata: {
-        contentType: fileType
-      }
-    });
-    
-    // Generate a public URL (optional, you may keep it private)
+    // Generate the file URL format first (we'll need this regardless of upload success)
     const fileUrl = `https://storage.googleapis.com/${bucketName}${filePath}`;
+    
+    // Upload file to GCS
+    try {
+      console.log(`Attempting to upload file to GCS bucket: ${bucketName}, path: ${filePath.slice(1)}`);
+      const bucket = gcsClient.bucket(bucketName);
+      const file = bucket.file(filePath.slice(1)); // Remove leading slash
+      
+      // Set a timeout for the upload operation
+      const uploadPromise = file.save(fileBuffer, {
+        metadata: {
+          contentType: fileType
+        },
+        resumable: false // Disable resumable uploads to avoid issues with token expiration
+      });
+      
+      await uploadPromise;
+      console.log(`File uploaded successfully to ${filePath}`);
+    } catch (error: unknown) {
+      console.error('Error uploading file to Google Cloud Storage:', error);
+      
+      let errorMessage = 'Unknown error during upload';
+      if (error instanceof Error) {
+        console.error('Error details:', error.stack);
+        errorMessage = error.message;
+      } else {
+        console.error('Error details: Not an Error instance');
+      }
+      
+      throw new Error(`Failed to upload document to cloud storage: ${errorMessage}`);
+    }
     
     // Insert document record into the database
     const insertedDocuments = await db.insert(wpqrDocuments)
