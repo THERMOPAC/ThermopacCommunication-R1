@@ -15,6 +15,10 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
+// Define the GCS bucket name
+const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
+console.log(`Using GCS bucket name: ${bucketName} (from env: ${process.env.GCS_BUCKET_NAME})`);
+
 // Create Google Cloud Storage client
 let gcsClient: Storage;
 
@@ -63,13 +67,34 @@ try {
   }
   
   console.log('GCS client created successfully for WPQR routes');
+  
+  // Add bucket verification
+  const verifyBucket = async () => {
+    try {
+      const bucket = gcsClient.bucket(bucketName);
+      const [exists] = await bucket.exists();
+      if (exists) {
+        console.log(`✅ Successfully verified bucket ${bucketName} exists`);
+      } else {
+        console.error(`❌ Bucket ${bucketName} does not exist`);
+      }
+      return exists;
+    } catch (error) {
+      console.error('Error verifying bucket:', error);
+      return false;
+    }
+  };
+  
+  // Perform verification asynchronously
+  verifyBucket().then(exists => {
+    if (!exists) {
+      console.error(`WARNING: GCS bucket ${bucketName} verification failed. File uploads may not work.`);
+    }
+  });
+  
 } catch (error) {
   console.error('Failed to initialize Google Cloud Storage client:', error);
 }
-
-// Define the GCS bucket name
-const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
-console.log(`Using GCS bucket name: ${bucketName} (from env: ${process.env.GCS_BUCKET_NAME})`);
 
 // Define ensureAuthenticated middleware
 function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
