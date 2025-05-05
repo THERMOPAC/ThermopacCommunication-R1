@@ -747,9 +747,13 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
         }
         
         console.log("File exists, generating signed URL");
+        
+        // Provide complete configuration for the signed URL
         const [url] = await file.getSignedUrl({
-          action: 'read',
+          version: 'v4',             // Use v4 signing for better security
+          action: 'read',            // We want read access
           expires: Date.now() + 15 * 60 * 1000, // URL expires in 15 minutes
+          contentType: 'application/pdf'
         });
         
         console.log(`Successfully generated signed URL: ${url.substring(0, 100)}...`);
@@ -768,7 +772,36 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
             console.log(`Using fallback public URL: ${fileUrl}`);
             return res.redirect(fileUrl);
           } else {
-            throw new Error("Could not generate signed URL and no fallback URL available");
+            // Method 3: Last resort - try to stream the file directly to the client
+            try {
+              console.log("Trying direct file serving method");
+              
+              // Set appropriate headers
+              res.setHeader('Content-Type', 'application/pdf');
+              res.setHeader('Content-Disposition', `attachment; filename="WPQR-${document[0].documentId}.pdf"`);
+              
+              // Create a read stream from the file and pipe it to the response
+              console.log(`Creating read stream for file: ${filePath.slice(1)}`);
+              const readStream = file.createReadStream();
+              
+              // Handle stream errors
+              readStream.on('error', (streamError) => {
+                console.error("Error streaming file:", streamError);
+                if (!res.headersSent) {
+                  return res.status(500).json({ 
+                    error: 'Failed to stream file',
+                    details: streamError instanceof Error ? streamError.message : 'Unknown stream error'
+                  });
+                }
+              });
+              
+              // Pipe the stream to the response
+              readStream.pipe(res);
+              return; // End processing here since we're piping
+            } catch (method3Error) {
+              console.error("Direct file serving method failed:", method3Error);
+              throw new Error("Could not generate signed URL and no fallback URL available");
+            }
           }
         } catch (method2Error) {
           console.error("All download methods failed:", method2Error);
