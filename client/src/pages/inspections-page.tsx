@@ -2119,68 +2119,548 @@ export default function InspectionsPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableCaption>Inspection orders for the selected project.</TableCaption>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[300px]">Order #</TableHead>
-                      <TableHead className="w-[600px]">Description</TableHead>
-                      <TableHead>Drawing No</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead className="w-[150px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {inspectionOrders.map((order: any) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-medium">{order.inspectionOrderNumber}</TableCell>
-                        <TableCell>{order.description || order.title}</TableCell>
-                        <TableCell>{order.drawingNo || 'N/A'}</TableCell>
-                        <TableCell>{getStatusBadge(order.status)}</TableCell>
-                        <TableCell>{order.quantity} {order.unit}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1 justify-center">
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="h-8 w-8"
-                              title="View"
-                              onClick={() => {
-                                setSelectedInspectionOrder(order.id);
-                                setIsDetailsDialogOpen(true);
-                              }}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="h-8 w-8"
-                              title="Edit"
-                              onClick={() => {
-                                setEditingInspectionOrder(order.id);
-                                setIsEditDialogOpen(true);
-                              }}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                              title="Delete"
-                              onClick={() => handleDeleteInspectionOrder(order.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+              <div>
+                <Tabs defaultValue="list" className="w-full" onValueChange={(value) => setActiveOrdersTab(value)}>
+                  <TabsList className="grid w-full grid-cols-5 lg:w-auto">
+                    <TabsTrigger value="list">List View</TabsTrigger>
+                    <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+                    <TabsTrigger value="schedule">Schedule</TabsTrigger>
+                    <TabsTrigger value="reports">Reports</TabsTrigger>
+                    <TabsTrigger value="export">Export</TabsTrigger>
+                  </TabsList>
+                  
+                  {/* List View Tab - Original Table View */}
+                  <TabsContent value="list" className="mt-4">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableCaption>Inspection orders for the selected project.</TableCaption>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[300px]">Order #</TableHead>
+                            <TableHead className="w-[600px]">Description</TableHead>
+                            <TableHead>Drawing No</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Quantity</TableHead>
+                            <TableHead className="w-[150px]">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {inspectionOrders.map((order: any) => (
+                            <TableRow key={order.id}>
+                              <TableCell className="font-medium">{order.inspectionOrderNumber}</TableCell>
+                              <TableCell>{order.description || order.title}</TableCell>
+                              <TableCell>{order.drawingNo || 'N/A'}</TableCell>
+                              <TableCell>{getStatusBadge(order.status)}</TableCell>
+                              <TableCell>{order.quantity} {order.unit}</TableCell>
+                              <TableCell>
+                                <div className="flex gap-1 justify-center">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    title="View"
+                                    onClick={() => {
+                                      setSelectedInspectionOrder(order.id);
+                                      setIsDetailsDialogOpen(true);
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    title="Edit"
+                                    onClick={() => {
+                                      setEditingInspectionOrder(order.id);
+                                      setIsEditDialogOpen(true);
+                                    }}
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    title="Delete"
+                                    onClick={() => handleDeleteInspectionOrder(order.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Dashboard Tab - Analytics View */}
+                  <TabsContent value="dashboard" className="mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Status Distribution Chart */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">Inspection Status Distribution</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="h-80">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={ordersByStatus}
+                                  cx="50%"
+                                  cy="50%"
+                                  labelLine={true}
+                                  outerRadius={80}
+                                  fill="#8884d8"
+                                  dataKey="count"
+                                  nameKey="status"
+                                  label={({ status, count }) => `${status}: ${count}`}
+                                >
+                                  {ordersByStatus.map((entry, index) => {
+                                    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+                                    return <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />;
+                                  })}
+                                </Pie>
+                                <Tooltip 
+                                  formatter={(value, name, props) => [`${value} orders`, props.payload.status]}
+                                  contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '6px', border: '1px solid #ccc' }}
+                                />
+                                <Legend />
+                              </PieChart>
+                            </ResponsiveContainer>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </CardContent>
+                      </Card>
+                      
+                      {/* Monthly Trends Chart */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg">Monthly Inspection Trends</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="h-80">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={ordersByMonth}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="month" />
+                                <YAxis />
+                                <Tooltip 
+                                  formatter={(value) => [`${value} orders`, 'Count']}
+                                  contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '6px', border: '1px solid #ccc' }}
+                                />
+                                <Legend />
+                                <Bar dataKey="count" name="Inspection Orders" fill="#6366F1" />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      {/* Summary Cards */}
+                      <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        <Card>
+                          <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-muted-foreground">Total Inspections</p>
+                                <h3 className="text-2xl font-bold mt-1">{inspectionOrders.length}</h3>
+                              </div>
+                              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                                <ClipboardCheck className="h-6 w-6 text-primary" />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        
+                        <Card>
+                          <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                                <h3 className="text-2xl font-bold mt-1">
+                                  {inspectionOrders.filter(order => 
+                                    order.status && ['pending', 'open'].includes(order.status.toLowerCase())
+                                  ).length}
+                                </h3>
+                              </div>
+                              <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                                <AlertCircle className="h-6 w-6 text-yellow-600" />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        
+                        <Card>
+                          <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-muted-foreground">In Progress</p>
+                                <h3 className="text-2xl font-bold mt-1">
+                                  {inspectionOrders.filter(order => 
+                                    order.status && order.status.toLowerCase() === 'in_progress'
+                                  ).length}
+                                </h3>
+                              </div>
+                              <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                                <Hourglass className="h-6 w-6 text-blue-600" />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        
+                        <Card>
+                          <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-muted-foreground">Completed</p>
+                                <h3 className="text-2xl font-bold mt-1">
+                                  {inspectionOrders.filter(order => 
+                                    order.status && ['completed', 'approved', 'passed'].includes(order.status.toLowerCase())
+                                  ).length}
+                                </h3>
+                              </div>
+                              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                                <CheckCircle2 className="h-6 w-6 text-green-600" />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Schedule Tab - Calendar View */}
+                  <TabsContent value="schedule" className="mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                      <Card className="md:col-span-1">
+                        <CardHeader>
+                          <CardTitle className="text-lg">Schedule View</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            <div>
+                              <Label>View Type</Label>
+                              <Select 
+                                value={calendarView} 
+                                onValueChange={(value: any) => setCalendarView(value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select view" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="month">Month View</SelectItem>
+                                  <SelectItem value="week">Week View</SelectItem>
+                                  <SelectItem value="day">Day View</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div>
+                              <Label>Select Date</Label>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className="w-full justify-start text-left font-normal"
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                  <Calendar
+                                    mode="single"
+                                    selected={selectedDate}
+                                    onSelect={setSelectedDate}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="md:col-span-3">
+                        <CardHeader>
+                          <CardTitle className="text-lg">
+                            Inspection Schedule - {selectedDate ? format(selectedDate, 'MMMM yyyy') : 'Current Month'}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            {inspectionSchedule.length === 0 ? (
+                              <div className="text-center py-12 border rounded-md">
+                                <CalendarIcon className="mx-auto h-12 w-12 text-muted-foreground" />
+                                <h3 className="mt-2 text-lg font-medium">No scheduled inspections</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  There are no inspections scheduled during this time period.
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                {inspectionSchedule
+                                  .filter(schedule => {
+                                    if (!selectedDate) return true;
+                                    
+                                    const scheduleDate = new Date(schedule.date);
+                                    const isInMonth = 
+                                      scheduleDate.getMonth() === selectedDate.getMonth() && 
+                                      scheduleDate.getFullYear() === selectedDate.getFullYear();
+                                    
+                                    // Apply finer filtering based on view type
+                                    if (calendarView === 'month') {
+                                      return isInMonth;
+                                    } else if (calendarView === 'week') {
+                                      const startOfWeek = new Date(selectedDate);
+                                      startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay());
+                                      const endOfWeek = new Date(startOfWeek);
+                                      endOfWeek.setDate(startOfWeek.getDate() + 6);
+                                      return scheduleDate >= startOfWeek && scheduleDate <= endOfWeek;
+                                    } else if (calendarView === 'day') {
+                                      return (
+                                        scheduleDate.getDate() === selectedDate.getDate() &&
+                                        scheduleDate.getMonth() === selectedDate.getMonth() &&
+                                        scheduleDate.getFullYear() === selectedDate.getFullYear()
+                                      );
+                                    }
+                                    return true;
+                                  })
+                                  .map((schedule) => (
+                                    <div 
+                                      key={schedule.id} 
+                                      className="p-3 border rounded-md flex items-center justify-between hover:bg-gray-50 cursor-pointer"
+                                      onClick={() => {
+                                        setSelectedInspectionOrder(schedule.id);
+                                        setIsDetailsDialogOpen(true);
+                                      }}
+                                    >
+                                      <div className="flex items-center">
+                                        <div className={`
+                                          w-3 h-3 rounded-full mr-3
+                                          ${schedule.status === 'completed' || schedule.status === 'passed' ? 'bg-green-500' : 
+                                            schedule.status === 'in_progress' ? 'bg-blue-500' : 
+                                            schedule.status === 'pending' || schedule.status === 'open' ? 'bg-yellow-500' : 
+                                            'bg-gray-400'}
+                                        `}></div>
+                                        <div>
+                                          <h4 className="font-medium">{schedule.title}</h4>
+                                          <p className="text-sm text-muted-foreground">
+                                            {schedule.inspectionOrderNumber} - {schedule.inspectionType || 'General Inspection'}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="font-medium">{format(new Date(schedule.date), 'dd MMM yyyy')}</p>
+                                        {getStatusBadge(schedule.status)}
+                                      </div>
+                                    </div>
+                                  ))
+                                }
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Reports Tab - Filtered Reports View */}
+                  <TabsContent value="reports" className="mt-4">
+                    <div className="space-y-6">
+                      {/* Filter Controls */}
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="flex flex-wrap gap-4">
+                            <div className="flex-1 min-w-[200px]">
+                              <Label>Filter by Status</Label>
+                              <Select 
+                                value={statusFilter} 
+                                onValueChange={setStatusFilter}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="All Statuses" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Statuses</SelectItem>
+                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="in_progress">In Progress</SelectItem>
+                                  <SelectItem value="completed">Completed</SelectItem>
+                                  <SelectItem value="passed">Passed</SelectItem>
+                                  <SelectItem value="failed">Failed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div className="flex-1 min-w-[200px]">
+                              <Label>Search</Label>
+                              <div className="relative">
+                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  placeholder="Search inspection orders..."
+                                  className="pl-8"
+                                  onChange={(e) => {
+                                    const searchTerm = e.target.value.toLowerCase();
+                                    if (searchTerm === '') {
+                                      filterReportsByStatus(statusFilter, inspectionOrders);
+                                    } else {
+                                      setFilteredReports(
+                                        filteredReports.filter(order =>
+                                          order.inspectionOrderNumber?.toLowerCase().includes(searchTerm) ||
+                                          order.title?.toLowerCase().includes(searchTerm) ||
+                                          order.description?.toLowerCase().includes(searchTerm)
+                                        )
+                                      );
+                                    }
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      {/* Reports Table */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Inspection Reports</CardTitle>
+                          <CardDescription>
+                            View detailed reports for completed inspection orders
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          {filteredReports.length === 0 ? (
+                            <div className="text-center py-8">
+                              <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+                              <h3 className="mt-2 text-lg font-medium">No reports match your criteria</h3>
+                              <p className="text-muted-foreground">
+                                Try changing your filter options or search term
+                              </p>
+                            </div>
+                          ) : (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Order Number</TableHead>
+                                  <TableHead>Description</TableHead>
+                                  <TableHead>Inspection Date</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {filteredReports.map((order) => (
+                                  <TableRow key={order.id}>
+                                    <TableCell className="font-medium">{order.inspectionOrderNumber}</TableCell>
+                                    <TableCell>{order.description || order.title}</TableCell>
+                                    <TableCell>
+                                      {order.lastUpdatedAt ? format(new Date(order.lastUpdatedAt), 'dd MMM yyyy') : 
+                                       order.createdAt ? format(new Date(order.createdAt), 'dd MMM yyyy') : 'N/A'}
+                                    </TableCell>
+                                    <TableCell>{getStatusBadge(order.status)}</TableCell>
+                                    <TableCell className="text-right">
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => {
+                                          setSelectedInspectionOrder(order.id);
+                                          setIsDetailsDialogOpen(true);
+                                        }}
+                                      >
+                                        <FileText className="h-4 w-4 mr-1" /> View Report
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
+                  
+                  {/* Export Tab - Export Options */}
+                  <TabsContent value="export" className="mt-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Export Data</CardTitle>
+                        <CardDescription>
+                          Export inspection order data and reports in various formats
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {/* Export All Records */}
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-lg">Export All Records</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                Export all inspection orders for the current project as a spreadsheet
+                              </p>
+                              <div className="flex gap-2">
+                                <Button className="w-full">
+                                  <Download className="h-4 w-4 mr-1" /> Export Excel
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          {/* Export Custom Data */}
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-lg">Custom Export</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                Export specific data based on status and date range
+                              </p>
+                              <div className="flex flex-col gap-2">
+                                <Label>Status Filter</Label>
+                                <Select defaultValue="all">
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Status" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All</SelectItem>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="in_progress">In Progress</SelectItem>
+                                    <SelectItem value="completed">Completed</SelectItem>
+                                    <SelectItem value="passed">Passed</SelectItem>
+                                    <SelectItem value="failed">Failed</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button className="mt-2">
+                                  <Download className="h-4 w-4 mr-1" /> Export Filtered Data
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          {/* Export Summary Report */}
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-lg">Summary Report</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                Generate a summary PDF report with analytics and charts
+                              </p>
+                              <Button className="w-full">
+                                <FileText className="h-4 w-4 mr-1" /> Generate Summary PDF
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
           </CardContent>
