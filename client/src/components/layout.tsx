@@ -185,8 +185,8 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
-      <aside className="w-64 border-r bg-card flex flex-col">
-        <div className="p-6">
+      <aside className="w-64 border-r bg-white flex flex-col shadow-sm">
+        <div className="p-6 border-b">
           <div className="flex flex-col items-center mb-4">
             <img 
               src="/images/thermopac-logo.jpg" 
@@ -199,7 +199,7 @@ export default function Layout({ children }: LayoutProps) {
                 const parent = target.parentElement;
                 if (parent) {
                   const textLogo = document.createElement('div');
-                  textLogo.className = 'text-2xl font-bold text-primary mb-2';
+                  textLogo.className = 'text-2xl font-bold text-[#3B82F6] mb-2';
                   textLogo.textContent = 'THERMOPAC';
                   parent.appendChild(textLogo);
                 }
@@ -208,90 +208,162 @@ export default function Layout({ children }: LayoutProps) {
           </div>
           <UserProfile user={user!} />
         </div>
-        <Separator />
-        <nav className="flex-1 p-4">
-          <ul className="space-y-2">
-            {menuItems.map((item, index) => {
-              const Icon = item.icon;
-              const isActive = item.href ? location === item.href : false;
-              
-              if (item.isSubmenu) {
-                // Check if any child is active
-                const isChildActive = item.children?.some(child => location === child.href);
-                
-                return (
-                  <li key={`submenu-${index}`} className="space-y-1">
-                    <button
-                      onClick={item.toggle}
-                      className={`flex items-center justify-between gap-3 px-3 py-2 rounded-md transition-colors w-full text-left
-                        ${isChildActive
-                          ? 'bg-accent text-accent-foreground'
-                          : 'hover:bg-accent/50 hover:text-accent-foreground'
-                        }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </div>
-                      {item.isOpen ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
+        
+        <nav className="flex-1 p-4 overflow-y-auto">
+          <div className="space-y-6">
+            {/* Dashboard Section */}
+            <div>
+              <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-3 px-3">Main</h3>
+              <ul className="space-y-3">
+                {menuItems.slice(0, 3).map((item, index) => {
+                  const Icon = item.icon;
+                  const isActive = item.href ? location === item.href : false;
+                  
+                  return (
+                    <li key={item.href || `item-${index}`}>
+                      {item.href && (
+                        <Link href={item.href || ''}>
+                          <button
+                            className={`flex items-center gap-3 px-3 py-3 w-full text-left text-[#1F2937] transition-all
+                              ${isActive
+                                ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
+                                : 'hover:bg-[#F3F4F6] rounded-md'
+                              }`}
+                          >
+                            <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-gray-500'}`} />
+                            <span>{item.label}</span>
+                          </button>
+                        </Link>
                       )}
-                    </button>
-                    
-                    {item.isOpen && (
-                      <ul className="pl-5 space-y-1">
-                        {item.children?.map((child, childIndex) => {
-                          const ChildIcon = child.icon;
-                          // Check if current location starts with child.href to handle query parameters
-                          const isChildActive = child.href ? location.startsWith(child.href.split('?')[0]) : false;
-                          // When we have exact match or for the case of query parameters - check full href match
-                          const isExactMatch = location === child.href;
-                          
-                          return (
-                            <li key={`${index}-${childIndex}`}>
-                              <Link href={child.href || ''}>
-                                <button
-                                  className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors w-full text-left
-                                    ${isExactMatch || isChildActive
-                                      ? 'bg-primary text-primary-foreground'
-                                      : 'hover:bg-accent hover:text-accent-foreground'
-                                    }`}
-                                >
-                                  <ChildIcon className="h-4 w-4" />
-                                  <span>{child.label}</span>
-                                </button>
-                              </Link>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </li>
-                );
-              }
-              
-              return (
-                <li key={item.href || `item-${index}`}>
-                  {item.href && (
-                    <Link href={item.href || ''}>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            
+            {/* Modules Section */}
+            <div>
+              <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-3 px-3">Modules</h3>
+              <ul className="space-y-3">
+                {menuItems.filter(item => item.isSubmenu).map((item, index) => {
+                  const Icon = item.icon;
+                  // Check if any child is active
+                  const isChildActive = item.children?.some(child => location.startsWith(child.href?.split('?')[0] || ''));
+                  
+                  return (
+                    <li key={`submenu-${index}`} className="space-y-2">
                       <button
-                        className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors w-full text-left
-                          ${isActive
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-accent hover:text-accent-foreground'
-                          }`}
+                        onClick={item.toggle}
+                        className={`flex items-center justify-between gap-3 px-3 py-3 w-full text-left text-[#1F2937] transition-colors rounded-md
+                          ${isChildActive ? 'bg-[#E0F2FE] font-semibold' : 'hover:bg-[#F3F4F6]'}`}
                       >
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
+                        <div className="flex items-center gap-3">
+                          <Icon className={`h-5 w-5 ${isChildActive ? 'text-[#3B82F6]' : 'text-gray-500'}`} />
+                          <span>{item.label}</span>
+                        </div>
+                        {item.isOpen ? (
+                          <ChevronDown className="h-4 w-4 text-gray-500" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-gray-500" />
+                        )}
                       </button>
-                    </Link>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                      
+                      {item.isOpen && (
+                        <ul className="pl-10 space-y-3 mt-1">
+                          {item.children?.map((child, childIndex) => {
+                            const ChildIcon = child.icon;
+                            // Check if current location starts with child.href to handle query parameters
+                            const isChildActive = child.href ? location.startsWith(child.href.split('?')[0]) : false;
+                            // When we have exact match or for the case of query parameters - check full href match
+                            const isExactMatch = location === child.href;
+                            
+                            return (
+                              <li key={`${index}-${childIndex}`}>
+                                <Link href={child.href || ''}>
+                                  <button
+                                    className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#1F2937] transition-colors
+                                      ${isExactMatch || isChildActive
+                                        ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold rounded-r-md'
+                                        : 'hover:bg-[#F3F4F6] rounded-md'
+                                      }`}
+                                  >
+                                    <ChildIcon className={`h-4 w-4 ${isExactMatch || isChildActive ? 'text-[#3B82F6]' : 'text-gray-500'}`} />
+                                    <span>{child.label}</span>
+                                  </button>
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            
+            {/* General Section */}
+            <div>
+              <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-3 px-3">General</h3>
+              <ul className="space-y-3">
+                {menuItems.slice(menuItems.findIndex(item => item.href === '/team'), -3).map((item, index) => {
+                  const Icon = item.icon;
+                  const isActive = item.href ? location === item.href : false;
+                  
+                  return (
+                    <li key={item.href || `general-${index}`}>
+                      {item.href && (
+                        <Link href={item.href || ''}>
+                          <button
+                            className={`flex items-center gap-3 px-3 py-3 w-full text-left text-[#1F2937] transition-colors
+                              ${isActive
+                                ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
+                                : 'hover:bg-[#F3F4F6] rounded-md'
+                              }`}
+                          >
+                            <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-gray-500'}`} />
+                            <span>{item.label}</span>
+                          </button>
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            
+            {/* Admin Section */}
+            {(user?.role === "Superuser" || user?.role === "General Manager") && (
+              <div>
+                <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-3 px-3">Administration</h3>
+                <ul className="space-y-3">
+                  {menuItems.slice(-3).map((item, index) => {
+                    const Icon = item.icon;
+                    const isActive = item.href ? location === item.href : false;
+                    
+                    return (
+                      <li key={item.href || `admin-${index}`}>
+                        {item.href && (
+                          <Link href={item.href || ''}>
+                            <button
+                              className={`flex items-center gap-3 px-3 py-3 w-full text-left text-[#1F2937] transition-colors
+                                ${isActive
+                                  ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold'
+                                  : 'hover:bg-[#F3F4F6] rounded-md'
+                                }`}
+                            >
+                              <Icon className={`h-5 w-5 ${isActive ? 'text-[#3B82F6]' : 'text-gray-500'}`} />
+                              <span>{item.label}</span>
+                            </button>
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
         </nav>
       </aside>
 
