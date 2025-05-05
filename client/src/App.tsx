@@ -34,7 +34,6 @@ import MaterialIdentificationViewNewPage from "@/pages/material-identification-v
 import MaterialIdentificationEditNewPage from "@/pages/material-identification-edit-new-page";
 import MaterialIdentificationDirectUpdate from "@/pages/material-identification-direct-update";
 import WpsPqrPage from "@/pages/wps-pqr-page";
-import WpsPqrManagementPage from "@/pages/wps-pqr-management-page";
 import WpqrPage from "@/pages/wpqr-page";
 import WelderManagementPage from "@/pages/welder-management-page";
 import WelderCertificatesPage from "@/pages/welder-certificates-page";
@@ -119,7 +118,6 @@ function Router() {
       <ProtectedRoute path="/production/work-orders/edit/:id" component={WorkOrderEditPage} />
       <ProtectedRoute path="/shop-floor" component={ShopFloorPage} />
       <ProtectedRoute path="/wps-pqr" component={WpsPqrPage} />
-      <ProtectedRoute path="/wps-pqr-management" component={WpsPqrManagementPage} />
       <ProtectedRoute path="/wpqr" component={WpqrPage} />
       <ProtectedRoute path="/welder-management" component={WelderManagementPage} />
       <ProtectedRoute path="/quality/welder-certificates/:welderId" component={WelderCertificatesPage} />
