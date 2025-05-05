@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
-import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck, BarChart3, ListChecks, FileOutput, Download, Upload, Filter } from "lucide-react";
+import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck, BarChart3, ListChecks, FileOutput, Download, Upload, Filter, Search } from "lucide-react";
 import InspectionDocumentUpload from "@/components/inspection-document-upload";
 import InspectionDocumentViewer from "@/components/inspection-document-viewer";
 import { FinalDossierDebugButton } from "@/components/final-dossier-debug-button";
@@ -24,7 +24,8 @@ import {
   LineChart,
   Line,
   Tooltip,
-  Legend
+  Legend,
+  ResponsiveContainer
 } from "recharts";
 import { 
   Card, 
