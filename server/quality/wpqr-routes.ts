@@ -596,27 +596,89 @@ router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) =
     
     // Delete the file from GCS if it exists
     if (document.filePath) {
+      let fileDeleteSuccess = false;
+      
       try {
-        const bucket = gcsClient.bucket(bucketName);
-        const file = bucket.file(document.filePath.slice(1)); // Remove leading slash
-        await file.delete();
+        console.log(`Attempting to delete file from GCS: ${document.filePath}`);
+        
+        if (!gcsClient) {
+          console.error("GCS client is not initialized - skipping file deletion");
+        } else {
+          // Try multiple approaches to delete the file
+          const bucket = gcsClient.bucket(bucketName);
+          const file = bucket.file(document.filePath.slice(1)); // Remove leading slash
+          
+          // Method 1: Standard delete
+          try {
+            console.log("Attempting standard file delete method");
+            await file.delete();
+            fileDeleteSuccess = true;
+            console.log(`Successfully deleted file: ${document.filePath}`);
+          } catch (method1Error) {
+            console.error("Standard delete method failed:", method1Error);
+            
+            // Try alternative approach if first method fails
+            try {
+              console.log("Trying alternative delete method");
+              // Check if file exists first
+              const [exists] = await file.exists();
+              
+              if (!exists) {
+                console.log("File doesn't exist in storage, no need to delete");
+                fileDeleteSuccess = true;
+              } else {
+                // Try an alternate delete approach (with force option)
+                await bucket.file(document.filePath.slice(1)).delete({ ignoreNotFound: true });
+                fileDeleteSuccess = true;
+                console.log(`Successfully deleted file using alternate method: ${document.filePath}`);
+              }
+            } catch (method2Error) {
+              console.error("Alternative delete method failed:", method2Error);
+              // We continue with the document deletion regardless
+            }
+          }
+        }
       } catch (fileError) {
         console.warn(`Warning: Could not delete file ${document.filePath} from GCS:`, fileError);
-        // Continue with deletion even if file removal fails
+        // Continue with database deletion even if file removal fails
+      }
+      
+      if (!fileDeleteSuccess) {
+        console.warn(`Failed to delete file ${document.filePath} from storage, but continuing with document deletion`);
       }
     }
     
     // Delete the document record from the database
+    console.log(`Deleting document record from database: ID ${documentId}`);
     const deletedDocuments = await db.delete(wpqrDocuments)
       .where(eq(wpqrDocuments.id, documentId))
       .returning();
     
+    if (!deletedDocuments.length) {
+      console.error(`No document with ID ${documentId} was deleted from the database`);
+      return res.status(404).json({ error: 'Document not found in database during delete operation' });
+    }
+    
+    console.log(`Successfully deleted document with ID ${documentId} from database`);
     res.json(deletedDocuments[0]);
   } catch (error) {
     console.error('Error deleting WPQR document:', error);
+    
+    // Create more detailed error with stack trace
+    let errorDetails = 'Unknown error';
+    
+    if (error instanceof Error) {
+      errorDetails = `${error.message}\n${error.stack}`;
+      
+      // Log additional information about the error
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
     res.status(500).json({ 
       error: 'Failed to delete WPQR document',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: errorDetails
     });
   }
 });
@@ -642,32 +704,111 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
     }
     
     const filePath = document[0].filePath;
+    const fileUrl = document[0].fileUrl;
     
     if (!filePath) {
       return res.status(404).json({ error: 'No file associated with this document' });
     }
     
-    // Create a temporary signed URL for download
-    const bucket = gcsClient.bucket(bucketName);
-    const file = bucket.file(filePath.slice(1)); // Remove leading slash
+    try {
+      console.log(`Attempting to create download URL for: ${filePath}`);
+      
+      if (!gcsClient) {
+        console.error("GCS client is not initialized - attempting to use direct URL");
+        
+        // Fallback: If GCS client isn't available, try redirecting to the fileUrl directly
+        if (fileUrl) {
+          console.log(`Using direct file URL as fallback: ${fileUrl}`);
+          return res.redirect(fileUrl);
+        } else {
+          throw new Error("GCS client unavailable and no direct URL available");
+        }
+      }
+      
+      // Try multiple approaches to get the file
+      const bucket = gcsClient.bucket(bucketName);
+      const file = bucket.file(filePath.slice(1)); // Remove leading slash
+      
+      // Method 1: Check if file exists and get signed URL
+      try {
+        console.log("Checking if file exists in GCS bucket");
+        const [exists] = await file.exists();
+        
+        if (!exists) {
+          console.warn(`File not found in GCS: ${filePath}`);
+          
+          // If file doesn't exist but we have a fileUrl, try direct URL as fallback
+          if (fileUrl) {
+            console.log(`File not found in GCS, using direct URL instead: ${fileUrl}`);
+            return res.redirect(fileUrl);
+          } else {
+            return res.status(404).json({ error: 'File not found in storage and no direct URL available' });
+          }
+        }
+        
+        console.log("File exists, generating signed URL");
+        const [url] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 15 * 60 * 1000, // URL expires in 15 minutes
+        });
+        
+        console.log(`Successfully generated signed URL: ${url.substring(0, 100)}...`);
+        
+        // Redirect to the signed URL for download
+        return res.redirect(url);
+      } catch (method1Error) {
+        console.error("Error with signed URL approach:", method1Error);
+        
+        // Method 2: Try generating a public URL if signed URL fails
+        try {
+          console.log("Trying alternative download method: public URL");
+          
+          // If signed URL fails but we have a fileUrl, try using that
+          if (fileUrl) {
+            console.log(`Using fallback public URL: ${fileUrl}`);
+            return res.redirect(fileUrl);
+          } else {
+            throw new Error("Could not generate signed URL and no fallback URL available");
+          }
+        } catch (method2Error) {
+          console.error("All download methods failed:", method2Error);
+          throw method2Error; // Rethrow for outer catch
+        }
+      }
+    } catch (downloadError) {
+      console.error("Error creating download URL:", downloadError);
+      
+      // Provide detailed error information
+      const errorDetails = downloadError instanceof Error 
+        ? `${downloadError.message}\n${downloadError.stack}` 
+        : 'Unknown error type';
+      
+      // Return error to client
+      return res.status(500).json({
+        error: 'Failed to generate download URL',
+        details: errorDetails,
+        documentId: documentId,
+        filePath: filePath
+      });
+    }
+  } catch (error) {
+    console.error('Error in download endpoint:', error);
     
-    const [exists] = await file.exists();
-    if (!exists) {
-      return res.status(404).json({ error: 'File not found in storage' });
+    // Create more detailed error with stack trace
+    let errorDetails = 'Unknown error';
+    
+    if (error instanceof Error) {
+      errorDetails = `${error.message}\n${error.stack}`;
+      
+      // Log additional information about the error
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
     }
     
-    const [url] = await file.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 15 * 60 * 1000, // URL expires in 15 minutes
-    });
-    
-    // Redirect to the signed URL for download
-    res.redirect(url);
-  } catch (error) {
-    console.error('Error downloading WPQR document:', error);
     res.status(500).json({ 
       error: 'Failed to download WPQR document',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: errorDetails
     });
   }
 });
