@@ -396,13 +396,13 @@ export default function WpqrPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-2 text-left font-medium" style={{ width: '300px' }}>Document ID</th>
-                    <th className="p-2 text-left font-medium" style={{ width: '500px' }}>Welding Process</th>
-                    <th className="p-2 text-left font-medium" style={{ width: '300px' }}>Base Metal Grade</th>
-                    <th className="p-2 text-left font-medium w-[10%]">Joint Type</th>
-                    <th className="p-2 text-left font-medium w-[25%]">Certificate No</th>
-                    <th className="p-1 text-left font-medium" style={{ width: '150px' }}>Inspection Authority</th>
-                    <th className="p-1 text-right font-medium" style={{ width: '150px' }}>Actions</th>
+                    <th className="p-2 text-left font-medium text-xs" style={{ width: '300px' }}>Document ID</th>
+                    <th className="p-2 text-left font-medium text-xs" style={{ width: '500px' }}>Welding Process</th>
+                    <th className="p-2 text-left font-medium text-xs" style={{ width: '300px' }}>Base Metal Grade</th>
+                    <th className="p-2 text-left font-medium text-xs w-[10%]">Joint Type</th>
+                    <th className="p-2 text-left font-medium text-xs w-[25%]">Certificate No</th>
+                    <th className="p-1 text-left font-medium text-xs" style={{ width: '150px' }}>Inspection Authority</th>
+                    <th className="p-1 text-right font-medium text-xs" style={{ width: '150px' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -410,17 +410,17 @@ export default function WpqrPage() {
                     <tr key={document.id} className="border-b">
                       <td className="p-2">
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline">
+                          <Badge variant="outline" className="text-xs">
                             {document.documentId}
                           </Badge>
                           <span className="text-xs font-medium">{document.title}</span>
                         </div>
                       </td>
-                      <td className="p-2">{document.welderProcess}</td>
-                      <td className="p-2">{document.baseMetalGrade}</td>
-                      <td className="p-2">{document.jointType}</td>
-                      <td className="p-2 break-words">{document.certificateNo || "-"}</td>
-                      <td className="p-1">{document.inspectionAuthority || "-"}</td>
+                      <td className="p-2 text-xs">{document.welderProcess}</td>
+                      <td className="p-2 text-xs">{document.baseMetalGrade}</td>
+                      <td className="p-2 text-xs">{document.jointType}</td>
+                      <td className="p-2 text-xs break-words">{document.certificateNo || "-"}</td>
+                      <td className="p-1 text-xs">{document.inspectionAuthority || "-"}</td>
                       <td className="p-1 text-right">
                         <div className="flex justify-end gap-0">
                           <Button
