@@ -421,11 +421,12 @@ export default function WpqrPage() {
                       <td className="p-2">{document.jointType}</td>
                       <td className="p-2 break-words">{document.certificateNo || "-"}</td>
                       <td className="p-2">{document.inspectionAuthority || "-"}</td>
-                      <td className="p-2 text-right">
-                        <div className="flex justify-end gap-3 pr-4">
+                      <td className="p-1 text-right">
+                        <div className="flex justify-end gap-0">
                           <Button
                             variant="ghost"
-                            size="icon"
+                            size="sm"
+                            className="px-1.5 h-8"
                             onClick={() => handleViewDocument(document)}
                             title="View Details"
                           >
@@ -433,7 +434,8 @@ export default function WpqrPage() {
                           </Button>
                           <Button
                             variant="ghost"
-                            size="icon"
+                            size="sm"
+                            className="px-1.5 h-8"
                             onClick={() => handleEditDocument(document)}
                             title="Edit"
                           >
@@ -441,7 +443,8 @@ export default function WpqrPage() {
                           </Button>
                           <Button
                             variant="ghost"
-                            size="icon"
+                            size="sm"
+                            className="px-1.5 h-8"
                             onClick={() => handleDownload(document.id)}
                             title="Download"
                           >
@@ -449,7 +452,8 @@ export default function WpqrPage() {
                           </Button>
                           <Button
                             variant="ghost"
-                            size="icon"
+                            size="sm"
+                            className="px-1.5 h-8"
                             onClick={() => handleDelete(document.id)}
                             title="Delete"
                           >
