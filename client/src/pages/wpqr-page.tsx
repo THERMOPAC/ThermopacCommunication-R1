@@ -548,14 +548,7 @@ export default function WpqrPage() {
                               <SelectValue placeholder="Select grade" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="A106 Gr. B">A106 Gr. B</SelectItem>
-                            <SelectItem value="A333 Gr. 6">A333 Gr. 6</SelectItem>
-                            <SelectItem value="A312 TP304/304L">A312 TP304/304L</SelectItem>
-                            <SelectItem value="A312 TP316/316L">A312 TP316/316L</SelectItem>
-                            <SelectItem value="A335 P11">A335 P11</SelectItem>
-                            <SelectItem value="A335 P22">A335 P22</SelectItem>
-                            <SelectItem value="A335 P91">A335 P91</SelectItem>
+                          <SelectContent className="max-h-[300px] overflow-y-auto">
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -764,7 +757,7 @@ export default function WpqrPage() {
                               <SelectValue placeholder="Select grade" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent className="max-h-[300px] overflow-y-auto">
                             <SelectItem value="A106 Gr. B">A106 Gr. B</SelectItem>
                             <SelectItem value="A333 Gr. 6">A333 Gr. 6</SelectItem>
                             <SelectItem value="A312 TP304/304L">A312 TP304/304L</SelectItem>
