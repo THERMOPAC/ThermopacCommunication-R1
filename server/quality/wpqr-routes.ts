@@ -202,7 +202,7 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
     }
     
     // Validate the request body
-    const { 
+    let { 
       title, 
       description = null, 
       welderProcess, 
@@ -212,6 +212,23 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
       inspectionAuthority = null,
       status = 'Active'
     } = req.body;
+    
+    // Ensure values don't exceed database column lengths
+    if (welderProcess && welderProcess.length > 20) {
+      welderProcess = welderProcess.substring(0, 20);
+    }
+    
+    if (certificateNo && certificateNo.length > 100) {
+      certificateNo = certificateNo.substring(0, 100);
+    }
+    
+    if (inspectionAuthority && inspectionAuthority.length > 50) {
+      inspectionAuthority = inspectionAuthority.substring(0, 50);
+    }
+    
+    if (title && title.length > 100) {
+      title = title.substring(0, 100);
+    }
     
     // Basic validation for required fields
     if (!title || !welderProcess || !baseMetalGrade || !jointType) {
@@ -296,16 +313,43 @@ router.patch('/:id', ensureAuthenticated, async (req: Request, res: Response) =>
     
     const document = existingDocument[0];
     
+    // Get values from request body or existing document
+    let title = req.body.title || document.title;
+    let description = req.body.description !== undefined ? req.body.description : document.description;
+    let welderProcess = req.body.welderProcess || document.welderProcess;
+    let baseMetalGrade = req.body.baseMetalGrade || document.baseMetalGrade;
+    let jointType = req.body.jointType || document.jointType;
+    let certificateNo = req.body.certificateNo !== undefined ? req.body.certificateNo : document.certificateNo;
+    let inspectionAuthority = req.body.inspectionAuthority !== undefined ? req.body.inspectionAuthority : document.inspectionAuthority;
+    let status = req.body.status || document.status;
+
+    // Ensure values don't exceed database column lengths
+    if (welderProcess && welderProcess.length > 20) {
+      welderProcess = welderProcess.substring(0, 20);
+    }
+    
+    if (certificateNo && certificateNo.length > 100) {
+      certificateNo = certificateNo.substring(0, 100);
+    }
+    
+    if (inspectionAuthority && inspectionAuthority.length > 50) {
+      inspectionAuthority = inspectionAuthority.substring(0, 50);
+    }
+    
+    if (title && title.length > 100) {
+      title = title.substring(0, 100);
+    }
+    
     // Prepare update data
     const updateData: Partial<typeof wpqrDocuments.$inferInsert> = {
-      title: req.body.title || document.title,
-      description: req.body.description !== undefined ? req.body.description : document.description,
-      welderProcess: req.body.welderProcess || document.welderProcess,
-      baseMetalGrade: req.body.baseMetalGrade || document.baseMetalGrade,
-      jointType: req.body.jointType || document.jointType,
-      certificateNo: req.body.certificateNo !== undefined ? req.body.certificateNo : document.certificateNo,
-      inspectionAuthority: req.body.inspectionAuthority !== undefined ? req.body.inspectionAuthority : document.inspectionAuthority,
-      status: req.body.status || document.status,
+      title,
+      description,
+      welderProcess,
+      baseMetalGrade,
+      jointType,
+      certificateNo,
+      inspectionAuthority,
+      status,
       updatedAt: new Date()
     };
     
