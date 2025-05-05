@@ -1673,6 +1673,80 @@ export default function InspectionsPage() {
   };
 
   // Helper function to render status badge
+  // Filter reports by status
+  const filterReportsByStatus = (status: string, orders: any[]) => {
+    if (status === 'all') {
+      setFilteredReports(orders);
+    } else {
+      setFilteredReports(orders.filter(order => 
+        order.status && order.status.toLowerCase() === status.toLowerCase()
+      ));
+    }
+  };
+
+  // Process inspection orders for analytics and dashboard
+  useEffect(() => {
+    if (inspectionOrders && inspectionOrders.length > 0) {
+      // Calculate orders by status for the dashboard
+      const statusCounts: { [key: string]: number } = {};
+      inspectionOrders.forEach(order => {
+        const status = order.status || 'unknown';
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      });
+      
+      const statusData = Object.entries(statusCounts).map(([status, count]) => ({
+        status,
+        count
+      }));
+      
+      setOrdersByStatus(statusData);
+      
+      // Calculate orders by month for trends
+      const monthCounts: { [key: string]: number } = {};
+      inspectionOrders.forEach(order => {
+        const date = new Date(order.createdAt);
+        const monthYear = format(date, 'MMM yyyy');
+        monthCounts[monthYear] = (monthCounts[monthYear] || 0) + 1;
+      });
+      
+      const monthData = Object.entries(monthCounts)
+        .map(([month, count]) => ({ month, count }))
+        .sort((a, b) => {
+          // Sort by date (assuming format "MMM yyyy")
+          const dateA = new Date(a.month);
+          const dateB = new Date(b.month);
+          return dateA.getTime() - dateB.getTime();
+        });
+      
+      setOrdersByMonth(monthData);
+      
+      // Prepare inspection schedule data
+      const scheduleData = inspectionOrders.map(order => {
+        // Extract dates from the order, prioritize specific dates if available
+        let scheduleDate = new Date(order.createdAt);
+        
+        // Use any available inspection dates if present
+        if (order.hydrotestDate) scheduleDate = new Date(order.hydrotestDate);
+        if (order.ndtDate) scheduleDate = new Date(order.ndtDate);
+        if (order.visualInspectionDate) scheduleDate = new Date(order.visualInspectionDate);
+        
+        return {
+          id: order.id,
+          title: order.title || order.inspectionOrderNumber,
+          date: scheduleDate,
+          status: order.status,
+          inspectionOrderNumber: order.inspectionOrderNumber,
+          inspectionType: order.inspectionType
+        };
+      });
+      
+      setInspectionSchedule(scheduleData);
+      
+      // Set filtered reports based on current status filter
+      filterReportsByStatus(statusFilter, inspectionOrders);
+    }
+  }, [inspectionOrders, statusFilter]);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
