@@ -145,7 +145,126 @@ export function registerWelderPhotoRoutes(app: any) {
     }
   });
 
-  // Upload welder photo
+  // Cache-busting temporary endpoint to force-upload a completely new photo with new path
+  app.post('/api/force-upload/welder-photo', 
+    ensureAuthenticated,
+    upload.single('file'),
+    async (req: Request, res: Response) => {
+      console.log('Received FORCE upload welder photo request');
+      try {
+        console.log('Request user:', req.user ? req.user.username : 'Not authenticated');
+        
+        if (!req.file) {
+          console.error('No file uploaded in the request');
+          return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        // Extract the welder ID
+        const welderId = req.body.welderId;
+        if (!welderId) {
+          return res.status(400).json({ error: 'Welder ID is required' });
+        }
+        
+        // Format a W-XXX style code if it's a number
+        let welderCode: string;
+        try {
+          const numericId = parseInt(welderId);
+          if (!isNaN(numericId)) {
+            welderCode = `W-${numericId.toString().padStart(3, '0')}`;
+          } else {
+            welderCode = welderId;
+          }
+        } catch (e) {
+          welderCode = welderId;
+        }
+        
+        const { buffer, originalname, mimetype } = req.file;
+        
+        // Generate a unique filename with timestamp
+        const timestamp = Date.now();
+        const fileExt = originalname.split('.').pop() || 'jpg';
+        const uniqueFilename = `${welderCode}_${timestamp}.${fileExt}`;
+        const uniquePath = `QMS/WELDERS/${welderCode}/${uniqueFilename}`;
+        
+        console.log(`Uploading directly to GCS with path: ${uniquePath}`);
+        
+        try {
+          // Initialize GCS directly
+          console.log('Initializing direct GCS connection');
+          let credentials;
+          
+          if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+            credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
+          } else {
+            return res.status(500).json({ error: 'GCS credentials not available' });
+          }
+          
+          const gcsStorage = new Storage({
+            credentials,
+            projectId: credentials.project_id
+          });
+          
+          const bucket = gcsStorage.bucket(process.env.GCS_BUCKET_NAME || 'thermopac_storage');
+          const file = bucket.file(uniquePath);
+          
+          const metadata = {
+            contentType: mimetype,
+            cacheControl: 'no-cache, no-store, must-revalidate'
+          };
+          
+          // Upload the file
+          console.log('Direct file upload starting');
+          await file.save(buffer, {
+            metadata,
+            contentType: mimetype,
+            resumable: false
+          });
+          
+          // Generate a signed URL
+          const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+            queryParams: { 'v': timestamp.toString() }
+          });
+          
+          console.log('Direct file upload complete, updating database');
+          
+          // Update the database with the new path
+          if (welderId) {
+            try {
+              const welderIdNum = parseInt(welderId);
+              if (!isNaN(welderIdNum)) {
+                const updateResult = await db.update(schema.welders)
+                  .set({ photoPath: uniquePath })
+                  .where(eq(schema.welders.id, welderIdNum));
+                console.log('Updated database with new path:', updateResult);
+              }
+            } catch (dbError) {
+              console.error('Database update error:', dbError);
+            }
+          }
+          
+          return res.status(200).json({
+            success: true,
+            path: uniquePath,
+            url: signedUrl
+          });
+          
+        } catch (uploadError) {
+          console.error('Direct upload error:', uploadError);
+          return res.status(500).json({ 
+            error: 'Direct upload failed',
+            details: uploadError instanceof Error ? uploadError.message : String(uploadError)
+          });
+        }
+      } catch (error) {
+        console.error('Error in force upload endpoint:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+  );
+  
+  // Original upload endpoint
   app.post('/api/upload/welder-photo', 
     ensureAuthenticated,
     upload.single('file'),
@@ -156,6 +275,9 @@ export function registerWelderPhotoRoutes(app: any) {
         console.log('Request body keys:', Object.keys(req.body));
         console.log('Request body welderId:', req.body.welderId);
         console.log('Request body welderCode:', req.body.welderCode);
+        console.log('Request body forceOverride:', req.body.forceOverride);
+        console.log('Request body timestamp:', req.body.timestamp);
+        console.log('Request query:', req.query);
         console.log('Request file:', req.file ? {
           originalname: req.file.originalname,
           mimetype: req.file.mimetype,
@@ -169,6 +291,14 @@ export function registerWelderPhotoRoutes(app: any) {
 
         const { buffer, originalname, mimetype } = req.file;
         console.log(`File details: ${originalname}, ${mimetype}, size: ${buffer.length} bytes`);
+        
+        // Check if we should force override
+        const forceOverride = req.body.forceOverride === 'true';
+        console.log(`Force override flag: ${forceOverride}`);
+        
+        // Extract timestamp if provided
+        const timestamp = req.body.timestamp || Date.now();
+        console.log(`Using timestamp: ${timestamp}`);
         
         // Get the welder ID - check if it's in the welderCode or welderId field
         let welderId = '';
@@ -191,7 +321,7 @@ export function registerWelderPhotoRoutes(app: any) {
           console.log(`Separate welderCode provided: ${welderCode}`);
         }
         
-        console.log(`Processing photo upload for welder ID: ${welderId}`);
+        console.log(`Processing photo upload for welder ID: ${welderId} with force override: ${forceOverride}`);
 
         // Before uploading, determine the actual welder database record and code
         let welderDbId: number | null = null;

@@ -119,8 +119,19 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
     console.log("Welder Code (string):", welderCode);
     
     try {
+      // Use a timestamp in the filename to ensure uniqueness
+      const timestamp = new Date().getTime();
+      const uniqueFileName = `welder_photo_${timestamp}_${file.name}`;
+      console.log(`Using unique filename: ${uniqueFileName}`);
+      
+      // Create a new File object with the unique name to force uniqueness
+      const uniqueFile = new File([await file.arrayBuffer()], uniqueFileName, {
+        type: file.type,
+        lastModified: Date.now()
+      });
+      
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', uniqueFile);
       
       // First priority: Always use the numeric welderId if available
       if (welderId) {
@@ -144,6 +155,12 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
         formData.append('welderCode', welderCode);
       }
       
+      // Add force override flag to tell server to forcibly replace file
+      formData.append('forceOverride', 'true');
+      
+      // Add timestamp for cache busting
+      formData.append('timestamp', timestamp.toString());
+      
       // Debug log all form data fields
       console.log("Form data entries:");
       const formEntries: {[key: string]: string} = {};
@@ -152,14 +169,19 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       });
       console.log(formEntries);
       
-      // Add timestamp to avoid caching
-      const timestamp = new Date().getTime();
-      console.log(`Sending photo upload request to /api/upload/welder-photo?t=${timestamp}`);
-      const response = await fetch(`/api/upload/welder-photo?t=${timestamp}`, {
+      // Use the new force-upload endpoint for direct GCS access
+      const nocache = Date.now() + Math.random();
+      console.log(`Using FORCE UPLOAD endpoint with nocache: ${nocache}`);
+      const response = await fetch(`/api/force-upload/welder-photo?nocache=${nocache}`, {
         method: 'POST',
         body: formData,
         credentials: 'include', // Important for authenticated requests
-        cache: 'no-cache' // Explicitly prevent caching
+        headers: {
+          // Add cache control headers
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
       
       console.log("Upload response status:", response.status);
