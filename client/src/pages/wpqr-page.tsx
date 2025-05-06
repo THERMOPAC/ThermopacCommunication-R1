@@ -397,13 +397,13 @@ export default function WpqrPage() {
               <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-2 text-left font-medium text-xs w-[12%]">Document ID</th>
-                    <th className="p-2 text-left font-medium text-xs w-[15%]">Welding Process</th>
-                    <th className="p-2 text-left font-medium text-xs w-[13%]">Base Metal Grade</th>
-                    <th className="p-2 text-left font-medium text-xs w-[8%]">Joint Type</th>
-                    <th className="p-2 text-left font-medium text-xs w-[22%]">Certificate No</th>
-                    <th className="p-2 text-left font-medium text-xs w-[23%]">Inspection Authority</th>
-                    <th className="p-2 text-right font-medium text-xs w-[7%]">Actions</th>
+                    <th className="p-2 text-left font-medium text-xs w-[500px]">Document ID</th>
+                    <th className="p-2 text-left font-medium text-xs w-[150px]">Welding Process</th>
+                    <th className="p-2 text-left font-medium text-xs w-[150px]">Base Metal Grade</th>
+                    <th className="p-2 text-left font-medium text-xs w-[80px]">Joint Type</th>
+                    <th className="p-2 text-left font-medium text-xs w-[200px]">Certificate No</th>
+                    <th className="p-2 text-left font-medium text-xs w-[300px]">Inspection Authority</th>
+                    <th className="p-2 text-right font-medium text-xs w-[100px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
