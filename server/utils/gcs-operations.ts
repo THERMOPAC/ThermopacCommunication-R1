@@ -67,36 +67,41 @@ export const initializeGCS = async (): Promise<{ storage: Storage | null, bucket
     const bucketName = process.env.GCS_BUCKET_NAME || gcsBucketName || 'thermopac_storage';
     console.log(`Using GCS bucket name: ${bucketName}`);
     
-    // Initialize bucket
+    // CRITICAL CHANGE: Always create a bucket reference if we have a storage client
+    // We'll attempt operations even without bucket-level permissions
     if (gcsStorage) {
+      // Create the bucket reference regardless of whether we can verify it exists
       gcsBucket = gcsStorage.bucket(bucketName);
+      console.log(`Created bucket reference for ${bucketName}`);
       
-      // Try to verify bucket exists, but don't fail if we can't verify
-      // This allows us to still use the bucket even if we don't have 'storage.buckets.get' permission
+      // Try to verify bucket exists, but NEVER fail initialization if we can't verify
       try {
         const [exists] = await gcsBucket.exists();
         if (exists) {
           console.log(`✅ Successfully verified bucket ${bucketName} exists`);
         } else {
-          console.log(`⚠️ Bucket ${bucketName} might not exist or we lack permission to verify - will try to use it anyway`);
-          // Don't set bucket to null - we'll attempt to use it anyway
+          console.log(`⚠️ Bucket ${bucketName} does not exist or we can't verify it`);
+          // We'll still return the bucket reference, and let individual operations decide how to handle failures
         }
       } catch (error) {
         // Check if this is a permissions error
         const errorMsg = String(error);
         if (errorMsg.includes('Permission') || errorMsg.includes('storage.buckets.get')) {
-          console.log(`⚠️ No permission to verify bucket existence - this is often okay if the service account has object-level permissions`);
-          console.log(`⚠️ Will proceed with assuming bucket exists: ${bucketName}`);
-          // Continue anyway, as we may have object-level permissions without bucket-level permissions
+          console.log(`⚠️ No permission to verify bucket existence - this is expected with object-level permissions`);
+          console.log(`ℹ️ Will proceed with assuming bucket exists and attempt operations with object-level permissions`);
+          // Continue with the reference - we'll test actual permissions during operations
         } else {
-          console.error(`Error verifying bucket existence: ${error instanceof Error ? error.message : String(error)}`);
-          console.log(`⚠️ Will attempt to use bucket anyway: ${bucketName}`);
-          // Don't set bucket to null - we'll attempt to use it anyway
+          console.error(`⚠️ Unusual error when verifying bucket existence: ${errorMsg}`);
+          console.log(`ℹ️ Will still attempt operations with the bucket reference`);
         }
       }
+      
+      // Always return the storage and bucket references, even if verification failed
+      return { storage: gcsStorage, bucket: gcsBucket };
+    } else {
+      console.error('❌ Failed to create GCS storage client');
+      return { storage: null, bucket: null };
     }
-    
-    return { storage: gcsStorage, bucket: gcsBucket };
   } catch (error) {
     console.error(`Failed to initialize GCS: ${error instanceof Error ? error.message : String(error)}`);
     return { storage: null, bucket: null };
@@ -117,32 +122,40 @@ export const uploadFileToGCS = async (
   contentType: string
 ): Promise<{ success: boolean; message: string; url?: string }> => {
   try {
-    // Initialize if not already done
-    if (!gcsStorage || !gcsBucket) {
-      const { storage, bucket } = await initializeGCS();
-      // IMPORTANT: Continue even if bucket verification failed
-      // since we may have object-level permissions without bucket-level access
-      if (!storage) {
-        return { 
-          success: false, 
-          message: 'Failed to initialize Google Cloud Storage client' 
-        };
-      }
-      gcsStorage = storage;
-      
-      // If initializeGCS couldn't verify the bucket but created a reference, use it
-      if (bucket) {
-        gcsBucket = bucket;
-      } else if (gcsStorage) {
-        // Create a new bucket reference directly if we have storage but no bucket
-        console.log(`No verified bucket reference, creating a new one for ${bucketName}`);
-        gcsBucket = gcsStorage.bucket(bucketName);
-      } else {
-        return { 
-          success: false, 
-          message: 'Failed to create bucket reference' 
-        };
-      }
+    // Always attempt to initialize GCS before operations
+    // This is important for production where GCS might not be initialized yet
+    console.log(`Attempting to upload file to GCS: ${filePath}`);
+    
+    // Force re-initialization to get the latest storage client
+    // This helps in production where permissions might change
+    const { storage, bucket } = await initializeGCS();
+    
+    // IMPORTANT: Continue even if bucket verification failed
+    if (!storage) {
+      console.error('Failed to initialize Google Cloud Storage client for upload');
+      return { 
+        success: false, 
+        message: 'Failed to initialize Google Cloud Storage client' 
+      };
+    }
+    
+    // Use the latest storage client
+    gcsStorage = storage;
+    
+    // If initializeGCS couldn't verify the bucket but created a reference, use it
+    if (bucket) {
+      console.log('Using verified bucket reference for upload');
+      gcsBucket = bucket;
+    } else if (gcsStorage) {
+      // Create a new bucket reference directly
+      console.log(`Creating new bucket reference for ${bucketName} for upload operation`);
+      gcsBucket = gcsStorage.bucket(bucketName);
+    } else {
+      console.error('Failed to create bucket reference for upload');
+      return { 
+        success: false, 
+        message: 'Failed to create bucket reference' 
+      };
     }
     
     // Normalize filepath (remove leading slash if present)
@@ -248,31 +261,40 @@ export const downloadFileFromGCS = async (
   destinationPath: string
 ): Promise<{ success: boolean; message: string; localPath?: string }> => {
   try {
-    // Initialize if not already done
-    if (!gcsStorage || !gcsBucket) {
-      const { storage, bucket } = await initializeGCS();
-      // IMPORTANT: Continue even if bucket verification failed
-      if (!storage) {
-        return { 
-          success: false, 
-          message: 'Failed to initialize Google Cloud Storage client' 
-        };
-      }
-      gcsStorage = storage;
-      
-      // If initializeGCS couldn't verify the bucket but created a reference, use it
-      if (bucket) {
-        gcsBucket = bucket;
-      } else if (gcsStorage) {
-        // Create a new bucket reference directly
-        console.log(`No verified bucket reference, creating a new one for ${bucketName}`);
-        gcsBucket = gcsStorage.bucket(bucketName);
-      } else {
-        return { 
-          success: false, 
-          message: 'Failed to create bucket reference' 
-        };
-      }
+    // Always attempt to initialize GCS before operations
+    // This is important for production where GCS might not be initialized yet
+    console.log(`Attempting to download file from GCS: ${gcsPath}`);
+    
+    // Force re-initialization to get the latest storage client
+    // This helps in production where permissions might change
+    const { storage, bucket } = await initializeGCS();
+    
+    // IMPORTANT: Continue even if bucket verification failed
+    if (!storage) {
+      console.error('Failed to initialize Google Cloud Storage client for download');
+      return { 
+        success: false, 
+        message: 'Failed to initialize Google Cloud Storage client' 
+      };
+    }
+    
+    // Use the latest storage client
+    gcsStorage = storage;
+    
+    // If initializeGCS couldn't verify the bucket but created a reference, use it
+    if (bucket) {
+      console.log('Using verified bucket reference for download');
+      gcsBucket = bucket;
+    } else if (gcsStorage) {
+      // Create a new bucket reference directly
+      console.log(`Creating new bucket reference for ${bucketName} for download operation`);
+      gcsBucket = gcsStorage.bucket(bucketName);
+    } else {
+      console.error('Failed to create bucket reference for download');
+      return { 
+        success: false, 
+        message: 'Failed to create bucket reference' 
+      };
     }
     
     // Normalize filepath (remove leading slash if present)
@@ -351,29 +373,40 @@ export const streamFileFromGCS = async (
   downloadFilename?: string
 ): Promise<boolean> => {
   try {
-    console.log(`Streaming file from GCS: ${gcsPath}`);
+    // Always attempt to initialize GCS before operations
+    // This is important for production where GCS might not be initialized yet
+    console.log(`Attempting to stream file from GCS: ${gcsPath}`);
     
-    // Initialize if not already done
-    if (!gcsStorage || !gcsBucket) {
-      const { storage, bucket } = await initializeGCS();
-      // IMPORTANT: Continue even if bucket verification failed
-      if (!storage) {
-        console.error('Failed to initialize Google Cloud Storage client');
-        return false;
+    // Force re-initialization to get the latest storage client
+    // This helps in production where permissions might change
+    const { storage, bucket } = await initializeGCS();
+    
+    // IMPORTANT: Continue even if bucket verification failed
+    if (!storage) {
+      console.error('Failed to initialize Google Cloud Storage client for streaming');
+      if (!response.headersSent) {
+        response.status(500).send('Error: Failed to initialize Google Cloud Storage');
       }
-      gcsStorage = storage;
-      
-      // If initializeGCS couldn't verify the bucket but created a reference, use it
-      if (bucket) {
-        gcsBucket = bucket;
-      } else if (gcsStorage) {
-        // Create a new bucket reference directly
-        console.log(`No verified bucket reference, creating a new one for ${bucketName}`);
-        gcsBucket = gcsStorage.bucket(bucketName);
-      } else {
-        console.error('Failed to create bucket reference');
-        return false;
+      return false;
+    }
+    
+    // Use the latest storage client
+    gcsStorage = storage;
+    
+    // If initializeGCS couldn't verify the bucket but created a reference, use it
+    if (bucket) {
+      console.log('Using verified bucket reference for streaming');
+      gcsBucket = bucket;
+    } else if (gcsStorage) {
+      // Create a new bucket reference directly
+      console.log(`Creating new bucket reference for ${bucketName} for streaming operation`);
+      gcsBucket = gcsStorage.bucket(bucketName);
+    } else {
+      console.error('Failed to create bucket reference for streaming');
+      if (!response.headersSent) {
+        response.status(500).send('Error: Failed to access Google Cloud Storage bucket');
       }
+      return false;
     }
     
     // Normalize filepath (remove leading slash if present)
@@ -473,31 +506,40 @@ export const deleteFileFromGCS = async (
   gcsPath: string
 ): Promise<{ success: boolean; message: string }> => {
   try {
-    // Initialize if not already done
-    if (!gcsStorage || !gcsBucket) {
-      const { storage, bucket } = await initializeGCS();
-      // IMPORTANT: Continue even if bucket verification failed
-      if (!storage) {
-        return { 
-          success: false, 
-          message: 'Failed to initialize Google Cloud Storage client' 
-        };
-      }
-      gcsStorage = storage;
-      
-      // If initializeGCS couldn't verify the bucket but created a reference, use it
-      if (bucket) {
-        gcsBucket = bucket;
-      } else if (gcsStorage) {
-        // Create a new bucket reference directly
-        console.log(`No verified bucket reference, creating a new one for ${bucketName}`);
-        gcsBucket = gcsStorage.bucket(bucketName);
-      } else {
-        return { 
-          success: false, 
-          message: 'Failed to create bucket reference' 
-        };
-      }
+    // Always attempt to initialize GCS before operations
+    // This is important for production where GCS might not be initialized yet
+    console.log(`Attempting to delete file from GCS: ${gcsPath}`);
+    
+    // Force re-initialization to get the latest storage client
+    // This helps in production where permissions might change
+    const { storage, bucket } = await initializeGCS();
+    
+    // IMPORTANT: Continue even if bucket verification failed
+    if (!storage) {
+      console.error('Failed to initialize Google Cloud Storage client for deletion');
+      return { 
+        success: false, 
+        message: 'Failed to initialize Google Cloud Storage client' 
+      };
+    }
+    
+    // Use the latest storage client
+    gcsStorage = storage;
+    
+    // If initializeGCS couldn't verify the bucket but created a reference, use it
+    if (bucket) {
+      console.log('Using verified bucket reference for deletion');
+      gcsBucket = bucket;
+    } else if (gcsStorage) {
+      // Create a new bucket reference directly
+      console.log(`Creating new bucket reference for ${bucketName} for deletion operation`);
+      gcsBucket = gcsStorage.bucket(bucketName);
+    } else {
+      console.error('Failed to create bucket reference for deletion');
+      return { 
+        success: false, 
+        message: 'Failed to create bucket reference' 
+      };
     }
     
     // Normalize filepath (remove leading slash if present)
