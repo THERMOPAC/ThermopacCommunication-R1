@@ -3,6 +3,8 @@ import ProjectDetail from "@/components/project-detail-fixed";
 import { useLocation, Link } from "wouter";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Layout from "@/components/layout";
+import { Helmet } from "react-helmet";
 
 interface ProjectDetailPageProps {
   id?: string;
@@ -31,32 +33,42 @@ export default function ProjectDetailPage({ id, params }: ProjectDetailPageProps
   if (!projectId) {
     console.log("ProjectDetailPage - No Project ID provided");
     return (
-      <div className="container mx-auto py-6 flex items-center justify-center h-64">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Missing Project ID</h2>
-          <p className="text-muted-foreground">Please select a project from the projects list.</p>
+      <Layout>
+        <Helmet>
+          <title>Project Details | THERMOPAC Communication System</title>
+        </Helmet>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-2">Missing Project ID</h2>
+            <p className="text-muted-foreground">Please select a project from the projects list.</p>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="w-full py-6">
-      <div className="mb-6 flex flex-wrap gap-2">
-        <Button variant="outline" asChild>
-          <Link href="/" className="flex items-center gap-2">
-            <ChevronLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link href="/projects" className="flex items-center gap-2">
-            <ChevronLeft className="h-4 w-4" />
-            Back to Projects
-          </Link>
-        </Button>
+    <Layout>
+      <Helmet>
+        <title>Project Details | THERMOPAC Communication System</title>
+      </Helmet>
+      <div>
+        <div className="mb-6 flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/" className="flex items-center gap-2">
+              <ChevronLeft className="h-4 w-4" />
+              Back to Dashboard
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/projects" className="flex items-center gap-2">
+              <ChevronLeft className="h-4 w-4" />
+              Back to Projects
+            </Link>
+          </Button>
+        </div>
+        <ProjectDetail id={projectId} />
       </div>
-      <ProjectDetail id={projectId} />
-    </div>
+    </Layout>
   );
 }
