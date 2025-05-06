@@ -1,8 +1,6 @@
 import React, { useEffect } from "react";
 import ProjectDetail from "@/components/project-detail-fixed";
-import { useLocation, Link } from "wouter";
-import { ChevronLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
 
@@ -53,20 +51,6 @@ export default function ProjectDetailPage({ id, params }: ProjectDetailPageProps
         <title>Project Details | THERMOPAC Communication System</title>
       </Helmet>
       <div>
-        <div className="mb-6 flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/" className="flex items-center gap-2">
-              <ChevronLeft className="h-4 w-4" />
-              Back to Dashboard
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/projects" className="flex items-center gap-2">
-              <ChevronLeft className="h-4 w-4" />
-              Back to Projects
-            </Link>
-          </Button>
-        </div>
         <ProjectDetail id={projectId} />
       </div>
     </Layout>
