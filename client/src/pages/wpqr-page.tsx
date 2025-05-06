@@ -402,7 +402,7 @@ export default function WpqrPage() {
                     <th className="p-2 text-left font-medium text-xs w-[150px]">Base Metal Grade</th>
                     <th className="p-2 text-left font-medium text-xs w-[80px]">Joint Type</th>
                     <th className="p-2 text-left font-medium text-xs w-[200px]">Certificate No</th>
-                    <th className="p-2 text-left font-medium text-xs w-[300px]">Inspection Authority</th>
+                    <th className="p-2 text-left font-medium text-xs max-w-[300px] w-[300px]">Inspection Authority</th>
                     <th className="p-2 text-right font-medium text-xs w-[100px]">Actions</th>
                   </tr>
                 </thead>
@@ -423,7 +423,7 @@ export default function WpqrPage() {
                       <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={document.baseMetalGrade}>{document.baseMetalGrade}</td>
                       <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={document.jointType}>{document.jointType}</td>
                       <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={document.certificateNo || "-"}>{document.certificateNo || "-"}</td>
-                      <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={document.inspectionAuthority || "-"}>{document.inspectionAuthority || "-"}</td>
+                      <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-[300px]" title={document.inspectionAuthority || "-"}>{document.inspectionAuthority || "-"}</td>
                       <td className="p-1 text-right">
                         <div className="flex justify-end gap-0">
                           <Button
