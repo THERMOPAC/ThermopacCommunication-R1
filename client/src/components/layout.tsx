@@ -182,9 +182,9 @@ export default function Layout({ children }: LayoutProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 border-r bg-white flex flex-col shadow-sm">
+      <aside className="w-[250px] min-w-[250px] border-r bg-white flex flex-col shadow-sm">
         <div className="p-6 border-b">
           <div className="flex flex-col items-center mb-4">
             <img 
@@ -367,8 +367,8 @@ export default function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8">
-        <div className="w-full mx-auto">
+      <main className="flex-1 p-8 overflow-x-hidden">
+        <div className="max-w-[calc(100vw-260px)] mx-auto">
           {children}
         </div>
       </main>
