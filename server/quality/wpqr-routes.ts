@@ -688,7 +688,7 @@ router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) =
   }
 });
 
-// Download a WPQR document
+// Download a WPQR document - completely simplified approach
 router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -698,7 +698,7 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
       return res.status(400).json({ error: 'Invalid document ID' });
     }
     
-    // Get the document to obtain the file path
+    // Get the document from database
     const document = await db.select()
       .from(wpqrDocuments)
       .where(eq(wpqrDocuments.id, documentId))
@@ -716,123 +716,134 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
       return res.status(404).json({ error: 'No file associated with this document' });
     }
     
-    console.log(`Processing download request for WPQR document ID: ${documentId}, path: ${filePath}`);
+    console.log(`Processing download request for WPQR ID: ${documentId}, path: ${filePath}`);
     
-    // Set response headers for downloading
+    // Set appropriate headers
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="WPQR-${docId}.pdf"`);
     
-    // Use fs and path to handle files
-    const fs = require('fs');
-    const path = require('path');
-    const os = require('os');
-    const { promisify } = require('util');
-    const mkdir = promisify(fs.mkdir);
+    // Create directory for storing temporary files
+    const tmpDir = path.join(os.tmpdir(), 'wpqr-downloads');
+    await fs.promises.mkdir(tmpDir, { recursive: true });
+    const tmpFilePath = path.join(tmpDir, `wpqr-${docId}-${Date.now()}.pdf`);
+    
+    // Function to clean up temp file
+    const cleanupTempFile = () => {
+      try {
+        fs.unlinkSync(tmpFilePath);
+        console.log(`Cleaned up temp file: ${tmpFilePath}`);
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error(`Error cleaning up temp file: ${errMsg}`);
+      }
+    };
     
     try {
-      // First check if there's a direct URL we can proxy
-      if (fileUrl) {
-        try {
-          console.log(`Attempting to proxy document from direct URL: ${fileUrl}`);
-          
-          // Use node-fetch to download the file
-          const fetch = require('node-fetch');
-          const response = await fetch(fileUrl);
-          
-          if (!response.ok) {
-            throw new Error(`Failed to fetch from URL: ${response.status} ${response.statusText}`);
-          }
-          
-          // Stream the response to the client
-          console.log("Successfully fetched file from URL, streaming to client");
-          response.body.pipe(res);
-          return;
-        } catch (urlError) {
-          console.error(`Failed to proxy from URL: ${urlError.message}`);
-          // Continue to next method if URL proxying fails
-        }
-      }
-      
-      // Method 2: Download to temp file and serve
+      // APPROACH 1: Try direct file download from GCS
       if (gcsClient) {
         try {
-          console.log("Attempting to download file from GCS to temp location");
-          
-          // Create a temporary directory
-          const tmpDir = path.join(os.tmpdir(), 'wpqr-downloads');
-          await mkdir(tmpDir, { recursive: true });
-          
-          const tmpFilePath = path.join(tmpDir, `wpqr-${docId}.pdf`);
-          
-          // Get file from GCS
           const bucket = gcsClient.bucket(bucketName);
-          const gcsFile = bucket.file(filePath.slice(1)); // Remove leading slash
+          const gcsPath = filePath.slice(1); // Remove leading slash
+          const file = bucket.file(gcsPath);
           
-          // Download the file to the temporary location
-          console.log(`Downloading to temporary file: ${tmpFilePath}`);
-          const [fileExists] = await gcsFile.exists();
+          console.log(`Attempting direct GCS download to temp file: ${gcsPath}`);
           
-          if (!fileExists) {
-            console.error(`File does not exist in GCS: ${filePath}`);
-            return res.status(404).json({ error: 'File not found in Google Cloud Storage' });
-          }
+          // Download file from GCS to temp file
+          await file.download({ destination: tmpFilePath });
           
-          await gcsFile.download({ destination: tmpFilePath });
-          
-          console.log(`File downloaded to: ${tmpFilePath}, now streaming to client`);
-          
-          // Stream the file to the client
+          // Stream the temp file to client
+          console.log(`Successfully downloaded to ${tmpFilePath}, streaming to client`);
           const fileStream = fs.createReadStream(tmpFilePath);
-          fileStream.pipe(res);
           
-          // Clean up the temporary file after sending
-          fileStream.on('end', () => {
-            console.log(`Download complete, cleaning up temp file: ${tmpFilePath}`);
-            fs.unlink(tmpFilePath, (err) => {
-              if (err) console.error(`Error deleting temp file: ${err.message}`);
-            });
+          fileStream.on('end', cleanupTempFile);
+          fileStream.on('error', (err: Error) => {
+            console.error(`Stream error: ${err.message}`);
+            cleanupTempFile();
+            if (!res.headersSent) {
+              res.status(500).send('Error streaming file');
+            }
           });
           
+          fileStream.pipe(res);
           return;
-        } catch (gcsError) {
-          console.error("Error downloading from GCS:", gcsError);
-          // Continue to fallback method
+        } catch (gcsError: unknown) {
+          const errMsg = gcsError instanceof Error ? gcsError.message : String(gcsError);
+          console.error(`GCS download failed: ${errMsg}`);
+          // Continue to next approach
         }
       }
       
-      // If all methods failed, return error
-      throw new Error("All download methods failed");
+      // APPROACH 2: Try downloading from public URL if available
+      if (fileUrl) {
+        try {
+          console.log(`Attempting to download from public URL: ${fileUrl}`);
+          
+          const fetchResponse = await fetch(fileUrl);
+          if (!fetchResponse.ok) {
+            throw new Error(`Failed to fetch from URL: ${fetchResponse.status}`);
+          }
+          
+          // Download from URL to temp file
+          const fileStream = fs.createWriteStream(tmpFilePath);
+          
+          await new Promise((resolve, reject) => {
+            if (!fetchResponse.body) {
+              reject(new Error('Response body is null'));
+              return;
+            }
+            
+            fetchResponse.body.pipe(fileStream);
+            fetchResponse.body.on('error', (err: Error) => {
+              console.error(`Fetch stream error: ${err.message}`);
+              reject(err);
+            });
+            fileStream.on('finish', resolve);
+            fileStream.on('error', reject);
+          });
+          
+          // Now stream the downloaded file to client
+          console.log(`URL downloaded to ${tmpFilePath}, streaming to client`);
+          const responseStream = fs.createReadStream(tmpFilePath);
+          
+          responseStream.on('end', cleanupTempFile);
+          responseStream.on('error', (err: Error) => {
+            console.error(`Stream error: ${err.message}`);
+            cleanupTempFile();
+            if (!res.headersSent) {
+              res.status(500).send('Error streaming file');
+            }
+          });
+          
+          responseStream.pipe(res);
+          return;
+        } catch (urlError: unknown) {
+          const errMsg = urlError instanceof Error ? urlError.message : String(urlError);
+          console.error(`URL download failed: ${errMsg}`);
+          // Fall through to final error
+        }
+      }
       
-    } catch (downloadError) {
-      console.error("Error downloading file:", downloadError);
+      throw new Error('All download methods failed');
+      
+    } catch (finalError: unknown) {
+      // Clean up any temp file if it exists
+      cleanupTempFile();
       
       if (!res.headersSent) {
+        const errMsg = finalError instanceof Error ? finalError.message : String(finalError);
+        console.error(`Download completely failed: ${errMsg}`);
         res.status(500).json({
-          error: 'Failed to download file',
-          details: downloadError instanceof Error ? downloadError.message : 'Unknown error',
-          documentId: documentId
+          error: 'Failed to download document',
+          details: errMsg
         });
       }
     }
   } catch (error) {
-    console.error('Error in download endpoint:', error);
-    
     if (!res.headersSent) {
-      // Create more detailed error with stack trace
-      let errorDetails = 'Unknown error';
-      
-      if (error instanceof Error) {
-        errorDetails = `${error.message}\n${error.stack}`;
-        
-        // Log additional information about the error
-        console.error('Error type:', error.constructor.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-      }
-      
-      res.status(500).json({ 
-        error: 'Failed to download WPQR document',
-        details: errorDetails
+      console.error('Error in download endpoint:', error);
+      res.status(500).json({
+        error: 'Download error',
+        details: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }
