@@ -397,13 +397,13 @@ export default function WpqrPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-2 text-left font-medium text-xs" style={{ width: '300px' }}>Document ID</th>
-                    <th className="p-2 text-left font-medium text-xs" style={{ width: '500px' }}>Welding Process</th>
-                    <th className="p-2 text-left font-medium text-xs" style={{ width: '300px' }}>Base Metal Grade</th>
-                    <th className="p-2 text-left font-medium text-xs w-[10%]">Joint Type</th>
-                    <th className="p-2 text-left font-medium text-xs w-[25%]">Certificate No</th>
-                    <th className="p-1 text-left font-medium text-xs" style={{ width: '150px' }}>Inspection Authority</th>
-                    <th className="p-1 text-right font-medium text-xs" style={{ width: '150px' }}>Actions</th>
+                    <th className="p-2 text-left font-medium text-xs w-[12%]">Document ID</th>
+                    <th className="p-2 text-left font-medium text-xs w-[14%]">Welding Process</th>
+                    <th className="p-2 text-left font-medium text-xs w-[14%]">Base Metal Grade</th>
+                    <th className="p-2 text-left font-medium text-xs w-[12%]">Joint Type</th>
+                    <th className="p-2 text-left font-medium text-xs w-[15%]">Certificate No</th>
+                    <th className="p-2 text-left font-medium text-xs w-[20%]">Inspection Authority</th>
+                    <th className="p-2 text-right font-medium text-xs w-[13%]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
