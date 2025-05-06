@@ -397,24 +397,24 @@ export default function WpqrPage() {
               <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-2 text-left font-medium text-xs w-[10%]">Document ID</th>
+                    <th className="p-2 text-left font-medium text-xs w-[12%]">Document ID</th>
                     <th className="p-2 text-left font-medium text-xs w-[15%]">Welding Process</th>
                     <th className="p-2 text-left font-medium text-xs w-[13%]">Base Metal Grade</th>
                     <th className="p-2 text-left font-medium text-xs w-[8%]">Joint Type</th>
                     <th className="p-2 text-left font-medium text-xs w-[22%]">Certificate No</th>
-                    <th className="p-2 text-left font-medium text-xs w-[22%]">Inspection Authority</th>
-                    <th className="p-2 text-right font-medium text-xs w-[10%]">Actions</th>
+                    <th className="p-2 text-left font-medium text-xs w-[23%]">Inspection Authority</th>
+                    <th className="p-2 text-right font-medium text-xs w-[7%]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredDocuments.map((document) => (
                     <tr key={document.id} className="border-b">
                       <td className="p-2">
-                        <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden">
-                          <Badge variant="outline" className="text-xs shrink-0">
+                        <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden">
+                          <Badge variant="outline" className="text-xs shrink-0 min-w-[72px] text-center">
                             {document.documentId}
                           </Badge>
-                          <span className="text-xs font-medium overflow-hidden text-ellipsis" title={document.title}>
+                          <span className="text-xs font-medium overflow-hidden text-ellipsis pl-1" title={document.title}>
                             {document.title}
                           </span>
                         </div>
