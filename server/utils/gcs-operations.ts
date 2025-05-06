@@ -16,17 +16,9 @@ let gcsBucket: Bucket | null = null;
  */
 export const initializeGCS = async (): Promise<{ storage: Storage | null, bucket: Bucket | null }> => {
   try {
-    // Check if we're running in production (with service account credentials)
-    if (process.env.NODE_ENV === 'production') {
-      console.log('Environment: production - Creating GCS client with default credentials');
-      gcsStorage = new Storage();
-    } else {
-      // For development, use explicit credentials from environment variable
-      console.log('Environment: development - Creating GCS client with explicit credentials');
-      
-      if (!process.env.GOOGLE_CLOUD_CREDENTIALS) {
-        throw new Error('GOOGLE_CLOUD_CREDENTIALS environment variable is not set');
-      }
+    // Always try to use GOOGLE_CLOUD_CREDENTIALS if available (for both production and development)
+    if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+      console.log('Using explicit credentials from GOOGLE_CLOUD_CREDENTIALS');
       
       const credentialsString = process.env.GOOGLE_CLOUD_CREDENTIALS;
       console.log(`Credentials string length: ${credentialsString.length}`);
@@ -61,6 +53,10 @@ export const initializeGCS = async (): Promise<{ storage: Storage | null, bucket
       
       console.log(`Using explicit GCS credentials with project: ${credentials.project_id}`);
       console.log(`Service account: ${credentials.client_email}`);
+    } else {
+      // Fall back to default credentials as a last resort
+      console.log('GOOGLE_CLOUD_CREDENTIALS not found, using default credentials');
+      gcsStorage = new Storage();
     }
     
     // Get bucket name from environment or use default
