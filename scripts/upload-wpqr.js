@@ -33,7 +33,7 @@ if (files.length === 0) {
 // Main function to create a document
 async function createDocument() {
   try {
-    console.log('\n=== Create a WPQR Document ===');
+    console.log('\n=== Create or Update a WPQR Document ===');
     
     // Get document ID
     const docId = await new Promise(resolve => {
@@ -45,38 +45,75 @@ async function createDocument() {
     // Format document ID if needed
     const formattedDocId = docId.startsWith('WPQR-') ? docId : `WPQR-${docId}`;
     
-    // Create empty document
+    // Create file path
     const filePath = path.join(LOCAL_WPQR_DIRECTORY, `${formattedDocId}.pdf`);
     
-    // Create simple PDF content (just text for now)
-    const content = `${formattedDocId} Document\n\nThis is a placeholder document for ${formattedDocId}.\nCreated on ${new Date().toISOString()}`;
+    // Check if file already exists
+    const fileExists = fs.existsSync(filePath);
+    if (fileExists) {
+      console.log(`\n⚠️ Warning: File ${filePath} already exists.`);
+      const overwrite = await new Promise(resolve => {
+        rl.question('Do you want to overwrite it? (y/n): ', answer => {
+          resolve(answer.toLowerCase().trim() === 'y' || answer.toLowerCase().trim() === 'yes');
+        });
+      });
+      
+      if (!overwrite) {
+        console.log('Skipping this document.');
+        await askContinue();
+        return;
+      }
+    }
+    
+    // Get document title
+    const title = await new Promise(resolve => {
+      rl.question('Enter document title: ', answer => {
+        resolve(answer.trim());
+      });
+    });
+    
+    // Create document content with more detailed text
+    const content = `${formattedDocId} - ${title}\n\n` +
+      `This is a placeholder document for ${formattedDocId}.\n` +
+      `Title: ${title}\n` +
+      `Created on: ${new Date().toISOString()}\n\n` +
+      `Note: This file was created by the local WPQR upload tool as a placeholder.\n` +
+      `It can be replaced with the actual document once GCS permissions are fixed.`;
     
     // Write the file
     fs.writeFileSync(filePath, content);
     
-    console.log(`\n✅ Success! Created document: ${filePath}`);
+    console.log(`\n✅ Success! ${fileExists ? 'Updated' : 'Created'} document: ${filePath}`);
     console.log('This document can now be downloaded through the application.');
+    console.log('Note: If this document already exists in the database, no additional');
+    console.log('database entry needs to be created. The file will be served from the local directory.');
     
-    // Ask if user wants to continue
-    const continueResponse = await new Promise(resolve => {
-      rl.question('\nDo you want to create another document? (y/n): ', answer => {
-        resolve(answer.toLowerCase().trim());
-      });
-    });
-    
-    if (continueResponse === 'y' || continueResponse === 'yes') {
-      await createDocument();
-    } else {
-      rl.close();
-    }
+    await askContinue();
   } catch (error) {
     console.error('Error:', error);
     rl.close();
   }
 }
 
+// Helper function to ask if user wants to continue
+async function askContinue() {
+  const continueResponse = await new Promise(resolve => {
+    rl.question('\nDo you want to create another document? (y/n): ', answer => {
+      resolve(answer.toLowerCase().trim());
+    });
+  });
+  
+  if (continueResponse === 'y' || continueResponse === 'yes') {
+    await createDocument();
+  } else {
+    rl.close();
+  }
+}
+
 console.log('\n🔍 WPQR Document Local Upload Tool');
 console.log('This tool helps you create local WPQR documents when Google Cloud Storage is unavailable.');
+console.log('Note: This tool only creates local files and does NOT add entries to the database.');
+console.log('Use the web interface to create new WPQR records in the database.');
 createDocument();
 
 // Event handler for readline close
