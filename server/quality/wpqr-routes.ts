@@ -5,6 +5,11 @@ import { Storage } from '@google-cloud/storage';
 import multer from 'multer';
 import { eq, desc, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { promisify } from 'util';
+import fetch from 'node-fetch';
 
 const router = express.Router();
 
@@ -705,144 +710,131 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
     
     const filePath = document[0].filePath;
     const fileUrl = document[0].fileUrl;
+    const docId = document[0].documentId;
     
     if (!filePath) {
       return res.status(404).json({ error: 'No file associated with this document' });
     }
     
+    console.log(`Processing download request for WPQR document ID: ${documentId}, path: ${filePath}`);
+    
+    // Set response headers for downloading
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="WPQR-${docId}.pdf"`);
+    
+    // Use fs and path to handle files
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+    const { promisify } = require('util');
+    const mkdir = promisify(fs.mkdir);
+    
     try {
-      console.log(`Attempting to create download URL for: ${filePath}`);
-      
-      if (!gcsClient) {
-        console.error("GCS client is not initialized - attempting to use direct URL");
-        
-        // Fallback: If GCS client isn't available, try redirecting to the fileUrl directly
-        if (fileUrl) {
-          console.log(`Using direct file URL as fallback: ${fileUrl}`);
-          return res.redirect(fileUrl);
-        } else {
-          throw new Error("GCS client unavailable and no direct URL available");
-        }
-      }
-      
-      // Try multiple approaches to get the file
-      const bucket = gcsClient.bucket(bucketName);
-      const file = bucket.file(filePath.slice(1)); // Remove leading slash
-      
-      // Method 1: Check if file exists and get signed URL
-      try {
-        console.log("Checking if file exists in GCS bucket");
-        const [exists] = await file.exists();
-        
-        if (!exists) {
-          console.warn(`File not found in GCS: ${filePath}`);
-          
-          // If file doesn't exist but we have a fileUrl, try direct URL as fallback
-          if (fileUrl) {
-            console.log(`File not found in GCS, using direct URL instead: ${fileUrl}`);
-            return res.redirect(fileUrl);
-          } else {
-            return res.status(404).json({ error: 'File not found in storage and no direct URL available' });
-          }
-        }
-        
-        console.log("File exists, generating signed URL");
-        
-        // Provide complete configuration for the signed URL
-        const [url] = await file.getSignedUrl({
-          version: 'v4',             // Use v4 signing for better security
-          action: 'read',            // We want read access
-          expires: Date.now() + 15 * 60 * 1000, // URL expires in 15 minutes
-          contentType: 'application/pdf'
-        });
-        
-        console.log(`Successfully generated signed URL: ${url.substring(0, 100)}...`);
-        
-        // Redirect to the signed URL for download
-        return res.redirect(url);
-      } catch (method1Error) {
-        console.error("Error with signed URL approach:", method1Error);
-        
-        // Method 2: Try generating a public URL if signed URL fails
+      // First check if there's a direct URL we can proxy
+      if (fileUrl) {
         try {
-          console.log("Trying alternative download method: public URL");
+          console.log(`Attempting to proxy document from direct URL: ${fileUrl}`);
           
-          // If signed URL fails but we have a fileUrl, try using that
-          if (fileUrl) {
-            console.log(`Using fallback public URL: ${fileUrl}`);
-            return res.redirect(fileUrl);
-          } else {
-            // Method 3: Last resort - try to stream the file directly to the client
-            try {
-              console.log("Trying direct file serving method");
-              
-              // Set appropriate headers
-              res.setHeader('Content-Type', 'application/pdf');
-              res.setHeader('Content-Disposition', `attachment; filename="WPQR-${document[0].documentId}.pdf"`);
-              
-              // Create a read stream from the file and pipe it to the response
-              console.log(`Creating read stream for file: ${filePath.slice(1)}`);
-              const readStream = file.createReadStream();
-              
-              // Handle stream errors
-              readStream.on('error', (streamError) => {
-                console.error("Error streaming file:", streamError);
-                if (!res.headersSent) {
-                  return res.status(500).json({ 
-                    error: 'Failed to stream file',
-                    details: streamError instanceof Error ? streamError.message : 'Unknown stream error'
-                  });
-                }
-              });
-              
-              // Pipe the stream to the response
-              readStream.pipe(res);
-              return; // End processing here since we're piping
-            } catch (method3Error) {
-              console.error("Direct file serving method failed:", method3Error);
-              throw new Error("Could not generate signed URL and no fallback URL available");
-            }
+          // Use node-fetch to download the file
+          const fetch = require('node-fetch');
+          const response = await fetch(fileUrl);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch from URL: ${response.status} ${response.statusText}`);
           }
-        } catch (method2Error) {
-          console.error("All download methods failed:", method2Error);
-          throw method2Error; // Rethrow for outer catch
+          
+          // Stream the response to the client
+          console.log("Successfully fetched file from URL, streaming to client");
+          response.body.pipe(res);
+          return;
+        } catch (urlError) {
+          console.error(`Failed to proxy from URL: ${urlError.message}`);
+          // Continue to next method if URL proxying fails
         }
       }
+      
+      // Method 2: Download to temp file and serve
+      if (gcsClient) {
+        try {
+          console.log("Attempting to download file from GCS to temp location");
+          
+          // Create a temporary directory
+          const tmpDir = path.join(os.tmpdir(), 'wpqr-downloads');
+          await mkdir(tmpDir, { recursive: true });
+          
+          const tmpFilePath = path.join(tmpDir, `wpqr-${docId}.pdf`);
+          
+          // Get file from GCS
+          const bucket = gcsClient.bucket(bucketName);
+          const gcsFile = bucket.file(filePath.slice(1)); // Remove leading slash
+          
+          // Download the file to the temporary location
+          console.log(`Downloading to temporary file: ${tmpFilePath}`);
+          const [fileExists] = await gcsFile.exists();
+          
+          if (!fileExists) {
+            console.error(`File does not exist in GCS: ${filePath}`);
+            return res.status(404).json({ error: 'File not found in Google Cloud Storage' });
+          }
+          
+          await gcsFile.download({ destination: tmpFilePath });
+          
+          console.log(`File downloaded to: ${tmpFilePath}, now streaming to client`);
+          
+          // Stream the file to the client
+          const fileStream = fs.createReadStream(tmpFilePath);
+          fileStream.pipe(res);
+          
+          // Clean up the temporary file after sending
+          fileStream.on('end', () => {
+            console.log(`Download complete, cleaning up temp file: ${tmpFilePath}`);
+            fs.unlink(tmpFilePath, (err) => {
+              if (err) console.error(`Error deleting temp file: ${err.message}`);
+            });
+          });
+          
+          return;
+        } catch (gcsError) {
+          console.error("Error downloading from GCS:", gcsError);
+          // Continue to fallback method
+        }
+      }
+      
+      // If all methods failed, return error
+      throw new Error("All download methods failed");
+      
     } catch (downloadError) {
-      console.error("Error creating download URL:", downloadError);
+      console.error("Error downloading file:", downloadError);
       
-      // Provide detailed error information
-      const errorDetails = downloadError instanceof Error 
-        ? `${downloadError.message}\n${downloadError.stack}` 
-        : 'Unknown error type';
-      
-      // Return error to client
-      return res.status(500).json({
-        error: 'Failed to generate download URL',
-        details: errorDetails,
-        documentId: documentId,
-        filePath: filePath
-      });
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: 'Failed to download file',
+          details: downloadError instanceof Error ? downloadError.message : 'Unknown error',
+          documentId: documentId
+        });
+      }
     }
   } catch (error) {
     console.error('Error in download endpoint:', error);
     
-    // Create more detailed error with stack trace
-    let errorDetails = 'Unknown error';
-    
-    if (error instanceof Error) {
-      errorDetails = `${error.message}\n${error.stack}`;
+    if (!res.headersSent) {
+      // Create more detailed error with stack trace
+      let errorDetails = 'Unknown error';
       
-      // Log additional information about the error
-      console.error('Error type:', error.constructor.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
+      if (error instanceof Error) {
+        errorDetails = `${error.message}\n${error.stack}`;
+        
+        // Log additional information about the error
+        console.error('Error type:', error.constructor.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      
+      res.status(500).json({ 
+        error: 'Failed to download WPQR document',
+        details: errorDetails
+      });
     }
-    
-    res.status(500).json({ 
-      error: 'Failed to download WPQR document',
-      details: errorDetails
-    });
   }
 });
 
