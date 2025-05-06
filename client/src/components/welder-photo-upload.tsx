@@ -29,7 +29,8 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       console.log(`Fetching photo URL from: ${existingPhotoUrl}`);
       console.log(`Welder ID (for fetch): ${welderId}, Welder Code: ${welderCode}`);
       
-      const fetchPhotoUrl = async () => {
+      // Clear any existing timeout to prevent race conditions
+      const fetchTimeout = setTimeout(async () => {
         try {
           console.log(`Making fetch request to: ${existingPhotoUrl}`);
           const response = await fetch(existingPhotoUrl);
@@ -56,9 +57,10 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
         } catch (error) {
           console.error('Error fetching welder photo URL:', error);
         }
-      };
+      }, 500); // Add a small delay to prevent rapid API calls
       
-      fetchPhotoUrl();
+      // Cleanup function to clear timeout if component unmounts or dependencies change
+      return () => clearTimeout(fetchTimeout);
     } else {
       console.log(`No existing photo URL provided`);
     }

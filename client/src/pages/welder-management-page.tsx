@@ -1173,11 +1173,12 @@ export default function WelderManagementPage() {
                               onPhotoUploadSuccess={(path) => {
                                 // When a photo is uploaded, update the form data
                                 // with the path so we can use it in form submission
+                                console.log("Photo upload success in Edit Welder, setting photoPath to:", path);
                                 editForm.setValue("photoPath", path);
                               }}
                               welderId={selectedWelder?.id}
                               welderCode={selectedWelder?.welderId} // Add the string format welderId (W-001)
-                              existingPhotoUrl={selectedWelder?.photoPath ? `/api/welder-photos/${selectedWelder.id}` : undefined}
+                              existingPhotoUrl={selectedWelder?.id ? `/api/welder-photos/${selectedWelder.id}` : undefined}
                             />
                           </FormControl>
                           <FormMessage />
