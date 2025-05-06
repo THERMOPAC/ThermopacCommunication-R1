@@ -10,6 +10,11 @@ import path from 'path';
 import os from 'os';
 import { promisify } from 'util';
 import fetch from 'node-fetch';
+import { 
+  uploadFileToGCS, 
+  downloadFileFromGCS, 
+  streamFileFromGCS 
+} from '../utils/gcs-operations';
 
 const router = express.Router();
 
