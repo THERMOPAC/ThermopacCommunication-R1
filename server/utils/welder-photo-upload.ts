@@ -85,19 +85,47 @@ export async function uploadWelderPhoto(
     const bucket = storage.bucket(bucketName);
     const file = bucket.file(gcsPath);
     
-    // Save with proper content type
+    try {
+      // First check if file exists and delete it to ensure replacing old one
+      console.log(`Checking if file already exists at path: ${gcsPath}`);
+      const [exists] = await file.exists();
+      
+      if (exists) {
+        console.log(`Existing file found at path: ${gcsPath} - deleting it before upload`);
+        await file.delete();
+        console.log(`Successfully deleted existing file at: ${gcsPath}`);
+      } else {
+        console.log(`No existing file found at: ${gcsPath}`);
+      }
+    } catch (deleteError) {
+      // Log but don't fail the operation if delete fails
+      console.error(`Error when trying to delete existing file: ${deleteError}`);
+      console.log(`Will attempt to overwrite file instead`);
+    }
+    
+    // Add a timestamp to metadata to force cache invalidation
+    const currentTimestamp = new Date().toISOString();
+    
+    // Save with proper content type and forced cache-busting metadata
     await file.save(buffer, {
       contentType: contentType,
+      resumable: false, // Use non-resumable upload for small files
       metadata: {
         contentType: contentType,
-        cacheControl: 'public, max-age=31536000', // Cache for 1 year
+        cacheControl: 'no-cache, no-store, must-revalidate', // Force cache invalidation
+        customTime: currentTimestamp,
+        timestamp: currentTimestamp
       },
     });
     
     // Generate a signed URL for immediate access
+    // Add a cache-busting query parameter to the URL
+    const timestamp = Date.now();
     const [signedUrl] = await file.getSignedUrl({
       action: 'read',
-      expires: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+      expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+      // Use a query string parameter to force cache busting
+      queryParams: { 'v': timestamp.toString() }
     });
     
     console.log('Welder photo uploaded successfully to GCS');
@@ -178,10 +206,12 @@ export async function getWelderPhotoUrl(filePath: string): Promise<string | null
       return null;
     }
     
-    // Generate a signed URL
+    // Generate a signed URL with cache-busting parameter
+    const timestamp = Date.now();
     const [signedUrl] = await file.getSignedUrl({
       action: 'read',
       expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+      queryParams: { 'v': timestamp.toString() }
     });
     
     console.log(`Successfully generated signed URL for ${filePath}`);
