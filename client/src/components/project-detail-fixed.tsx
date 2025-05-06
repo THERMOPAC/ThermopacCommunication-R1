@@ -726,7 +726,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   }
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto">
+    <div className="space-y-6 w-full">
       {/* Edit Item Dialog */}
       <Dialog 
         open={isEditItemOpen} 

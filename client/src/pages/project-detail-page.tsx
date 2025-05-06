@@ -41,7 +41,7 @@ export default function ProjectDetailPage({ id, params }: ProjectDetailPageProps
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="w-full py-6">
       <div className="mb-6 flex flex-wrap gap-2">
         <Button variant="outline" asChild>
           <Link href="/" className="flex items-center gap-2">
