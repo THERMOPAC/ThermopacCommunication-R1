@@ -20,6 +20,7 @@ export async function uploadWelderPhoto(
   filePath?: string;
   url?: string;
   error?: any;
+  actualPath?: string;  // Added for tracking the actual timestamped path
 }> {
   try {
     // Ensure we have a welder ID
@@ -76,35 +77,44 @@ export async function uploadWelderPhoto(
       contentType = contentTypeMap[originalExt] || 'image/jpeg';
     }
     
-    // Set the GCS path in the QMS/WELDERS/{Welder ID} directory
-    const gcsPath = `QMS/WELDERS/${welderCodeForPath}/${welderCodeForPath}.${originalExt}`;
+    // Add timestamp to filename to guarantee uniqueness and avoid caching issues
+    const timestamp = Date.now();
     
-    console.log(`Uploading welder photo to: ${gcsPath} with content type: ${contentType}`);
+    // First, try to clean up the welder's directory by listing and deleting existing files
+    const folderPrefix = `QMS/WELDERS/${welderCodeForPath}/`;
+    console.log(`Looking for existing files in folder: ${folderPrefix}`);
     
-    // Get a reference to the file in the bucket
-    const bucket = storage.bucket(bucketName);
-    const file = bucket.file(gcsPath);
-    
+    // First try to list and delete any existing photos
     try {
-      // First check if file exists and delete it to ensure replacing old one
-      console.log(`Checking if file already exists at path: ${gcsPath}`);
-      const [exists] = await file.exists();
+      const bucket = storage.bucket(bucketName);
+      const [files] = await bucket.getFiles({ prefix: folderPrefix });
       
-      if (exists) {
-        console.log(`Existing file found at path: ${gcsPath} - deleting it before upload`);
-        await file.delete();
-        console.log(`Successfully deleted existing file at: ${gcsPath}`);
-      } else {
-        console.log(`No existing file found at: ${gcsPath}`);
+      console.log(`Found ${files.length} existing files in welder directory`);
+      
+      // Delete all existing files for this welder
+      for (const existingFile of files) {
+        console.log(`Deleting existing file: ${existingFile.name}`);
+        try {
+          await existingFile.delete();
+          console.log(`Successfully deleted file: ${existingFile.name}`);
+        } catch (delError) {
+          console.error(`Error deleting file ${existingFile.name}:`, delError);
+        }
       }
-    } catch (deleteError) {
-      // Log but don't fail the operation if delete fails
-      console.error(`Error when trying to delete existing file: ${deleteError}`);
-      console.log(`Will attempt to overwrite file instead`);
+    } catch (listError) {
+      console.error(`Error listing existing welder photos:`, listError);
+      // Continue anyway, we'll try to upload the new file
     }
     
-    // Add a timestamp to metadata to force cache invalidation
-    const currentTimestamp = new Date().toISOString();
+    // Create a unique filename with timestamp to prevent caching
+    const uniqueFilename = `${welderCodeForPath}_${timestamp}.${originalExt}`;
+    const gcsPath = `${folderPrefix}${uniqueFilename}`;
+    
+    console.log(`Uploading welder photo to unique path: ${gcsPath}`);
+    
+    // Get a reference to the new file in the bucket
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(gcsPath);
     
     // Save with proper content type and forced cache-busting metadata
     await file.save(buffer, {
@@ -113,26 +123,27 @@ export async function uploadWelderPhoto(
       metadata: {
         contentType: contentType,
         cacheControl: 'no-cache, no-store, must-revalidate', // Force cache invalidation
-        customTime: currentTimestamp,
-        timestamp: currentTimestamp
+        timestamp: timestamp.toString()
       },
     });
     
-    // Generate a signed URL for immediate access
-    // Add a cache-busting query parameter to the URL
-    const timestamp = Date.now();
+    // Generate a signed URL for immediate access with cache-busting
     const [signedUrl] = await file.getSignedUrl({
       action: 'read',
       expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-      // Use a query string parameter to force cache busting
       queryParams: { 'v': timestamp.toString() }
     });
     
-    console.log('Welder photo uploaded successfully to GCS');
+    console.log('Welder photo uploaded successfully to GCS with unique path');
+    
+    // For database storage, use the standardized path format without timestamp
+    // This ensures consistent path references in the database
+    const dbPath = `QMS/WELDERS/${welderCodeForPath}/${welderCodeForPath}.${originalExt}`;
     
     return {
       success: true,
-      filePath: gcsPath,
+      filePath: dbPath,  // Store standardized path in database
+      actualPath: gcsPath, // The actual unique path with timestamp
       url: signedUrl
     };
   } catch (error) {
@@ -145,8 +156,10 @@ export async function uploadWelderPhoto(
 }
 
 /**
- * Generates a publicly accessible URL for a welder photo
- * @param filePath - The GCS file path
+ * Generates a publicly accessible URL for a welder photo.
+ * This function looks for the most recent photo in the welder's directory.
+ * 
+ * @param filePath - The GCS file path from database record
  * @returns The signed URL for the file
  */
 export async function getWelderPhotoUrl(filePath: string): Promise<string | null> {
@@ -164,58 +177,97 @@ export async function getWelderPhotoUrl(filePath: string): Promise<string | null
     
     const bucket = storage.bucket(bucketName);
     
-    // First try using the exact path provided
-    let file = bucket.file(filePath);
-    
-    // Check if file exists
-    let [exists] = await file.exists();
-    
-    // If not found and it's in the expected directory format
-    if (!exists && filePath.includes('/')) {
-      console.log(`File not found at exact path: ${filePath}, trying to find in directory`);
-      
-      // Extract the welderId and try different extensions
-      const pathParts = filePath.split('/');
-      if (pathParts.length >= 3) {
-        const welderId = pathParts[2]; // Assuming format QMS/WELDERS/{welderId}/...
-        
-        // Try common extensions: jpg, jpeg, png, pdf
-        const extensions = ['jpg', 'jpeg', 'png', 'pdf'];
-        for (const ext of extensions) {
-          const alternatePath = `QMS/WELDERS/${welderId}/${welderId}.${ext}`;
-          
-          if (alternatePath !== filePath) { // Skip if it's the same path we already tried
-            console.log(`Trying alternate path: ${alternatePath}`);
-            
-            file = bucket.file(alternatePath);
-            [exists] = await file.exists();
-            
-            if (exists) {
-              console.log(`Found file at alternate path: ${alternatePath}`);
-              // Update the file path in the database?
-              // This would require a DB call, possibly add this as a future enhancement
-              break;
-            }
-          }
-        }
-      }
-    }
-    
-    if (!exists) {
-      console.error(`Welder photo file ${filePath} does not exist in GCS after trying alternatives`);
+    // Extract the welder ID from the path
+    const pathParts = filePath.split('/');
+    if (pathParts.length < 3) {
+      console.error(`Invalid path format: ${filePath}`);
       return null;
     }
     
-    // Generate a signed URL with cache-busting parameter
-    const timestamp = Date.now();
-    const [signedUrl] = await file.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-      queryParams: { 'v': timestamp.toString() }
-    });
+    const welderId = pathParts[2]; // Get welder ID from path (e.g., "W-001")
+    const folderPrefix = `QMS/WELDERS/${welderId}/`;
     
-    console.log(`Successfully generated signed URL for ${filePath}`);
-    return signedUrl;
+    console.log(`Searching for most recent photo in folder: ${folderPrefix}`);
+    
+    try {
+      // List all files in this welder's directory
+      const [files] = await bucket.getFiles({ prefix: folderPrefix });
+      
+      if (files.length === 0) {
+        console.error(`No files found in directory: ${folderPrefix}`);
+        return null;
+      }
+      
+      console.log(`Found ${files.length} files in welder directory`);
+      
+      // Sort files by name to find the most recent one (has timestamp in name)
+      // Our naming convention: W-001_1234567890.jpg (oldest first)
+      files.sort((a, b) => b.name.localeCompare(a.name));
+      
+      // Get the most recent file
+      const latestFile = files[0];
+      console.log(`Using most recent file: ${latestFile.name}`);
+      
+      // Generate a signed URL with cache-busting parameter
+      const timestamp = Date.now();
+      const [signedUrl] = await latestFile.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+        queryParams: { 'v': timestamp.toString() }
+      });
+      
+      console.log(`Successfully generated signed URL for ${latestFile.name}`);
+      return signedUrl;
+      
+    } catch (listError) {
+      console.error(`Error listing files in directory ${folderPrefix}:`, listError);
+      
+      // Fall back to trying the exact path as before
+      console.log(`Falling back to exact path: ${filePath}`);
+      const file = bucket.file(filePath);
+      
+      // Check if file exists
+      const [exists] = await file.exists();
+      
+      if (!exists) {
+        // Try standard path with common extensions
+        const extensions = ['jpg', 'jpeg', 'png', 'pdf'];
+        let fileFound = false;
+        
+        for (const ext of extensions) {
+          const standardPath = `${folderPrefix}${welderId}.${ext}`;
+          console.log(`Trying standard path: ${standardPath}`);
+          
+          const standardFile = bucket.file(standardPath);
+          const [standardExists] = await standardFile.exists();
+          
+          if (standardExists) {
+            console.log(`Found file at standard path: ${standardPath}`);
+            const timestamp = Date.now();
+            const [signedUrl] = await standardFile.getSignedUrl({
+              action: 'read',
+              expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+              queryParams: { 'v': timestamp.toString() }
+            });
+            return signedUrl;
+          }
+        }
+        
+        console.error(`No files found for welder ${welderId}`);
+        return null;
+      }
+      
+      // Generate signed URL for the exact path
+      const timestamp = Date.now();
+      const [signedUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+        queryParams: { 'v': timestamp.toString() }
+      });
+      
+      console.log(`Successfully generated signed URL for exact path: ${filePath}`);
+      return signedUrl;
+    }
   } catch (error) {
     console.error('Error generating welder photo URL:', error);
     return null;
