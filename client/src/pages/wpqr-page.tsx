@@ -394,34 +394,36 @@ export default function WpqrPage() {
         ) : (
           <div className="w-full overflow-x-auto">
             <div className="rounded-md border min-w-full">
-              <table className="w-full">
+              <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-2 text-left font-medium text-xs w-[12%]">Document ID</th>
-                    <th className="p-2 text-left font-medium text-xs w-[14%]">Welding Process</th>
-                    <th className="p-2 text-left font-medium text-xs w-[14%]">Base Metal Grade</th>
-                    <th className="p-2 text-left font-medium text-xs w-[12%]">Joint Type</th>
-                    <th className="p-2 text-left font-medium text-xs w-[15%]">Certificate No</th>
-                    <th className="p-2 text-left font-medium text-xs w-[20%]">Inspection Authority</th>
-                    <th className="p-2 text-right font-medium text-xs w-[13%]">Actions</th>
+                    <th className="p-2 text-left font-medium text-xs w-[10%]">Document ID</th>
+                    <th className="p-2 text-left font-medium text-xs w-[15%]">Welding Process</th>
+                    <th className="p-2 text-left font-medium text-xs w-[13%]">Base Metal Grade</th>
+                    <th className="p-2 text-left font-medium text-xs w-[8%]">Joint Type</th>
+                    <th className="p-2 text-left font-medium text-xs w-[22%]">Certificate No</th>
+                    <th className="p-2 text-left font-medium text-xs w-[22%]">Inspection Authority</th>
+                    <th className="p-2 text-right font-medium text-xs w-[10%]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredDocuments.map((document) => (
                     <tr key={document.id} className="border-b">
                       <td className="p-2">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
+                        <div className="flex items-center gap-2 whitespace-nowrap overflow-hidden">
+                          <Badge variant="outline" className="text-xs shrink-0">
                             {document.documentId}
                           </Badge>
-                          <span className="text-xs font-medium">{document.title}</span>
+                          <span className="text-xs font-medium overflow-hidden text-ellipsis" title={document.title}>
+                            {document.title}
+                          </span>
                         </div>
                       </td>
-                      <td className="p-2 text-xs">{document.welderProcess}</td>
-                      <td className="p-2 text-xs">{document.baseMetalGrade}</td>
-                      <td className="p-2 text-xs">{document.jointType}</td>
-                      <td className="p-2 text-xs break-words">{document.certificateNo || "-"}</td>
-                      <td className="p-1 text-xs">{document.inspectionAuthority || "-"}</td>
+                      <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={document.welderProcess}>{document.welderProcess}</td>
+                      <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={document.baseMetalGrade}>{document.baseMetalGrade}</td>
+                      <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={document.jointType}>{document.jointType}</td>
+                      <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={document.certificateNo || "-"}>{document.certificateNo || "-"}</td>
+                      <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={document.inspectionAuthority || "-"}>{document.inspectionAuthority || "-"}</td>
                       <td className="p-1 text-right">
                         <div className="flex justify-end gap-0">
                           <Button
