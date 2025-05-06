@@ -71,18 +71,28 @@ export const initializeGCS = async (): Promise<{ storage: Storage | null, bucket
     if (gcsStorage) {
       gcsBucket = gcsStorage.bucket(bucketName);
       
-      // Verify bucket exists
+      // Try to verify bucket exists, but don't fail if we can't verify
+      // This allows us to still use the bucket even if we don't have 'storage.buckets.get' permission
       try {
         const [exists] = await gcsBucket.exists();
         if (exists) {
           console.log(`✅ Successfully verified bucket ${bucketName} exists`);
         } else {
-          console.error(`❌ Bucket ${bucketName} does not exist`);
-          gcsBucket = null;
+          console.log(`⚠️ Bucket ${bucketName} might not exist or we lack permission to verify - will try to use it anyway`);
+          // Don't set bucket to null - we'll attempt to use it anyway
         }
       } catch (error) {
-        console.error(`Error verifying bucket existence: ${error instanceof Error ? error.message : String(error)}`);
-        gcsBucket = null;
+        // Check if this is a permissions error
+        const errorMsg = String(error);
+        if (errorMsg.includes('Permission') || errorMsg.includes('storage.buckets.get')) {
+          console.log(`⚠️ No permission to verify bucket existence - this is often okay if the service account has object-level permissions`);
+          console.log(`⚠️ Will proceed with assuming bucket exists: ${bucketName}`);
+          // Continue anyway, as we may have object-level permissions without bucket-level permissions
+        } else {
+          console.error(`Error verifying bucket existence: ${error instanceof Error ? error.message : String(error)}`);
+          console.log(`⚠️ Will attempt to use bucket anyway: ${bucketName}`);
+          // Don't set bucket to null - we'll attempt to use it anyway
+        }
       }
     }
     
@@ -242,13 +252,23 @@ export const downloadFileFromGCS = async (
     // Get file reference
     const file = gcsBucket.file(normalizedPath);
     
-    // Check if file exists
-    const [exists] = await file.exists();
-    if (!exists) {
-      return {
-        success: false,
-        message: `File not found in GCS: ${normalizedPath}`
-      };
+    // Try to check if file exists, but be more forgiving with permissions
+    try {
+      const [exists] = await file.exists();
+      if (!exists) {
+        console.warn(`File not found in GCS: ${normalizedPath}`);
+        // But we'll still try downloading in case the file exists but we lack permissions to check
+      }
+    } catch (existsError) {
+      // Check if this is a permissions error
+      const errorMsg = String(existsError);
+      if (errorMsg.includes('Permission') || errorMsg.includes('storage.objects.get')) {
+        console.log(`⚠️ No permission to check if file exists - will try to download it anyway`);
+        // Continue anyway, as we may be able to download even without permission to check existence
+      } else {
+        console.warn(`Error checking if file exists: ${existsError instanceof Error ? existsError.message : String(existsError)}`);
+        // We'll still try to download it
+      }
     }
     
     // Create directory if it doesn't exist
@@ -321,14 +341,23 @@ export const streamFileFromGCS = async (
     // Get file reference
     const file = gcsBucket.file(normalizedPath);
     
-    // Check if file exists
-    const [exists] = await file.exists();
-    if (!exists) {
-      console.error(`File not found in GCS: ${normalizedPath}`);
-      if (!response.headersSent) {
-        response.status(404).send(`File not found in storage: ${normalizedPath}`);
+    // Try to check if file exists, but don't fail completely if we can't check
+    try {
+      const [exists] = await file.exists();
+      if (!exists) {
+        console.warn(`File not found in GCS: ${normalizedPath}`);
+        // We'll still try to stream it, in case the file exists but we don't have permission to check
       }
-      return false;
+    } catch (existsError) {
+      // Check if this is a permissions error
+      const errorMsg = String(existsError);
+      if (errorMsg.includes('Permission') || errorMsg.includes('storage.objects.get')) {
+        console.log(`⚠️ No permission to check if file exists - will try to stream it anyway`);
+        // Continue anyway, as we may be able to stream even without permission to check existence
+      } else {
+        console.warn(`Error checking if file exists: ${existsError instanceof Error ? existsError.message : String(existsError)}`);
+        // We'll still try to stream it
+      }
     }
     
     // Get file metadata (for content type if not specified)
@@ -422,13 +451,25 @@ export const deleteFileFromGCS = async (
     // Get file reference
     const file = gcsBucket.file(normalizedPath);
     
-    // Check if file exists
-    const [exists] = await file.exists();
-    if (!exists) {
-      return {
-        success: true,
-        message: `File not found in GCS: ${normalizedPath} (no deletion needed)`
-      };
+    // Try to check if file exists, but be more forgiving with permissions errors
+    try {
+      const [exists] = await file.exists();
+      if (!exists) {
+        return {
+          success: true,
+          message: `File not found in GCS: ${normalizedPath} (no deletion needed)`
+        };
+      }
+    } catch (existsError) {
+      // Check if this is a permissions error
+      const errorMsg = String(existsError);
+      if (errorMsg.includes('Permission') || errorMsg.includes('storage.objects.get')) {
+        console.log(`⚠️ No permission to check if file exists - will try to delete it anyway`);
+        // Continue anyway, as we may be able to delete even without permission to check existence
+      } else {
+        console.warn(`Error checking if file exists: ${existsError instanceof Error ? existsError.message : String(existsError)}`);
+        // We'll still try to delete it
+      }
     }
     
     // Delete the file
