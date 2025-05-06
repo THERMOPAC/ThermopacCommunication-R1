@@ -4,6 +4,7 @@ import { uploadWelderPhoto, getWelderPhotoUrl } from '../utils/welder-photo-uplo
 import { db } from '../db';
 import * as schema from '@shared/schema';
 import { eq } from 'drizzle-orm';
+import { Storage } from '@google-cloud/storage';
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
@@ -145,7 +146,7 @@ export function registerWelderPhotoRoutes(app: any) {
     }
   });
 
-  // Cache-busting temporary endpoint to force-upload a completely new photo with new path
+  // Special upload endpoint for emergency direct uploads - will be removed once permissions are fixed
   app.post('/api/force-upload/welder-photo', 
     ensureAuthenticated,
     upload.single('file'),
@@ -199,8 +200,10 @@ export function registerWelderPhotoRoutes(app: any) {
             return res.status(500).json({ error: 'GCS credentials not available' });
           }
           
+          // Using import { Storage } from '@google-cloud/storage' at the top
+          // This is a direct approach that bypasses bucket permissions check
           const gcsStorage = new Storage({
-            credentials,
+            credentials: credentials,
             projectId: credentials.project_id
           });
           
