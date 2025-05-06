@@ -181,13 +181,16 @@ export function registerWelderPhotoRoutes(app: any) {
         
         const { buffer, originalname, mimetype } = req.file;
         
-        // Generate a unique filename with timestamp
-        const timestamp = Date.now();
+        // Use consistent path for replacement instead of unique filenames
+        // This will ensure we always overwrite the existing file
         const fileExt = originalname.split('.').pop() || 'jpg';
-        const uniqueFilename = `${welderCode}_${timestamp}.${fileExt}`;
-        const uniquePath = `QMS/WELDERS/${welderCode}/${uniqueFilename}`;
+        const standardFilename = `${welderCode}.${fileExt}`;
+        const standardPath = `QMS/WELDERS/${welderCode}/${standardFilename}`;
         
-        console.log(`Uploading directly to GCS with path: ${uniquePath}`);
+        // Generate timestamp just for cache busting in URLs
+        const timestamp = Date.now();
+        
+        console.log(`Uploading directly to GCS with path: ${standardPath}`);
         
         try {
           // Initialize GCS directly
@@ -208,7 +211,7 @@ export function registerWelderPhotoRoutes(app: any) {
           });
           
           const bucket = gcsStorage.bucket(process.env.GCS_BUCKET_NAME || 'thermopac_storage');
-          const file = bucket.file(uniquePath);
+          const file = bucket.file(standardPath);
           
           const metadata = {
             contentType: mimetype,
@@ -238,7 +241,7 @@ export function registerWelderPhotoRoutes(app: any) {
               const welderIdNum = parseInt(welderId);
               if (!isNaN(welderIdNum)) {
                 const updateResult = await db.update(schema.welders)
-                  .set({ photoPath: uniquePath })
+                  .set({ photoPath: standardPath })
                   .where(eq(schema.welders.id, welderIdNum));
                 console.log('Updated database with new path:', updateResult);
               }
@@ -249,7 +252,7 @@ export function registerWelderPhotoRoutes(app: any) {
           
           return res.status(200).json({
             success: true,
-            path: uniquePath,
+            path: standardPath,
             url: signedUrl
           });
           
