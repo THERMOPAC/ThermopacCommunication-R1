@@ -312,33 +312,8 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
     // Flag to track if GCS upload was successful
     let gcsUploadSuccess = false;
     
-    // Make sure the local directory exists
-    let localSaveSuccess = false;
-    try {
-      await fs.promises.mkdir(LOCAL_WPQR_DIRECTORY, { recursive: true });
-      
-      // Save a local copy first (as a backup)
-      const localFilePath = path.join(LOCAL_WPQR_DIRECTORY, `${documentId}.pdf`);
-      await fs.promises.writeFile(localFilePath, fileBuffer);
-      console.log(`Successfully saved local copy to ${localFilePath}`);
-      localSaveSuccess = true;
-    } catch (localError: unknown) {
-      const errMsg = localError instanceof Error ? localError.message : String(localError);
-      console.error(`Failed to save local copy: ${errMsg}`);
-    }
-    
-    // Also save to local cache directory for additional backup
-    try {
-      const localCacheDir = path.join(process.cwd(), 'local_document_cache', 'wpqr');
-      await fs.promises.mkdir(localCacheDir, { recursive: true });
-      
-      const localCachePath = path.join(localCacheDir, `${documentId}.pdf`);
-      await fs.promises.writeFile(localCachePath, fileBuffer);
-      console.log(`Successfully saved cache copy to ${localCachePath}`);
-    } catch (cacheError: unknown) {
-      const errMsg = cacheError instanceof Error ? cacheError.message : String(cacheError);
-      console.error(`Failed to save cache copy: ${errMsg}`);
-    }
+    // No longer saving files locally as per requirements
+    // All uploads should go directly to Google Cloud Storage
     
     // Upload file to GCS
     try {
@@ -579,33 +554,8 @@ router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req:
       // Flag to track if GCS upload was successful
       let gcsUploadSuccess = false;
       
-      // Save to local file system first
-      let localSaveSuccess = false;
-      try {
-        await fs.promises.mkdir(LOCAL_WPQR_DIRECTORY, { recursive: true });
-        
-        // Save a local copy first (as a backup)
-        const localFilePath = path.join(LOCAL_WPQR_DIRECTORY, `${document.documentId}.pdf`);
-        await fs.promises.writeFile(localFilePath, fileBuffer);
-        console.log(`Successfully saved local copy to ${localFilePath}`);
-        localSaveSuccess = true;
-      } catch (localError: unknown) {
-        const errMsg = localError instanceof Error ? localError.message : String(localError);
-        console.error(`Failed to save local copy: ${errMsg}`);
-      }
-      
-      // Also save to local cache directory for additional backup
-      try {
-        const localCacheDir = path.join(process.cwd(), 'local_document_cache', 'wpqr');
-        await fs.promises.mkdir(localCacheDir, { recursive: true });
-        
-        const localCachePath = path.join(localCacheDir, `${document.documentId}.pdf`);
-        await fs.promises.writeFile(localCachePath, fileBuffer);
-        console.log(`Successfully saved cache copy to ${localCachePath}`);
-      } catch (cacheError: unknown) {
-        const errMsg = cacheError instanceof Error ? cacheError.message : String(cacheError);
-        console.error(`Failed to save cache copy: ${errMsg}`);
-      }
+      // No longer saving files locally as per requirements
+      // All uploads should go directly to Google Cloud Storage
       
       // Upload file to GCS
       try {
@@ -672,7 +622,7 @@ router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req:
         console.warn(`Proceeding with database update despite GCS upload failure`);
       }
       
-      console.log(`GCS upload successful: ${gcsUploadSuccess}, Local save successful: ${localSaveSuccess}`);
+      console.log(`GCS upload successful: ${gcsUploadSuccess}`);
       
       // Update file path and URL in the database
       updateData.filePath = filePath;
