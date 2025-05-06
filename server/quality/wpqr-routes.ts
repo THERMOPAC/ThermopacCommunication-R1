@@ -313,6 +313,7 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
     let gcsUploadSuccess = false;
     
     // Make sure the local directory exists
+    let localSaveSuccess = false;
     try {
       await fs.promises.mkdir(LOCAL_WPQR_DIRECTORY, { recursive: true });
       
@@ -320,9 +321,23 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
       const localFilePath = path.join(LOCAL_WPQR_DIRECTORY, `${documentId}.pdf`);
       await fs.promises.writeFile(localFilePath, fileBuffer);
       console.log(`Successfully saved local copy to ${localFilePath}`);
+      localSaveSuccess = true;
     } catch (localError: unknown) {
       const errMsg = localError instanceof Error ? localError.message : String(localError);
       console.error(`Failed to save local copy: ${errMsg}`);
+    }
+    
+    // Also save to local cache directory for additional backup
+    try {
+      const localCacheDir = path.join(process.cwd(), 'local_document_cache', 'wpqr');
+      await fs.promises.mkdir(localCacheDir, { recursive: true });
+      
+      const localCachePath = path.join(localCacheDir, `${documentId}.pdf`);
+      await fs.promises.writeFile(localCachePath, fileBuffer);
+      console.log(`Successfully saved cache copy to ${localCachePath}`);
+    } catch (cacheError: unknown) {
+      const errMsg = cacheError instanceof Error ? cacheError.message : String(cacheError);
+      console.error(`Failed to save cache copy: ${errMsg}`);
     }
     
     // Upload file to GCS
@@ -457,7 +472,7 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
 });
 
 // Update a WPQR document
-router.patch('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const documentId = parseInt(id);
@@ -549,8 +564,120 @@ router.patch('/:id', ensureAuthenticated, async (req: Request, res: Response) =>
       updatedAt: new Date()
     };
     
-    // Note: File uploads are not handled in the PATCH endpoint
-    // The Edit form doesn't include file upload functionality
+    // Handle file uploads if a new file was uploaded
+    if (req.file) {
+      console.log(`File uploaded in PATCH request. Processing file for WPQR document: ${document.documentId}`);
+      
+      // Use the existing document ID for the file name
+      const filePath = `/QMS/WPQR/${document.documentId}.pdf`;
+      const fileBuffer = req.file.buffer;
+      const fileType = req.file.mimetype;
+      
+      // Keep the existing URL format
+      const fileUrl = `https://storage.googleapis.com/${bucketName}${filePath}`;
+      
+      // Flag to track if GCS upload was successful
+      let gcsUploadSuccess = false;
+      
+      // Save to local file system first
+      let localSaveSuccess = false;
+      try {
+        await fs.promises.mkdir(LOCAL_WPQR_DIRECTORY, { recursive: true });
+        
+        // Save a local copy first (as a backup)
+        const localFilePath = path.join(LOCAL_WPQR_DIRECTORY, `${document.documentId}.pdf`);
+        await fs.promises.writeFile(localFilePath, fileBuffer);
+        console.log(`Successfully saved local copy to ${localFilePath}`);
+        localSaveSuccess = true;
+      } catch (localError: unknown) {
+        const errMsg = localError instanceof Error ? localError.message : String(localError);
+        console.error(`Failed to save local copy: ${errMsg}`);
+      }
+      
+      // Also save to local cache directory for additional backup
+      try {
+        const localCacheDir = path.join(process.cwd(), 'local_document_cache', 'wpqr');
+        await fs.promises.mkdir(localCacheDir, { recursive: true });
+        
+        const localCachePath = path.join(localCacheDir, `${document.documentId}.pdf`);
+        await fs.promises.writeFile(localCachePath, fileBuffer);
+        console.log(`Successfully saved cache copy to ${localCachePath}`);
+      } catch (cacheError: unknown) {
+        const errMsg = cacheError instanceof Error ? cacheError.message : String(cacheError);
+        console.error(`Failed to save cache copy: ${errMsg}`);
+      }
+      
+      // Upload file to GCS
+      try {
+        console.log(`Attempting to upload file to GCS bucket: ${bucketName}, path: ${filePath.slice(1)}`);
+        
+        if (!gcsClient) {
+          console.error("GCS client is not initialized - using fallback mechanism");
+        } else {
+          const bucket = gcsClient.bucket(bucketName);
+          const file = bucket.file(filePath.slice(1)); // Remove leading slash
+          
+          // Try different upload methods
+          try {
+            // Method 1: Non-resumable upload
+            console.log("Trying non-resumable upload method");
+            await file.save(fileBuffer, {
+              metadata: {
+                contentType: fileType
+              },
+              resumable: false // Disable resumable uploads to avoid issues with token expiration
+            });
+            gcsUploadSuccess = true;
+            console.log(`File uploaded successfully to ${filePath} using non-resumable upload`);
+          } catch (method1Error) {
+            console.error("Non-resumable upload failed:", method1Error);
+            
+            // If method 1 fails, try method 2
+            try {
+              console.log("Trying alternative upload method");
+              // Create a write stream for the file
+              const stream = file.createWriteStream({
+                metadata: {
+                  contentType: fileType
+                },
+                resumable: false
+              });
+              
+              // Return a promise that resolves when the upload is complete
+              await new Promise<void>((resolve, reject) => {
+                stream.on('error', (err) => {
+                  console.error("Stream error:", err);
+                  reject(err);
+                });
+                
+                stream.on('finish', () => {
+                  console.log("Stream finished successfully");
+                  resolve();
+                });
+                
+                // Push the file buffer to the stream and end it
+                stream.end(fileBuffer);
+              });
+              
+              gcsUploadSuccess = true;
+              console.log(`File uploaded successfully to ${filePath} using stream method`);
+            } catch (method2Error) {
+              console.error("Alternative upload method failed:", method2Error);
+              // Continue with database update regardless
+            }
+          }
+        }
+      } catch (error: unknown) {
+        console.error('All GCS upload methods failed:', error);
+        console.warn(`Proceeding with database update despite GCS upload failure`);
+      }
+      
+      console.log(`GCS upload successful: ${gcsUploadSuccess}, Local save successful: ${localSaveSuccess}`);
+      
+      // Update file path and URL in the database
+      updateData.filePath = filePath;
+      updateData.fileUrl = fileUrl;
+    }
     
     // Update the document in the database
     const updatedDocuments = await db.update(wpqrDocuments)
