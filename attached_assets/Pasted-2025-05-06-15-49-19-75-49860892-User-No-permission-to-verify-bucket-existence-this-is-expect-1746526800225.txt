@@ -1,0 +1,72 @@
+2025-05-06 15:49:19.75
+49860892
+User
+⚠️ No permission to verify bucket existence - this is expected with object-level permissions
+2025-05-06 15:49:19.75
+49860892
+User
+ℹ️ Will proceed with assuming bucket exists and attempt operations with object-level permissions
+2025-05-06 15:49:19.75
+49860892
+User
+Using verified bucket reference for upload
+2025-05-06 15:49:19.75
+49860892
+User
+Attempting non-resumable upload to QMS/WPQR/WPQR-3.pdf
+2025-05-06 15:49:21.93
+49860892
+User
+Attempting stream-based upload to QMS/WPQR/WPQR-3.pdf
+2025-05-06 15:49:21.93
+49860892
+User
+First upload method failed: replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.objects.create access to the Google Cloud Storage object. Permission 'storage.objects.create' denied on resource (or it may not exist).
+2025-05-06 15:49:24.07
+49860892
+User
+Stream upload error: replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.objects.create access to the Google Cloud Storage object. Permission 'storage.objects.create' denied on resource (or it may not exist).
+2025-05-06 15:49:24.07
+49860892
+User
+All upload methods failed: replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.objects.create access to the Google Cloud Storage object. Permission 'storage.objects.create' denied on resource (or it may not exist).
+2025-05-06 15:49:24.07
+49860892
+User
+GCS upload failed: Failed to upload file: Permission denied: The service account does not have the 'Storage Object Creator' role. Please update the service account permissions in Google Cloud Console.
+2025-05-06 15:49:24.07
+49860892
+User
+Error updating WPQR document: Error: Google Cloud Storage upload failed: Failed to upload file: Permission denied: The service account does not have the 'Storage Object Creator' role. Please update the service account permissions in Google Cloud Console.
+2025-05-06 15:49:24.07
+49860892
+User
+at file:///home/runner/workspace/dist/index.js:15654:15
+2025-05-06 15:49:24.07
+49860892
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-05-06 15:49:24.07
+49860892
+User
+Error type: Error
+2025-05-06 15:49:24.07
+49860892
+User
+Error message: Google Cloud Storage upload failed: Failed to upload file: Permission denied: The service account does not have the 'Storage Object Creator' role. Please update the service account permissions in Google Cloud Console.
+2025-05-06 15:49:24.07
+49860892
+User
+Error stack: Error: Google Cloud Storage upload failed: Failed to upload file: Permission denied: The service account does not have the 'Storage Object Creator' role. Please update the service account permissions in Google Cloud Console.
+2025-05-06 15:49:24.07
+49860892
+User
+at file:///home/runner/workspace/dist/index.js:15654:15
+2025-05-06 15:49:24.07
+49860892
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-05-06 15:49:24.10
+49860892
+User
+10:19:24 AM [express] PATCH /api/quality/wpqr/3 500 in 5041ms :: {"error":"Failed to update WPQR docu…

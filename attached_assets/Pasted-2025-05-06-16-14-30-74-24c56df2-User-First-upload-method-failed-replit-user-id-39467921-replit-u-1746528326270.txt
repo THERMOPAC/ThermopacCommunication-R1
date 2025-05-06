@@ -1,0 +1,56 @@
+2025-05-06 16:14:30.74
+24c56df2
+User
+First upload method failed: replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.objects.delete access to the Google Cloud Storage object.
+2025-05-06 16:14:30.74
+24c56df2
+User
+Attempting stream-based upload to QMS/WPQR/WPQR-3.pdf
+2025-05-06 16:14:32.91
+24c56df2
+User
+Stream upload error: replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.objects.delete access to the Google Cloud Storage object.
+2025-05-06 16:14:32.91
+24c56df2
+User
+All upload methods failed: replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.objects.delete access to the Google Cloud Storage object.
+2025-05-06 16:14:32.91
+24c56df2
+User
+GCS upload failed: Failed to upload file: replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.objects.delete access to the Google Cloud Storage object.
+2025-05-06 16:14:32.91
+24c56df2
+User
+Error updating WPQR document: Error: Google Cloud Storage upload failed: Failed to upload file: replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.objects.delete access to the Google Cloud Storage object.
+2025-05-06 16:14:32.91
+24c56df2
+User
+at file:///home/runner/workspace/dist/index.js:15654:15
+2025-05-06 16:14:32.91
+24c56df2
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-05-06 16:14:32.91
+24c56df2
+User
+Error type: Error
+2025-05-06 16:14:32.91
+24c56df2
+User
+Error message: Google Cloud Storage upload failed: Failed to upload file: replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.objects.delete access to the Google Cloud Storage object.
+2025-05-06 16:14:32.91
+24c56df2
+User
+Error stack: Error: Google Cloud Storage upload failed: Failed to upload file: replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.objects.delete access to the Google Cloud Storage object.
+2025-05-06 16:14:32.91
+24c56df2
+User
+at file:///home/runner/workspace/dist/index.js:15654:15
+2025-05-06 16:14:32.91
+24c56df2
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-05-06 16:14:32.94
+24c56df2
+User
+10:44:32 AM [express] PATCH /api/quality/wpqr/3 500 in 8365ms :: {"error":"Failed to update WPQR docu…
