@@ -761,7 +761,9 @@ router.get('/download/:id', async (req: Request, res: Response) => {
     
     // Set appropriate headers
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="WPQR-${docId}.pdf"`);
+    // Remove redundant "WPQR-" prefix if docId already contains it
+    const cleanDocId = docId.startsWith('WPQR-') ? docId : `WPQR-${docId}`;
+    res.setHeader('Content-Disposition', `attachment; filename="${cleanDocId}.pdf"`);
     
     // Create directory for storing temporary files
     const tmpDir = path.join(os.tmpdir(), 'wpqr-downloads');
@@ -807,15 +809,35 @@ router.get('/download/:id', async (req: Request, res: Response) => {
       
       // APPROACH 1: Check local document directory first
       try {
-        // Check if a local copy exists in our local documents directory
-        const localFilePath = path.join(LOCAL_WPQR_DIRECTORY, `WPQR-${docId}.pdf`);
+        // Check if a local copy exists in our local documents directory using both naming conventions:
+        // 1. WPQR-9.pdf (original format)
+        // 2. WPQR-WPQR-9.pdf (with redundant prefix)
+        const localFilePathOriginal = docId.startsWith('WPQR-') 
+          ? path.join(LOCAL_WPQR_DIRECTORY, `${docId}.pdf`) 
+          : path.join(LOCAL_WPQR_DIRECTORY, `WPQR-${docId}.pdf`);
+          
+        const localFilePathRedundant = docId.startsWith('WPQR-') 
+          ? path.join(LOCAL_WPQR_DIRECTORY, `WPQR-${docId}.pdf`) 
+          : path.join(LOCAL_WPQR_DIRECTORY, `WPQR-WPQR-${docId}.pdf`);
         
-        console.log(`Checking for local file: ${localFilePath}`);
+        // First try the original format
+        let localFilePath = localFilePathOriginal;
         
-        // Check if the file exists in the local file system
-        const localFileExists = await fs.promises.access(localFilePath)
+        console.log(`Checking for local file (original format): ${localFilePath}`);
+        
+        // Check if the file exists in the local file system using original format
+        let localFileExists = await fs.promises.access(localFilePath)
           .then(() => true)
           .catch(() => false);
+        
+        // If not found, try the redundant format
+        if (!localFileExists) {
+          localFilePath = localFilePathRedundant;
+          console.log(`First format not found. Checking redundant format: ${localFilePath}`);
+          localFileExists = await fs.promises.access(localFilePath)
+            .then(() => true)
+            .catch(() => false);
+        }
         
         if (localFileExists) {
           // Get file stats to check size
@@ -840,7 +862,7 @@ router.get('/download/:id', async (req: Request, res: Response) => {
             console.error('Local file exists but is empty');
           }
         } else {
-          console.log('Local file does not exist');
+          console.log('Local file does not exist in either format');
         }
       } catch (localError: unknown) {
         const errMsg = localError instanceof Error ? localError.message : String(localError);
