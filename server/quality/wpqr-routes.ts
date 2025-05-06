@@ -750,8 +750,18 @@ router.get('/download/:id', async (req: Request, res: Response) => {
         // Set the appropriate content type
         const contentType = 'application/pdf';
         
+        // Create a clean document filename
+        // Remove redundant "WPQR-" prefix if docId already contains it
+        const cleanDocId = docId.startsWith('WPQR-') ? docId : `WPQR-${docId}`;
+        const downloadFilename = `${cleanDocId}.pdf`;
+        
         // Use our GCS utility to stream the file directly
-        const streamSuccess = await streamFileFromGCS(filePath, res, contentType);
+        const streamSuccess = await streamFileFromGCS(
+          filePath,
+          res,
+          contentType,
+          downloadFilename
+        );
         
         if (streamSuccess) {
           console.log(`Successfully started streaming file from GCS: ${filePath}`);

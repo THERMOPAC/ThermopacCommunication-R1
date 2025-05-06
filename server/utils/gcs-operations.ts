@@ -291,14 +291,19 @@ export const downloadFileFromGCS = async (
  * 
  * @param gcsPath Path to file in GCS (without leading slash)
  * @param response Express Response object to stream to
+ * @param contentType MIME type of the file
+ * @param downloadFilename Optional filename to suggest for download
  * @returns True if streaming started successfully, false otherwise
  */
 export const streamFileFromGCS = async (
   gcsPath: string,
-  response: any,
-  contentType: string = 'application/octet-stream'
+  response: any, // Use any for Express.Response to avoid TypeScript limitations with pipe()
+  contentType: string = 'application/octet-stream',
+  downloadFilename?: string
 ): Promise<boolean> => {
   try {
+    console.log(`Streaming file from GCS: ${gcsPath}`);
+    
     // Initialize if not already done
     if (!gcsStorage || !gcsBucket) {
       const { storage, bucket } = await initializeGCS();
@@ -320,11 +325,36 @@ export const streamFileFromGCS = async (
     const [exists] = await file.exists();
     if (!exists) {
       console.error(`File not found in GCS: ${normalizedPath}`);
+      if (!response.headersSent) {
+        response.status(404).send(`File not found in storage: ${normalizedPath}`);
+      }
       return false;
+    }
+    
+    // Get file metadata (for content type if not specified)
+    try {
+      const [metadata] = await file.getMetadata();
+      console.log(`File metadata: ${JSON.stringify(metadata.contentType || 'No content type in metadata')}`);
+      
+      // Use the content type from metadata if not explicitly specified
+      if (contentType === 'application/octet-stream' && metadata.contentType) {
+        contentType = metadata.contentType;
+        console.log(`Using content type from metadata: ${contentType}`);
+      }
+    } catch (metadataError) {
+      console.warn(`Could not retrieve file metadata: ${metadataError instanceof Error ? metadataError.message : String(metadataError)}`);
+      // Continue with the provided content type
     }
     
     // Set appropriate headers
     response.setHeader('Content-Type', contentType);
+    
+    // If download filename is provided, set Content-Disposition
+    if (downloadFilename) {
+      // Ensure filename is properly encoded for HTTP headers
+      const encodedFilename = encodeURIComponent(downloadFilename);
+      response.setHeader('Content-Disposition', `attachment; filename="${encodedFilename}"`);
+    }
     
     // Create read stream and pipe to response
     const readStream = file.createReadStream();
@@ -337,12 +367,17 @@ export const streamFileFromGCS = async (
       }
     });
     
-    // Pipe to response
-    readStream.pipe(response);
+    // Pipe to response (with type assertion to handle the Express.Response object)
+    // This is safe because Express.Response implements the necessary WritableStream interface
+    readStream.pipe(response as any);
+    console.log(`Successfully started streaming file: ${normalizedPath}`);
     
     return true;
   } catch (error) {
     console.error(`Error setting up GCS file stream: ${error instanceof Error ? error.message : String(error)}`);
+    if (!response.headersSent) {
+      response.status(500).send(`Error streaming file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
     return false;
   }
 };
