@@ -358,5 +358,73 @@ initializeGCS().then(({ storage, bucket }) => {
   console.error('Error during GCS utility initialization:', err);
 });
 
+/**
+ * Delete a file from Google Cloud Storage
+ * 
+ * @param gcsPath Path to file in GCS (without leading slash)
+ * @returns Object with success flag and result information
+ */
+export const deleteFileFromGCS = async (
+  gcsPath: string
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    // Initialize if not already done
+    if (!gcsStorage || !gcsBucket) {
+      const { storage, bucket } = await initializeGCS();
+      if (!storage || !bucket) {
+        return { 
+          success: false, 
+          message: 'Failed to initialize Google Cloud Storage' 
+        };
+      }
+      gcsStorage = storage;
+      gcsBucket = bucket;
+    }
+    
+    // Normalize filepath (remove leading slash if present)
+    const normalizedPath = gcsPath.startsWith('/') ? gcsPath.slice(1) : gcsPath;
+    
+    // Get file reference
+    const file = gcsBucket.file(normalizedPath);
+    
+    // Check if file exists
+    const [exists] = await file.exists();
+    if (!exists) {
+      return {
+        success: true,
+        message: `File not found in GCS: ${normalizedPath} (no deletion needed)`
+      };
+    }
+    
+    // Delete the file
+    await file.delete({ ignoreNotFound: true });
+    
+    return {
+      success: true,
+      message: 'File deleted successfully'
+    };
+  } catch (error) {
+    console.error(`Error deleting file from GCS: ${error instanceof Error ? error.message : String(error)}`);
+    
+    // Extract the specific error message
+    let errorMessage = 'Unknown delete error';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      
+      // Check for common permission errors
+      if (errorMessage.includes('storage.objects.delete')) {
+        errorMessage = `Permission denied: The service account does not have the 'Storage Object Admin' role required for deletion. Please update the service account permissions in Google Cloud Console.`;
+      } else if (errorMessage.includes('403')) {
+        errorMessage = `Forbidden: The service account doesn't have permission to delete files from bucket '${gcsBucket?.name || bucketName}'.`;
+      }
+    }
+    
+    return {
+      success: false,
+      message: `Failed to delete file: ${errorMessage}`
+    };
+  }
+};
+
 // Export the storage and bucket instance
 export { gcsStorage, gcsBucket };

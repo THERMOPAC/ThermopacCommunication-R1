@@ -13,7 +13,8 @@ import fetch from 'node-fetch';
 import { 
   uploadFileToGCS, 
   downloadFileFromGCS, 
-  streamFileFromGCS 
+  streamFileFromGCS,
+  deleteFileFromGCS
 } from '../utils/gcs-operations';
 
 const router = express.Router();
@@ -491,9 +492,6 @@ router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req:
       const fileBuffer = req.file.buffer;
       const fileType = req.file.mimetype;
       
-      // Keep the existing URL format
-      const fileUrl = `https://storage.googleapis.com/${bucketName}${filePath}`;
-      
       // Flag to track if GCS upload was successful
       let gcsUploadSuccess = false;
       
@@ -513,16 +511,13 @@ router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req:
       console.log('GCS upload successful:', uploadResult.message);
       gcsUploadSuccess = true;
       
-      // Update the fileUrl with the one returned from the upload function if available
-      if (uploadResult.url) {
-        updateData.fileUrl = uploadResult.url;
-      }
-      
-      console.log(`GCS upload successful: ${gcsUploadSuccess}`);
-      
       // Update file path and URL in the database
       updateData.filePath = filePath;
-      updateData.fileUrl = fileUrl;
+      
+      // Get the file URL from the upload result or generate it
+      updateData.fileUrl = uploadResult.url || `https://storage.googleapis.com/${bucketName}${filePath}`;
+      
+      console.log(`GCS upload successful: ${gcsUploadSuccess}, URL: ${updateData.fileUrl}`);
     }
     
     // Update the document in the database
@@ -590,62 +585,23 @@ router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) =
     
     // Delete the file from GCS if it exists
     if (document.filePath) {
-      let fileDeleteSuccess = false;
+      console.log(`Attempting to delete file from GCS: ${document.filePath}`);
       
       try {
-        console.log(`Attempting to delete file from GCS: ${document.filePath}`);
+        // Use our GCS utility to delete the file
+        const deleteResult = await deleteFileFromGCS(document.filePath);
         
-        if (!gcsClient) {
-          // Still allow deletion of database record even if GCS client isn't initialized
-          console.error("GCS client is not initialized - skipping file deletion");
-          // For deletion we don't want to block the operation if GCS is unavailable
-          fileDeleteSuccess = true;
+        if (deleteResult.success) {
+          console.log(`File deletion successful: ${deleteResult.message}`);
         } else {
-          // Try multiple approaches to delete the file
-          const bucket = gcsClient.bucket(bucketName);
-          const file = bucket.file(document.filePath.slice(1)); // Remove leading slash
-          
-          // Method 1: Standard delete
-          try {
-            console.log("Attempting standard file delete method");
-            await file.delete();
-            fileDeleteSuccess = true;
-            console.log(`Successfully deleted file: ${document.filePath}`);
-          } catch (method1Error) {
-            console.error("Standard delete method failed:", method1Error);
-            
-            // Try alternative approach if first method fails
-            try {
-              console.log("Trying alternative delete method");
-              // Check if file exists first
-              const [exists] = await file.exists();
-              
-              if (!exists) {
-                console.log("File doesn't exist in storage, no need to delete");
-                fileDeleteSuccess = true;
-              } else {
-                // Try an alternate delete approach (with force option)
-                await bucket.file(document.filePath.slice(1)).delete({ ignoreNotFound: true });
-                fileDeleteSuccess = true;
-                console.log(`Successfully deleted file using alternate method: ${document.filePath}`);
-              }
-            } catch (method2Error) {
-              console.error("Alternative delete method failed:", method2Error);
-              // For deletion, we still allow the operation to continue even if file deletion fails
-              // This prevents database records from being orphaned if GCS has issues
-              fileDeleteSuccess = true;
-            }
-          }
+          // We'll still continue with database record deletion even if file deletion fails
+          // This prevents database records from being orphaned if GCS has issues
+          console.warn(`Warning: ${deleteResult.message} - continuing with document deletion anyway`);
         }
       } catch (fileError) {
-        console.warn(`Warning: Could not delete file ${document.filePath} from GCS:`, fileError);
-        // For deletion, we still allow the database record to be deleted even if file removal fails
-        // This prevents database records from being orphaned if GCS has issues
-        fileDeleteSuccess = true;
-      }
-      
-      if (!fileDeleteSuccess) {
-        console.warn(`Failed to delete file ${document.filePath} from storage, but continuing with document deletion`);
+        // Log the error but continue with database record deletion
+        console.warn(`Unexpected error during file deletion: ${fileError instanceof Error ? fileError.message : String(fileError)}`);
+        console.warn(`Continuing with document deletion despite file deletion failure`);
       }
     }
     
@@ -787,7 +743,29 @@ router.get('/download/:id', async (req: Request, res: Response) => {
         `Additional Details:\n` + 
         `Bucket Name: ${bucketName}\n`;
       
-      // APPROACH 1: Check local document directory first
+      // APPROACH 1: Use our GCS utility to directly stream from GCS
+      try {
+        console.log(`Attempting to stream file directly from GCS: ${filePath}`);
+        
+        // Set the appropriate content type
+        const contentType = 'application/pdf';
+        
+        // Use our GCS utility to stream the file directly
+        const streamSuccess = await streamFileFromGCS(filePath, res, contentType);
+        
+        if (streamSuccess) {
+          console.log(`Successfully started streaming file from GCS: ${filePath}`);
+          // Return to end the request handling here since streaming has begun
+          return;
+        } else {
+          console.error(`Failed to stream file from GCS: ${filePath}`);
+        }
+      } catch (gcsStreamError) {
+        console.error(`Error streaming from GCS: ${gcsStreamError instanceof Error ? gcsStreamError.message : String(gcsStreamError)}`);
+        // Continue to backup approaches
+      }
+      
+      // APPROACH 2: Check local document directory as backup
       try {
         // Check if a local copy exists in our local documents directory using both naming conventions:
         // 1. WPQR-9.pdf (original format)
