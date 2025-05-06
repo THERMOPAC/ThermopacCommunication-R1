@@ -705,11 +705,32 @@ router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) =
 });
 
 // Special route for downloading WPQR documents with maximal robustness
-router.get('/:id/download', async (req: Request, res: Response) => {
+router.get('/download/:id', async (req: Request, res: Response) => {
   // Skip authentication for download to eliminate one possible source of errors
   try {
     const { id } = req.params;
     const documentId = parseInt(id);
+    
+    console.log(`======== WPQR DOWNLOAD START ========`);
+    console.log(`Download requested for WPQR ID: ${id}`);
+    console.log(`Current working directory: ${process.cwd()}`);
+    console.log(`Local WPQR directory: ${LOCAL_WPQR_DIRECTORY}`);
+    
+    // Create local directory if it doesn't exist
+    try {
+      await fs.promises.mkdir(LOCAL_WPQR_DIRECTORY, { recursive: true });
+      console.log(`Ensured local WPQR directory exists: ${LOCAL_WPQR_DIRECTORY}`);
+    } catch (mkdirError) {
+      console.error(`Failed to create local WPQR directory: ${mkdirError}`);
+    }
+    
+    // List files in the local WPQR directory for debugging
+    try {
+      const files = await fs.promises.readdir(LOCAL_WPQR_DIRECTORY);
+      console.log(`Files in local WPQR directory: ${files.join(', ') || 'none'}`);
+    } catch (readdirError) {
+      console.error(`Failed to read local WPQR directory: ${readdirError}`);
+    }
     
     if (isNaN(documentId)) {
       return res.status(400).json({ error: 'Invalid document ID' });
@@ -723,7 +744,6 @@ router.get('/:id/download', async (req: Request, res: Response) => {
       .limit(1);
     
     console.log(`Database query result: ${JSON.stringify(document)}`);
-    
     
     if (!document.length) {
       return res.status(404).json({ error: 'Document not found' });
