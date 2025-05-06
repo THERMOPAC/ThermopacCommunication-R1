@@ -4,6 +4,9 @@ import path from 'path';
 import os from 'os';
 import { gcsCredentials, gcsBucketName } from './gcs-config';
 
+// Define the GCS bucket name
+const bucketName = process.env.GCS_BUCKET_NAME || gcsBucketName || 'thermopac_storage';
+
 // Initialize GCS client
 let gcsStorage: Storage | null = null;
 let gcsBucket: Bucket | null = null;
@@ -188,6 +191,9 @@ export const uploadFileToGCS = async (
     }
     
     // Generate public URL for the file
+    if (!gcsBucket) {
+      throw new Error('GCS bucket is not initialized');
+    }
     const publicUrl = `https://storage.googleapis.com/${gcsBucket.name}/${normalizedPath}`;
     
     return {
@@ -269,7 +275,7 @@ export const downloadFileFromGCS = async (
       if (errorMessage.includes('storage.objects.get')) {
         errorMessage = `Permission denied: The service account does not have the 'Storage Object Viewer' role. Please update the service account permissions in Google Cloud Console.`;
       } else if (errorMessage.includes('403')) {
-        errorMessage = `Forbidden: The service account doesn't have permission to download files from bucket '${gcsBucket.name}'.`;
+        errorMessage = `Forbidden: The service account doesn't have permission to download files from bucket '${gcsBucket?.name || bucketName}'.`;
       }
     }
     

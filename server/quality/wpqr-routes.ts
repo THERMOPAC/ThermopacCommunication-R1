@@ -311,94 +311,27 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
     const fileBuffer = req.file.buffer;
     const fileType = req.file.mimetype;
     
-    // Generate the file URL format first (we'll need this regardless of upload success)
-    const fileUrl = `https://storage.googleapis.com/${bucketName}${filePath}`;
-    
     // Flag to track if GCS upload was successful
     let gcsUploadSuccess = false;
     
     // No longer saving files locally as per requirements
     // All uploads should go directly to Google Cloud Storage
     
-    // Upload file to GCS
-    try {
-      console.log(`Attempting to upload file to GCS bucket: ${bucketName}, path: ${filePath.slice(1)}`);
-      
-      if (!gcsClient) {
-        throw new Error("GCS client is not initialized - cannot upload file to Google Cloud Storage");
-      }
-      
-      const bucket = gcsClient.bucket(bucketName);
-      const file = bucket.file(filePath.slice(1)); // Remove leading slash
-      
-      // Try different upload methods
-      try {
-        // Method 1: Non-resumable upload
-        console.log("Trying non-resumable upload method");
-        await file.save(fileBuffer, {
-          metadata: {
-            contentType: fileType
-          },
-          resumable: false // Disable resumable uploads to avoid issues with token expiration
-        });
-        gcsUploadSuccess = true;
-        console.log(`File uploaded successfully to ${filePath} using non-resumable upload`);
-      } catch (method1Error) {
-        console.error("Non-resumable upload failed:", method1Error);
-        
-        // If method 1 fails, try method 2
-        try {
-          console.log("Trying alternative upload method");
-          // Create a write stream for the file
-          const stream = file.createWriteStream({
-            metadata: {
-              contentType: fileType
-            },
-            resumable: false
-          });
-          
-          // Return a promise that resolves when the upload is complete
-          await new Promise<void>((resolve, reject) => {
-            stream.on('error', (err) => {
-              console.error("Stream error:", err);
-              reject(err);
-            });
-            
-            stream.on('finish', () => {
-              console.log("Stream finished successfully");
-              resolve();
-            });
-            
-            // Push the file buffer to the stream and end it
-            stream.end(fileBuffer);
-          });
-          
-          gcsUploadSuccess = true;
-          console.log(`File uploaded successfully to ${filePath} using stream method`);
-        } catch (method2Error) {
-          console.error("Alternative upload method failed:", method2Error);
-          throw method2Error; // Re-throw to be caught by outer try-catch
-        }
-      }
-      
-      // If we reach here and gcsUploadSuccess is still false, something went wrong
-      if (!gcsUploadSuccess) {
-        throw new Error("Failed to upload file to Google Cloud Storage after trying all methods");
-      }
-    } catch (error: unknown) {
-      console.error('All GCS upload methods failed:', error);
-      
-      let errorMessage = 'Unknown error during upload';
-      if (error instanceof Error) {
-        console.error('Error details:', error.stack);
-        errorMessage = error.message;
-      } else {
-        console.error('Error details: Not an Error instance');
-      }
-      
-      // Do not proceed with database entry creation if GCS upload fails
-      throw new Error(`Google Cloud Storage upload failed: ${errorMessage}. Please ensure GCS credentials have proper permissions.`);
+    // Upload file to GCS using our utility function
+    console.log(`Attempting to upload file to GCS: ${filePath}`);
+    
+    const uploadResult = await uploadFileToGCS(filePath, fileBuffer, fileType);
+    
+    if (!uploadResult.success) {
+      console.error('GCS upload failed:', uploadResult.message);
+      throw new Error(`Google Cloud Storage upload failed: ${uploadResult.message}`);
     }
+    
+    console.log('GCS upload successful:', uploadResult.message);
+    gcsUploadSuccess = true;
+    
+    // Get the file URL from the upload result or generate it
+    const fileUrl = uploadResult.url || `https://storage.googleapis.com/${bucketName}${filePath}`;
     
     // Insert document record into the database
     const insertedDocuments = await db.insert(wpqrDocuments)
@@ -567,84 +500,22 @@ router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req:
       // No longer saving files locally as per requirements
       // All uploads should go directly to Google Cloud Storage
       
-      // Upload file to GCS
-      try {
-        console.log(`Attempting to upload file to GCS bucket: ${bucketName}, path: ${filePath.slice(1)}`);
-        
-        if (!gcsClient) {
-          throw new Error("GCS client is not initialized - cannot upload file to Google Cloud Storage");
-        }
-        
-        const bucket = gcsClient.bucket(bucketName);
-        const file = bucket.file(filePath.slice(1)); // Remove leading slash
-        
-        // Try different upload methods
-        try {
-          // Method 1: Non-resumable upload
-          console.log("Trying non-resumable upload method");
-          await file.save(fileBuffer, {
-            metadata: {
-              contentType: fileType
-            },
-            resumable: false // Disable resumable uploads to avoid issues with token expiration
-          });
-          gcsUploadSuccess = true;
-          console.log(`File uploaded successfully to ${filePath} using non-resumable upload`);
-        } catch (method1Error) {
-          console.error("Non-resumable upload failed:", method1Error);
-          
-          // If method 1 fails, try method 2
-          try {
-            console.log("Trying alternative upload method");
-            // Create a write stream for the file
-            const stream = file.createWriteStream({
-              metadata: {
-                contentType: fileType
-              },
-              resumable: false
-            });
-            
-            // Return a promise that resolves when the upload is complete
-            await new Promise<void>((resolve, reject) => {
-              stream.on('error', (err) => {
-                console.error("Stream error:", err);
-                reject(err);
-              });
-              
-              stream.on('finish', () => {
-                console.log("Stream finished successfully");
-                resolve();
-              });
-              
-              // Push the file buffer to the stream and end it
-              stream.end(fileBuffer);
-            });
-            
-            gcsUploadSuccess = true;
-            console.log(`File uploaded successfully to ${filePath} using stream method`);
-          } catch (method2Error) {
-            console.error("Alternative upload method failed:", method2Error);
-            throw method2Error; // Re-throw to be caught by outer try-catch
-          }
-        }
-        
-        // If we reach here and gcsUploadSuccess is still false, something went wrong
-        if (!gcsUploadSuccess) {
-          throw new Error("Failed to upload file to Google Cloud Storage after trying all methods");
-        }
-      } catch (error: unknown) {
-        console.error('All GCS upload methods failed:', error);
-        
-        let errorMessage = 'Unknown error during upload';
-        if (error instanceof Error) {
-          console.error('Error details:', error.stack);
-          errorMessage = error.message;
-        } else {
-          console.error('Error details: Not an Error instance');
-        }
-        
-        // Do not proceed with database update if GCS upload fails
-        throw new Error(`Google Cloud Storage upload failed: ${errorMessage}. Please ensure GCS credentials have proper permissions.`);
+      // Upload file to GCS using our utility function
+      console.log(`Attempting to upload file to GCS: ${filePath}`);
+      
+      const uploadResult = await uploadFileToGCS(filePath, fileBuffer, fileType);
+      
+      if (!uploadResult.success) {
+        console.error('GCS upload failed:', uploadResult.message);
+        throw new Error(`Google Cloud Storage upload failed: ${uploadResult.message}`);
+      }
+      
+      console.log('GCS upload successful:', uploadResult.message);
+      gcsUploadSuccess = true;
+      
+      // Update the fileUrl with the one returned from the upload function if available
+      if (uploadResult.url) {
+        updateData.fileUrl = uploadResult.url;
       }
       
       console.log(`GCS upload successful: ${gcsUploadSuccess}`);
