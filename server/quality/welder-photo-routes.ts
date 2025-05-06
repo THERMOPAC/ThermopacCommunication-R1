@@ -172,21 +172,101 @@ export function registerWelderPhotoRoutes(app: any) {
         
         // Get the welder ID - check if it's in the welderCode or welderId field
         let welderId = '';
+        let welderCode = '';
+        
         if (req.body.welderId) {
           welderId = req.body.welderId;
           console.log(`Using welderId from request body: ${welderId}`);
         } else if (req.body.welderCode) {
           welderId = req.body.welderCode;
-          console.log(`Using welderCode from request body: ${welderId}`);
+          console.log(`Using welderCode from request body as welderId: ${welderId}`);
         } else {
           console.error('No welder ID provided in the request body');
           return res.status(400).json({ error: 'Welder ID is required for photo upload' });
         }
         
+        // If welderCode is provided separately, store it
+        if (req.body.welderCode) {
+          welderCode = req.body.welderCode;
+          console.log(`Separate welderCode provided: ${welderCode}`);
+        }
+        
         console.log(`Processing photo upload for welder ID: ${welderId}`);
 
-        // Upload the file to GCS
-        console.log(`Calling uploadWelderPhoto with params: originalname=${originalname}, mimetype=${mimetype}, welderId=${welderId}`);
+        // Before uploading, determine the actual welder database record and code
+        let welderDbId: number | null = null;
+        let welderDbCode: string | null = null;
+        
+        // First approach - try to parse welderId as number (numeric database ID)
+        try {
+          const numericId = parseInt(welderId);
+          
+          if (!isNaN(numericId)) {
+            // It's a numeric ID, look up the record to get the code
+            console.log(`Looking up welder with numeric ID: ${numericId}`);
+            const [welder] = await db.select().from(schema.welders).where(eq(schema.welders.id, numericId));
+            
+            if (welder) {
+              console.log(`Found welder record for ID ${numericId}: ${welder.welderId} - ${welder.name}`);
+              welderDbId = welder.id;
+              welderDbCode = welder.welderId; // This should be in W-XXX format
+            } else {
+              console.error(`No welder found with numeric ID: ${numericId}`);
+            }
+          } 
+          // If that failed, and it looks like a welder code (W-XXX)
+          else if (welderId.startsWith('W-')) {
+            console.log(`Looking up welder with code: ${welderId}`);
+            const [welder] = await db.select().from(schema.welders).where(eq(schema.welders.welderId, welderId));
+            
+            if (welder) {
+              console.log(`Found welder record for code ${welderId}: ID ${welder.id} - ${welder.name}`);
+              welderDbId = welder.id;
+              welderDbCode = welder.welderId;
+            } else {
+              console.error(`No welder found with code: ${welderId}`);
+            }
+          }
+          // None of these work - try welderCode if available
+          else if (welderCode && welderCode.startsWith('W-')) {
+            console.log(`Looking up welder using separate welderCode: ${welderCode}`);
+            const [welder] = await db.select().from(schema.welders).where(eq(schema.welders.welderId, welderCode));
+            
+            if (welder) {
+              console.log(`Found welder record for separate code ${welderCode}: ID ${welder.id} - ${welder.name}`);
+              welderDbId = welder.id;
+              welderDbCode = welder.welderId;
+            } else {
+              console.error(`No welder found with separate code: ${welderCode}`);
+            }
+          }
+        } catch (dbError) {
+          console.error('Error looking up welder record:', dbError);
+        }
+        
+        // If we couldn't find a welder in the database, use what we have
+        if (!welderDbCode && welderId.startsWith('W-')) {
+          welderDbCode = welderId;
+          console.log(`Using provided welderId as code: ${welderDbCode}`);
+        } else if (!welderDbCode && welderCode && welderCode.startsWith('W-')) {
+          welderDbCode = welderCode;
+          console.log(`Using provided welderCode as code: ${welderDbCode}`);
+        } 
+        
+        // Make one last attempt to create a code if we have a numeric ID but couldn't find the record
+        if (!welderDbCode && !isNaN(parseInt(welderId))) {
+          welderDbCode = `W-${parseInt(welderId).toString().padStart(3, '0')}`;
+          console.log(`Created welderCode from numeric ID: ${welderDbCode}`);
+        }
+        
+        // Ensure we have a valid welder code for GCS storage
+        if (!welderDbCode) {
+          console.error('Failed to determine a valid welder code for GCS storage');
+          return res.status(400).json({ error: 'Could not determine a valid welder code for storage' });
+        }
+
+        // Upload the file to GCS using the determined welder code
+        console.log(`Calling uploadWelderPhoto with params: originalname=${originalname}, mimetype=${mimetype}, welderId=${welderDbCode}`);
         
         let result;
         try {
@@ -194,7 +274,7 @@ export function registerWelderPhotoRoutes(app: any) {
             buffer,
             originalname,
             mimetype,
-            welderId
+            welderDbCode
           );
         } catch (uploadError) {
           console.error('Uncaught error in uploadWelderPhoto:', uploadError);
@@ -212,56 +292,31 @@ export function registerWelderPhotoRoutes(app: any) {
           });
         }
 
-        // If a welder ID was provided, update the welder record with the photo path
-        if (welderId && welderId.trim() !== '') {
+        // Update the welder record with the photo path if we have a valid DB ID
+        if (welderDbId) {
           try {
-            // First approach - try to parse welderId as number (numeric database ID)
-            const welderDbId = parseInt(welderId);
+            console.log(`Updating photoPath in database for ID: ${welderDbId}, path: ${result.filePath}`);
             
-            if (!isNaN(welderDbId)) {
-              // It's a numeric ID, directly update the record
-              console.log(`Attempting to update photoPath in database for numeric ID: ${welderDbId}, path: ${result.filePath}`);
+            const updateResult = await db.update(schema.welders)
+              .set({ photoPath: result.filePath })
+              .where(eq(schema.welders.id, welderDbId));
               
-              const updateResult = await db.update(schema.welders)
-                .set({ photoPath: result.filePath })
-                .where(eq(schema.welders.id, welderDbId));
-                
-              console.log(`Direct update result:`, updateResult);
-            } else if (welderId.startsWith('W-')) {
-              // It's a welder code like "W-001", try to find by welderId field
-              console.log(`Attempting to update photoPath for welder code: ${welderId}, path: ${result.filePath}`);
-              
-              // Query to find the welder record by welderId field
-              const welders = await db.select()
-                .from(schema.welders)
-                .where(eq(schema.welders.welderId, welderId));
-              
-              if (welders.length > 0) {
-                const welder = welders[0];
-                console.log(`Found welder with code ${welderId}, database ID: ${welder.id}`);
-                
-                // Update the record using the numeric ID
-                const updateResult = await db.update(schema.welders)
-                  .set({ photoPath: result.filePath })
-                  .where(eq(schema.welders.id, welder.id));
-                  
-                console.log(`Update by code result:`, updateResult);
-              } else {
-                console.error(`No welder found with code: ${welderId}`);
-              }
-            } else {
-              console.error(`Unable to process welder ID format for database update: ${welderId}`);
-            }
+            console.log(`Database update result:`, updateResult);
           } catch (dbError) {
             console.error('Error updating welder record with photo path:', dbError);
             // Continue even if update fails, as we still want to return the upload result
           }
+        } else {
+          console.warn('No database ID available for updating welder record. Photo uploaded to GCS but database not updated.');
         }
 
+        // Return success response
         res.status(200).json({
           success: true,
           path: result.filePath,
-          url: result.url
+          url: result.url,
+          welderDbId,
+          welderDbCode
         });
       } catch (error) {
         console.error('Error in welder photo upload route:', error);

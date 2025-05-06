@@ -122,38 +122,26 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       const formData = new FormData();
       formData.append('file', file);
       
-      // Use welderCode if provided, otherwise use welderId
-      if (welderCode) {
-        console.log(`Adding welder code to form data: ${welderCode}`);
-        formData.append('welderCode', welderCode);
-      } else if (welderId) {
-        console.log(`Adding welder ID to form data: ${welderId}`);
+      // First priority: Always use the numeric welderId if available
+      if (welderId) {
+        console.log(`Adding numeric welder ID to form data: ${welderId}`);
         formData.append('welderId', welderId.toString());
-      } else {
-        console.warn("No welder ID or code provided for photo upload");
+      } 
+      // Second priority: Use the welderCode (W-001 format)
+      else if (welderCode) {
+        console.log(`Adding welder code to form data as welderId: ${welderCode}`);
+        formData.append('welderId', welderCode);
+      } 
+      // No ID available - can't proceed
+      else {
+        console.error("No welder identification available");
+        throw new Error("No welder ID available for upload - please provide either welderId or welderCode");
       }
       
-      // IMPORTANT: The server expects 'welderId' field, not 'welderCode'
-      // If we have welderCode but no welderId, still use the 'welderId' field name
-      if (welderCode && !formData.has('welderId')) {
-        console.log(`Converting welderCode to welderId field: ${welderCode}`);
-        formData.append('welderId', welderCode); 
-      }
-      
-      // Make sure at least one identifier is included
-      if (!formData.has('welderId') && !formData.has('welderCode')) {
-        console.error("No welderId or welderCode in form data - adding fallback");
-        // Add a fallback - use whichever ID is available
-        if (welderId) {
-          console.log(`Adding fallback welderId: ${welderId}`);
-          formData.append('welderId', welderId.toString());
-        } else if (welderCode) {
-          console.log(`Adding fallback using welderCode as welderId: ${welderCode}`);
-          formData.append('welderId', welderCode);
-        } else {
-          console.error("No welder identification available");
-          throw new Error("No welder identification available for upload");
-        }
+      // Add the welderCode as a secondary identifier (helps the server logic)
+      if (welderCode && !formData.has('welderCode')) {
+        console.log(`Adding welderCode as additional identifier: ${welderCode}`);
+        formData.append('welderCode', welderCode);
       }
       
       // Debug log all form data fields
@@ -164,11 +152,14 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       });
       console.log(formEntries);
       
-      console.log("Sending photo upload request to /api/upload/welder-photo");
-      const response = await fetch('/api/upload/welder-photo', {
+      // Add timestamp to avoid caching
+      const timestamp = new Date().getTime();
+      console.log(`Sending photo upload request to /api/upload/welder-photo?t=${timestamp}`);
+      const response = await fetch(`/api/upload/welder-photo?t=${timestamp}`, {
         method: 'POST',
         body: formData,
         credentials: 'include', // Important for authenticated requests
+        cache: 'no-cache' // Explicitly prevent caching
       });
       
       console.log("Upload response status:", response.status);
@@ -191,13 +182,19 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       if (onPhotoUploadSuccess && data.path) {
         console.log(`Calling success callback with path: ${data.path}`);
         onPhotoUploadSuccess(data.path);
+        
+        // Update the preview with the new image's signed URL if available
+        if (data.url) {
+          console.log(`Updating preview with new signed URL: ${data.url}`);
+          setPreview(data.url);
+        }
       } else {
         console.warn("Success callback not called, path:", data.path, "callback:", !!onPhotoUploadSuccess);
       }
       
       toast({
         title: "Upload successful",
-        description: `Welder photo has been uploaded: ${data.path}`
+        description: `Welder photo has been uploaded successfully`
       });
       
     } catch (error) {
