@@ -397,7 +397,7 @@ export default function WpqrPage() {
               <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="p-2 text-left font-medium text-xs w-[500px]">Document ID</th>
+                    <th className="p-2 text-left font-medium text-xs w-[450px]">Document ID</th>
                     <th className="p-2 text-left font-medium text-xs w-[150px]">Welding Process</th>
                     <th className="p-2 text-left font-medium text-xs w-[150px]">Base Metal Grade</th>
                     <th className="p-2 text-left font-medium text-xs w-[80px]">Joint Type</th>
