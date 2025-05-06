@@ -276,7 +276,8 @@ export default function WpqrPage() {
 
   // Download document
   const handleDownload = (id: number) => {
-    window.open(`/api/quality/wpqr/${id}/download`, '_blank');
+    console.log(`Downloading WPQR document with ID: ${id}`);
+    window.open(`/api/quality/wpqr/download/${id}`, '_blank');
   };
 
   // Delete document confirmation
