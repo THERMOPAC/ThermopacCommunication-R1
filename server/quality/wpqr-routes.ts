@@ -24,6 +24,9 @@ const upload = multer({
 const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
 console.log(`Using GCS bucket name: ${bucketName} (from env: ${process.env.GCS_BUCKET_NAME})`);
 
+// Also create a local file storage directory for direct file access
+const LOCAL_WPQR_DIRECTORY = path.join(process.cwd(), 'wpqr_documents');
+
 // Create Google Cloud Storage client
 let gcsClient: Storage;
 
@@ -308,6 +311,19 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
     
     // Flag to track if GCS upload was successful
     let gcsUploadSuccess = false;
+    
+    // Make sure the local directory exists
+    try {
+      await fs.promises.mkdir(LOCAL_WPQR_DIRECTORY, { recursive: true });
+      
+      // Save a local copy first (as a backup)
+      const localFilePath = path.join(LOCAL_WPQR_DIRECTORY, `${documentId}.pdf`);
+      await fs.promises.writeFile(localFilePath, fileBuffer);
+      console.log(`Successfully saved local copy to ${localFilePath}`);
+    } catch (localError: unknown) {
+      const errMsg = localError instanceof Error ? localError.message : String(localError);
+      console.error(`Failed to save local copy: ${errMsg}`);
+    }
     
     // Upload file to GCS
     try {
@@ -769,7 +785,50 @@ router.get('/:id/download', async (req: Request, res: Response) => {
         `Additional Details:\n` + 
         `Bucket Name: ${bucketName}\n`;
       
-      // APPROACH 1: Try direct file download from GCS
+      // APPROACH 1: Check local document directory first
+      try {
+        // Check if a local copy exists in our local documents directory
+        const localFilePath = path.join(LOCAL_WPQR_DIRECTORY, `WPQR-${docId}.pdf`);
+        
+        console.log(`Checking for local file: ${localFilePath}`);
+        
+        // Check if the file exists in the local file system
+        const localFileExists = await fs.promises.access(localFilePath)
+          .then(() => true)
+          .catch(() => false);
+        
+        if (localFileExists) {
+          // Get file stats to check size
+          const fileStats = await fs.promises.stat(localFilePath);
+          console.log(`Local file found, size: ${fileStats.size} bytes`);
+          
+          if (fileStats.size > 0) {
+            // Stream the local file to client
+            console.log(`Streaming local file from: ${localFilePath}`);
+            const fileStream = fs.createReadStream(localFilePath);
+            
+            fileStream.on('error', (err: Error) => {
+              console.error(`Local file stream error: ${err.message}`);
+              if (!res.headersSent) {
+                res.status(500).send('Error streaming file from local filesystem');
+              }
+            });
+            
+            fileStream.pipe(res);
+            return;
+          } else {
+            console.error('Local file exists but is empty');
+          }
+        } else {
+          console.log('Local file does not exist');
+        }
+      } catch (localError: unknown) {
+        const errMsg = localError instanceof Error ? localError.message : String(localError);
+        console.error(`Local file access error: ${errMsg}`);
+        // Continue to next approach
+      }
+      
+      // APPROACH 2: Try direct file download from GCS
       if (gcsClient) {
         try {
           const bucket = gcsClient.bucket(bucketName);
@@ -794,6 +853,16 @@ router.get('/:id/download', async (req: Request, res: Response) => {
           
           if (fileStats.size === 0) {
             throw new Error('Downloaded file is empty');
+          }
+          
+          // SUCCESS: Also save to local cache for future use
+          try {
+            const localCacheFile = path.join(LOCAL_WPQR_DIRECTORY, `WPQR-${docId}.pdf`);
+            await fs.promises.copyFile(tmpFilePath, localCacheFile);
+            console.log(`Saved a copy to local cache: ${localCacheFile}`);
+          } catch (cacheError: unknown) {
+            const errMsg = cacheError instanceof Error ? cacheError.message : String(cacheError);
+            console.error(`Failed to save to local cache: ${errMsg}`);
           }
           
           // Stream the temp file to client
@@ -890,8 +959,9 @@ router.get('/:id/download', async (req: Request, res: Response) => {
           try {
             await fs.promises.copyFile(tmpFilePath, localCachePath);
             console.log(`Saved a copy to local cache: ${localCachePath}`);
-          } catch (cacheError) {
-            console.error(`Failed to save to local cache: ${cacheError.message}`);
+          } catch (cacheError: unknown) {
+            const errMsg = cacheError instanceof Error ? cacheError.message : String(cacheError);
+            console.error(`Failed to save to local cache: ${errMsg}`);
           }
           
           // Now stream the downloaded file to client
