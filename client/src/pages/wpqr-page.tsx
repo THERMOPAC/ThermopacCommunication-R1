@@ -402,8 +402,8 @@ export default function WpqrPage() {
                     <th className="p-2 text-left font-medium text-xs w-[150px]">Base Metal Grade</th>
                     <th className="p-2 text-left font-medium text-xs w-[80px]">Joint Type</th>
                     <th className="p-2 text-left font-medium text-xs w-[200px]">Certificate No</th>
-                    <th className="p-2 text-left font-medium text-xs max-w-[300px] w-[300px]">Inspection Authority</th>
-                    <th className="p-2 text-right font-medium text-xs w-[100px]">Actions</th>
+                    <th className="p-2 text-left font-medium text-xs max-w-[150px] w-[150px]">Inspection Authority</th>
+                    <th className="p-2 text-right font-medium text-xs w-[80px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -423,44 +423,44 @@ export default function WpqrPage() {
                       <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={document.baseMetalGrade}>{document.baseMetalGrade}</td>
                       <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={document.jointType}>{document.jointType}</td>
                       <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={document.certificateNo || "-"}>{document.certificateNo || "-"}</td>
-                      <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-[300px]" title={document.inspectionAuthority || "-"}>{document.inspectionAuthority || "-"}</td>
-                      <td className="p-1 text-right">
+                      <td className="p-2 text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]" title={document.inspectionAuthority || "-"}>{document.inspectionAuthority || "-"}</td>
+                      <td className="p-0 text-right">
                         <div className="flex justify-end gap-0">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="px-1.5 h-8"
+                            className="px-1 h-7"
                             onClick={() => handleViewDocument(document)}
                             title="View Details"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="px-1.5 h-8"
+                            className="px-1 h-7"
                             onClick={() => handleEditDocument(document)}
                             title="Edit"
                           >
-                            <PencilLine className="h-4 w-4" />
+                            <PencilLine className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="px-1.5 h-8"
+                            className="px-1 h-7"
                             onClick={() => handleDownload(document.id)}
                             title="Download"
                           >
-                            <DownloadCloud className="h-4 w-4" />
+                            <DownloadCloud className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="px-1.5 h-8"
+                            className="px-1 h-7"
                             onClick={() => handleDelete(document.id)}
                             title="Delete"
                           >
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>
                         </div>
                       </td>
