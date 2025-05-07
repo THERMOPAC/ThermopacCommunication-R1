@@ -193,28 +193,24 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       console.log(`Using FORCE UPLOAD endpoint with nocache: ${nocache}`);
       console.log(`Sending form data to /api/force-upload/welder-photo endpoint`);
       
-      let response;
-      try {
-        response = await fetch(`/api/force-upload/welder-photo?nocache=${nocache}`, {
-          method: 'POST',
-          body: formData,
-          credentials: 'include', // Important for authenticated requests
-          headers: {
-            // Add cache control headers
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        });
-        
-        console.log("Fetch API call completed, response received");
-        console.log("Response status:", response.status);
-        console.log("Response status text:", response.statusText);
-        console.log("Response headers:", [...response.headers.entries()]);
-      } catch (fetchError) {
-        console.error("Error in fetch API call:", fetchError);
-        throw new Error(`Network error during upload: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
-      }
+      // Send the request to the server
+      const response = await fetch(`/api/force-upload/welder-photo?nocache=${nocache}`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include', // Important for authenticated requests
+        headers: {
+          // Add cache control headers
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      console.log("Fetch API call completed, response received");
+      console.log("Response status:", response.status);
+      console.log("Response status text:", response.statusText);
+      // Skip logging the headers to avoid TypeScript issues
+      // console.log("Response headers:", Array.from(response.headers.entries()));
       
       console.log("Upload response status:", response.status);
       
