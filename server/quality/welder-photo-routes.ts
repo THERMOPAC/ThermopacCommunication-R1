@@ -196,15 +196,17 @@ export function registerWelderPhotoRoutes(app: any) {
         
         const { buffer, originalname, mimetype } = req.file;
         
-        // Use a consistent filename for overwriting, and add a timestamp to the query parameter
-        // for cache busting - this allows browsers to refresh the image after upload
+        // We'll use timestamp-based unique filenames since we don't have the delete permission
+        // This approach creates new files but keeps track of the latest one in the database
         const fileExt = originalname.split('.').pop() || 'jpg';
         const timestamp = Date.now();
-        const standardFilename = `${welderCode}.${fileExt}`;
-        const standardPath = `QMS/WELDERS/${welderCode}/${standardFilename}`;
+        const uniqueFilename = `${welderCode}_${timestamp}.${fileExt}`;
+        const uniquePath = `QMS/WELDERS/${welderCode}/${uniqueFilename}`;
         
-        console.log(`Using standard path for consistency: ${standardPath}`);
-        console.log(`Upload timestamp (for cache busting): ${timestamp}`);
+        // We'll also update references to this path - the UI will always show the most recent one
+        
+        console.log(`Using unique path to avoid permission issues: ${uniquePath}`);
+        console.log(`Upload timestamp: ${timestamp}`);
         
         try {
           if (!process.env.GOOGLE_CLOUD_CREDENTIALS) {
@@ -225,9 +227,9 @@ export function registerWelderPhotoRoutes(app: any) {
           
           // Create a reference to the file
           const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
-          const file = storage.bucket(bucketName).file(standardPath);
+          const file = storage.bucket(bucketName).file(uniquePath);
           
-          console.log(`Starting upload to ${bucketName}/${standardPath}`);
+          console.log(`Starting upload to ${bucketName}/${uniquePath}`);
           
           // Try to upload with writeStream method first (more reliable)
           try {
@@ -287,7 +289,7 @@ export function registerWelderPhotoRoutes(app: any) {
           } catch (signedUrlError) {
             console.error('Error generating signed URL:', signedUrlError);
             // Use a public URL as fallback
-            signedUrl = `https://storage.googleapis.com/${bucketName}/${standardPath}?v=${timestamp}`;
+            signedUrl = `https://storage.googleapis.com/${bucketName}/${uniquePath}?v=${timestamp}`;
             console.log('Using public URL fallback:', signedUrl);
           }
           
@@ -296,9 +298,9 @@ export function registerWelderPhotoRoutes(app: any) {
           try {
             const welderIdNum = parseInt(welderId);
             if (!isNaN(welderIdNum)) {
-              console.log(`Updating database for welder ID ${welderIdNum} with path ${standardPath}`);
+              console.log(`Updating database for welder ID ${welderIdNum} with path ${uniquePath}`);
               dbUpdateResult = await db.update(schema.welders)
-                .set({ photoPath: standardPath })
+                .set({ photoPath: uniquePath })
                 .where(eq(schema.welders.id, welderIdNum));
               console.log('Database update result:', dbUpdateResult);
             }
@@ -309,7 +311,7 @@ export function registerWelderPhotoRoutes(app: any) {
           
           return res.status(200).json({
             success: true,
-            path: standardPath,
+            path: uniquePath,
             url: signedUrl,
             dbUpdate: dbUpdateResult ? 'success' : 'not attempted',
             timestamp: timestamp
