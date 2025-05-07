@@ -124,12 +124,31 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       const uniqueFileName = `welder_photo_${timestamp}_${file.name}`;
       console.log(`Using unique filename: ${uniqueFileName}`);
       
-      // Create a new File object with the unique name to force uniqueness
-      const uniqueFile = new File([await file.arrayBuffer()], uniqueFileName, {
-        type: file.type,
-        lastModified: Date.now()
-      });
+      // Read the file into an ArrayBuffer first
+      console.log("Reading file as ArrayBuffer");
+      let fileBuffer;
+      try {
+        fileBuffer = await file.arrayBuffer();
+        console.log("Successfully read file as ArrayBuffer, size:", fileBuffer.byteLength);
+      } catch (readError) {
+        console.error("Error reading file as ArrayBuffer:", readError);
+        throw new Error(`Failed to read file: ${readError instanceof Error ? readError.message : String(readError)}`);
+      }
       
+      // Create a new File object with the unique name to force uniqueness
+      let uniqueFile;
+      try {
+        uniqueFile = new File([fileBuffer], uniqueFileName, {
+          type: file.type,
+          lastModified: Date.now()
+        });
+        console.log("Successfully created unique file object:", uniqueFile.name, "size:", uniqueFile.size);
+      } catch (fileCreateError) {
+        console.error("Error creating unique file object:", fileCreateError);
+        throw new Error(`Failed to create file object: ${fileCreateError instanceof Error ? fileCreateError.message : String(fileCreateError)}`);
+      }
+      
+      console.log("Creating FormData object");
       const formData = new FormData();
       formData.append('file', uniqueFile);
       
@@ -172,17 +191,30 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       // Use the new force-upload endpoint for direct GCS access
       const nocache = Date.now() + Math.random();
       console.log(`Using FORCE UPLOAD endpoint with nocache: ${nocache}`);
-      const response = await fetch(`/api/force-upload/welder-photo?nocache=${nocache}`, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include', // Important for authenticated requests
-        headers: {
-          // Add cache control headers
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
+      console.log(`Sending form data to /api/force-upload/welder-photo endpoint`);
+      
+      let response;
+      try {
+        response = await fetch(`/api/force-upload/welder-photo?nocache=${nocache}`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include', // Important for authenticated requests
+          headers: {
+            // Add cache control headers
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+        
+        console.log("Fetch API call completed, response received");
+        console.log("Response status:", response.status);
+        console.log("Response status text:", response.statusText);
+        console.log("Response headers:", [...response.headers.entries()]);
+      } catch (fetchError) {
+        console.error("Error in fetch API call:", fetchError);
+        throw new Error(`Network error during upload: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+      }
       
       console.log("Upload response status:", response.status);
       

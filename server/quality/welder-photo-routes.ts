@@ -151,18 +151,36 @@ export function registerWelderPhotoRoutes(app: any) {
     ensureAuthenticated,
     upload.single('file'),
     async (req: Request, res: Response) => {
+      console.log('--------------------------------------------------');
       console.log('Received FORCE upload welder photo request');
+      console.log('--------------------------------------------------');
       try {
+        // Log request headers first
+        console.log('Request headers:', JSON.stringify(req.headers, null, 2));
+        console.log('Request body keys:', Object.keys(req.body));
+        console.log('Request query:', req.query);
+        
+        // Log authentication status
         console.log('Request user:', req.user ? req.user.username : 'Not authenticated');
         
         if (!req.file) {
           console.error('No file uploaded in the request');
+          console.log('Request body:', req.body);
           return res.status(400).json({ error: 'No file uploaded' });
         }
 
+        console.log('File received:', {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+          buffer_length: req.file.buffer ? req.file.buffer.length : 'No buffer'
+        });
+
         // Extract the welder ID
         const welderId = req.body.welderId;
+        console.log('Received welderId from body:', welderId);
         if (!welderId) {
+          console.error('No welderId in request body');
           return res.status(400).json({ error: 'Welder ID is required' });
         }
         
