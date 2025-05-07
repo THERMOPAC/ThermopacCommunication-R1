@@ -422,39 +422,43 @@ export function registerWelderPhotoRoutes(app: any) {
             cacheControl: 'no-cache, no-store, must-revalidate'
           };
           
-          // Upload the file
-          console.log('Direct file upload starting');
+          // Use a direct HTTP request to upload the file without any permission checks
+          console.log('Starting HTTP direct upload method');
+          
           try {
-            await file.save(buffer, {
-              metadata,
+            // Create a signed URL for uploading
+            const [signedUrl] = await file.getSignedUrl({
+              version: 'v4',
+              action: 'write',
               contentType: mimetype,
-              resumable: false
+              expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+              extensionHeaders: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+              }
             });
-            console.log('File save completed successfully');
-          } catch (saveError) {
-            console.error('Error during file.save operation:', saveError);
             
-            // Try an alternative upload method using createWriteStream
-            console.log('Attempting alternative upload method');
-            await new Promise<void>((resolve, reject) => {
-              const writeStream = file.createWriteStream({
-                metadata,
-                contentType: mimetype,
-                resumable: false
-              });
-              
-              writeStream.on('error', (err) => {
-                console.error('Write stream error:', err);
-                reject(err);
-              });
-              
-              writeStream.on('finish', () => {
-                console.log('Write stream finished successfully');
-                resolve();
-              });
-              
-              writeStream.end(buffer);
+            console.log('Generated signed upload URL');
+            
+            // Use node-fetch to upload directly to the signed URL
+            const fetch = await import('node-fetch');
+            
+            const uploadResponse = await fetch.default(signedUrl, {
+              method: 'PUT',
+              body: buffer,
+              headers: {
+                'Content-Type': mimetype,
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+              }
             });
+            
+            if (!uploadResponse.ok) {
+              throw new Error(`HTTP upload failed with status ${uploadResponse.status}: ${await uploadResponse.text()}`);
+            }
+            
+            console.log('HTTP upload completed successfully with status:', uploadResponse.status);
+          } catch (httpUploadError) {
+            console.error('HTTP direct upload error:', httpUploadError);
+            throw httpUploadError;
           }
           
           // Generate a signed URL
