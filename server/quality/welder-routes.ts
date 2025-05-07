@@ -148,7 +148,7 @@ export function registerWelderRoutes(app: express.Express) {
           '',
           CURRENT_DATE,
           'Pending',
-          CONCAT('TEMP-', ${welderId}),
+          ('TEMP-' || ${welderId}),
           (CURRENT_DATE + INTERVAL '2 year')
         )
         RETURNING 
