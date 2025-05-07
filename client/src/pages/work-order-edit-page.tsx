@@ -245,7 +245,7 @@ export default function WorkOrderEditPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/production/work-orders/${workOrderId}`)}
+              onClick={() => navigate(`/production/work-orders/details/${workOrderId}`)}
             >
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
