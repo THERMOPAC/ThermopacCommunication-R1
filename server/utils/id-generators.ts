@@ -14,14 +14,23 @@ import { sql } from 'drizzle-orm';
  */
 export async function generateWelderId(): Promise<string> {
   try {
-    // Get the count of existing welders
-    const result = await db.execute<{ count: number }>(
-      sql`SELECT COUNT(*) as count FROM welders`
+    // Get the max ID from existing welders and increment
+    const result = await db.execute<{ max_id: string }>(
+      sql`SELECT MAX(CAST(SUBSTRING("welderId", 3) AS INTEGER)) as max_id FROM welders WHERE "welderId" ~ '^W-[0-9]+$'`
     );
     
-    const count = result[0]?.count ?? 0;
+    let maxId = 0;
+    if (result.rows && result.rows.length > 0) {
+      const maxIdStr = result.rows[0].max_id;
+      if (maxIdStr) {
+        maxId = parseInt(maxIdStr);
+        if (isNaN(maxId)) maxId = 0;
+      }
+    }
+    
     // Add 1 to get the next ID and pad with zeros
-    const nextId = (count + 1).toString().padStart(3, '0');
+    const nextId = (maxId + 1).toString().padStart(3, '0');
+    console.log(`Last welder ID was W-${maxId}, generating new ID: W-${nextId}`);
     
     return `W-${nextId}`;
   } catch (error) {
@@ -43,7 +52,11 @@ export async function generateWpqrId(): Promise<string> {
       sql`SELECT COUNT(*) as count FROM wpqr_documents`
     );
     
-    const count = result[0]?.count ?? 0;
+    let count = 0;
+    if (result.rows && result.rows.length > 0) {
+      count = result.rows[0].count || 0;
+    }
+    
     // Add 1 to get the next ID
     const nextId = count + 1;
     
@@ -67,7 +80,11 @@ export async function generateWpsId(): Promise<string> {
       sql`SELECT COUNT(*) as count FROM wps_documents`
     );
     
-    const count = result[0]?.count ?? 0;
+    let count = 0;
+    if (result.rows && result.rows.length > 0) {
+      count = result.rows[0].count || 0;
+    }
+    
     // Add 1 to get the next ID
     const nextId = count + 1;
     
@@ -91,7 +108,11 @@ export async function generatePqrId(): Promise<string> {
       sql`SELECT COUNT(*) as count FROM pqr_documents`
     );
     
-    const count = result[0]?.count ?? 0;
+    let count = 0;
+    if (result.rows && result.rows.length > 0) {
+      count = result.rows[0].count || 0;
+    }
+    
     // Add 1 to get the next ID
     const nextId = count + 1;
     
@@ -118,7 +139,11 @@ export async function generateMaterialIdentificationId(): Promise<string> {
       sql`SELECT COUNT(*) as count FROM material_identifications WHERE id LIKE ${`MI-${currentYear}-%`}`
     );
     
-    const count = result[0]?.count ?? 0;
+    let count = 0;
+    if (result.rows && result.rows.length > 0) {
+      count = result.rows[0].count || 0;
+    }
+    
     // Add 1 to get the next ID
     const nextId = count + 1;
     

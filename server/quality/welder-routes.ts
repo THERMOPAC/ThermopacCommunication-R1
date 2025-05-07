@@ -141,15 +141,15 @@ export function registerWelderRoutes(app: express.Express) {
           ${identificationNumber || null},
           NOW(), 
           NOW(),
-          ${[]} :: text[],
-          ${[]} :: text[],
-          ${''},
-          ${[]} :: text[],
-          ${''},
-          ${new Date()},
-          ${'Pending'},
-          ${''},
-          ${new Date(new Date().setFullYear(new Date().getFullYear() + 2))}
+          ARRAY[]::text[],
+          ARRAY[]::text[],
+          '',
+          ARRAY[]::text[],
+          '',
+          CURRENT_DATE,
+          'Pending',
+          '',
+          (CURRENT_DATE + INTERVAL '2 year')
         )
         RETURNING 
           id, 
