@@ -188,13 +188,13 @@ const WelderPhotoUpload: React.FC<WelderPhotoUploadProps> = ({
       });
       console.log(formEntries);
       
-      // Use the new force-upload endpoint for direct GCS access
+      // Use the new direct-upload endpoint which bypasses bucket permission checks
       const nocache = Date.now() + Math.random();
-      console.log(`Using FORCE UPLOAD endpoint with nocache: ${nocache}`);
-      console.log(`Sending form data to /api/force-upload/welder-photo endpoint`);
+      console.log(`Using DIRECT UPLOAD v2 endpoint with nocache: ${nocache}`);
+      console.log(`Sending form data to /api/direct-upload/welder-photo endpoint`);
       
       // Send the request to the server
-      const response = await fetch(`/api/force-upload/welder-photo?nocache=${nocache}`, {
+      const response = await fetch(`/api/direct-upload/welder-photo?nocache=${nocache}`, {
         method: 'POST',
         body: formData,
         credentials: 'include', // Important for authenticated requests

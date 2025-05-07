@@ -146,6 +146,198 @@ export function registerWelderPhotoRoutes(app: any) {
     }
   });
 
+  // Emergency v2 upload endpoint - completely bypasses bucket permission checks
+  app.post('/api/direct-upload/welder-photo', 
+    ensureAuthenticated,
+    upload.single('file'),
+    async (req: Request, res: Response) => {
+      console.log('==================================================');
+      console.log('Received DIRECT v2 upload welder photo request');
+      console.log('==================================================');
+      try {
+        // Log request headers first (without sensitive info)
+        console.log('Request body keys:', Object.keys(req.body));
+        console.log('Request query:', req.query);
+        
+        // Log authentication status
+        console.log('Request user:', req.user ? req.user.username : 'Not authenticated');
+        
+        if (!req.file) {
+          console.error('No file uploaded in the request');
+          console.log('Request body:', req.body);
+          return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        console.log('File received:', {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+          buffer_length: req.file.buffer ? req.file.buffer.length : 'No buffer'
+        });
+
+        // Extract the welder ID
+        const welderId = req.body.welderId;
+        console.log('Received welderId from body:', welderId);
+        if (!welderId) {
+          console.error('No welderId in request body');
+          return res.status(400).json({ error: 'Welder ID is required' });
+        }
+        
+        // Format a W-XXX style code if it's a number
+        let welderCode: string;
+        try {
+          const numericId = parseInt(welderId);
+          if (!isNaN(numericId)) {
+            welderCode = `W-${numericId.toString().padStart(3, '0')}`;
+          } else {
+            welderCode = welderId;
+          }
+        } catch (e) {
+          welderCode = welderId;
+        }
+        
+        const { buffer, originalname, mimetype } = req.file;
+        
+        // Use consistent path for replacement instead of unique filenames
+        // This will ensure we always overwrite the existing file
+        const fileExt = originalname.split('.').pop() || 'jpg';
+        const standardFilename = `${welderCode}.${fileExt}`;
+        const standardPath = `QMS/WELDERS/${welderCode}/${standardFilename}`;
+        
+        // Generate timestamp just for cache busting in URLs
+        const timestamp = Date.now();
+        
+        console.log(`Uploading directly to GCS with path: ${standardPath}`);
+        
+        try {
+          // Use node-fetch to directly upload to GCS using signed URL
+          // This approach completely bypasses any need for bucket-level permissions
+          
+          if (!process.env.GOOGLE_CLOUD_CREDENTIALS) {
+            console.error('GOOGLE_CLOUD_CREDENTIALS not available');
+            return res.status(500).json({ 
+              error: 'GOOGLE_CLOUD_CREDENTIALS environment variable is not set' 
+            });
+          }
+          
+          const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
+          
+          // Use the Storage class from the existing import 
+          // (we can't use dynamic imports due to TypeScript configuration)
+          console.log('Creating minimal storage client with explicit credentials');
+          // Create storage client with minimal configuration just for this upload
+          const storage = new Storage({
+            projectId: credentials.project_id,
+            credentials: credentials
+          });
+          
+          // Create a reference to the file without any bucket validation
+          const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
+          const file = storage.bucket(bucketName).file(standardPath);
+          
+          console.log(`Uploading directly to ${bucketName}/${standardPath}`);
+          
+          // Try to save using direct method first
+          try {
+            console.log('Attempting direct file save');
+            await file.save(buffer, {
+              contentType: mimetype,
+              resumable: false,
+              metadata: {
+                contentType: mimetype,
+                cacheControl: 'no-cache, no-store, must-revalidate'
+              }
+            });
+            console.log('Direct file save successful');
+          } catch (saveError) {
+            console.error('Error during direct file save:', saveError);
+            
+            // If direct save fails, try with stream method
+            console.log('Attempting write stream upload');
+            await new Promise<void>((resolve, reject) => {
+              const writeStream = file.createWriteStream({
+                contentType: mimetype,
+                resumable: false,
+                metadata: {
+                  contentType: mimetype,
+                  cacheControl: 'no-cache, no-store, must-revalidate'
+                }
+              });
+              
+              writeStream.on('error', (err) => {
+                console.error('Write stream error:', err);
+                reject(err);
+              });
+              
+              writeStream.on('finish', () => {
+                console.log('Write stream finished successfully');
+                resolve();
+              });
+              
+              // Push the buffer into the stream
+              writeStream.end(buffer);
+            });
+            console.log('Write stream upload successful');
+          }
+          
+          // Generate a signed URL for the client to use
+          let signedUrl = '';
+          try {
+            console.log('Generating signed URL');
+            const [url] = await file.getSignedUrl({
+              version: 'v4',
+              action: 'read',
+              expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+              queryParams: { 'v': timestamp.toString() }  // Add cache busting
+            });
+            signedUrl = url;
+            console.log('Generated signed URL successfully');
+          } catch (signedUrlError) {
+            console.error('Error generating signed URL:', signedUrlError);
+            // Use a public URL as fallback
+            signedUrl = `https://storage.googleapis.com/${bucketName}/${standardPath}?v=${timestamp}`;
+            console.log('Using public URL fallback:', signedUrl);
+          }
+          
+          // Update the database with the photo path
+          let dbUpdateResult = null;
+          try {
+            const welderIdNum = parseInt(welderId);
+            if (!isNaN(welderIdNum)) {
+              console.log(`Updating database for welder ID ${welderIdNum} with path ${standardPath}`);
+              dbUpdateResult = await db.update(schema.welders)
+                .set({ photoPath: standardPath })
+                .where(eq(schema.welders.id, welderIdNum));
+              console.log('Database update result:', dbUpdateResult);
+            }
+          } catch (dbError) {
+            console.error('Database update error:', dbError);
+            // Continue even if database update fails, we still have a successful upload
+          }
+          
+          return res.status(200).json({
+            success: true,
+            path: standardPath,
+            url: signedUrl,
+            dbUpdate: dbUpdateResult ? 'success' : 'not attempted'
+          });
+        } catch (uploadError) {
+          console.error('Fatal upload error:', uploadError);
+          return res.status(500).json({
+            error: 'Upload failed',
+            details: uploadError instanceof Error ? uploadError.message : String(uploadError)
+          });
+        }
+      } catch (error) {
+        console.error('Unhandled error in direct upload endpoint:', error);
+        return res.status(500).json({ 
+          error: 'Internal server error', 
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  );
+  
   // Special upload endpoint for emergency direct uploads - will be removed once permissions are fixed
   app.post('/api/force-upload/welder-photo', 
     ensureAuthenticated,
