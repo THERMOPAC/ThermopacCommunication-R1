@@ -253,6 +253,9 @@ export default function InspectionsPage() {
   const [filteredReports, setFilteredReports] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   
+  // Search functionality state
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  
   // Weld management state
   const [welds, setWelds] = useState<{
     id: string;
@@ -1997,23 +2000,41 @@ export default function InspectionsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="mb-6">
-              <Label htmlFor="project-filter">Select Project</Label>
-              <Select 
-                onValueChange={(value) => setSelectedProject(parseInt(value))}
-                disabled={isLoadingProjects}
-              >
-                <SelectTrigger className="w-full md:w-[300px]">
-                  <SelectValue placeholder="Select a project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.isArray(projects) && projects.map((project: any) => (
-                    <SelectItem key={project.id} value={project.id.toString()}>
-                      {project.code}: {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="mb-6 space-y-4">
+              <div>
+                <Label htmlFor="project-filter">Select Project</Label>
+                <Select 
+                  onValueChange={(value) => setSelectedProject(parseInt(value))}
+                  disabled={isLoadingProjects}
+                >
+                  <SelectTrigger className="w-full md:w-[300px]">
+                    <SelectValue placeholder="Select a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.isArray(projects) && projects.map((project: any) => (
+                      <SelectItem key={project.id} value={project.id.toString()}>
+                        {project.code}: {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {selectedProject && (
+                <div>
+                  <Label htmlFor="search-filter">Search Inspections</Label>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="search-filter"
+                      placeholder="Search by report number, title, or type..."
+                      className="pl-8 w-full md:w-[300px]"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {!selectedProject ? (
@@ -2034,7 +2055,25 @@ export default function InspectionsPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableCaption>
-                    Showing {Array.isArray(inspections) ? inspections.filter((i: any) => i.reportType !== 'work_order').length : 0} inspection reports
+                    {searchQuery 
+                      ? `Showing ${Array.isArray(inspections) 
+                          ? inspections
+                              .filter((i: any) => i.reportType !== 'work_order')
+                              .filter((inspection: any) => {
+                                const query = searchQuery.toLowerCase();
+                                return (
+                                  (inspection.reportNumber && inspection.reportNumber.toLowerCase().includes(query)) ||
+                                  (inspection.title && inspection.title.toLowerCase().includes(query)) ||
+                                  (inspection.reportType && inspection.reportType.toLowerCase().includes(query))
+                                );
+                              }).length
+                          : 0} of ${Array.isArray(inspections) 
+                          ? inspections.filter((i: any) => i.reportType !== 'work_order').length 
+                          : 0} inspection reports`
+                      : `Showing ${Array.isArray(inspections) 
+                          ? inspections.filter((i: any) => i.reportType !== 'work_order').length 
+                          : 0} inspection reports`
+                    }
                   </TableCaption>
                   <TableHeader>
                     <TableRow>
@@ -2049,6 +2088,15 @@ export default function InspectionsPage() {
                   <TableBody>
                     {Array.isArray(inspections) && inspections
                       .filter((inspection: any) => inspection.reportType !== 'work_order')
+                      .filter((inspection: any) => {
+                        if (!searchQuery) return true;
+                        const query = searchQuery.toLowerCase();
+                        return (
+                          (inspection.reportNumber && inspection.reportNumber.toLowerCase().includes(query)) ||
+                          (inspection.title && inspection.title.toLowerCase().includes(query)) ||
+                          (inspection.reportType && inspection.reportType.toLowerCase().includes(query))
+                        );
+                      })
                       .map((inspection: any) => (
                         <TableRow key={inspection.id}>
                           <TableCell className="font-medium">
@@ -2128,9 +2176,35 @@ export default function InspectionsPage() {
                   
                   {/* List View Tab - Original Table View */}
                   <TabsContent value="list" className="mt-4">
+                    <div className="mb-4">
+                      <div className="relative w-full md:w-[300px]">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search inspection orders..."
+                          className="pl-8"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
+                    </div>
                     <div className="overflow-x-auto">
                       <Table>
-                        <TableCaption>Inspection orders for the selected project.</TableCaption>
+                        <TableCaption>
+                          {searchQuery ? 
+                            `Showing ${inspectionOrders.filter((order: any) => {
+                              const query = searchQuery.toLowerCase();
+                              return (
+                                (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(query)) ||
+                                (order.description && order.description.toLowerCase().includes(query)) ||
+                                (order.title && order.title.toLowerCase().includes(query)) ||
+                                (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
+                                (order.status && order.status.toLowerCase().includes(query))
+                              );
+                            }).length} of ${inspectionOrders.length} inspection orders` 
+                            : 
+                            `Showing all ${inspectionOrders.length} inspection orders`
+                          }
+                        </TableCaption>
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-[300px]">Order #</TableHead>
@@ -2142,7 +2216,19 @@ export default function InspectionsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {inspectionOrders.map((order: any) => (
+                          {inspectionOrders
+                            .filter((order: any) => {
+                              if (!searchQuery) return true;
+                              const query = searchQuery.toLowerCase();
+                              return (
+                                (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(query)) ||
+                                (order.description && order.description.toLowerCase().includes(query)) ||
+                                (order.title && order.title.toLowerCase().includes(query)) ||
+                                (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
+                                (order.status && order.status.toLowerCase().includes(query))
+                              );
+                            })
+                            .map((order: any) => (
                             <TableRow key={order.id}>
                               <TableCell className="font-medium">{order.inspectionOrderNumber}</TableCell>
                               <TableCell>{order.description || order.title}</TableCell>
