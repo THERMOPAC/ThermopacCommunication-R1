@@ -455,7 +455,8 @@ export function registerWelderPhotoRoutes(app: any) {
               await stagingFile.delete();
               console.log('Cleaned up staging file');
             } catch (cleanupError) {
-              console.log('Could not clean up staging file, but that\'s okay:', cleanupError.message);
+              console.log('Could not clean up staging file, but that\'s okay:', 
+                cleanupError instanceof Error ? cleanupError.message : String(cleanupError));
               // We can just leave it there, it's not a critical error
             }
             
