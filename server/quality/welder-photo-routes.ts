@@ -146,21 +146,19 @@ export function registerWelderPhotoRoutes(app: any) {
     }
   });
 
-  // Emergency v2 upload endpoint - completely bypasses bucket permission checks
+  // Direct upload v3 - using unique filenames to avoid permission issues
   app.post('/api/direct-upload/welder-photo', 
     ensureAuthenticated,
     upload.single('file'),
     async (req: Request, res: Response) => {
       console.log('==================================================');
-      console.log('Received DIRECT v2 upload welder photo request');
+      console.log('Received DIRECT v3 upload welder photo request');
       console.log('==================================================');
       try {
-        // Log request headers first (without sensitive info)
+        // Log request info (without sensitive headers)
         console.log('Request body keys:', Object.keys(req.body));
         console.log('Request query:', req.query);
-        
-        // Log authentication status
-        console.log('Request user:', req.user ? req.user.username : 'Not authenticated');
+        console.log('Request user:', req.user ? (req.user as any).username : 'Not authenticated');
         
         if (!req.file) {
           console.error('No file uploaded in the request');
@@ -198,21 +196,17 @@ export function registerWelderPhotoRoutes(app: any) {
         
         const { buffer, originalname, mimetype } = req.file;
         
-        // Use consistent path for replacement instead of unique filenames
-        // This will ensure we always overwrite the existing file
+        // Use UNIQUE filenames to avoid having to delete existing files
+        // This avoids the "storage.objects.delete" permission requirement
         const fileExt = originalname.split('.').pop() || 'jpg';
-        const standardFilename = `${welderCode}.${fileExt}`;
-        const standardPath = `QMS/WELDERS/${welderCode}/${standardFilename}`;
-        
-        // Generate timestamp just for cache busting in URLs
         const timestamp = Date.now();
+        const uniqueFilename = `${welderCode}_${timestamp}.${fileExt}`;
+        const uniquePath = `QMS/WELDERS/${welderCode}/${uniqueFilename}`;
         
-        console.log(`Uploading directly to GCS with path: ${standardPath}`);
+        console.log(`Using unique path to avoid deletion permissions: ${uniquePath}`);
+        console.log(`Upload timestamp: ${timestamp}`);
         
         try {
-          // Use node-fetch to directly upload to GCS using signed URL
-          // This approach completely bypasses any need for bucket-level permissions
-          
           if (!process.env.GOOGLE_CLOUD_CREDENTIALS) {
             console.error('GOOGLE_CLOUD_CREDENTIALS not available');
             return res.status(500).json({ 
@@ -221,39 +215,23 @@ export function registerWelderPhotoRoutes(app: any) {
           }
           
           const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS);
+          console.log('Creating minimal GCS client with explicit credentials');
           
-          // Use the Storage class from the existing import 
-          // (we can't use dynamic imports due to TypeScript configuration)
-          console.log('Creating minimal storage client with explicit credentials');
-          // Create storage client with minimal configuration just for this upload
+          // Create storage client with minimal configuration
           const storage = new Storage({
             projectId: credentials.project_id,
             credentials: credentials
           });
           
-          // Create a reference to the file without any bucket validation
+          // Create a reference to the file
           const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
-          const file = storage.bucket(bucketName).file(standardPath);
+          const file = storage.bucket(bucketName).file(uniquePath);
           
-          console.log(`Uploading directly to ${bucketName}/${standardPath}`);
+          console.log(`Starting upload to ${bucketName}/${uniquePath}`);
           
-          // Try to save using direct method first
+          // Try to upload with writeStream method first (more reliable)
           try {
-            console.log('Attempting direct file save');
-            await file.save(buffer, {
-              contentType: mimetype,
-              resumable: false,
-              metadata: {
-                contentType: mimetype,
-                cacheControl: 'no-cache, no-store, must-revalidate'
-              }
-            });
-            console.log('Direct file save successful');
-          } catch (saveError) {
-            console.error('Error during direct file save:', saveError);
-            
-            // If direct save fails, try with stream method
-            console.log('Attempting write stream upload');
+            console.log('Attempting write stream upload method');
             await new Promise<void>((resolve, reject) => {
               const writeStream = file.createWriteStream({
                 contentType: mimetype,
@@ -278,12 +256,26 @@ export function registerWelderPhotoRoutes(app: any) {
               writeStream.end(buffer);
             });
             console.log('Write stream upload successful');
+          } catch (streamError) {
+            console.error('Error during write stream upload:', streamError);
+            
+            // If stream method fails, try with direct save
+            console.log('Falling back to direct file save');
+            await file.save(buffer, {
+              contentType: mimetype,
+              resumable: false,
+              metadata: {
+                contentType: mimetype,
+                cacheControl: 'no-cache, no-store, must-revalidate'
+              }
+            });
+            console.log('Direct file save successful');
           }
           
           // Generate a signed URL for the client to use
           let signedUrl = '';
           try {
-            console.log('Generating signed URL');
+            console.log('Generating signed URL for uploaded file');
             const [url] = await file.getSignedUrl({
               version: 'v4',
               action: 'read',
@@ -295,7 +287,7 @@ export function registerWelderPhotoRoutes(app: any) {
           } catch (signedUrlError) {
             console.error('Error generating signed URL:', signedUrlError);
             // Use a public URL as fallback
-            signedUrl = `https://storage.googleapis.com/${bucketName}/${standardPath}?v=${timestamp}`;
+            signedUrl = `https://storage.googleapis.com/${bucketName}/${uniquePath}?v=${timestamp}`;
             console.log('Using public URL fallback:', signedUrl);
           }
           
@@ -304,9 +296,9 @@ export function registerWelderPhotoRoutes(app: any) {
           try {
             const welderIdNum = parseInt(welderId);
             if (!isNaN(welderIdNum)) {
-              console.log(`Updating database for welder ID ${welderIdNum} with path ${standardPath}`);
+              console.log(`Updating database for welder ID ${welderIdNum} with path ${uniquePath}`);
               dbUpdateResult = await db.update(schema.welders)
-                .set({ photoPath: standardPath })
+                .set({ photoPath: uniquePath })
                 .where(eq(schema.welders.id, welderIdNum));
               console.log('Database update result:', dbUpdateResult);
             }
@@ -317,9 +309,10 @@ export function registerWelderPhotoRoutes(app: any) {
           
           return res.status(200).json({
             success: true,
-            path: standardPath,
+            path: uniquePath,
             url: signedUrl,
-            dbUpdate: dbUpdateResult ? 'success' : 'not attempted'
+            dbUpdate: dbUpdateResult ? 'success' : 'not attempted',
+            timestamp: timestamp
           });
         } catch (uploadError) {
           console.error('Fatal upload error:', uploadError);
