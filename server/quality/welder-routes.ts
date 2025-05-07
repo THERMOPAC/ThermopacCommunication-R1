@@ -117,7 +117,16 @@ export function registerWelderRoutes(app: express.Express) {
           identification_type,
           identification_number,
           "createdAt", 
-          "updatedAt"
+          "updatedAt",
+          "processQualified",
+          "materialGroupQualified",
+          "thicknessRange",
+          "positionQualified",
+          "wpsNumber",
+          "testDate",
+          "testResults",
+          "certificateNo",
+          "certificateExpiryDate"
         ) 
         VALUES (
           ${welderId}, 
@@ -131,7 +140,16 @@ export function registerWelderRoutes(app: express.Express) {
           ${identificationType || null},
           ${identificationNumber || null},
           NOW(), 
-          NOW()
+          NOW(),
+          ${[]} :: text[],
+          ${[]} :: text[],
+          ${''},
+          ${[]} :: text[],
+          ${''},
+          ${new Date()},
+          ${'Pending'},
+          ${''},
+          ${new Date(new Date().setFullYear(new Date().getFullYear() + 2))}
         )
         RETURNING 
           id, 

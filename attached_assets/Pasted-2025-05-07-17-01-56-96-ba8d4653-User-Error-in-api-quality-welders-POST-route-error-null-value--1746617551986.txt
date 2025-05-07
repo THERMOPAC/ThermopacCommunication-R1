@@ -1,0 +1,96 @@
+2025-05-07 17:01:56.96
+ba8d4653
+User
+Error in /api/quality/welders POST route: error: null value in column "processQualified" of relation "welders" violates not-null constraint
+2025-05-07 17:01:56.96
+ba8d4653
+User
+at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2025-05-07 17:01:56.96
+ba8d4653
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-05-07 17:01:56.96
+ba8d4653
+User
+at async file:///home/runner/workspace/dist/index.js:18999:22 {
+2025-05-07 17:01:56.96
+ba8d4653
+User
+length: 437,
+2025-05-07 17:01:56.96
+ba8d4653
+User
+severity: 'ERROR',
+2025-05-07 17:01:56.96
+ba8d4653
+User
+code: '23502',
+2025-05-07 17:01:56.96
+ba8d4653
+User
+detail: 'Failing row contains (19, W-001, TEST, Welder, null, null, null, null, null, null, null, null, null, Active, SDFSFSFSF, 2025-05-07 11:31:56.949242+00, 2025-05-07 11:31:56.949242+00, null, 2025-05-07, 8369620223, 2027-01-07, Pan Card, DSFSDFSDFSD).',
+2025-05-07 17:01:56.96
+ba8d4653
+User
+hint: undefined,
+2025-05-07 17:01:56.96
+ba8d4653
+User
+position: undefined,
+2025-05-07 17:01:56.96
+ba8d4653
+User
+internalPosition: undefined,
+2025-05-07 17:01:56.96
+ba8d4653
+User
+internalQuery: undefined,
+2025-05-07 17:01:56.96
+ba8d4653
+User
+where: undefined,
+2025-05-07 17:01:56.96
+ba8d4653
+User
+schema: 'public',
+2025-05-07 17:01:56.96
+ba8d4653
+User
+table: 'welders',
+2025-05-07 17:01:56.96
+ba8d4653
+User
+column: 'processQualified',
+2025-05-07 17:01:56.96
+ba8d4653
+User
+dataType: undefined,
+2025-05-07 17:01:56.96
+ba8d4653
+User
+constraint: undefined,
+2025-05-07 17:01:56.96
+ba8d4653
+User
+file: 'execMain.c',
+2025-05-07 17:01:56.96
+ba8d4653
+User
+line: '2006',
+2025-05-07 17:01:56.96
+ba8d4653
+User
+routine: 'ExecConstraints'
+2025-05-07 17:01:56.96
+ba8d4653
+User
+}
+2025-05-07 17:01:56.99
+ba8d4653
+User
+11:31:56 AM [express] POST /api/quality/welders 500 in 429ms :: {"error":"Server error","message":"nu…
+
+Wrap
+
+Colo
