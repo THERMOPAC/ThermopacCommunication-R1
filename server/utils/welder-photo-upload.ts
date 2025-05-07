@@ -210,14 +210,24 @@ export async function getWelderPhotoUrl(filePath: string): Promise<string | null
       
       // Generate a signed URL with cache-busting parameter
       const timestamp = Date.now();
-      const [signedUrl] = await latestFile.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-        queryParams: { 'v': timestamp.toString() }
-      });
-      
-      console.log(`Successfully generated signed URL for ${latestFile.name}`);
-      return signedUrl;
+      try {
+        const [signedUrl] = await latestFile.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+          queryParams: { 'v': timestamp.toString() }
+        });
+        
+        console.log(`Successfully generated signed URL for ${latestFile.name}`);
+        return signedUrl;
+      } catch (signedUrlError) {
+        console.error(`Error generating signed URL for ${latestFile.name}:`, signedUrlError);
+        
+        // Return a fallback direct URL if signed URL generation fails
+        // This will work if the bucket has public access enabled for this object
+        const fallbackUrl = `https://storage.googleapis.com/${bucketName}/${latestFile.name}?v=${timestamp}`;
+        console.log(`Falling back to direct URL: ${fallbackUrl}`);
+        return fallbackUrl;
+      }
       
     } catch (listError) {
       console.error(`Error listing files in directory ${folderPrefix}:`, listError);
@@ -244,12 +254,21 @@ export async function getWelderPhotoUrl(filePath: string): Promise<string | null
           if (standardExists) {
             console.log(`Found file at standard path: ${standardPath}`);
             const timestamp = Date.now();
-            const [signedUrl] = await standardFile.getSignedUrl({
-              action: 'read',
-              expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-              queryParams: { 'v': timestamp.toString() }
-            });
-            return signedUrl;
+            try {
+              const [signedUrl] = await standardFile.getSignedUrl({
+                action: 'read',
+                expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+                queryParams: { 'v': timestamp.toString() }
+              });
+              return signedUrl;
+            } catch (signedUrlError) {
+              console.error(`Error generating signed URL for standard path ${standardPath}:`, signedUrlError);
+              
+              // Return a fallback direct URL if signed URL generation fails
+              const fallbackUrl = `https://storage.googleapis.com/${bucketName}/${standardPath}?v=${timestamp}`;
+              console.log(`Falling back to direct URL: ${fallbackUrl}`);
+              return fallbackUrl;
+            }
           }
         }
         
@@ -259,14 +278,23 @@ export async function getWelderPhotoUrl(filePath: string): Promise<string | null
       
       // Generate signed URL for the exact path
       const timestamp = Date.now();
-      const [signedUrl] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-        queryParams: { 'v': timestamp.toString() }
-      });
-      
-      console.log(`Successfully generated signed URL for exact path: ${filePath}`);
-      return signedUrl;
+      try {
+        const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+          queryParams: { 'v': timestamp.toString() }
+        });
+        
+        console.log(`Successfully generated signed URL for exact path: ${filePath}`);
+        return signedUrl;
+      } catch (signedUrlError) {
+        console.error(`Error generating signed URL for exact path ${filePath}:`, signedUrlError);
+        
+        // Return a fallback direct URL if signed URL generation fails
+        const fallbackUrl = `https://storage.googleapis.com/${bucketName}/${filePath}?v=${timestamp}`;
+        console.log(`Falling back to direct URL: ${fallbackUrl}`);
+        return fallbackUrl;
+      }
     }
   } catch (error) {
     console.error('Error generating welder photo URL:', error);

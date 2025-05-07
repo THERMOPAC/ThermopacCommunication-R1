@@ -220,18 +220,56 @@ export function registerWelderPhotoRoutes(app: any) {
           
           // Upload the file
           console.log('Direct file upload starting');
-          await file.save(buffer, {
-            metadata,
-            contentType: mimetype,
-            resumable: false
-          });
+          try {
+            await file.save(buffer, {
+              metadata,
+              contentType: mimetype,
+              resumable: false
+            });
+            console.log('File save completed successfully');
+          } catch (saveError) {
+            console.error('Error during file.save operation:', saveError);
+            
+            // Try an alternative upload method using createWriteStream
+            console.log('Attempting alternative upload method');
+            await new Promise<void>((resolve, reject) => {
+              const writeStream = file.createWriteStream({
+                metadata,
+                contentType: mimetype,
+                resumable: false
+              });
+              
+              writeStream.on('error', (err) => {
+                console.error('Write stream error:', err);
+                reject(err);
+              });
+              
+              writeStream.on('finish', () => {
+                console.log('Write stream finished successfully');
+                resolve();
+              });
+              
+              writeStream.end(buffer);
+            });
+          }
           
           // Generate a signed URL
-          const [signedUrl] = await file.getSignedUrl({
-            action: 'read',
-            expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
-            queryParams: { 'v': timestamp.toString() }
-          });
+          let signedUrl = '';
+          try {
+            const [url] = await file.getSignedUrl({
+              action: 'read',
+              expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+              queryParams: { 'v': timestamp.toString() }
+            });
+            signedUrl = url;
+            console.log('Successfully generated signed URL');
+          } catch (signedUrlError) {
+            console.error('Error generating signed URL:', signedUrlError);
+            // Continue even without a signed URL - the upload was still successful
+            // The client can fetch the URL separately through the existing photo URL endpoint
+            signedUrl = `https://storage.googleapis.com/${process.env.GCS_BUCKET_NAME || 'thermopac_storage'}/${standardPath}?v=${timestamp}`;
+            console.log('Using public URL as fallback:', signedUrl);
+          }
           
           console.log('Direct file upload complete, updating database');
           
