@@ -1130,13 +1130,17 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         });
         yPosition -= 15;
         
+        // Use the same filtered materials list for the appendices
+        console.log(`Listing documents for ${materials.length} selected materials in appendices`);
         for (const material of materials) {
           const materialId = material.materialIdentificationId;
           if (materialId) {
+            console.log(`Finding documents for Material ID: ${materialId} to list in appendices`);
             const materialDocsPath = `QMS/Material_Identification/${materialId}`;
             const materialDocs = await listFiles(materialDocsPath);
             
             if (materialDocs.length > 0) {
+              console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId} to list in appendices`);
               for (const docPath of materialDocs) {
                 const docName = docPath.split('/').pop() || docPath;
                 appendicesPage.drawText(`- ${docName} (${materialId})`, {
@@ -1255,14 +1259,19 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       // List of PDFs to merge
       const pdfPaths: string[] = [];
       
-      // Collect material certificate PDFs
+      // Collect material certificate PDFs, using the same filtered materials list
+      console.log(`Collecting material documents for ${materials.length} selected materials`);
       for (const material of materials) {
         const materialId = material.materialIdentificationId;
         if (materialId) {
+          console.log(`Looking for documents for Material ID: ${materialId}`);
           const materialDocsPath = `QMS/Material_Identification/${materialId}`;
           const materialDocs = await listFiles(materialDocsPath);
+          console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId}`);
+          
           for (const docPath of materialDocs) {
             if (docPath.toLowerCase().endsWith('.pdf')) {
+              console.log(`Adding document to dossier: ${docPath}`);
               pdfPaths.push(docPath);
             }
           }
@@ -1428,8 +1437,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
                     pdfPaths.push(file);
                   }
                 }
-              } catch (error) {
-                console.log(`No certificates found in standard path ${welderCertPath}: ${error.message}`);
+              } catch (error: any) {
+                console.log(`No certificates found in standard path ${welderCertPath}: ${error?.message || 'Unknown error'}`);
               }
             }
           }
