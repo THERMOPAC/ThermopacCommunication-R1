@@ -70,27 +70,13 @@ export const initializeGCS = async (): Promise<{ storage: Storage | null, bucket
       gcsBucket = gcsStorage.bucket(bucketName);
       console.log(`Created bucket reference for ${bucketName}`);
       
-      // Try to verify bucket exists, but NEVER fail initialization if we can't verify
-      try {
-        const [exists] = await gcsBucket.exists();
-        if (exists) {
-          console.log(`✅ Successfully verified bucket ${bucketName} exists`);
-        } else {
-          console.log(`⚠️ Bucket ${bucketName} does not exist or we can't verify it`);
-          // We'll still return the bucket reference, and let individual operations decide how to handle failures
-        }
-      } catch (error) {
-        // Check if this is a permissions error
-        const errorMsg = String(error);
-        if (errorMsg.includes('Permission') || errorMsg.includes('storage.buckets.get')) {
-          console.log(`⚠️ No permission to verify bucket existence - this is expected with object-level permissions`);
-          console.log(`ℹ️ Will proceed with assuming bucket exists and attempt operations with object-level permissions`);
-          // Continue with the reference - we'll test actual permissions during operations
-        } else {
-          console.error(`⚠️ Unusual error when verifying bucket existence: ${errorMsg}`);
-          console.log(`ℹ️ Will still attempt operations with the bucket reference`);
-        }
-      }
+      // Skip bucket verification completely
+      // The service account doesn't have bucket-level permissions, only object-level
+      // This is normal for limited-permission service accounts
+      console.log(`Skipping bucket existence verification for ${bucketName}`);
+      console.log(`Will proceed with assuming bucket exists and attempt operations with object-level permissions`);
+      
+      // We'll verify permissions during actual file operations instead
       
       // Always return the storage and bucket references, even if verification failed
       return { storage: gcsStorage, bucket: gcsBucket };
