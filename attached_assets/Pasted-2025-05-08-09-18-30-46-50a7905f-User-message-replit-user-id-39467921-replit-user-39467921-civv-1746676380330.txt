@@ -1,0 +1,119 @@
+2025-05-08 09:18:30.46
+50a7905f
+User
+` "message": "replit-user-id-39467921@replit-user-39467921-civvhpvzj.iam.gserviceaccount.com does not have storage.buckets.get access to the Google Cloud Storage bucket. Permission 'storage.buckets.get' denied on resource (or it may not exist).",\n` +
+2025-05-08 09:18:30.46
+50a7905f
+User
+' "domain": "global",\n' +
+2025-05-08 09:18:30.46
+50a7905f
+User
+' "reason": "forbidden"\n' +
+2025-05-08 09:18:30.46
+50a7905f
+User
+' }\n' +
+2025-05-08 09:18:30.46
+50a7905f
+User
+' ]\n' +
+2025-05-08 09:18:30.46
+50a7905f
+User
+' }\n' +
+2025-05-08 09:18:30.46
+50a7905f
+User
+'}\n',
+2025-05-08 09:18:30.46
+50a7905f
+User
+headers: {
+2025-05-08 09:18:30.46
+50a7905f
+User
+'alt-svc': 'h3=":443"; ma=2592000,h3-29=":443"; ma=2592000',
+2025-05-08 09:18:30.46
+50a7905f
+User
+'cache-control': 'no-cache, no-store, max-age=0, must-revalidate',
+2025-05-08 09:18:30.46
+50a7905f
+User
+'content-length': '636',
+2025-05-08 09:18:30.46
+50a7905f
+User
+'content-type': 'application/json; charset=UTF-8',
+2025-05-08 09:18:30.46
+50a7905f
+User
+date: 'Thu, 08 May 2025 03:48:29 GMT',
+2025-05-08 09:18:30.46
+50a7905f
+User
+expires: 'Mon, 01 Jan 1990 00:00:00 GMT',
+2025-05-08 09:18:30.46
+50a7905f
+User
+pragma: 'no-cache',
+2025-05-08 09:18:30.46
+50a7905f
+User
+server: 'UploadServer',
+2025-05-08 09:18:30.46
+50a7905f
+User
+vary: 'Origin, X-Origin',
+2025-05-08 09:18:30.46
+50a7905f
+User
+'x-guploader-uploadid': 'AAO2Vwr8ZFRTcVNhctrhTuRoxBrS1r3zvlUpsWg7yz8NrOJEksbYO6iH6KA7uEmfn2vySzJUsTnk-g'
+2025-05-08 09:18:30.46
+50a7905f
+User
+},
+2025-05-08 09:18:30.46
+50a7905f
+User
+toJSON: [Function: toJSON],
+2025-05-08 09:18:30.46
+50a7905f
+User
+[Symbol(shapeMode)]: true,
+2025-05-08 09:18:30.46
+50a7905f
+User
+[Symbol(kCapture)]: false,
+2025-05-08 09:18:30.46
+50a7905f
+User
+[Symbol(kCallback)]: null
+2025-05-08 09:18:30.46
+50a7905f
+User
+}
+2025-05-08 09:18:30.46
+50a7905f
+User
+}
+2025-05-08 09:18:30.46
+50a7905f
+User
+WARNING: GCS bucket thermopac_storage verification failed. File uploads may not work.
+2025-05-08 09:18:30.75
+50a7905f
+User
+⚠️ No permission to verify bucket existence - this is expected with object-level permissions
+2025-05-08 09:18:30.75
+50a7905f
+User
+ℹ️ Will proceed with assuming bucket exists and attempt operations with object-level permissions
+2025-05-08 09:18:30.76
+50a7905f
+User
+GCS utility initialized successfully
+
+Wrap
+

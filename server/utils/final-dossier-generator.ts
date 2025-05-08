@@ -20,16 +20,32 @@ const bucket = storage.bucket(gcsBucketName);
  */
 export async function checkExistingFinalDossier(inspectionOrderNumber: string): Promise<{ exists: boolean, url: string, path: string }> {
   try {
-    // Define the expected path for the final dossier in GCS
-    const expectedPath = `QMS/Inspections_Records/${inspectionOrderNumber}/Final Dossier/FD_${inspectionOrderNumber}.pdf`;
+    // Define the base path for the final dossier directory in GCS
+    const dossierDir = `QMS/Inspections_Records/${inspectionOrderNumber}/Final Dossier`;
+    const filePrefix = `FD_${inspectionOrderNumber}`;
     
-    // Check if the file exists in GCS
-    const file = bucket.file(expectedPath);
-    const [exists] = await file.exists();
+    // List files in the Final Dossier directory
+    console.log(`Checking for existing dossiers in: ${dossierDir}`);
+    const [files] = await bucket.getFiles({ prefix: dossierDir });
     
-    if (exists) {
-      // Generate signed URL for download if file exists
-      const [url] = await file.getSignedUrl({
+    // Look for files that match our prefix pattern
+    const dossierFiles = files.filter(file => {
+      const fileName = file.name.split('/').pop() || '';
+      return fileName.startsWith(filePrefix) && fileName.endsWith('.pdf');
+    });
+    
+    console.log(`Found ${dossierFiles.length} possible dossier files`);
+    
+    if (dossierFiles.length > 0) {
+      // Sort by name descending to get the most recent one (assuming timestamp in name)
+      dossierFiles.sort((a, b) => b.name.localeCompare(a.name));
+      
+      // Use the most recent file
+      const latestFile = dossierFiles[0];
+      console.log(`Using most recent dossier file: ${latestFile.name}`);
+      
+      // Generate signed URL for download
+      const [url] = await latestFile.getSignedUrl({
         action: 'read',
         expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // URL expires in 7 days
       });
@@ -37,17 +53,20 @@ export async function checkExistingFinalDossier(inspectionOrderNumber: string): 
       return {
         exists: true,
         url,
-        path: expectedPath
+        path: latestFile.name
       };
     }
     
+    // If no files found, return exists: false
+    console.log('No existing final dossier files found');
     return {
       exists: false,
       url: '',
-      path: expectedPath
+      path: `${dossierDir}/${filePrefix}.pdf` // Return a reference path for consistency
     };
   } catch (error) {
     console.error('Error checking for existing final dossier:', error);
+    console.log('Continuing with assumption that no dossier exists');
     return {
       exists: false,
       url: '',
@@ -1315,16 +1334,20 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     const pdfBytes = await pdfDoc.save();
     
     // Define the path for the final dossier in GCS with the required naming convention
-    // We're using the standardized format: /QMS/Inspections_Records/{Inspection Order No}/Final Dossier/FD_{Inspection Order No}.pdf
-    const gcsPath = `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Final Dossier/FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
+    // Add a timestamp to the filename to avoid overwriting existing files (which requires delete permission)
+    const timestamp = Date.now();
+    const gcsPath = `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Final Dossier/FD_${inspectionOrder.inspectionOrderNumber}_${timestamp}.pdf`;
     
-    // Upload to GCS
+    // Log the file path we're using
+    console.log(`Creating new Final Dossier at path: ${gcsPath}`);
+    
+    // Upload to GCS - set resumable: true to avoid checking if the file exists
     const file = bucket.file(gcsPath);
     const stream = file.createWriteStream({
       metadata: {
         contentType: 'application/pdf',
       },
-      resumable: false,
+      resumable: true, // Use resumable upload to avoid existence checks
     });
     
     // Upload the PDF buffer
