@@ -3685,7 +3685,13 @@ export default function InspectionsPage() {
                                 key={record.id}
                                 className={selectedNdtRecord?.id === record.id ? 'bg-primary/20 border-l-4 border-primary' : 'cursor-pointer hover:bg-muted/50'}
                                 onClick={() => setSelectedNdtRecord(record)}>
-                                <TableCell className="font-medium">{record.id}</TableCell>
+                                <TableCell className="font-medium flex items-center">
+                                  {selectedNdtRecord?.id === record.id ? 
+                                    <Check className="h-4 w-4 mr-2 text-primary" /> : 
+                                    <div className="h-4 w-4 mr-2 rounded-full border border-muted-foreground/30"></div>
+                                  }
+                                  {record.id}
+                                </TableCell>
                                 <TableCell>
                                   {editingNdtIndex === index ? (
                                     <Select 
@@ -3852,7 +3858,7 @@ export default function InspectionsPage() {
                                 variant: "destructive"
                               });
                             }}>
-                              <FileText className="h-4 w-4 mr-2" />
+                              <Info className="h-4 w-4 mr-2 text-blue-500" />
                               Select NDT Record First
                             </Button>
                           )}
