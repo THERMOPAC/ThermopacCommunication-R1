@@ -1251,42 +1251,73 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       
       // Extract WPQR document IDs from weld records and retrieve their files
       console.log('Checking for WPQR documents in weld records...');
+      console.log('Weld Records:', JSON.stringify(weldRecords, null, 2));
       const wpqrDocumentIds: number[] = [];
       
       // Extract WPQR document IDs from weld records
       if (weldRecords && weldRecords.length > 0) {
         for (const weld of weldRecords) {
-          if (weld.wpqrDocument && !isNaN(parseInt(weld.wpqrDocument))) {
-            const wpqrId = parseInt(weld.wpqrDocument);
-            if (!wpqrDocumentIds.includes(wpqrId)) {
-              wpqrDocumentIds.push(wpqrId);
-              console.log(`Found WPQR document ID: ${wpqrId}`);
+          if (weld.wpqrDocument) {
+            console.log(`Found WPQR reference: ${weld.wpqrDocument} (type: ${typeof weld.wpqrDocument})`);
+            
+            try {
+              const wpqrId = parseInt(weld.wpqrDocument);
+              if (!isNaN(wpqrId)) {
+                if (!wpqrDocumentIds.includes(wpqrId)) {
+                  wpqrDocumentIds.push(wpqrId);
+                  console.log(`Extracted WPQR document ID: ${wpqrId}`);
+                }
+              } else {
+                console.log(`Could not parse WPQR document ID: ${weld.wpqrDocument}`);
+              }
+            } catch (error) {
+              console.error(`Error parsing WPQR document ID: ${weld.wpqrDocument}`, error);
             }
           }
         }
       }
       
+      console.log(`Collected WPQR document IDs: ${wpqrDocumentIds.join(', ')}`);
+      
       // If we have WPQR document IDs, retrieve them from the database and add their file paths
       if (wpqrDocumentIds.length > 0) {
         console.log(`Retrieving ${wpqrDocumentIds.length} WPQR documents from database...`);
         
-        const wpqrDocs = await db.select({
-          id: wpqrDocuments.id,
-          documentId: wpqrDocuments.documentId,
-          filePath: wpqrDocuments.filePath
-        })
-        .from(wpqrDocuments)
-        .where(inArray(wpqrDocuments.id, wpqrDocumentIds));
-        
-        console.log(`Found ${wpqrDocs.length} WPQR documents in the database`);
-        
-        for (const doc of wpqrDocs) {
-          if (doc.filePath) {
-            console.log(`Adding WPQR document path: ${doc.filePath}`);
-            pdfPaths.push(doc.filePath);
-          } else {
-            console.log(`WPQR document ${doc.documentId} (ID: ${doc.id}) has no file path`);
+        try {
+          const wpqrDocs = await db.select({
+            id: wpqrDocuments.id,
+            documentId: wpqrDocuments.documentId,
+            filePath: wpqrDocuments.filePath
+          })
+          .from(wpqrDocuments)
+          .where(inArray(wpqrDocuments.id, wpqrDocumentIds));
+          
+          console.log(`Found ${wpqrDocs.length} WPQR documents in the database:`, JSON.stringify(wpqrDocs, null, 2));
+          
+          // Try to get directly from the standard WPQR path if no file path is saved
+          for (const doc of wpqrDocs) {
+            if (doc.filePath) {
+              console.log(`Adding WPQR document with saved path: ${doc.filePath}`);
+              pdfPaths.push(doc.filePath);
+            } else {
+              // Try standard path
+              const standardPath = `QMS/WPQR/${doc.documentId}.pdf`;
+              console.log(`WPQR document ${doc.documentId} (ID: ${doc.id}) has no file path, trying standard path: ${standardPath}`);
+              pdfPaths.push(standardPath);
+            }
           }
+          
+          // Add a fallback approach to check standard locations for WPQR documents
+          for (const wpqrId of wpqrDocumentIds) {
+            // Check if there's a document with format WPQR-{id}.pdf in the standard location
+            const wpqrStandardPath = `QMS/WPQR/WPQR-${wpqrId}.pdf`;
+            console.log(`Adding fallback WPQR path: ${wpqrStandardPath}`);
+            if (!pdfPaths.includes(wpqrStandardPath)) {
+              pdfPaths.push(wpqrStandardPath);
+            }
+          }
+        } catch (dbError) {
+          console.error('Error retrieving WPQR documents from database:', dbError);
         }
       }
       
@@ -1298,31 +1329,61 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
           try {
             // Download the PDF from GCS
             const file = bucket.file(pdfPath);
-            const [exists] = await file.exists();
             
-            if (exists) {
-              const [fileBuffer] = await file.download();
+            // Check if the file exists with detailed logging
+            try {
+              console.log(`Checking if file exists: ${pdfPath}`);
+              const [exists] = await file.exists();
+              console.log(`File ${pdfPath} exists: ${exists}`);
               
-              // Merge the PDF
-              const externalPdfDoc = await PDFDocument.load(fileBuffer);
-              const copiedPages = await pdfDoc.copyPages(externalPdfDoc, externalPdfDoc.getPageIndices());
-              
-              // Add each page to the main document
-              for (const copiedPage of copiedPages) {
-                const page = pdfDoc.addPage(copiedPage);
-                
-                // Add our footer to each imported page
+              if (exists) {
                 try {
-                  addFooterToPage(page);
-                } catch (footerError) {
-                  console.error('Error adding footer to imported page:', footerError);
+                  console.log(`Downloading file: ${pdfPath}`);
+                  const [fileBuffer] = await file.download();
+                  console.log(`Successfully downloaded file: ${pdfPath}, size: ${fileBuffer.length} bytes`);
+                  
+                  // Merge the PDF
+                  try {
+                    console.log(`Loading PDF: ${pdfPath}`);
+                    const externalPdfDoc = await PDFDocument.load(fileBuffer);
+                    console.log(`PDF loaded, copying pages from: ${pdfPath}`);
+                    
+                    const pageCount = externalPdfDoc.getPageCount();
+                    console.log(`PDF has ${pageCount} pages`);
+                    
+                    const pageIndices = externalPdfDoc.getPageIndices();
+                    console.log(`Getting ${pageIndices.length} page indices`);
+                    
+                    const copiedPages = await pdfDoc.copyPages(externalPdfDoc, pageIndices);
+                    console.log(`Copied ${copiedPages.length} pages from: ${pdfPath}`);
+                    
+                    // Add each page to the main document
+                    for (const copiedPage of copiedPages) {
+                      const page = pdfDoc.addPage(copiedPage);
+                      
+                      // Add our footer to each imported page
+                      try {
+                        addFooterToPage(page);
+                      } catch (footerError) {
+                        console.error('Error adding footer to imported page:', footerError);
+                      }
+                    }
+                    
+                    console.log(`Successfully merged PDF: ${pdfPath}`);
+                  } catch (pdfError) {
+                    console.error(`Error processing PDF ${pdfPath}:`, pdfError);
+                  }
+                } catch (downloadError) {
+                  console.error(`Error downloading file ${pdfPath}:`, downloadError);
                 }
+              } else {
+                console.log(`File does not exist in GCS: ${pdfPath}`);
               }
-              
-              console.log(`Successfully merged PDF: ${pdfPath}`);
+            } catch (existsError) {
+              console.error(`Error checking if file exists ${pdfPath}:`, existsError);
             }
           } catch (error) {
-            console.error(`Error merging PDF ${pdfPath}:`, error);
+            console.error(`General error processing file ${pdfPath}:`, error);
           }
         }
       }
