@@ -313,7 +313,17 @@ export default function InspectionsPage() {
     inspectionDate: '',
     observations: 'Pass'
   }]);
-  const [selectedVisualRecord, setSelectedVisualRecord] = useState<any | null>(null);
+  // Define the VisualRecord type to make it more specific
+  type VisualRecord = {
+    id: string;
+    standard: string;
+    inspector: string;
+    dimensionalChecks: string;
+    surfaceCondition: string;
+    inspectionDate: string;
+    observations: string;
+  };
+  const [selectedVisualRecord, setSelectedVisualRecord] = useState<VisualRecord | null>(null);
   const [editingVisualIndex, setEditingVisualIndex] = useState<number | null>(null);
   
   // Hydrotest management state
@@ -609,6 +619,8 @@ export default function InspectionsPage() {
     }));
     
     setVisualRecords(renumberedRecords);
+    setSelectedVisualRecord(null);
+    
     if (editingVisualIndex === index) {
       setEditingVisualIndex(null);
     }
@@ -3877,6 +3889,11 @@ export default function InspectionsPage() {
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Visual Inspection Records</h3>
                       
+                      <div className="bg-muted/50 p-2 rounded-md text-sm flex items-center mb-2">
+                        <Info className="h-4 w-4 mr-2 text-blue-500" />
+                        Click on a row in the table below to select a Visual Inspection record before uploading photos.
+                      </div>
+                      
                       {/* Table of visual inspection records */}
                       <div className="border rounded-md">
                         <Table>
@@ -4062,11 +4079,53 @@ export default function InspectionsPage() {
                           </Button>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button type="button" variant="outline" size="sm">
-                            <FileText className="h-4 w-4 mr-2" />
-                            Upload Photos
-                          </Button>
-                          <Button type="button" variant="outline" size="sm">
+                          {selectedVisualRecord ? (
+                            <InspectionDocumentUpload
+                              inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                              tabName="Visual"
+                              recordId={selectedVisualRecord.id}
+                              variant="outline"
+                              size="sm"
+                              onSuccess={() => {
+                                toast({
+                                  title: "Photos uploaded successfully",
+                                  description: `Visual inspection photos for ${selectedVisualRecord.id} have been uploaded.`,
+                                });
+                              }}
+                            />
+                          ) : (
+                            <Button type="button" variant="outline" size="sm" onClick={() => {
+                              toast({
+                                title: "No Visual Inspection record selected",
+                                description: "Please select a Visual Inspection record to upload photos.",
+                                variant: "destructive"
+                              });
+                            }}>
+                              <Info className="h-4 w-4 mr-2 text-blue-500" />
+                              Select Record First
+                            </Button>
+                          )}
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              if (selectedVisualRecord && editInspectionOrderDetails?.inspectionOrderNumber) {
+                                setShowDocumentViewer(true);
+                                setDocumentViewerConfig({
+                                  inspectionOrderNumber: editInspectionOrderDetails.inspectionOrderNumber,
+                                  tabName: 'Visual',
+                                  recordId: selectedVisualRecord.id
+                                });
+                              } else {
+                                toast({
+                                  title: "No Visual Inspection record selected",
+                                  description: "Please select a Visual Inspection record to view photos.",
+                                  variant: "destructive"
+                                });
+                              }
+                            }}
+                          >
                             <Eye className="h-4 w-4 mr-2" />
                             View Photos
                           </Button>
