@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { PDFDocument, rgb, StandardFonts, PDFPage } from 'pdf-lib';
 import { db } from '../db';
-import { inspectionOrders, materialInspectionLinks } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { inspectionOrders, materialInspectionLinks, wpqrDocuments } from '@shared/schema';
+import { eq, inArray } from 'drizzle-orm';
 import { Storage } from '@google-cloud/storage';
 import { Readable } from 'stream';
 import { gcsCredentials, gcsBucketName } from './gcs-config';
@@ -1226,6 +1226,47 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         for (const docPath of sectionDocs) {
           if (docPath.toLowerCase().endsWith('.pdf')) {
             pdfPaths.push(docPath);
+          }
+        }
+      }
+      
+      // Extract WPQR document IDs from weld records and retrieve their files
+      console.log('Checking for WPQR documents in weld records...');
+      const wpqrDocumentIds: number[] = [];
+      
+      // Extract WPQR document IDs from weld records
+      if (weldRecords && weldRecords.length > 0) {
+        for (const weld of weldRecords) {
+          if (weld.wpqrDocument && !isNaN(parseInt(weld.wpqrDocument))) {
+            const wpqrId = parseInt(weld.wpqrDocument);
+            if (!wpqrDocumentIds.includes(wpqrId)) {
+              wpqrDocumentIds.push(wpqrId);
+              console.log(`Found WPQR document ID: ${wpqrId}`);
+            }
+          }
+        }
+      }
+      
+      // If we have WPQR document IDs, retrieve them from the database and add their file paths
+      if (wpqrDocumentIds.length > 0) {
+        console.log(`Retrieving ${wpqrDocumentIds.length} WPQR documents from database...`);
+        
+        const wpqrDocs = await db.select({
+          id: wpqrDocuments.id,
+          documentId: wpqrDocuments.documentId,
+          filePath: wpqrDocuments.filePath
+        })
+        .from(wpqrDocuments)
+        .where(inArray(wpqrDocuments.id, wpqrDocumentIds));
+        
+        console.log(`Found ${wpqrDocs.length} WPQR documents in the database`);
+        
+        for (const doc of wpqrDocs) {
+          if (doc.filePath) {
+            console.log(`Adding WPQR document path: ${doc.filePath}`);
+            pdfPaths.push(doc.filePath);
+          } else {
+            console.log(`WPQR document ${doc.documentId} (ID: ${doc.id}) has no file path`);
           }
         }
       }
