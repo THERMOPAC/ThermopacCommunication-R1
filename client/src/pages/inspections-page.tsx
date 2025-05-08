@@ -3671,7 +3671,10 @@ export default function InspectionsPage() {
                           </TableHeader>
                           <TableBody>
                             {Array.isArray(ndtRecords) && ndtRecords.map((record, index) => (
-                              <TableRow key={record.id}>
+                              <TableRow 
+                                key={record.id}
+                                className={selectedNdtRecord?.id === record.id ? 'bg-primary/10' : undefined}
+                                onClick={() => setSelectedNdtRecord(record)}>
                                 <TableCell className="font-medium">{record.id}</TableCell>
                                 <TableCell>
                                   {editingNdtIndex === index ? (
@@ -4669,6 +4672,7 @@ export default function InspectionsPage() {
                 onClick={() => {
                   setIsEditDialogOpen(false);
                   setEditingInspectionOrder(null);
+                  setSelectedNdtRecord(null);
                 }}
               >
                 Close
