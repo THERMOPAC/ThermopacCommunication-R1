@@ -293,6 +293,7 @@ export default function InspectionsPage() {
     ndtResults: 'Pass'
   }]);
   const [editingNdtIndex, setEditingNdtIndex] = useState<number | null>(null);
+  const [selectedNdtRecord, setSelectedNdtRecord] = useState<any | null>(null);
   
   // Visual Inspection management state
   const [visualRecords, setVisualRecords] = useState<{
@@ -3816,10 +3817,32 @@ export default function InspectionsPage() {
                           </Button>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button type="button" variant="outline" size="sm">
-                            <FileText className="h-4 w-4 mr-2" />
-                            Upload NDT Reports
-                          </Button>
+                          {selectedNdtRecord ? (
+                            <InspectionDocumentUpload
+                              inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
+                              tabName="NDT"
+                              recordId={selectedNdtRecord.id}
+                              variant="outline"
+                              size="sm"
+                              onSuccess={() => {
+                                toast({
+                                  title: "Report uploaded successfully",
+                                  description: `NDT report for ${selectedNdtRecord.id} has been uploaded.`,
+                                });
+                              }}
+                            />
+                          ) : (
+                            <Button type="button" variant="outline" size="sm" onClick={() => {
+                              toast({
+                                title: "No NDT record selected",
+                                description: "Please select an NDT record to upload a report.",
+                                variant: "destructive"
+                              });
+                            }}>
+                              <FileText className="h-4 w-4 mr-2" />
+                              Upload NDT Reports
+                            </Button>
+                          )}
                           <Button type="button" variant="outline" size="sm">
                             <Eye className="h-4 w-4 mr-2" />
                             View Reports
