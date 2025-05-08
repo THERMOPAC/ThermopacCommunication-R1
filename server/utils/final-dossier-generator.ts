@@ -2,8 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { PDFDocument, rgb, StandardFonts, PDFPage } from 'pdf-lib';
 import { db } from '../db';
-import { inspectionOrders, materialInspectionLinks, wpqrDocuments } from '@shared/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { 
+  inspectionOrders, 
+  materialInspectionLinks, 
+  wpqrDocuments, 
+  welders, 
+  welderCertificates 
+} from '@shared/schema';
+import { eq, inArray, and } from 'drizzle-orm';
 import { Storage } from '@google-cloud/storage';
 import { Readable } from 'stream';
 import { gcsCredentials, gcsBucketName } from './gcs-config';
@@ -1249,14 +1255,16 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         }
       }
       
-      // Extract WPQR document IDs from weld records and retrieve their files
-      console.log('Checking for WPQR documents in weld records...');
+      // Extract WPQR document IDs and welder IDs from weld records
+      console.log('Checking for WPQR documents and welder certificates in weld records...');
       console.log('Weld Records:', JSON.stringify(weldRecords, null, 2));
       const wpqrDocumentIds: number[] = [];
+      const welderIds: string[] = []; // Array to store unique welder IDs
       
-      // Extract WPQR document IDs from weld records
+      // Extract WPQR document IDs and welder IDs from weld records
       if (weldRecords && weldRecords.length > 0) {
         for (const weld of weldRecords) {
+          // Extract WPQR document IDs
           if (weld.wpqrDocument) {
             console.log(`Found WPQR reference: ${weld.wpqrDocument} (type: ${typeof weld.wpqrDocument})`);
             
@@ -1274,10 +1282,20 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
               console.error(`Error parsing WPQR document ID: ${weld.wpqrDocument}`, error);
             }
           }
+          
+          // Extract welder IDs
+          if (weld.welderId) {
+            console.log(`Found welder reference: ${weld.welderId}`);
+            if (!welderIds.includes(weld.welderId)) {
+              welderIds.push(weld.welderId);
+              console.log(`Extracted welder ID: ${weld.welderId}`);
+            }
+          }
         }
       }
       
       console.log(`Collected WPQR document IDs: ${wpqrDocumentIds.join(', ')}`);
+      console.log(`Collected welder IDs: ${welderIds.join(', ')}`);
       
       // If we have WPQR document IDs, retrieve them from the database and add their file paths
       if (wpqrDocumentIds.length > 0) {
@@ -1318,6 +1336,74 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
           }
         } catch (dbError) {
           console.error('Error retrieving WPQR documents from database:', dbError);
+        }
+      }
+      
+      // If we have welder IDs, retrieve their certificates and add them to the PDF
+      if (welderIds.length > 0) {
+        console.log(`Retrieving certificates for ${welderIds.length} welders...`);
+        
+        try {
+          // First, get the actual welder database IDs from their welder IDs (e.g., W-001)
+          const welderRecords = await db.select({
+            id: welders.id,
+            welderId: welders.welderId,
+            name: welders.name
+          })
+          .from(welders)
+          .where(inArray(welders.welderId, welderIds));
+          
+          console.log(`Found ${welderRecords.length} welders in the database:`, JSON.stringify(welderRecords, null, 2));
+          
+          if (welderRecords.length > 0) {
+            const welderDbIds = welderRecords.map(w => w.id);
+            
+            // Now get the active certificates for these welders
+            const welderCertificateRecords = await db.select({
+              id: welderCertificates.id,
+              welderId: welderCertificates.welderId,
+              certificateNo: welderCertificates.certificateNo,
+              filePath: welderCertificates.filePath,
+              status: welderCertificates.status
+            })
+            .from(welderCertificates)
+            .where(and(
+              inArray(welderCertificates.welderId, welderDbIds),
+              eq(welderCertificates.status, 'Active')
+            ));
+            
+            console.log(`Found ${welderCertificateRecords.length} active certificates:`, JSON.stringify(welderCertificateRecords, null, 2));
+            
+            // Add certificate file paths to the PDF paths
+            for (const cert of welderCertificateRecords) {
+              if (cert.filePath) {
+                // Get the corresponding welder record for logging
+                const welder = welderRecords.find(w => w.id === cert.welderId);
+                console.log(`Adding certificate for welder ${welder?.name} (${welder?.welderId}): ${cert.filePath}`);
+                pdfPaths.push(cert.filePath);
+              }
+            }
+            
+            // Add a fallback approach to check standard locations for welder certificates
+            for (const welder of welderRecords) {
+              const welderCertPath = `QMS/WELDERS/${welder.welderId}/certificates`;
+              console.log(`Checking for certificates in standard path: ${welderCertPath}`);
+              
+              try {
+                const files = await listFiles(welderCertPath);
+                for (const file of files) {
+                  if (file.toLowerCase().endsWith('.pdf')) {
+                    console.log(`Found certificate in standard path: ${file}`);
+                    pdfPaths.push(file);
+                  }
+                }
+              } catch (error) {
+                console.log(`No certificates found in standard path ${welderCertPath}: ${error.message}`);
+              }
+            }
+          }
+        } catch (dbError) {
+          console.error('Error retrieving welder certificates from database:', dbError);
         }
       }
       
