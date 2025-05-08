@@ -132,7 +132,7 @@ const InspectionDocumentUpload: React.FC<InspectionDocumentUploadProps> = ({
         ) : (
           <>
             <Upload className="mr-2 h-4 w-4" />
-            Upload PDF
+            Select & Upload PDF
           </>
         )}
       </Button>

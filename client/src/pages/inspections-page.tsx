@@ -3849,7 +3849,7 @@ export default function InspectionsPage() {
                               });
                             }}>
                               <FileText className="h-4 w-4 mr-2" />
-                              Upload NDT Reports
+                              Select NDT Record First
                             </Button>
                           )}
                           <Button type="button" variant="outline" size="sm">
