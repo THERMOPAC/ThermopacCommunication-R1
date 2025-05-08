@@ -243,6 +243,14 @@ export default function InspectionsPage() {
   const [isCheckingDossier, setIsCheckingDossier] = useState(false);
   const [dossierUrl, setDossierUrl] = useState<string | null>(null);
   
+  // Document upload state
+  const [showDocumentUpload, setShowDocumentUpload] = useState(false);
+  const [documentUploadConfig, setDocumentUploadConfig] = useState<{
+    inspectionOrderNumber: string;
+    tabName: string;
+    recordId: string;
+  } | null>(null);
+  
   // Document viewer state
   const [showDocumentViewer, setShowDocumentViewer] = useState(false);
   const [documentViewerConfig, setDocumentViewerConfig] = useState<{
@@ -4965,6 +4973,37 @@ export default function InspectionsPage() {
               Close
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Document Upload Modal */}
+      <Dialog open={showDocumentUpload} onOpenChange={setShowDocumentUpload}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload Inspection Document</DialogTitle>
+            <DialogDescription>
+              {documentUploadConfig && (
+                <span>
+                  Upload {documentUploadConfig.tabName} document for record {documentUploadConfig.recordId}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {documentUploadConfig && (
+            <InspectionDocumentUpload
+              inspectionOrderNumber={documentUploadConfig.inspectionOrderNumber}
+              tabName={documentUploadConfig.tabName}
+              recordId={documentUploadConfig.recordId}
+              onSuccess={() => {
+                setShowDocumentUpload(false);
+                toast({
+                  title: "Upload Successful",
+                  description: `${documentUploadConfig.tabName} document for ${documentUploadConfig.recordId} has been uploaded.`,
+                });
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </Layout>
