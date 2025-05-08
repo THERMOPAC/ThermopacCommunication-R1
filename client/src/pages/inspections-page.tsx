@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
-import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck, BarChart3, ListChecks, FileOutput, Download, Upload, Filter, Search } from "lucide-react";
+import { Check, Edit, Trash, Eye, Plus, ClipboardCheck, Calendar as CalendarIcon, CheckCircle2, AlertCircle, XCircle, FileText, Hourglass, Loader2, Edit2, Pencil, Trash2, X, FileCheck, BarChart3, ListChecks, FileOutput, Download, Upload, Filter, Search, Info } from "lucide-react";
 import InspectionDocumentUpload from "@/components/inspection-document-upload";
 import InspectionDocumentViewer from "@/components/inspection-document-viewer";
 import { FinalDossierDebugButton } from "@/components/final-dossier-debug-button";
@@ -3659,6 +3659,10 @@ export default function InspectionsPage() {
                   <TabsContent value="ndt" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium">Non-Destructive Testing (NDT)</h3>
+                      <div className="bg-muted/50 p-2 rounded-md text-sm flex items-center mb-2">
+                        <Info className="h-4 w-4 mr-2 text-blue-500" />
+                        Click on a row in the table below to select an NDT record before uploading a report.
+                      </div>
                       
                       {/* NDT list */}
                       <div className="border rounded-md shadow-sm overflow-hidden">
@@ -3679,7 +3683,7 @@ export default function InspectionsPage() {
                             {Array.isArray(ndtRecords) && ndtRecords.map((record, index) => (
                               <TableRow 
                                 key={record.id}
-                                className={selectedNdtRecord?.id === record.id ? 'bg-primary/10' : undefined}
+                                className={selectedNdtRecord?.id === record.id ? 'bg-primary/20 border-l-4 border-primary' : 'cursor-pointer hover:bg-muted/50'}
                                 onClick={() => setSelectedNdtRecord(record)}>
                                 <TableCell className="font-medium">{record.id}</TableCell>
                                 <TableCell>
