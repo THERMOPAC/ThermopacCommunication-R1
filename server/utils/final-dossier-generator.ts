@@ -96,9 +96,40 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     }
 
     // Fetch materials linked to this inspection order
-    const materials = await db.query.materialInspectionLinks.findMany({
+    let materials = await db.query.materialInspectionLinks.findMany({
       where: eq(materialInspectionLinks.inspectionOrderId, inspectionOrderId),
     });
+    
+    console.log(`Found ${materials.length} material links for inspection order ${inspectionOrderId}`);
+    
+    // Check if the inspection order has a materialsData field which indicates selected materials
+    if (inspectionOrder.materialsData) {
+      try {
+        // Parse the materialsData to get the selected materials
+        const selectedMaterials = JSON.parse(inspectionOrder.materialsData);
+        console.log(`Parsed selected materials from materialsData: ${selectedMaterials.length} items`);
+        
+        // Filter materials to only include the ones that are selected
+        if (Array.isArray(selectedMaterials) && selectedMaterials.length > 0) {
+          // Get the selected material IDs
+          const selectedMaterialIds = selectedMaterials.map(m => m.materialIdentificationId).filter(Boolean);
+          console.log(`Selected material IDs: ${selectedMaterialIds.join(', ')}`);
+          
+          // Filter the materials to only include those that are selected
+          if (selectedMaterialIds.length > 0) {
+            materials = materials.filter(m => 
+              selectedMaterialIds.includes(m.materialIdentificationId)
+            );
+            console.log(`After filtering, using ${materials.length} selected materials`);
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing materialsData:', e);
+        console.log('Using all material links due to parsing error');
+      }
+    } else {
+      console.log('No materialsData field found, using all material links');
+    }
 
     // Parse data from different tabs
     let ndtRecords = [];
