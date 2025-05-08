@@ -542,6 +542,7 @@ export default function InspectionsPage() {
         ndtResults: 'Pass'
       }
     ]);
+    setSelectedNdtRecord(null);
   };
   
   // Delete an NDT record
@@ -556,6 +557,8 @@ export default function InspectionsPage() {
     }));
     
     setNdtRecords(renumberedRecords);
+    setSelectedNdtRecord(null);
+    
     if (editingNdtIndex === index) {
       setEditingNdtIndex(null);
     }
@@ -1316,6 +1319,9 @@ export default function InspectionsPage() {
   // Update NDT records when inspection order details are loaded
   useEffect(() => {
     if (editInspectionOrderDetails) {
+      // Reset selected NDT record when loading a new inspection order
+      setSelectedNdtRecord(null);
+      
       // Check if the response has NDT data in the expected format
       console.log("Checking for NDT data:", editInspectionOrderDetails);
       
