@@ -313,6 +313,7 @@ export default function InspectionsPage() {
     inspectionDate: '',
     observations: 'Pass'
   }]);
+  const [selectedVisualRecord, setSelectedVisualRecord] = useState<any | null>(null);
   const [editingVisualIndex, setEditingVisualIndex] = useState<number | null>(null);
   
   // Hydrotest management state
@@ -3893,8 +3894,18 @@ export default function InspectionsPage() {
                           </TableHeader>
                           <TableBody>
                             {Array.isArray(visualRecords) && visualRecords.map((record, index) => (
-                              <TableRow key={record.id}>
-                                <TableCell className="w-[150px]">{record.id}</TableCell>
+                              <TableRow
+                                key={record.id}
+                                className={selectedVisualRecord?.id === record.id ? 'bg-primary/20 border-l-4 border-primary' : 'cursor-pointer hover:bg-muted/50'}
+                                onClick={() => setSelectedVisualRecord(record)}
+                              >
+                                <TableCell className="w-[150px] flex items-center">
+                                  {selectedVisualRecord?.id === record.id ? 
+                                    <Check className="h-4 w-4 mr-2 text-primary" /> : 
+                                    <div className="h-4 w-4 mr-2 rounded-full border border-muted-foreground/30"></div>
+                                  }
+                                  {record.id}
+                                </TableCell>
                                 <TableCell>
                                   {editingVisualIndex === index ? (
                                     <Select 
