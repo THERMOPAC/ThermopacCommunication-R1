@@ -243,6 +243,14 @@ export default function InspectionsPage() {
   const [isCheckingDossier, setIsCheckingDossier] = useState(false);
   const [dossierUrl, setDossierUrl] = useState<string | null>(null);
   
+  // Document viewer state
+  const [showDocumentViewer, setShowDocumentViewer] = useState(false);
+  const [documentViewerConfig, setDocumentViewerConfig] = useState<{
+    inspectionOrderNumber: string;
+    tabName: string;
+    recordId: string;
+  } | null>(null);
+  
   // Inspection Orders section state
   const [activeOrdersTab, setActiveOrdersTab] = useState<string>("dashboard");
   const [ordersByStatus, setOrdersByStatus] = useState<{ status: string; count: number }[]>([]);
@@ -4846,6 +4854,37 @@ export default function InspectionsPage() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Document Viewer Modal */}
+      <Dialog open={showDocumentViewer} onOpenChange={setShowDocumentViewer}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>View Inspection Documents</DialogTitle>
+            <DialogDescription>
+              {documentViewerConfig && (
+                <span>
+                  Viewing {documentViewerConfig.tabName} documents for record {documentViewerConfig.recordId}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {documentViewerConfig && (
+            <InspectionDocumentViewer
+              inspectionOrderNumber={documentViewerConfig.inspectionOrderNumber}
+              tabName={documentViewerConfig.tabName}
+              recordId={documentViewerConfig.recordId}
+              className="mt-4"
+            />
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDocumentViewer(false)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Layout>
