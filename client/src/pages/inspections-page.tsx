@@ -354,6 +354,18 @@ export default function InspectionsPage() {
     result: 'Pass',
     notes: ''
   }]);
+  // Define HydrotestRecord type for better type safety
+  type HydrotestRecord = {
+    id: string;
+    pressure: string;
+    duration: string;
+    medium: string;
+    operator: string;
+    testDate: string;
+    result: string;
+    notes: string;
+  };
+  const [selectedHydrotestRecord, setSelectedHydrotestRecord] = useState<HydrotestRecord | null>(null);
   const [editingHydrotestIndex, setEditingHydrotestIndex] = useState<number | null>(null);
   
   // Non-Conformance Report state
@@ -665,6 +677,7 @@ export default function InspectionsPage() {
         notes: ''
       }
     ]);
+    setSelectedHydrotestRecord(null);
   };
   
   // Delete a hydrotest record
@@ -679,6 +692,8 @@ export default function InspectionsPage() {
     }));
     
     setHydrotestRecords(renumberedRecords);
+    setSelectedHydrotestRecord(null);
+    
     if (editingHydrotestIndex === index) {
       setEditingHydrotestIndex(null);
     }
@@ -4165,8 +4180,18 @@ export default function InspectionsPage() {
                           </TableHeader>
                           <TableBody>
                             {Array.isArray(hydrotestRecords) && hydrotestRecords.map((record, index) => (
-                              <TableRow key={record.id}>
-                                <TableCell>{record.id}</TableCell>
+                              <TableRow 
+                                key={record.id}
+                                className={selectedHydrotestRecord?.id === record.id ? 'bg-primary/20 border-l-4 border-primary' : 'cursor-pointer hover:bg-muted/50'}
+                                onClick={() => setSelectedHydrotestRecord(record)}
+                              >
+                                <TableCell className="w-[150px] flex items-center">
+                                  {selectedHydrotestRecord?.id === record.id ? 
+                                    <Check className="h-4 w-4 mr-2 text-primary" /> : 
+                                    <div className="h-4 w-4 mr-2 rounded-full border border-muted-foreground/30"></div>
+                                  }
+                                  {record.id}
+                                </TableCell>
                                 <TableCell>
                                   {editingHydrotestIndex === index ? (
                                     <Input 
@@ -4324,14 +4349,69 @@ export default function InspectionsPage() {
                           </Button>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button type="button" variant="outline" size="sm">
-                            <FileText className="h-4 w-4 mr-2" />
-                            Upload Hydrotest Certificate
-                          </Button>
-                          <Button type="button" variant="outline" size="sm">
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Certificate
-                          </Button>
+                          {selectedHydrotestRecord ? (
+                            <>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  if (selectedHydrotestRecord) {
+                                    setDocumentUploadConfig({
+                                      inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || '',
+                                      tabName: 'Hydrotest',
+                                      recordId: selectedHydrotestRecord.id
+                                    });
+                                    setShowDocumentUpload(true);
+                                  }
+                                }}
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Upload Hydrotest Certificate
+                              </Button>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  if (selectedHydrotestRecord && editInspectionOrderDetails?.inspectionOrderNumber) {
+                                    setDocumentViewerConfig({
+                                      inspectionOrderNumber: editInspectionOrderDetails.inspectionOrderNumber,
+                                      tabName: 'Hydrotest',
+                                      recordId: selectedHydrotestRecord.id
+                                    });
+                                    setShowDocumentViewer(true);
+                                  }
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Certificate
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm"
+                                disabled={true}
+                                className="cursor-not-allowed opacity-70"
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Select Record to Upload
+                              </Button>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm"
+                                disabled={true}
+                                className="cursor-not-allowed opacity-70"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Select Record to View
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
