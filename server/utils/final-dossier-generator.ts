@@ -16,10 +16,25 @@ import { gcsCredentials, gcsBucketName } from './gcs-config';
 import { listFiles } from './list-gcs-files';
 
 // Initialize Google Cloud Storage
-const storage = new Storage({
-  credentials: gcsCredentials,
-});
-const bucket = storage.bucket(gcsBucketName);
+let storage: Storage | null = null;
+let bucket: any = null;
+
+try {
+  // Initialize GCS client with service account credentials
+  console.log('Initializing GCS client for final dossier generator');
+  storage = new Storage({
+    credentials: gcsCredentials,
+  });
+  
+  // Create bucket reference without verifying existence
+  // This is necessary because the service account may only have object-level permissions
+  bucket = storage.bucket(gcsBucketName);
+  console.log(`Created bucket reference for ${gcsBucketName} without verifying existence`);
+  console.log('Service account permission note: Working with limited object-level permissions only');
+} catch (error) {
+  console.error('Error initializing GCS in final dossier generator:', error);
+  console.warn('File operations may fail due to storage initialization error');
+}
 
 /**
  * Check if a final dossier already exists for an inspection order
@@ -108,18 +123,34 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         // Parse the materialsData to get the selected materials
         const selectedMaterials = JSON.parse(inspectionOrder.materialsData);
         console.log(`Parsed selected materials from materialsData: ${selectedMaterials.length} items`);
+        console.log('Selected materials data structure:', JSON.stringify(selectedMaterials, null, 2));
         
         // Filter materials to only include the ones that are selected
         if (Array.isArray(selectedMaterials) && selectedMaterials.length > 0) {
-          // Get the selected material IDs
-          const selectedMaterialIds = selectedMaterials.map(m => m.materialIdentificationId).filter(Boolean);
+          // Get the selected material IDs - try different possible property names
+          const selectedMaterialIds = selectedMaterials.map(m => {
+            // Check various possible property names based on the client form structure
+            return m.materialId || m.materialIdentificationId || 
+                   (m.materialIdentification ? m.materialIdentification.id : null) ||
+                   m.material_identification_id || null;
+          }).filter(Boolean);
+          
           console.log(`Selected material IDs: ${selectedMaterialIds.join(', ')}`);
           
+          // Also extract material identification strings which might be stored separately
+          const selectedMaterialIdStrings = selectedMaterials.map(m => {
+            return m.materialIdentificationId || m.material_identification_id || null;
+          }).filter(Boolean);
+          
+          console.log(`Selected material ID strings: ${selectedMaterialIdStrings.join(', ')}`);
+          
           // Filter the materials to only include those that are selected
-          if (selectedMaterialIds.length > 0) {
-            materials = materials.filter(m => 
-              selectedMaterialIds.includes(m.materialIdentificationId)
-            );
+          if (selectedMaterialIds.length > 0 || selectedMaterialIdStrings.length > 0) {
+            materials = materials.filter(m => {
+              // Check against both numeric IDs and string IDs
+              return selectedMaterialIds.includes(m.materialId) || 
+                     selectedMaterialIdStrings.includes(m.materialIdentificationId);
+            });
             console.log(`After filtering, using ${materials.length} selected materials`);
           }
         }
