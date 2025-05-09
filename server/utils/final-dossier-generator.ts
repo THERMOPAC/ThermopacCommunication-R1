@@ -1324,20 +1324,45 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       // List of PDFs to merge
       const pdfPaths: string[] = [];
       
+      // Use to track the document types we've already processed for each material
+      // This will help us avoid duplicate document types in the final dossier
+      const materialDocTypeTracker: Record<string, Set<string>> = {};
+      
       // Collect material certificate PDFs, using the same filtered materials list
       console.log(`Collecting material documents for ${materials.length} selected materials`);
       for (const material of materials) {
         const materialId = material.materialIdentificationId;
         if (materialId) {
           console.log(`Looking for documents for Material ID: ${materialId}`);
+          
+          // Initialize tracking for this material if not exist
+          if (!materialDocTypeTracker[materialId]) {
+            materialDocTypeTracker[materialId] = new Set<string>();
+          }
+          
           const materialDocsPath = `QMS/Material_Identification/${materialId}`;
           const materialDocs = await listFiles(materialDocsPath);
           console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId}`);
           
+          // Sort documents by date (newest first) to always get the most recent version
+          // Document naming convention often includes timestamps
+          materialDocs.sort().reverse(); 
+          
           for (const docPath of materialDocs) {
             if (docPath.toLowerCase().endsWith('.pdf')) {
-              console.log(`Adding document to dossier: ${docPath}`);
-              pdfPaths.push(docPath);
+              // Extract the document type from the filename
+              // For example, from "Mill Test Certificate.pdf" we extract "Mill Test Certificate"
+              const docName = docPath.split('/').pop() || '';
+              const docType = docName.replace('.pdf', '').trim();
+              
+              // Only add this document if we haven't processed this document type for this material
+              if (!materialDocTypeTracker[materialId].has(docType)) {
+                console.log(`Adding document to dossier: ${docPath} (type: ${docType})`);
+                materialDocTypeTracker[materialId].add(docType);
+                pdfPaths.push(docPath);
+              } else {
+                console.log(`Skipping duplicate document type for ${materialId}: ${docType}`);
+              }
             }
           }
         }
