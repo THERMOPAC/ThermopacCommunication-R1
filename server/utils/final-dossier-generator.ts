@@ -22,8 +22,11 @@ let bucket: any = null;
 try {
   // Initialize GCS client with service account credentials
   console.log('Initializing GCS client for final dossier generator');
+  
+  // Explicitly cast credentials to avoid TypeScript errors
+  // The Google Cloud Storage library expects a specific format but our credentials are compatible
   storage = new Storage({
-    credentials: gcsCredentials,
+    credentials: gcsCredentials as any,
   });
   
   // Create bucket reference without verifying existence
@@ -1616,12 +1619,12 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         readable.push(null);
         
         // More detailed error handling during stream processing
-        stream.on('error', (err) => {
+        stream.on('error', (err: any) => {
           console.error('Error during file upload stream:', err);
           reject(new Error(`Upload stream error: ${err.message}`));
         });
         
-        readable.on('error', (err) => {
+        readable.on('error', (err: any) => {
           console.error('Error in readable stream:', err);
           reject(new Error(`Readable stream error: ${err.message}`));
         });
@@ -1635,13 +1638,13 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       });
       
       // Generate signed URL for download with error handling
-      let url;
+      let signedUrl = '';
       try {
-        const [signedUrl] = await file.getSignedUrl({
+        const [urlResult] = await file.getSignedUrl({
           action: 'read',
           expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // URL expires in 7 days
         });
-        url = signedUrl;
+        signedUrl = urlResult;
         console.log('Successfully generated signed URL for Final Dossier');
       } catch (signedUrlError) {
         console.error('Error generating signed URL:', signedUrlError);
@@ -1652,15 +1655,16 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
           path: gcsPath
         };
       }
-    } catch (uploadError) {
+      
+      // Return successful result with URL and path
+      return { 
+        url: signedUrl, 
+        path: gcsPath 
+      };
+    } catch (uploadError: any) {
       console.error('Error uploading Final Dossier file:', uploadError);
-      throw new Error(`Failed to upload Final Dossier: ${uploadError.message}`);
+      throw new Error(`Failed to upload Final Dossier: ${uploadError.message || 'Unknown error'}`);
     }
-    
-    return { 
-      url, 
-      path: gcsPath 
-    };
   } catch (error) {
     console.error('Error generating final dossier:', error);
     throw error;
