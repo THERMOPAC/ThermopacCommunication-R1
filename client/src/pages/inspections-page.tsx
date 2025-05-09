@@ -3257,7 +3257,7 @@ export default function InspectionsPage() {
                       {/* Material rows with Excel-like layout - always show table format */}
                       <div className="border rounded-md overflow-hidden">
                         {/* Table header - always shown */}
-                        <div className="flex flex-nowrap bg-gray-100 py-2 px-3 border-b text-xs font-semibold">
+                        <div className="flex flex-nowrap bg-gray-100 py-2 px-3 border-b text-[10px] font-semibold">
                           <div className="me-2" style={{width: "390px"}}>Description</div>
                           <div className="me-2" style={{width: "120px"}}>Material ID</div>
                           <div className="me-2" style={{width: "120px"}}>Certificate #</div>
@@ -3289,7 +3289,7 @@ export default function InspectionsPage() {
                                       editForm.setValue('materials', updatedRows);
                                     }}
                                     placeholder="Enter description"
-                                    className="h-8 w-full text-sm"
+                                    className="h-8 w-full text-xs"
                                   />
                                 </div>
                               
@@ -3302,7 +3302,7 @@ export default function InspectionsPage() {
                                       updateMaterialRow(index, selectedMaterial || null);
                                     }}
                                   >
-                                    <SelectTrigger id={`material-id-${index}`} className="h-8 w-full text-sm">
+                                    <SelectTrigger id={`material-id-${index}`} className="h-8 w-full text-xs">
                                       <SelectValue placeholder="Select MI ID" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -3340,7 +3340,7 @@ export default function InspectionsPage() {
                                       setMaterialRows(updatedRows);
                                     }}
                                     placeholder="Certificate #"
-                                    className="bg-gray-50 h-8 w-full text-sm"
+                                    className="bg-gray-50 h-8 w-full text-xs"
                                     readOnly
                                   />
                                 </div>
@@ -3359,7 +3359,7 @@ export default function InspectionsPage() {
                                       setMaterialRows(updatedRows);
                                     }}
                                     placeholder="Heat #"
-                                    className="bg-gray-50 h-8 w-full text-sm"
+                                    className="bg-gray-50 h-8 w-full text-xs"
                                     readOnly
                                   />
                                 </div>
@@ -3378,7 +3378,7 @@ export default function InspectionsPage() {
                                       setMaterialRows(updatedRows);
                                     }}
                                     placeholder="Grade"
-                                    className="bg-gray-50 h-8 w-full text-sm"
+                                    className="bg-gray-50 h-8 w-full text-xs"
                                     readOnly
                                   />
                                 </div>
@@ -3397,7 +3397,7 @@ export default function InspectionsPage() {
                                       setMaterialRows(updatedRows);
                                     }}
                                     placeholder="Specification"
-                                    className="bg-gray-50 h-8 w-full text-sm"
+                                    className="bg-gray-50 h-8 w-full text-xs"
                                     readOnly
                                   />
                                 </div>
@@ -3417,7 +3417,7 @@ export default function InspectionsPage() {
                                       editForm.setValue('materials', updatedRows);
                                     }}
                                     placeholder="Quantity"
-                                    className="h-8 w-full text-sm"
+                                    className="h-8 w-full text-xs"
                                     type="number"
                                   />
                                 </div>
@@ -3437,7 +3437,7 @@ export default function InspectionsPage() {
                                       editForm.setValue('materials', updatedRows);
                                     }}
                                     placeholder="Unit"
-                                    className="h-8 w-full text-sm"
+                                    className="h-8 w-full text-xs"
                                   />
                                 </div>
                                 
