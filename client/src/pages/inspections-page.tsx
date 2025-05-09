@@ -3247,10 +3247,11 @@ export default function InspectionsPage() {
                         <Button 
                           type="button" 
                           variant="outline" 
+                          size="sm"
                           onClick={addMaterialRow}
-                          className="flex items-center"
+                          className="flex items-center text-xs"
                         >
-                          <Plus className="h-4 w-4 mr-1" /> Add Material
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Material
                         </Button>
                       </div>
                       
@@ -3309,15 +3310,19 @@ export default function InspectionsPage() {
                                       {isLoadingMaterials ? (
                                         <div className="flex items-center justify-center p-2">
                                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                          Loading materials...
+                                          <span className="text-xs">Loading materials...</span>
                                         </div>
                                       ) : availableMaterials.length === 0 ? (
-                                        <div className="p-2 text-center text-sm text-muted-foreground">
+                                        <div className="p-2 text-center text-xs text-muted-foreground">
                                           No materials available
                                         </div>
                                       ) : (
                                         availableMaterials.map((material) => (
-                                          <SelectItem key={material.id} value={material.id.toString()}>
+                                          <SelectItem 
+                                            key={material.id} 
+                                            value={material.id.toString()}
+                                            className="text-xs"
+                                          >
                                             {material.material_identification_id}
                                           </SelectItem>
                                         ))
@@ -3472,10 +3477,10 @@ export default function InspectionsPage() {
                           ) : (
                             <div className="text-center py-10 border-b">
                               <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
-                              <p className="mt-2 text-muted-foreground">
+                              <p className="mt-2 text-xs text-muted-foreground">
                                 No materials linked to this inspection order.
                               </p>
-                              <p className="text-sm text-muted-foreground mb-2">
+                              <p className="text-xs text-muted-foreground mb-2">
                                 Click "Add Material" to link materials from Material Identification module.
                               </p>
                             </div>
@@ -3485,12 +3490,12 @@ export default function InspectionsPage() {
                       
                       {/* Certificate Upload/View Buttons */}
                       <div className="flex items-center gap-2 mt-4">
-                        <Button type="button" variant="outline" size="sm">
-                          <FileText className="h-4 w-4 mr-2" />
+                        <Button type="button" variant="outline" size="sm" className="text-xs">
+                          <FileText className="h-3.5 w-3.5 mr-1" />
                           Upload Certificate
                         </Button>
-                        <Button type="button" variant="outline" size="sm">
-                          <Eye className="h-4 w-4 mr-2" />
+                        <Button type="button" variant="outline" size="sm" className="text-xs">
+                          <Eye className="h-3.5 w-3.5 mr-1" />
                           View Attachments
                         </Button>
                       </div>
