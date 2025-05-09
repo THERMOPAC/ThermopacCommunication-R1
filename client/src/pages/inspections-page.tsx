@@ -3259,10 +3259,10 @@ export default function InspectionsPage() {
                       <div className="border rounded-md overflow-hidden">
                         {/* Table header - always shown */}
                         <div className="flex flex-nowrap bg-gray-100 py-2 px-3 border-b text-[10px] font-semibold">
-                          <div className="me-2" style={{width: "390px"}}>Description</div>
-                          <div className="me-2" style={{width: "120px"}}>Material ID</div>
-                          <div className="me-2" style={{width: "120px"}}>Certificate #</div>
-                          <div className="me-2" style={{width: "100px"}}>Heat #</div>
+                          <div className="me-2" style={{width: "240px"}}>Description</div>
+                          <div className="me-2" style={{width: "170px"}}>Material ID</div>
+                          <div className="me-2" style={{width: "170px"}}>Certificate #</div>
+                          <div className="me-2" style={{width: "150px"}}>Heat #</div>
                           <div className="me-2" style={{width: "100px"}}>Grade</div>
                           <div className="me-2" style={{width: "120px"}}>Spec</div>
                           <div className="me-2" style={{width: "80px"}}>Qty</div>
@@ -3275,8 +3275,8 @@ export default function InspectionsPage() {
                           {materialRows.length > 0 ? (
                             materialRows.map((materialRow, index) => (
                               <div key={index} className="flex flex-nowrap py-1 px-3 border-b hover:bg-gray-50">
-                                {/* Description - 390px */}
-                                <div className="me-2" style={{width: "390px"}}>
+                                {/* Description - 240px */}
+                                <div className="me-2" style={{width: "240px"}}>
                                   <Input
                                     id={`description-${index}`}
                                     value={materialRow.description || ''}
