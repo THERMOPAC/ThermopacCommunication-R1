@@ -1197,41 +1197,90 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         
         // Use the same filtered materials list for the appendices
         console.log(`Listing documents for ${materials.length} selected materials in appendices`);
+        
+        // Track document types per material (for appendices listing)
+        const appendixDocTypeTracker: Record<string, Set<string>> = {};
+        
+        // First pass: collect all documents and organize by material
+        const allMaterialDocsByMaterial: Record<string, Array<{name: string, path: string}>> = {};
+        
         for (const material of materials) {
           const materialId = material.materialIdentificationId;
-          if (materialId) {
-            console.log(`Finding documents for Material ID: ${materialId} to list in appendices`);
-            const materialDocsPath = `QMS/Material_Identification/${materialId}`;
+          if (!materialId) continue;
+          
+          console.log(`Finding documents for Material ID: ${materialId} to list in appendices`);
+          
+          // Initialize tracking for this material
+          appendixDocTypeTracker[materialId] = new Set<string>();
+          allMaterialDocsByMaterial[materialId] = [];
+          
+          // Get all documents for this material
+          const materialDocsPath = `QMS/Material_Identification/${materialId}`;
+          try {
             const materialDocs = await listFiles(materialDocsPath);
+            console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId} to list in appendices`);
             
-            if (materialDocs.length > 0) {
-              console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId} to list in appendices`);
-              for (const docPath of materialDocs) {
-                const docName = docPath.split('/').pop() || docPath;
-                appendicesPage.drawText(`- ${docName} (${materialId})`, {
-                  x: 90,
-                  y: yPosition,
-                  size: 10,
-                  font: helvetica,
-                  color: rgb(0, 0, 0),
-                });
-                yPosition -= 15;
-                
-                // If page is full, add a new appendices page
-                if (yPosition < 100) {
-                  const newPage = pdfDoc.addPage([612, 792]);
-                  newPage.drawText('7. APPENDICES (CONTINUED)', {
-                    x: pageMargin,
-                    y: 700,
-                    size: 16,
-                    font: helveticaBold,
-                    color: rgb(0, 0, 0),
-                  });
-                  // Add footer to the new page
-                  addFooterToPage(newPage);
-                  yPosition = 650;
-                }
-              }
+            // Filter and sort (newest first)
+            const filteredDocs = materialDocs
+              .filter(path => path.toLowerCase().endsWith('.pdf'))
+              .sort()
+              .reverse();
+              
+            // Add to material docs collection
+            for (const docPath of filteredDocs) {
+              const docName = docPath.split('/').pop() || docPath;
+              allMaterialDocsByMaterial[materialId].push({
+                name: docName,
+                path: docPath
+              });
+            }
+          } catch (error) {
+            console.error(`Error listing documents for material ${materialId}:`, error);
+          }
+        }
+        
+        // Second pass: add documents to appendices listing, avoiding duplicates
+        for (const materialId in allMaterialDocsByMaterial) {
+          const materialDocs = allMaterialDocsByMaterial[materialId];
+          
+          for (const doc of materialDocs) {
+            // Get document type by removing .pdf extension
+            const docType = doc.name.replace('.pdf', '').trim();
+            
+            // Skip if we've already listed this document type for this material
+            if (appendixDocTypeTracker[materialId].has(docType)) {
+              console.log(`Skipping duplicate document type in appendices listing: ${docType} for ${materialId}`);
+              continue;
+            }
+            
+            // Add to appendices listing
+            appendicesPage.drawText(`- ${doc.name} (${materialId})`, {
+              x: 90,
+              y: yPosition,
+              size: 10,
+              font: helvetica,
+              color: rgb(0, 0, 0),
+            });
+            
+            // Mark this document type as processed for this material
+            appendixDocTypeTracker[materialId].add(docType);
+            
+            // Move down for next line
+            yPosition -= 15;
+            
+            // If page is full, add a new appendices page
+            if (yPosition < 100) {
+              const newPage = pdfDoc.addPage([612, 792]);
+              newPage.drawText('7. APPENDICES (CONTINUED)', {
+                x: pageMargin,
+                y: 700,
+                size: 16,
+                font: helveticaBold,
+                color: rgb(0, 0, 0),
+              });
+              // Add footer to the new page
+              addFooterToPage(newPage);
+              yPosition = 650;
             }
           }
         }
