@@ -1291,6 +1291,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         { name: 'Welding', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Welding` },
         { name: 'NDT', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NDT` },
         { name: 'Visual Inspection', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Visual Inspection` },
+        { name: 'Hydrotest', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Hydrotest` },
         { name: 'NCR', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NCR` }
       ];
       
@@ -1448,6 +1449,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Welding`,
         `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NDT`,
         `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Visual Inspection`,
+        `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Hydrotest`,
         `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NCR`
       ];
       
