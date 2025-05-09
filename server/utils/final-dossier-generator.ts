@@ -41,16 +41,37 @@ try {
  */
 export async function checkExistingFinalDossier(inspectionOrderNumber: string): Promise<{ exists: boolean, url: string, path: string }> {
   try {
+    // Validate bucket access first
+    if (!bucket) {
+      console.error('GCS bucket not initialized - cannot check for existing dossier');
+      return {
+        exists: false,
+        url: '',
+        path: ''
+      };
+    }
+
     // Define the base path for the final dossier directory in GCS
     const dossierDir = `QMS/Inspections_Records/${inspectionOrderNumber}/Final Dossier`;
     const filePrefix = `FD_${inspectionOrderNumber}`;
     
     // List files in the Final Dossier directory
     console.log(`Checking for existing dossiers in: ${dossierDir}`);
-    const [files] = await bucket.getFiles({ prefix: dossierDir });
+    
+    // Use try/catch just for the getFiles operation to handle permission issues
+    let files = [];
+    try {
+      [files] = await bucket.getFiles({ prefix: dossierDir });
+      console.log(`Successfully listed files in ${dossierDir}`);
+    } catch (fileListError) {
+      console.error('Error listing files in GCS directory:', fileListError);
+      console.log('Will proceed with assumption that no files exist');
+      // Return empty array to continue processing
+      files = [];
+    }
     
     // Look for files that match our prefix pattern
-    const dossierFiles = files.filter(file => {
+    const dossierFiles = files.filter((file: any) => {
       const fileName = file.name.split('/').pop() || '';
       return fileName.startsWith(filePrefix) && fileName.endsWith('.pdf');
     });
@@ -59,23 +80,33 @@ export async function checkExistingFinalDossier(inspectionOrderNumber: string): 
     
     if (dossierFiles.length > 0) {
       // Sort by name descending to get the most recent one (assuming timestamp in name)
-      dossierFiles.sort((a, b) => b.name.localeCompare(a.name));
+      dossierFiles.sort((a: any, b: any) => b.name.localeCompare(a.name));
       
       // Use the most recent file
       const latestFile = dossierFiles[0];
       console.log(`Using most recent dossier file: ${latestFile.name}`);
       
-      // Generate signed URL for download
-      const [url] = await latestFile.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // URL expires in 7 days
-      });
-      
-      return {
-        exists: true,
-        url,
-        path: latestFile.name
-      };
+      // Generate signed URL for download - with error handling
+      try {
+        const [url] = await latestFile.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // URL expires in 7 days
+        });
+        
+        return {
+          exists: true,
+          url,
+          path: latestFile.name
+        };
+      } catch (signedUrlError) {
+        console.error('Error generating signed URL:', signedUrlError);
+        console.log('File exists but cannot generate URL');
+        return {
+          exists: true,
+          url: '',
+          path: latestFile.name
+        };
+      }
     }
     
     // If no files found, return exists: false
@@ -1556,36 +1587,75 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     const timestamp = Date.now();
     const gcsPath = `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Final Dossier/FD_${inspectionOrder.inspectionOrderNumber}_${timestamp}.pdf`;
     
+    // Check if GCS bucket is available
+    if (!bucket) {
+      console.error('Cannot upload Final Dossier: GCS bucket not initialized');
+      throw new Error('Storage not available - cannot upload Final Dossier');
+    }
+    
     // Log the file path we're using
     console.log(`Creating new Final Dossier at path: ${gcsPath}`);
     
-    // Upload to GCS - set resumable: true to avoid checking if the file exists
-    const file = bucket.file(gcsPath);
-    const stream = file.createWriteStream({
-      metadata: {
-        contentType: 'application/pdf',
-      },
-      resumable: true, // Use resumable upload to avoid existence checks
-    });
-    
-    // Upload the PDF buffer
-    await new Promise<void>((resolve, reject) => {
-      const readable = new Readable();
-      readable._read = () => {}; // _read is required but you can noop it
-      readable.push(Buffer.from(pdfBytes));
-      readable.push(null);
+    try {
+      // Upload to GCS - set resumable: true to avoid checking if the file exists
+      const file = bucket.file(gcsPath);
       
-      readable
-        .pipe(stream)
-        .on('error', reject)
-        .on('finish', resolve);
-    });
-
-    // Generate signed URL for download
-    const [url] = await file.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // URL expires in 7 days
-    });
+      // Create write stream with error handling
+      const stream = file.createWriteStream({
+        metadata: {
+          contentType: 'application/pdf',
+        },
+        resumable: true, // Use resumable upload to avoid existence checks
+      });
+      
+      // Upload the PDF buffer with detailed error logging
+      await new Promise<void>((resolve, reject) => {
+        const readable = new Readable();
+        readable._read = () => {}; // _read is required but you can noop it
+        readable.push(Buffer.from(pdfBytes));
+        readable.push(null);
+        
+        // More detailed error handling during stream processing
+        stream.on('error', (err) => {
+          console.error('Error during file upload stream:', err);
+          reject(new Error(`Upload stream error: ${err.message}`));
+        });
+        
+        readable.on('error', (err) => {
+          console.error('Error in readable stream:', err);
+          reject(new Error(`Readable stream error: ${err.message}`));
+        });
+        
+        readable
+          .pipe(stream)
+          .on('finish', () => {
+            console.log(`Successfully uploaded Final Dossier to ${gcsPath}`);
+            resolve();
+          });
+      });
+      
+      // Generate signed URL for download with error handling
+      let url;
+      try {
+        const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // URL expires in 7 days
+        });
+        url = signedUrl;
+        console.log('Successfully generated signed URL for Final Dossier');
+      } catch (signedUrlError) {
+        console.error('Error generating signed URL:', signedUrlError);
+        console.log('File was uploaded but signed URL could not be generated');
+        // Return file path only without URL
+        return {
+          url: '',
+          path: gcsPath
+        };
+      }
+    } catch (uploadError) {
+      console.error('Error uploading Final Dossier file:', uploadError);
+      throw new Error(`Failed to upload Final Dossier: ${uploadError.message}`);
+    }
     
     return { 
       url, 
