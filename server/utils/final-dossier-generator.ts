@@ -1324,47 +1324,73 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       // List of PDFs to merge
       const pdfPaths: string[] = [];
       
-      // Use to track the document types we've already processed for each material
-      // This will help us avoid duplicate document types in the final dossier
-      const materialDocTypeTracker: Record<string, Set<string>> = {};
+      // Track all unique document paths to prevent duplicates in the final dossier
+      const uniquePdfPaths = new Set<string>();
+      
+      // Keep track of which document types we've already added per material
+      const materialDocTypes: Record<string, Set<string>> = {};
       
       // Collect material certificate PDFs, using the same filtered materials list
       console.log(`Collecting material documents for ${materials.length} selected materials`);
+      
+      // Group all material documents by material ID first
+      const materialDocMap: Record<string, string[]> = {};
+      
+      // Phase 1: Gather all documents for all materials and sort them
       for (const material of materials) {
         const materialId = material.materialIdentificationId;
-        if (materialId) {
-          console.log(`Looking for documents for Material ID: ${materialId}`);
-          
-          // Initialize tracking for this material if not exist
-          if (!materialDocTypeTracker[materialId]) {
-            materialDocTypeTracker[materialId] = new Set<string>();
-          }
-          
-          const materialDocsPath = `QMS/Material_Identification/${materialId}`;
+        if (!materialId) continue;
+        
+        console.log(`Looking for documents for Material ID: ${materialId}`);
+        
+        // Initialize tracking for this material
+        materialDocTypes[materialId] = new Set<string>();
+        
+        // Get all documents for this material
+        const materialDocsPath = `QMS/Material_Identification/${materialId}`;
+        try {
           const materialDocs = await listFiles(materialDocsPath);
           console.log(`Found ${materialDocs.length} documents for Material ID: ${materialId}`);
           
-          // Sort documents by date (newest first) to always get the most recent version
-          // Document naming convention often includes timestamps
-          materialDocs.sort().reverse(); 
+          // Filter for PDFs only and sort (newest first)
+          const pdfDocs = materialDocs
+            .filter(path => path.toLowerCase().endsWith('.pdf'))
+            .sort()
+            .reverse();
           
-          for (const docPath of materialDocs) {
-            if (docPath.toLowerCase().endsWith('.pdf')) {
-              // Extract the document type from the filename
-              // For example, from "Mill Test Certificate.pdf" we extract "Mill Test Certificate"
-              const docName = docPath.split('/').pop() || '';
-              const docType = docName.replace('.pdf', '').trim();
-              
-              // Only add this document if we haven't processed this document type for this material
-              if (!materialDocTypeTracker[materialId].has(docType)) {
-                console.log(`Adding document to dossier: ${docPath} (type: ${docType})`);
-                materialDocTypeTracker[materialId].add(docType);
-                pdfPaths.push(docPath);
-              } else {
-                console.log(`Skipping duplicate document type for ${materialId}: ${docType}`);
-              }
-            }
+          materialDocMap[materialId] = pdfDocs;
+        } catch (error) {
+          console.error(`Error listing files for material ${materialId}:`, error);
+          materialDocMap[materialId] = [];
+        }
+      }
+      
+      // Phase 2: Process each material's documents, avoiding duplicates
+      for (const materialId in materialDocMap) {
+        console.log(`Processing ${materialDocMap[materialId].length} documents for Material ID: ${materialId}`);
+        
+        // Process each document
+        for (const docPath of materialDocMap[materialId]) {
+          // Skip if we've already added this exact path
+          if (uniquePdfPaths.has(docPath)) {
+            console.log(`Skipping already included document: ${docPath}`);
+            continue;
           }
+          
+          // Extract the document type from the filename
+          const docName = docPath.split('/').pop() || '';
+          const docType = docName.replace('.pdf', '').trim();
+          
+          // Check if we've already added a document of this type for this material
+          if (materialDocTypes[materialId].has(docType)) {
+            console.log(`Skipping duplicate document type for ${materialId}: ${docType}`);
+            continue;
+          }
+          
+          console.log(`Adding document to dossier: ${docPath} (type: ${docType}, material: ${materialId})`);
+          materialDocTypes[materialId].add(docType);
+          uniquePdfPaths.add(docPath);
+          pdfPaths.push(docPath);
         }
       }
       
@@ -1377,11 +1403,25 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       ];
       
       for (const sectionPath of sections) {
-        const sectionDocs = await listFiles(sectionPath);
-        for (const docPath of sectionDocs) {
-          if (docPath.toLowerCase().endsWith('.pdf')) {
-            pdfPaths.push(docPath);
+        try {
+          const sectionDocs = await listFiles(sectionPath);
+          console.log(`Found ${sectionDocs.length} documents in section: ${sectionPath}`);
+          
+          for (const docPath of sectionDocs) {
+            if (docPath.toLowerCase().endsWith('.pdf')) {
+              // Skip if we've already added this exact path
+              if (uniquePdfPaths.has(docPath)) {
+                console.log(`Skipping already included inspection document: ${docPath}`);
+                continue;
+              }
+              
+              console.log(`Adding inspection document to dossier: ${docPath}`);
+              uniquePdfPaths.add(docPath);
+              pdfPaths.push(docPath);
+            }
           }
+        } catch (error) {
+          console.error(`Error listing files in section ${sectionPath}:`, error);
         }
       }
       
@@ -1445,12 +1485,27 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
           // Try to get directly from the standard WPQR path if no file path is saved
           for (const doc of wpqrDocs) {
             if (doc.filePath) {
+              // Skip if we've already added this exact path
+              if (uniquePdfPaths.has(doc.filePath)) {
+                console.log(`Skipping already included WPQR document: ${doc.filePath}`);
+                continue;
+              }
+              
               console.log(`Adding WPQR document with saved path: ${doc.filePath}`);
+              uniquePdfPaths.add(doc.filePath);
               pdfPaths.push(doc.filePath);
             } else {
               // Try standard path
               const standardPath = `QMS/WPQR/${doc.documentId}.pdf`;
+              
+              // Skip if we've already added this exact path
+              if (uniquePdfPaths.has(standardPath)) {
+                console.log(`Skipping already included WPQR document: ${standardPath}`);
+                continue;
+              }
+              
               console.log(`WPQR document ${doc.documentId} (ID: ${doc.id}) has no file path, trying standard path: ${standardPath}`);
+              uniquePdfPaths.add(standardPath);
               pdfPaths.push(standardPath);
             }
           }
@@ -1459,10 +1514,16 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
           for (const wpqrId of wpqrDocumentIds) {
             // Check if there's a document with format WPQR-{id}.pdf in the standard location
             const wpqrStandardPath = `QMS/WPQR/WPQR-${wpqrId}.pdf`;
-            console.log(`Adding fallback WPQR path: ${wpqrStandardPath}`);
-            if (!pdfPaths.includes(wpqrStandardPath)) {
-              pdfPaths.push(wpqrStandardPath);
+            
+            // Skip if we've already added this exact path
+            if (uniquePdfPaths.has(wpqrStandardPath)) {
+              console.log(`Skipping already included WPQR document: ${wpqrStandardPath}`);
+              continue;
             }
+            
+            console.log(`Adding fallback WPQR path: ${wpqrStandardPath}`);
+            uniquePdfPaths.add(wpqrStandardPath);
+            pdfPaths.push(wpqrStandardPath);
           }
         } catch (dbError) {
           console.error('Error retrieving WPQR documents from database:', dbError);
@@ -1507,9 +1568,16 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
             // Add certificate file paths to the PDF paths
             for (const cert of welderCertificateRecords) {
               if (cert.filePath) {
+                // Skip if we've already added this exact path
+                if (uniquePdfPaths.has(cert.filePath)) {
+                  console.log(`Skipping already included welder certificate: ${cert.filePath}`);
+                  continue;
+                }
+                
                 // Get the corresponding welder record for logging
                 const welder = welderRecords.find(w => w.id === cert.welderId);
                 console.log(`Adding certificate for welder ${welder?.name} (${welder?.welderId}): ${cert.filePath}`);
+                uniquePdfPaths.add(cert.filePath);
                 pdfPaths.push(cert.filePath);
               }
             }
@@ -1523,7 +1591,14 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
                 const files = await listFiles(welderCertPath);
                 for (const file of files) {
                   if (file.toLowerCase().endsWith('.pdf')) {
+                    // Skip if we've already added this exact path
+                    if (uniquePdfPaths.has(file)) {
+                      console.log(`Skipping already included welder certificate: ${file}`);
+                      continue;
+                    }
+                    
                     console.log(`Found certificate in standard path: ${file}`);
+                    uniquePdfPaths.add(file);
                     pdfPaths.push(file);
                   }
                 }
