@@ -1786,13 +1786,13 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       // Upload to GCS - set resumable: true to avoid checking if the file exists
       const file = bucket.file(gcsPath);
       
-      // Create write stream with error handling and overwrite capability
+      // Create write stream with error handling
+      // Don't use any precondition for overwrite - will replace if exists
       const stream = file.createWriteStream({
         metadata: {
           contentType: 'application/pdf',
         },
-        resumable: false, // Use non-resumable for better compatibility with overwrite
-        preconditionOpts: { ifGenerationMatch: 0 } // Force overwrite if file exists
+        resumable: false, // Use non-resumable for better compatibility with direct upload
       });
       
       // Upload the PDF buffer with detailed error logging
