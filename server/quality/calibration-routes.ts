@@ -493,10 +493,28 @@ router.put('/instruments/:id', ensureAuthenticated, (req: Request, res: Response
       certificate_url: certificate_url
     };
     
-    res.json(response);
+    // Force Content-Type to ensure proper JSON response
+    res.setHeader('Content-Type', 'application/json');
+    // Ensure no caching of the response
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    
+    // Use JSON.stringify explicitly to avoid potential HTML responses
+    return res.status(200).end(JSON.stringify(response));
   } catch (error) {
     console.error('Error updating calibration instrument:', error);
-    res.status(500).json({ error: 'Failed to update calibration instrument' });
+    
+    // Force Content-Type to ensure proper JSON response
+    res.setHeader('Content-Type', 'application/json');
+    // Ensure no caching of the response
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    
+    // Use JSON.stringify explicitly to avoid potential HTML responses
+    return res.status(500).end(JSON.stringify({ 
+      error: 'Failed to update calibration instrument',
+      details: error instanceof Error ? error.message : String(error) 
+    }));
   }
 });
 
