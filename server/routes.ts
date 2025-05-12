@@ -28,6 +28,7 @@ import { setupTestWelderRoute } from "./quality/test-welder-route";
 import { setupApiTestRoutes } from "./api-test-route";
 import { setupDedicatedTestRoutes } from "./dedicated-test-route";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
+import calibrationTestRoutes from "./testapi/calibration-test-routes";
 import { registerTemplateManagementRoutes } from "./template-management/register-routes";
 import { registerCalibrationTestRoutes } from "./calibration-test-routes";
 import { db } from "./db";
