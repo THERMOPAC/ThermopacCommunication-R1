@@ -54,71 +54,57 @@ export async function checkExistingFinalDossier(inspectionOrderNumber: string): 
       };
     }
 
-    // Define the base path for the final dossier directory in GCS
-    const dossierDir = `QMS/Inspections_Records/${inspectionOrderNumber}/Final Dossier`;
-    const filePrefix = `FD_${inspectionOrderNumber}`;
+    // Define the exact path for the final dossier with consistent naming
+    const dossierPath = `QMS/Inspections_Records/${inspectionOrderNumber}/Final Dossier/FD_${inspectionOrderNumber}.pdf`;
     
-    // List files in the Final Dossier directory
-    console.log(`Checking for existing dossiers in: ${dossierDir}`);
+    console.log(`Checking for existing dossier at path: ${dossierPath}`);
     
-    // Use try/catch just for the getFiles operation to handle permission issues
-    let files = [];
+    // Check if the specific file exists
     try {
-      [files] = await bucket.getFiles({ prefix: dossierDir });
-      console.log(`Successfully listed files in ${dossierDir}`);
-    } catch (fileListError) {
-      console.error('Error listing files in GCS directory:', fileListError);
-      console.log('Will proceed with assumption that no files exist');
-      // Return empty array to continue processing
-      files = [];
-    }
-    
-    // Look for files that match our prefix pattern
-    const dossierFiles = files.filter((file: any) => {
-      const fileName = file.name.split('/').pop() || '';
-      return fileName.startsWith(filePrefix) && fileName.endsWith('.pdf');
-    });
-    
-    console.log(`Found ${dossierFiles.length} possible dossier files`);
-    
-    if (dossierFiles.length > 0) {
-      // Sort by name descending to get the most recent one (assuming timestamp in name)
-      dossierFiles.sort((a: any, b: any) => b.name.localeCompare(a.name));
+      const [exists] = await bucket.file(dossierPath).exists();
       
-      // Use the most recent file
-      const latestFile = dossierFiles[0];
-      console.log(`Using most recent dossier file: ${latestFile.name}`);
-      
-      // Generate signed URL for download - with error handling
-      try {
-        const [url] = await latestFile.getSignedUrl({
-          action: 'read',
-          expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // URL expires in 7 days
-        });
+      if (exists) {
+        console.log(`Found existing Final Dossier at ${dossierPath}`);
         
-        return {
-          exists: true,
-          url,
-          path: latestFile.name
-        };
-      } catch (signedUrlError) {
-        console.error('Error generating signed URL:', signedUrlError);
-        console.log('File exists but cannot generate URL');
-        return {
-          exists: true,
-          url: '',
-          path: latestFile.name
-        };
+        // Generate signed URL for download
+        try {
+          const [url] = await bucket.file(dossierPath).getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // URL expires in 7 days
+          });
+          
+          return {
+            exists: true,
+            url,
+            path: dossierPath
+          };
+        } catch (signedUrlError) {
+          console.error('Error generating signed URL:', signedUrlError);
+          console.log('File exists but cannot generate URL');
+          return {
+            exists: true,
+            url: '',
+            path: dossierPath
+          };
+        }
       }
+      
+      // If file doesn't exist, return exists: false
+      console.log(`No existing final dossier found at ${dossierPath}`);
+      return {
+        exists: false,
+        url: '',
+        path: dossierPath // Return the path for consistency
+      };
+    } catch (error) {
+      console.error('Error checking if file exists:', error);
+      console.log('Continuing with assumption that no dossier exists');
+      return {
+        exists: false,
+        url: '',
+        path: dossierPath
+      };
     }
-    
-    // If no files found, return exists: false
-    console.log('No existing final dossier files found');
-    return {
-      exists: false,
-      url: '',
-      path: `${dossierDir}/${filePrefix}.pdf` // Return a reference path for consistency
-    };
   } catch (error) {
     console.error('Error checking for existing final dossier:', error);
     console.log('Continuing with assumption that no dossier exists');
@@ -1783,10 +1769,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Save the dossier
     const pdfBytes = await pdfDoc.save();
     
-    // Define the path for the final dossier in GCS with the required naming convention
-    // Add a timestamp to the filename to avoid overwriting existing files (which requires delete permission)
-    const timestamp = Date.now();
-    const gcsPath = `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Final Dossier/FD_${inspectionOrder.inspectionOrderNumber}_${timestamp}.pdf`;
+    // Define the path for the final dossier in GCS with a consistent naming convention
+    // Use a standard name that will overwrite existing files to reduce storage usage
+    const gcsPath = `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Final Dossier/FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
     
     // Check if GCS bucket is available
     if (!bucket) {
@@ -1795,18 +1780,19 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     }
     
     // Log the file path we're using
-    console.log(`Creating new Final Dossier at path: ${gcsPath}`);
+    console.log(`Creating/updating Final Dossier at path: ${gcsPath}`);
     
     try {
       // Upload to GCS - set resumable: true to avoid checking if the file exists
       const file = bucket.file(gcsPath);
       
-      // Create write stream with error handling
+      // Create write stream with error handling and overwrite capability
       const stream = file.createWriteStream({
         metadata: {
           contentType: 'application/pdf',
         },
-        resumable: true, // Use resumable upload to avoid existence checks
+        resumable: false, // Use non-resumable for better compatibility with overwrite
+        preconditionOpts: { ifGenerationMatch: 0 } // Force overwrite if file exists
       });
       
       // Upload the PDF buffer with detailed error logging
