@@ -429,10 +429,10 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Column width percentages of the total table width
     const colWidths = {
       materialId: 0.15,      // 15% - Material ID needs less space
-      certificate: 0.2,      // 20% - Certificate numbers can be long
-      heatNumber: 0.25,      // 25% - Heat numbers can be very long
-      grade: 0.2,            // 20% - Grade designations can be long
-      specification: 0.2     // 20% - Specification is typically short
+      certificate: 0.25,      // 25% - Certificate numbers can be long
+      heatNumber: 0.30,      // 30% - Heat numbers can be very long
+      grade: 0.20,            // 20% - Grade designations can be long
+      specification: 0.10     // 10% - Specification is typically very short (<20 chars)
     };
     
     // Calculate actual column positions
