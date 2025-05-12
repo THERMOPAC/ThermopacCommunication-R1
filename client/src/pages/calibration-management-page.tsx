@@ -447,9 +447,14 @@ export default function CalibrationManagementPage() {
       form.reset();
       setCertificateFile(null);
       
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments/stats/dashboard"] });
+      // Force refetch data instead of just invalidating cache
+      refetch().then(() => {
+        console.log("Instrument list refetched after creation");
+        // Also refetch dashboard stats
+        queryClient.refetchQueries({ queryKey: ["/api/quality/calibration/instruments/stats/dashboard"] });
+      }).catch(err => {
+        console.error("Error refetching instrument list:", err);
+      });
       
     } catch (error) {
       console.error("Error in direct upload:", error);

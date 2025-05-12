@@ -304,6 +304,9 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
       remarks || null
     ]);
     
+    // Log success of instrument creation
+    console.log(`Successfully created calibration instrument with ID: ${instrument_id}`);
+    
     // Add the certificate URL to the response for immediate display
     const response = {
       ...result.rows[0],
