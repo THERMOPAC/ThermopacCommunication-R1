@@ -140,6 +140,37 @@ export default function CalibrationTestPage() {
     }
   };
 
+  const testRegularFetch = async () => {
+    setLoading(true);
+    setError(null);
+    setRawResponse(null);
+    
+    try {
+      // Simple test to make sure fetch itself is working
+      const response = await fetch('/api/my-permissions', {
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      const responseText = await response.text();
+      setRawResponse(`API test response: ${responseText}`);
+      
+      try {
+        const data = JSON.parse(responseText);
+        console.log('API test data:', data);
+        // This is just a test to verify general API connectivity
+      } catch (jsonError) {
+        setError(`Failed to parse API test JSON: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`);
+      }
+    } catch (fetchError) {
+      setError(`Network error on API test: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto py-6">
@@ -169,6 +200,15 @@ export default function CalibrationTestPage() {
             variant="outline"
           >
             Run SQL Directly
+          </Button>
+          
+          <Button 
+            onClick={testRegularFetch} 
+            disabled={loading}
+            variant="default"
+            className="ml-2"
+          >
+            Test API Connectivity
           </Button>
         </div>
         

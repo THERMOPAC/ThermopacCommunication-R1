@@ -125,15 +125,16 @@ export default function CalibrationManagementPage() {
     error,
     refetch 
   } = useQuery<CalibrationInstrument[]>({
-    queryKey: ["/api/quality/calibration/instruments"],
+    queryKey: ["/api/testapi/calibration/direct-instruments"],
     refetchOnWindowFocus: false,
     // Force fetch from network instead of cache
     staleTime: 0,
-    onSuccess: (data) => {
+    retry: 3,
+    onSuccess: (data: any) => {
       console.log("Fetched instruments data:", data);
       console.log("Number of instruments:", Array.isArray(data) ? data.length : 0);
     },
-    onError: (err) => {
+    onError: (err: any) => {
       console.error("Error fetching instruments:", err);
     }
   });
