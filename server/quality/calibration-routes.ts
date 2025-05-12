@@ -42,7 +42,8 @@ const upload = multer({
     if (allowedFileTypes.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF and image files are allowed'));
+      cb(null, false);
+      return cb(new Error('Only PDF and image files are allowed'));
     }
   }
 });
