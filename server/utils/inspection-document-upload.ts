@@ -75,9 +75,10 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
       formattedTabName = 'Visual'; // Update to match observed file path structure
     }
     
-    // Use consistent naming without timestamps to enable overwriting existing files
-    // This allows updates to documents without creating multiple versions
-    const filePath = `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
+    // Use timestamp-based naming to work around delete permission limitations
+    // Since the service account doesn't have delete permissions, we need unique filenames
+    const timestamp = Date.now();
+    const filePath = `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}-${timestamp}.${fileExtension}`;
     
     console.log(`uploadInspectionDocument: File path: ${filePath} (original tab name: ${tabName})`);
     
@@ -87,24 +88,7 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     // Create a new blob in the bucket and upload the file data
     const file = bucket.file(filePath);
     
-    // First check if file exists, and if so, get its generation
-    let generationMatchValue = 0; // Default to 0 when file doesn't exist
-    
-    try {
-      // Try to get file metadata to see if it exists
-      const [metadata] = await file.getMetadata();
-      if (metadata && metadata.generation) {
-        console.log(`File already exists at ${filePath} with generation ${metadata.generation}`);
-        // Use the current generation for precise overwrite
-        generationMatchValue = Number(metadata.generation);
-      }
-    } catch (err) {
-      // File doesn't exist, which is fine - we'll create it
-      console.log(`File doesn't exist yet at ${filePath}, will create it`);
-    }
-    
-    // Create a write stream to upload the file
-    // No precondition for overwrite - we'll just upload directly
+    // Create a write stream to upload the file with simple configuration
     const stream = file.createWriteStream({
       resumable: false,
       contentType: uploadedFile.mimetype,

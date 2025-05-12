@@ -1769,9 +1769,9 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Save the dossier
     const pdfBytes = await pdfDoc.save();
     
-    // Define the path for the final dossier in GCS with a consistent naming convention
-    // Use a standard name that will overwrite existing files to reduce storage usage
-    const gcsPath = `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Final Dossier/FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
+    // Define the path for the final dossier in GCS with timestamp to work around delete permission limitations
+    const timestamp = Date.now();
+    const gcsPath = `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Final Dossier/FD_${inspectionOrder.inspectionOrderNumber}_${timestamp}.pdf`;
     
     // Check if GCS bucket is available
     if (!bucket) {
