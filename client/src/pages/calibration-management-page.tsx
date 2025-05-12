@@ -388,6 +388,7 @@ export default function CalibrationManagementPage() {
       }
       
       // Make direct fetch request with specific options for better error handling
+      console.log("Sending calibration instrument data to server...");
       const response = await fetch("/api/quality/calibration/instruments", {
         method: "POST",
         headers: {

@@ -313,7 +313,8 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
       certificate_url: certificate_url
     };
     
-    // Send success response
+    // Set content type header explicitly and send success response
+    res.setHeader('Content-Type', 'application/json');
     return res.status(201).json(response);
     
   } catch (error) {
