@@ -84,10 +84,10 @@ router.post("/upload", ensureAuthenticated, upload.single('file'), async (req: R
     console.log(`User ID for document upload: ${userId || 'Not authenticated'}`);
     
     // Map tab names to match consistent folder structure
-    // Visual tab in frontend becomes Visual Inspection in database
+    // Visual tab in frontend becomes Visual in database to match file path
     let formattedTabName = tabName;
     if (tabName === 'Visual') {
-      formattedTabName = 'Visual Inspection';
+      formattedTabName = 'Visual'; // Update to match observed file path structure
     } else if (tabName === 'NonConformance') {
       formattedTabName = 'NCR';
     }
@@ -161,10 +161,10 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId", ensureAuthenticated, as
     }
     
     // Map tab names to match what's stored in the database
-    // Visual tab in frontend becomes Visual Inspection in database
+    // Visual tab in frontend stays as Visual in database to match file path
     let formattedTabName = tabName;
     if (tabName === 'Visual') {
-      formattedTabName = 'Visual Inspection';
+      formattedTabName = 'Visual'; // Update to match observed file path structure
     }
     
     console.log(`Getting documents for inspection: ${inspectionOrderNumber}, tab: ${tabName} (formatted as: ${formattedTabName}), record: ${recordId}`);

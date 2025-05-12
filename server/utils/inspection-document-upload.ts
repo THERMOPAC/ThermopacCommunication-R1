@@ -72,7 +72,7 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     if (tabName === 'NonConformance') {
       formattedTabName = 'NCR';
     } else if (tabName === 'Visual') {
-      formattedTabName = 'Visual Inspection';
+      formattedTabName = 'Visual'; // Update to match observed file path structure
     }
     
     // Add timestamp to filename to avoid overwriting existing files
