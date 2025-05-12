@@ -37,14 +37,21 @@ const upload = multer({
   storage: memoryStorage, // Use memory storage for GCS uploads
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
+    // Check MIME type first
+    const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      return cb(null, true);
+    }
+    
+    // Also check file extension as a backup validation
     const allowedFileTypes = ['.pdf', '.jpg', '.jpeg', '.png'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowedFileTypes.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(null, false);
-      return cb(new Error('Only PDF and image files are allowed'));
+      return cb(null, true);
     }
+    
+    // If neither check passes, reject the file
+    return cb(new Error('Only PDF and image files are allowed'));
   }
 });
 
@@ -164,12 +171,37 @@ router.post('/instruments', ensureAuthenticated, (req: Request, res: Response, n
     'accept': req.headers['accept']
   });
   
+  // Set response type to JSON
+  res.setHeader('Content-Type', 'application/json');
+  
+  // Handle multer upload
   upload.single('certificate')(req, res, function(err) {
     if (err) {
       console.error('Error in multer file upload:', err);
       return res.status(400).json({ 
         error: err.message || 'File upload error', 
         code: 'UPLOAD_ERROR' 
+      });
+    }
+    
+    // Validate required fields
+    const requiredFields = [
+      'instrument_name', 
+      'instrument_type', 
+      'manufacturer', 
+      'serial_number',
+      'location',
+      'calibration_frequency',
+      'last_calibration_date',
+      'calibration_status'
+    ];
+    
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        error: `Missing required fields: ${missingFields.join(', ')}`,
+        code: 'MISSING_FIELDS'
       });
     }
     

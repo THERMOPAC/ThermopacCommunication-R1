@@ -137,44 +137,72 @@ export default function CalibrationManagementPage() {
   // Create new instrument mutation
   const createInstrumentMutation = useMutation({
     mutationFn: async (data: CalibrationInstrumentFormData) => {
-      const formData = new FormData();
-      
-      // Append form fields to FormData
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          formData.append(key, value.toString());
-        }
-      });
-      
-      // Append certificate file if available
-      if (certificateFile) {
-        formData.append("certificate", certificateFile);
-      }
-      
-      const response = await fetch("/api/quality/calibration/instruments", {
-        method: "POST",
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        try {
-          const contentType = response.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Failed to create instrument");
-          } else {
-            // If response is not JSON, get text instead
-            const errorText = await response.text();
-            console.error("Non-JSON error response:", errorText);
-            throw new Error("Failed to create instrument. Please check the file format or try again.");
+      try {
+        // Validate file type client-side before sending
+        if (certificateFile) {
+          const validMimeTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+          if (!validMimeTypes.includes(certificateFile.type)) {
+            console.error("Invalid file type:", certificateFile.type);
+            throw new Error("Invalid file type. Only PDF and image files are allowed.");
           }
-        } catch (parseError) {
-          console.error("Error parsing response:", parseError);
-          throw new Error("Failed to process server response. Please try again.");
+          
+          // Check file extension too for double validation
+          const fileName = certificateFile.name.toLowerCase();
+          const validExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+          const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+          
+          if (!hasValidExtension) {
+            console.error("Invalid file extension:", fileName);
+            throw new Error("Invalid file extension. Only .pdf, .jpg, .jpeg, and .png files are allowed.");
+          }
         }
+        
+        const formData = new FormData();
+        
+        // Append form fields to FormData
+        Object.entries(data).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            formData.append(key, value.toString());
+          }
+        });
+        
+        // Append certificate file if available and valid
+        if (certificateFile) {
+          formData.append("certificate", certificateFile);
+        }
+        
+        // Add explicit Accept header to request JSON response
+        const response = await fetch("/api/quality/calibration/instruments", {
+          method: "POST",
+          headers: {
+            'Accept': 'application/json',
+          },
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          try {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || "Failed to create instrument");
+            } else {
+              // If response is not JSON, get text instead
+              const errorText = await response.text();
+              console.error("Received HTML instead of JSON:", errorText.substring(0, 200));
+              throw new Error("Failed to create instrument. Please check the file format or try again.");
+            }
+          } catch (parseError) {
+            console.error("Error parsing response:", parseError);
+            throw new Error("Failed to process server response. Please try again.");
+          }
+        }
+        
+        return response.json();
+      } catch (error) {
+        console.error("Error in createInstrumentMutation:", error);
+        throw error instanceof Error ? error : new Error(String(error));
       }
-      
-      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -199,44 +227,72 @@ export default function CalibrationManagementPage() {
   // Update instrument mutation
   const updateInstrumentMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: CalibrationInstrumentFormData }) => {
-      const formData = new FormData();
-      
-      // Append form fields to FormData
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          formData.append(key, value.toString());
-        }
-      });
-      
-      // Append certificate file if available
-      if (certificateFile) {
-        formData.append("certificate", certificateFile);
-      }
-      
-      const response = await fetch(`/api/quality/calibration/instruments/${id}`, {
-        method: "PUT",
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        try {
-          const contentType = response.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Failed to update instrument");
-          } else {
-            // If response is not JSON, get text instead
-            const errorText = await response.text();
-            console.error("Non-JSON error response:", errorText);
-            throw new Error("Failed to update instrument. Please check the file format or try again.");
+      try {
+        // Validate file type client-side before sending
+        if (certificateFile) {
+          const validMimeTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+          if (!validMimeTypes.includes(certificateFile.type)) {
+            console.error("Invalid file type:", certificateFile.type);
+            throw new Error("Invalid file type. Only PDF and image files are allowed.");
           }
-        } catch (parseError) {
-          console.error("Error parsing response:", parseError);
-          throw new Error("Failed to process server response. Please try again.");
+          
+          // Check file extension too for double validation
+          const fileName = certificateFile.name.toLowerCase();
+          const validExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+          const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
+          
+          if (!hasValidExtension) {
+            console.error("Invalid file extension:", fileName);
+            throw new Error("Invalid file extension. Only .pdf, .jpg, .jpeg, and .png files are allowed.");
+          }
         }
+        
+        const formData = new FormData();
+        
+        // Append form fields to FormData
+        Object.entries(data).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            formData.append(key, value.toString());
+          }
+        });
+        
+        // Append certificate file if available and valid
+        if (certificateFile) {
+          formData.append("certificate", certificateFile);
+        }
+        
+        // Add explicit Accept header to request JSON response
+        const response = await fetch(`/api/quality/calibration/instruments/${id}`, {
+          method: "PUT",
+          headers: {
+            'Accept': 'application/json',
+          },
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          try {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || "Failed to update instrument");
+            } else {
+              // If response is not JSON, get text instead
+              const errorText = await response.text();
+              console.error("Received HTML instead of JSON:", errorText.substring(0, 200));
+              throw new Error("Failed to update instrument. Please check the file format or try again.");
+            }
+          } catch (parseError) {
+            console.error("Error parsing response:", parseError);
+            throw new Error("Failed to process server response. Please try again.");
+          }
+        }
+        
+        return response.json();
+      } catch (error) {
+        console.error("Error in updateInstrumentMutation:", error);
+        throw error instanceof Error ? error : new Error(String(error));
       }
-      
-      return response.json();
     },
     onSuccess: () => {
       toast({
