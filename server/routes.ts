@@ -23,6 +23,7 @@ import { setupDispatchRoutes } from "./dispatch-routes";
 import { setupEngineeringChangeRoutes } from "./engineering-change-routes";
 import { default as afterSalesRoutes } from "./after-sales-routes";
 import { default as modulePermissionRoutes } from "./module-permission-routes";
+import { default as standaloneRoutes } from "./standalone-routes";
 import { hashPassword as updatePasswordHash } from "./update-password";
 import { setupTestWelderRoute } from "./quality/test-welder-route";
 import { setupApiTestRoutes } from "./api-test-route";
@@ -1690,6 +1691,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error in automatic processing of recurring patterns:', error);
     }
   }, 24 * 60 * 60 * 1000); // Run once per day
+
+  // Use standalone routes that bypass middleware (for special cases only)
+  app.use('/api/standalone', standaloneRoutes);
+  console.log('Registered standalone routes that bypass middleware at /api/standalone');
 
   const httpServer = createServer(app);
   return httpServer;

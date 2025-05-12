@@ -274,14 +274,14 @@ export default function CalibrationManagementPage() {
           formData.append("certificate", certificateFile);
         }
         
-        // Use our test route that bypasses middleware issues
-        const response = await fetch(`/api/testapi/calibration/direct-instrument-update/${id}`, {
+        // Use our completely standalone route that bypasses all middleware issues
+        const response = await fetch(`/api/standalone/direct-update-instrument/${id}`, {
           method: "PUT",
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
           },
-          // Send data as JSON instead of FormData for this test route
+          // Send data as JSON instead of FormData for this special route
           body: JSON.stringify(data),
         });
         
