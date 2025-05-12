@@ -3224,6 +3224,8 @@ export default function InspectionsPage() {
                     // Check for existing final dossier when Final Dossier tab is selected
                     if (value === 'final-dossier' && editInspectionOrderDetails?.inspectionOrderNumber) {
                       console.log('Final Dossier tab selected, checking for existing dossier...');
+                      // Set today's date when Final Dossier tab is selected
+                      editForm.setValue('dossierCompletionDate', new Date().toISOString().split('T')[0]);
                       checkExistingFinalDossier(editInspectionOrderDetails.inspectionOrderNumber);
                     }
                   }}
