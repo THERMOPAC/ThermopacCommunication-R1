@@ -1372,67 +1372,103 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         }
       }
       
-      // Add WPQR documents to the appendices list
-      // Extract WPQR document IDs from weld data
-      const wpqrDocumentIds: number[] = [];
-      if (weldRecords && weldRecords.length > 0) {
-        for (const weld of weldRecords) {
-          if (weld.wpqrDocument) {
-            try {
-              const wpqrId = parseInt(weld.wpqrDocument);
-              if (!isNaN(wpqrId) && !wpqrDocumentIds.includes(wpqrId)) {
-                wpqrDocumentIds.push(wpqrId);
+      // Extract WPQR document IDs from weld records and add to appendices list
+      try {
+        // Create a list of WPQR document IDs from weld records
+        const localWpqrIds: number[] = [];
+        
+        if (weldRecords && weldRecords.length > 0) {
+          console.log('Extracting WPQR document IDs from weld records for appendices listing...');
+          
+          for (const weld of weldRecords) {
+            if (weld.wpqrDocument) {
+              console.log(`Found WPQR reference in weld record: ${weld.wpqrDocument} (type: ${typeof weld.wpqrDocument})`);
+              
+              try {
+                const wpqrId = parseInt(weld.wpqrDocument);
+                if (!isNaN(wpqrId) && !localWpqrIds.includes(wpqrId)) {
+                  localWpqrIds.push(wpqrId);
+                  console.log(`Added WPQR ID to appendices list: ${wpqrId}`);
+                } else {
+                  console.log(`Invalid or duplicate WPQR ID: ${weld.wpqrDocument}`);
+                }
+              } catch (parseError) {
+                console.error(`Error parsing WPQR document ID from weld record: ${weld.wpqrDocument}`, parseError);
               }
-            } catch (error) {
-              console.error(`Error parsing WPQR document ID: ${weld.wpqrDocument}`, error);
             }
           }
         }
-      }
-      
-      console.log(`Found ${wpqrDocumentIds.length} WPQR document IDs in weld records`);
-      
-      if (wpqrDocumentIds.length > 0) {
-        console.log(`Adding ${wpqrDocumentIds.length} WPQR documents to appendices listing`);
-        yPosition -= 10; // Add some extra space before WPQR section
         
-        appendicesPage.drawText('WPQR Documents:', {
-          x: 70,
-          y: yPosition,
-          size: 10,
-          font: helveticaBold,
-          color: rgb(0, 0, 0),
-        });
-        yPosition -= 15;
+        console.log(`Found ${localWpqrIds.length} WPQR document IDs in weld records: ${localWpqrIds.join(', ')}`);
         
-        try {
-          // Query the database for WPQR document details
-          console.log(`Querying WPQR documents with IDs: ${wpqrDocumentIds.join(', ')}`);
+        // Add WPQR documents section if we found any IDs
+        if (localWpqrIds.length > 0) {
+          yPosition -= 10; // Add some extra space before WPQR section
           
-          const wpqrDocs = await db.select({
-            id: wpqrDocuments.id,
-            documentId: wpqrDocuments.documentId,
-            title: wpqrDocuments.title,
-            filePath: wpqrDocuments.filePath
-          })
-          .from(wpqrDocuments)
-          .where(inArray(wpqrDocuments.id, wpqrDocumentIds));
+          appendicesPage.drawText('WPQR Documents:', {
+            x: 70,
+            y: yPosition,
+            size: 10,
+            font: helveticaBold,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= 15;
           
-          console.log(`Found ${wpqrDocs.length} WPQR documents for appendices listing`);
-          
-          if (wpqrDocs.length > 0) {
-            for (const wpqr of wpqrDocs) {
-              // Get filename only for display
-              let displayName = `${wpqr.documentId}.pdf`;
-              if (wpqr.filePath) {
-                const filePathParts = wpqr.filePath.split('/');
-                displayName = filePathParts[filePathParts.length - 1];
+          try {
+            console.log(`Querying ${localWpqrIds.length} WPQR documents for appendices listing...`);
+            
+            // Query the database for WPQR document details
+            const wpqrDocs = await db.select({
+              id: wpqrDocuments.id,
+              documentId: wpqrDocuments.documentId,
+              title: wpqrDocuments.title,
+              filePath: wpqrDocuments.filePath
+            })
+            .from(wpqrDocuments)
+            .where(inArray(wpqrDocuments.id, localWpqrIds));
+            
+            console.log(`Found ${wpqrDocs.length} matching WPQR documents in database`);
+            
+            // Add each WPQR document to the appendices list
+            if (wpqrDocs.length > 0) {
+              for (const wpqr of wpqrDocs) {
+                let displayName = `${wpqr.documentId}.pdf`;
+                if (wpqr.filePath) {
+                  const filePathParts = wpqr.filePath.split('/');
+                  displayName = filePathParts[filePathParts.length - 1];
+                }
+                
+                console.log(`Adding WPQR to appendices: ${displayName} (${wpqr.title || wpqr.documentId})`);
+                
+                // Add document to the appendices with title for context
+                appendicesPage.drawText(`- ${displayName} (${wpqr.title || wpqr.documentId})`, {
+                  x: 90,
+                  y: yPosition,
+                  size: 10,
+                  font: helvetica,
+                  color: rgb(0, 0, 0),
+                });
+                yPosition -= 15;
+                
+                // If page is full, add a new appendices page
+                if (yPosition < 100) {
+                  const newPage = pdfDoc.addPage([612, 792]);
+                  newPage.drawText('7. APPENDICES (CONTINUED)', {
+                    x: pageMargin,
+                    y: 700,
+                    size: 16,
+                    font: helveticaBold,
+                    color: rgb(0, 0, 0),
+                  });
+                  // Add footer to the new page
+                  addFooterToPage(newPage);
+                  yPosition = 650;
+                }
               }
-              
-              console.log(`Adding WPQR to appendices: ${displayName} (${wpqr.title || wpqr.documentId})`);
-              
-              // Add to appendices listing with title for context
-              appendicesPage.drawText(`- ${displayName} (${wpqr.title || wpqr.documentId})`, {
+            } else {
+              // No matching WPQR documents found in database
+              console.log(`No matching WPQR documents found in database for IDs: ${localWpqrIds.join(', ')}`);
+              appendicesPage.drawText(`- No matching WPQR documents found in database`, {
                 x: 90,
                 y: yPosition,
                 size: 10,
@@ -1440,48 +1476,34 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
                 color: rgb(0, 0, 0),
               });
               yPosition -= 15;
-              
-              // If page is full, add a new appendices page
-              if (yPosition < 100) {
-                const newPage = pdfDoc.addPage([612, 792]);
-                newPage.drawText('7. APPENDICES (CONTINUED)', {
-                  x: pageMargin,
-                  y: 700,
-                  size: 16,
-                  font: helveticaBold,
-                  color: rgb(0, 0, 0),
-                });
-                // Add footer to the new page
-                addFooterToPage(newPage);
-                yPosition = 650;
-              }
             }
-          } else {
-            // No WPQR documents found from database
-            appendicesPage.drawText(`- No WPQR documents found with IDs: ${wpqrDocumentIds.join(', ')}`, {
+          } catch (dbError) {
+            // Handle database error
+            const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+            console.error(`Database error when listing WPQR documents in appendices: ${errorMessage}`);
+            appendicesPage.drawText(`- Error retrieving WPQR documents from database`, {
               x: 90,
               y: yPosition,
               size: 10,
               font: helvetica,
-              color: rgb(0, 0, 0),
+              color: rgb(1, 0, 0),
             });
             yPosition -= 15;
           }
-        } catch (error) {
-          // Handle error with safe type checking
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error(`Error listing WPQR documents in appendices: ${errorMessage}`);
-          appendicesPage.drawText(`- Error listing WPQR documents: ${errorMessage}`, {
-            x: 90,
-            y: yPosition,
-            size: 10,
-            font: helvetica,
-            color: rgb(1, 0, 0),
-          });
-          yPosition -= 15;
+        } else {
+          console.log('No WPQR document IDs found in weld records, skipping WPQR section in appendices');
         }
-      } else {
-        console.log('No WPQR document IDs found, skipping WPQR section in appendices');
+      } catch (wpqrError) {
+        // Handle any unexpected errors in the entire WPQR section
+        console.error('Error processing WPQR documents for appendices:', wpqrError);
+        appendicesPage.drawText('Error collecting document references.', {
+          x: 70, 
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(1, 0, 0),
+        });
+        yPosition -= 15;
       }
       
       // If no documents were found
