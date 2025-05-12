@@ -83,12 +83,23 @@ router.post("/upload", ensureAuthenticated, upload.single('file'), async (req: R
     const userId = req.user ? req.user.id : null;
     console.log(`User ID for document upload: ${userId || 'Not authenticated'}`);
     
+    // Map tab names to match consistent folder structure
+    // Visual tab in frontend becomes Visual Inspection in database
+    let formattedTabName = tabName;
+    if (tabName === 'Visual') {
+      formattedTabName = 'Visual Inspection';
+    } else if (tabName === 'NonConformance') {
+      formattedTabName = 'NCR';
+    }
+    
+    console.log(`Using formatted tab name "${formattedTabName}" (original: "${tabName}") for database record`);
+    
     // Store document details in database
     console.log('Storing document metadata in database...');
     const documentRecord = await db.insert(inspectionDocuments).values({
       inspectionOrderId: inspection.id,
       recordId: recordId,
-      tabName: tabName,
+      tabName: formattedTabName, // Use the formatted tab name
       fileName: uploadResult.file_name || 'unnamed',
       filePath: uploadResult.document_file_path || '',
       fileUrl: uploadResult.document_url || '',
@@ -110,7 +121,7 @@ router.post("/upload", ensureAuthenticated, upload.single('file'), async (req: R
         inspectionOrderId: inspection.id,
         inspectionOrderNumber: inspectionOrderNumber,
         recordId: recordId,
-        tabName: tabName,
+        tabName: formattedTabName, // Use the formatted tab name in the response
         fileName: uploadResult.file_name,
         filePath: uploadResult.document_file_path,
         fileUrl: uploadResult.document_url,
@@ -149,11 +160,20 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId", ensureAuthenticated, as
       return res.status(404).json({ error: "Inspection order not found" });
     }
     
+    // Map tab names to match what's stored in the database
+    // Visual tab in frontend becomes Visual Inspection in database
+    let formattedTabName = tabName;
+    if (tabName === 'Visual') {
+      formattedTabName = 'Visual Inspection';
+    }
+    
+    console.log(`Getting documents for inspection: ${inspectionOrderNumber}, tab: ${tabName} (formatted as: ${formattedTabName}), record: ${recordId}`);
+    
     // Get documents for this inspection order record
     const documents = await db.query.inspectionDocuments.findMany({
       where: sql`
         inspection_order_id = ${inspection.id} AND
-        tab_name = ${tabName} AND
+        tab_name = ${formattedTabName} AND
         record_id = ${recordId}
       `,
       orderBy: (inspectionDocuments, { desc }) => [desc(inspectionDocuments.createdAt)]
