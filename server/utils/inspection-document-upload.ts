@@ -65,8 +65,15 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     const fileExtension = path.extname(uploadedFile.originalname).substring(1) || 'pdf';
     
     // Format: QMS/Inspections_Records/{Inspection Order No}/{Tab Name}/{array id}-{timestamp}.{extension}
-    // Fix the Non-Conformance path to match directory structure
-    const formattedTabName = tabName === 'NonConformance' ? 'NCR' : tabName;
+    // Fix tab name to match directory structure expected by Final Dossier
+    let formattedTabName = tabName;
+    
+    // Map tab names to folder names
+    if (tabName === 'NonConformance') {
+      formattedTabName = 'NCR';
+    } else if (tabName === 'Visual') {
+      formattedTabName = 'Visual Inspection';
+    }
     
     // Add timestamp to filename to avoid overwriting existing files
     // This works around the delete permission issue
