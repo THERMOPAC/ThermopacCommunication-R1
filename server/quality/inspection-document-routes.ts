@@ -94,21 +94,48 @@ router.post("/upload", ensureAuthenticated, upload.single('file'), async (req: R
     
     console.log(`Using formatted tab name "${formattedTabName}" (original: "${tabName}") for database record`);
     
-    // Store document details in database
-    console.log('Storing document metadata in database...');
-    const documentRecord = await db.insert(inspectionDocuments).values({
-      inspectionOrderId: inspection.id,
-      recordId: recordId,
-      tabName: formattedTabName, // Use the formatted tab name
-      fileName: uploadResult.file_name || 'unnamed',
-      filePath: uploadResult.document_file_path || '',
-      fileUrl: uploadResult.document_url || '',
-      fileType: uploadResult.file_type || 'application/pdf',
-      fileSize: uploadResult.file_size || 0,
-      uploadedBy: userId || null,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }).returning();
+    // Check if a document for this inspection order, record and tab already exists
+    console.log('Checking for existing document records...');
+    const existingDocument = await db.query.inspectionDocuments.findFirst({
+      where: sql`${inspectionDocuments.inspectionOrderId} = ${inspection.id} AND 
+                ${inspectionDocuments.recordId} = ${recordId} AND 
+                ${inspectionDocuments.tabName} = ${formattedTabName}`
+    });
+    
+    let documentRecord;
+    
+    if (existingDocument) {
+      console.log(`Found existing document record with ID ${existingDocument.id}, updating instead of creating new record`);
+      // Update existing record
+      documentRecord = await db.update(inspectionDocuments)
+        .set({
+          fileName: uploadResult.file_name || 'unnamed',
+          filePath: uploadResult.document_file_path || '',
+          fileUrl: uploadResult.document_url || '',
+          fileType: uploadResult.file_type || 'application/pdf',
+          fileSize: uploadResult.file_size || 0,
+          uploadedBy: userId || null,
+          updatedAt: new Date()
+        })
+        .where(eq(inspectionDocuments.id, existingDocument.id))
+        .returning();
+    } else {
+      // Insert new record
+      console.log('No existing document found, creating new record');
+      documentRecord = await db.insert(inspectionDocuments).values({
+        inspectionOrderId: inspection.id,
+        recordId: recordId,
+        tabName: formattedTabName, // Use the formatted tab name
+        fileName: uploadResult.file_name || 'unnamed',
+        filePath: uploadResult.document_file_path || '',
+        fileUrl: uploadResult.document_url || '',
+        fileType: uploadResult.file_type || 'application/pdf',
+        fileSize: uploadResult.file_size || 0,
+        uploadedBy: userId || null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).returning();
+    }
     
     console.log('Document metadata stored successfully:', documentRecord);
     

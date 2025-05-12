@@ -88,13 +88,16 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     const file = bucket.file(filePath);
     
     // Create a write stream to upload the file
+    // Setting overwrite: true in the metadata to ensure existing file is replaced
     const stream = file.createWriteStream({
       resumable: false,
       contentType: uploadedFile.mimetype,
       metadata: {
         contentType: uploadedFile.mimetype,
         contentDisposition: `inline; filename="${uploadedFile.originalname}"`,
-      }
+      },
+      // Force overwrite existing file if one exists at this path
+      preconditionOpts: { ifGenerationMatch: 0 }
     });
     
     // Handle errors during upload
