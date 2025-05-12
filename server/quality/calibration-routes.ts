@@ -1,11 +1,11 @@
 import { Request, Response, Router } from 'express';
 import { pool } from '../db';
-import { format } from 'date-fns';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadCalibrationCertificate, getCertificateUrl } from '../utils/calibration-certificate-upload';
+import { calculateNextCalibrationDate } from '../utils/date-utils';
 
 // Create the router
 const router = Router();
@@ -351,20 +351,28 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
 });
 
 // Update a calibration instrument
-router.put('/instruments/:id', ensureAuthenticated, (req: Request, res: Response, next: Function) => {
-  // Force Content-Type to JSON to prevent issues with HTML responses
+router.put('/instruments/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  // Set headers explicitly at the beginning before any processing
   res.setHeader('Content-Type', 'application/json');
-  upload.single('certificate')(req, res, function(err) {
-    if (err) {
-      return res.status(400).json({ 
-        error: err.message || 'File upload error', 
-        code: 'UPLOAD_ERROR' 
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  
+  // Use a function to wrap the file upload middleware to ensure headers are respected
+  const processFileUpload = () => {
+    return new Promise<void>((resolve, reject) => {
+      upload.single('certificate')(req, res, (err) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve();
       });
-    }
-    next();
-  });
-}, async (req: Request, res: Response) => {
+    });
+  };
+  
   try {
+    // First handle the file upload
+    await processFileUpload();
+    
     const { id } = req.params;
     const {
       instrument_name,
@@ -378,6 +386,9 @@ router.put('/instruments/:id', ensureAuthenticated, (req: Request, res: Response
       certificate_number,
       remarks
     } = req.body;
+    
+    console.log('[UPDATE] Request body:', req.body);
+    console.log('[UPDATE] File:', req.file ? 'File present' : 'No file');
     
     // Calculate next calibration date if last_calibration_date is provided
     let next_calibration_date;
@@ -395,7 +406,7 @@ router.put('/instruments/:id', ensureAuthenticated, (req: Request, res: Response
     `, [id]);
     
     if (currentResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Calibration instrument not found' });
+      return res.status(404).end(JSON.stringify({ error: 'Calibration instrument not found' }));
     }
     
     const currentFilePath = currentResult.rows[0].certificate_file_path;
