@@ -379,6 +379,19 @@ export function setupQualityRoutes(app: Express) {
   // Setup debug routes
   app.use('/api/debug/quality', debugRouter);
   
+  // Mount calibration test routes for easy testing
+  try {
+    // Use ES module import instead of require
+    import('../server/testapi/calibration-test-routes.ts').then(module => {
+      app.use('/api/testapi/calibration', module.default);
+      console.log('Registered calibration test routes at /api/testapi/calibration');
+    }).catch(error => {
+      console.error('Error importing calibration test routes:', error);
+    });
+  } catch (error) {
+    console.error('Error registering calibration test routes:', error);
+  }
+  
   console.log('Quality management routes registered');
 }
 

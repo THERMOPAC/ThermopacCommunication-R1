@@ -59,8 +59,6 @@ const upload = multer({
   }
 });
 
-const router = Router();
-
 // Generate a new instrument ID
 async function generateInstrumentId(): Promise<string> {
   try {
