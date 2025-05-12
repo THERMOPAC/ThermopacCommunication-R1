@@ -364,13 +364,12 @@ export default function CalibrationManagementPage() {
   }) : [];
   
   // Direct upload function to bypass mutation
+  // Add state variable for tracking upload state
+  const [isCreating, setIsCreating] = useState(false);
+  
   const handleDirectUpload = async (values: CalibrationInstrumentFormData) => {
     try {
       // Set processing state
-      const setIsCreating = (val: boolean) => {
-        // This is a placeholder since the state variable might not exist yet
-        console.log("Setting isCreating to", val);
-      };
       setIsCreating(true);
       
       // Create form data
@@ -397,15 +396,27 @@ export default function CalibrationManagementPage() {
         body: formData,
       });
       
+      // Log response info for debugging
+      console.log("Response status:", response.status);
+      console.log("Response headers:", {
+        type: response.headers.get('content-type'),
+        all: [...response.headers.entries()]
+      });
+      
       // Process the response
       if (!response.ok) {
         let errorMessage = "Failed to create instrument";
         try {
-          if (response.headers.get('content-type')?.includes('application/json')) {
+          // Check content type
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
             const errorData = await response.json();
             errorMessage = errorData.error || errorMessage;
           } else {
-            errorMessage = await response.text();
+            // Fallback to reading response as text
+            const text = await response.text();
+            console.log("Non-JSON response:", text.substring(0, 200) + (text.length > 200 ? '...' : ''));
+            errorMessage = `Server error: ${response.status}`;
           }
         } catch (e) {
           console.error("Error parsing response:", e);
@@ -414,7 +425,16 @@ export default function CalibrationManagementPage() {
       }
       
       // Get the response data
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+        console.log("Parsed response data:", data);
+      } catch (e) {
+        console.error("Error parsing JSON response:", e);
+        // If we can't parse JSON but the request was successful,
+        // we'll create a dummy success response
+        data = { success: true, message: "Operation completed but response couldn't be parsed" };
+      }
       
       // Success! Show notification
       toast({
