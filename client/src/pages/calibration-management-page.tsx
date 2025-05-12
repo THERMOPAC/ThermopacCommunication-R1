@@ -122,9 +122,20 @@ export default function CalibrationManagementPage() {
   const { 
     data: instruments = [], 
     isLoading, 
+    error,
     refetch 
   } = useQuery<CalibrationInstrument[]>({
     queryKey: ["/api/quality/calibration/instruments"],
+    refetchOnWindowFocus: false,
+    // Force fetch from network instead of cache
+    staleTime: 0,
+    onSuccess: (data) => {
+      console.log("Fetched instruments data:", data);
+      console.log("Number of instruments:", Array.isArray(data) ? data.length : 0);
+    },
+    onError: (err) => {
+      console.error("Error fetching instruments:", err);
+    }
   });
   
   // Fetch dashboard stats
@@ -400,8 +411,7 @@ export default function CalibrationManagementPage() {
       // Log response info for debugging
       console.log("Response status:", response.status);
       console.log("Response headers:", {
-        type: response.headers.get('content-type'),
-        all: [...response.headers.entries()]
+        type: response.headers.get('content-type')
       });
       
       // Process the response

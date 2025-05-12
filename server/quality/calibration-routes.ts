@@ -112,15 +112,22 @@ router.get('/instruments', ensureAuthenticated, async (req: Request, res: Respon
   // Force Content-Type to JSON to prevent issues with HTML responses
   res.setHeader('Content-Type', 'application/json');
   try {
+    console.log("Fetching calibration instruments from database");
     const result = await pool.query(`
       SELECT * FROM calibration_instruments
       ORDER BY next_calibration_date ASC
     `);
     
-    res.json(result.rows);
+    // Log what we found to help debug
+    console.log(`Found ${result.rows.length} calibration instruments`);
+    if (result.rows.length > 0) {
+      console.log("First instrument ID:", result.rows[0].instrument_id);
+    }
+    
+    return res.json(result.rows);
   } catch (error) {
     console.error('Error fetching calibration instruments:', error);
-    res.status(500).json({ error: 'Failed to fetch calibration instruments' });
+    return res.status(500).json({ error: 'Failed to fetch calibration instruments' });
   }
 });
 
