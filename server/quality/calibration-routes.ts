@@ -136,8 +136,37 @@ router.get('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
   }
 });
 
+// Custom error handling middleware for multer errors
+const handleMulterError = (err: any, req: Request, res: Response, next: Function) => {
+  if (err instanceof multer.MulterError) {
+    // A Multer error occurred when uploading
+    return res.status(400).json({ 
+      error: err.message || 'File upload error',
+      code: 'UPLOAD_ERROR'
+    });
+  } else if (err) {
+    // An unknown error occurred
+    return res.status(400).json({ 
+      error: err.message || 'Unknown file upload error',
+      code: 'UNKNOWN_ERROR'
+    });
+  }
+  // No error occurred, continue
+  next();
+};
+
 // Create a new calibration instrument
-router.post('/instruments', ensureAuthenticated, upload.single('certificate'), async (req: Request, res: Response) => {
+router.post('/instruments', ensureAuthenticated, (req: Request, res: Response, next: Function) => {
+  upload.single('certificate')(req, res, function(err) {
+    if (err) {
+      return res.status(400).json({ 
+        error: err.message || 'File upload error', 
+        code: 'UPLOAD_ERROR' 
+      });
+    }
+    next();
+  });
+}, async (req: Request, res: Response) => {
   try {
     const {
       instrument_name,
@@ -238,7 +267,17 @@ router.post('/instruments', ensureAuthenticated, upload.single('certificate'), a
 });
 
 // Update a calibration instrument
-router.put('/instruments/:id', ensureAuthenticated, upload.single('certificate'), async (req: Request, res: Response) => {
+router.put('/instruments/:id', ensureAuthenticated, (req: Request, res: Response, next: Function) => {
+  upload.single('certificate')(req, res, function(err) {
+    if (err) {
+      return res.status(400).json({ 
+        error: err.message || 'File upload error', 
+        code: 'UPLOAD_ERROR' 
+      });
+    }
+    next();
+  });
+}, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const {

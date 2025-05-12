@@ -397,7 +397,7 @@ export default function MaterialIdentificationListPage() {
                             <div className="flex space-x-1">
                               <Button
                                 variant="outline"
-                                size="xs"
+                                size="sm"
                                 className="h-7 px-2 text-xs"
                                 onClick={() =>
                                   navigate(`/quality/material-identification/view/${mi.id}`)
@@ -407,7 +407,7 @@ export default function MaterialIdentificationListPage() {
                               </Button>
                               <Button
                                 variant="default"
-                                size="xs"
+                                size="sm"
                                 className="h-7 px-2 text-xs"
                                 onClick={() =>
                                   navigate(`/quality/material-identification/edit/${mi.id}`)
