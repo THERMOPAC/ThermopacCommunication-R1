@@ -75,10 +75,9 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
       formattedTabName = 'Visual'; // Update to match observed file path structure
     }
     
-    // Add timestamp to filename to avoid overwriting existing files
-    // This works around the delete permission issue
-    const timestamp = Date.now();
-    const filePath = `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}-${timestamp}.${fileExtension}`;
+    // Use consistent naming without timestamps to enable overwriting existing files
+    // This allows updates to documents without creating multiple versions
+    const filePath = `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
     
     console.log(`uploadInspectionDocument: File path: ${filePath} (original tab name: ${tabName})`);
     
