@@ -65,9 +65,11 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     const fileExtension = path.extname(uploadedFile.originalname).substring(1) || 'pdf';
     
     // Format: QMS/Inspections_Records/{Inspection Order No}/{Tab Name}/{array id}.{extension}
-    const filePath = `QMS/Inspections_Records/${inspectionOrderNumber}/${tabName}/${recordId}.${fileExtension}`;
+    // Fix the Non-Conformance path to match directory structure
+    const formattedTabName = tabName === 'NonConformance' ? 'NCR' : tabName;
+    const filePath = `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
     
-    console.log(`uploadInspectionDocument: File path: ${filePath}`);
+    console.log(`uploadInspectionDocument: File path: ${filePath} (original tab name: ${tabName})`);
     
     // Get the storage bucket
     const bucket = storage.bucket(bucketName);
@@ -88,7 +90,7 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     // Handle errors during upload
     stream.on('error', (err) => {
       console.error('Error uploading file to GCS:', err);
-      throw new Error(`Failed to upload file to GCS: ${err.message}`);
+      // Don't throw error here as it will crash the server - we'll handle it through the promise
     });
     
     // Create a promise to handle the upload process
