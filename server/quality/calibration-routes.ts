@@ -109,6 +109,8 @@ function calculateNextCalibrationDate(lastCalibrationDate: string, frequency: st
 
 // Get all calibration instruments
 router.get('/instruments', ensureAuthenticated, async (req: Request, res: Response) => {
+  // Force Content-Type to JSON to prevent issues with HTML responses
+  res.setHeader('Content-Type', 'application/json');
   try {
     const result = await pool.query(`
       SELECT * FROM calibration_instruments
@@ -164,7 +166,7 @@ const handleMulterError = (err: any, req: Request, res: Response, next: Function
 
 // Create a new calibration instrument - simplified error-handling approach
 router.post('/instruments', ensureAuthenticated, async (req: Request, res: Response) => {
-  // Force response Content-Type to JSON
+  // Force Content-Type to JSON to prevent issues with HTML responses
   res.setHeader('Content-Type', 'application/json');
   
   try {
@@ -324,6 +326,8 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
 
 // Update a calibration instrument
 router.put('/instruments/:id', ensureAuthenticated, (req: Request, res: Response, next: Function) => {
+  // Force Content-Type to JSON to prevent issues with HTML responses
+  res.setHeader('Content-Type', 'application/json');
   upload.single('certificate')(req, res, function(err) {
     if (err) {
       return res.status(400).json({ 
