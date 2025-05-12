@@ -75,10 +75,9 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
       formattedTabName = 'Visual'; // Update to match observed file path structure
     }
     
-    // Use timestamp-based naming to work around delete permission limitations
-    // Since the service account doesn't have delete permissions, we need unique filenames
-    const timestamp = Date.now();
-    const filePath = `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}-${timestamp}.${fileExtension}`;
+    // Use consistent naming without timestamps to enable file overwriting
+    // Now that we have proper storage.objects.delete permissions, we can overwrite files directly
+    const filePath = `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
     
     console.log(`uploadInspectionDocument: File path: ${filePath} (original tab name: ${tabName})`);
     
@@ -87,6 +86,20 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     
     // Create a new blob in the bucket and upload the file data
     const file = bucket.file(filePath);
+    
+    // Check if file already exists, and if so, delete it first to ensure clean overwrite
+    try {
+      const [exists] = await file.exists();
+      if (exists) {
+        console.log(`File already exists at ${filePath}, will delete before upload`);
+        await file.delete();
+        console.log(`Successfully deleted existing file at ${filePath}`);
+      }
+    } catch (error) {
+      // Handle error with safe type checking to avoid typing issues
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Error checking or deleting existing file: ${errorMessage}. Will continue with upload.`);
+    }
     
     // Create a write stream to upload the file with simple configuration
     const stream = file.createWriteStream({

@@ -1769,9 +1769,24 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Save the dossier
     const pdfBytes = await pdfDoc.save();
     
-    // Define the path for the final dossier in GCS with timestamp to work around delete permission limitations
-    const timestamp = Date.now();
-    const gcsPath = `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Final Dossier/FD_${inspectionOrder.inspectionOrderNumber}_${timestamp}.pdf`;
+    // Define the path for the final dossier in GCS with consistent naming
+    // With proper delete permissions we can use a consistent name without timestamps
+    const gcsPath = `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Final Dossier/FD_${inspectionOrder.inspectionOrderNumber}.pdf`;
+    
+    // Check if file already exists and delete it to ensure clean overwrite
+    try {
+      const existingFile = bucket.file(gcsPath);
+      const [exists] = await existingFile.exists();
+      if (exists) {
+        console.log(`Existing Final Dossier found at ${gcsPath}, will replace it`);
+        await existingFile.delete();
+        console.log(`Successfully deleted existing Final Dossier at ${gcsPath}`);
+      }
+    } catch (error) {
+      // Handle error with safe type checking to avoid typing issues
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Error checking or deleting existing Final Dossier: ${errorMessage}. Will continue with upload.`);
+    }
     
     // Check if GCS bucket is available
     if (!bucket) {
