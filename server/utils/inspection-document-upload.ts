@@ -64,10 +64,14 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     // Extract file extension from the original file name
     const fileExtension = path.extname(uploadedFile.originalname).substring(1) || 'pdf';
     
-    // Format: QMS/Inspections_Records/{Inspection Order No}/{Tab Name}/{array id}.{extension}
+    // Format: QMS/Inspections_Records/{Inspection Order No}/{Tab Name}/{array id}-{timestamp}.{extension}
     // Fix the Non-Conformance path to match directory structure
     const formattedTabName = tabName === 'NonConformance' ? 'NCR' : tabName;
-    const filePath = `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
+    
+    // Add timestamp to filename to avoid overwriting existing files
+    // This works around the delete permission issue
+    const timestamp = Date.now();
+    const filePath = `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}-${timestamp}.${fileExtension}`;
     
     console.log(`uploadInspectionDocument: File path: ${filePath} (original tab name: ${tabName})`);
     
