@@ -131,6 +131,29 @@ export async function checkExistingFinalDossier(inspectionOrderNumber: string): 
 }
 
 /**
+ * Helper function to truncate text if it would exceed the width of its column
+ * @param text The text to potentially truncate
+ * @param maxWidth Maximum width in points the text can occupy
+ * @param fontSize Font size in points
+ * @returns Truncated text with ellipsis if necessary, or original text if it fits
+ */
+function truncateTextForColumn(text: string, maxWidth: number, fontSize: number = 10): string {
+  // Approximate characters that fit in the column
+  // This is a rough estimate (using average char width of 0.6 × fontSize)
+  const avgCharWidth = fontSize * 0.6;
+  const maxChars = Math.floor(maxWidth / avgCharWidth);
+  
+  if (!text || text === 'N/A') return text;
+  
+  if (text.length > maxChars) {
+    // Leave room for ellipsis
+    return text.substring(0, maxChars - 3) + '...';
+  }
+  
+  return text;
+}
+
+/**
  * Generate a final dossier PDF for an inspection order
  */
 export async function generateFinalDossier(inspectionOrderId: number): Promise<{ url: string, path: string }> {
@@ -472,8 +495,17 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     if (materials.length > 0) {
       for (const material of materials) {
-        // Draw material data in single-line tabular format
-        materialPage.drawText(material.materialIdentificationId || 'N/A', {
+        // Calculate column widths for truncation
+        const colWidths = {
+          col1Width: col2 - col1 - 5, // Material ID 
+          col2Width: col3 - col2 - 5, // Certificate
+          col3Width: col4 - col3 - 5, // Heat Number
+          col4Width: col5 - col4 - 5, // Grade
+          col5Width: (pageWidth - pageMargin) - col5 - 5 // Specification
+        };
+        
+        // Draw material data in single-line tabular format with truncation
+        materialPage.drawText(truncateTextForColumn(material.materialIdentificationId || 'N/A', colWidths.col1Width), {
           x: col1,
           y: yPosition,
           size: 10,
@@ -481,7 +513,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
           color: rgb(0, 0, 0),
         });
         
-        materialPage.drawText(material.materialCertificateNumber || 'N/A', {
+        materialPage.drawText(truncateTextForColumn(material.materialCertificateNumber || 'N/A', colWidths.col2Width), {
           x: col2,
           y: yPosition,
           size: 10,
@@ -489,7 +521,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
           color: rgb(0, 0, 0),
         });
         
-        materialPage.drawText(material.heatNumber || 'N/A', {
+        materialPage.drawText(truncateTextForColumn(material.heatNumber || 'N/A', colWidths.col3Width), {
           x: col3,
           y: yPosition,
           size: 10,
@@ -497,7 +529,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
           color: rgb(0, 0, 0),
         });
         
-        materialPage.drawText(material.materialGrade || 'N/A', {
+        materialPage.drawText(truncateTextForColumn(material.materialGrade || 'N/A', colWidths.col4Width), {
           x: col4,
           y: yPosition,
           size: 10,
@@ -505,7 +537,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
           color: rgb(0, 0, 0),
         });
         
-        materialPage.drawText(material.materialSpecification || 'N/A', {
+        materialPage.drawText(truncateTextForColumn(material.materialSpecification || 'N/A', colWidths.col5Width), {
           x: col5,
           y: yPosition,
           size: 10,
