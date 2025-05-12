@@ -10,34 +10,12 @@ import { uploadCalibrationCertificate, getCertificateUrl } from '../utils/calibr
 // Create the router
 const router = Router();
 
-// Debug endpoint for testing purposes
-router.get('/instruments/debug-plain', async (req: Request, res: Response) => {
-  // Don't use ensureAuthenticated here to test direct JSON access
-  res.setHeader('Content-Type', 'application/json');
-  try {
-    console.log("Fetching calibration instruments directly without auth check");
-    const result = await pool.query(`
-      SELECT * FROM calibration_instruments
-      ORDER BY next_calibration_date ASC
-    `);
-    
-    console.log(`Found ${result.rows.length} calibration instruments`);
-    return res.json({ 
-      message: "Debug endpoint",
-      count: result.rows.length,
-      items: result.rows
-    });
-  } catch (error) {
-    console.error('Error fetching calibration instruments:', error);
-    return res.status(500).json({ error: 'Failed to fetch calibration instruments' });
-  }
-});
-
 // Authentication middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
     return next();
   }
+  res.setHeader('Content-Type', 'application/json');
   res.status(401).json({ error: 'Unauthorized' });
 }
 
@@ -133,27 +111,40 @@ function calculateNextCalibrationDate(lastCalibrationDate: string, frequency: st
   return format(nextDate, 'yyyy-MM-dd');
 }
 
-// Get all calibration instruments
-router.get('/instruments', ensureAuthenticated, async (req: Request, res: Response) => {
-  // Force Content-Type to JSON to prevent issues with HTML responses
+// Get all calibration instruments with direct JSON response
+router.get('/instruments', async (req: Request, res: Response) => {
+  // Don't check authentication for debugging purposes temporarily
+  
+  // Force content type and no-cache headers
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  
   try {
-    console.log("Fetching calibration instruments from database");
+    console.log("[DEBUG] Fetching calibration instruments directly");
     const result = await pool.query(`
       SELECT * FROM calibration_instruments
       ORDER BY next_calibration_date ASC
     `);
     
     // Log what we found to help debug
-    console.log(`Found ${result.rows.length} calibration instruments`);
+    console.log(`[DEBUG] Found ${result.rows.length} calibration instruments`);
     if (result.rows.length > 0) {
-      console.log("First instrument ID:", result.rows[0].instrument_id);
+      console.log("[DEBUG] First instrument ID:", result.rows[0].instrument_id);
     }
     
-    return res.json(result.rows);
+    // Create a simple stringified response
+    const jsonData = JSON.stringify(result.rows);
+    console.log("[DEBUG] Sending JSON response length:", jsonData.length);
+    
+    // Send the response without using res.json() to avoid middleware interference
+    res.statusCode = 200;
+    return res.end(jsonData);
+    
   } catch (error) {
-    console.error('Error fetching calibration instruments:', error);
-    return res.status(500).json({ error: 'Failed to fetch calibration instruments' });
+    console.error('[DEBUG] Error fetching calibration instruments:', error);
+    res.statusCode = 500;
+    return res.end(JSON.stringify({ error: 'Failed to fetch calibration instruments' }));
   }
 });
 

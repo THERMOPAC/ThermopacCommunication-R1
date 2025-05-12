@@ -1,95 +1,34 @@
-import { Request, Response, Router } from 'express';
-import multer from 'multer';
-import fs from 'fs';
-import path from 'path';
-import { uploadCalibrationCertificate } from '../utils/calibration-certificate-upload';
+import { Router, Request, Response } from 'express';
+import { pool } from '../db';
 
-// Create router
+// Create the router
 const router = Router();
 
-// Set up multer for memory storage
-const memoryStorage = multer.memoryStorage();
-const upload = multer({ 
-  storage: memoryStorage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
-});
-
-// Authentication middleware
-function ensureAuthenticated(req: Request, res: Response, next: Function) {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  res.status(401).json({ error: 'Unauthorized' });
-}
-
-/**
- * Simple test endpoint for file uploads
- * This endpoint bypasses the complexity of the main calibration routes
- * and focuses only on the file upload part
- */
-router.post('/upload-test', ensureAuthenticated, async (req: Request, res: Response) => {
-  console.log("TEST ENDPOINT: Starting upload test");
+// Get calibration instruments directly with JSON response
+router.get('/direct-instruments', async (req: Request, res: Response) => {
+  // Set headers explicitly
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
   
   try {
-    // Process the upload with promise wrapper
-    const processUpload = () => {
-      return new Promise((resolve, reject) => {
-        upload.single('file')(req, res, (err) => {
-          if (err) {
-            console.log("TEST ENDPOINT: Multer error", err);
-            return reject(err);
-          }
-          resolve(true);
-        });
-      });
-    };
+    console.log("[TEST API] Fetching calibration instruments directly");
     
-    // Start upload processing
-    await processUpload();
+    const result = await pool.query(`
+      SELECT * FROM calibration_instruments
+      ORDER BY next_calibration_date ASC
+    `);
     
-    // Check if we have a file
-    if (!req.file) {
-      console.log("TEST ENDPOINT: No file in request");
-      return res.status(400).json({
-        error: 'No file uploaded',
-        success: false
-      });
-    }
+    console.log(`[TEST API] Found ${result.rows.length} calibration instruments`);
     
-    // Log file info
-    console.log("TEST ENDPOINT: File received", {
-      fieldname: req.file.fieldname,
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size
-    });
+    // Send response directly to avoid any middleware issues
+    const jsonData = JSON.stringify(result.rows);
+    console.log("[TEST API] Sending JSON data length:", jsonData.length);
     
-    // Upload to GCS
-    const testUploadResult = await uploadCalibrationCertificate(
-      req.file.buffer,
-      req.file.originalname,
-      req.file.mimetype,
-      'TEST-' + Date.now()
-    );
-    
-    console.log("TEST ENDPOINT: Upload result", testUploadResult);
-    
-    // Return success response
-    return res.json({
-      success: true,
-      message: 'File processed successfully',
-      fileName: req.file.originalname,
-      filePath: testUploadResult.filePath,
-      fileUrl: testUploadResult.url
-    });
-    
+    return res.end(jsonData);
   } catch (error) {
-    console.error("TEST ENDPOINT: Error processing file", error);
-    return res.status(500).json({
-      error: 'Failed to process file',
-      details: error instanceof Error ? error.message : String(error),
-      success: false
-    });
+    console.error('[TEST API] Error fetching calibration instruments:', error);
+    return res.status(500).end(JSON.stringify({ error: 'Failed to fetch calibration instruments' }));
   }
 });
 

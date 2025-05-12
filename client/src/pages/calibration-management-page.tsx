@@ -362,14 +362,27 @@ export default function CalibrationManagementPage() {
   
   // Filter instruments based on search term and status filter
   const filteredInstruments = Array.isArray(instruments) ? instruments.filter((instrument) => {
-    const matchesSearch = 
-      instrument.instrument_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      instrument.instrument_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      instrument.serial_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      instrument.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      instrument.location?.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!instrument) return false;
     
-    const matchesStatusFilter = statusFilter === null || instrument.calibration_status === statusFilter;
+    // Log the first instrument we're filtering to inspect its structure
+    if (instruments.indexOf(instrument) === 0) {
+      console.log("First instrument data structure:", instrument);
+    }
+    
+    // Create safe string access function
+    const safeStr = (str: string | null | undefined): string => 
+      str ? str.toLowerCase() : '';
+    
+    const matchesSearch = searchTerm === '' || (
+      safeStr(instrument.instrument_name).includes(searchTerm.toLowerCase()) ||
+      safeStr(instrument.instrument_id).includes(searchTerm.toLowerCase()) ||
+      safeStr(instrument.serial_number).includes(searchTerm.toLowerCase()) ||
+      safeStr(instrument.manufacturer).includes(searchTerm.toLowerCase()) ||
+      safeStr(instrument.location).includes(searchTerm.toLowerCase())
+    );
+    
+    const matchesStatusFilter = statusFilter === null || 
+      safeStr(instrument.calibration_status) === (statusFilter ? statusFilter.toLowerCase() : '');
     
     return matchesSearch && matchesStatusFilter;
   }) : [];
