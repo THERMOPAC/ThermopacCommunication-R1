@@ -39,6 +39,7 @@ import WelderManagementPage from "@/pages/welder-management-page";
 import WelderCertificatesPage from "@/pages/welder-certificates-page";
 import WelderTestPage from "@/pages/welder-test-page";
 import CalibrationManagementPage from "@/pages/calibration-management-page";
+import CalibrationTestPage from "@/pages/calibration-test-page";
 import QualityAssurancePlanPage from "@/pages/quality-assurance-plan-page";
 import CreateQAPPage from "@/pages/create-qap-page";
 import ViewEditQAPPage from "@/pages/view-edit-qap-page";
@@ -170,6 +171,7 @@ function Router() {
       <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
       <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />
       <SuperuserRoute path="/special-fixes" component={SpecialFixesPage} />
+      <SuperuserRoute path="/calibration-test" component={CalibrationTestPage} />
       <Route component={NotFound} />
     </Switch>
   );

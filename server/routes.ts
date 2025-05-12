@@ -29,6 +29,7 @@ import { setupApiTestRoutes } from "./api-test-route";
 import { setupDedicatedTestRoutes } from "./dedicated-test-route";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
 import { registerTemplateManagementRoutes } from "./template-management/register-routes";
+import { registerCalibrationTestRoutes } from "./calibration-test-routes";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
 import { checkGcsPermissions } from "./utils/gcs-permissions-check";
@@ -99,6 +100,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up file upload test routes for GCS diagnostics
   registerFileUploadTestRoutes(app);
+  
+  // Set up calibration test routes
+  registerCalibrationTestRoutes(app);
   
   // Set up dispatch and shipping routes
   setupDispatchRoutes(app);
