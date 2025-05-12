@@ -7,6 +7,32 @@ import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadCalibrationCertificate, getCertificateUrl } from '../utils/calibration-certificate-upload';
 
+// Create the router
+const router = Router();
+
+// Debug endpoint for testing purposes
+router.get('/instruments/debug-plain', async (req: Request, res: Response) => {
+  // Don't use ensureAuthenticated here to test direct JSON access
+  res.setHeader('Content-Type', 'application/json');
+  try {
+    console.log("Fetching calibration instruments directly without auth check");
+    const result = await pool.query(`
+      SELECT * FROM calibration_instruments
+      ORDER BY next_calibration_date ASC
+    `);
+    
+    console.log(`Found ${result.rows.length} calibration instruments`);
+    return res.json({ 
+      message: "Debug endpoint",
+      count: result.rows.length,
+      items: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching calibration instruments:', error);
+    return res.status(500).json({ error: 'Failed to fetch calibration instruments' });
+  }
+});
+
 // Authentication middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
