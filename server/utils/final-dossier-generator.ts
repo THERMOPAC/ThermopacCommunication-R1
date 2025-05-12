@@ -398,12 +398,26 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     // Draw table headers
     yPosition = 650;
     
-    // Calculate column positions based on pageMargin
-    const col1 = pageMargin;
-    const col2 = pageMargin + 100;
-    const col3 = pageMargin + 200;
-    const col4 = pageMargin + 300;
-    const col5 = pageMargin + 400;
+    // Calculate column positions based on pageMargin with better spacing
+    // Adjust column widths to fit content better
+    const pageWidth = 612; // Standard A4 width in points
+    const tableWidth = pageWidth - (2 * pageMargin);
+    
+    // Column width percentages of the total table width
+    const colWidths = {
+      materialId: 0.15,      // 15% - Material ID needs less space
+      certificate: 0.2,      // 20% - Certificate numbers can be long
+      heatNumber: 0.25,      // 25% - Heat numbers can be very long
+      grade: 0.2,            // 20% - Grade designations can be long
+      specification: 0.2     // 20% - Specification is typically short
+    };
+    
+    // Calculate actual column positions
+    const col1 = pageMargin; // Material ID
+    const col2 = col1 + (tableWidth * colWidths.materialId); // Certificate
+    const col3 = col2 + (tableWidth * colWidths.certificate); // Heat Number
+    const col4 = col3 + (tableWidth * colWidths.heatNumber); // Grade
+    const col5 = col4 + (tableWidth * colWidths.grade); // Specification
     
     // Draw table header
     materialPage.drawText('Material ID', {
