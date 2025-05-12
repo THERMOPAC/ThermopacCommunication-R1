@@ -1331,6 +1331,7 @@ export default function InspectionsPage() {
       description: "",
       drawingNo: "",
       materials: [], // Initialize with empty array for materials
+      dossierCompletionDate: new Date().toISOString().split('T')[0], // Set today's date as default
     }
   });
 
@@ -4712,35 +4713,35 @@ export default function InspectionsPage() {
                           <h4 className="text-md font-medium mb-2">Documentation Checklist</h4>
                           <div className="space-y-2">
                             <div className="flex items-center space-x-2">
-                              <Checkbox id="materialCerts" />
+                              <Checkbox id="materialCerts" defaultChecked />
                               <Label htmlFor="materialCerts">Material Certificates</Label>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Checkbox id="weldingDocs" />
+                              <Checkbox id="weldingDocs" defaultChecked />
                               <Label htmlFor="weldingDocs">Welding Documentation</Label>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Checkbox id="ndtReports" />
+                              <Checkbox id="ndtReports" defaultChecked />
                               <Label htmlFor="ndtReports">NDT Reports</Label>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Checkbox id="hydroCerts" />
+                              <Checkbox id="hydroCerts" defaultChecked />
                               <Label htmlFor="hydroCerts">Hydrotest Certificates</Label>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Checkbox id="dimReports" />
+                              <Checkbox id="dimReports" defaultChecked />
                               <Label htmlFor="dimReports">Dimensional Reports</Label>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Checkbox id="ncrReports" />
+                              <Checkbox id="ncrReports" defaultChecked />
                               <Label htmlFor="ncrReports">NCR Reports</Label>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Checkbox id="inspectionReports" />
+                              <Checkbox id="inspectionReports" defaultChecked />
                               <Label htmlFor="inspectionReports">Final Inspection Reports</Label>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <Checkbox id="coa" />
+                              <Checkbox id="coa" defaultChecked />
                               <Label htmlFor="coa">Certificate of Conformity</Label>
                             </div>
                           </div>
