@@ -162,29 +162,28 @@ const handleMulterError = (err: any, req: Request, res: Response, next: Function
   next();
 };
 
-// Create a new calibration instrument
-router.post('/instruments', ensureAuthenticated, (req: Request, res: Response, next: Function) => {
-  // First log the request headers for debugging
-  console.log('Request headers for calibration instrument create:', {
-    'content-type': req.headers['content-type'],
-    'content-length': req.headers['content-length'],
-    'accept': req.headers['accept']
-  });
-  
-  // Set response type to JSON
+// Create a new calibration instrument - simplified error-handling approach
+router.post('/instruments', ensureAuthenticated, async (req: Request, res: Response) => {
+  // Force response Content-Type to JSON
   res.setHeader('Content-Type', 'application/json');
   
-  // Handle multer upload
-  upload.single('certificate')(req, res, function(err) {
-    if (err) {
-      console.error('Error in multer file upload:', err);
-      return res.status(400).json({ 
-        error: err.message || 'File upload error', 
-        code: 'UPLOAD_ERROR' 
+  try {
+    // Use a promise wrapper to handle multer's callback-based API
+    const processUpload = () => {
+      return new Promise((resolve, reject) => {
+        upload.single('certificate')(req, res, (err) => {
+          if (err) {
+            return reject(err);
+          }
+          resolve(true);
+        });
       });
-    }
+    };
     
-    // Validate required fields
+    // Process the upload
+    await processUpload();
+    
+    // Check for required fields after file is processed
     const requiredFields = [
       'instrument_name', 
       'instrument_type', 
@@ -197,7 +196,6 @@ router.post('/instruments', ensureAuthenticated, (req: Request, res: Response, n
     ];
     
     const missingFields = requiredFields.filter(field => !req.body[field]);
-    
     if (missingFields.length > 0) {
       return res.status(400).json({
         error: `Missing required fields: ${missingFields.join(', ')}`,
@@ -205,8 +203,8 @@ router.post('/instruments', ensureAuthenticated, (req: Request, res: Response, n
       });
     }
     
-    // Log the request body after file processing
-    console.log('Request body after file upload:', {
+    // Log file info
+    console.log('File upload info:', {
       hasFile: !!req.file,
       bodyFields: Object.keys(req.body),
       fileInfo: req.file ? {
@@ -217,10 +215,7 @@ router.post('/instruments', ensureAuthenticated, (req: Request, res: Response, n
       } : null
     });
     
-    next();
-  });
-}, async (req: Request, res: Response) => {
-  try {
+    // Extract form fields
     const {
       instrument_name,
       instrument_type,
@@ -272,6 +267,7 @@ router.post('/instruments', ensureAuthenticated, (req: Request, res: Response, n
       }
     }
     
+    // Insert into database
     const result = await pool.query(`
       INSERT INTO calibration_instruments (
         instrument_id,
@@ -312,14 +308,16 @@ router.post('/instruments', ensureAuthenticated, (req: Request, res: Response, n
       certificate_url: certificate_url
     };
     
-    res.status(201).json(response);
+    // Send success response
+    return res.status(201).json(response);
+    
   } catch (error) {
+    // Log and send error
     console.error('Error creating calibration instrument:', error);
-    // Send more detailed error message
-    res.status(500).json({ 
+    return res.status(500).json({ 
       error: 'Failed to create calibration instrument', 
       details: error instanceof Error ? error.message : String(error),
-      code: 'DB_ERROR'
+      code: 'SERVER_ERROR'
     });
   }
 });

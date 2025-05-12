@@ -42,12 +42,33 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  // Add a special middleware to ensure all API routes return JSON even for errors
+  app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+    // Force content type to JSON for all API routes
+    res.setHeader('Content-Type', 'application/json');
+    next();
+  });
+
+  // Global error handler
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+    
+    // For API routes, always return JSON
+    if (req.path.startsWith('/api')) {
+      // Force content type to be JSON even for errors
+      res.setHeader('Content-Type', 'application/json');
+      res.status(status).json({ 
+        error: message,
+        code: err.code || 'SERVER_ERROR'
+      });
+    } else {
+      // For non-API routes, use the default handler
+      res.status(status).json({ message });
+    }
+    
+    // Log the error but don't throw it
+    console.error("Express error:", err);
   });
 
   // importantly only setup vite in development and after
