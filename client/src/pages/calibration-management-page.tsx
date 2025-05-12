@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PlusCircle, Search, Download, FileSpreadsheet, FileText, CalendarClock, AlertTriangle, FileBarChart } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,6 +24,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 import CalibrationReport from "@/components/calibration-report";
+import { CalibrationInstrumentForm } from "@/components/calibration-instrument-form";
 
 // Form schema for calibration instruments
 const calibrationInstrumentSchema = z.object({
@@ -362,6 +363,87 @@ export default function CalibrationManagementPage() {
     return matchesSearch && matchesStatusFilter;
   }) : [];
   
+  // Direct upload function to bypass mutation
+  const handleDirectUpload = async (values: CalibrationInstrumentFormData) => {
+    try {
+      // Set processing state
+      const setIsCreating = (val: boolean) => {
+        // This is a placeholder since the state variable might not exist yet
+        console.log("Setting isCreating to", val);
+      };
+      setIsCreating(true);
+      
+      // Create form data
+      const formData = new FormData();
+      
+      // Add all form values
+      Object.entries(values).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value.toString());
+        }
+      });
+      
+      // Add certificate if available
+      if (certificateFile) {
+        formData.append("certificate", certificateFile);
+      }
+      
+      // Make direct fetch request with specific options for better error handling
+      const response = await fetch("/api/quality/calibration/instruments", {
+        method: "POST",
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formData,
+      });
+      
+      // Process the response
+      if (!response.ok) {
+        let errorMessage = "Failed to create instrument";
+        try {
+          if (response.headers.get('content-type')?.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } else {
+            errorMessage = await response.text();
+          }
+        } catch (e) {
+          console.error("Error parsing response:", e);
+        }
+        throw new Error(errorMessage);
+      }
+      
+      // Get the response data
+      const data = await response.json();
+      
+      // Success! Show notification
+      toast({
+        title: "Success",
+        description: "Calibration instrument created successfully",
+      });
+      
+      // Clean up UI state
+      setIsAddInstrumentOpen(false);
+      form.reset();
+      setCertificateFile(null);
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments/stats/dashboard"] });
+      
+    } catch (error) {
+      console.error("Error in direct upload:", error);
+      toast({
+        title: "Error creating calibration instrument",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreating(false);
+      console.log("Upload attempt completed");
+    }
+  };
+  
   // Submit handler for adding a new instrument
   const onSubmit = (values: CalibrationInstrumentFormData) => {
     // Log the form values for debugging
@@ -385,7 +467,8 @@ export default function CalibrationManagementPage() {
       return;
     }
     
-    createInstrumentMutation.mutate(values);
+    // Use direct upload instead of mutation
+    handleDirectUpload(values);
   };
   
   // Submit handler for editing an instrument
