@@ -157,13 +157,34 @@ const handleMulterError = (err: any, req: Request, res: Response, next: Function
 
 // Create a new calibration instrument
 router.post('/instruments', ensureAuthenticated, (req: Request, res: Response, next: Function) => {
+  // First log the request headers for debugging
+  console.log('Request headers for calibration instrument create:', {
+    'content-type': req.headers['content-type'],
+    'content-length': req.headers['content-length'],
+    'accept': req.headers['accept']
+  });
+  
   upload.single('certificate')(req, res, function(err) {
     if (err) {
+      console.error('Error in multer file upload:', err);
       return res.status(400).json({ 
         error: err.message || 'File upload error', 
         code: 'UPLOAD_ERROR' 
       });
     }
+    
+    // Log the request body after file processing
+    console.log('Request body after file upload:', {
+      hasFile: !!req.file,
+      bodyFields: Object.keys(req.body),
+      fileInfo: req.file ? {
+        fieldname: req.file.fieldname,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      } : null
+    });
+    
     next();
   });
 }, async (req: Request, res: Response) => {
@@ -262,7 +283,12 @@ router.post('/instruments', ensureAuthenticated, (req: Request, res: Response, n
     res.status(201).json(response);
   } catch (error) {
     console.error('Error creating calibration instrument:', error);
-    res.status(500).json({ error: 'Failed to create calibration instrument' });
+    // Send more detailed error message
+    res.status(500).json({ 
+      error: 'Failed to create calibration instrument', 
+      details: error instanceof Error ? error.message : String(error),
+      code: 'DB_ERROR'
+    });
   }
 });
 

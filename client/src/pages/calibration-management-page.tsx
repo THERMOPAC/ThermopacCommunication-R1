@@ -157,8 +157,21 @@ export default function CalibrationManagementPage() {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create instrument");
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Failed to create instrument");
+          } else {
+            // If response is not JSON, get text instead
+            const errorText = await response.text();
+            console.error("Non-JSON error response:", errorText);
+            throw new Error("Failed to create instrument. Please check the file format or try again.");
+          }
+        } catch (parseError) {
+          console.error("Error parsing response:", parseError);
+          throw new Error("Failed to process server response. Please try again.");
+        }
       }
       
       return response.json();
@@ -206,8 +219,21 @@ export default function CalibrationManagementPage() {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update instrument");
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Failed to update instrument");
+          } else {
+            // If response is not JSON, get text instead
+            const errorText = await response.text();
+            console.error("Non-JSON error response:", errorText);
+            throw new Error("Failed to update instrument. Please check the file format or try again.");
+          }
+        } catch (parseError) {
+          console.error("Error parsing response:", parseError);
+          throw new Error("Failed to process server response. Please try again.");
+        }
       }
       
       return response.json();
@@ -282,6 +308,27 @@ export default function CalibrationManagementPage() {
   
   // Submit handler for adding a new instrument
   const onSubmit = (values: CalibrationInstrumentFormData) => {
+    // Log the form values for debugging
+    console.log("Submitting calibration instrument with values:", values);
+    // Log if we have a certificate file
+    console.log("Certificate file:", certificateFile ? {
+      name: certificateFile.name,
+      type: certificateFile.type,
+      size: certificateFile.size
+    } : 'None');
+    
+    // Make sure all required fields are present
+    if (!values.instrument_name || !values.instrument_type || !values.manufacturer || 
+        !values.serial_number || !values.location || !values.calibration_frequency || 
+        !values.last_calibration_date || !values.calibration_status) {
+      toast({
+        title: "Missing required fields",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     createInstrumentMutation.mutate(values);
   };
   
