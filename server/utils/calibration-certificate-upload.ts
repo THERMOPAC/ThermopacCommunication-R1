@@ -25,13 +25,16 @@ export async function uploadCalibrationCertificate(
 }> {
   try {
     // Use instrument ID for filename if provided, otherwise use a UUID
-    const fileExtension = '.pdf'; // Always use .pdf extension as required
+    // Get the file extension from the original filename or use .pdf as default
+    const originalExt = path.extname(originalFilename).toLowerCase();
+    const fileExtension = ['.pdf', '.jpg', '.jpeg', '.png'].includes(originalExt) ? originalExt : '.pdf';
+    
     const filename = instrumentId ? 
-      `${instrumentId}.pdf` : 
+      `${instrumentId}${fileExtension}` : 
       `${uuidv4()}${fileExtension}`;
     
-    // Set the GCS path in the QMS/Instrument directory
-    const gcsPath = `QMS/Instrument/${filename}`;
+    // Set the GCS path in the QMS/Instruments directory (correct plural form)
+    const gcsPath = `QMS/Instruments/${filename}`;
     
     console.log(`Uploading calibration certificate to: ${gcsPath}`);
     
