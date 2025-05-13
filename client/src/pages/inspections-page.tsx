@@ -1702,12 +1702,13 @@ export default function InspectionsPage() {
       let materialRows = data.materials || [];
       const validMaterialRows = materialRows.filter(row => row.materialId);
       
-      // Combine the form data with the NDT records, Visual records, Weld records, and NCR records from the state
+      // Combine the form data with the NDT records, Visual records, Weld records, Hydrotest records, and NCR records from the state
       const updateData = {
         ...data,
         materials: validMaterialRows,
         ndtRecords: ndtRecords,
         visualRecords: visualRecords,
+        hydrotestRecords: hydrotestRecords,
         welds: welds,
         ncrRecords: ncrRecords
       };
