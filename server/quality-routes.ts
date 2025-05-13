@@ -380,6 +380,10 @@ export function setupQualityRoutes(app: Express) {
   // Setup debug routes
   app.use('/api/debug/quality', debugRouter);
   
+  // Setup calibration routes
+  app.use('/api/quality/calibration', calibrationRoutes);
+  console.log('Calibration routes registered at /api/quality/calibration');
+  
   // Mount calibration test routes for easy testing
   try {
     // Use ES module import instead of require
