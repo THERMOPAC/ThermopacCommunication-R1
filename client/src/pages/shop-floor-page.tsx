@@ -621,7 +621,8 @@ export default function ShopFloorPage() {
                     <div className="space-y-4">
                       {getFilteredWorkOrders().map(workOrder => (
                         <div key={workOrder.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                          <div className="flex justify-between items-center mb-2">
+                          {/* Single line work order information */}
+                          <div className="flex justify-between items-center">
                             <div className="flex items-center">
                               <span className="font-medium text-lg">{workOrder.workOrderNumber}</span>
                               <Badge className={`ml-3 ${statusColors[workOrder.status]}`}>
@@ -629,38 +630,43 @@ export default function ShopFloorPage() {
                                  workOrder.status.charAt(0).toUpperCase() + workOrder.status.slice(1)}
                               </Badge>
                             </div>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="flex items-center" 
-                              onClick={() => {
-                                // Navigate to work order edit page
-                                window.location.href = `/production/work-orders/details/${workOrder.id}`;
-                              }}
-                            >
-                              Edit Work Order <ChevronRight className="h-4 w-4 ml-1" />
-                            </Button>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                            <div>
-                              <div className="text-sm text-muted-foreground">Production Team</div>
-                              <div>{workOrder.productionLine || "Unassigned"}</div>
-                            </div>
-                            <div>
-                              <div className="text-sm text-muted-foreground">Scheduled</div>
-                              <div>
-                                {workOrder.plannedStartDate ? 
-                                  format(new Date(workOrder.plannedStartDate), 'dd MMM yyyy') : 
-                                  "Not scheduled"}
+                            
+                            {/* Work order details in a single row */}
+                            <div className="flex items-center space-x-4">
+                              <div className="flex flex-col items-end">
+                                <div className="text-sm text-muted-foreground">Production Team</div>
+                                <div>{workOrder.productionLine || "Unassigned"}</div>
                               </div>
-                            </div>
-                            <div>
-                              <div className="text-sm text-muted-foreground">Priority</div>
-                              <div>{workOrder.priority || "Medium"}</div>
+                              
+                              <div className="flex flex-col items-end">
+                                <div className="text-sm text-muted-foreground">Scheduled</div>
+                                <div>
+                                  {workOrder.plannedStartDate ? 
+                                    format(new Date(workOrder.plannedStartDate), 'dd MMM yyyy') : 
+                                    "Not scheduled"}
+                                </div>
+                              </div>
+                              
+                              <div className="flex flex-col items-end">
+                                <div className="text-sm text-muted-foreground">Priority</div>
+                                <div>{workOrder.priority || "Medium"}</div>
+                              </div>
+                              
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex items-center ml-4" 
+                                onClick={() => {
+                                  // Navigate to work order edit page
+                                  window.location.href = `/production/work-orders/details/${workOrder.id}`;
+                                }}
+                              >
+                                Edit <ChevronRight className="h-4 w-4 ml-1" />
+                              </Button>
                             </div>
                           </div>
                           
+                          {/* Progress bar in a separate row at the bottom */}
                           <div className="mt-4">
                             <div className="flex justify-between text-sm mb-1">
                               <span>Progress</span>
