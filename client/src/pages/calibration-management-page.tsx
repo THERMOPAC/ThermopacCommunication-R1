@@ -584,9 +584,18 @@ export default function CalibrationManagementPage() {
         formData.append('certificate', certificateFile);
         
         // Use the regular update endpoint that handles file uploads
-        const url = '/api/quality/calibration/instruments/' + selectedInstrument.id;
-        const uploadResponse = await fetch(url, {
-          method: 'PUT',
+        console.log("Selected instrument for file upload:", selectedInstrument);
+        
+        // Add the instrument ID directly to the FormData instead of in the URL
+        formData.append('instrumentId', String(selectedInstrument.id));
+        
+        // Use a simple fixed endpoint that won't cause URL parsing issues
+        const uploadUrl = '/api/quality/calibration/instruments/update-with-file';
+        console.log("Using fixed upload URL:", uploadUrl, "with ID in FormData");
+        
+        // Use POST instead of PUT to avoid any potential issues
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'POST',
           body: formData
         });
         
@@ -603,15 +612,24 @@ export default function CalibrationManagementPage() {
       } else {
         // For non-file updates, use the standalone direct update endpoint
         console.log("No certificate file, using direct update endpoint");
+        console.log("Selected instrument for direct update:", selectedInstrument);
         
-        const directUrl = '/api/standalone/direct-update-instrument/' + selectedInstrument.id;
+        // Different approach - use a hardcoded endpoint with the ID as a parameter in body
+        const directUrl = '/api/standalone/direct-update-instrument';
+        const directUpdateBody = {
+          ...values,
+          instrumentId: selectedInstrument.id
+        };
+        console.log("Direct update URL:", directUrl);
+        console.log("Direct update body:", directUpdateBody);
+        
         const directResponse = await fetch(directUrl, {
-          method: 'PUT',
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          body: JSON.stringify(values)
+          body: JSON.stringify(directUpdateBody)
         });
         
         // Log response details for debugging
