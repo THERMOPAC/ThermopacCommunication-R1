@@ -566,49 +566,71 @@ export default function CalibrationManagementPage() {
       
       let responseData;
       
-      // If we have a certificate file, we need to use FormData and the regular upload endpoint
+      // If we have a certificate file, we need to handle file upload first, then data update
       if (certificateFile) {
-        console.log("Certificate file detected, using FormData upload with file:", certificateFile.name);
+        console.log("Certificate file detected, using standalone file upload endpoint");
         
-        // Create form data for file upload
-        const formData = new FormData();
+        // Create form data specifically for file upload
+        const fileFormData = new FormData();
         
-        // Add form values
-        Object.entries(values).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            formData.append(key, value.toString());
-          }
-        });
+        // Only add the file and instrument ID
+        fileFormData.append('certificate', certificateFile);
+        fileFormData.append('instrumentId', String(selectedInstrument.id));
         
-        // Add the certificate file
-        formData.append('certificate', certificateFile);
+        // Use our new dedicated file upload endpoint
+        const fileUploadUrl = '/api/standalone/calibration-instrument-file-upload';
+        console.log("Using file upload URL:", fileUploadUrl);
         
-        // Use the regular update endpoint that handles file uploads
-        console.log("Selected instrument for file upload:", selectedInstrument);
-        
-        // Add the instrument ID directly to the FormData instead of in the URL
-        formData.append('instrumentId', String(selectedInstrument.id));
-        
-        // Use a simple fixed endpoint that won't cause URL parsing issues
-        const uploadUrl = '/api/quality/calibration/instruments/update-with-file';
-        console.log("Using fixed upload URL:", uploadUrl, "with ID in FormData");
-        
-        // Use POST instead of PUT to avoid any potential issues
-        const uploadResponse = await fetch(uploadUrl, {
+        // Make file upload request
+        const fileUploadResponse = await fetch(fileUploadUrl, {
           method: 'POST',
-          body: formData
+          body: fileFormData
         });
         
         // Log response details for debugging
-        console.log("File upload update response status:", uploadResponse.status);
+        console.log("File upload response status:", fileUploadResponse.status);
         
-        if (!uploadResponse.ok) {
-          const errorText = await uploadResponse.text();
-          console.error("Error response:", errorText);
-          throw new Error(`Update failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+        if (!fileUploadResponse.ok) {
+          const errorText = await fileUploadResponse.text();
+          console.error("Error uploading file:", errorText);
+          throw new Error(`Certificate upload failed: ${fileUploadResponse.status} ${fileUploadResponse.statusText}`);
         }
         
-        responseData = await uploadResponse.json();
+        const fileResult = await fileUploadResponse.json();
+        console.log("File upload successful:", fileResult);
+        
+        // Now handle the rest of the data with a separate request
+        console.log("Proceeding with instrument data update after successful file upload");
+        
+        // Use our direct update endpoint for the other form data
+        const dataUpdateUrl = '/api/standalone/direct-update-instrument';
+        const dataUpdateBody = {
+          ...values,
+          instrumentId: selectedInstrument.id
+        };
+        
+        console.log("Data update URL:", dataUpdateUrl);
+        console.log("Data update body:", dataUpdateBody);
+        
+        const dataUpdateResponse = await fetch(dataUpdateUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(dataUpdateBody)
+        });
+        
+        // Log response details for debugging
+        console.log("Data update response status:", dataUpdateResponse.status);
+        
+        if (!dataUpdateResponse.ok) {
+          const errorText = await dataUpdateResponse.text();
+          console.error("Error updating data:", errorText);
+          throw new Error(`Data update failed: ${dataUpdateResponse.status} ${dataUpdateResponse.statusText}`);
+        }
+        
+        responseData = await dataUpdateResponse.json();
       } else {
         // For non-file updates, use the standalone direct update endpoint
         console.log("No certificate file, using direct update endpoint");

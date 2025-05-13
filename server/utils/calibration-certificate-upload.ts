@@ -34,7 +34,7 @@ export async function uploadCalibrationCertificate(
       `${uuidv4()}${fileExtension}`;
     
     // Set the GCS path - using QMS/Instrument/ to match existing database entries
-    // Note: We're deliberately using singular form 'Instrument' to match existing records
+    // Note: Using singular form 'Instrument' for consistency, but will check both in download function
     const gcsPath = `QMS/Instrument/${filename}`;
     
     console.log(`Uploading calibration certificate to: ${gcsPath}`);
@@ -91,12 +91,38 @@ export async function getCertificateUrl(filePath: string): Promise<string | null
     }
     
     const bucket = storage.bucket(bucketName);
-    const file = bucket.file(filePath);
+    let file = bucket.file(filePath);
     
     // Check if file exists
-    const [exists] = await file.exists();
+    let [exists] = await file.exists();
+    
+    // If the file doesn't exist with the original path, try alternative path format
     if (!exists) {
-      console.error(`Certificate file ${filePath} does not exist in GCS`);
+      console.log(`Certificate file ${filePath} not found, checking alternative path format`);
+      
+      // Check if the path is in singular form and try plural, or vice versa
+      let alternatePath = '';
+      if (filePath.includes('QMS/Instrument/')) {
+        alternatePath = filePath.replace('QMS/Instrument/', 'QMS/Instruments/');
+      } else if (filePath.includes('QMS/Instruments/')) {
+        alternatePath = filePath.replace('QMS/Instruments/', 'QMS/Instrument/');
+      }
+      
+      if (alternatePath) {
+        console.log(`Trying alternative path: ${alternatePath}`);
+        file = bucket.file(alternatePath);
+        [exists] = await file.exists();
+        
+        if (exists) {
+          console.log(`Found certificate at alternative path: ${alternatePath}`);
+          filePath = alternatePath;
+        }
+      }
+    }
+    
+    // If still doesn't exist after checking alternative paths
+    if (!exists) {
+      console.error(`Certificate file not found in GCS (tried both singular and plural paths)`);
       return null;
     }
     

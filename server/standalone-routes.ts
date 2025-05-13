@@ -354,7 +354,7 @@ router.post('/calibration-instrument-file-upload', upload.single('certificate'),
        SET certificate_file_path = $1, updated_at = NOW()
        WHERE id = $2
        RETURNING *`,
-      [uploadResult.path, instrumentId]
+      [uploadResult.filePath, instrumentId]
     );
     
     console.log('[STANDALONE] File upload and update successful');
@@ -365,7 +365,7 @@ router.post('/calibration-instrument-file-upload', upload.single('certificate'),
       message: 'Calibration certificate uploaded successfully',
       data: updateResult.rows[0],
       file: {
-        path: uploadResult.path,
+        path: uploadResult.filePath,
         url: uploadResult.url
       }
     });
