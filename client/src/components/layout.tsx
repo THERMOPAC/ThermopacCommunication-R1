@@ -28,7 +28,10 @@ import {
   Shield,
   Settings,
   FileCheck,
-  CalendarClock
+  CalendarClock,
+  BarChart4,
+  UsersRound,
+  Megaphone
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -41,6 +44,7 @@ type LayoutProps = {
 export default function Layout({ children }: LayoutProps) {
   const { user } = useAuth();
   const [location] = useLocation();
+  const [isSalesAndMarketingMenuOpen, setIsSalesAndMarketingMenuOpen] = useState(false);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [isProcurementMenuOpen, setIsProcurementMenuOpen] = useState(false);
   const [isProductionMenuOpen, setIsProductionMenuOpen] = useState(false);
@@ -49,6 +53,11 @@ export default function Layout({ children }: LayoutProps) {
   // Get all module permissions for the current user
   const { data: modulePermissions, isLoading: isLoadingPermissions } = useAllModulePermissions();
 
+  // Check if we're on any sales and marketing related page
+  const isOnSalesAndMarketingPage = location === '/leads' ||
+                                  location === '/campaigns' ||
+                                  location === '/marketing-dashboard';
+  
   // Check if we're on any project-related page
   const isOnProjectsPage = location.startsWith('/project') || 
                          location === '/customers' || 
@@ -77,6 +86,10 @@ export default function Layout({ children }: LayoutProps) {
   
   // Auto-open menus based on current page
   useEffect(() => {
+    if (isOnSalesAndMarketingPage && !isSalesAndMarketingMenuOpen) {
+      setIsSalesAndMarketingMenuOpen(true);
+    }
+    
     if (isOnProjectsPage && !isProjectMenuOpen) {
       setIsProjectMenuOpen(true);
     }
@@ -92,7 +105,7 @@ export default function Layout({ children }: LayoutProps) {
     if (isOnQualityPage && !isQualityMenuOpen) {
       setIsQualityMenuOpen(true);
     }
-  }, [isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage]);
+  }, [isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -114,6 +127,18 @@ export default function Layout({ children }: LayoutProps) {
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
+    ...(hasViewPermission("Sales and Marketing") ? [{ 
+      icon: Megaphone, 
+      label: "Sales and Marketing", 
+      isSubmenu: true,
+      isOpen: isSalesAndMarketingMenuOpen,
+      toggle: () => setIsSalesAndMarketingMenuOpen(!isSalesAndMarketingMenuOpen),
+      children: [
+        { icon: UsersRound, label: "Leads", href: "/leads" },
+        { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
+        { icon: TrendingUp, label: "Campaigns", href: "/campaigns" }
+      ]
+    }] : []),
     ...(hasViewPermission("Project Management") ? [{ 
       icon: FolderKanban, 
       label: "Project Management", 

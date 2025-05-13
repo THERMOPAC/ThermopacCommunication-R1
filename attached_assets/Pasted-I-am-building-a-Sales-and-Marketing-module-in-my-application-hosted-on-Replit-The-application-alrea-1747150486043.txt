@@ -1,0 +1,84 @@
+I am building a Sales and Marketing module in my application hosted on Replit. The application already integrates with SAP for customer data, but now I want to add features for capturing leads from Google Ads and my website.
+
+1. Backend: Lead Capture API
+Request:
+Generate a Python FastAPI endpoint to handle lead captures. The lead will contain information such as name, email, phone, source (Google Ads or Website), and status. Also, associate the lead with a campaign ID if available.
+
+Create a Leads table with the following fields:
+
+id (UUID)
+
+name (String)
+
+email (String)
+
+phone (String)
+
+source (String - "Google Ads" or "Website")
+
+status (Enum - New, Contacted, Qualified, Converted, Lost)
+
+created_at (Timestamp)
+
+Also, create a POST /leads endpoint that:
+
+Validates the input
+
+Saves the lead in the database
+
+Returns a success message with the lead's ID
+
+2. Backend: Google Ads Integration
+Request:
+Create a scheduled task to fetch leads from Google Ads using Google Ads API and match the incoming leads to the campaign using the gclid (Google Click ID).
+
+The task should:
+
+Retrieve leads generated from a specific campaign
+
+Save them in the Leads table with the campaign ID
+
+Set the source to "Google Ads"
+
+Handle lead attribution
+
+3. Frontend: Leads Management Dashboard (React)
+Request:
+Create a React.js component for the Leads Management Dashboard. This should allow sales reps to:
+
+View a list of leads (name, email, source, status)
+
+Filter leads by status, source, or date range
+
+Assign leads to sales reps
+
+Change lead status (e.g., from "New" to "Contacted")
+
+4. Frontend: Website Lead Form (React)
+Request:
+Generate a React form for capturing leads from the website. The form should collect the following:
+
+Name
+
+Email
+
+Phone
+
+Source (Google Ads or Website - based on UTM parameters or gclid)
+
+Once submitted, the form should POST the lead data to the /leads API backend endpoint.
+
+5. Database Schema (PostgreSQL)
+Request:
+Define a PostgreSQL schema for the Leads table, including the fields described above.
+
+Expected Output:
+FastAPI backend code with the endpoint for lead capture
+
+Google Ads integration task code
+
+React components for managing leads and displaying them
+
+Schema for the PostgreSQL database
+
+React form to capture leads from the website
