@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import { calculateNextCalibrationDate } from '../utils/date-utils';
+import { testGCSConnection } from '../utils/list-gcs-files';
 
 // Create the router
 const router = Router();
