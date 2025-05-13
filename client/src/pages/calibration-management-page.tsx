@@ -584,26 +584,26 @@ export default function CalibrationManagementPage() {
         formData.append('certificate', certificateFile);
         
         // Use the regular update endpoint that handles file uploads
-        const response = await fetch(`/api/quality/calibration/instruments/${selectedInstrument.id}`, {
+        const uploadResponse = await fetch(`/api/quality/calibration/instruments/${selectedInstrument.id}`, {
           method: 'PUT',
           body: formData
         });
         
         // Log response details for debugging
-        console.log("File upload update response status:", response.status);
+        console.log("File upload update response status:", uploadResponse.status);
         
-        if (!response.ok) {
-          const errorText = await response.text();
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
           console.error("Error response:", errorText);
-          throw new Error(`Update failed: ${response.status} ${response.statusText}`);
+          throw new Error(`Update failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
         }
         
-        responseData = await response.json();
+        responseData = await uploadResponse.json();
       } else {
         // For non-file updates, use the standalone direct update endpoint
         console.log("No certificate file, using direct update endpoint");
         
-        const response = await fetch(`/api/standalone/direct-update-instrument/${selectedInstrument.id}`, {
+        const directResponse = await fetch(`/api/standalone/direct-update-instrument/${selectedInstrument.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -613,15 +613,15 @@ export default function CalibrationManagementPage() {
         });
         
         // Log response details for debugging
-        console.log("Direct update response status:", response.status);
+        console.log("Direct update response status:", directResponse.status);
         
-        if (!response.ok) {
-          const errorText = await response.text();
+        if (!directResponse.ok) {
+          const errorText = await directResponse.text();
           console.error("Error response:", errorText);
-          throw new Error(`Update failed: ${response.status} ${response.statusText}`);
+          throw new Error(`Update failed: ${directResponse.status} ${directResponse.statusText}`);
         }
         
-        responseData = await response.json();
+        responseData = await directResponse.json();
       }
       
       console.log("Update successful:", responseData);
