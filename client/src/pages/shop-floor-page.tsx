@@ -621,49 +621,53 @@ export default function ShopFloorPage() {
                     <div className="space-y-4">
                       {getFilteredWorkOrders().map(workOrder => (
                         <div key={workOrder.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                          {/* Single line work order information */}
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center">
-                              <span className="font-medium text-lg">{workOrder.workOrderNumber}</span>
-                              <Badge className={`ml-3 ${statusColors[workOrder.status]}`}>
-                                {workOrder.status === "in_progress" ? "In Progress" : 
-                                 workOrder.status.charAt(0).toUpperCase() + workOrder.status.slice(1)}
-                              </Badge>
+                          {/* Single line work order information following the exact pattern:
+                          Work Order Number, Status, Title, Production Team, Scheduled, Priority and Edit button */}
+                          <div className="flex items-center gap-4">
+                            {/* Work Order Number */}
+                            <div className="font-medium text-base min-w-[120px]">{workOrder.workOrderNumber}</div>
+                            
+                            {/* Status */}
+                            <Badge className={`${statusColors[workOrder.status]}`}>
+                              {workOrder.status === "in_progress" ? "In Progress" : 
+                               workOrder.status.charAt(0).toUpperCase() + workOrder.status.slice(1)}
+                            </Badge>
+                            
+                            {/* Title */}
+                            <div className="flex-1 truncate font-medium">{workOrder.title}</div>
+                            
+                            {/* Production Team */}
+                            <div className="w-32 text-sm text-right">
+                              <span className="text-muted-foreground mr-1">Team:</span>
+                              {workOrder.productionLine || "Unassigned"}
                             </div>
                             
-                            {/* Work order details in a single row */}
-                            <div className="flex items-center space-x-4">
-                              <div className="flex flex-col items-end">
-                                <div className="text-sm text-muted-foreground">Production Team</div>
-                                <div>{workOrder.productionLine || "Unassigned"}</div>
-                              </div>
-                              
-                              <div className="flex flex-col items-end">
-                                <div className="text-sm text-muted-foreground">Scheduled</div>
-                                <div>
-                                  {workOrder.plannedStartDate ? 
-                                    format(new Date(workOrder.plannedStartDate), 'dd MMM yyyy') : 
-                                    "Not scheduled"}
-                                </div>
-                              </div>
-                              
-                              <div className="flex flex-col items-end">
-                                <div className="text-sm text-muted-foreground">Priority</div>
-                                <div>{workOrder.priority || "Medium"}</div>
-                              </div>
-                              
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="flex items-center ml-4" 
-                                onClick={() => {
-                                  // Navigate to work order edit page
-                                  window.location.href = `/production/work-orders/details/${workOrder.id}`;
-                                }}
-                              >
-                                Edit <ChevronRight className="h-4 w-4 ml-1" />
-                              </Button>
+                            {/* Scheduled */}
+                            <div className="w-36 text-sm text-right">
+                              <span className="text-muted-foreground mr-1">Date:</span>
+                              {workOrder.plannedStartDate ? 
+                                format(new Date(workOrder.plannedStartDate), 'dd MMM yyyy') : 
+                                "Not scheduled"}
                             </div>
+                            
+                            {/* Priority */}
+                            <div className="w-24 text-sm text-right">
+                              <span className="text-muted-foreground mr-1">Priority:</span>
+                              {workOrder.priority || "Medium"}
+                            </div>
+                            
+                            {/* Edit button */}
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex items-center" 
+                              onClick={() => {
+                                // Navigate to work order edit page
+                                window.location.href = `/production/work-orders/details/${workOrder.id}`;
+                              }}
+                            >
+                              Edit <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
                           </div>
                           
                           {/* Progress bar in a separate row at the bottom */}
@@ -741,15 +745,25 @@ export default function ShopFloorPage() {
                         key={wo.id} 
                         className="flex items-center p-3 border rounded-md hover:bg-muted/30 transition-colors"
                       >
-                        <div className={`h-2 w-2 rounded-full mr-3 ${wo.status === "in_progress" ? "bg-amber-500" : "bg-blue-500"}`}></div>
-                        <div className="flex-1">
+                        {/* Work Order Number with status indicator */}
+                        <div className="flex items-center min-w-[120px]">
+                          <div className={`h-2 w-2 rounded-full mr-2 ${wo.status === "in_progress" ? "bg-amber-500" : "bg-blue-500"}`}></div>
                           <div className="font-medium">{wo.workOrderNumber}</div>
-                          <div className="text-sm text-muted-foreground">{wo.productionLine || "Unassigned"}</div>
                         </div>
+                        
+                        {/* Status */}
                         <Badge className={`mr-2 ${statusColors[wo.status]}`}>
                           {wo.status === "in_progress" ? "In Progress" : 
                            wo.status.charAt(0).toUpperCase() + wo.status.slice(1)}
                         </Badge>
+                        
+                        {/* Title */}
+                        <div className="flex-1 truncate ml-2 mr-4">{wo.title}</div>
+                        
+                        {/* Production Team */}
+                        <div className="text-sm text-muted-foreground mr-4">{wo.productionLine || "Unassigned"}</div>
+                        
+                        {/* Edit button */}
                         <Button 
                           variant="ghost" 
                           size="sm"
