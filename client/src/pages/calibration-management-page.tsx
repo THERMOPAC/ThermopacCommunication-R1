@@ -564,6 +564,8 @@ export default function CalibrationManagementPage() {
     try {
       console.log("Editing instrument with values:", values);
       
+      let responseData;
+      
       // If we have a certificate file, we need to use FormData and the regular upload endpoint
       if (certificateFile) {
         console.log("Certificate file detected, using FormData upload with file:", certificateFile.name);
@@ -589,7 +591,14 @@ export default function CalibrationManagementPage() {
         
         // Log response details for debugging
         console.log("File upload update response status:", response.status);
-        return await response.json();
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error response:", errorText);
+          throw new Error(`Update failed: ${response.status} ${response.statusText}`);
+        }
+        
+        responseData = await response.json();
       } else {
         // For non-file updates, use the standalone direct update endpoint
         console.log("No certificate file, using direct update endpoint");
@@ -605,15 +614,17 @@ export default function CalibrationManagementPage() {
         
         // Log response details for debugging
         console.log("Direct update response status:", response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error response:", errorText);
-        throw new Error(`Update failed: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error response:", errorText);
+          throw new Error(`Update failed: ${response.status} ${response.statusText}`);
+        }
+        
+        responseData = await response.json();
       }
       
-      const data = await response.json();
-      console.log("Direct update successful:", data);
+      console.log("Update successful:", responseData);
       
       // Show success message
       toast({
@@ -644,11 +655,11 @@ export default function CalibrationManagementPage() {
       }, 500);
       
     } catch (error) {
-      console.error("Error in direct update:", error);
+      console.error("Error in instrument update:", error);
       toast({
         title: "Error updating instrument",
         description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
