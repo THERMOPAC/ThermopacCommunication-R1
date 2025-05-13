@@ -52,6 +52,7 @@ import TemplateManagementPage from "@/pages/template-management-page";
 import ModulePermissionsPage from "@/pages/module-permissions-page";
 import DiagnosticsPage from "@/pages/diagnostics-page";
 import GcsDiagnosticPage from "@/pages/gcs-diagnostic-page";
+import GcsTestPage from "@/pages/gcs-test-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
@@ -170,6 +171,7 @@ function Router() {
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
       <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />
+      <SuperuserRoute path="/gcs-test" component={GcsTestPage} />
       <SuperuserRoute path="/special-fixes" component={SpecialFixesPage} />
       <SuperuserRoute path="/calibration-test" component={CalibrationTestPage} />
       <Route component={NotFound} />

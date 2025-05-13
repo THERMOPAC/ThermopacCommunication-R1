@@ -1,10 +1,231 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db';
 import { calculateNextCalibrationDate } from '../utils/date-utils';
-import { testGCSConnection } from '../utils/list-gcs-files';
+import { testGCSConnection, listFiles } from '../utils/list-gcs-files';
+import multer from 'multer';
+import { Storage } from '@google-cloud/storage';
+import { gcsCredentials, gcsBucketName } from '../utils/gcs-config';
+
+// Configure multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 MB file size limit
+  },
+});
+
+// Initialize GCS client for tests
+const storage = new Storage({
+  credentials: gcsCredentials as any,
+});
+const bucket = storage.bucket(gcsBucketName);
 
 // Create the router
 const router = Router();
+
+// Test uploading a calibration certificate to GCS
+router.post('/test-upload-certificate', upload.single('certificate'), async (req: Request, res: Response) => {
+  // Set headers explicitly
+  res.setHeader('Content-Type', 'application/json');
+  
+  try {
+    console.log('[TEST API] Certificate upload test requested');
+    
+    // Check if file was provided
+    if (!req.file) {
+      console.log('[TEST API] No file uploaded');
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+    
+    // Log file info
+    console.log('[TEST API] File info:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+    
+    // Generate a test instrument ID for the upload
+    const testInstrumentId = `TEST-INST-${Date.now()}`;
+    
+    // Define the file path in GCS - test both singular and plural paths
+    const singularPath = `QMS/Instrument/${testInstrumentId}.pdf`;
+    const pluralPath = `QMS/Instruments/${testInstrumentId}.pdf`;
+    
+    // Actually try both paths to diagnose the issue
+    const uploadResults = {
+      singular: null,
+      plural: null,
+      listing: null
+    };
+    
+    // Try uploading to the singular path (which is what we want to use)
+    try {
+      console.log(`[TEST API] Uploading to singular path: ${singularPath}`);
+      const singularFile = bucket.file(singularPath);
+      await singularFile.save(req.file.buffer, {
+        contentType: req.file.mimetype,
+        metadata: {
+          contentType: req.file.mimetype,
+        },
+      });
+      
+      // Generate a signed URL
+      const [singularUrl] = await singularFile.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+      });
+      
+      uploadResults.singular = {
+        success: true,
+        path: singularPath,
+        url: singularUrl
+      };
+      console.log(`[TEST API] Successfully uploaded to singular path: ${singularPath}`);
+    } catch (singularError) {
+      console.error(`[TEST API] Error uploading to singular path: ${singularError}`);
+      uploadResults.singular = {
+        success: false,
+        error: singularError instanceof Error ? singularError.message : String(singularError)
+      };
+    }
+    
+    // Try uploading to the plural path as a backup test
+    try {
+      console.log(`[TEST API] Uploading to plural path: ${pluralPath}`);
+      const pluralFile = bucket.file(pluralPath);
+      await pluralFile.save(req.file.buffer, {
+        contentType: req.file.mimetype,
+        metadata: {
+          contentType: req.file.mimetype,
+        },
+      });
+      
+      // Generate a signed URL
+      const [pluralUrl] = await pluralFile.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+      });
+      
+      uploadResults.plural = {
+        success: true,
+        path: pluralPath,
+        url: pluralUrl
+      };
+      console.log(`[TEST API] Successfully uploaded to plural path: ${pluralPath}`);
+    } catch (pluralError) {
+      console.error(`[TEST API] Error uploading to plural path: ${pluralError}`);
+      uploadResults.plural = {
+        success: false,
+        error: pluralError instanceof Error ? pluralError.message : String(pluralError)
+      };
+    }
+    
+    // Now try to list files to see if our uploads appear
+    try {
+      console.log('[TEST API] Listing files in QMS/Instrument');
+      const singularFiles = await listFiles('QMS/Instrument');
+      console.log(`[TEST API] Found ${singularFiles.length} files in QMS/Instrument`);
+      
+      console.log('[TEST API] Listing files in QMS/Instruments');
+      const pluralFiles = await listFiles('QMS/Instruments');
+      console.log(`[TEST API] Found ${pluralFiles.length} files in QMS/Instruments`);
+      
+      uploadResults.listing = {
+        success: true,
+        singularCount: singularFiles.length,
+        pluralCount: pluralFiles.length,
+        singularFiles,
+        pluralFiles
+      };
+    } catch (listError) {
+      console.error(`[TEST API] Error listing files: ${listError}`);
+      uploadResults.listing = {
+        success: false,
+        error: listError instanceof Error ? listError.message : String(listError)
+      };
+    }
+    
+    // Return the detailed results
+    return res.status(200).json({
+      success: true,
+      message: 'Upload test completed',
+      testInstrumentId,
+      results: uploadResults
+    });
+  } catch (error) {
+    console.error('[TEST API] Unexpected error during certificate upload test:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Upload test failed',
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// List all files in a GCS directory
+router.get('/list-gcs-files', async (req: Request, res: Response) => {
+  // Set headers explicitly
+  res.setHeader('Content-Type', 'application/json');
+  
+  try {
+    const { path = 'QMS/Instrument' } = req.query;
+    const directoryPath = String(path);
+    
+    console.log(`[TEST API] Listing files in GCS directory: ${directoryPath}`);
+    
+    // Get files from the specified directory
+    const files = await listFiles(directoryPath);
+    
+    return res.status(200).json({
+      success: true,
+      path: directoryPath,
+      fileCount: files.length,
+      files
+    });
+  } catch (error) {
+    console.error('[TEST API] Error listing GCS files:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to list GCS files',
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// Test Google Cloud Storage connection and permissions
+router.get('/test-gcs-connection', async (req: Request, res: Response) => {
+  // Set headers explicitly
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  
+  try {
+    console.log('[TEST API] Starting GCS connection test');
+    
+    // Run the GCS connection test
+    const testResult = await testGCSConnection();
+    
+    console.log('[TEST API] GCS connection test results:', testResult);
+    
+    // Send test results to client
+    return res.status(200).json({
+      success: true,
+      message: 'GCS connection test completed',
+      data: testResult
+    });
+  } catch (error) {
+    console.error('[TEST API] Error during GCS connection test:', error);
+    
+    return res.status(500).json({
+      success: false,
+      message: 'GCS connection test failed',
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
 
 // Get calibration instruments directly with JSON response
 router.get('/direct-instruments', async (req: Request, res: Response) => {
