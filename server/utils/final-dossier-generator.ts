@@ -1315,7 +1315,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
             // If page is full, add a new appendices page
             if (yPosition < 100) {
               const newPage = pdfDoc.addPage([612, 792]);
-              newPage.drawText('7. APPENDICES (CONTINUED)', {
+              newPage.drawText('8. APPENDICES (CONTINUED)', {
                 x: pageMargin,
                 y: 700,
                 size: 16,
@@ -1370,7 +1370,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
             // If page is full, add a new appendices page
             if (yPosition < 100) {
               const newPage = pdfDoc.addPage([612, 792]);
-              newPage.drawText('7. APPENDICES (CONTINUED)', {
+              newPage.drawText('8. APPENDICES (CONTINUED)', {
                 x: pageMargin,
                 y: 700,
                 size: 16,
@@ -1466,7 +1466,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
                 // If page is full, add a new appendices page
                 if (yPosition < 100) {
                   const newPage = pdfDoc.addPage([612, 792]);
-                  newPage.drawText('7. APPENDICES (CONTINUED)', {
+                  newPage.drawText('8. APPENDICES (CONTINUED)', {
                     x: pageMargin,
                     y: 700,
                     size: 16,
