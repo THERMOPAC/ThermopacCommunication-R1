@@ -50,22 +50,20 @@ router.post('/test-upload-certificate', upload.single('certificate'), async (req
     // Generate a test instrument ID for the upload
     const testInstrumentId = `TEST-INST-${Date.now()}`;
     
-    // Define the file path in GCS - test both singular and plural paths
-    const singularPath = `QMS/Instrument/${testInstrumentId}.pdf`;
-    const pluralPath = `QMS/Instruments/${testInstrumentId}.pdf`;
+    // Define the file path in GCS - only use singular path now
+    const filePath = `QMS/Instrument/${testInstrumentId}.pdf`;
     
-    // Actually try both paths to diagnose the issue
+    // Only upload to the standard path now
     const uploadResults = {
-      singular: null,
-      plural: null,
+      upload: null,
       listing: null
     };
     
-    // Try uploading to the singular path (which is what we want to use)
+    // Upload to the standard path
     try {
-      console.log(`[TEST API] Uploading to singular path: ${singularPath}`);
-      const singularFile = bucket.file(singularPath);
-      await singularFile.save(req.file.buffer, {
+      console.log(`[TEST API] Uploading to path: ${filePath}`);
+      const file = bucket.file(filePath);
+      await file.save(req.file.buffer, {
         contentType: req.file.mimetype,
         metadata: {
           contentType: req.file.mimetype,
@@ -73,72 +71,35 @@ router.post('/test-upload-certificate', upload.single('certificate'), async (req
       });
       
       // Generate a signed URL
-      const [singularUrl] = await singularFile.getSignedUrl({
+      const [url] = await file.getSignedUrl({
         action: 'read',
         expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
       });
       
-      uploadResults.singular = {
+      uploadResults.upload = {
         success: true,
-        path: singularPath,
-        url: singularUrl
+        path: filePath,
+        url: url
       };
-      console.log(`[TEST API] Successfully uploaded to singular path: ${singularPath}`);
-    } catch (singularError) {
-      console.error(`[TEST API] Error uploading to singular path: ${singularError}`);
-      uploadResults.singular = {
+      console.log(`[TEST API] Successfully uploaded to path: ${filePath}`);
+    } catch (error) {
+      console.error(`[TEST API] Error uploading to path: ${error}`);
+      uploadResults.upload = {
         success: false,
-        error: singularError instanceof Error ? singularError.message : String(singularError)
+        error: error instanceof Error ? error.message : String(error)
       };
     }
     
-    // Try uploading to the plural path as a backup test
-    try {
-      console.log(`[TEST API] Uploading to plural path: ${pluralPath}`);
-      const pluralFile = bucket.file(pluralPath);
-      await pluralFile.save(req.file.buffer, {
-        contentType: req.file.mimetype,
-        metadata: {
-          contentType: req.file.mimetype,
-        },
-      });
-      
-      // Generate a signed URL
-      const [pluralUrl] = await pluralFile.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-      });
-      
-      uploadResults.plural = {
-        success: true,
-        path: pluralPath,
-        url: pluralUrl
-      };
-      console.log(`[TEST API] Successfully uploaded to plural path: ${pluralPath}`);
-    } catch (pluralError) {
-      console.error(`[TEST API] Error uploading to plural path: ${pluralError}`);
-      uploadResults.plural = {
-        success: false,
-        error: pluralError instanceof Error ? pluralError.message : String(pluralError)
-      };
-    }
-    
-    // Now try to list files to see if our uploads appear
+    // Now try to list files to see if our upload appears
     try {
       console.log('[TEST API] Listing files in QMS/Instrument');
-      const singularFiles = await listFiles('QMS/Instrument');
-      console.log(`[TEST API] Found ${singularFiles.length} files in QMS/Instrument`);
-      
-      console.log('[TEST API] Listing files in QMS/Instruments');
-      const pluralFiles = await listFiles('QMS/Instruments');
-      console.log(`[TEST API] Found ${pluralFiles.length} files in QMS/Instruments`);
+      const files = await listFiles('QMS/Instrument');
+      console.log(`[TEST API] Found ${files.length} files in QMS/Instrument`);
       
       uploadResults.listing = {
         success: true,
-        singularCount: singularFiles.length,
-        pluralCount: pluralFiles.length,
-        singularFiles,
-        pluralFiles
+        fileCount: files.length,
+        files
       };
     } catch (listError) {
       console.error(`[TEST API] Error listing files: ${listError}`);

@@ -2113,17 +2113,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
                   console.log(`Skipping duplicate singular certificate path: ${singularCertPath}`);
                 }
                 
-                // Also try the plural form as a backup
-                const pluralCertPath = `QMS/Instruments/${instrument.instrument_id}.pdf`;
-                console.log(`Checking plural path for calibration certificate: ${pluralCertPath}`);
-                
-                if (!uniquePdfPaths.has(pluralCertPath)) {
-                  uniquePdfPaths.add(pluralCertPath);
-                  pdfPaths.push(pluralCertPath);
-                  console.log(`Adding plural path certificate: ${pluralCertPath}`);
-                } else {
-                  console.log(`Skipping duplicate plural certificate path: ${pluralCertPath}`);
-                }
+                // We only use the singular path now
+                // No need to check for a plural form backup
               }
             }
           } else {
