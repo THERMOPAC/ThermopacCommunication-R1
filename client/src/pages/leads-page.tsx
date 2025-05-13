@@ -20,6 +20,25 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Industry options, sorted alphabetically
+const industryOptions = [
+  "Automotive",
+  "Automotive Service & Maintenance",
+  "Consultant",
+  "Energy & Renewables",
+  "Fleet Management Companies",
+  "Industrial Equipment Maintenance",
+  "Lubricants & Additives",
+  "Manufacturing",
+  "Marine & Shipping",
+  "Mining & Heavy Machinery",
+  "Oil & Gas",
+  "Power Generation",
+  "Re-refining & Base Oil Production",
+  "Transportation & Logistics",
+  "Waste Management & Recycling",
+];
+
 // Lead form schema with validations
 const leadFormSchema = z.object({
   companyName: z.string().min(1, "Company name is required"),
@@ -460,6 +479,16 @@ export default function LeadsPage() {
                     </div>
                   </div>
                   
+                  {selectedLead.industry && (
+                    <div className="flex items-center gap-2">
+                      <Building className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Industry</p>
+                        <p className="text-sm">{selectedLead.industry}</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   {selectedLead.probability !== null && (
                     <div className="flex items-center gap-2">
                       <Percent className="h-5 w-5 text-muted-foreground" />
@@ -736,9 +765,23 @@ export default function LeadsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Industry</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. Manufacturing, Technology" {...field} />
-                        </FormControl>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select industry" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {industryOptions.map((industry) => (
+                              <SelectItem key={industry} value={industry}>
+                                {industry}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1036,9 +1079,23 @@ export default function LeadsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Industry</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. Manufacturing, Technology" {...field} />
-                        </FormControl>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select industry" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {industryOptions.map((industry) => (
+                              <SelectItem key={industry} value={industry}>
+                                {industry}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
