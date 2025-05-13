@@ -4295,6 +4295,39 @@ export default function InspectionsPage() {
                                 </TableCell>
                                 <TableCell>
                                   {editingHydrotestIndex === index ? (
+                                    <Select 
+                                      value={record.pressureGauge}
+                                      onValueChange={(value) => updateHydrotestField(index, 'pressureGauge', value)}
+                                    >
+                                      <SelectTrigger className="w-[150px]">
+                                        <SelectValue placeholder="Select pressure gauge" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {isLoadingInstruments ? (
+                                          <SelectItem value="" disabled>Loading gauges...</SelectItem>
+                                        ) : calibrationInstruments.length === 0 ? (
+                                          <SelectItem value="" disabled>No pressure gauges available</SelectItem>
+                                        ) : (
+                                          calibrationInstruments.map(instrument => (
+                                            <SelectItem 
+                                              key={instrument.instrument_id} 
+                                              value={instrument.instrument_id}
+                                            >
+                                              {instrument.instrument_name} ({instrument.instrument_id})
+                                            </SelectItem>
+                                          ))
+                                        )}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    record.pressureGauge ? 
+                                      calibrationInstruments.find(i => i.instrument_id === record.pressureGauge)?.instrument_name || 
+                                      record.pressureGauge : 
+                                      "-"
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {editingHydrotestIndex === index ? (
                                     <Input 
                                       value={record.operator} 
                                       onChange={(e) => updateHydrotestField(index, 'operator', e.target.value)}
