@@ -2757,6 +2757,197 @@ export class DatabaseStorage implements IStorage {
       return 0;
     }
   }
+  
+  // Sales and Marketing methods
+  
+  // Lead Sources
+  async getLeadSources(): Promise<LeadSourceSelect[]> {
+    console.log('Getting all lead sources');
+    return await db.select().from(leadSourcesTable);
+  }
+  
+  // Lead Statuses
+  async getLeadStatuses(): Promise<LeadStatusSelect[]> {
+    console.log('Getting all lead statuses');
+    return await db.select().from(leadStatusesTable).orderBy(leadStatusesTable.displayOrder);
+  }
+  
+  // Leads
+  async createLead(lead: LeadInsert): Promise<LeadSelect> {
+    console.log('Creating new lead:', lead);
+    const now = new Date();
+    const newLead = await db.insert(leads).values({
+      ...lead,
+      createdAt: now,
+      updatedAt: now
+    }).returning();
+    return newLead[0];
+  }
+  
+  async updateLead(id: number, updateData: Partial<LeadSelect>): Promise<LeadSelect> {
+    console.log(`Updating lead ${id} with data:`, updateData);
+    const updatedLead = await db.update(leads)
+      .set({
+        ...updateData,
+        updatedAt: new Date()
+      })
+      .where(eq(leads.id, id))
+      .returning();
+    return updatedLead[0];
+  }
+  
+  async deleteLead(id: number): Promise<void> {
+    console.log(`Deleting lead ${id}`);
+    await db.delete(leads).where(eq(leads.id, id));
+  }
+  
+  async getLead(id: number): Promise<LeadSelect | undefined> {
+    console.log(`Getting lead with ID: ${id}`);
+    const result = await db.select().from(leads).where(eq(leads.id, id));
+    return result[0];
+  }
+  
+  async getLeadWithDetails(id: number): Promise<any> {
+    console.log(`Getting lead with details for ID: ${id}`);
+    const result = await db.select({
+      lead: leads,
+      source: leadSourcesTable,
+      status: leadStatusesTable,
+      assignedTo: users,
+      customer: customersTable
+    })
+    .from(leads)
+    .leftJoin(leadSourcesTable, eq(leads.sourceId, leadSourcesTable.id))
+    .leftJoin(leadStatusesTable, eq(leads.statusId, leadStatusesTable.id))
+    .leftJoin(users, eq(leads.assignedTo, users.id))
+    .leftJoin(customersTable, eq(leads.customerId, customersTable.id))
+    .where(eq(leads.id, id));
+    
+    return result[0];
+  }
+  
+  async getAllLeads(): Promise<LeadSelect[]> {
+    console.log('Getting all leads');
+    return await db.select().from(leads);
+  }
+  
+  async getLeadsWithDetails(): Promise<any[]> {
+    console.log('Getting all leads with details');
+    return await db.select({
+      lead: leads,
+      source: leadSourcesTable,
+      status: leadStatusesTable,
+      assignedTo: users,
+      customer: customersTable
+    })
+    .from(leads)
+    .leftJoin(leadSourcesTable, eq(leads.sourceId, leadSourcesTable.id))
+    .leftJoin(leadStatusesTable, eq(leads.statusId, leadStatusesTable.id))
+    .leftJoin(users, eq(leads.assignedTo, users.id))
+    .leftJoin(customersTable, eq(leads.customerId, customersTable.id))
+    .orderBy(desc(leads.createdAt));
+  }
+  
+  // Lead Activities
+  async createLeadActivity(activity: LeadActivityInsert): Promise<LeadActivitySelect> {
+    console.log('Creating new lead activity:', activity);
+    const now = new Date();
+    const newActivity = await db.insert(leadActivities).values({
+      ...activity,
+      createdAt: now,
+      updatedAt: now
+    }).returning();
+    
+    // Update the last contacted time on the lead
+    await db.update(leads)
+      .set({
+        lastContactedAt: now,
+        updatedAt: now
+      })
+      .where(eq(leads.id, activity.leadId));
+      
+    return newActivity[0];
+  }
+  
+  async getLeadActivities(leadId: number): Promise<LeadActivitySelect[]> {
+    console.log(`Getting activities for lead ${leadId}`);
+    return await db.select()
+      .from(leadActivities)
+      .where(eq(leadActivities.leadId, leadId))
+      .orderBy(desc(leadActivities.activityDate));
+  }
+  
+  async getLeadActivitiesWithUsers(leadId: number): Promise<any[]> {
+    console.log(`Getting activities with user details for lead ${leadId}`);
+    return await db.select({
+      activity: leadActivities,
+      user: users
+    })
+    .from(leadActivities)
+    .leftJoin(users, eq(leadActivities.createdBy, users.id))
+    .where(eq(leadActivities.leadId, leadId))
+    .orderBy(desc(leadActivities.activityDate));
+  }
+  
+  // Marketing Campaigns
+  async createMarketingCampaign(campaign: MarketingCampaignInsert): Promise<MarketingCampaignSelect> {
+    console.log('Creating new marketing campaign:', campaign);
+    const now = new Date();
+    const newCampaign = await db.insert(marketingCampaigns).values({
+      ...campaign,
+      createdAt: now,
+      updatedAt: now
+    }).returning();
+    return newCampaign[0];
+  }
+  
+  async updateMarketingCampaign(id: number, updateData: Partial<MarketingCampaignSelect>): Promise<MarketingCampaignSelect> {
+    console.log(`Updating marketing campaign ${id} with data:`, updateData);
+    const updatedCampaign = await db.update(marketingCampaigns)
+      .set({
+        ...updateData,
+        updatedAt: new Date()
+      })
+      .where(eq(marketingCampaigns.id, id))
+      .returning();
+    return updatedCampaign[0];
+  }
+  
+  async getMarketingCampaign(id: number): Promise<MarketingCampaignSelect | undefined> {
+    console.log(`Getting marketing campaign with ID: ${id}`);
+    const result = await db.select().from(marketingCampaigns).where(eq(marketingCampaigns.id, id));
+    return result[0];
+  }
+  
+  async getAllMarketingCampaigns(): Promise<MarketingCampaignSelect[]> {
+    console.log('Getting all marketing campaigns');
+    return await db.select().from(marketingCampaigns);
+  }
+  
+  // Campaign Channels
+  async getCampaignChannels(): Promise<CampaignChannelSelect[]> {
+    console.log('Getting all campaign channels');
+    return await db.select().from(campaignChannels);
+  }
+  
+  // Campaign Activities
+  async createCampaignActivity(activity: CampaignActivityInsert): Promise<CampaignActivitySelect> {
+    console.log('Creating new campaign activity:', activity);
+    const now = new Date();
+    const newActivity = await db.insert(campaignActivities).values({
+      ...activity,
+      createdAt: now,
+      updatedAt: now
+    }).returning();
+    return newActivity[0];
+  }
+  
+  async getCampaignActivities(campaignId: number): Promise<CampaignActivitySelect[]> {
+    console.log(`Getting activities for campaign ${campaignId}`);
+    return await db.select()
+      .from(campaignActivities)
+      .where(eq(campaignActivities.campaignId, campaignId));
+  }
 }
 
 export const storage = new DatabaseStorage();
