@@ -1515,12 +1515,21 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         { name: 'NDT', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NDT` },
         { name: 'Visual Inspection', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Visual` }, // Use actual path from the system
         { name: 'Hydrotest', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Hydrotest` },
-        { name: 'Calibration Certificates', path: `QMS/Instruments` },
+        { name: 'Calibration Certificates (Singular)', path: `QMS/Instrument` }, // Singular form that matches database records
+        { name: 'Calibration Certificates (Plural)', path: `QMS/Instruments` }, // Plural form for backward compatibility
         { name: 'NCR', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NCR` }
       ];
       
       for (const section of sections) {
-        const sectionDocs = await listFiles(section.path);
+        console.log(`Checking section: ${section.name} at path: ${section.path}`);
+        
+        let sectionDocs = [];
+        try {
+          sectionDocs = await listFiles(section.path);
+          console.log(`Found ${sectionDocs.length} documents in ${section.path}`);
+        } catch (error) {
+          console.log(`Error listing files in ${section.path}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
         
         if (sectionDocs.length > 0) {
           yPosition -= 10; // Add some extra space between sections
@@ -1974,18 +1983,30 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
                 uniquePdfPaths.add(instrument.certificate_file_path);
                 pdfPaths.push(instrument.certificate_file_path);
               } else {
-                // Try standard path for calibration certificates
-                const standardCertPath = `QMS/Instruments/${instrument.instrument_id}.pdf`;
-                console.log(`Checking standard path for calibration certificate: ${standardCertPath}`);
+                // Try both standard paths for calibration certificates (singular and plural forms)
+                // First try the singular form (which matches our database records)
+                const singularCertPath = `QMS/Instrument/${instrument.instrument_id}.pdf`;
+                console.log(`Checking singular path for calibration certificate: ${singularCertPath}`);
                 
-                // Skip if we've already added this path
-                if (uniquePdfPaths.has(standardCertPath)) {
-                  console.log(`Skipping duplicate certificate path: ${standardCertPath}`);
-                  continue;
+                if (!uniquePdfPaths.has(singularCertPath)) {
+                  uniquePdfPaths.add(singularCertPath);
+                  pdfPaths.push(singularCertPath);
+                  console.log(`Adding singular path certificate: ${singularCertPath}`);
+                } else {
+                  console.log(`Skipping duplicate singular certificate path: ${singularCertPath}`);
                 }
                 
-                uniquePdfPaths.add(standardCertPath);
-                pdfPaths.push(standardCertPath);
+                // Also try the plural form as a backup
+                const pluralCertPath = `QMS/Instruments/${instrument.instrument_id}.pdf`;
+                console.log(`Checking plural path for calibration certificate: ${pluralCertPath}`);
+                
+                if (!uniquePdfPaths.has(pluralCertPath)) {
+                  uniquePdfPaths.add(pluralCertPath);
+                  pdfPaths.push(pluralCertPath);
+                  console.log(`Adding plural path certificate: ${pluralCertPath}`);
+                } else {
+                  console.log(`Skipping duplicate plural certificate path: ${pluralCertPath}`);
+                }
               }
             }
           } else {
