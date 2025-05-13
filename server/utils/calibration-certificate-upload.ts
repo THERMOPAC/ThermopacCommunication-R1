@@ -33,8 +33,9 @@ export async function uploadCalibrationCertificate(
       `${instrumentId}${fileExtension}` : 
       `${uuidv4()}${fileExtension}`;
     
-    // Set the GCS path in the QMS/Instruments directory (correct plural form)
-    const gcsPath = `QMS/Instruments/${filename}`;
+    // Set the GCS path - using QMS/Instrument/ to match existing database entries
+    // Note: We're deliberately using singular form 'Instrument' to match existing records
+    const gcsPath = `QMS/Instrument/${filename}`;
     
     console.log(`Uploading calibration certificate to: ${gcsPath}`);
     
