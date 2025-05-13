@@ -28,13 +28,15 @@
 }
 
 .work-order-title {
-  flex: 1;
+  flex: 0.8;
   font-size: 0.875rem;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   margin-right: 0.5rem;
+  min-width: 150px;
+  max-width: 250px;
 }
 
 .work-order-team, 
@@ -46,7 +48,10 @@
 }
 
 .work-order-team {
-  width: 6.5rem;
+  width: 9.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .work-order-date {
@@ -105,6 +110,7 @@
     flex-basis: 100%;
     order: 1;
     margin-top: 0.25rem;
+    max-width: none;
   }
   
   .work-order-team, 
@@ -114,7 +120,7 @@
   }
   
   .work-order-team {
-    width: 5.5rem;
+    width: 8.5rem;
   }
   
   .work-order-date {
@@ -133,7 +139,8 @@
     grid-template-areas:
       "number status action"
       "title title title"
-      "team date priority";
+      "team team team"
+      "date priority priority";
     gap: 0.5rem;
     align-items: center;
   }
@@ -154,12 +161,12 @@
   .work-order-team {
     grid-area: team;
     text-align: left;
-    width: auto;
+    width: 100%;
   }
   
   .work-order-date {
     grid-area: date;
-    text-align: center;
+    text-align: left;
     width: auto;
   }
   
