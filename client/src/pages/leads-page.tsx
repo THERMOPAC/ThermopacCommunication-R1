@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, MoreHorizontal, Phone, Mail, Building, Users, BarChart, Calendar } from "lucide-react";
+import { Plus, Pencil, Trash2, MoreHorizontal, Phone, Mail, Building, Users, BarChart, Calendar, Info, Percent, DollarSign, UserCircle } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +19,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Customer } from "@shared/schema";
 
 // Industry options, sorted alphabetically
 const industryOptions = [
