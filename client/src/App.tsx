@@ -27,6 +27,11 @@ import MaterialIdentificationViewPage from "@/pages/material-identification-view
 import MaterialIdentificationEditPage from "@/pages/material-identification-edit-page";
 import SpecialFixesPage from "@/pages/special-fixes-page";
 
+// Sales and Marketing pages
+import LeadsPage from "@/pages/leads-page";
+import CampaignsPage from "@/pages/campaigns-page";
+import MarketingDashboardPage from "@/pages/marketing-dashboard-page";
+
 // New Material Identification pages
 import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";
 import MaterialIdentificationListNewPage from "@/pages/material-identification-list-new-page";
@@ -108,6 +113,12 @@ function Router() {
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/leaderboard" component={LeaderboardPage} />
       <ProtectedRoute path="/recurring-tasks" component={RecurringTasksPage} />
+
+      {/* Sales and Marketing Routes */}
+      <ProtectedRoute path="/leads" component={LeadsPage} />
+      <ProtectedRoute path="/campaigns" component={CampaignsPage} />
+      <ProtectedRoute path="/marketing-dashboard" component={MarketingDashboardPage} />
+      
       <ProtectedRoute path="/projects" component={ProjectsPage} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />
       <ProtectedRoute path="/customers" component={CustomersPage} />
