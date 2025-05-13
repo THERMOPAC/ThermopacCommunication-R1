@@ -126,17 +126,9 @@ export default function CalibrationManagementPage() {
     refetch 
   } = useQuery<CalibrationInstrument[]>({
     queryKey: ["/api/testapi/calibration/direct-instruments"],
-    refetchOnWindowFocus: false,
-    // Force fetch from network instead of cache
+    refetchOnWindowFocus: true,
     staleTime: 0,
-    retry: 3,
-    onSuccess: (data: any) => {
-      console.log("Fetched instruments data:", data);
-      console.log("Number of instruments:", Array.isArray(data) ? data.length : 0);
-    },
-    onError: (err: any) => {
-      console.error("Error fetching instruments:", err);
-    }
+    retry: 3
   });
   
   // Fetch dashboard stats
@@ -325,21 +317,33 @@ export default function CalibrationManagementPage() {
     },
     onSuccess: (data) => {
       console.log("Update response from standalone route:", data);
-      toast({
-        title: "Success",
-        description: "Calibration instrument updated successfully",
+      
+      // Force immediate data refresh first
+      refetch().then(() => {
+        console.log("Refetched data after update");
+        
+        // Show success message
+        toast({
+          title: "Success",
+          description: "Calibration instrument updated successfully",
+        });
+        
+        // Reset UI state
+        setIsEditInstrumentOpen(false);
+        editForm.reset();
+        setCertificateFile(null);
+        
+        // Invalidate all relevant queries to ensure UI consistency
+        queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments/stats/dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/testapi/calibration/direct-instruments"] });
+        
+        // Trigger one more refetch after a short delay to ensure data is refreshed
+        setTimeout(() => {
+          refetch();
+          console.log("Delayed refetch triggered");
+        }, 500);
       });
-      setIsEditInstrumentOpen(false);
-      editForm.reset();
-      setCertificateFile(null);
-      
-      // Invalidate all relevant queries
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments/stats/dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/testapi/calibration/direct-instruments"] });
-      
-      // Force refetch the data explicitly
-      refetch();
     },
     onError: (error: Error) => {
       toast({
