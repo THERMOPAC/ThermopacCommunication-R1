@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart,
@@ -23,7 +23,9 @@ import {
   BarChart as BarChartIcon,
   PieChart as PieChartIcon,
   Calendar,
-  Target
+  Target,
+  DollarSign,
+  RefreshCw
 } from "lucide-react";
 import Layout from "@/components/layout";
 import {
@@ -31,7 +33,8 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle
+  CardTitle,
+  CardFooter
 } from "@/components/ui/card";
 import {
   Tabs,
@@ -41,6 +44,8 @@ import {
 } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { fetchExchangeRates, convertCurrency, formatCurrency } from "@/lib/currencyConverter";
 
 // Sample data for the dashboard
 // In a real implementation, this would come from the API
@@ -63,6 +68,11 @@ const LEAD_STATUS_COLORS = {
 };
 
 export default function MarketingDashboardPage() {
+  // State for currency conversion
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
+  const [isLoadingRates, setIsLoadingRates] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  
   // Fetch leads data
   const { data: leadsData, isLoading: isLoadingLeads } = useQuery({
     queryKey: ['/api/sales-marketing/leads'],
@@ -74,6 +84,24 @@ export default function MarketingDashboardPage() {
     queryKey: ['/api/sales-marketing/campaigns'],
     refetchOnWindowFocus: false
   });
+  
+  // Fetch exchange rates on component mount
+  useEffect(() => {
+    const loadExchangeRates = async () => {
+      setIsLoadingRates(true);
+      try {
+        const rates = await fetchExchangeRates();
+        setExchangeRates(rates);
+        setLastUpdated(new Date());
+      } catch (error) {
+        console.error("Failed to fetch exchange rates:", error);
+      } finally {
+        setIsLoadingRates(false);
+      }
+    };
+    
+    loadExchangeRates();
+  }, []);
 
   // Convert leads to source distribution data
   const leadSourceData = React.useMemo(() => {
@@ -182,6 +210,79 @@ export default function MarketingDashboardPage() {
       won: wonLeads
     };
   }, [leadsData]);
+  
+  // Calculate expected revenue with currency conversion
+  const expectedRevenueStats = React.useMemo(() => {
+    if (!leadsData || leadsData.length === 0 || !exchangeRates) {
+      return {
+        totalUSD: 0,
+        totalEUR: 0,
+        totalINR: 0,
+        bySourceUSD: {},
+        bySourceINR: {}
+      };
+    }
+    
+    let totalUSD = 0;
+    let totalEUR = 0;
+    let totalINR = 0;
+    const bySourceUSD: Record<string, number> = {};
+    const bySourceINR: Record<string, number> = {};
+    
+    // Process each lead
+    leadsData.forEach((lead: any) => {
+      if (!lead.expectedRevenue || !lead.currency || lead.probability === null) {
+        return; // Skip leads without revenue data
+      }
+      
+      // Calculate weighted revenue based on probability
+      const probability = Number(lead.probability) / 100;
+      const revenue = Number(lead.expectedRevenue);
+      const weightedRevenue = revenue * probability;
+      
+      // Convert to USD if needed
+      let revenueInUSD = weightedRevenue;
+      if (lead.currency === 'EUR' && exchangeRates.USD) {
+        revenueInUSD = weightedRevenue / exchangeRates.USD;
+      }
+      
+      // Convert to INR
+      let revenueInINR = weightedRevenue;
+      if (lead.currency === 'USD' && exchangeRates.INR) {
+        revenueInINR = weightedRevenue * exchangeRates.INR;
+      } else if (lead.currency === 'EUR' && exchangeRates.INR && exchangeRates.USD) {
+        // Convert EUR to USD first, then to INR
+        revenueInINR = (weightedRevenue / exchangeRates.USD) * exchangeRates.INR;
+      }
+      
+      // Aggregate by currency
+      if (lead.currency === 'USD') {
+        totalUSD += weightedRevenue;
+      } else if (lead.currency === 'EUR') {
+        totalEUR += weightedRevenue;
+      }
+      
+      // Convert all to INR for total
+      totalINR += revenueInINR;
+      
+      // Aggregate by source
+      const sourceName = lead.sourceName;
+      if (!bySourceUSD[sourceName]) {
+        bySourceUSD[sourceName] = 0;
+        bySourceINR[sourceName] = 0;
+      }
+      bySourceUSD[sourceName] += revenueInUSD;
+      bySourceINR[sourceName] += revenueInINR;
+    });
+    
+    return {
+      totalUSD,
+      totalEUR,
+      totalINR,
+      bySourceUSD,
+      bySourceINR
+    };
+  }, [leadsData, exchangeRates]);
 
   // Calculate campaign completion percentage
   function calculateCampaignCompletion(startDate: string, endDate: string) {
