@@ -1694,8 +1694,30 @@ export default function InspectionsPage() {
   }, [editInspectionOrderDetails, editForm]);
 
   // Handle inspection order update
+  // Validate hydrotest records have pressure gauge
+  const validateHydrotestRecords = () => {
+    // Check if any hydrotest record is missing a pressure gauge
+    const invalidRecords = hydrotestRecords.filter(record => !record.pressureGauge);
+    
+    if (invalidRecords.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: "All hydrotest records must have a pressure gauge selected.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleUpdateInspectionOrder = async (data: InspectionOrderEditFormValues) => {
     if (!editingInspectionOrder) return;
+    
+    // Validate hydrotest records first
+    if (!validateHydrotestRecords()) {
+      return; // Stop update process if validation fails
+    }
     
     try {
       // Filter out any material rows without a materialId to avoid DB constraint errors
