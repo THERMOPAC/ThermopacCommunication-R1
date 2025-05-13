@@ -241,6 +241,17 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         console.error('Error parsing NCR data:', e);
       }
     }
+    
+    // Parse hydrotest records
+    let hydrotestRecords = [];
+    if (inspectionOrder.hydrotestData) {
+      try {
+        hydrotestRecords = JSON.parse(inspectionOrder.hydrotestData);
+        console.log('Found hydrotest records:', hydrotestRecords);
+      } catch (e) {
+        console.error('Error parsing Hydrotest data:', e);
+      }
+    }
 
     // Create a new PDF document
     const pdfDoc = await PDFDocument.create();
@@ -377,7 +388,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       '4. Visual Inspection Records',
       '5. Hydrotest Reports',
       '6. Non-Conformance Reports',
-      '7. Appendices'
+      '7. Calibration Certificates',
+      '8. Appendices'
     ];
     
     for (const section of sections) {
@@ -1196,7 +1208,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     // Add appendices section for uploaded documents
     const appendicesPage = pdfDoc.addPage([612, 792]);
-    appendicesPage.drawText('7. APPENDICES', {
+    appendicesPage.drawText('8. APPENDICES', {
       x: pageMargin,
       y: 700,
       size: 16,
@@ -1325,6 +1337,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         { name: 'NDT', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NDT` },
         { name: 'Visual Inspection', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Visual` }, // Use actual path from the system
         { name: 'Hydrotest', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/Hydrotest` },
+        { name: 'Calibration Certificates', path: `QMS/Instruments` },
         { name: 'NCR', path: `QMS/Inspections_Records/${inspectionOrder.inspectionOrderNumber}/NCR` }
       ];
       
