@@ -4,6 +4,7 @@ import wpqrRoutes from './quality/wpqr-routes';
 import materialIdentificationRoutes from './quality/material-identification-routes';
 import inspectionDocumentRoutes from './quality/inspection-document-routes';
 import finalDossierRoutes from './quality/final-dossier-routes';
+import calibrationRoutes from './quality/calibration-routes';
 import { previewInspectionOrders, generateInspectionOrders } from './quality/inspection-order-generator';
 import { db } from './db';
 import { inspectionOrders, inspectionOrderItems, materialInspectionLinks } from '@shared/schema';
