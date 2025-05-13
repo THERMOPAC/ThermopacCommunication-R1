@@ -1425,11 +1425,21 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     // Add a separate APPENDICES title page
     const appendicesTitlePage = pdfDoc.addPage([612, 792]);
-    appendicesTitlePage.drawText('8. APPENDICES', {
-      x: pageMargin,
+    
+    // Calculate the width of the text to center it horizontally
+    const titleText = '8. APPENDICES';
+    const titleFont = helveticaBold;
+    const titleSize = 24;
+    
+    // Calculate width of text and center position
+    const titleWidth = titleSize * titleText.length * 0.5; // approximate width
+    const centerX = (612 - titleWidth) / 2;
+    
+    appendicesTitlePage.drawText(titleText, {
+      x: centerX,
       y: 400, // Centered vertically in the page
-      size: 24, // Larger font for the title page
-      font: helveticaBold,
+      size: titleSize, // Larger font for the title page
+      font: titleFont,
       color: rgb(0, 0, 0),
     });
     
@@ -1438,6 +1448,8 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     
     // Add appendices content on a new page
     let appendicesPage = pdfDoc.addPage([612, 792]);
+    
+    // Consistent header for appendices content page
     appendicesPage.drawText('8. APPENDICES (Contents)', {
       x: pageMargin,
       y: 700,
@@ -1632,7 +1644,17 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       const pressureGaugeIdsFromHydrotest = Array.from(pressureGaugeIds);
       if (pressureGaugeIdsFromHydrotest.length > 0) {
         let calibrationCertificatesFound = false;
-        yPosition -= 10; // Add some extra space
+        
+        // Add a header for the calibration certificates section
+        yPosition -= 20; // Add extra space before the new section
+        appendicesPage.drawText('CALIBRATION CERTIFICATES:', {
+          x: 70,
+          y: yPosition,
+          size: 12,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= 15; // Add some extra space
         
         // First, look up the specific instruments in the database to get their file paths
         try {
