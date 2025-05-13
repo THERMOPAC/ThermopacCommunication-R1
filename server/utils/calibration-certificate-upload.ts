@@ -5,11 +5,13 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * Uploads a calibration certificate to Google Cloud Storage
+ * Uploads a calibration certificate to Google Cloud Storage with a specific focus on ensuring
+ * the correct file naming convention is used.
+ * 
  * @param buffer - The file buffer to upload
- * @param originalFilename - The original filename
+ * @param originalFilename - The original filename (ignored for naming, only used for extension)
  * @param mimeType - The MIME type of the file
- * @param instrumentId - The instrument ID for the certificate (e.g., INST-00001)
+ * @param instrumentId - The instrument ID for the certificate (e.g., INST-00001) - This is REQUIRED
  * @returns Object containing upload result, file path, and download URL
  */
 export async function uploadCalibrationCertificate(
@@ -24,24 +26,28 @@ export async function uploadCalibrationCertificate(
   error?: any;
 }> {
   try {
-    // Always use the instrumentId for the filename if provided
-    // Get the file extension from the original filename or use .pdf as default
-    const originalExt = path.extname(originalFilename).toLowerCase();
-    const fileExtension = ['.pdf', '.jpg', '.jpeg', '.png'].includes(originalExt) ? originalExt : '.pdf';
+    console.log('=== CALIBRATION CERTIFICATE UPLOAD START ===');
+    console.log(`Original filename: ${originalFilename}`);
+    console.log(`MIME type: ${mimeType}`);
+    console.log(`Instrument ID: ${instrumentId ? instrumentId : 'Not provided'}`);
     
-    // Prioritize using instrumentId for the filename, even if it's the same as originalFilename
-    // This ensures consistent naming pattern: {instrument_id}.pdf
-    let filename;
-    if (instrumentId && instrumentId.trim() !== '') {
-      console.log(`Using instrumentId for filename: ${instrumentId}`);
-      filename = `${instrumentId}${fileExtension}`;
-    } else {
-      console.log('No instrumentId provided, generating UUID for filename');
-      filename = `${uuidv4()}${fileExtension}`;
+    // Validate instrument ID
+    if (!instrumentId || instrumentId.trim() === '') {
+      console.error('ERROR: No instrument ID provided for calibration certificate filename');
+      return {
+        success: false,
+        error: 'Missing instrument ID for filename'
+      };
     }
     
+    // Default to PDF extension for calibration certificates
+    const fileExtension = '.pdf';
+    
+    // Generate filename using ONLY the instrument ID
+    const filename = `${instrumentId}${fileExtension}`;
+    console.log(`Generated filename: ${filename}`);
+    
     // Set the GCS path - using QMS/Instrument/ to match existing database entries
-    // Note: Using singular form 'Instrument' for consistency, but will check both in download function
     const gcsPath = `QMS/Instrument/${filename}`;
     
     console.log(`Uploading calibration certificate to: ${gcsPath}`);
