@@ -324,7 +324,7 @@ export default function TaskDashboard() {
             <TaskList 
               tasks={filteredTasks} 
               subordinates={subordinates} 
-              initialShowCompleted={activeTab === "completed"}
+              initialShowCompleted={true}
             />
           ) : (
             <Card>

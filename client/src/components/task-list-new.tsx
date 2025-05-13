@@ -135,7 +135,8 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
   // Filter and search tasks - memoized to avoid unnecessary recalculations
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
-      // Handle completed tasks filter
+      // Handle completed tasks filter - show completed tasks if checkbox is checked
+      // This line was causing the issue with completed tasks not showing
       if (!showCompletedTasks && task.status === 'completed') {
         return false;
       }
