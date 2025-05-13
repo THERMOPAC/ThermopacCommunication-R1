@@ -634,10 +634,10 @@ export default function ShopFloorPage() {
                             </Badge>
                             
                             {/* Title */}
-                            <div className="flex-1 truncate font-medium text-sm">{workOrder.title}</div>
+                            <div className="flex-1 truncate font-medium text-sm max-w-[180px]">{workOrder.title}</div>
                             
                             {/* Production Team */}
-                            <div className="w-28 text-xs text-right">
+                            <div className="w-48 text-xs text-right whitespace-nowrap overflow-hidden text-ellipsis">
                               <span className="text-muted-foreground mr-1">Team:</span>
                               {workOrder.productionLine || "Unassigned"}
                             </div>
