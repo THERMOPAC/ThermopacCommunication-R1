@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { PDFDocument, rgb, StandardFonts, PDFPage } from 'pdf-lib';
-import { db } from '../db';
+import { db, pool } from '../db';
 import { 
   inspectionOrders, 
   materialInspectionLinks, 
@@ -1205,6 +1205,184 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         color: rgb(0, 0, 0),
       });
     }
+    
+    // Add calibration certificates section - for pressure gauge instruments from hydrotest records
+    const calibrationCertificatesPage = pdfDoc.addPage([612, 792]);
+    calibrationCertificatesPage.drawText('7. Calibration Certificates', {
+      x: pageMargin,
+      y: 700,
+      size: 16,
+      font: helveticaBold,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Set up page layout for calibration certificates
+    yPosition = 650;
+    
+    // Extract pressure gauge IDs from hydrotest records
+    const pressureGaugeIds = new Set<string>();
+    if (hydrotestRecords.length > 0) {
+      for (const hydrotest of hydrotestRecords) {
+        if (hydrotest.pressureGauge && hydrotest.pressureGauge.trim() !== '') {
+          pressureGaugeIds.add(hydrotest.pressureGauge);
+        }
+      }
+    }
+    
+    if (pressureGaugeIds.size > 0) {
+      // Add header
+      calibrationCertificatesPage.drawText('Pressure Gauge Calibration Certificates:', {
+        x: 70,
+        y: yPosition,
+        size: 12,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      
+      yPosition -= 30;
+      
+      // Set column headers
+      calibrationCertificatesPage.drawText('Instrument ID', {
+        x: 70,
+        y: yPosition,
+        size: 10,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      
+      calibrationCertificatesPage.drawText('Instrument Type', {
+        x: 200,
+        y: yPosition,
+        size: 10,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      
+      calibrationCertificatesPage.drawText('Calibration Date', {
+        x: 350,
+        y: yPosition,
+        size: 10,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      
+      calibrationCertificatesPage.drawText('Certificate No.', {
+        x: 480,
+        y: yPosition,
+        size: 10,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      
+      yPosition -= 20;
+      
+      // Try to fetch each instrument from the database
+      try {
+        // Use explicit SQL query for better readability and error handling
+        const instrumentsQueryResult = await pool.query(
+          `SELECT 
+            instrument_id, 
+            instrument_type, 
+            last_calibration_date, 
+            certificate_number 
+          FROM 
+            calibration_instruments 
+          WHERE 
+            instrument_id = ANY($1)`,
+          [Array.from(pressureGaugeIds)]
+        );
+        
+        const instruments = instrumentsQueryResult.rows;
+        
+        if (instruments.length > 0) {
+          for (const instrument of instruments) {
+            // Format the date
+            const calibrationDate = instrument.last_calibration_date ? 
+              new Date(instrument.last_calibration_date).toLocaleDateString('en-GB') : 'N/A';
+            
+            // Instrument ID
+            calibrationCertificatesPage.drawText(instrument.instrument_id || 'N/A', {
+              x: 70,
+              y: yPosition,
+              size: 10,
+              font: helvetica,
+              color: rgb(0, 0, 0),
+            });
+            
+            // Instrument Type
+            calibrationCertificatesPage.drawText(instrument.instrument_type || 'N/A', {
+              x: 200,
+              y: yPosition,
+              size: 10,
+              font: helvetica,
+              color: rgb(0, 0, 0),
+            });
+            
+            // Calibration Date
+            calibrationCertificatesPage.drawText(calibrationDate, {
+              x: 350,
+              y: yPosition,
+              size: 10,
+              font: helvetica,
+              color: rgb(0, 0, 0),
+            });
+            
+            // Certificate No.
+            calibrationCertificatesPage.drawText(instrument.certificate_number || 'N/A', {
+              x: 480,
+              y: yPosition,
+              size: 10,
+              font: helvetica,
+              color: rgb(0, 0, 0),
+            });
+            
+            yPosition -= 20;
+            
+            // If page is full, add a new page
+            if (yPosition < 100) {
+              const newPage = pdfDoc.addPage([612, 792]);
+              newPage.drawText('7. Calibration Certificates (CONTINUED)', {
+                x: pageMargin,
+                y: 700,
+                size: 16,
+                font: helveticaBold,
+                color: rgb(0, 0, 0),
+              });
+              addFooterToPage(newPage);
+              yPosition = 650;
+            }
+          }
+        } else {
+          calibrationCertificatesPage.drawText('No calibration instruments found for the pressure gauges used.', {
+            x: 70,
+            y: yPosition,
+            size: 10,
+            font: helvetica,
+            color: rgb(0, 0, 0),
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching calibration instruments:', error);
+        calibrationCertificatesPage.drawText('Error fetching calibration instrument data.', {
+          x: 70,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(1, 0, 0),
+        });
+      }
+    } else {
+      calibrationCertificatesPage.drawText('No pressure gauge instruments used in hydrotest records.', {
+        x: 70,
+        y: yPosition,
+        size: 10,
+        font: helvetica,
+        color: rgb(0, 0, 0),
+      });
+    }
+    
+    // Add footer to the calibration certificates page
+    addFooterToPage(calibrationCertificatesPage);
     
     // Add appendices section for uploaded documents
     const appendicesPage = pdfDoc.addPage([612, 792]);
