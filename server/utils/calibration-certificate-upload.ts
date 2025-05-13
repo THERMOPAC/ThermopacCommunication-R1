@@ -109,33 +109,15 @@ export async function getCertificateUrl(filePath: string): Promise<string | null
     // Check if file exists
     let [exists] = await file.exists();
     
-    // If the file doesn't exist with the original path, try alternative path format
+    // If the file doesn't exist, log detailed error for troubleshooting
     if (!exists) {
-      console.log(`Certificate file ${filePath} not found, checking alternative path format`);
-      
-      // Check if the path is in singular form and try plural, or vice versa
-      let alternatePath = '';
-      if (filePath.includes('QMS/Instrument/')) {
-        alternatePath = filePath.replace('QMS/Instrument/', 'QMS/Instruments/');
-      } else if (filePath.includes('QMS/Instruments/')) {
-        alternatePath = filePath.replace('QMS/Instruments/', 'QMS/Instrument/');
-      }
-      
-      if (alternatePath) {
-        console.log(`Trying alternative path: ${alternatePath}`);
-        file = bucket.file(alternatePath);
-        [exists] = await file.exists();
-        
-        if (exists) {
-          console.log(`Found certificate at alternative path: ${alternatePath}`);
-          filePath = alternatePath;
-        }
-      }
+      console.log(`Certificate file ${filePath} not found in GCS`);
+      // No need to check alternative paths anymore since we're using only QMS/Instrument/
     }
     
-    // If still doesn't exist after checking alternative paths
+    // If doesn't exist, return null
     if (!exists) {
-      console.error(`Certificate file not found in GCS (tried both singular and plural paths)`);
+      console.error(`Certificate file not found in GCS at path: ${filePath}`);
       return null;
     }
     

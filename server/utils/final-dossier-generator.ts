@@ -1607,11 +1607,10 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
             for (const instrument of instruments) {
               console.log(`Looking for calibration certificate for ${instrument.instrument_id}`);
               
-              // Check exact paths (singular and plural)
-              const singularPath = `QMS/Instrument/${instrument.instrument_id}.pdf`;
-              const pluralPath = `QMS/Instruments/${instrument.instrument_id}.pdf`;
+              // Check standard path
+              const standardPath = `QMS/Instrument/${instrument.instrument_id}.pdf`;
               
-              // Check if files exist using file.exists() instead of listFiles() to avoid prefix-matching issues
+              // Check if files exist using file.exists() to avoid prefix-matching issues
               let fileExists = false;
               let existingPath = '';
               
@@ -1626,25 +1625,14 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
                 }
               }
               
-              // If not found in database path, check the singular path
+              // If not found in database path, check the standard path
               if (!fileExists) {
-                const file = bucket.file(singularPath);
+                const file = bucket.file(standardPath);
                 const [exists] = await file.exists();
                 if (exists) {
                   fileExists = true;
-                  existingPath = singularPath;
-                  console.log(`Found certificate at singular path: ${existingPath}`);
-                }
-              }
-              
-              // If still not found, check the plural path
-              if (!fileExists) {
-                const file = bucket.file(pluralPath);
-                const [exists] = await file.exists();
-                if (exists) {
-                  fileExists = true;
-                  existingPath = pluralPath;
-                  console.log(`Found certificate at plural path: ${existingPath}`);
+                  existingPath = standardPath;
+                  console.log(`Found certificate at standard path: ${existingPath}`);
                 }
               }
               
