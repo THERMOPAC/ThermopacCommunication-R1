@@ -203,8 +203,8 @@ export default function LeadsPage() {
       companyName: "",
       industry: "",
       website: "",
-      annualRevenue: "",
-      employeeCount: "",
+      currency: "USD",
+      expectedRevenue: "",
       contactName: "",
       contactTitle: "",
       contactEmail: "",
@@ -226,8 +226,8 @@ export default function LeadsPage() {
       companyName: "",
       industry: "",
       website: "",
-      annualRevenue: "",
-      employeeCount: "",
+      currency: "USD",
+      expectedRevenue: "",
       contactName: "",
       contactTitle: "",
       contactEmail: "",
@@ -247,7 +247,7 @@ export default function LeadsPage() {
     // Convert string numbers to actual numbers
     const formattedData = {
       ...data,
-      employeeCount: data.employeeCount ? parseInt(data.employeeCount) : null,
+      expectedRevenue: data.expectedRevenue || null,
       probability: data.probability ? parseInt(data.probability) : null,
       sourceId: parseInt(data.sourceId),
       statusId: parseInt(data.statusId),
@@ -263,7 +263,7 @@ export default function LeadsPage() {
     // Convert string numbers to actual numbers
     const formattedData = {
       ...data,
-      employeeCount: data.employeeCount ? parseInt(data.employeeCount) : null,
+      expectedRevenue: data.expectedRevenue || null,
       probability: data.probability ? parseInt(data.probability) : null,
       sourceId: parseInt(data.sourceId),
       statusId: parseInt(data.statusId),
@@ -405,17 +405,10 @@ export default function LeadsPage() {
                     </div>
                   )}
                   
-                  {selectedLead.employeeCount && (
-                    <div className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-muted-foreground" />
-                      <p className="text-sm">{selectedLead.employeeCount} Employees</p>
-                    </div>
-                  )}
-                  
-                  {selectedLead.annualRevenue && (
+                  {selectedLead.currency && selectedLead.expectedRevenue && (
                     <div className="flex items-center gap-2">
                       <BarChart className="h-5 w-5 text-muted-foreground" />
-                      <p className="text-sm">Annual Revenue: {selectedLead.annualRevenue}</p>
+                      <p className="text-sm">Expected Revenue: {selectedLead.currency} {selectedLead.expectedRevenue}</p>
                     </div>
                   )}
                 </CardContent>
@@ -1068,13 +1061,24 @@ export default function LeadsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={editForm.control}
-                      name="employeeCount"
+                      name="currency"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Employees</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g. 50" {...field} />
-                          </FormControl>
+                          <FormLabel>Currency</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value || "USD"}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select currency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="USD">USD</SelectItem>
+                              <SelectItem value="EURO">EURO</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1082,12 +1086,12 @@ export default function LeadsPage() {
                     
                     <FormField
                       control={editForm.control}
-                      name="annualRevenue"
+                      name="expectedRevenue"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Annual Revenue</FormLabel>
+                          <FormLabel>Expected Revenue</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g. $5 million" {...field} />
+                            <Input placeholder="e.g. 50000" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
