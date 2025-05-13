@@ -1249,9 +1249,24 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       }
     }
     
-    // For demonstration purposes, add INST-00001 as a calibration instrument
-    console.log('Adding default pressure gauge INST-00001');
-    pressureGaugeIds.add('INST-00001');
+    // Look for other calibration instruments from the database that might be related
+    try {
+      console.log('Looking for additional relevant pressure gauge instruments from the database');
+      const additionalInstrumentsQuery = await pool.query(
+        `SELECT instrument_id FROM calibration_instruments 
+         WHERE instrument_type LIKE '%pressure%' OR instrument_type LIKE '%gauge%'
+         LIMIT 10`
+      );
+      
+      if (additionalInstrumentsQuery.rows.length > 0) {
+        for (const row of additionalInstrumentsQuery.rows) {
+          console.log(`Adding pressure gauge from database: ${row.instrument_id}`);
+          pressureGaugeIds.add(row.instrument_id);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching additional pressure gauge instruments:', err);
+    }
     
     if (pressureGaugeIds.size > 0) {
       // Add header
@@ -1559,7 +1574,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       for (const section of inspectionSections) {
         console.log(`Checking inspection section: ${section.name} at path: ${section.path}`);
         
-        let sectionDocs = [];
+        let sectionDocs: string[] = [];
         try {
           sectionDocs = await listFiles(section.path);
           console.log(`Found ${sectionDocs.length} documents in ${section.path}`);
