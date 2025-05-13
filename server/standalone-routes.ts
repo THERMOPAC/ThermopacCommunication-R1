@@ -298,18 +298,20 @@ router.post('/calibration-instrument-file-upload', upload.single('certificate'),
   
   console.log('[STANDALONE] Received file upload request');
   console.log('[STANDALONE] Request body:', req.body);
+  console.log('[STANDALONE] File info:', req.file ? { size: req.file.size, mimetype: req.file.mimetype } : 'No file');
   
   try {
-    const instrumentIdFromBody = req.body.instrumentId;
+    // Extract the instrument ID from the request body
+    const dbInstrumentId = req.body.instrumentId;
     
-    if (!instrumentIdFromBody) {
+    // Input validation
+    if (!dbInstrumentId) {
       return res.status(400).json({
         success: false,
         error: 'instrumentId is required'
       });
     }
     
-    // Check if file exists in the request
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -317,41 +319,41 @@ router.post('/calibration-instrument-file-upload', upload.single('certificate'),
       });
     }
     
-    // First check if the instrument exists
+    console.log(`[STANDALONE] Looking up instrument with database ID: ${dbInstrumentId}`);
+    
+    // Lookup the instrument in the database to get the instrument_id code
     const instrumentCheck = await pool.query(
       'SELECT * FROM calibration_instruments WHERE id = $1',
-      [instrumentId]
+      [dbInstrumentId]
     );
     
     if (instrumentCheck.rows.length === 0) {
       return res.status(404).json({ 
         success: false, 
-        error: 'Calibration instrument not found' 
+        error: `Calibration instrument with ID ${dbInstrumentId} not found` 
       });
     }
     
     const instrument = instrumentCheck.rows[0];
+    const instrumentCode = instrument.instrument_id; // This is the code like "INST-00001"
     
-    // Upload the file to Google Cloud Storage
-    console.log('[STANDALONE] Uploading certificate file to GCS');
-    console.log('[STANDALONE] Instrument ID:', instrument.instrument_id);
-    console.log('[STANDALONE] Instrument data:', JSON.stringify(instrument));
+    console.log(`[STANDALONE] Found instrument: ${JSON.stringify(instrument)}`);
+    console.log(`[STANDALONE] Instrument code for filename: ${instrumentCode}`);
     
-    // Extra validation to make sure instrument_id is present
-    if (!instrument.instrument_id || instrument.instrument_id.trim() === '') {
+    // Extra validation to make sure instrument_id code is present
+    if (!instrumentCode || instrumentCode.trim() === '') {
       return res.status(400).json({
         success: false,
-        error: 'Invalid instrument ID, cannot generate proper file name'
+        error: 'Invalid instrument code, cannot generate proper file name'
       });
     }
     
-    // Pass the instrument_id as both the originalFilename and the instrumentId
-    // This ensures the file is named properly: {instrument_id}.pdf
+    // Upload the file to GCS using the instrument code for the filename
     const uploadResult = await uploadCalibrationCertificate(
       req.file.buffer,
-      instrument.instrument_id, // Pass instrument_id as originalFilename parameter
+      instrumentCode, // Pass instrument code (like "INST-00001") as originalFilename parameter
       req.file.mimetype || 'application/pdf',
-      instrument.instrument_id  // Pass instrument_id again as instrumentId parameter
+      instrumentCode  // Pass instrument code again as instrumentId parameter
     );
     
     if (!uploadResult.success) {
@@ -368,7 +370,7 @@ router.post('/calibration-instrument-file-upload', upload.single('certificate'),
        SET certificate_file_path = $1, updated_at = NOW()
        WHERE id = $2
        RETURNING *`,
-      [uploadResult.filePath, instrumentId]
+      [uploadResult.filePath, dbInstrumentId]
     );
     
     console.log('[STANDALONE] File upload and update successful');
