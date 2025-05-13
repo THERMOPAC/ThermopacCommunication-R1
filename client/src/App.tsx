@@ -20,6 +20,7 @@ import ProductionPlanningPage from "@/pages/production-planning-page";
 import WorkOrderDetailPage from "@/pages/work-order-detail-page";
 import WorkOrderEditPage from "@/pages/work-order-edit-page";
 import ShopFloorPage from "@/pages/shop-floor-page";
+import WorkOrderSummaryDemo from "@/pages/work-order-summary-demo";
 import InspectionsPage from "@/pages/inspections-page";
 import MaterialIdentificationPage from "@/pages/material-identification-page";
 import MaterialIdentificationListPage from "@/pages/material-identification-list-page";
@@ -120,6 +121,7 @@ function Router() {
       {/* Backward compatibility route */}
       <ProtectedRoute path="/production/work-orders/:id" component={WorkOrderDetailPage} />
       <ProtectedRoute path="/shop-floor" component={ShopFloorPage} />
+      <ProtectedRoute path="/work-order-summary-demo" component={WorkOrderSummaryDemo} />
       <ProtectedRoute path="/wps-pqr" component={WpsPqrPage} />
       <ProtectedRoute path="/wpqr" component={WpqrPage} />
       <ProtectedRoute path="/welder-management" component={WelderManagementPage} />

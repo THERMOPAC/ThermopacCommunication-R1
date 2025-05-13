@@ -1,0 +1,196 @@
+.work-order-summary {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  transition: background-color 0.2s;
+  margin-bottom: 0.5rem;
+}
+
+.work-order-summary:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.work-order-content {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.work-order-number {
+  font-weight: 500;
+  font-size: 0.875rem;
+  min-width: 100px;
+}
+
+.work-order-status {
+  min-width: fit-content;
+}
+
+.work-order-title {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 0.5rem;
+}
+
+.work-order-team, 
+.work-order-date, 
+.work-order-priority {
+  font-size: 0.75rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.work-order-team {
+  width: 6.5rem;
+}
+
+.work-order-date {
+  width: 8rem;
+}
+
+.work-order-priority {
+  width: 5rem;
+}
+
+.label {
+  color: var(--muted-foreground);
+  margin-right: 0.25rem;
+}
+
+.edit-button {
+  display: flex;
+  align-items: center;
+  height: 1.75rem;
+  font-size: 0.75rem;
+}
+
+.icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-left: 0.25rem;
+}
+
+.work-order-progress {
+  margin-top: 0.5rem;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  margin-bottom: 0.125rem;
+}
+
+.progress-bar {
+  height: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .work-order-content {
+    flex-wrap: wrap;
+  }
+  
+  .work-order-number, 
+  .work-order-status {
+    min-width: auto;
+  }
+  
+  .work-order-title {
+    flex-basis: 100%;
+    order: 1;
+    margin-top: 0.25rem;
+  }
+  
+  .work-order-team, 
+  .work-order-date, 
+  .work-order-priority {
+    font-size: 0.7rem;
+  }
+  
+  .work-order-team {
+    width: 5.5rem;
+  }
+  
+  .work-order-date {
+    width: 7rem;
+  }
+  
+  .work-order-priority {
+    width: 4.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .work-order-content {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    grid-template-areas:
+      "number status action"
+      "title title title"
+      "team date priority";
+    gap: 0.5rem;
+    align-items: center;
+  }
+  
+  .work-order-number {
+    grid-area: number;
+  }
+  
+  .work-order-status {
+    grid-area: status;
+  }
+  
+  .work-order-title {
+    grid-area: title;
+    margin-top: 0;
+  }
+  
+  .work-order-team {
+    grid-area: team;
+    text-align: left;
+    width: auto;
+  }
+  
+  .work-order-date {
+    grid-area: date;
+    text-align: center;
+    width: auto;
+  }
+  
+  .work-order-priority {
+    grid-area: priority;
+    text-align: right;
+    width: auto;
+  }
+  
+  .work-order-action {
+    grid-area: action;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 480px) {
+  .work-order-content {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "number action"
+      "status status"
+      "title title"
+      "team team"
+      "date date"
+      "priority priority";
+  }
+  
+  .work-order-team,
+  .work-order-date,
+  .work-order-priority {
+    text-align: left;
+    width: 100%;
+  }
+}
