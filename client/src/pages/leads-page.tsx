@@ -768,13 +768,24 @@ export default function LeadsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={createForm.control}
-                      name="employeeCount"
+                      name="currency"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Employees</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g. 50" {...field} />
-                          </FormControl>
+                          <FormLabel>Currency</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value || "USD"}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select currency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="USD">USD</SelectItem>
+                              <SelectItem value="EURO">EURO</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -782,12 +793,12 @@ export default function LeadsPage() {
                     
                     <FormField
                       control={createForm.control}
-                      name="annualRevenue"
+                      name="expectedRevenue"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Annual Revenue</FormLabel>
+                          <FormLabel>Expected Revenue</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g. $5 million" {...field} />
+                            <Input placeholder="e.g. 50000" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
