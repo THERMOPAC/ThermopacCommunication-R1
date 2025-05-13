@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { PDFDocument, rgb, StandardFonts, PDFPage } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFPage, PageSizes } from 'pdf-lib';
 import { db, pool } from '../db';
 import { 
   inspectionOrders, 
@@ -284,6 +284,17 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         end: { x: 612 - pageMargin, y: 40 },
         thickness: 0.5,
         color: rgb(0.8, 0.8, 0.8),
+      });
+    };
+    
+    // Function to add header to a page
+    const addHeaderToPage = (page: PDFPage, title: string) => {
+      page.drawText(title, {
+        x: pageMargin,
+        y: 750, // Position from top of page
+        size: 16,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
       });
     };
     
@@ -1411,7 +1422,7 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
     addFooterToPage(appendicesTitlePage);
     
     // Add appendices content on a new page
-    const appendicesPage = pdfDoc.addPage([612, 792]);
+    let appendicesPage = pdfDoc.addPage([612, 792]);
     appendicesPage.drawText('8. APPENDICES (Contents)', {
       x: pageMargin,
       y: 700,
@@ -1573,8 +1584,14 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
             
             // Skip if we're getting low on vertical space
             if (yPosition < 100) {
-              appendicesPage = pdfDoc.addPage(PageSizes.A4);
-              addHeaderToPage(appendicesPage, 'Appendices');
+              appendicesPage = pdfDoc.addPage([612, 792]);
+              appendicesPage.drawText('8. APPENDICES (Contents)', {
+                x: pageMargin,
+                y: 700,
+                size: 16,
+                font: helveticaBold,
+                color: rgb(0, 0, 0),
+              });
               addFooterToPage(appendicesPage);
               
               // Reset position
@@ -1689,8 +1706,14 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
               
               // Add a new page if needed
               if (yPosition < 100) {
-                appendicesPage = pdfDoc.addPage(PageSizes.A4);
-                addHeaderToPage(appendicesPage, 'Appendices');
+                appendicesPage = pdfDoc.addPage([612, 792]);
+                appendicesPage.drawText('8. APPENDICES (Contents)', {
+                  x: pageMargin,
+                  y: 700,
+                  size: 16,
+                  font: helveticaBold,
+                  color: rgb(0, 0, 0),
+                });
                 addFooterToPage(appendicesPage);
                 yPosition = 750;
               }
@@ -1709,8 +1732,14 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
       
       // Add page break detection for appendices if needed
       if (yPosition < 100) {
-        appendicesPage = pdfDoc.addPage(PageSizes.A4);
-        addHeaderToPage(appendicesPage, 'Appendices');
+        appendicesPage = pdfDoc.addPage([612, 792]);
+        appendicesPage.drawText('8. APPENDICES (Contents)', {
+          x: pageMargin,
+          y: 700,
+          size: 16,
+          font: helveticaBold,
+          color: rgb(0, 0, 0),
+        });
         addFooterToPage(appendicesPage);
         yPosition = 750;
       }
