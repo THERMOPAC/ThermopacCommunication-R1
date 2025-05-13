@@ -22,7 +22,14 @@ import type {
   MasterItem, InsertMasterItem,
   ProjectItem, InsertProjectItem,
   Customer, InsertCustomer,
-  ProjectKeyStage, InsertProjectKeyStage
+  ProjectKeyStage, InsertProjectKeyStage,
+  LeadSelect, LeadInsert,
+  LeadSourceSelect, LeadSourceInsert, 
+  LeadStatusSelect, LeadStatusInsert,
+  LeadActivitySelect, LeadActivityInsert,
+  MarketingCampaignSelect, MarketingCampaignInsert,
+  CampaignActivitySelect, CampaignActivityInsert,
+  CampaignChannelSelect
 } from "@shared/schema";
 import { roleHierarchy, canManage } from "@shared/roles";
 import { checkModulePermission } from "./utils/permission-utils";
@@ -38,6 +45,8 @@ import {
   userAchievements as userAchievementsTable,
   productivityMetrics as productivityMetricsTable,
   recurringPatterns as recurringPatternsTable,
+  leads, leadActivities, leadSourcesTable, leadStatusesTable,
+  marketingCampaigns, campaignActivities, campaignChannels,
   recurringTasks as recurringTasksTable,
   gmailTokens as gmailTokensTable,
   gmailMessages as gmailMessagesTable,
@@ -90,6 +99,15 @@ export class DatabaseStorage implements IStorage {
   masterItemsTable = masterItemsTable;
   projectItemsTable = projectItemsTable;
   projectKeyStagesTable = projectKeyStages;
+  
+  // Sales and Marketing tables
+  leadsTable = leads;
+  leadActivitiesTable = leadActivities;
+  leadSourcesTable = leadSourcesTable;
+  leadStatusesTable = leadStatusesTable;
+  marketingCampaignsTable = marketingCampaigns;
+  campaignActivitiesTable = campaignActivities;
+  campaignChannelsTable = campaignChannels;
 
   constructor() {
     if (!process.env.DATABASE_URL) {
