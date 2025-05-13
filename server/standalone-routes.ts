@@ -334,10 +334,13 @@ router.post('/calibration-instrument-file-upload', upload.single('certificate'),
     
     // Upload the file to Google Cloud Storage
     console.log('[STANDALONE] Uploading certificate file to GCS');
+    // Pass the instrument_id as both the originalFilename and the instrumentId
+    // This ensures the file is named properly: {instrument_id}.pdf
     const uploadResult = await uploadCalibrationCertificate(
       req.file.buffer,
-      instrument.instrument_id,
-      req.file.mimetype || 'application/pdf'
+      instrument.instrument_id, // Pass instrument_id as originalFilename parameter
+      req.file.mimetype || 'application/pdf',
+      instrument.instrument_id  // Pass instrument_id again as instrumentId parameter
     );
     
     if (!uploadResult.success) {

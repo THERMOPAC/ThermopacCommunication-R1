@@ -24,14 +24,21 @@ export async function uploadCalibrationCertificate(
   error?: any;
 }> {
   try {
-    // Use instrument ID for filename if provided, otherwise use a UUID
+    // Always use the instrumentId for the filename if provided
     // Get the file extension from the original filename or use .pdf as default
     const originalExt = path.extname(originalFilename).toLowerCase();
     const fileExtension = ['.pdf', '.jpg', '.jpeg', '.png'].includes(originalExt) ? originalExt : '.pdf';
     
-    const filename = instrumentId ? 
-      `${instrumentId}${fileExtension}` : 
-      `${uuidv4()}${fileExtension}`;
+    // Prioritize using instrumentId for the filename, even if it's the same as originalFilename
+    // This ensures consistent naming pattern: {instrument_id}.pdf
+    let filename;
+    if (instrumentId && instrumentId.trim() !== '') {
+      console.log(`Using instrumentId for filename: ${instrumentId}`);
+      filename = `${instrumentId}${fileExtension}`;
+    } else {
+      console.log('No instrumentId provided, generating UUID for filename');
+      filename = `${uuidv4()}${fileExtension}`;
+    }
     
     // Set the GCS path - using QMS/Instrument/ to match existing database entries
     // Note: Using singular form 'Instrument' for consistency, but will check both in download function
