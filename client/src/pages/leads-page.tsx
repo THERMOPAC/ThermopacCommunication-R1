@@ -62,7 +62,7 @@ const leadFormSchema = z.object({
   sourceId: z.string().min(1, "Source is required"),
   statusId: z.string().min(1, "Status is required"),
   notes: z.string().optional(),
-  probability: z.string().regex(/^\\d{1,3}$/, "Must be a number between 0-100").optional(),
+  probability: z.string().regex(/^\d{1,3}$/, "Must be a number between 0-100").optional(),
   estimatedCloseDate: z.string().optional(),
   assignedTo: z.string().optional(),
   createdBy: z.number().optional(),
