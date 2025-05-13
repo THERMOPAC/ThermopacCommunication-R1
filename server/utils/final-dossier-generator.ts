@@ -1939,6 +1939,63 @@ export async function generateFinalDossier(inspectionOrderId: number): Promise<{
         }
       }
       
+      // Add calibration certificates for pressure gauges from hydrotest records
+      if (pressureGaugeIds.size > 0) {
+        console.log(`Retrieving calibration certificates for ${pressureGaugeIds.size} pressure gauges...`);
+        
+        try {
+          // Get instrument details from database
+          const instrumentsQueryResult = await pool.query(
+            `SELECT 
+              instrument_id, 
+              instrument_type, 
+              certificate_file_path 
+            FROM 
+              calibration_instruments 
+            WHERE 
+              instrument_id = ANY($1)`,
+            [Array.from(pressureGaugeIds)]
+          );
+          
+          const instruments = instrumentsQueryResult.rows;
+          
+          if (instruments.length > 0) {
+            for (const instrument of instruments) {
+              // If we have a certificate file path, add it to the PDF paths
+              if (instrument.certificate_file_path) {
+                console.log(`Adding calibration certificate for ${instrument.instrument_id} (${instrument.instrument_type}) to final dossier`);
+                
+                // Skip if we've already added this file
+                if (uniquePdfPaths.has(instrument.certificate_file_path)) {
+                  console.log(`Skipping duplicate certificate path: ${instrument.certificate_file_path}`);
+                  continue;
+                }
+                
+                uniquePdfPaths.add(instrument.certificate_file_path);
+                pdfPaths.push(instrument.certificate_file_path);
+              } else {
+                // Try standard path for calibration certificates
+                const standardCertPath = `QMS/Instruments/${instrument.instrument_id}.pdf`;
+                console.log(`Checking standard path for calibration certificate: ${standardCertPath}`);
+                
+                // Skip if we've already added this path
+                if (uniquePdfPaths.has(standardCertPath)) {
+                  console.log(`Skipping duplicate certificate path: ${standardCertPath}`);
+                  continue;
+                }
+                
+                uniquePdfPaths.add(standardCertPath);
+                pdfPaths.push(standardCertPath);
+              }
+            }
+          } else {
+            console.log('No calibration instruments found for pressure gauges');
+          }
+        } catch (error) {
+          console.error('Error retrieving calibration certificates:', error);
+        }
+      }
+      
       // If we have welder IDs, retrieve their certificates and add them to the PDF
       if (welderIds.length > 0) {
         console.log(`Retrieving certificates for ${welderIds.length} welders...`);
