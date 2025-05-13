@@ -73,8 +73,8 @@ export const leads = pgTable('leads', {
   companyName: text('company_name').notNull(),
   industry: text('industry'),
   website: text('website'),
-  annualRevenue: decimal('annual_revenue', { precision: 15, scale: 2 }),
-  employeeCount: integer('employee_count'),
+  currency: text('currency'),
+  expectedRevenue: decimal('expected_revenue', { precision: 15, scale: 2 }),
   
   // Main contact information
   contactName: text('contact_name').notNull(),

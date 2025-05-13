@@ -25,8 +25,8 @@ const leadFormSchema = z.object({
   companyName: z.string().min(1, "Company name is required"),
   industry: z.string().optional(),
   website: z.string().url("Please enter a valid URL").optional().or(z.string().length(0)),
-  annualRevenue: z.string().optional(),
-  employeeCount: z.string().regex(/^\d*$/, "Must be a valid number").optional(),
+  currency: z.string().optional(),
+  expectedRevenue: z.string().optional(),
   contactName: z.string().min(1, "Contact name is required"),
   contactTitle: z.string().optional(),
   contactEmail: z.string().email("Please enter a valid email address").optional().or(z.string().length(0)),
@@ -35,7 +35,6 @@ const leadFormSchema = z.object({
   statusId: z.string().min(1, "Status is required"),
   notes: z.string().optional(),
   probability: z.string().regex(/^\d{1,3}$/, "Must be a number between 0-100").optional(),
-  estimatedValue: z.string().optional(),
   estimatedCloseDate: z.string().optional(),
   assignedTo: z.string().optional(),
   createdBy: z.number().optional(),
@@ -47,8 +46,8 @@ type Lead = {
   companyName: string;
   industry: string | null;
   website: string | null;
-  annualRevenue: string | null;
-  employeeCount: number | null;
+  currency: string | null;
+  expectedRevenue: string | null;
   contactName: string;
   contactTitle: string | null;
   contactEmail: string | null;
