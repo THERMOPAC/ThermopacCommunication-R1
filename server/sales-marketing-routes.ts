@@ -1,8 +1,15 @@
-import express, { Express, Request, Response } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import { storage } from './storage';
-import { ensureAuthenticated } from './auth';
 import { z } from 'zod';
-import { leadInsertSchema } from '@shared/schema';
+import { insertLeadSchema } from '@shared/schema';
+
+// Define ensureAuthenticated middleware
+function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: 'Not authenticated' });
+}
 
 const router = express.Router();
 
@@ -49,7 +56,7 @@ router.get('/leads/:id', ensureAuthenticated, async (req: Request, res: Response
 router.post('/leads', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Validate the request body against our schema
-    const validatedData = leadInsertSchema.parse(req.body);
+    const validatedData = insertLeadSchema.parse(req.body);
     
     // Add the created by user ID from the authenticated user
     const leadData = {

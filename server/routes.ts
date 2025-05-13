@@ -28,6 +28,7 @@ import { hashPassword as updatePasswordHash } from "./update-password";
 import { setupTestWelderRoute } from "./quality/test-welder-route";
 import { setupApiTestRoutes } from "./api-test-route";
 import { setupDedicatedTestRoutes } from "./dedicated-test-route";
+import { setupSalesMarketingRoutes } from "./sales-marketing-routes";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
 import calibrationTestRoutes from "./testapi/calibration-test-routes";
 import { registerTemplateManagementRoutes } from "./template-management/register-routes";
@@ -83,6 +84,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up production management routes
   setupProductionRoutes(app);
+  
+  // Set up sales and marketing routes
+  setupSalesMarketingRoutes(app);
   
   // Set up procurement management routes
   setupProcurementRoutes(app);
