@@ -118,7 +118,7 @@ export default function CalibrationManagementPage() {
     setStatusFilter(value === "all_statuses" ? null : value);
   };
   
-  // Fetch instruments data
+  // Fetch instruments data - using direct endpoint to avoid middleware issues
   const { 
     data: instruments = [], 
     isLoading, 
@@ -127,8 +127,17 @@ export default function CalibrationManagementPage() {
   } = useQuery<CalibrationInstrument[]>({
     queryKey: ["/api/testapi/calibration/direct-instruments"],
     refetchOnWindowFocus: true,
-    staleTime: 0,
-    retry: 3
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    refetchInterval: 5000, // Poll every 5 seconds for changes
+    staleTime: 0, // Consider data always stale
+    // Use TanStack Query v5 syntax
+    gcTime: 0, // Don't keep old data in cache
+    retry: 3,
+    select: (data) => {
+      console.log("Processing fetched instruments:", data ? data.length : 0);
+      return data || [];
+    }
   });
   
   // Fetch dashboard stats
@@ -549,18 +558,92 @@ export default function CalibrationManagementPage() {
   };
   
   // Submit handler for editing an instrument
-  const onEditSubmit = (values: CalibrationInstrumentFormData) => {
-    if (selectedInstrument) {
-      updateInstrumentMutation.mutate({ 
-        id: selectedInstrument.id, 
-        data: values
+  const onEditSubmit = async (values: CalibrationInstrumentFormData) => {
+    if (!selectedInstrument) return;
+    
+    try {
+      console.log("Editing instrument with values:", values);
+      
+      // Call standalone direct update endpoint to avoid middleware issues
+      const response = await fetch(`/api/standalone/direct-update-instrument/${selectedInstrument.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(values)
+      });
+      
+      // Log response details for debugging
+      console.log("Direct update response status:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+        throw new Error(`Update failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log("Direct update successful:", data);
+      
+      // Show success message
+      toast({
+        title: "Success",
+        description: "Instrument updated successfully",
+      });
+      
+      // Reset form state
+      setIsEditInstrumentOpen(false);
+      editForm.reset();
+      setCertificateFile(null);
+      
+      // Force immediate data refresh
+      console.log("Triggering data refresh after update");
+      
+      // Force multiple refreshes to ensure UI is updated
+      refetch();
+      
+      // Invalidate all relevant queries to ensure UI consistency
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments/stats/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/testapi/calibration/direct-instruments"] });
+      
+      // Schedule a delayed refetch to ensure updated data appears
+      setTimeout(() => {
+        refetch();
+        console.log("Delayed refetch triggered");
+      }, 500);
+      
+    } catch (error) {
+      console.error("Error in direct update:", error);
+      toast({
+        title: "Error updating instrument",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
       });
     }
   };
   
+  // Refetch data on component mount and periodically
+  useEffect(() => {
+    // Initial data fetch
+    console.log("Initial data fetch on component mount");
+    refetch();
+    
+    // Set up interval for periodic refetching
+    const intervalId = setInterval(() => {
+      console.log("Interval refetch triggered");
+      refetch();
+    }, 10000); // Refetch every 10 seconds
+    
+    // Clean up interval on unmount
+    return () => clearInterval(intervalId);
+  }, [refetch]);
+
   // Set up the edit form when an instrument is selected for editing
   useEffect(() => {
     if (selectedInstrument) {
+      console.log("Resetting edit form with selected instrument:", selectedInstrument.instrument_id);
       editForm.reset({
         instrument_name: selectedInstrument.instrument_name,
         instrument_type: selectedInstrument.instrument_type,
