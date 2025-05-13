@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, sql } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -15,6 +15,258 @@ export const modules = [
   "Dispatch & Shipping",
   "After-Sales"
 ] as const;
+
+// Lead status values
+export const leadStatuses = [
+  "New",
+  "Contacted",
+  "Qualified",
+  "Proposal",
+  "Negotiation",
+  "Won",
+  "Lost"
+] as const;
+
+export type LeadStatus = typeof leadStatuses[number];
+
+// Campaign status values
+export const campaignStatuses = [
+  "Planned",
+  "Active",
+  "Completed", 
+  "Cancelled"
+] as const;
+
+export type CampaignStatus = typeof campaignStatuses[number];
+
+// Lead source definitions
+export const leadSources = [
+  "Google Ads",
+  "Website",
+  "Referral",
+  "Exhibition",
+  "Direct Contact"
+] as const;
+
+export type LeadSource = typeof leadSources[number];
+
+// Sales and Marketing tables
+export const leadSourcesTable = pgTable('lead_sources', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  description: text('description'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow()
+});
+
+export const leadStatusesTable = pgTable('lead_statuses', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  description: text('description'),
+  displayOrder: integer('display_order').notNull(),
+  color: text('color').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow()
+});
+
+export const leads = pgTable('leads', {
+  id: serial('id').primaryKey(),
+  companyName: text('company_name').notNull(),
+  industry: text('industry'),
+  website: text('website'),
+  annualRevenue: decimal('annual_revenue', { precision: 15, scale: 2 }),
+  employeeCount: integer('employee_count'),
+  
+  // Main contact information
+  contactName: text('contact_name').notNull(),
+  contactTitle: text('contact_title'),
+  contactEmail: text('contact_email'),
+  contactPhone: text('contact_phone'),
+  countryCode: text('country_code'),
+  
+  // Lead management fields
+  sourceId: integer('source_id').references(() => leadSourcesTable.id),
+  statusId: integer('status_id').references(() => leadStatusesTable.id),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  
+  // Location information
+  addressLine1: text('address_line1'),
+  addressLine2: text('address_line2'),
+  city: text('city'),
+  state: text('state'),
+  postalCode: text('postal_code'),
+  country: text('country'),
+  
+  // Lead details
+  notes: text('notes'),
+  requirements: text('requirements'),
+  potentialValue: decimal('potential_value', { precision: 15, scale: 2 }),
+  probability: integer('probability'),
+  
+  // Timestamps
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  lastContactedAt: timestamp('last_contacted_at'),
+  expectedCloseDate: date('expected_close_date'),
+  
+  // If converted to customer, link to customer record
+  isConverted: boolean('is_converted').default(false),
+  customerId: integer('customer_id').references(() => customers.id)
+});
+
+export const leadActivities = pgTable('lead_activities', {
+  id: serial('id').primaryKey(),
+  leadId: integer('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
+  activityType: text('activity_type').notNull(), // email, call, meeting, note
+  title: text('title').notNull(),
+  description: text('description'),
+  activityDate: timestamp('activity_date').notNull().defaultNow(),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+export const marketingCampaigns = pgTable('marketing_campaigns', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  startDate: date('start_date'),
+  endDate: date('end_date'),
+  budget: decimal('budget', { precision: 15, scale: 2 }),
+  actualCost: decimal('actual_cost', { precision: 15, scale: 2 }),
+  status: text('status', { enum: campaignStatuses }).notNull(),
+  goals: text('goals'),
+  targetAudience: text('target_audience'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+export const campaignChannels = pgTable('campaign_channels', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  description: text('description')
+});
+
+export const campaignActivities = pgTable('campaign_activities', {
+  id: serial('id').primaryKey(),
+  campaignId: integer('campaign_id').notNull().references(() => marketingCampaigns.id, { onDelete: 'cascade' }),
+  channelId: integer('channel_id').notNull().references(() => campaignChannels.id),
+  name: text('name').notNull(),
+  description: text('description'),
+  startDate: date('start_date'),
+  endDate: date('end_date'),
+  status: text('status').notNull(), // planned, active, completed, cancelled
+  budget: decimal('budget', { precision: 15, scale: 2 }),
+  actualCost: decimal('actual_cost', { precision: 15, scale: 2 }),
+  metrics: jsonb('metrics').default({}), // Store metrics like clicks, impressions, conversions
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+export const campaignLeads = pgTable('campaign_leads', {
+  campaignId: integer('campaign_id').notNull().references(() => marketingCampaigns.id, { onDelete: 'cascade' }),
+  leadId: integer('lead_id').notNull().references(() => leads.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.campaignId, t.leadId] })
+}));
+
+// Define relations
+export const leadsRelations = relations(leads, ({ one, many }) => ({
+  source: one(leadSourcesTable, {
+    fields: [leads.sourceId],
+    references: [leadSourcesTable.id]
+  }),
+  status: one(leadStatusesTable, {
+    fields: [leads.statusId],
+    references: [leadStatusesTable.id]
+  }),
+  assignedUser: one(users, {
+    fields: [leads.assignedTo],
+    references: [users.id]
+  }),
+  customer: one(customers, {
+    fields: [leads.customerId],
+    references: [customers.id]
+  }),
+  activities: many(leadActivities)
+}));
+
+export const leadActivitiesRelations = relations(leadActivities, ({ one }) => ({
+  lead: one(leads, {
+    fields: [leadActivities.leadId],
+    references: [leads.id]
+  }),
+  createdByUser: one(users, {
+    fields: [leadActivities.createdBy],
+    references: [users.id]
+  })
+}));
+
+export const marketingCampaignsRelations = relations(marketingCampaigns, ({ one, many }) => ({
+  createdByUser: one(users, {
+    fields: [marketingCampaigns.createdBy],
+    references: [users.id]
+  }),
+  activities: many(campaignActivities),
+  leads: many(campaignLeads)
+}));
+
+export const campaignActivitiesRelations = relations(campaignActivities, ({ one }) => ({
+  campaign: one(marketingCampaigns, {
+    fields: [campaignActivities.campaignId],
+    references: [marketingCampaigns.id]
+  }),
+  channel: one(campaignChannels, {
+    fields: [campaignActivities.channelId],
+    references: [campaignChannels.id]
+  })
+}));
+
+export const campaignLeadsRelations = relations(campaignLeads, ({ one }) => ({
+  campaign: one(marketingCampaigns, {
+    fields: [campaignLeads.campaignId],
+    references: [marketingCampaigns.id]
+  }),
+  lead: one(leads, {
+    fields: [campaignLeads.leadId],
+    references: [leads.id]
+  })
+}));
+
+// Create insert schemas
+export const insertLeadSourceSchema = createInsertSchema(leadSourcesTable);
+export const insertLeadStatusSchema = createInsertSchema(leadStatusesTable);
+export const insertLeadSchema = createInsertSchema(leads, {
+  probability: z.number().min(0).max(100).optional(),
+  potentialValue: z.number().optional(),
+  annualRevenue: z.number().optional()
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertLeadActivitySchema = createInsertSchema(leadActivities).omit({ createdAt: true, updatedAt: true });
+export const insertMarketingCampaignSchema = createInsertSchema(marketingCampaigns).omit({ createdAt: true, updatedAt: true });
+export const insertCampaignChannelSchema = createInsertSchema(campaignChannels);
+export const insertCampaignActivitySchema = createInsertSchema(campaignActivities).omit({ createdAt: true, updatedAt: true });
+export const insertCampaignLeadSchema = createInsertSchema(campaignLeads).omit({ createdAt: true });
+
+// Create types
+export type LeadSourceInsert = z.infer<typeof insertLeadSourceSchema>;
+export type LeadStatusInsert = z.infer<typeof insertLeadStatusSchema>;
+export type LeadInsert = z.infer<typeof insertLeadSchema>;
+export type LeadActivityInsert = z.infer<typeof insertLeadActivitySchema>;
+export type MarketingCampaignInsert = z.infer<typeof insertMarketingCampaignSchema>;
+export type CampaignChannelInsert = z.infer<typeof insertCampaignChannelSchema>;
+export type CampaignActivityInsert = z.infer<typeof insertCampaignActivitySchema>;
+export type CampaignLeadInsert = z.infer<typeof insertCampaignLeadSchema>;
+
+export type LeadSourceSelect = typeof leadSourcesTable.$inferSelect;
+export type LeadStatusSelect = typeof leadStatusesTable.$inferSelect;
+export type LeadSelect = typeof leads.$inferSelect;
+export type LeadActivitySelect = typeof leadActivities.$inferSelect;
+export type MarketingCampaignSelect = typeof marketingCampaigns.$inferSelect;
+export type CampaignChannelSelect = typeof campaignChannels.$inferSelect;
+export type CampaignActivitySelect = typeof campaignActivities.$inferSelect;
+export type CampaignLeadSelect = typeof campaignLeads.$inferSelect;
 
 export type Module = typeof modules[number];
 
