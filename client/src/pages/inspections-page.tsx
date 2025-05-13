@@ -348,6 +348,7 @@ export default function InspectionsPage() {
     pressure: string;
     duration: string;
     medium: string;
+    pressureGauge: string;
     operator: string;
     testDate: string;
     result: string;
@@ -357,6 +358,7 @@ export default function InspectionsPage() {
     pressure: '10.0',
     duration: '30',
     medium: 'water',
+    pressureGauge: '',
     operator: '',
     testDate: '',
     result: 'Pass',
@@ -368,6 +370,7 @@ export default function InspectionsPage() {
     pressure: string;
     duration: string;
     medium: string;
+    pressureGauge: string;
     operator: string;
     testDate: string;
     result: string;
@@ -679,6 +682,7 @@ export default function InspectionsPage() {
         pressure: '10.0',
         duration: '30',
         medium: 'water',
+        pressureGauge: '',
         operator: '',
         testDate: '',
         result: 'Pass',
@@ -1081,6 +1085,39 @@ export default function InspectionsPage() {
       return response.json();
     },
     enabled: !!editInspectionOrderDetails?.projectId,
+  });
+  
+  // Fetch calibration instruments (pressure gauges) for the dropdown
+  const {
+    data: calibrationInstruments = [],
+    isLoading: isLoadingInstruments,
+  } = useQuery<{
+    id: number;
+    instrument_id: string;
+    instrument_name: string;
+    instrument_type: string;
+    calibration_status: string;
+  }[]>({
+    queryKey: ['/api/testapi/calibration/direct-instruments'],
+    queryFn: async () => {
+      const response = await fetch('/api/testapi/calibration/direct-instruments', {
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch calibration instruments");
+      }
+      
+      const data = await response.json();
+      return data.filter((instrument: any) => 
+        instrument.instrument_type.toLowerCase().includes('pressure') || 
+        instrument.instrument_type.toLowerCase().includes('gauge')
+      );
+    },
   });
 
   // Fetch details for a specific inspection order for viewing
@@ -4187,6 +4224,7 @@ export default function InspectionsPage() {
                               <TableHead>Pressure (bar)</TableHead>
                               <TableHead>Duration (min)</TableHead>
                               <TableHead>Medium</TableHead>
+                              <TableHead>Pressure Gauge</TableHead>
                               <TableHead>Operator</TableHead>
                               <TableHead>Date</TableHead>
                               <TableHead>Result</TableHead>
