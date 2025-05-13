@@ -584,7 +584,8 @@ export default function CalibrationManagementPage() {
         formData.append('certificate', certificateFile);
         
         // Use the regular update endpoint that handles file uploads
-        const uploadResponse = await fetch(`/api/quality/calibration/instruments/${selectedInstrument.id}`, {
+        const url = '/api/quality/calibration/instruments/' + selectedInstrument.id;
+        const uploadResponse = await fetch(url, {
           method: 'PUT',
           body: formData
         });
@@ -603,7 +604,8 @@ export default function CalibrationManagementPage() {
         // For non-file updates, use the standalone direct update endpoint
         console.log("No certificate file, using direct update endpoint");
         
-        const directResponse = await fetch(`/api/standalone/direct-update-instrument/${selectedInstrument.id}`, {
+        const directUrl = '/api/standalone/direct-update-instrument/' + selectedInstrument.id;
+        const directResponse = await fetch(directUrl, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
