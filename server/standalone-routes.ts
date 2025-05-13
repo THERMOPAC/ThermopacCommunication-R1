@@ -86,10 +86,11 @@ router.put('/direct-update-instrument/:id', async (req: Request, res: Response) 
     );
     
     if (instrumentCheck.rows.length === 0) {
-      return res.status(404).end(JSON.stringify({ 
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(404).json({ 
         success: false, 
         error: 'Calibration instrument not found' 
-      }));
+      });
     }
     
     // Build update query
@@ -147,20 +148,22 @@ router.put('/direct-update-instrument/:id', async (req: Request, res: Response) 
     
     console.log('[STANDALONE] Update successful');
     
-    // Return the updated instrument
-    return res.status(200).end(JSON.stringify({
+    // Return the updated instrument with proper headers and JSON formatting
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).json({
       success: true,
       message: 'Calibration instrument updated successfully',
       data: result.rows[0]
-    }));
+    });
   } catch (error) {
     console.error('[STANDALONE] Error updating instrument:', error);
     
-    return res.status(500).end(JSON.stringify({
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(500).json({
       success: false,
       error: 'Failed to update calibration instrument',
       details: error instanceof Error ? error.message : String(error)
-    }));
+    });
   }
 });
 

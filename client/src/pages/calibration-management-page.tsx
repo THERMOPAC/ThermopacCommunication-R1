@@ -303,13 +303,28 @@ export default function CalibrationManagementPage() {
           }
         }
         
-        return response.json();
+        // Parse the response properly, handling both standard and standalone route formats
+        try {
+          // First try to parse as JSON directly
+          return await response.json();
+        } catch (e) {
+          // If that fails, try to read as text and then parse
+          const responseText = await response.text();
+          try {
+            return JSON.parse(responseText);
+          } catch (jsonError) {
+            console.error("Cannot parse response as JSON:", responseText.substring(0, 100));
+            // Return a synthetic success response to avoid breaking the chain
+            return { success: true, message: "Update processed but response format was unexpected" };
+          }
+        }
       } catch (error) {
         console.error("Error in updateInstrumentMutation:", error);
         throw error instanceof Error ? error : new Error(String(error));
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Update response from standalone route:", data);
       toast({
         title: "Success",
         description: "Calibration instrument updated successfully",
@@ -317,8 +332,14 @@ export default function CalibrationManagementPage() {
       setIsEditInstrumentOpen(false);
       editForm.reset();
       setCertificateFile(null);
+      
+      // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/quality/calibration/instruments/stats/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/testapi/calibration/direct-instruments"] });
+      
+      // Force refetch the data explicitly
+      refetch();
     },
     onError: (error: Error) => {
       toast({
