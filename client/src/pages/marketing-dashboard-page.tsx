@@ -53,16 +53,15 @@ const LEAD_SOURCE_COLORS = [
   "#8884d8", // Google Ads
   "#82ca9d", // Website
   "#ffc658", // Referral
-  "#ff8042", // Exhibition
-  "#0088fe"  // Direct Contact
+  "#ff8042", // Cold Call
+  "#0088fe"  // Event
 ];
 
 const LEAD_STATUS_COLORS = {
-  "New": "#3b82f6",
-  "Contacted": "#10b981",
-  "Qualified": "#8b5cf6",
-  "Proposal": "#f59e0b",
-  "Negotiation": "#ec4899",
+  "New": "#8884d8",
+  "Contacted": "#82ca9d",
+  "Qualified": "#ffc658",
+  "Negotiation": "#ff8042",
   "Won": "#22c55e",
   "Lost": "#ef4444"
 };
@@ -143,7 +142,13 @@ export default function MarketingDashboardPage() {
     }));
   }, [leadsData]);
 
-  // Convert leads to monthly trends
+  // Count active campaigns
+  const activeCampaignsCount = React.useMemo(() => {
+    if (!campaignsData || campaignsData.length === 0) return 0;
+    return campaignsData.filter((campaign: any) => campaign.status === "Active").length;
+  }, [campaignsData]);
+
+  // Create monthly lead trend data
   const leadMonthlyTrends = React.useMemo(() => {
     if (!leadsData || leadsData.length === 0) return [];
     
@@ -302,37 +307,46 @@ export default function MarketingDashboardPage() {
   const campaignStatusData = React.useMemo(() => {
     if (!campaignsData || campaignsData.length === 0) return [];
     
-    const statusCount: Record<string, number> = {};
+    const statusCount: Record<string, number> = {
+      "Planned": 0,
+      "Active": 0,
+      "Completed": 0,
+      "Cancelled": 0
+    };
     
     campaignsData.forEach((campaign: any) => {
-      if (!statusCount[campaign.status]) {
-        statusCount[campaign.status] = 0;
-      }
       statusCount[campaign.status]++;
     });
     
-    return Object.entries(statusCount).map(([name, value]) => ({
-      name,
-      value
-    }));
-  }, [campaignsData]);
-
-  // Get active campaigns count
-  const activeCampaignsCount = React.useMemo(() => {
-    if (!campaignsData) return 0;
-    return campaignsData.filter((campaign: any) => campaign.status === "Active").length;
+    return Object.entries(statusCount)
+      .filter(([_, value]) => value > 0) // Only include statuses with campaigns
+      .map(([name, value]) => ({
+        name,
+        value
+      }));
   }, [campaignsData]);
 
   return (
     <Layout>
-      <div className="p-4 md:p-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Marketing Dashboard</h1>
-          <p className="text-muted-foreground">Overview of your sales and marketing performance</p>
+      <div className="p-4 md:p-6 space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Marketing Dashboard</h1>
+            <p className="text-muted-foreground">Track your marketing performance and lead generation</p>
+          </div>
+          
+          <Tabs defaultValue="overview" className="w-[400px]">
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+              <TabsTrigger value="leads">Leads</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Lead Count Card */}
+        
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Total Leads Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
@@ -345,7 +359,7 @@ export default function MarketingDashboardPage() {
                 <div className="text-2xl font-bold">{leadsData?.length || 0}</div>
               )}
               <p className="text-xs text-muted-foreground">
-                from all sources
+                leads in the system
               </p>
             </CardContent>
           </Card>
@@ -416,6 +430,57 @@ export default function MarketingDashboardPage() {
               </p>
             </CardContent>
           </Card>
+          
+          {/* Expected Revenue Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Expected Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoadingLeads || isLoadingRates ? (
+                <Skeleton className="h-7 w-full" />
+              ) : (
+                <div>
+                  <div className="text-lg font-bold flex flex-col gap-0">
+                    {expectedRevenueStats.totalUSD > 0 && (
+                      <span>USD {formatCurrency(expectedRevenueStats.totalUSD, 'USD')}</span>
+                    )}
+                    {expectedRevenueStats.totalEUR > 0 && (
+                      <span>EUR {formatCurrency(expectedRevenueStats.totalEUR, 'EUR')}</span>
+                    )}
+                  </div>
+                  <div className="text-sm font-medium mt-1 text-green-600">
+                    ~INR {formatCurrency(expectedRevenueStats.totalINR, 'INR')}
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1 flex items-center justify-between">
+                <span>Based on probability</span>
+                {lastUpdated && (
+                  <button 
+                    className="flex items-center text-xs text-blue-500 hover:text-blue-700" 
+                    onClick={async () => {
+                      setIsLoadingRates(true);
+                      try {
+                        const rates = await fetchExchangeRates();
+                        setExchangeRates(rates);
+                        setLastUpdated(new Date());
+                      } catch (error) {
+                        console.error("Failed to refresh rates:", error);
+                      } finally {
+                        setIsLoadingRates(false);
+                      }
+                    }}
+                    disabled={isLoadingRates}
+                  >
+                    <RefreshCw className={`h-3 w-3 mr-1 ${isLoadingRates ? 'animate-spin' : ''}`} />
+                    {isLoadingRates ? 'Updating...' : 'Refresh'}
+                  </button>
+                )}
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -425,10 +490,10 @@ export default function MarketingDashboardPage() {
               <CardTitle>Lead Generation Trends</CardTitle>
               <CardDescription>Monthly lead acquisition over time</CardDescription>
             </CardHeader>
-            <CardContent className="h-80">
+            <CardContent className="h-[300px]">
               {isLoadingLeads ? (
                 <div className="flex items-center justify-center h-full">
-                  <Skeleton className="h-64 w-full" />
+                  <Skeleton className="h-[250px] w-full" />
                 </div>
               ) : leadMonthlyTrends.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -438,133 +503,21 @@ export default function MarketingDashboardPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={leadMonthlyTrends}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                    <XAxis 
-                      dataKey="month" 
-                      tick={{ fontSize: 12 }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={60}
-                    />
-                    <YAxis 
-                      width={30}
-                      tick={{ fontSize: 12 }}
-                    >
-                      <Label
-                        value="Leads"
-                        angle={-90}
-                        position="insideLeft"
-                        style={{ textAnchor: 'middle', fontSize: 12 }}
-                      />
-                    </YAxis>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
                     <Tooltip />
                     <Legend />
                     <Line
                       type="monotone"
                       dataKey="leads"
                       stroke="#8884d8"
-                      strokeWidth={2}
                       activeDot={{ r: 8 }}
-                      name="Lead Count"
+                      name="Leads"
                     />
                   </LineChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Lead Sources Chart */}
-          <Card className="col-span-1">
-            <CardHeader>
-              <CardTitle>Lead Sources</CardTitle>
-              <CardDescription>Distribution of leads by source</CardDescription>
-            </CardHeader>
-            <CardContent className="h-80">
-              {isLoadingLeads ? (
-                <div className="flex items-center justify-center h-full">
-                  <Skeleton className="h-64 w-full" />
-                </div>
-              ) : leadSourceData.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  No lead source data available
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={leadSourceData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={true}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                      nameKey="name"
-                    >
-                      {leadSourceData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={LEAD_SOURCE_COLORS[index % LEAD_SOURCE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(value, name) => [`${value} leads`, `Source: ${name}`]}
-                    />
-                    <Legend layout="horizontal" verticalAlign="bottom" align="center" />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Lead Status Chart */}
-          <Card className="col-span-1">
-            <CardHeader>
-              <CardTitle>Lead Status Distribution</CardTitle>
-              <CardDescription>Breakdown of leads by current status</CardDescription>
-            </CardHeader>
-            <CardContent className="h-80">
-              {isLoadingLeads ? (
-                <div className="flex items-center justify-center h-full">
-                  <Skeleton className="h-64 w-full" />
-                </div>
-              ) : leadStatusData.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  No lead status data available
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart 
-                    data={leadStatusData}
-                    layout="vertical"
-                    margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.1} horizontal={true} vertical={false} />
-                    <XAxis type="number" tick={{ fontSize: 12 }} />
-                    <YAxis 
-                      dataKey="name" 
-                      type="category" 
-                      tick={{ fontSize: 12 }}
-                      width={75}
-                    />
-                    <Tooltip formatter={(value) => [`${value} leads`, 'Count']} />
-                    <Legend />
-                    <Bar 
-                      dataKey="value" 
-                      name="Lead Count"
-                      fill="#8884d8"
-                    >
-                      {leadStatusData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={LEAD_STATUS_COLORS[entry.name as keyof typeof LEAD_STATUS_COLORS] || "#8884d8"} 
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
                 </ResponsiveContainer>
               )}
             </CardContent>
@@ -574,184 +527,125 @@ export default function MarketingDashboardPage() {
           <Card className="col-span-1">
             <CardHeader>
               <CardTitle>Campaign Performance</CardTitle>
-              <CardDescription>Expected vs. actual leads for top campaigns</CardDescription>
+              <CardDescription>Expected vs actual lead generation</CardDescription>
             </CardHeader>
-            <CardContent className="h-80">
+            <CardContent className="h-[300px]">
               {isLoadingCampaigns ? (
                 <div className="flex items-center justify-center h-full">
-                  <Skeleton className="h-64 w-full" />
+                  <Skeleton className="h-[250px] w-full" />
                 </div>
               ) : campaignPerformanceData.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
-                  No campaign performance data available
+                  No campaign data available
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
+                    layout="vertical"
                     data={campaignPerformanceData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                    <XAxis 
-                      dataKey="name"
-                      tick={{ fontSize: 12 }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={70}
-                    />
-                    <YAxis tick={{ fontSize: 12 }} />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis type="category" dataKey="name" width={100} />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="expected" name="Expected Leads" fill="#8884d8" />
-                    <Bar dataKey="actual" name="Actual Leads" fill="#82ca9d" />
+                    <Bar dataKey="expected" fill="#8884d8" name="Expected Leads" />
+                    <Bar dataKey="actual" fill="#82ca9d" name="Actual Leads" />
                   </BarChart>
                 </ResponsiveContainer>
               )}
             </CardContent>
           </Card>
+
+          {/* Lead Source Distribution Chart */}
+          <Card className="col-span-1">
+            <CardHeader>
+              <CardTitle>Lead Source Distribution</CardTitle>
+              <CardDescription>Where your leads are coming from</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              {isLoadingLeads ? (
+                <div className="flex items-center justify-center h-full">
+                  <Skeleton className="h-[250px] w-full" />
+                </div>
+              ) : leadSourceData.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No lead data available
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={leadSourceData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={true}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      nameKey="name"
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {leadSourceData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={LEAD_SOURCE_COLORS[index % LEAD_SOURCE_COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value, name) => [value, name]} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Lead Status Distribution Chart */}
+          <Card className="col-span-1">
+            <CardHeader>
+              <CardTitle>Lead Status Distribution</CardTitle>
+              <CardDescription>Current status of your leads</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              {isLoadingLeads ? (
+                <div className="flex items-center justify-center h-full">
+                  <Skeleton className="h-[250px] w-full" />
+                </div>
+              ) : leadStatusData.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No lead data available
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={leadStatusData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={true}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      nameKey="name"
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {leadStatusData.map((entry) => (
+                        <Cell
+                          key={`cell-${entry.name}`}
+                          fill={LEAD_STATUS_COLORS[entry.name as keyof typeof LEAD_STATUS_COLORS] || "#8884d8"}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value, name) => [value, name]} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
         </div>
-
-        {/* Campaign Status Distribution */}
-        <Tabs defaultValue="summary" className="w-full">
-          <TabsList>
-            <TabsTrigger value="summary">Campaign Summary</TabsTrigger>
-          </TabsList>
-          <TabsContent value="summary">
-            <div className="grid grid-cols-1 gap-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="col-span-1">
-                  <CardHeader>
-                    <CardTitle>Campaign Status Distribution</CardTitle>
-                    <CardDescription>Breakdown of campaigns by status</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-60">
-                    {isLoadingCampaigns ? (
-                      <div className="flex items-center justify-center h-full">
-                        <Skeleton className="h-48 w-full" />
-                      </div>
-                    ) : campaignStatusData.length === 0 ? (
-                      <div className="flex items-center justify-center h-full text-muted-foreground">
-                        No campaign data available
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-1">
-                          <ResponsiveContainer width="100%" height={200}>
-                            <PieChart>
-                              <Pie
-                                data={campaignStatusData}
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={60}
-                                fill="#8884d8"
-                                dataKey="value"
-                                nameKey="name"
-                              >
-                                {campaignStatusData.map((entry, index) => {
-                                  let color;
-                                  switch (entry.name) {
-                                    case "Planned": color = "#3b82f6"; break;
-                                    case "Active": color = "#10b981"; break;
-                                    case "Completed": color = "#8b5cf6"; break;
-                                    case "Cancelled": color = "#ef4444"; break;
-                                    default: color = "#6b7280";
-                                  }
-                                  return <Cell key={`cell-${index}`} fill={color} />;
-                                })}
-                              </Pie>
-                              <Tooltip formatter={(value) => [`${value} campaigns`, 'Count']} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <div className="col-span-1 flex flex-col justify-center">
-                          {campaignStatusData.map((status, index) => {
-                            let bgColor;
-                            switch (status.name) {
-                              case "Planned": bgColor = "bg-blue-500"; break;
-                              case "Active": bgColor = "bg-green-500"; break;
-                              case "Completed": bgColor = "bg-purple-500"; break;
-                              case "Cancelled": bgColor = "bg-red-500"; break;
-                              default: bgColor = "bg-gray-500";
-                            }
-                            return (
-                              <div key={index} className="flex items-center justify-between mb-2">
-                                <div className="flex items-center">
-                                  <Badge className={bgColor}>{status.name}</Badge>
-                                </div>
-                                <span className="text-sm font-medium">{status.value}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="col-span-1">
-                  <CardHeader>
-                    <CardTitle>Recent Campaigns</CardTitle>
-                    <CardDescription>Latest marketing campaigns</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {isLoadingCampaigns ? (
-                      <div className="space-y-4">
-                        {[1, 2, 3].map((i) => (
-                          <div key={i} className="flex gap-4">
-                            <Skeleton className="h-12 w-12 rounded-full" />
-                            <div className="space-y-2 flex-1">
-                              <Skeleton className="h-4 w-full" />
-                              <Skeleton className="h-4 w-3/4" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : !campaignsData || campaignsData.length === 0 ? (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <p>No campaigns available.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {campaignsData
-                          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                          .slice(0, 5)
-                          .map((campaign: any) => {
-                            let badgeColor;
-                            switch (campaign.status) {
-                              case "Planned": badgeColor = "bg-blue-500"; break;
-                              case "Active": badgeColor = "bg-green-500"; break;
-                              case "Completed": badgeColor = "bg-purple-500"; break;
-                              case "Cancelled": badgeColor = "bg-red-500"; break;
-                              default: badgeColor = "bg-gray-500";
-                            }
-                            return (
-                              <div key={campaign.id} className="flex justify-between items-start border-b pb-3 last:border-0 last:pb-0">
-                                <div>
-                                  <p className="font-medium">{campaign.name}</p>
-                                  <p className="text-sm">{campaign.channelName}</p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <Calendar className="h-3 w-3 text-muted-foreground" />
-                                    <p className="text-xs text-muted-foreground">
-                                      {new Date(campaign.startDate).toLocaleDateString('en-US', {
-                                        day: 'numeric',
-                                        month: 'short',
-                                        year: 'numeric'
-                                      })}
-                                    </p>
-                                  </div>
-                                </div>
-                                <Badge className={badgeColor}>{campaign.status}</Badge>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
       </div>
     </Layout>
   );
