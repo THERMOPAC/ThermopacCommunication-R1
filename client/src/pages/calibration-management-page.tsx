@@ -564,18 +564,47 @@ export default function CalibrationManagementPage() {
     try {
       console.log("Editing instrument with values:", values);
       
-      // Call standalone direct update endpoint to avoid middleware issues
-      const response = await fetch(`/api/standalone/direct-update-instrument/${selectedInstrument.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(values)
-      });
-      
-      // Log response details for debugging
-      console.log("Direct update response status:", response.status);
+      // If we have a certificate file, we need to use FormData and the regular upload endpoint
+      if (certificateFile) {
+        console.log("Certificate file detected, using FormData upload with file:", certificateFile.name);
+        
+        // Create form data for file upload
+        const formData = new FormData();
+        
+        // Add form values
+        Object.entries(values).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            formData.append(key, value.toString());
+          }
+        });
+        
+        // Add the certificate file
+        formData.append('certificate', certificateFile);
+        
+        // Use the regular update endpoint that handles file uploads
+        const response = await fetch(`/api/quality/calibration/instruments/${selectedInstrument.id}`, {
+          method: 'PUT',
+          body: formData
+        });
+        
+        // Log response details for debugging
+        console.log("File upload update response status:", response.status);
+        return await response.json();
+      } else {
+        // For non-file updates, use the standalone direct update endpoint
+        console.log("No certificate file, using direct update endpoint");
+        
+        const response = await fetch(`/api/standalone/direct-update-instrument/${selectedInstrument.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(values)
+        });
+        
+        // Log response details for debugging
+        console.log("Direct update response status:", response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
