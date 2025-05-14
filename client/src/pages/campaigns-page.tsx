@@ -261,29 +261,52 @@ export default function CampaignsPage() {
 
   // Function to format date strings
   const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    try {
+      if (!dateString) return "-";
+      const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string:', dateString);
+        return "-";
+      }
+      
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return "-";
+    }
   };
 
   // Calculate campaign completion percentage
   const calculateProgress = (campaign: Campaign) => {
-    if (campaign.status === "Completed") return 100;
-    if (campaign.status === "Cancelled") return 0;
-    if (!campaign.startDate || !campaign.endDate) return 0;
-    
-    const start = new Date(campaign.startDate).getTime();
-    const end = new Date(campaign.endDate).getTime();
-    const now = new Date().getTime();
-    
-    if (now <= start) return 0;
-    if (now >= end) return 100;
-    
-    return Math.round(((now - start) / (end - start)) * 100);
+    try {
+      if (campaign.status === "Completed") return 100;
+      if (campaign.status === "Cancelled") return 0;
+      if (!campaign.startDate || !campaign.endDate) return 0;
+      
+      const start = new Date(campaign.startDate).getTime();
+      const end = new Date(campaign.endDate).getTime();
+      const now = new Date().getTime();
+      
+      // Validate that we have valid timestamps
+      if (isNaN(start) || isNaN(end) || isNaN(now)) {
+        console.warn('Invalid date detected in campaign', campaign.id);
+        return 0;
+      }
+      
+      if (now <= start) return 0;
+      if (now >= end) return 100;
+      
+      return Math.round(((now - start) / (end - start)) * 100);
+    } catch (error) {
+      console.error('Error calculating progress:', error);
+      return 0;
+    }
   };
 
   // Get status badge color
@@ -638,7 +661,7 @@ export default function CampaignsPage() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1 whitespace-nowrap">
-                                  <span>{formatDate(campaign.startDate)}</span>
+                                  <span>{campaign.startDate ? formatDate(campaign.startDate) : "-"}</span>
                                   {campaign.endDate && (
                                     <>
                                       <span className="text-muted-foreground">-</span>
