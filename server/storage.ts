@@ -2786,13 +2786,36 @@ export class DatabaseStorage implements IStorage {
   
   async updateLead(id: number, updateData: Partial<LeadSelect>): Promise<LeadSelect> {
     console.log(`Updating lead ${id} with data:`, updateData);
+    
+    // Add specific logging for the estimatedCloseDate field
+    console.log(`Estimated close date before update: ${updateData.estimatedCloseDate}`);
+    console.log(`Estimated close date type: ${typeof updateData.estimatedCloseDate}`);
+    
+    // Ensure estimatedCloseDate is properly handled
+    let processedData = { ...updateData };
+    if (processedData.estimatedCloseDate) {
+      // If it's a string, try to parse it as a date
+      if (typeof processedData.estimatedCloseDate === 'string') {
+        try {
+          const dateObj = new Date(processedData.estimatedCloseDate);
+          console.log(`Parsed date: ${dateObj.toISOString()}`);
+          // Keep it as a string in YYYY-MM-DD format
+          processedData.estimatedCloseDate = processedData.estimatedCloseDate;
+        } catch (e) {
+          console.error(`Error parsing date: ${e}`);
+        }
+      }
+    }
+    
     const updatedLead = await db.update(leads)
       .set({
-        ...updateData,
+        ...processedData,
         updatedAt: new Date()
       })
       .where(eq(leads.id, id))
       .returning();
+      
+    console.log(`Updated lead: `, updatedLead[0]);
     return updatedLead[0];
   }
   
