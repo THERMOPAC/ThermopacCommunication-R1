@@ -101,3 +101,20 @@ export const formatCurrency = (amount: number, currencyCode: string): string => 
     return `${currencyCode} ${amount.toFixed(2)}`;
   }
 };
+
+/**
+ * Format INR amount in crores for large values
+ * 1 crore = 10,000,000 (10 million)
+ */
+export const formatINRInCrores = (amount: number): string => {
+  if (amount >= 10000000) { // 1 crore or more
+    const crores = amount / 10000000;
+    return `₹${crores.toFixed(2)} Cr`;
+  } else if (amount >= 100000) { // 1 lakh or more
+    const lakhs = amount / 100000;
+    return `₹${lakhs.toFixed(2)} L`;
+  } else {
+    // For smaller amounts, use the regular formatter
+    return formatCurrency(amount, 'INR');
+  }
+};

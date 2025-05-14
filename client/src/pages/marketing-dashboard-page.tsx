@@ -45,7 +45,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { fetchExchangeRates, convertCurrency, formatCurrency } from "@/lib/currencyConverter";
+import { fetchExchangeRates, convertCurrency, formatCurrency, formatINRInCrores } from "@/lib/currencyConverter";
 
 // Sample data for the dashboard
 // In a real implementation, this would come from the API
@@ -471,7 +471,7 @@ export default function MarketingDashboardPage() {
                     )}
                   </div>
                   <div className="text-sm font-medium mt-1 text-green-600">
-                    ~INR {formatCurrency(expectedRevenueStats.totalINR, 'INR')}
+                    ~INR {formatINRInCrores(expectedRevenueStats.totalINR)}
                   </div>
                 </div>
               )}
@@ -525,7 +525,7 @@ export default function MarketingDashboardPage() {
                   </div>
                   {ordersData?.totalValueINR > 0 && (
                     <div className="text-sm font-medium mt-1 text-green-600">
-                      ~INR {formatCurrency(ordersData.totalValueINR, 'INR')}
+                      ~INR {formatINRInCrores(ordersData.totalValueINR)}
                     </div>
                   )}
                 </div>
