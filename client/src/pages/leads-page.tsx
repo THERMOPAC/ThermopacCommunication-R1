@@ -449,7 +449,7 @@ export default function LeadsPage() {
       statusId: lead.statusId ? lead.statusId.toString() : "1", // Default to first status
       notes: lead.notes || "",
       probability: lead.probability ? lead.probability.toString() : "",
-      estimatedCloseDate: lead.estimatedCloseDate ? new Date(lead.estimatedCloseDate).toISOString().split('T')[0] : "",
+      expectedCloseDate: lead.expectedCloseDate ? new Date(lead.expectedCloseDate).toISOString().split('T')[0] : "",
       assignedTo: lead.assignedTo ? lead.assignedTo.toString() : "",
     });
     
@@ -649,12 +649,12 @@ export default function LeadsPage() {
                     </div>
                   )}
                   
-                  {selectedLead.estimatedCloseDate && (
+                  {selectedLead.expectedCloseDate && (
                     <div className="flex items-center gap-2">
                       <Calendar className="h-5 w-5 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-medium">Estimated Close Date</p>
-                        <p className="text-sm">{formatDate(selectedLead.estimatedCloseDate)}</p>
+                        <p className="text-sm font-medium">Expected Close Date</p>
+                        <p className="text-sm">{formatDate(selectedLead.expectedCloseDate)}</p>
                       </div>
                     </div>
                   )}
@@ -806,11 +806,11 @@ export default function LeadsPage() {
                             </span>
                           </div>
                           
-                          {/* Estimated Close Date */}
+                          {/* Expected Close Date */}
                           <div className="flex-shrink-0 w-1/8 mr-2">
                             <span className="text-sm">
-                              {lead.estimatedCloseDate ? 
-                                new Date(lead.estimatedCloseDate).toLocaleDateString() : 
+                              {lead.expectedCloseDate ? 
+                                new Date(lead.expectedCloseDate).toLocaleDateString() : 
                                 'Not set'}
                             </span>
                           </div>
