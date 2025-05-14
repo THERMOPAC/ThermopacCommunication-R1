@@ -178,11 +178,16 @@ export default function LeadsPage() {
         }
       }
       
-      // Ensure expectedCloseDate is properly formatted
+      // Ensure expectedCloseDate is properly formatted and convert types as needed
       const formattedData = {
         ...finalData,
+        // Convert sourceId and statusId from string to number
+        sourceId: finalData.sourceId ? parseInt(finalData.sourceId) : undefined,
+        statusId: finalData.statusId ? parseInt(finalData.statusId) : undefined,
         // Make sure the date is in YYYY-MM-DD format for the server
-        expectedCloseDate: finalData.expectedCloseDate ? finalData.expectedCloseDate : null
+        expectedCloseDate: finalData.expectedCloseDate ? finalData.expectedCloseDate : null,
+        // Convert probability to number if it exists
+        probability: finalData.probability ? parseInt(finalData.probability) : undefined
       };
       
       console.log('Creating lead with data:', formattedData);
@@ -363,10 +368,10 @@ export default function LeadsPage() {
       ...data,
       expectedRevenue: data.expectedRevenue || null,
       probability: data.probability ? parseInt(data.probability) : null,
-      // Ensure values exist before parsing
-      sourceId: data.sourceId ? data.sourceId : '1',  // Default to first source if none selected
-      statusId: data.statusId ? data.statusId : '1',  // Default to first status if none selected
-      assignedTo: data.assignedTo ? data.assignedTo : null,
+      // Convert ID strings to numbers and ensure values exist
+      sourceId: data.sourceId ? parseInt(data.sourceId) : 1,  // Default to first source if none selected
+      statusId: data.statusId ? parseInt(data.statusId) : 1,  // Default to first status if none selected
+      assignedTo: data.assignedTo ? (data.assignedTo === 'null' ? null : parseInt(data.assignedTo)) : null,
     };
     createLeadMutation.mutate(formattedData);
   };
@@ -380,10 +385,10 @@ export default function LeadsPage() {
       ...data,
       expectedRevenue: data.expectedRevenue || null,
       probability: data.probability ? parseInt(data.probability) : null,
-      // Ensure values exist before using them
-      sourceId: data.sourceId ? data.sourceId : '1',  // Default to first source if none selected
-      statusId: data.statusId ? data.statusId : '1',  // Default to first status if none selected
-      assignedTo: data.assignedTo ? data.assignedTo : null,
+      // Convert ID strings to numbers and ensure values exist
+      sourceId: data.sourceId ? parseInt(data.sourceId) : 1,  // Default to first source if none selected
+      statusId: data.statusId ? parseInt(data.statusId) : 1,  // Default to first status if none selected
+      assignedTo: data.assignedTo ? (data.assignedTo === 'null' ? null : parseInt(data.assignedTo)) : null,
     };
     
     updateLeadMutation.mutate({ id: selectedLead.id, formData: formattedData });
