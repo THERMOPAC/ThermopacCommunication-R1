@@ -2787,20 +2787,20 @@ export class DatabaseStorage implements IStorage {
   async updateLead(id: number, updateData: Partial<LeadSelect>): Promise<LeadSelect> {
     console.log(`Updating lead ${id} with data:`, updateData);
     
-    // Add specific logging for the expectedCloseDate field
-    console.log(`Estimated close date before update: ${updateData.expectedCloseDate}`);
-    console.log(`Estimated close date type: ${typeof updateData.expectedCloseDate}`);
+    // Add specific logging for the estimatedCloseDate field
+    console.log(`Estimated close date before update: ${updateData.estimatedCloseDate}`);
+    console.log(`Estimated close date type: ${typeof updateData.estimatedCloseDate}`);
     
-    // Ensure expectedCloseDate is properly handled
+    // Ensure estimatedCloseDate is properly handled
     let processedData = { ...updateData };
-    if (processedData.expectedCloseDate) {
+    if (processedData.estimatedCloseDate) {
       // If it's a string, try to parse it as a date
-      if (typeof processedData.expectedCloseDate === 'string') {
+      if (typeof processedData.estimatedCloseDate === 'string') {
         try {
-          const dateObj = new Date(processedData.expectedCloseDate);
+          const dateObj = new Date(processedData.estimatedCloseDate);
           console.log(`Parsed date: ${dateObj.toISOString()}`);
           // Keep it as a string in YYYY-MM-DD format
-          processedData.expectedCloseDate = processedData.expectedCloseDate;
+          processedData.estimatedCloseDate = processedData.estimatedCloseDate;
         } catch (e) {
           console.error(`Error parsing date: ${e}`);
         }
