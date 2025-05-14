@@ -245,6 +245,17 @@ export default function CampaignsPage() {
         ...data,
         channelId: data.channelId ? parseInt(data.channelId) : null,
         expectedLeadCount: data.expectedLeadCount ? parseInt(data.expectedLeadCount) : null,
+        // Convert performance metrics to numbers
+        ctr: data.ctr ? parseFloat(data.ctr) : null,
+        cpc: data.cpc ? parseFloat(data.cpc) : null,
+        conversions: data.conversions ? parseInt(data.conversions) : null,
+        conversionRate: data.conversionRate ? parseFloat(data.conversionRate) : null,
+        cpa: data.cpa ? parseFloat(data.cpa) : null,
+        impressions: data.impressions ? parseInt(data.impressions) : null,
+        qualityScore: data.qualityScore ? parseFloat(data.qualityScore) : null,
+        roas: data.roas ? parseFloat(data.roas) : null,
+        impressionShare: data.impressionShare ? parseFloat(data.impressionShare) : null,
+        bounceRate: data.bounceRate ? parseFloat(data.bounceRate) : null,
       };
       createCampaignMutation.mutate(formattedData);
     } catch (error) {
@@ -267,6 +278,17 @@ export default function CampaignsPage() {
         ...data,
         channelId: data.channelId ? parseInt(data.channelId) : null,
         expectedLeadCount: data.expectedLeadCount ? parseInt(data.expectedLeadCount) : null,
+        // Convert performance metrics to numbers
+        ctr: data.ctr ? parseFloat(data.ctr) : null,
+        cpc: data.cpc ? parseFloat(data.cpc) : null,
+        conversions: data.conversions ? parseInt(data.conversions) : null,
+        conversionRate: data.conversionRate ? parseFloat(data.conversionRate) : null,
+        cpa: data.cpa ? parseFloat(data.cpa) : null,
+        impressions: data.impressions ? parseInt(data.impressions) : null,
+        qualityScore: data.qualityScore ? parseFloat(data.qualityScore) : null,
+        roas: data.roas ? parseFloat(data.roas) : null,
+        impressionShare: data.impressionShare ? parseFloat(data.impressionShare) : null,
+        bounceRate: data.bounceRate ? parseFloat(data.bounceRate) : null,
       };
       
       updateCampaignMutation.mutate({ id: selectedCampaign.id, formData: formattedData });
@@ -319,7 +341,17 @@ export default function CampaignsPage() {
         })() : "",
       budget: campaign.budget || "",
       targetAudience: campaign.targetAudience || "",
-      kpis: campaign.kpis || "",
+      // Performance metrics fields
+      ctr: campaign.ctr ? campaign.ctr.toString() : "",
+      cpc: campaign.cpc ? campaign.cpc.toString() : "",
+      conversions: campaign.conversions ? campaign.conversions.toString() : "",
+      conversionRate: campaign.conversionRate ? campaign.conversionRate.toString() : "",
+      cpa: campaign.cpa ? campaign.cpa.toString() : "",
+      impressions: campaign.impressions ? campaign.impressions.toString() : "",
+      qualityScore: campaign.qualityScore ? campaign.qualityScore.toString() : "",
+      roas: campaign.roas ? campaign.roas.toString() : "",
+      impressionShare: campaign.impressionShare ? campaign.impressionShare.toString() : "",
+      bounceRate: campaign.bounceRate ? campaign.bounceRate.toString() : "",
       expectedLeadCount: campaign.expectedLeadCount ? campaign.expectedLeadCount.toString() : "",
       notes: campaign.notes || "",
     });
@@ -513,15 +545,110 @@ export default function CampaignsPage() {
                     </div>
                   )}
                   
-                  {selectedCampaign.kpis && (
-                    <div className="flex items-center gap-2">
-                      <Target className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">KPIs</p>
-                        <p>{selectedCampaign.kpis}</p>
-                      </div>
+                  <div className="mt-4">
+                    <h3 className="text-base font-medium mb-3">Performance Metrics</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {selectedCampaign.ctr !== null && (
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">CTR</p>
+                            <p>{selectedCampaign.ctr}%</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedCampaign.cpc !== null && (
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">CPC</p>
+                            <p>${selectedCampaign.cpc}</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedCampaign.conversions !== null && (
+                        <div className="flex items-center gap-2">
+                          <BarChart className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">Conversions</p>
+                            <p>{selectedCampaign.conversions}</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedCampaign.conversionRate !== null && (
+                        <div className="flex items-center gap-2">
+                          <Target className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">Conversion Rate</p>
+                            <p>{selectedCampaign.conversionRate}%</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedCampaign.cpa !== null && (
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">CPA</p>
+                            <p>${selectedCampaign.cpa}</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedCampaign.impressions !== null && (
+                        <div className="flex items-center gap-2">
+                          <Eye className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">Impressions</p>
+                            <p>{selectedCampaign.impressions}</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedCampaign.qualityScore !== null && (
+                        <div className="flex items-center gap-2">
+                          <BarChart className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">Quality Score</p>
+                            <p>{selectedCampaign.qualityScore}</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedCampaign.roas !== null && (
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">ROAS</p>
+                            <p>{selectedCampaign.roas}x</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedCampaign.impressionShare !== null && (
+                        <div className="flex items-center gap-2">
+                          <Eye className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">Impression Share</p>
+                            <p>{selectedCampaign.impressionShare}%</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedCampaign.bounceRate !== null && (
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5 text-muted-foreground rotate-180" />
+                          <div>
+                            <p className="text-sm font-medium">Bounce Rate</p>
+                            <p>{selectedCampaign.bounceRate}%</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                   
                   {selectedCampaign.expectedLeadCount && (
                     <div className="flex items-center gap-2">
@@ -946,19 +1073,150 @@ export default function CampaignsPage() {
                   )}
                 />
                 
-                <FormField
-                  control={createForm.control}
-                  name="kpis"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>KPIs</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. CTR, Conversion rate" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="border p-4 rounded-md mb-4 mt-2">
+                  <h4 className="text-base font-medium mb-3">Performance Metrics</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={createForm.control}
+                      name="ctr"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CTR (%)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g. 2.5" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={createForm.control}
+                      name="cpc"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CPC ($)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g. 1.25" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={createForm.control}
+                      name="conversions"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Conversions</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g. 45" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={createForm.control}
+                      name="conversionRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Conversion Rate (%)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g. 3.2" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={createForm.control}
+                      name="cpa"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CPA ($)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g. 25.50" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={createForm.control}
+                      name="impressions"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Impressions</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g. 10000" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={createForm.control}
+                      name="qualityScore"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Quality Score</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.1" placeholder="e.g. 7.5" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={createForm.control}
+                      name="roas"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>ROAS (x)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.1" placeholder="e.g. 3.5" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={createForm.control}
+                      name="impressionShare"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Impression Share (%)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g. 25.4" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={createForm.control}
+                      name="bounceRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bounce Rate (%)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g. 45.2" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
               </div>
               
               <FormField
