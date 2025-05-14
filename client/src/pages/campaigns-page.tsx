@@ -1073,9 +1073,9 @@ export default function CampaignsPage() {
                   )}
                 />
                 
-                <div className="border p-4 rounded-md mb-4 mt-2">
-                  <h4 className="text-base font-medium mb-3">Performance Metrics</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="border p-3 rounded-md mb-3 mt-2">
+                  <h4 className="text-base font-medium mb-2">Performance Metrics</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <FormField
                       control={createForm.control}
                       name="ctr"
@@ -1452,9 +1452,9 @@ export default function CampaignsPage() {
                   )}
                 />
                 
-                <div className="border p-4 rounded-md mb-4 mt-2">
-                  <h4 className="text-base font-medium mb-3">Performance Metrics</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="border p-3 rounded-md mb-3 mt-2">
+                  <h4 className="text-base font-medium mb-2">Performance Metrics</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <FormField
                       control={editForm.control}
                       name="ctr"
