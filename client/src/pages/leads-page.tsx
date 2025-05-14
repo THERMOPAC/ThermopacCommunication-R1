@@ -372,16 +372,48 @@ export default function LeadsPage() {
     updateLeadMutation.mutate({ id: selectedLead.id, formData: formattedData });
   };
 
+  // Transform the nested lead data structure returned from API
+  const processedLeads = React.useMemo(() => {
+    if (!Array.isArray(leads)) {
+      console.log('Leads is not an array:', leads);
+      return [];
+    }
+    
+    // Process and extract lead data from nested response
+    return leads.map((item: any) => {
+      if (!item || !item.lead) {
+        console.log('Invalid lead item:', item);
+        return null;
+      }
+      
+      // Extract the main lead data
+      const lead = item.lead;
+      
+      // Combine with related data
+      return {
+        ...lead,
+        sourceName: item.source?.name || 'Unknown',
+        statusName: item.status?.name || 'Unknown',
+        statusColor: item.status?.color || '#CCCCCC',
+        assignedToName: item.assignedTo?.username || null,
+        createdByName: 'System' // We'll need to update this if we track created by
+      };
+    }).filter(Boolean);
+  }, [leads]);
+  
   // Filter leads based on active tab
   const filteredLeads = React.useMemo(() => {
-    if (activeTab === "all") return leads;
-    return leads.filter((lead: Lead) => 
+    if (!processedLeads.length) return [];
+    
+    if (activeTab === "all") return processedLeads;
+    return processedLeads.filter((lead: Lead) => 
       lead.statusName.toLowerCase() === activeTab.toLowerCase()
     );
-  }, [leads, activeTab]);
+  }, [processedLeads, activeTab]);
 
   // Handle opening edit dialog
   const handleEditClick = (lead: Lead) => {
+    console.log('Editing lead:', lead);
     setSelectedLead(lead);
     
     // Reset and populate edit form with null safety checks
@@ -409,6 +441,7 @@ export default function LeadsPage() {
 
   // Function to handle viewing lead details
   const handleViewLead = (lead: Lead) => {
+    console.log('Viewing lead:', lead);
     setSelectedLead(lead);
     setIsViewingLead(true);
   };
