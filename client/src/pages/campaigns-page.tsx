@@ -915,7 +915,7 @@ export default function CampaignsPage() {
 
       {/* Create Campaign Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Campaign</DialogTitle>
             <DialogDescription>
@@ -924,7 +924,7 @@ export default function CampaignsPage() {
           </DialogHeader>
           
           <Form {...createForm}>
-            <form onSubmit={createForm.handleSubmit(onCreateCampaignSubmit)} className="space-y-6">
+            <form onSubmit={createForm.handleSubmit(onCreateCampaignSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-6">
                   <FormField
@@ -1294,7 +1294,7 @@ export default function CampaignsPage() {
 
       {/* Edit Campaign Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Campaign</DialogTitle>
             <DialogDescription>
@@ -1303,7 +1303,7 @@ export default function CampaignsPage() {
           </DialogHeader>
           
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditCampaignSubmit)} className="space-y-6">
+            <form onSubmit={editForm.handleSubmit(onEditCampaignSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-6">
                   <FormField
