@@ -81,7 +81,11 @@ export default function MarketingDashboardPage() {
   // Process the nested lead data structure
   const leadsData = React.useMemo(() => {
     if (!rawLeadsData || !Array.isArray(rawLeadsData)) return [];
-    return rawLeadsData.map((item: any) => item.lead);
+    return rawLeadsData.map((item: any) => ({
+      ...item.lead,
+      sourceName: item.source?.name,
+      statusName: item.status?.name
+    }));
   }, [rawLeadsData]);
 
   // Fetch campaign data
