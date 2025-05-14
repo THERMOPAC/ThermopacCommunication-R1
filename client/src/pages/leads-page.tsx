@@ -341,14 +341,15 @@ export default function LeadsPage() {
 
   // Handle lead creation submission
   const onCreateLeadSubmit = (data: z.infer<typeof leadFormSchema>) => {
-    // Convert string numbers to actual numbers
+    // Convert string numbers to actual numbers and ensure values exist before conversion
     const formattedData = {
       ...data,
       expectedRevenue: data.expectedRevenue || null,
       probability: data.probability ? parseInt(data.probability) : null,
-      sourceId: parseInt(data.sourceId),
-      statusId: parseInt(data.statusId),
-      assignedTo: data.assignedTo ? parseInt(data.assignedTo) : null,
+      // Ensure values exist before parsing
+      sourceId: data.sourceId ? data.sourceId : '1',  // Default to first source if none selected
+      statusId: data.statusId ? data.statusId : '1',  // Default to first status if none selected
+      assignedTo: data.assignedTo ? data.assignedTo : null,
     };
     createLeadMutation.mutate(formattedData);
   };
@@ -357,14 +358,15 @@ export default function LeadsPage() {
   const onEditLeadSubmit = (data: z.infer<typeof leadFormSchema>) => {
     if (!selectedLead) return;
     
-    // Convert string numbers to actual numbers
+    // Convert string numbers to actual numbers and ensure values exist before conversion
     const formattedData = {
       ...data,
       expectedRevenue: data.expectedRevenue || null,
       probability: data.probability ? parseInt(data.probability) : null,
-      sourceId: parseInt(data.sourceId),
-      statusId: parseInt(data.statusId),
-      assignedTo: data.assignedTo ? parseInt(data.assignedTo) : null,
+      // Ensure values exist before using them
+      sourceId: data.sourceId ? data.sourceId : '1',  // Default to first source if none selected
+      statusId: data.statusId ? data.statusId : '1',  // Default to first status if none selected
+      assignedTo: data.assignedTo ? data.assignedTo : null,
     };
     
     updateLeadMutation.mutate({ id: selectedLead.id, formData: formattedData });
@@ -382,20 +384,20 @@ export default function LeadsPage() {
   const handleEditClick = (lead: Lead) => {
     setSelectedLead(lead);
     
-    // Reset and populate edit form
+    // Reset and populate edit form with null safety checks
     editForm.reset({
       leadSource: 'new', // This is not relevant for editing
-      companyName: lead.companyName,
+      companyName: lead.companyName || "",
       industry: lead.industry || "",
       website: lead.website || "",
       currency: lead.currency || "USD",
       expectedRevenue: lead.expectedRevenue ? lead.expectedRevenue.toString() : "",
-      contactName: lead.contactName,
+      contactName: lead.contactName || "",
       contactTitle: lead.contactTitle || "",
       contactEmail: lead.contactEmail || "",
       contactPhone: lead.contactPhone || "",
-      sourceId: lead.sourceId.toString(),
-      statusId: lead.statusId.toString(),
+      sourceId: lead.sourceId ? lead.sourceId.toString() : "1", // Default to first source
+      statusId: lead.statusId ? lead.statusId.toString() : "1", // Default to first status
       notes: lead.notes || "",
       probability: lead.probability ? lead.probability.toString() : "",
       estimatedCloseDate: lead.estimatedCloseDate ? new Date(lead.estimatedCloseDate).toISOString().split('T')[0] : "",
