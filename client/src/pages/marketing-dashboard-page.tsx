@@ -370,15 +370,15 @@ export default function MarketingDashboardPage() {
               {/* Overview tab content remains in the main view */}
             </TabsContent>
             
-            <TabsContent value="campaigns" className="mt-0">
-              <div className="mt-4">
+            <TabsContent value="campaigns" className="mt-0 w-full">
+              <div className="mt-4 w-full">
                 <h2 className="text-2xl font-bold mb-4">Campaign Performance</h2>
                 <div className="space-y-4">
                   {isLoadingCampaigns ? (
                     <Skeleton className="h-[300px] w-full" />
                   ) : (
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full">
+                    <div className="border rounded-lg overflow-x-auto w-full">
+                      <table className="w-full table-auto">
                         <thead>
                           <tr className="bg-muted">
                             <th className="px-4 py-2 text-left">Campaign Name</th>
@@ -397,7 +397,7 @@ export default function MarketingDashboardPage() {
                                 <td className="px-4 py-3">
                                   <Badge 
                                     variant={campaign.status === 'Active' ? 'default' : 
-                                            campaign.status === 'Completed' ? 'success' : 
+                                            campaign.status === 'Completed' ? 'outline' : 
                                             campaign.status === 'Planned' ? 'secondary' : 'outline'}
                                   >
                                     {campaign.status}
@@ -426,15 +426,15 @@ export default function MarketingDashboardPage() {
               </div>
             </TabsContent>
             
-            <TabsContent value="leads" className="mt-0">
-              <div className="mt-4">
+            <TabsContent value="leads" className="mt-0 w-full">
+              <div className="mt-4 w-full">
                 <h2 className="text-2xl font-bold mb-4">Lead Management</h2>
                 <div className="space-y-4">
                   {isLoadingLeads ? (
                     <Skeleton className="h-[300px] w-full" />
                   ) : (
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full">
+                    <div className="border rounded-lg overflow-x-auto w-full">
+                      <table className="w-full table-auto">
                         <thead>
                           <tr className="bg-muted">
                             <th className="px-4 py-2 text-left">Company</th>
@@ -455,7 +455,7 @@ export default function MarketingDashboardPage() {
                                 <td className="px-4 py-3">
                                   <Badge 
                                     variant={lead.statusName === 'New' ? 'default' : 
-                                            lead.statusName === 'Qualified' ? 'success' : 
+                                            lead.statusName === 'Qualified' ? 'secondary' : 
                                             lead.statusName === 'Contacted' ? 'secondary' : 'outline'}
                                   >
                                     {lead.statusName || 'Unknown'}
