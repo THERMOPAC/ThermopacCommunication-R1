@@ -63,7 +63,7 @@ const leadFormSchema = z.object({
   statusId: z.string().min(1, "Status is required"),
   notes: z.string().optional(),
   probability: z.string().regex(/^\d{1,3}$/, "Must be a number between 0-100").optional(),
-  estimatedCloseDate: z.string().optional(),
+  expectedCloseDate: z.string().optional(),
   assignedTo: z.string().optional(),
   createdBy: z.number().optional(),
 });
@@ -88,7 +88,7 @@ type Lead = {
   notes: string | null;
   probability: number | null;
   estimatedValue: string | null;
-  estimatedCloseDate: string | null;
+  expectedCloseDate: string | null;
   assignedTo: number | null;
   assignedToName: string | null;
   createdBy: number;
@@ -178,11 +178,11 @@ export default function LeadsPage() {
         }
       }
       
-      // Ensure estimatedCloseDate is properly formatted
+      // Ensure expectedCloseDate is properly formatted
       const formattedData = {
         ...finalData,
         // Make sure the date is in YYYY-MM-DD format for the server
-        estimatedCloseDate: finalData.estimatedCloseDate ? finalData.estimatedCloseDate : null
+        expectedCloseDate: finalData.expectedCloseDate ? finalData.expectedCloseDate : null
       };
       
       console.log('Creating lead with data:', formattedData);
@@ -211,11 +211,11 @@ export default function LeadsPage() {
       // Remove the leadSource and customerId fields as they're only needed for creation
       const { leadSource, customerId, ...restData } = data.formData;
       
-      // Ensure estimatedCloseDate is properly formatted
+      // Ensure expectedCloseDate is properly formatted
       const updatedData = {
         ...restData,
         // Make sure the date is in YYYY-MM-DD format for the server
-        estimatedCloseDate: restData.estimatedCloseDate ? restData.estimatedCloseDate : null
+        expectedCloseDate: restData.expectedCloseDate ? restData.expectedCloseDate : null
       };
       
       console.log('Updating lead with data:', updatedData);
