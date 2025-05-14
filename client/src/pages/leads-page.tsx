@@ -178,10 +178,7 @@ export default function LeadsPage() {
         }
       }
       
-      return apiRequest('/api/sales-marketing/leads', {
-        method: 'POST',
-        data: finalData,
-      });
+      return apiRequest('POST', '/api/sales-marketing/leads', finalData);
     },
     onSuccess: () => {
       toast({
@@ -206,10 +203,7 @@ export default function LeadsPage() {
       // Remove the leadSource and customerId fields as they're only needed for creation
       const { leadSource, customerId, ...restData } = data.formData;
       
-      return apiRequest(`/api/sales-marketing/leads/${data.id}`, {
-        method: 'PATCH',
-        data: restData,
-      });
+      return apiRequest('PATCH', `/api/sales-marketing/leads/${data.id}`, restData);
     },
     onSuccess: () => {
       toast({
@@ -231,9 +225,7 @@ export default function LeadsPage() {
   // Delete lead mutation
   const deleteLeadMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/sales-marketing/leads/${id}`, {
-        method: 'DELETE',
-      });
+      return apiRequest('DELETE', `/api/sales-marketing/leads/${id}`);
     },
     onSuccess: () => {
       toast({
@@ -245,6 +237,35 @@ export default function LeadsPage() {
     onError: (error) => {
       toast({
         title: "Error deleting lead",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Convert lead to customer mutation
+  const convertLeadMutation = useMutation({
+    mutationFn: async (leadId: number) => {
+      return apiRequest('POST', `/api/sales-marketing/leads/${leadId}/convert`, {
+        // Optional extra data can be passed here if needed
+        bpCode: `L${leadId}`, // Generate default BP code
+        continent: 'Asia' // Default continent
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Lead converted",
+        description: "Lead has been successfully converted to a customer",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/leads'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      
+      // Close lead view
+      setIsViewingLead(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error converting lead",
         description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
@@ -442,6 +463,16 @@ export default function LeadsPage() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => handleEditClick(selectedLead)}>
                     <Pencil className="mr-2 h-4 w-4" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="text-green-600"
+                    onClick={() => {
+                      if (confirm(`Convert ${selectedLead.companyName} to a customer? This action cannot be undone.`)) {
+                        convertLeadMutation.mutate(selectedLead.id);
+                      }
+                    }}
+                  >
+                    <User className="mr-2 h-4 w-4" /> Convert to Customer
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     className="text-destructive"
