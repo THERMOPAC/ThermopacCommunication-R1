@@ -510,6 +510,32 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 )}
               />
               
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="EUR">EUR</SelectItem>
+                        <SelectItem value="INR">INR</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               <DialogFooter>
                 <Button 
                   type="button" 
@@ -687,7 +713,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 {project.budget !== null && project.budget !== undefined && (
                   <div className="flex justify-between">
                     <span className="text-sm">Budget</span>
-                    <span className="font-medium">₹{project.budget.toLocaleString()}</span>
+                    <span className="font-medium">
+                      {project.currency || 'INR'} {project.budget.toLocaleString()}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between">
