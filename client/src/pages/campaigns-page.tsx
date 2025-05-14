@@ -47,7 +47,17 @@ const campaignFormSchema = z.object({
   endDate: z.string().optional(),
   budget: z.string().optional(),
   targetAudience: z.string().optional(),
-  kpis: z.string().optional(),
+  // Performance metrics
+  ctr: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number").optional(),
+  cpc: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number").optional(),
+  conversions: z.string().regex(/^\d*$/, "Must be a valid number").optional(),
+  conversionRate: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number").optional(),
+  cpa: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number").optional(),
+  impressions: z.string().regex(/^\d*$/, "Must be a valid number").optional(),
+  qualityScore: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number").optional(),
+  roas: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number").optional(),
+  impressionShare: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number").optional(),
+  bounceRate: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number").optional(),
   expectedLeadCount: z.string().regex(/^\d*$/, "Must be a valid number").optional(),
   notes: z.string().optional(),
 });
@@ -65,7 +75,17 @@ type Campaign = {
   endDate: string | null;
   budget: string | null;
   targetAudience: string | null;
-  kpis: string | null;
+  // Performance metrics
+  ctr: number | null;
+  cpc: number | null;
+  conversions: number | null;
+  conversionRate: number | null;
+  cpa: number | null;
+  impressions: number | null;
+  qualityScore: number | null;
+  roas: number | null;
+  impressionShare: number | null;
+  bounceRate: number | null;
   expectedLeadCount: number | null;
   actualLeadCount: number | null;
   notes: string | null;
@@ -172,7 +192,17 @@ export default function CampaignsPage() {
       endDate: "",
       budget: "",
       targetAudience: "",
-      kpis: "",
+      // Performance metrics
+      ctr: "",
+      cpc: "",
+      conversions: "",
+      conversionRate: "",
+      cpa: "",
+      impressions: "",
+      qualityScore: "",
+      roas: "",
+      impressionShare: "",
+      bounceRate: "",
       expectedLeadCount: "",
       notes: "",
     },
@@ -191,7 +221,17 @@ export default function CampaignsPage() {
       endDate: "",
       budget: "",
       targetAudience: "",
-      kpis: "",
+      // Performance metrics
+      ctr: "",
+      cpc: "",
+      conversions: "",
+      conversionRate: "",
+      cpa: "",
+      impressions: "",
+      qualityScore: "",
+      roas: "",
+      impressionShare: "",
+      bounceRate: "",
       expectedLeadCount: "",
       notes: "",
     },
