@@ -142,6 +142,8 @@ const editProjectSchema = z.object({
   code: z.string().optional(),
   // Financial year is now required
   financialYear: z.string().min(1, "Financial year is required"),
+  // Currency for project budget
+  currency: z.enum(["USD", "EUR", "INR"]).default("USD"),
   // Additional fields for logistics tab
   shippingAddress: z.string().optional(),
   deliveryMethod: z.enum(["standard", "express", "pickup"]).optional(),
@@ -188,6 +190,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       budget: undefined,
       code: "",
       financialYear: "",
+      currency: "USD",
       shippingAddress: "",
       deliveryMethod: "standard",
       client: "",
@@ -325,6 +328,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         budget: project.budget || undefined,
         code: project.code || "",
         financialYear: project.financialYear || "",
+        currency: project.currency || "USD",
         shippingAddress: project.shippingAddress || "",
         deliveryMethod: project.deliveryMethod || "standard",
         client: project.client || "",
