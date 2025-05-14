@@ -67,6 +67,7 @@ const projectFormSchema = z.object({
   customerId: z.number().optional(),
   client: z.string().optional(),
   budget: z.number().optional(),
+  currency: z.enum(["USD", "EUR", "INR"]).default("USD"),
   tags: z.array(z.string()).optional(),
   items: z.array(projectItemSchema).optional(), // Add items array
 });
@@ -187,6 +188,7 @@ export default function ProjectList() {
       customerId: undefined,
       client: "",
       budget: undefined,
+      currency: "USD",
       tags: [],
     },
   });
