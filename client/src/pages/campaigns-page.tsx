@@ -116,10 +116,7 @@ export default function CampaignsPage() {
   // Create campaign mutation
   const createCampaignMutation = useMutation({
     mutationFn: async (data: z.infer<typeof campaignFormSchema>) => {
-      return apiRequest('/api/sales-marketing/campaigns', {
-        method: 'POST',
-        data,
-      });
+      return apiRequest('POST', '/api/sales-marketing/campaigns', data);
     },
     onSuccess: () => {
       toast({
@@ -141,10 +138,7 @@ export default function CampaignsPage() {
   // Update campaign mutation
   const updateCampaignMutation = useMutation({
     mutationFn: async (data: { id: number; formData: z.infer<typeof campaignFormSchema> }) => {
-      return apiRequest(`/api/sales-marketing/campaigns/${data.id}`, {
-        method: 'PATCH',
-        data: data.formData,
-      });
+      return apiRequest('PATCH', `/api/sales-marketing/campaigns/${data.id}`, data.formData);
     },
     onSuccess: () => {
       toast({
