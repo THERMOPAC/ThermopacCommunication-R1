@@ -1189,10 +1189,10 @@ export default function LeadsPage() {
                   
                   <FormField
                     control={createForm.control}
-                    name="estimatedCloseDate"
+                    name="expectedCloseDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Estimated Close Date</FormLabel>
+                        <FormLabel>Expected Close Date</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
@@ -1482,10 +1482,10 @@ export default function LeadsPage() {
                   
                   <FormField
                     control={editForm.control}
-                    name="estimatedCloseDate"
+                    name="expectedCloseDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Estimated Close Date</FormLabel>
+                        <FormLabel>Expected Close Date</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
