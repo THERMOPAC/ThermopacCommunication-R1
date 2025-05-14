@@ -203,15 +203,24 @@ export default function LeadsPage() {
       // Remove the leadSource and customerId fields as they're only needed for creation
       const { leadSource, customerId, ...restData } = data.formData;
       
-      return apiRequest('PATCH', `/api/sales-marketing/leads/${data.id}`, restData);
+      // Ensure estimatedCloseDate is properly formatted
+      const updatedData = {
+        ...restData,
+        // Make sure the date is in YYYY-MM-DD format for the server
+        estimatedCloseDate: restData.estimatedCloseDate ? restData.estimatedCloseDate : null
+      };
+      
+      console.log('Updating lead with data:', updatedData);
+      return apiRequest('PATCH', `/api/sales-marketing/leads/${data.id}`, updatedData);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Lead updated",
         description: "Lead has been updated successfully",
       });
       setIsEditDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/leads'] });
+      console.log('Updated lead data:', data);
     },
     onError: (error) => {
       toast({
