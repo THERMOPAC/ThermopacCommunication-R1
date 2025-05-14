@@ -12,7 +12,8 @@ import {
   Clock,
   Users,
   DollarSign,
-  TrendingUp
+  TrendingUp,
+  Eye
 } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
@@ -29,6 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -544,32 +546,54 @@ export default function CampaignsPage() {
               
               <TabsContent value={activeTab} className="mt-6">
                 {isLoadingCampaigns ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[1, 2, 3, 4, 5, 6].map((i) => (
-                      <Card key={i}>
-                        <CardHeader className="pb-2">
-                          <Skeleton className="h-5 w-2/3" />
-                          <Skeleton className="h-4 w-1/3 mt-2" />
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-2">
-                              <Skeleton className="h-4 w-4 rounded-full" />
-                              <Skeleton className="h-4 w-2/3" />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Skeleton className="h-4 w-4 rounded-full" />
-                              <Skeleton className="h-4 w-1/2" />
-                            </div>
-                            <Skeleton className="h-2 w-full" />
-                          </div>
-                        </CardContent>
-                        <CardFooter className="flex justify-between">
-                          <Skeleton className="h-8 w-16" />
-                          <Skeleton className="h-8 w-8 rounded-full" />
-                        </CardFooter>
-                      </Card>
-                    ))}
+                  <div className="space-y-4">
+                    <Card>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Channel</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Timeline</TableHead>
+                            <TableHead>Progress</TableHead>
+                            <TableHead className="w-[100px]">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <TableRow key={i}>
+                              <TableCell>
+                                <Skeleton className="h-5 w-[180px]" />
+                              </TableCell>
+                              <TableCell>
+                                <Skeleton className="h-5 w-24" />
+                              </TableCell>
+                              <TableCell>
+                                <Skeleton className="h-5 w-20" />
+                              </TableCell>
+                              <TableCell>
+                                <Skeleton className="h-5 w-32" />
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-2">
+                                  <div className="flex justify-between">
+                                    <Skeleton className="h-4 w-12" />
+                                    <Skeleton className="h-4 w-8" />
+                                  </div>
+                                  <Skeleton className="h-2 w-full" />
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Skeleton className="h-8 w-8 rounded-full" />
+                                  <Skeleton className="h-8 w-8 rounded-full" />
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </Card>
                   </div>
                 ) : filteredCampaigns.length === 0 ? (
                   <div className="text-center py-12">
@@ -587,71 +611,76 @@ export default function CampaignsPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredCampaigns.map((campaign: Campaign) => (
-                      <Card key={campaign.id}>
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between items-start">
-                            <div className="space-y-1">
-                              <CardTitle className="line-clamp-1">{campaign.name}</CardTitle>
-                              <CardDescription className="line-clamp-1">{campaign.channelName}</CardDescription>
-                            </div>
-                            <Badge className={getStatusColor(campaign.status)}>
-                              {campaign.status}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">{formatDate(campaign.startDate)}</span>
-                              {campaign.endDate && (
-                                <>
-                                  <span className="text-muted-foreground">to</span>
-                                  <span className="text-sm">{formatDate(campaign.endDate)}</span>
-                                </>
-                              )}
-                            </div>
-                            
-                            {campaign.objective && (
-                              <p className="text-sm line-clamp-2">{campaign.objective}</p>
-                            )}
-                            
-                            {campaign.startDate && campaign.endDate && campaign.status === "Active" && (
-                              <>
-                                <div className="flex justify-between text-xs">
-                                  <span>Progress</span>
-                                  <span>{calculateProgress(campaign)}%</span>
+                  <div className="space-y-4">
+                    <Card>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Channel</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Timeline</TableHead>
+                            <TableHead>Progress</TableHead>
+                            <TableHead className="w-[100px]">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredCampaigns.map((campaign: Campaign) => (
+                            <TableRow key={campaign.id}>
+                              <TableCell className="font-medium">
+                                <div className="max-w-[200px] truncate">{campaign.name}</div>
+                              </TableCell>
+                              <TableCell>{campaign.channelName}</TableCell>
+                              <TableCell>
+                                <Badge className={getStatusColor(campaign.status)}>
+                                  {campaign.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1 whitespace-nowrap">
+                                  <span>{formatDate(campaign.startDate)}</span>
+                                  {campaign.endDate && (
+                                    <>
+                                      <span className="text-muted-foreground">-</span>
+                                      <span>{formatDate(campaign.endDate)}</span>
+                                    </>
+                                  )}
                                 </div>
-                                <Progress value={calculateProgress(campaign)} className="h-2" />
-                              </>
-                            )}
-                          </div>
-                        </CardContent>
-                        <CardFooter className="flex justify-between">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleViewCampaign(campaign)}
-                          >
-                            View Details
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEditClick(campaign)}>
-                                <Pencil className="mr-2 h-4 w-4" /> Edit
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </CardFooter>
-                      </Card>
-                    ))}
+                              </TableCell>
+                              <TableCell>
+                                {campaign.startDate && campaign.endDate && (
+                                  <div className="w-full space-y-1">
+                                    <div className="flex justify-between text-xs">
+                                      <span>Progress</span>
+                                      <span>{calculateProgress(campaign)}%</span>
+                                    </div>
+                                    <Progress value={calculateProgress(campaign)} className="h-2 w-full" />
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    onClick={() => handleViewCampaign(campaign)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    onClick={() => handleEditClick(campaign)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </Card>
                   </div>
                 )}
               </TabsContent>
