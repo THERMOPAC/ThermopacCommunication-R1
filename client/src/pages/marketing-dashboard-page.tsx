@@ -73,10 +73,16 @@ export default function MarketingDashboardPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
   // Fetch leads data
-  const { data: leadsData, isLoading: isLoadingLeads } = useQuery({
+  const { data: rawLeadsData, isLoading: isLoadingLeads } = useQuery({
     queryKey: ['/api/sales-marketing/leads'],
     refetchOnWindowFocus: false
   });
+  
+  // Process the nested lead data structure
+  const leadsData = React.useMemo(() => {
+    if (!rawLeadsData || !Array.isArray(rawLeadsData)) return [];
+    return rawLeadsData.map((item: any) => item.lead);
+  }, [rawLeadsData]);
 
   // Fetch campaign data
   const { data: campaignsData, isLoading: isLoadingCampaigns } = useQuery({
@@ -109,7 +115,7 @@ export default function MarketingDashboardPage() {
     const sourceCount: Record<string, number> = {};
     
     leadsData.forEach((lead: any) => {
-      const sourceName = lead.sourceName;
+      const sourceName = lead.sourceName || 'Unknown';
       if (!sourceCount[sourceName]) {
         sourceCount[sourceName] = 0;
       }
@@ -129,7 +135,7 @@ export default function MarketingDashboardPage() {
     const statusCount: Record<string, number> = {};
     
     leadsData.forEach((lead: any) => {
-      const statusName = lead.statusName;
+      const statusName = lead.statusName || 'Unknown';
       if (!statusCount[statusName]) {
         statusCount[statusName] = 0;
       }
@@ -250,6 +256,14 @@ export default function MarketingDashboardPage() {
       const probability = Number(lead.probability) / 100;
       const revenue = Number(lead.expectedRevenue);
       const weightedRevenue = revenue * probability;
+      
+      console.log('Processing lead revenue:', { 
+        companyName: lead.companyName,
+        revenue, 
+        probability: lead.probability,
+        weightedRevenue,
+        currency: lead.currency
+      });
       
       // Convert to USD if needed
       let revenueInUSD = weightedRevenue;
