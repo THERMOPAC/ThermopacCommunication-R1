@@ -709,19 +709,22 @@ export default function MarketingDashboardPage() {
                 <Skeleton className="h-7 w-full" />
               ) : (
                 <div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between pb-1">
                     <div className="text-2xl font-bold">
                       {ordersData?.count || 0}
                     </div>
-                    <div className="text-lg font-bold flex flex-col gap-0 text-right">
-                      {ordersData?.valuesByCurrency && Object.entries(ordersData.valuesByCurrency).map(([currency, value]) => (
-                        <span key={currency}>
-                          {currency} {formatCurrency(value as number, currency)}
-                        </span>
-                      ))}
+                    <div className="text-xs text-muted-foreground">
+                      active orders
                     </div>
                   </div>
-                  {ordersData?.totalValueINR > 0 && (
+                  <div className="text-lg font-bold flex flex-col gap-0 text-right">
+                    {ordersData?.valuesByCurrency && Object.entries(ordersData.valuesByCurrency).map(([currency, value]) => (
+                      <span key={currency}>
+                        {currency} {formatCurrency(value as number, currency)}
+                      </span>
+                    ))}
+                  </div>
+                  {ordersData?.totalValueINR && ordersData.totalValueINR > 0 && (
                     <div className="text-sm font-medium mt-1 text-green-600 text-right">
                       ~INR {formatINRInCrores(ordersData.totalValueINR)}
                     </div>
@@ -729,7 +732,7 @@ export default function MarketingDashboardPage() {
                 </div>
               )}
               <p className="text-xs text-muted-foreground mt-1 flex items-center justify-between">
-                <span>active orders as of today</span>
+                <span>total value of current orders</span>
                 {lastUpdated && (
                   <button 
                     className="flex items-center text-xs text-blue-500 hover:text-blue-700" 
@@ -741,8 +744,10 @@ export default function MarketingDashboardPage() {
                         setRefreshingOrders(false);
                       }
                     }}
+                    disabled={refreshingOrders}
                   >
-                    <RefreshCw className="h-3 w-3 mr-1" /> Refresh
+                    <RefreshCw className={`h-3 w-3 mr-1 ${refreshingOrders ? 'animate-spin' : ''}`} /> 
+                    {refreshingOrders ? 'Updating...' : 'Refresh'}
                   </button>
                 )}
               </p>
