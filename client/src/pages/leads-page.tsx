@@ -706,10 +706,11 @@ export default function LeadsPage() {
               
               <TabsContent value={activeTab} className="mt-6">
                 {isLoadingLeads ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <Skeleton className="h-48 w-full" />
-                    <Skeleton className="h-48 w-full" />
-                    <Skeleton className="h-48 w-full" />
+                  <div className="w-full space-y-2">
+                    <Skeleton className="h-14 w-full" />
+                    <Skeleton className="h-14 w-full" />
+                    <Skeleton className="h-14 w-full" />
+                    <Skeleton className="h-14 w-full" />
                   </div>
                 ) : filteredLeads.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -728,77 +729,86 @@ export default function LeadsPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="w-full space-y-2">
                     {filteredLeads.map((lead: Lead) => (
                       <Card key={lead.id} className="overflow-hidden">
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between items-start">
-                            <div className="space-y-1">
-                              <CardTitle className="line-clamp-1">{lead.companyName}</CardTitle>
-                              {lead.industry && (
-                                <CardDescription>{lead.industry}</CardDescription>
-                              )}
+                        <div className="flex items-center p-3">
+                          {/* Company and Status */}
+                          <div className="flex-grow mr-4">
+                            <div className="flex items-center">
+                              <span className="font-medium truncate mr-2">{lead.companyName}</span>
+                              <Badge style={{ backgroundColor: lead.statusColor }}>
+                                {lead.statusName}
+                              </Badge>
                             </div>
-                            <Badge style={{ backgroundColor: lead.statusColor }}>
-                              {lead.statusName}
-                            </Badge>
                           </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <UserCircle className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm line-clamp-1">{lead.contactName}</span>
-                            </div>
+                          
+                          {/* Contact Info */}
+                          <div className="flex items-center gap-4 mx-4">
+                            {lead.contactName && (
+                              <div className="flex items-center gap-1">
+                                <UserCircle className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm hidden sm:inline">{lead.contactName}</span>
+                              </div>
+                            )}
                             {lead.contactEmail && (
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
                                 <Mail className="h-4 w-4 text-muted-foreground" />
-                                <a href={`mailto:${lead.contactEmail}`} className="text-sm text-blue-600 hover:underline line-clamp-1">
+                                <a href={`mailto:${lead.contactEmail}`} className="text-sm text-blue-600 hover:underline hidden md:inline">
                                   {lead.contactEmail}
                                 </a>
                               </div>
                             )}
                             {lead.contactPhone && (
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
                                 <Phone className="h-4 w-4 text-muted-foreground" />
-                                <a href={`tel:${lead.contactPhone}`} className="text-sm text-blue-600 hover:underline">
+                                <a href={`tel:${lead.contactPhone}`} className="text-sm text-blue-600 hover:underline hidden lg:inline">
                                   {lead.contactPhone}
                                 </a>
                               </div>
                             )}
                           </div>
-                        </CardContent>
-                        <CardFooter className="flex justify-between">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleViewLead(lead)}
-                          >
-                            View Details
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEditClick(lead)}>
-                                <Pencil className="mr-2 h-4 w-4" /> Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                className="text-destructive"
-                                onClick={() => {
-                                  if (confirm(`Are you sure you want to delete ${lead.companyName}?`)) {
-                                    deleteLeadMutation.mutate(lead.id);
+                          
+                          {/* Actions */}
+                          <div className="flex items-center gap-2 ml-auto">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleViewLead(lead)}
+                            >
+                              View
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditClick(lead)}>
+                                  <Pencil className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="text-destructive"
+                                  onClick={() => {
+                                    if (confirm(`Are you sure you want to delete ${lead.companyName}?`)) {
+                                      deleteLeadMutation.mutate(lead.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  if (confirm(`Convert ${lead.companyName} to a customer?`)) {
+                                    convertLeadMutation.mutate(lead.id);
                                   }
-                                }}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </CardFooter>
+                                }}>
+                                  <Building className="mr-2 h-4 w-4" /> Convert to Customer
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
                       </Card>
                     ))}
                   </div>
