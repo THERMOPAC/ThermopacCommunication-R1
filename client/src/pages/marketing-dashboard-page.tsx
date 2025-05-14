@@ -365,6 +365,124 @@ export default function MarketingDashboardPage() {
               <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
               <TabsTrigger value="leads">Leads</TabsTrigger>
             </TabsList>
+            
+            <TabsContent value="overview" className="mt-0">
+              {/* Overview tab content remains in the main view */}
+            </TabsContent>
+            
+            <TabsContent value="campaigns" className="mt-0">
+              <div className="mt-4">
+                <h2 className="text-2xl font-bold mb-4">Campaign Performance</h2>
+                <div className="space-y-4">
+                  {isLoadingCampaigns ? (
+                    <Skeleton className="h-[300px] w-full" />
+                  ) : (
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-muted">
+                            <th className="px-4 py-2 text-left">Campaign Name</th>
+                            <th className="px-4 py-2 text-left">Channel</th>
+                            <th className="px-4 py-2 text-left">Status</th>
+                            <th className="px-4 py-2 text-left">Timeline</th>
+                            <th className="px-4 py-2 text-right">Leads (Expected/Actual)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {campaignsData && campaignsData.length > 0 ? (
+                            campaignsData.map((campaign: any) => (
+                              <tr key={campaign.id} className="border-t">
+                                <td className="px-4 py-3">{campaign.name}</td>
+                                <td className="px-4 py-3">{campaign.channel || 'N/A'}</td>
+                                <td className="px-4 py-3">
+                                  <Badge 
+                                    variant={campaign.status === 'Active' ? 'default' : 
+                                            campaign.status === 'Completed' ? 'success' : 
+                                            campaign.status === 'Planned' ? 'secondary' : 'outline'}
+                                  >
+                                    {campaign.status}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  {campaign.startDate ? new Date(campaign.startDate).toLocaleDateString() : 'TBD'} - {campaign.endDate ? new Date(campaign.endDate).toLocaleDateString() : 'TBD'}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  {campaign.expectedLeadCount || '?'} / {campaign.actualLeadCount || 0}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={5} className="px-4 py-3 text-center text-muted-foreground">
+                                No campaigns found
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="leads" className="mt-0">
+              <div className="mt-4">
+                <h2 className="text-2xl font-bold mb-4">Lead Management</h2>
+                <div className="space-y-4">
+                  {isLoadingLeads ? (
+                    <Skeleton className="h-[300px] w-full" />
+                  ) : (
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-muted">
+                            <th className="px-4 py-2 text-left">Company</th>
+                            <th className="px-4 py-2 text-left">Contact</th>
+                            <th className="px-4 py-2 text-left">Source</th>
+                            <th className="px-4 py-2 text-left">Status</th>
+                            <th className="px-4 py-2 text-right">Expected Revenue</th>
+                            <th className="px-4 py-2 text-right">Probability</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {leadsData && leadsData.length > 0 ? (
+                            leadsData.map((lead: any) => (
+                              <tr key={lead.id} className="border-t">
+                                <td className="px-4 py-3">{lead.companyName}</td>
+                                <td className="px-4 py-3">{lead.contactName}</td>
+                                <td className="px-4 py-3">{lead.sourceName || 'Unknown'}</td>
+                                <td className="px-4 py-3">
+                                  <Badge 
+                                    variant={lead.statusName === 'New' ? 'default' : 
+                                            lead.statusName === 'Qualified' ? 'success' : 
+                                            lead.statusName === 'Contacted' ? 'secondary' : 'outline'}
+                                  >
+                                    {lead.statusName || 'Unknown'}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  {lead.expectedRevenue ? formatCurrency(parseFloat(lead.expectedRevenue), lead.currency || 'INR') : 'N/A'}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  {lead.probability ? `${lead.probability}%` : 'N/A'}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="px-4 py-3 text-center text-muted-foreground">
+                                No leads found
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
         
