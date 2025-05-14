@@ -199,27 +199,45 @@ export default function CampaignsPage() {
 
   // Handle campaign creation submission
   const onCreateCampaignSubmit = (data: z.infer<typeof campaignFormSchema>) => {
-    // Convert string numbers to actual numbers
-    const formattedData = {
-      ...data,
-      channelId: parseInt(data.channelId),
-      expectedLeadCount: data.expectedLeadCount ? parseInt(data.expectedLeadCount) : null,
-    };
-    createCampaignMutation.mutate(formattedData);
+    try {
+      // Convert string numbers to actual numbers with safety checks
+      const formattedData = {
+        ...data,
+        channelId: data.channelId ? parseInt(data.channelId) : null,
+        expectedLeadCount: data.expectedLeadCount ? parseInt(data.expectedLeadCount) : null,
+      };
+      createCampaignMutation.mutate(formattedData);
+    } catch (error) {
+      console.error("Error formatting campaign data:", error);
+      toast({
+        title: "Error creating campaign",
+        description: "There was an error processing your form data. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle campaign edit submission
   const onEditCampaignSubmit = (data: z.infer<typeof campaignFormSchema>) => {
     if (!selectedCampaign) return;
     
-    // Convert string numbers to actual numbers
-    const formattedData = {
-      ...data,
-      channelId: parseInt(data.channelId),
-      expectedLeadCount: data.expectedLeadCount ? parseInt(data.expectedLeadCount) : null,
-    };
-    
-    updateCampaignMutation.mutate({ id: selectedCampaign.id, formData: formattedData });
+    try {
+      // Convert string numbers to actual numbers with safety checks
+      const formattedData = {
+        ...data,
+        channelId: data.channelId ? parseInt(data.channelId) : null,
+        expectedLeadCount: data.expectedLeadCount ? parseInt(data.expectedLeadCount) : null,
+      };
+      
+      updateCampaignMutation.mutate({ id: selectedCampaign.id, formData: formattedData });
+    } catch (error) {
+      console.error("Error formatting campaign data:", error);
+      toast({
+        title: "Error updating campaign",
+        description: "There was an error processing your form data. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Filter campaigns based on active tab
@@ -234,15 +252,31 @@ export default function CampaignsPage() {
   const handleEditClick = (campaign: Campaign) => {
     setSelectedCampaign(campaign);
     
-    // Reset and populate edit form
+    // Reset and populate edit form with safe defaults
     editForm.reset({
-      name: campaign.name,
+      name: campaign.name || "",
       description: campaign.description || "",
-      objective: campaign.objective,
-      channelId: campaign.channelId.toString(),
-      status: campaign.status,
-      startDate: campaign.startDate ? new Date(campaign.startDate).toISOString().split('T')[0] : "",
-      endDate: campaign.endDate ? new Date(campaign.endDate).toISOString().split('T')[0] : "",
+      objective: campaign.objective || "",
+      channelId: campaign.channelId ? campaign.channelId.toString() : "",
+      status: campaign.status || "Planned",
+      startDate: campaign.startDate ? 
+        (function() {
+          try {
+            return new Date(campaign.startDate).toISOString().split('T')[0];
+          } catch (e) {
+            console.error("Invalid startDate:", campaign.startDate);
+            return "";
+          }
+        })() : "",
+      endDate: campaign.endDate ? 
+        (function() {
+          try {
+            return new Date(campaign.endDate).toISOString().split('T')[0];
+          } catch (e) {
+            console.error("Invalid endDate:", campaign.endDate);
+            return "";
+          }
+        })() : "",
       budget: campaign.budget || "",
       targetAudience: campaign.targetAudience || "",
       kpis: campaign.kpis || "",
@@ -651,9 +685,9 @@ export default function CampaignsPage() {
                           {filteredCampaigns.map((campaign: Campaign) => (
                             <TableRow key={campaign.id}>
                               <TableCell className="font-medium">
-                                <div className="max-w-[200px] truncate">{campaign.name}</div>
+                                <div className="max-w-[300px] truncate">{campaign.name}</div>
                               </TableCell>
-                              <TableCell>{campaign.channelName}</TableCell>
+                              <TableCell>{campaign.channelName || "-"}</TableCell>
                               <TableCell>
                                 <Badge className={getStatusColor(campaign.status)}>
                                   {campaign.status}
