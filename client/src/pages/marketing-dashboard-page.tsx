@@ -216,6 +216,12 @@ export default function MarketingDashboardPage() {
     };
   }, [leadsData]);
   
+  // Fetch orders in hand data
+  const { data: ordersData, isLoading: isLoadingOrders } = useQuery({
+    queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'],
+    refetchOnWindowFocus: false
+  });
+  
   // Calculate expected revenue with currency conversion
   const expectedRevenueStats = React.useMemo(() => {
     if (!leadsData || leadsData.length === 0 || !exchangeRates) {
@@ -345,7 +351,7 @@ export default function MarketingDashboardPage() {
         </div>
         
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
           {/* Total Leads Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -478,6 +484,40 @@ export default function MarketingDashboardPage() {
                     {isLoadingRates ? 'Updating...' : 'Refresh'}
                   </button>
                 )}
+              </p>
+            </CardContent>
+          </Card>
+          
+          {/* Orders in Hand Card */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Orders in Hand</CardTitle>
+              <BarChartIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoadingOrders ? (
+                <Skeleton className="h-7 w-full" />
+              ) : (
+                <div>
+                  <div className="text-2xl font-bold">
+                    {ordersData?.count || 0}
+                  </div>
+                  <div className="text-sm flex flex-col gap-0 mt-1">
+                    {ordersData?.valuesByCurrency && Object.entries(ordersData.valuesByCurrency).map(([currency, value]) => (
+                      <span key={currency} className="text-xs">
+                        {currency}: {formatCurrency(value as number, currency)}
+                      </span>
+                    ))}
+                  </div>
+                  {ordersData?.totalValueINR > 0 && (
+                    <div className="text-sm font-medium mt-1 text-green-600">
+                      ~INR {formatCurrency(ordersData.totalValueINR, 'INR')}
+                    </div>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                active orders as of today
               </p>
             </CardContent>
           </Card>

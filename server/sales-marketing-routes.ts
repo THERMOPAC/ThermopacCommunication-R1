@@ -377,6 +377,147 @@ router.post('/campaigns/:id/activities', ensureAuthenticated, async (req: Reques
   }
 });
 
+// Convert a lead to a customer
+router.post('/leads/:id/convert', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const leadId = parseInt(req.params.id);
+    
+    if (isNaN(leadId)) {
+      return res.status(400).json({ error: 'Invalid lead ID' });
+    }
+    
+    // Get the existing lead to check if it exists
+    const existingLead = await storage.getLeadWithDetails(leadId);
+    
+    if (!existingLead) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+
+    if (existingLead.lead.isConverted) {
+      return res.status(400).json({ 
+        error: 'Lead already converted',
+        customerId: existingLead.lead.customerId
+      });
+    }
+
+    // Create customer from lead data
+    const customerData = {
+      bpCode: req.body.bpCode || `L${leadId}`, // Generate a BP code if not provided
+      bpName: existingLead.lead.companyName,
+      contactPerson: existingLead.lead.contactName,
+      email: existingLead.lead.contactEmail,
+      billToAddress: [
+        existingLead.lead.addressLine1,
+        existingLead.lead.addressLine2,
+        existingLead.lead.city,
+        existingLead.lead.state,
+        existingLead.lead.postalCode,
+        existingLead.lead.country
+      ].filter(Boolean).join(', '),
+      shipToAddress: [
+        existingLead.lead.addressLine1,
+        existingLead.lead.addressLine2,
+        existingLead.lead.city,
+        existingLead.lead.state,
+        existingLead.lead.postalCode,
+        existingLead.lead.country
+      ].filter(Boolean).join(', '),
+      continent: req.body.continent,
+      countryName: existingLead.lead.country,
+    };
+
+    // Create customer and get ID
+    const newCustomer = await storage.createCustomer(customerData);
+
+    // Update lead with customer ID and mark as converted
+    await storage.updateLead(leadId, { 
+      isConverted: true, 
+      customerId: newCustomer.id,
+      statusId: req.body.wonStatusId // Update to "Won" status if provided
+    });
+
+    // Return the new customer data
+    res.status(201).json({
+      success: true,
+      message: 'Lead successfully converted to customer',
+      customer: newCustomer,
+      leadId: leadId
+    });
+  } catch (error) {
+    console.error(`Error converting lead ${req.params.id} to customer:`, error);
+    res.status(500).json({ 
+      error: 'Failed to convert lead to customer',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get active orders in hand
+router.get('/dashboard/orders-in-hand', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Get active projects (orders)
+    const activeProjects = await storage.getAllProjects();
+    
+    // Filter to only active/in-progress projects
+    const currentDate = new Date();
+    const ordersInHand = activeProjects.filter(project => {
+      // Consider a project as "in hand" if it has started but not completed
+      const hasStarted = project.status !== 'planning' && project.status !== 'canceled';
+      const isActive = project.status === 'active' || project.status === 'on_hold';
+      
+      return hasStarted && isActive;
+    });
+    
+    // Calculate total order value in each currency and convert to INR
+    const orderValuesByCurrency: Record<string, number> = {};
+    let totalOrderValueINR = 0;
+    
+    // Fetch exchange rates
+    const exchangeRates = await fetch('https://open.er-api.com/v6/latest/USD').then(res => res.json());
+    const rates = exchangeRates.rates || { INR: 83.5, EUR: 0.93 };
+    
+    // Group by currency
+    ordersInHand.forEach(order => {
+      if (order.estimatedBudget && order.currency) {
+        const currency = order.currency.toUpperCase();
+        if (!orderValuesByCurrency[currency]) {
+          orderValuesByCurrency[currency] = 0;
+        }
+        orderValuesByCurrency[currency] += Number(order.estimatedBudget);
+        
+        // Convert to INR
+        if (currency === 'USD') {
+          totalOrderValueINR += Number(order.estimatedBudget) * rates.INR;
+        } else if (currency === 'EUR') {
+          // Convert EUR to USD first, then to INR
+          totalOrderValueINR += (Number(order.estimatedBudget) / rates.EUR) * rates.INR;
+        } else if (currency === 'INR') {
+          totalOrderValueINR += Number(order.estimatedBudget);
+        }
+      }
+    });
+    
+    res.json({
+      count: ordersInHand.length,
+      orders: ordersInHand,
+      valuesByCurrency: orderValuesByCurrency,
+      totalValueINR: totalOrderValueINR,
+      exchangeRates: {
+        USD: 1,
+        EUR: rates.EUR,
+        INR: rates.INR
+      },
+      lastUpdated: new Date()
+    });
+  } catch (error) {
+    console.error('Error fetching orders in hand:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch orders in hand',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Export the router
 export default router;
 
