@@ -1452,19 +1452,150 @@ export default function CampaignsPage() {
                   )}
                 />
                 
-                <FormField
-                  control={editForm.control}
-                  name="kpis"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>KPIs</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. CTR, Conversion rate" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="border p-4 rounded-md mb-4 mt-2">
+                  <h4 className="text-base font-medium mb-3">Performance Metrics</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={editForm.control}
+                      name="ctr"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CTR (%)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g. 2.5" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="cpc"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CPC ($)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g. 1.25" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="conversions"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Conversions</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g. 45" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="conversionRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Conversion Rate (%)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g. 3.2" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="cpa"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CPA ($)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g. 25.50" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="impressions"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Impressions</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g. 10000" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="qualityScore"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Quality Score</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.1" placeholder="e.g. 7.5" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="roas"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>ROAS (x)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.1" placeholder="e.g. 3.5" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="impressionShare"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Impression Share (%)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g. 25.4" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="bounceRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bounce Rate (%)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="e.g. 45.2" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
               </div>
               
               <FormField
