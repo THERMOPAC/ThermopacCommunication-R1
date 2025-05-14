@@ -129,6 +129,8 @@ export const marketingCampaigns = pgTable('marketing_campaigns', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
+  objective: text('objective'),
+  channelId: integer('channel_id').references(() => campaignChannels.id),
   startDate: date('start_date'),
   endDate: date('end_date'),
   budget: decimal('budget', { precision: 15, scale: 2 }),
@@ -136,6 +138,8 @@ export const marketingCampaigns = pgTable('marketing_campaigns', {
   status: text('status', { enum: campaignStatuses }).notNull(),
   goals: text('goals'),
   targetAudience: text('target_audience'),
+  kpis: text('kpis'),
+  expectedLeadCount: integer('expected_lead_count'),
   createdBy: integer('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow()
@@ -207,6 +211,10 @@ export const marketingCampaignsRelations = relations(marketingCampaigns, ({ one,
   createdByUser: one(users, {
     fields: [marketingCampaigns.createdBy],
     references: [users.id]
+  }),
+  channel: one(campaignChannels, {
+    fields: [marketingCampaigns.channelId],
+    references: [campaignChannels.id]
   }),
   activities: many(campaignActivities),
   leads: many(campaignLeads)

@@ -2936,15 +2936,66 @@ export class DatabaseStorage implements IStorage {
     return updatedCampaign[0];
   }
   
-  async getMarketingCampaign(id: number): Promise<MarketingCampaignSelect | undefined> {
+  async getMarketingCampaign(id: number) {
     console.log(`Getting marketing campaign with ID: ${id}`);
-    const result = await db.select().from(marketingCampaigns).where(eq(marketingCampaigns.id, id));
+    
+    const result = await db.select({
+      id: marketingCampaigns.id,
+      name: marketingCampaigns.name,
+      description: marketingCampaigns.description,
+      objective: marketingCampaigns.objective,
+      channelId: marketingCampaigns.channelId,
+      channelName: campaignChannels.name,
+      status: marketingCampaigns.status,
+      startDate: marketingCampaigns.startDate,
+      endDate: marketingCampaigns.endDate,
+      budget: marketingCampaigns.budget,
+      targetAudience: marketingCampaigns.targetAudience,
+      kpis: marketingCampaigns.kpis,
+      expectedLeadCount: marketingCampaigns.expectedLeadCount,
+      createdBy: marketingCampaigns.createdBy,
+      createdAt: marketingCampaigns.createdAt,
+      updatedAt: marketingCampaigns.updatedAt
+    })
+    .from(marketingCampaigns)
+    .leftJoin(
+      campaignChannels,
+      eq(marketingCampaigns.channelId, campaignChannels.id)
+    )
+    .where(eq(marketingCampaigns.id, id));
+    
     return result[0];
   }
   
-  async getAllMarketingCampaigns(): Promise<MarketingCampaignSelect[]> {
+  async getAllMarketingCampaigns() {
     console.log('Getting all marketing campaigns');
-    return await db.select().from(marketingCampaigns);
+    
+    // Join with campaign channels to get channel names
+    const result = await db.select({
+      id: marketingCampaigns.id,
+      name: marketingCampaigns.name,
+      description: marketingCampaigns.description,
+      objective: marketingCampaigns.objective,
+      channelId: marketingCampaigns.channelId,
+      channelName: campaignChannels.name,
+      status: marketingCampaigns.status,
+      startDate: marketingCampaigns.startDate,
+      endDate: marketingCampaigns.endDate,
+      budget: marketingCampaigns.budget,
+      targetAudience: marketingCampaigns.targetAudience,
+      kpis: marketingCampaigns.kpis,
+      expectedLeadCount: marketingCampaigns.expectedLeadCount,
+      createdBy: marketingCampaigns.createdBy,
+      createdAt: marketingCampaigns.createdAt,
+      updatedAt: marketingCampaigns.updatedAt
+    })
+    .from(marketingCampaigns)
+    .leftJoin(
+      campaignChannels,
+      eq(marketingCampaigns.channelId, campaignChannels.id)
+    );
+    
+    return result;
   }
   
   // Campaign Channels
