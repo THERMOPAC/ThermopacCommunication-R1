@@ -917,8 +917,8 @@ export default function CampaignsPage() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg">Create Campaign</DialogTitle>
-            <DialogDescription className="text-sm">
+            <DialogTitle className="text-base">Create Campaign</DialogTitle>
+            <DialogDescription className="text-xs">
               Fill in the details to create a new marketing campaign.
             </DialogDescription>
           </DialogHeader>
@@ -1296,8 +1296,8 @@ export default function CampaignsPage() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg">Edit Campaign</DialogTitle>
-            <DialogDescription className="text-sm">
+            <DialogTitle className="text-base">Edit Campaign</DialogTitle>
+            <DialogDescription className="text-xs">
               Update the details of {selectedCampaign?.name}.
             </DialogDescription>
           </DialogHeader>

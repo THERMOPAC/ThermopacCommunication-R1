@@ -635,15 +635,17 @@ export default function MarketingDashboardPage() {
                 <Skeleton className="h-7 w-full" />
               ) : (
                 <div>
-                  <div className="text-2xl font-bold">
-                    {ordersData?.count || 0}
-                  </div>
-                  <div className="text-sm flex flex-col gap-0 mt-1 text-right">
-                    {ordersData?.valuesByCurrency && Object.entries(ordersData.valuesByCurrency).map(([currency, value]) => (
-                      <span key={currency} className="text-xs">
-                        {currency}: {formatCurrency(value as number, currency)}
-                      </span>
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <div className="text-2xl font-bold">
+                      {ordersData?.count || 0}
+                    </div>
+                    <div className="text-lg font-bold flex flex-col gap-0 text-right">
+                      {ordersData?.valuesByCurrency && Object.entries(ordersData.valuesByCurrency).map(([currency, value]) => (
+                        <span key={currency}>
+                          {currency} {formatCurrency(value as number, currency)}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                   {ordersData?.totalValueINR > 0 && (
                     <div className="text-sm font-medium mt-1 text-green-600 text-right">
@@ -652,8 +654,23 @@ export default function MarketingDashboardPage() {
                   )}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground mt-1">
-                active orders as of today
+              <p className="text-xs text-muted-foreground mt-1 flex items-center justify-between">
+                <span>active orders as of today</span>
+                {lastUpdated && (
+                  <button 
+                    className="flex items-center text-xs text-blue-500 hover:text-blue-700" 
+                    onClick={async () => {
+                      setIsLoadingOrders(true);
+                      try {
+                        await queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'] });
+                      } finally {
+                        setIsLoadingOrders(false);
+                      }
+                    }}
+                  >
+                    <RefreshCwIcon className="h-3 w-3 mr-1" /> Refresh
+                  </button>
+                )}
               </p>
             </CardContent>
           </Card>
