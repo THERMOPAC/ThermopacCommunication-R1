@@ -178,7 +178,15 @@ export default function LeadsPage() {
         }
       }
       
-      return apiRequest('POST', '/api/sales-marketing/leads', finalData);
+      // Ensure estimatedCloseDate is properly formatted
+      const formattedData = {
+        ...finalData,
+        // Make sure the date is in YYYY-MM-DD format for the server
+        estimatedCloseDate: finalData.estimatedCloseDate ? finalData.estimatedCloseDate : null
+      };
+      
+      console.log('Creating lead with data:', formattedData);
+      return apiRequest('POST', '/api/sales-marketing/leads', formattedData);
     },
     onSuccess: () => {
       toast({
