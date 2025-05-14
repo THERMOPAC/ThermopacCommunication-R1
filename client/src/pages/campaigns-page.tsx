@@ -915,10 +915,10 @@ export default function CampaignsPage() {
 
       {/* Create Campaign Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Campaign</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">Create Campaign</DialogTitle>
+            <DialogDescription className="text-sm">
               Fill in the details to create a new marketing campaign.
             </DialogDescription>
           </DialogHeader>
