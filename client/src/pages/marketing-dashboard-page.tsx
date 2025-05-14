@@ -462,7 +462,7 @@ export default function MarketingDashboardPage() {
                 <Skeleton className="h-7 w-full" />
               ) : (
                 <div>
-                  <div className="text-lg font-bold flex flex-col gap-0">
+                  <div className="text-lg font-bold flex flex-col gap-0 text-right">
                     {expectedRevenueStats.totalUSD > 0 && (
                       <span>USD {formatCurrency(expectedRevenueStats.totalUSD, 'USD')}</span>
                     )}
@@ -470,7 +470,7 @@ export default function MarketingDashboardPage() {
                       <span>EUR {formatCurrency(expectedRevenueStats.totalEUR, 'EUR')}</span>
                     )}
                   </div>
-                  <div className="text-sm font-medium mt-1 text-green-600">
+                  <div className="text-sm font-medium mt-1 text-green-600 text-right">
                     ~INR {formatINRInCrores(expectedRevenueStats.totalINR)}
                   </div>
                 </div>
@@ -516,7 +516,7 @@ export default function MarketingDashboardPage() {
                   <div className="text-2xl font-bold">
                     {ordersData?.count || 0}
                   </div>
-                  <div className="text-sm flex flex-col gap-0 mt-1">
+                  <div className="text-sm flex flex-col gap-0 mt-1 text-right">
                     {ordersData?.valuesByCurrency && Object.entries(ordersData.valuesByCurrency).map(([currency, value]) => (
                       <span key={currency} className="text-xs">
                         {currency}: {formatCurrency(value as number, currency)}
@@ -524,7 +524,7 @@ export default function MarketingDashboardPage() {
                     ))}
                   </div>
                   {ordersData?.totalValueINR > 0 && (
-                    <div className="text-sm font-medium mt-1 text-green-600">
+                    <div className="text-sm font-medium mt-1 text-green-600 text-right">
                       ~INR {formatINRInCrores(ordersData.totalValueINR)}
                     </div>
                   )}
