@@ -334,6 +334,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     status: z.enum(["planning", "active", "on_hold", "completed", "canceled"]),
     priority: z.enum(["High", "Medium", "Low"]),
     customerId: z.number().optional().nullable(),
+    currency: z.enum(["USD", "EUR", "INR"]).default("USD"),
   });
 
   // Form type for editing project
@@ -348,6 +349,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       status: project?.status || "planning",
       priority: project?.priority || "Medium",
       customerId: project?.customerId || null,
+      currency: project?.currency || "USD",
     },
   });
 
