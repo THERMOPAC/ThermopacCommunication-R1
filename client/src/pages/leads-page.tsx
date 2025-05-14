@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, MoreHorizontal, Phone, Mail, Building, Users, BarChart, Calendar, Info, Percent, DollarSign, UserCircle, Globe, Loader2, User } from "lucide-react";
+import { Plus, Pencil, Trash2, MoreHorizontal, Phone, Mail, Building, Users, BarChart, Calendar, Info, Percent, DollarSign, UserCircle, Globe, Loader2, User, Eye } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -792,8 +792,8 @@ export default function LeadsPage() {
                           {/* Estimated Close Date */}
                           <div className="flex-shrink-0 w-1/8 mr-2">
                             <span className="text-sm">
-                              {lead.expectedCloseDate ? 
-                                new Date(lead.expectedCloseDate).toLocaleDateString() : 
+                              {lead.estimatedCloseDate ? 
+                                new Date(lead.estimatedCloseDate).toLocaleDateString() : 
                                 'Not set'}
                             </span>
                           </div>
