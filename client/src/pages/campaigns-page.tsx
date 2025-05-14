@@ -924,7 +924,7 @@ export default function CampaignsPage() {
           </DialogHeader>
           
           <Form {...createForm}>
-            <form onSubmit={createForm.handleSubmit(onCreateCampaignSubmit)} className="space-y-4 [&_.formLabel]:text-sm [&_.formLabel]:font-medium [&_input]:text-sm [&_select]:text-sm [&_textarea]:text-sm [&_.formMessage]:text-xs">
+            <form onSubmit={createForm.handleSubmit(onCreateCampaignSubmit)} className="space-y-4 [&_.formLabel]:text-sm [&_.formLabel]:font-medium [&_input]:text-sm [&_select]:text-sm [&_textarea]:text-sm [&_.formMessage]:text-xs [&_h4]:text-sm [&_h4]:font-medium [&_h4]:mb-1">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-6">
                   <FormField
