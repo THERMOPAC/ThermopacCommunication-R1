@@ -1134,6 +1134,7 @@ export const insertProjectSchema = createInsertSchema(projects, {
   actualEndDate: z.string().optional(),
   status: z.enum(['planning', 'active', 'completed', 'on_hold', 'canceled']),
   priority: z.enum(['Low', 'Medium', 'High']),
+  currency: z.enum(['USD', 'EUR', 'INR']).default('USD'),
 });
 
 export const insertProjectPhaseSchema = createInsertSchema(projectPhases, {
