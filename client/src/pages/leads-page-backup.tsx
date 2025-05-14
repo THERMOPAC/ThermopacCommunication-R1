@@ -308,7 +308,7 @@ export default function LeadsPage() {
       statusId: "",
       notes: "",
       probability: "",
-      expectedCloseDate: "",
+      estimatedCloseDate: "",
       assignedTo: "",
     },
   });
@@ -351,7 +351,7 @@ export default function LeadsPage() {
       statusId: "",
       notes: "",
       probability: "",
-      expectedCloseDate: "",
+      estimatedCloseDate: "",
       assignedTo: "",
     },
   });
