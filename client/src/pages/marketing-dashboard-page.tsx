@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart,
   LineChart,
@@ -72,8 +72,36 @@ export default function MarketingDashboardPage() {
   const [isLoadingRates, setIsLoadingRates] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
+  // Define types for leads data
+  type Lead = {
+    id: number;
+    companyName: string;
+    contactPerson: string;
+    contactEmail: string;
+    contactPhone: string;
+    industry: string;
+    status: string;
+    source: string;
+    expectedRevenue: number;
+    currency: string;
+    probability: number;
+    weightedValue: number;
+    expectedCloseDate: string;
+    assignedTo: number;
+    assignedToName: string;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+  
+  type LeadWithDetails = {
+    lead: Lead;
+    source: { id: number; name: string; };
+    status: { id: number; name: string; };
+  };
+  
   // Fetch leads data
-  const { data: rawLeadsData, isLoading: isLoadingLeads } = useQuery({
+  const { data: rawLeadsData, isLoading: isLoadingLeads } = useQuery<LeadWithDetails[]>({
     queryKey: ['/api/sales-marketing/leads'],
     refetchOnWindowFocus: false
   });
@@ -81,15 +109,47 @@ export default function MarketingDashboardPage() {
   // Process the nested lead data structure
   const leadsData = React.useMemo(() => {
     if (!rawLeadsData || !Array.isArray(rawLeadsData)) return [];
-    return rawLeadsData.map((item: any) => ({
+    return rawLeadsData.map((item) => ({
       ...item.lead,
       sourceName: item.source?.name,
       statusName: item.status?.name
     }));
   }, [rawLeadsData]);
 
+  // Define Campaign type
+  type Campaign = {
+    id: number;
+    name: string;
+    description: string | null;
+    objective: string;
+    channelId: number;
+    channelName: string;
+    status: "Planned" | "Active" | "Completed" | "Cancelled";
+    startDate: string;
+    endDate: string | null;
+    budget: string | null;
+    targetAudience: string | null;
+    ctr: number | null;
+    cpc: number | null;
+    conversions: number | null;
+    conversionRate: number | null;
+    cpa: number | null;
+    impressions: number | null;
+    qualityScore: number | null;
+    roas: number | null;
+    impressionShare: number | null;
+    bounceRate: number | null;
+    expectedLeadCount: number | null;
+    actualLeadCount: number | null;
+    notes: string | null;
+    createdBy: number;
+    createdByName: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+  
   // Fetch campaign data
-  const { data: campaignsData, isLoading: isLoadingCampaigns } = useQuery({
+  const { data: campaignsData, isLoading: isLoadingCampaigns } = useQuery<Campaign[]>({
     queryKey: ['/api/sales-marketing/campaigns'],
     refetchOnWindowFocus: false
   });
@@ -226,11 +286,25 @@ export default function MarketingDashboardPage() {
     };
   }, [leadsData]);
   
+  // Define types for orders data
+  type OrderData = {
+    count: number;
+    totalValueINR: number;
+    valuesByCurrency: {
+      [currency: string]: number;
+    };
+  };
+  
   // Fetch orders in hand data
-  const { data: ordersData, isLoading: isLoadingOrders } = useQuery({
+  const [refreshingOrders, setRefreshingOrders] = useState(false);
+  const { data: ordersData, isLoading: isLoadingOrdersInitial, refetch: refetchOrders } = useQuery<OrderData>({
     queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'],
     refetchOnWindowFocus: false
   });
+  const isLoadingOrders = isLoadingOrdersInitial || refreshingOrders;
+  
+  // Get queryClient for manual refetching
+  const queryClient = useQueryClient();
   
   // Calculate expected revenue with currency conversion
   const expectedRevenueStats = React.useMemo(() => {
@@ -660,15 +734,15 @@ export default function MarketingDashboardPage() {
                   <button 
                     className="flex items-center text-xs text-blue-500 hover:text-blue-700" 
                     onClick={async () => {
-                      setIsLoadingOrders(true);
+                      setRefreshingOrders(true);
                       try {
-                        await queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'] });
+                        await refetchOrders();
                       } finally {
-                        setIsLoadingOrders(false);
+                        setRefreshingOrders(false);
                       }
                     }}
                   >
-                    <RefreshCwIcon className="h-3 w-3 mr-1" /> Refresh
+                    <RefreshCw className="h-3 w-3 mr-1" /> Refresh
                   </button>
                 )}
               </p>
