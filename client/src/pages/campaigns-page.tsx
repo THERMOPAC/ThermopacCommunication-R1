@@ -924,7 +924,7 @@ export default function CampaignsPage() {
           </DialogHeader>
           
           <Form {...createForm}>
-            <form onSubmit={createForm.handleSubmit(onCreateCampaignSubmit)} className="space-y-4">
+            <form onSubmit={createForm.handleSubmit(onCreateCampaignSubmit)} className="space-y-4 [&_.formLabel]:text-sm [&_.formLabel]:font-medium [&_input]:text-sm [&_select]:text-sm [&_textarea]:text-sm [&_.formMessage]:text-xs">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-6">
                   <FormField
@@ -1294,16 +1294,16 @@ export default function CampaignsPage() {
 
       {/* Edit Campaign Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Campaign</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">Edit Campaign</DialogTitle>
+            <DialogDescription className="text-sm">
               Update the details of {selectedCampaign?.name}.
             </DialogDescription>
           </DialogHeader>
           
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditCampaignSubmit)} className="space-y-4">
+            <form onSubmit={editForm.handleSubmit(onEditCampaignSubmit)} className="space-y-4 [&_.formLabel]:text-sm [&_.formLabel]:font-medium [&_input]:text-sm [&_select]:text-sm [&_textarea]:text-sm [&_.formMessage]:text-xs">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-6">
                   <FormField
