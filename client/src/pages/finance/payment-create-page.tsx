@@ -44,6 +44,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 import { formatRupees } from "@/lib/utils";
 
 // Payment form schema
@@ -387,6 +388,35 @@ export default function PaymentCreatePage() {
                   )}
                 />
                 
+                {/* Customer Selection */}
+                <FormItem>
+                  <FormLabel>Customer</FormLabel>
+                  <Select
+                    onValueChange={handleCustomerChange}
+                    value={selectedCustomerId}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select customer" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Array.isArray(customersList) ? (
+                        customersList.map((customer: any) => (
+                          <SelectItem key={customer.id} value={String(customer.id)}>
+                            {customer.bpName} ({customer.bpCode})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>No customers found</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Select the customer who made this payment
+                  </FormDescription>
+                </FormItem>
+                
                 <FormField
                   control={form.control}
                   name="paymentDate"
@@ -447,25 +477,47 @@ export default function PaymentCreatePage() {
                   )}
                 />
                 
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Total Amount</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          step="0.01" 
-                          min="0"
-                          placeholder="0.00"
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Total Amount</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.01" 
+                            min="0"
+                            placeholder="0.00"
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              handlePaymentAmountChange(e.target.value);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Auto-allocation toggle */}
+                  <div className="flex items-center space-x-2">
+                    <div className="flex-1"></div>
+                    <Switch 
+                      checked={autoAllocateEnabled}
+                      onCheckedChange={setAutoAllocateEnabled}
+                      id="auto-allocate"
+                    />
+                    <label
+                      htmlFor="auto-allocate"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Auto-allocate to invoices
+                    </label>
+                  </div>
+                </div>
                 
                 <FormField
                   control={form.control}
