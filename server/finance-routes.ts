@@ -558,6 +558,76 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
   }
 });
 
+// Test payment number generation (for debugging purposes)
+router.get('/test/payment-number', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { date } = req.query;
+    
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required (format: YYYY-MM-DD)' });
+    }
+    
+    // Parse the date
+    const testDate = new Date(date as string);
+    
+    // Determine financial year
+    const month = testDate.getMonth(); // 0-11 (Jan-Dec)
+    const year = testDate.getFullYear();
+    
+    // If month is January(0), February(1), or March(2), it's the previous year's financial year
+    // Otherwise, it's the current year's financial year
+    const startYear = month < 3 ? year - 1 : year;
+    const endYear = startYear + 1;
+    
+    // Format as YYZZ (last two digits of each year)
+    const startYearStr = startYear.toString().slice(-2);
+    const endYearStr = endYear.toString().slice(-2);
+    const financialYear = `${startYearStr}${endYearStr}`;
+    
+    // Find the highest serial number for the given financial year
+    const yearPattern = `PAY-${financialYear}-%`;
+    
+    const result = await db
+      .select({
+        maxReferenceNumber: sql<string>`MAX(${paymentsTable.referenceNumber})`,
+      })
+      .from(paymentsTable)
+      .where(sql`${paymentsTable.referenceNumber} LIKE ${yearPattern}`);
+    
+    let nextNumber = 1;
+    const maxReferenceNumber = result[0]?.maxReferenceNumber;
+    
+    if (maxReferenceNumber) {
+      // Extract the serial number from the payment number (format: PAY-YYZZ-SERIES)
+      const parts = maxReferenceNumber.split('-');
+      if (parts.length === 3) {
+        const currentSerial = parseInt(parts[2]);
+        if (!isNaN(currentSerial)) {
+          nextNumber = currentSerial + 1;
+        }
+      }
+    }
+    
+    // Format the next payment number with leading zeros (e.g., 001, 010, 100)
+    const formattedNextNumber = String(nextNumber).padStart(3, '0');
+    const nextPaymentNumber = `PAY-${financialYear}-${formattedNextNumber}`;
+    
+    res.json({
+      testDate: testDate.toISOString().split('T')[0],
+      month: month + 1, // Add 1 to make it 1-12 for human readability
+      startYear,
+      endYear,
+      financialYear,
+      yearPattern,
+      currentMaxPayment: maxReferenceNumber || 'None',
+      nextPaymentNumber
+    });
+  } catch (error) {
+    console.error('Error in test payment number generation:', error);
+    res.status(500).json({ error: 'Failed to test payment number generation' });
+  }
+});
+
 // Test invoice number generation (for debugging purposes)
 router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res: Response) => {
   try {

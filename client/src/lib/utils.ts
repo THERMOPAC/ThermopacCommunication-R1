@@ -87,7 +87,7 @@ export function getIndianFinancialYear(date: Date): string {
 /**
  * Get the next invoice number based on Indian financial year
  * @param issueDate Date of invoice issuance
- * @returns Formatted invoice number in format INV-YYYY-SERIES
+ * @returns Formatted invoice number in format INV-YYZZ-SERIES
  */
 export async function getNextInvoiceNumber(issueDate: Date): Promise<string> {
   // Get the financial year based on the issue date
@@ -107,5 +107,31 @@ export async function getNextInvoiceNumber(issueDate: Date): Promise<string> {
     console.error('Error getting next invoice number:', error);
     // Fallback format if API fails
     return `INV-${financialYear}-001`;
+  }
+}
+
+/**
+ * Get the next payment reference number based on Indian financial year
+ * @param paymentDate Date of payment
+ * @returns Formatted payment reference number in format PAY-YYZZ-SERIES
+ */
+export async function getNextPaymentReferenceNumber(paymentDate: Date): Promise<string> {
+  // Get the financial year based on the payment date
+  const financialYear = getIndianFinancialYear(paymentDate);
+  
+  try {
+    // Use our test endpoint to avoid authentication issues during development
+    const response = await fetch(`/api/finance/test/payment-number?date=${paymentDate.toISOString().split('T')[0]}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to get next payment reference number');
+    }
+    
+    const data = await response.json();
+    return data.nextPaymentNumber;
+  } catch (error) {
+    console.error('Error getting next payment reference number:', error);
+    // Fallback format if API fails
+    return `PAY-${financialYear}-001`;
   }
 }
