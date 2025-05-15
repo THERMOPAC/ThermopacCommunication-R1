@@ -211,6 +211,23 @@ export default function PaymentCreatePage() {
       return;
     }
     
+    // Validate that all selected invoices have the same currency as the payment
+    const paymentCurrency = values.currency;
+    const invoiceCurrencyMismatch = values.invoiceLinks.some(link => {
+      const invoiceId = link.invoiceId;
+      const invoice = outstandingInvoices?.find((inv: any) => String(inv.id) === invoiceId);
+      return invoice && invoice.currency !== paymentCurrency;
+    });
+    
+    if (invoiceCurrencyMismatch) {
+      toast({
+        title: "Currency Mismatch",
+        description: "All invoices must be in the same currency as the payment",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     createPayment.mutate(values);
   };
   
@@ -241,8 +258,24 @@ export default function PaymentCreatePage() {
   
   // Auto-allocate payment to invoices (highest to lowest value)
   const autoAllocatePayment = (totalAmount: number, invoicesToAllocate: any[]) => {
+    const paymentCurrency = form.getValues().currency;
+    
+    // Filter invoices by matching currency and sort by total amount (highest to lowest)
+    const matchingCurrencyInvoices = invoicesToAllocate.filter(invoice => 
+      invoice.currency === paymentCurrency
+    );
+    
+    // Show warning if any invoices were filtered due to currency mismatch
+    if (matchingCurrencyInvoices.length < invoicesToAllocate.length) {
+      toast({
+        title: "Currency Mismatch",
+        description: `Only invoices in ${paymentCurrency} will be allocated to this payment.`,
+        variant: "warning",
+      });
+    }
+    
     // Sort invoices by total amount (highest to lowest)
-    const sortedInvoices = [...invoicesToAllocate].sort((a, b) => 
+    const sortedInvoices = [...matchingCurrencyInvoices].sort((a, b) => 
       parseFloat(b.totalAmount) - parseFloat(a.totalAmount)
     );
     
@@ -334,6 +367,17 @@ export default function PaymentCreatePage() {
       toast({
         title: "Invoice already added",
         description: "This invoice is already in the list",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check if there's a currency mismatch
+    const paymentCurrency = form.getValues().currency;
+    if (invoice.currency !== paymentCurrency) {
+      toast({
+        title: "Currency Mismatch",
+        description: `This invoice is in ${invoice.currency}, but the payment is in ${paymentCurrency}. All invoices must match the payment currency.`,
         variant: "destructive",
       });
       return;
@@ -563,7 +607,36 @@ export default function PaymentCreatePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select 
+                        onValueChange={(value) => {
+                          // Get the current invoiceLinks and check if they have a different currency
+                          const currentLinks = form.getValues().invoiceLinks;
+                          if (currentLinks.length > 0) {
+                            // Check if any of the current invoices has a different currency
+                            const hasCurrencyMismatch = currentLinks.some(link => {
+                              const invoice = outstandingInvoices?.find((inv: any) => 
+                                String(inv.id) === link.invoiceId
+                              );
+                              return invoice && invoice.currency !== value;
+                            });
+                            
+                            if (hasCurrencyMismatch) {
+                              // Clear the invoice links as they won't match the new currency
+                              toast({
+                                title: "Currency Changed",
+                                description: "Invoice selections have been cleared because they don't match the new currency.",
+                                variant: "warning",
+                              });
+                              form.setValue('invoiceLinks', []);
+                              setSelectedInvoices([]);
+                            }
+                          }
+                          
+                          // Update the currency
+                          field.onChange(value);
+                        }}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select currency" />
@@ -576,6 +649,9 @@ export default function PaymentCreatePage() {
                           <SelectItem value="GBP">British Pound (£)</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormDescription>
+                        All invoices must be in the same currency as the payment.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
