@@ -132,7 +132,7 @@ function Router() {
       <ProtectedRoute path="/finance/dashboard" component={FinanceDashboardPage} />
       <ProtectedRoute path="/finance/invoices" component={InvoicesPage} />
       <ProtectedRoute path="/finance/invoices/new" component={() => <InvoiceCreatePage />} />
-      <ProtectedRoute path="/finance/invoices/:id/edit" component={() => <InvoiceCreatePage />} />
+      <ProtectedRoute path="/finance/invoices/:id/edit" component={() => <InvoiceCreatePage isEditMode={true} />} />
       <ProtectedRoute path="/finance/invoices/:id/download" component={() => <InvoiceDetailPage download={true} />} />
       <ProtectedRoute path="/finance/invoices/:id/print" component={() => <InvoiceDetailPage print={true} />} />
       <ProtectedRoute path="/finance/invoices/:id" component={() => <InvoiceDetailPage />} />

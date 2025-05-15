@@ -68,9 +68,20 @@ const invoiceFormSchema = z.object({
 
 type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;
 
-export default function InvoiceCreatePage() {
+interface InvoiceCreatePageProps {
+  isEditMode?: boolean;
+}
+
+export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreatePageProps) {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
+  
+  // Extract invoice ID from URL if in edit mode
+  let invoiceId: string | null = null;
+  if (isEditMode) {
+    const pathSegments = location.split('/');
+    invoiceId = pathSegments[pathSegments.indexOf('invoices') + 1];
+  }
   
   // Get customers
   const { data: customers, isLoading: isLoadingCustomers } = useQuery({
@@ -82,23 +93,42 @@ export default function InvoiceCreatePage() {
     queryKey: ['/api/projects'],
   });
   
+  // Get invoice if in edit mode
+  const { data: invoiceData, isLoading: isLoadingInvoice } = useQuery({
+    queryKey: [`/api/finance/invoices/${invoiceId}`],
+    enabled: !!isEditMode && !!invoiceId,
+  });
+  
   // Default form values
   const defaultValues: InvoiceFormValues = {
-    invoiceNumber: `INV-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
-    customerId: '',
-    projectId: '',
-    issueDate: new Date(),
-    dueDate: new Date(new Date().setDate(new Date().getDate() + 30)), // Due in 30 days
-    currency: 'INR',
-    notes: '',
-    items: [
-      {
-        description: '',
-        quantity: '1',
-        unitPrice: '0',
-        amount: '0',
-      },
-    ],
+    invoiceNumber: isEditMode && invoiceData?.invoice 
+      ? invoiceData.invoice.invoiceNumber
+      : `INV-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+    customerId: isEditMode && invoiceData?.invoice ? String(invoiceData.invoice.customerId) : '',
+    projectId: isEditMode && invoiceData?.invoice && invoiceData.invoice.projectId 
+      ? String(invoiceData.invoice.projectId) 
+      : '',
+    issueDate: isEditMode && invoiceData?.invoice ? new Date(invoiceData.invoice.issueDate) : new Date(),
+    dueDate: isEditMode && invoiceData?.invoice 
+      ? new Date(invoiceData.invoice.dueDate)
+      : new Date(new Date().setDate(new Date().getDate() + 30)), // Due in 30 days
+    currency: isEditMode && invoiceData?.invoice ? invoiceData.invoice.currency : 'INR',
+    notes: isEditMode && invoiceData?.invoice ? invoiceData.invoice.notes || '' : '',
+    items: isEditMode && invoiceData?.items && invoiceData.items.length > 0
+      ? invoiceData.items.map((item: any) => ({
+          description: item.description || '',
+          quantity: String(item.quantity) || '1',
+          unitPrice: String(item.unitPrice) || '0',
+          amount: String(item.amount) || '0',
+        }))
+      : [
+          {
+            description: '',
+            quantity: '1',
+            unitPrice: '0',
+            amount: '0',
+          },
+        ],
   };
   
   // Create form
