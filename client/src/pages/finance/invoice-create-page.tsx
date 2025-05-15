@@ -432,7 +432,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                       </FormControl>
                       {!isEditMode && (
                         <FormDescription>
-                          Automatically generated based on financial year (April-March). The format is INV-YYYY-SERIES.
+                          Automatically generated based on financial year (April-March). The format is INV-YYZZ-SERIES where YY is start year and ZZ is end year (e.g., INV-2526-001 for FY 2025-26).
                         </FormDescription>
                       )}
                       <FormMessage />

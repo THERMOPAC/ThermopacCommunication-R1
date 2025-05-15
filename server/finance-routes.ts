@@ -432,7 +432,7 @@ router.get('/invoices/next-number', ensureAuthenticated, async (req: Request, re
     const financialYear = req.query.financialYear as string;
     
     if (!financialYear || !/^\d{4}$/.test(financialYear)) {
-      return res.status(400).json({ error: 'Valid financial year is required (YYYY format)' });
+      return res.status(400).json({ error: 'Valid financial year is required (YYZZ format)' });
     }
     
     // Find the highest serial number for the given financial year
@@ -576,7 +576,13 @@ router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res
     
     // If month is January(0), February(1), or March(2), it's the previous year's financial year
     // Otherwise, it's the current year's financial year
-    const financialYear = month < 3 ? year - 1 : year;
+    const startYear = month < 3 ? year - 1 : year;
+    const endYear = startYear + 1;
+    
+    // Format as YYZZ (last two digits of each year)
+    const startYearStr = startYear.toString().slice(-2);
+    const endYearStr = endYear.toString().slice(-2);
+    const financialYear = `${startYearStr}${endYearStr}`;
     
     // Find the highest serial number for the given financial year
     const yearPattern = `INV-${financialYear}-%`;
@@ -609,7 +615,8 @@ router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res
     res.json({
       testDate: testDate.toISOString().split('T')[0],
       month: month + 1, // Add 1 to make it 1-12 for human readability
-      year,
+      startYear,
+      endYear,
       financialYear,
       yearPattern,
       currentMaxInvoice: maxInvoiceNumber || 'None',

@@ -66,15 +66,22 @@ export function formatRupees(amount: number, useLakhs: boolean = false): string 
 /**
  * Get the Indian financial year (April to March) for a given date
  * @param date Date to get financial year for
- * @returns Financial year (e.g., 2025 for dates between Apr 1, 2025 to Mar 31, 2026)
+ * @returns Financial year string in "YYZZ" format (e.g., "2526" for dates between Apr 1, 2025 to Mar 31, 2026)
  */
-export function getIndianFinancialYear(date: Date): number {
+export function getIndianFinancialYear(date: Date): string {
   const month = date.getMonth(); // 0-11 (Jan-Dec)
   const year = date.getFullYear();
   
   // If month is January(0), February(1), or March(2), it's the previous year's financial year
   // Otherwise, it's the current year's financial year
-  return month < 3 ? year - 1 : year;
+  const startYear = month < 3 ? year - 1 : year;
+  const endYear = startYear + 1;
+  
+  // Format as YYZZ (last two digits of each year)
+  const startYearStr = startYear.toString().slice(-2);
+  const endYearStr = endYear.toString().slice(-2);
+  
+  return `${startYearStr}${endYearStr}`;
 }
 
 /**
