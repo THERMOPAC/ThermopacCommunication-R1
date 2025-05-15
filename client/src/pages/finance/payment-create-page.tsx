@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,7 +40,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format } from 'date-fns';
-import { Loader2, CalendarIcon, Plus, Trash2, Search, AlertCircle, ArrowDownUp, CheckCircle } from "lucide-react";
+import { Loader2, CalendarIcon, Plus, Trash2, Search, AlertCircle, ArrowDownUp, CheckCircle, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
@@ -48,7 +48,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { formatRupees } from "@/lib/utils";
+import { formatRupees, getIndianFinancialYear, getNextPaymentReferenceNumber } from "@/lib/utils";
 
 // Payment form schema
 const paymentFormSchema = z.object({
@@ -77,6 +77,7 @@ export default function PaymentCreatePage() {
   const [selectedInvoices, setSelectedInvoices] = useState<any[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [autoAllocateEnabled, setAutoAllocateEnabled] = useState(true);
+  const [isGeneratingReferenceNumber, setIsGeneratingReferenceNumber] = useState(false);
   
   // Get all invoices and customers data
   const { data: outstandingInvoices, isLoading: isLoadingInvoices, error: invoicesError } = useQuery({
@@ -90,7 +91,7 @@ export default function PaymentCreatePage() {
   
   // Default form values
   const defaultValues: PaymentFormValues = {
-    referenceNumber: `PAY-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+    referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
     paymentDate: new Date(),
     amount: '',
     currency: 'INR',
@@ -110,6 +111,37 @@ export default function PaymentCreatePage() {
     control: form.control,
     name: "invoiceLinks",
   });
+  
+  // Function to generate reference number based on payment date
+  const generateReferenceNumber = useCallback(async (date: Date) => {
+    try {
+      setIsGeneratingReferenceNumber(true);
+      const nextReferenceNumber = await getNextPaymentReferenceNumber(date);
+      form.setValue('referenceNumber', nextReferenceNumber);
+    } catch (error) {
+      console.error('Failed to generate payment reference number:', error);
+      toast({
+        title: "Error",
+        description: "Could not generate reference number. Using fallback format.",
+        variant: "destructive",
+      });
+      const financialYear = getIndianFinancialYear(date);
+      form.setValue('referenceNumber', `PAY-${financialYear}-001`);
+    } finally {
+      setIsGeneratingReferenceNumber(false);
+    }
+  }, [form, toast]);
+  
+  // Update reference number when payment date changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'paymentDate' && value.paymentDate) {
+        generateReferenceNumber(value.paymentDate as Date);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [form, generateReferenceNumber]);
   
   // Calculate total amount applied to invoices
   const calculateTotalApplied = () => {
@@ -375,8 +407,60 @@ export default function PaymentCreatePage() {
                     <FormItem>
                       <FormLabel>Reference Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="PAY-2025-001" {...field} />
+                        <div className="relative">
+                          <div className="flex">
+                            <Input 
+                              placeholder="PAY-2526-001" 
+                              {...field} 
+                              readOnly 
+                              className="bg-muted cursor-not-allowed rounded-r-none" 
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-10 rounded-l-none border-l-0"
+                              onClick={async () => {
+                                const currentPaymentDate = form.getValues('paymentDate');
+                                if (currentPaymentDate) {
+                                  try {
+                                    setIsGeneratingReferenceNumber(true);
+                                    const nextReferenceNumber = await getNextPaymentReferenceNumber(currentPaymentDate);
+                                    form.setValue('referenceNumber', nextReferenceNumber);
+                                  } catch (error) {
+                                    console.error('Failed to generate payment reference number:', error);
+                                    toast({
+                                      title: "Error",
+                                      description: "Could not generate reference number. Using fallback format.",
+                                      variant: "destructive",
+                                    });
+                                    const financialYear = getIndianFinancialYear(currentPaymentDate);
+                                    form.setValue('referenceNumber', `PAY-${financialYear}-001`);
+                                  } finally {
+                                    setIsGeneratingReferenceNumber(false);
+                                  }
+                                }
+                              }}
+                              disabled={isGeneratingReferenceNumber}
+                              title="Refresh reference number"
+                            >
+                              {isGeneratingReferenceNumber ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                          {isGeneratingReferenceNumber && (
+                            <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
                       </FormControl>
+                      <FormDescription>
+                        Automatically generated based on financial year (April-March). The format is PAY-YYZZ-SERIES where YY is start year and ZZ is end year (e.g., PAY-2526-001 for FY 2025-26).
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
