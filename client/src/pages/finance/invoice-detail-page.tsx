@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
+import { Helmet } from "react-helmet";
+import Layout from "@/components/layout";
 import {
   Card,
   CardContent,
