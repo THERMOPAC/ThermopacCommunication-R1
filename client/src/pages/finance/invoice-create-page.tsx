@@ -367,7 +367,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                         <SelectContent>
                           {customers?.map((customer: any) => (
                             <SelectItem key={customer.id} value={customer.id.toString()}>
-                              {customer.companyName || customer.name}
+                              {customer.bpName} ({customer.bpCode})
                             </SelectItem>
                           ))}
                         </SelectContent>
