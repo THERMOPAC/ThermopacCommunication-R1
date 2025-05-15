@@ -137,7 +137,7 @@ const editProjectSchema = z.object({
   customerId: z.number().min(1, "Customer is required"),
   startDate: z.string().min(1, "Start date is required"),
   targetEndDate: z.string().min(1, "Target end date is required"),
-  budget: z.number().optional(),
+  estimatedBudget: z.number().optional(),
   // Project code is read-only, but required for the form
   code: z.string().optional(),
   // Financial year is now required
@@ -187,7 +187,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       customerId: null,
       startDate: "",
       targetEndDate: "",
-      budget: undefined,
+      estimatedBudget: undefined,
       code: "",
       financialYear: "",
       currency: "USD",
@@ -317,6 +317,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   // Update form values when project data is loaded
   useEffect(() => {
     if (project) {
+      console.log("Loading form with estimatedBudget:", project.estimatedBudget);
       form.reset({
         name: project.name || "",
         description: project.description || "",
@@ -325,7 +326,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         customerId: project.customerId || null,
         startDate: project.startDate || "",
         targetEndDate: project.targetEndDate || "",
-        budget: project.budget || undefined,
+        estimatedBudget: project.estimatedBudget || undefined,
         code: project.code || "",
         financialYear: project.financialYear || "",
         currency: project.currency || "USD",
@@ -1251,7 +1252,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="budget"
+                  name="estimatedBudget"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Budget</FormLabel>
