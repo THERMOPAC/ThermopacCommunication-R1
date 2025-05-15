@@ -914,6 +914,6 @@ export default function PaymentCreatePage() {
           </Card>
         </form>
       </Form>
-    </div>
+    </Layout>
   );
 }
