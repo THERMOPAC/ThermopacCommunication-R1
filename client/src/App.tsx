@@ -39,6 +39,7 @@ import InvoiceCreatePage from "@/pages/finance/invoice-create-page";
 import InvoiceDetailPage from "@/pages/finance/invoice-detail-page";
 import PaymentsPage from "@/pages/finance/payments-page";
 import PaymentDetailPage from "@/pages/finance/payment-detail-page";
+import PaymentCreatePage from "@/pages/finance/payment-create-page";
 
 // New Material Identification pages
 import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";
@@ -137,6 +138,7 @@ function Router() {
       <ProtectedRoute path="/finance/invoices/:id/print" component={() => <InvoiceDetailPage print={true} />} />
       <ProtectedRoute path="/finance/invoices/:id" component={() => <InvoiceDetailPage />} />
       <ProtectedRoute path="/finance/payments" component={PaymentsPage} />
+      <ProtectedRoute path="/finance/payments/new" component={() => <PaymentCreatePage />} />
       <ProtectedRoute path="/finance/payments/:id" component={() => <PaymentDetailPage />} />
       
       <ProtectedRoute path="/projects" component={ProjectsPage} />
