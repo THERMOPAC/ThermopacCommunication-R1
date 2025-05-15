@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, sql } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -7,6 +7,7 @@ import { relations } from "drizzle-orm";
 // Available system modules
 export const modules = [
   "Sales and Marketing",
+  "Finance",
   "Project Management",
   "Procurement Management", 
   "Production Management", 
@@ -28,6 +29,30 @@ export const leadStatuses = [
 ] as const;
 
 export type LeadStatus = typeof leadStatuses[number];
+
+// Invoice status values
+export const invoiceStatuses = [
+  "Pending",
+  "Paid",
+  "Partially Paid",
+  "Overdue",
+  "Cancelled"
+] as const;
+
+export type InvoiceStatus = typeof invoiceStatuses[number];
+
+// Payment methods
+export const paymentMethods = [
+  "Bank Transfer",
+  "Wire Transfer",
+  "Cash",
+  "Check",
+  "Credit Card",
+  "Online Payment",
+  "Other"
+] as const;
+
+export type PaymentMethod = typeof paymentMethods[number];
 
 // Campaign status values
 export const campaignStatuses = [
@@ -3010,3 +3035,170 @@ export const insertReportTemplateSchema = createInsertSchema(reportTemplates)
 // Export Report Template types
 export type ReportTemplate = typeof reportTemplates.$inferSelect;
 export type InsertReportTemplate = z.infer<typeof insertReportTemplateSchema>;
+
+//==============================================================================
+// FINANCE MODULE
+//==============================================================================
+
+// Invoices table
+export const invoices = pgTable('invoices', {
+  id: serial('id').primaryKey(),
+  invoiceNumber: varchar('invoice_number', { length: 50 }).notNull(),
+  customerId: integer('customer_id').notNull(),
+  projectId: integer('project_id'),
+  issueDate: date('issue_date').notNull(),
+  dueDate: date('due_date').notNull(),
+  totalAmount: decimal('total_amount', { precision: 15, scale: 2 }).notNull(),
+  currency: varchar('currency', { length: 3 }).notNull().default('INR'),
+  status: varchar('status', { length: 20 }).notNull().default('Pending'),
+  notes: text('notes'),
+  createdBy: integer('created_by').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Invoice items table
+export const invoiceItems = pgTable('invoice_items', {
+  id: serial('id').primaryKey(),
+  invoiceId: integer('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
+  description: text('description').notNull(),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+  unitPrice: decimal('unit_price', { precision: 15, scale: 2 }).notNull(),
+  amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Payments table
+export const payments = pgTable('payments', {
+  id: serial('id').primaryKey(),
+  paymentDate: date('payment_date').notNull(),
+  amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
+  currency: varchar('currency', { length: 3 }).notNull().default('INR'),
+  paymentMethod: varchar('payment_method', { length: 50 }).notNull(),
+  referenceNumber: varchar('reference_number', { length: 100 }),
+  notes: text('notes'),
+  proofDocumentPath: varchar('proof_document_path', { length: 255 }),
+  createdBy: integer('created_by').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Payment-Invoice links table
+export const paymentInvoiceLinks = pgTable('payment_invoice_links', {
+  id: serial('id').primaryKey(),
+  paymentId: integer('payment_id').notNull().references(() => payments.id, { onDelete: 'cascade' }),
+  invoiceId: integer('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
+  amountApplied: decimal('amount_applied', { precision: 15, scale: 2 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+}, (table) => {
+  return {
+    paymentInvoiceUnique: primaryKey({ columns: [table.paymentId, table.invoiceId] })
+  };
+});
+
+// Bank Realization Certificates table
+export const bankRealizationCertificates = pgTable('bank_realization_certificates', {
+  id: serial('id').primaryKey(),
+  certificateNumber: varchar('certificate_number', { length: 100 }).notNull(),
+  issueDate: date('issue_date').notNull(),
+  bankName: varchar('bank_name', { length: 100 }).notNull(),
+  amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
+  currency: varchar('currency', { length: 3 }).notNull(),
+  relatedPaymentId: integer('related_payment_id').references(() => payments.id, { onDelete: 'set null' }),
+  documentPath: varchar('document_path', { length: 255 }),
+  notes: text('notes'),
+  createdBy: integer('created_by').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// Relations for invoices
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
+  customer: one(customers, {
+    fields: [invoices.customerId],
+    references: [customers.id]
+  }),
+  project: one(projects, {
+    fields: [invoices.projectId],
+    references: [projects.id]
+  }),
+  creator: one(users, {
+    fields: [invoices.createdBy],
+    references: [users.id]
+  }),
+  items: many(invoiceItems),
+  paymentLinks: many(paymentInvoiceLinks)
+}));
+
+// Relations for invoice items
+export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoiceItems.invoiceId],
+    references: [invoices.id]
+  })
+}));
+
+// Relations for payments
+export const paymentsRelations = relations(payments, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [payments.createdBy],
+    references: [users.id]
+  }),
+  invoiceLinks: many(paymentInvoiceLinks),
+  bankRealizationCertificates: many(bankRealizationCertificates)
+}));
+
+// Relations for payment-invoice links
+export const paymentInvoiceLinksRelations = relations(paymentInvoiceLinks, ({ one }) => ({
+  payment: one(payments, {
+    fields: [paymentInvoiceLinks.paymentId],
+    references: [payments.id]
+  }),
+  invoice: one(invoices, {
+    fields: [paymentInvoiceLinks.invoiceId],
+    references: [invoices.id]
+  })
+}));
+
+// Relations for bank realization certificates
+export const bankRealizationCertificatesRelations = relations(bankRealizationCertificates, ({ one }) => ({
+  payment: one(payments, {
+    fields: [bankRealizationCertificates.relatedPaymentId],
+    references: [payments.id]
+  }),
+  creator: one(users, {
+    fields: [bankRealizationCertificates.createdBy],
+    references: [users.id]
+  })
+}));
+
+// Insert schemas
+export const insertInvoiceSchema = createInsertSchema(invoices)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export const insertInvoiceItemSchema = createInsertSchema(invoiceItems)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export const insertPaymentSchema = createInsertSchema(payments)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export const insertPaymentInvoiceLinkSchema = createInsertSchema(paymentInvoiceLinks)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+export const insertBankRealizationCertificateSchema = createInsertSchema(bankRealizationCertificates)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+
+// Export types
+export type Invoice = typeof invoices.$inferSelect;
+export type InvoiceItem = typeof invoiceItems.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type PaymentInvoiceLink = typeof paymentInvoiceLinks.$inferSelect;
+export type BankRealizationCertificate = typeof bankRealizationCertificates.$inferSelect;
+
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+export type InsertInvoiceItem = z.infer<typeof insertInvoiceItemSchema>;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type InsertPaymentInvoiceLink = z.infer<typeof insertPaymentInvoiceLinkSchema>;
+export type InsertBankRealizationCertificate = z.infer<typeof insertBankRealizationCertificateSchema>;
