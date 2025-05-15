@@ -141,6 +141,63 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
   }
 });
 
+// Update invoice
+router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const id = parseInt(req.params.id);
+    const { invoice: invoiceData, items } = req.body;
+    
+    // Begin transaction
+    const result = await db.transaction(async (tx) => {
+      // Update invoice
+      const [updatedInvoice] = await tx
+        .update(invoices)
+        .set({ 
+          ...invoiceData,
+          updatedAt: new Date()
+        })
+        .where(eq(invoices.id, id))
+        .returning();
+      
+      if (!updatedInvoice) {
+        throw new Error('Invoice not found');
+      }
+      
+      // Delete existing items
+      await tx.delete(invoiceItems).where(eq(invoiceItems.invoiceId, id));
+      
+      // Insert updated items
+      if (items && items.length > 0) {
+        await Promise.all(
+          items.map(async (item: any) => {
+            const parsedItem = insertInvoiceItemSchema.parse({
+              ...item,
+              invoiceId: id
+            });
+            
+            await tx.insert(invoiceItems).values(parsedItem);
+          })
+        );
+      }
+      
+      return updatedInvoice;
+    });
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating invoice:', error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
+    res.status(500).json({ error: 'Failed to update invoice' });
+  }
+});
+
 // Update invoice status
 router.patch('/invoices/:id/status', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
