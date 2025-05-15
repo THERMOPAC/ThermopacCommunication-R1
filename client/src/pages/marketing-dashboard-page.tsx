@@ -560,8 +560,8 @@ export default function MarketingDashboardPage() {
           </Tabs>
         </div>
         
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+        {/* Stats Cards - First Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           {/* Total Leads Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -615,7 +615,10 @@ export default function MarketingDashboardPage() {
               </p>
             </CardContent>
           </Card>
-
+        </div>
+        
+        {/* Stats Cards - Second Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           {/* Leads this Month Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
