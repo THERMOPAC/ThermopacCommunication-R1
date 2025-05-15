@@ -179,16 +179,29 @@ export default function PaymentCreatePage() {
     createPayment.mutate(values);
   };
   
-  // Filter invoices based on search term
+  // Filter invoices based on selected customer and search term
   const filteredInvoices = Array.isArray(outstandingInvoices) 
     ? outstandingInvoices.filter((invoice: any) => {
+        // First filter by customer if one is selected
+        if (selectedCustomerId && invoice.customerId !== parseInt(selectedCustomerId)) {
+          return false;
+        }
+        
+        // Only include invoices that are pending or partially paid
+        if (invoice.status !== 'Pending' && invoice.status !== 'Partially Paid') {
+          return false;
+        }
+        
+        // Then filter by search term if one is provided
         if (!searchInvoice) return true;
         
         return (
           invoice.invoiceNumber?.toLowerCase().includes(searchInvoice.toLowerCase()) ||
           String(invoice.id).includes(searchInvoice)
         );
-      }) 
+      })
+      // Sort by amount (highest to lowest) to match auto-allocation logic
+      .sort((a, b) => parseFloat(b.totalAmount) - parseFloat(a.totalAmount))
     : [];
   
   // Auto-allocate payment to invoices (highest to lowest value)
@@ -408,7 +421,7 @@ export default function PaymentCreatePage() {
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="" disabled>No customers found</SelectItem>
+                        <SelectItem value="no-customers" disabled>No customers found</SelectItem>
                       )}
                     </SelectContent>
                   </Select>
@@ -563,60 +576,151 @@ export default function PaymentCreatePage() {
               
               {/* Outstanding invoices table */}
               <div className="border rounded-md">
-                <h3 className="px-4 py-2 bg-muted font-medium">Outstanding Invoices</h3>
-                <div className="max-h-[300px] overflow-y-auto">
-                  <table className="w-full">
-                    <thead className="sticky top-0 bg-background">
-                      <tr className="border-b">
-                        <th className="px-4 py-2 text-left text-sm font-medium">Invoice #</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium">Customer</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium">Date</th>
-                        <th className="px-4 py-2 text-left text-sm font-medium">Due Date</th>
-                        <th className="px-4 py-2 text-right text-sm font-medium">Amount</th>
-                        <th className="px-4 py-2 text-center text-sm font-medium">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredInvoices.length > 0 ? (
-                        filteredInvoices.map((invoice: any) => (
-                          <tr key={invoice.id} className="border-t hover:bg-muted/50">
-                            <td className="px-4 py-2 text-sm">{invoice.invoiceNumber}</td>
-                            <td className="px-4 py-2 text-sm">Customer {invoice.customerId}</td>
-                            <td className="px-4 py-2 text-sm">{format(new Date(invoice.issueDate), 'MMM d, yyyy')}</td>
-                            <td className="px-4 py-2 text-sm">{format(new Date(invoice.dueDate), 'MMM d, yyyy')}</td>
-                            <td className="px-4 py-2 text-sm text-right">
-                              {(() => {
-                                const currencyCode = invoice.currency || 'INR';
-                                return currencyCode === 'INR'
+                <div className="px-4 py-3 bg-muted flex justify-between items-center">
+                  <h3 className="font-medium">Outstanding Invoices</h3>
+                  {selectedCustomerId && (
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm text-muted-foreground mr-2">
+                        {autoAllocateEnabled ? 'Auto-allocation enabled' : 'Manual selection'}
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          // If customer has selected and payment amount entered, run auto-allocation
+                          const paymentAmount = parseFloat(form.getValues().amount || '0');
+                          if (paymentAmount > 0) {
+                            autoAllocatePayment(paymentAmount, filteredInvoices);
+                          } else {
+                            toast({
+                              title: "Payment amount needed",
+                              description: "Please enter a payment amount first",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      >
+                        <ArrowDownUp className="h-4 w-4 mr-1" />
+                        Reallocate
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                
+                {!selectedCustomerId ? (
+                  <div className="p-6 text-center">
+                    <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <h4 className="text-lg font-medium">No customer selected</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Please select a customer to view their outstanding invoices
+                    </p>
+                  </div>
+                ) : filteredInvoices.length === 0 ? (
+                  <div className="p-6 text-center">
+                    <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <h4 className="text-lg font-medium">No outstanding invoices</h4>
+                    <p className="text-sm text-muted-foreground">
+                      This customer has no outstanding invoices
+                    </p>
+                  </div>
+                ) : (
+                  <div className="max-h-[300px] overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="sticky top-0 bg-background">
+                        <tr className="border-b">
+                          <th className="px-4 py-2 text-left text-sm font-medium">Invoice #</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium">Date</th>
+                          <th className="px-4 py-2 text-left text-sm font-medium">Due Date</th>
+                          <th className="px-4 py-2 text-right text-sm font-medium">Amount</th>
+                          <th className="px-4 py-2 text-right text-sm font-medium">Status</th>
+                          <th className="px-4 py-2 text-center text-sm font-medium">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredInvoices.map((invoice: any) => {
+                          // Check if this invoice is already selected
+                          const isSelected = selectedInvoices.some(i => i.id === invoice.id);
+                          // Get the amount applied to this invoice
+                          const appliedAmount = form.getValues().invoiceLinks.find(
+                            link => link.invoiceId === String(invoice.id)
+                          )?.amountApplied || '0';
+                          
+                          return (
+                            <tr 
+                              key={invoice.id} 
+                              className={`border-t ${isSelected ? 'bg-muted' : 'hover:bg-muted/50'}`}
+                            >
+                              <td className="px-4 py-2 text-sm">
+                                <div className="flex items-center">
+                                  {invoice.invoiceNumber}
+                                  {isSelected && (
+                                    <CheckCircle className="ml-1 h-4 w-4 text-green-500" />
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-2 text-sm">{format(new Date(invoice.issueDate), 'MMM d, yyyy')}</td>
+                              <td className="px-4 py-2 text-sm">{format(new Date(invoice.dueDate), 'MMM d, yyyy')}</td>
+                              <td className="px-4 py-2 text-sm text-right">
+                                {invoice.currency === 'INR'
                                   ? formatRupees(invoice.totalAmount || 0)
                                   : new Intl.NumberFormat('en-US', {
                                       style: 'currency',
-                                      currency: currencyCode,
-                                    }).format(invoice.totalAmount || 0);
-                              })()}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-center">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => addInvoiceToForm(invoice)}
-                              >
-                                Add
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={6} className="px-4 py-4 text-center text-muted-foreground">
-                            No outstanding invoices found
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                                      currency: invoice.currency || 'USD',
+                                    }).format(invoice.totalAmount || 0)
+                                }
+                              </td>
+                              <td className="px-4 py-2 text-sm text-right">
+                                <Badge variant={
+                                  invoice.status === 'Paid' ? 'success' : 
+                                  invoice.status === 'Partially Paid' ? 'warning' : 
+                                  invoice.status === 'Pending' ? 'outline' : 
+                                  'secondary'
+                                }>
+                                  {invoice.status}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-2 text-sm text-center">
+                                {isSelected ? (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      // Remove this invoice from the form
+                                      const currentLinks = form.getValues().invoiceLinks;
+                                      const indexToRemove = currentLinks.findIndex(
+                                        link => link.invoiceId === String(invoice.id)
+                                      );
+                                      
+                                      if (indexToRemove !== -1) {
+                                        remove(indexToRemove);
+                                        setSelectedInvoices(prev => 
+                                          prev.filter(i => i.id !== invoice.id)
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={autoAllocateEnabled}
+                                    onClick={() => addInvoiceToForm(invoice)}
+                                  >
+                                    Add
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
               
               {/* Selected invoices */}
