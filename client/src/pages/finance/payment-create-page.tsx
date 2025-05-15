@@ -877,7 +877,7 @@ export default function PaymentCreatePage() {
                               )}
                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="flex items-center justify-between gap-4">
                               <FormField
                                 control={form.control}
                                 name={`invoiceLinks.${index}.invoiceId`}
@@ -891,50 +891,50 @@ export default function PaymentCreatePage() {
                                 )}
                               />
                               
-                              <FormField
-                                control={form.control}
-                                name={`invoiceLinks.${index}.amountApplied`}
-                                render={({ field }) => (
-                                  <FormItem className="col-span-2">
-                                    <FormLabel>Amount Applied</FormLabel>
-                                    <FormControl>
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        max={invoice?.totalAmount}
-                                        {...field}
-                                        onChange={(e) => {
-                                          field.onChange(e);
-                                          
-                                          // Check if remaining amount is invalid
-                                          const remaining = getRemainingAmount();
-                                          if (Math.abs(remaining) < 0.01) {
-                                            // Perfect balance
-                                          } else if (remaining < 0) {
-                                            toast({
-                                              title: "Warning",
-                                              description: "Applied amount exceeds total payment amount",
-                                              variant: "destructive",
-                                            });
-                                          }
-                                        }}
-                                      />
-                                    </FormControl>
-                                    <FormDescription>
-                                      Enter the amount to apply from this payment to this invoice
-                                    </FormDescription>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </div>
-                            
-                            {/* Add progress bar showing allocation percentage */}
-                            {invoice && (
-                              <div className="mt-2">
-                                <div className="flex justify-between text-xs mb-1">
-                                  <span className="text-muted-foreground">Payment allocation</span>
+                              <div className="flex-1">
+                                <FormField
+                                  control={form.control}
+                                  name={`invoiceLinks.${index}.amountApplied`}
+                                  render={({ field }) => (
+                                    <FormItem className="mb-0">
+                                      <div className="flex items-center gap-3">
+                                        <FormLabel className="min-w-24 mb-0">Amount Applied:</FormLabel>
+                                        <div className="flex-1">
+                                          <FormControl>
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              min="0"
+                                              max={invoice?.totalAmount}
+                                              {...field}
+                                              onChange={(e) => {
+                                                field.onChange(e);
+                                                
+                                                // Check if remaining amount is invalid
+                                                const remaining = getRemainingAmount();
+                                                if (Math.abs(remaining) < 0.01) {
+                                                  // Perfect balance
+                                                } else if (remaining < 0) {
+                                                  toast({
+                                                    title: "Warning",
+                                                    description: "Applied amount exceeds total payment amount",
+                                                    variant: "destructive",
+                                                  });
+                                                }
+                                              }}
+                                            />
+                                          </FormControl>
+                                        </div>
+                                      </div>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                              
+                              {/* Allocation percentage */}
+                              {invoice && (
+                                <div className="flex items-center text-sm">
                                   <span className={(() => {
                                     const amountApplied = parseFloat(form.getValues().invoiceLinks[index].amountApplied || '0');
                                     const totalAmount = parseFloat(invoice.totalAmount || '0');
@@ -946,28 +946,13 @@ export default function PaymentCreatePage() {
                                       const totalAmount = parseFloat(invoice.totalAmount || '0');
                                       const percentage = totalAmount > 0 ? Math.min(100, (amountApplied / totalAmount) * 100) : 0;
                                       return percentage >= 99.9 
-                                        ? <><CheckCircle className="h-3 w-3 mr-1" /> Fully allocated</>
-                                        : `${percentage.toFixed(1)}%`;
+                                        ? <><CheckCircle className="h-4 w-4 mr-1" /> Fully allocated</>
+                                        : `${percentage.toFixed(1)}% allocated`;
                                     })()}
                                   </span>
                                 </div>
-                                <Progress 
-                                  value={(() => {
-                                    const amountApplied = parseFloat(form.getValues().invoiceLinks[index].amountApplied || '0');
-                                    const totalAmount = parseFloat(invoice.totalAmount || '0');
-                                    return totalAmount > 0 ? Math.min(100, (amountApplied / totalAmount) * 100) : 0;
-                                  })()}
-                                  className={(() => {
-                                    const amountApplied = parseFloat(form.getValues().invoiceLinks[index].amountApplied || '0');
-                                    const totalAmount = parseFloat(invoice.totalAmount || '0');
-                                    const percentage = totalAmount > 0 ? (amountApplied / totalAmount) * 100 : 0;
-                                    
-                                    if (percentage >= 99.9) return "h-2 bg-green-200";
-                                    return "h-2";
-                                  })()}
-                                />
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
                         );
                       })}
