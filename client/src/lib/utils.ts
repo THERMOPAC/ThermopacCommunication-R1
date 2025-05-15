@@ -62,3 +62,44 @@ export function formatRupees(amount: number, useLakhs: boolean = false): string 
     maximumFractionDigits: 2,
   }).format(amount);
 }
+
+/**
+ * Get the Indian financial year (April to March) for a given date
+ * @param date Date to get financial year for
+ * @returns Financial year (e.g., 2025 for dates between Apr 1, 2025 to Mar 31, 2026)
+ */
+export function getIndianFinancialYear(date: Date): number {
+  const month = date.getMonth(); // 0-11 (Jan-Dec)
+  const year = date.getFullYear();
+  
+  // If month is January(0), February(1), or March(2), it's the previous year's financial year
+  // Otherwise, it's the current year's financial year
+  return month < 3 ? year - 1 : year;
+}
+
+/**
+ * Get the next invoice number based on Indian financial year
+ * @param issueDate Date of invoice issuance
+ * @param lastInvoiceNumber Last invoice number used (optional)
+ * @returns Formatted invoice number in format INV-YYYY-SERIES
+ */
+export async function getNextInvoiceNumber(issueDate: Date): Promise<string> {
+  // Get the financial year based on the issue date
+  const financialYear = getIndianFinancialYear(issueDate);
+  
+  try {
+    // Fetch the latest invoice number for this financial year from the server
+    const response = await fetch(`/api/finance/invoices/next-number?financialYear=${financialYear}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to get next invoice number');
+    }
+    
+    const data = await response.json();
+    return data.invoiceNumber;
+  } catch (error) {
+    console.error('Error getting next invoice number:', error);
+    // Fallback format if API fails
+    return `INV-${financialYear}-001`;
+  }
+}
