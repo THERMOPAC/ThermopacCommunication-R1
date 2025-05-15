@@ -203,11 +203,12 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       queryClient.invalidateQueries({ queryKey: ['/api/finance/invoices'] });
       navigate('/finance/invoices');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error creating invoice:', error);
+      const errorMessage = error?.message || "Failed to create invoice. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to create invoice. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -247,11 +248,12 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       queryClient.invalidateQueries({ queryKey: [`/api/finance/invoices/${invoiceId}`] });
       navigate('/finance/invoices');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error updating invoice:', error);
+      const errorMessage = error?.message || "Failed to update invoice. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to update invoice. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -334,7 +336,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select currency" />
@@ -358,7 +360,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select customer" />
@@ -385,7 +387,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                       <FormLabel>Project (Optional)</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        defaultValue={field.value}
+                        value={field.value || ""}
                       >
                         <FormControl>
                           <SelectTrigger>
