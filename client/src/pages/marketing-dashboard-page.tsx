@@ -387,6 +387,15 @@ export default function MarketingDashboardPage() {
     };
   }, [leadsData, exchangeRates]);
 
+  // Calculate total turnover (Expected Revenue + Orders in Hand)
+  const calculateTotalTurnover = () => {
+    if (!expectedRevenueStats || !ordersData) {
+      return 0;
+    }
+    
+    return expectedRevenueStats.totalINR + (ordersData.totalValueINR || 0);
+  };
+
   // Calculate campaign completion percentage
   function calculateCampaignCompletion(startDate: string, endDate: string) {
     if (!startDate || !endDate) return 0;
@@ -768,15 +777,15 @@ export default function MarketingDashboardPage() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              {isLoadingLeads || isLoadingRates ? (
+              {isLoadingLeads || isLoadingRates || isLoadingOrders ? (
                 <Skeleton className="h-7 w-full" />
               ) : (
                 <div>
                   <div className="text-lg font-bold flex flex-col gap-0 text-right">
-                    <span>INR {formatINRInCrores(expectedRevenueStats.totalINR)}</span>
+                    <span>INR {formatINRInCrores(calculateTotalTurnover())}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 text-right">
-                    calculated based on lead probabilities
+                    expected revenue + orders in hand
                   </p>
                 </div>
               )}
