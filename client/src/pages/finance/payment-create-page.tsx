@@ -45,6 +45,7 @@ import { queryClient } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 import { formatRupees } from "@/lib/utils";
 
 // Payment form schema
@@ -838,6 +839,45 @@ export default function PaymentCreatePage() {
                                 )}
                               />
                             </div>
+                            
+                            {/* Add progress bar showing allocation percentage */}
+                            {invoice && (
+                              <div className="mt-2">
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="text-muted-foreground">Payment allocation</span>
+                                  <span className={(() => {
+                                    const amountApplied = parseFloat(form.getValues().invoiceLinks[index].amountApplied || '0');
+                                    const totalAmount = parseFloat(invoice.totalAmount || '0');
+                                    const percentage = totalAmount > 0 ? Math.min(100, (amountApplied / totalAmount) * 100) : 0;
+                                    return percentage >= 99.9 ? "text-green-600 font-medium flex items-center" : "text-muted-foreground";
+                                  })()}>
+                                    {(() => {
+                                      const amountApplied = parseFloat(form.getValues().invoiceLinks[index].amountApplied || '0');
+                                      const totalAmount = parseFloat(invoice.totalAmount || '0');
+                                      const percentage = totalAmount > 0 ? Math.min(100, (amountApplied / totalAmount) * 100) : 0;
+                                      return percentage >= 99.9 
+                                        ? <><CheckCircle className="h-3 w-3 mr-1" /> Fully allocated</>
+                                        : `${percentage.toFixed(1)}%`;
+                                    })()}
+                                  </span>
+                                </div>
+                                <Progress 
+                                  value={(() => {
+                                    const amountApplied = parseFloat(form.getValues().invoiceLinks[index].amountApplied || '0');
+                                    const totalAmount = parseFloat(invoice.totalAmount || '0');
+                                    return totalAmount > 0 ? Math.min(100, (amountApplied / totalAmount) * 100) : 0;
+                                  })()}
+                                  className={(() => {
+                                    const amountApplied = parseFloat(form.getValues().invoiceLinks[index].amountApplied || '0');
+                                    const totalAmount = parseFloat(invoice.totalAmount || '0');
+                                    const percentage = totalAmount > 0 ? (amountApplied / totalAmount) * 100 : 0;
+                                    
+                                    if (percentage >= 99.9) return "h-2 bg-green-200";
+                                    return "h-2";
+                                  })()}
+                                />
+                              </div>
+                            )}
                           </div>
                         );
                       })}
