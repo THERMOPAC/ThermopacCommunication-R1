@@ -40,7 +40,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format } from 'date-fns';
-import { Loader2, CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { Loader2, CalendarIcon, Plus, Trash2, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
@@ -378,14 +378,53 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                       <FormLabel>Invoice Number</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input 
-                            placeholder="INV-2025-001" 
-                            {...field} 
-                            readOnly={!isEditMode} 
-                            className={!isEditMode ? "bg-muted cursor-not-allowed" : ""}
-                          />
-                          {isGeneratingInvoiceNumber && (
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="flex">
+                            <Input 
+                              placeholder="INV-2025-001" 
+                              {...field} 
+                              readOnly={!isEditMode} 
+                              className={!isEditMode ? "bg-muted cursor-not-allowed rounded-r-none" : ""}
+                            />
+                            {!isEditMode && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-10 rounded-l-none border-l-0"
+                                onClick={async () => {
+                                  const currentIssueDate = form.getValues('issueDate');
+                                  if (currentIssueDate) {
+                                    try {
+                                      setIsGeneratingInvoiceNumber(true);
+                                      const nextInvoiceNumber = await getNextInvoiceNumber(currentIssueDate);
+                                      form.setValue('invoiceNumber', nextInvoiceNumber);
+                                    } catch (error) {
+                                      console.error('Failed to generate invoice number:', error);
+                                      toast({
+                                        title: "Error",
+                                        description: "Could not generate invoice number. Using fallback format.",
+                                        variant: "destructive",
+                                      });
+                                      const financialYear = getIndianFinancialYear(currentIssueDate);
+                                      form.setValue('invoiceNumber', `INV-${financialYear}-001`);
+                                    } finally {
+                                      setIsGeneratingInvoiceNumber(false);
+                                    }
+                                  }
+                                }}
+                                disabled={isGeneratingInvoiceNumber}
+                                title="Refresh invoice number"
+                              >
+                                {isGeneratingInvoiceNumber ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                          {isGeneratingInvoiceNumber && !isEditMode && (
+                            <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
                               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                             </div>
                           )}
@@ -393,7 +432,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                       </FormControl>
                       {!isEditMode && (
                         <FormDescription>
-                          Automatically generated based on financial year. The format is INV-YYYY-SERIES.
+                          Automatically generated based on financial year (April-March). The format is INV-YYYY-SERIES.
                         </FormDescription>
                       )}
                       <FormMessage />
