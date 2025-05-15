@@ -33,3 +33,32 @@ export function formatDate(date: Date | string): string {
     day: 'numeric',
   }).format(dateObj);
 }
+
+/**
+ * Format a number as Indian Rupees
+ * @param amount Amount to format
+ * @param useLakhs Whether to format large numbers in lakhs/crores format
+ * @returns Formatted rupees string (e.g., "₹1,234.56" or "₹1.23 Cr")
+ */
+export function formatRupees(amount: number, useLakhs: boolean = false): string {
+  if (amount === null || amount === undefined) return '₹0.00';
+  
+  if (useLakhs) {
+    // Format in Indian numbering system (lakhs and crores)
+    if (amount >= 10000000) {
+      // For crores (≥ 1 crore)
+      return `₹${(amount / 10000000).toFixed(2)} Cr`;
+    } else if (amount >= 100000) {
+      // For lakhs (≥ 1 lakh)
+      return `₹${(amount / 100000).toFixed(2)} L`;
+    }
+  }
+  
+  // Standard formatting with comma separators
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
