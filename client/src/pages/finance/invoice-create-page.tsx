@@ -193,10 +193,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         }))
       };
       
-      return apiRequest('/api/finance/invoices', {
-        method: 'POST',
-        body: JSON.stringify(apiData)
-      });
+      return apiRequest('POST', '/api/finance/invoices', apiData);
     },
     onSuccess: () => {
       toast({
@@ -240,10 +237,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         }))
       };
       
-      return apiRequest(`/api/finance/invoices/${invoiceId}`, {
-        method: 'PUT',
-        body: JSON.stringify(apiData)
-      });
+      return apiRequest('PUT', `/api/finance/invoices/${invoiceId}`, apiData);
     },
     onSuccess: () => {
       toast({
