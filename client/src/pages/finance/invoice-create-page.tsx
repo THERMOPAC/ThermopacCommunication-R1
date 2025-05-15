@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -143,6 +143,32 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     name: "items",
   });
   
+  // Effect to update form when invoice data is loaded in edit mode
+  useEffect(() => {
+    if (isEditMode && invoiceData && invoiceData.invoice && form) {
+      form.reset({
+        invoiceNumber: invoiceData.invoice.invoiceNumber,
+        customerId: String(invoiceData.invoice.customerId),
+        projectId: invoiceData.invoice.projectId ? String(invoiceData.invoice.projectId) : '',
+        issueDate: new Date(invoiceData.invoice.issueDate),
+        dueDate: new Date(invoiceData.invoice.dueDate),
+        currency: invoiceData.invoice.currency,
+        notes: invoiceData.invoice.notes || '',
+        items: invoiceData.items?.map((item: any) => ({
+          description: item.description,
+          quantity: String(item.quantity),
+          unitPrice: String(item.unitPrice),
+          amount: String(item.amount),
+        })) || [{
+          description: '',
+          quantity: '1',
+          unitPrice: '0',
+          amount: '0',
+        }],
+      });
+    }
+  }, [isEditMode, invoiceData, form]);
+  
   // Create invoice mutation
   const createInvoice = useMutation({
     mutationFn: async (values: InvoiceFormValues) => {
@@ -154,16 +180,16 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           projectId: values.projectId ? parseInt(values.projectId) : null,
           issueDate: format(values.issueDate, 'yyyy-MM-dd'),
           dueDate: format(values.dueDate, 'yyyy-MM-dd'),
-          totalAmount: values.items.reduce((total, item) => total + parseFloat(item.amount), 0),
+          totalAmount: values.items.reduce((total, item) => total + parseFloat(item.amount || '0'), 0),
           currency: values.currency,
           status: 'Pending',
           notes: values.notes || null,
         },
         items: values.items.map(item => ({
           description: item.description,
-          quantity: parseFloat(item.quantity),
-          unitPrice: parseFloat(item.unitPrice),
-          amount: parseFloat(item.amount),
+          quantity: parseFloat(item.quantity || '0'),
+          unitPrice: parseFloat(item.unitPrice || '0'),
+          amount: parseFloat(item.amount || '0'),
         }))
       };
       
@@ -187,9 +213,57 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     },
   });
   
+  // Update invoice mutation
+  const updateInvoice = useMutation({
+    mutationFn: async (values: InvoiceFormValues) => {
+      // Transform values for API
+      const apiData = {
+        invoice: {
+          invoiceNumber: values.invoiceNumber,
+          customerId: parseInt(values.customerId),
+          projectId: values.projectId ? parseInt(values.projectId) : null,
+          issueDate: format(values.issueDate, 'yyyy-MM-dd'),
+          dueDate: format(values.dueDate, 'yyyy-MM-dd'),
+          totalAmount: values.items.reduce((total, item) => total + parseFloat(item.amount || '0'), 0),
+          currency: values.currency,
+          notes: values.notes || null,
+        },
+        items: values.items.map(item => ({
+          description: item.description,
+          quantity: parseFloat(item.quantity || '0'),
+          unitPrice: parseFloat(item.unitPrice || '0'),
+          amount: parseFloat(item.amount || '0'),
+        }))
+      };
+      
+      return apiRequest(`/api/finance/invoices/${invoiceId}`, 'PUT', JSON.stringify(apiData));
+    },
+    onSuccess: () => {
+      toast({
+        title: "Invoice updated",
+        description: "Invoice has been updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/invoices'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/finance/invoices/${invoiceId}`] });
+      navigate('/finance/invoices');
+    },
+    onError: (error) => {
+      console.error('Error updating invoice:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update invoice. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Submit handler
   const onSubmit = (values: InvoiceFormValues) => {
-    createInvoice.mutate(values);
+    if (isEditMode && invoiceId) {
+      updateInvoice.mutate(values);
+    } else {
+      createInvoice.mutate(values);
+    }
   };
   
   // Calculate item amount when quantity or unit price changes
@@ -210,7 +284,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     });
   };
   
-  if (isLoadingCustomers || isLoadingProjects) {
+  // Show loading state when fetching data
+  if (isLoadingCustomers || isLoadingProjects || (isEditMode && isLoadingInvoice)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="mr-2 h-16 w-16 animate-spin" />
@@ -222,7 +297,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Create New Invoice</h1>
+        <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Invoice' : 'Create New Invoice'}</h1>
         <Button variant="outline" onClick={() => navigate('/finance/invoices')}>
           Cancel
         </Button>
@@ -551,9 +626,13 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
               <Button type="button" variant="outline" onClick={() => navigate('/finance/invoices')}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createInvoice.isPending}>
-                {createInvoice.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Invoice
+              <Button 
+                type="submit" 
+                disabled={isEditMode ? updateInvoice.isPending : createInvoice.isPending}
+              >
+                {(isEditMode ? updateInvoice.isPending : createInvoice.isPending) && 
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEditMode ? 'Update Invoice' : 'Create Invoice'}
               </Button>
             </CardFooter>
           </Card>
