@@ -4,6 +4,8 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useLocation } from 'wouter';
+import { Helmet } from "react-helmet";
+import Layout from "@/components/layout";
 import {
   Card,
   CardContent,
@@ -42,6 +44,7 @@ import { Loader2, CalendarIcon, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
+import { getIndianFinancialYear, getNextInvoiceNumber } from "@/lib/utils";
 
 // Create form schema
 const invoiceFormSchema = z.object({
@@ -99,11 +102,14 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     enabled: !!isEditMode && !!invoiceId,
   });
   
+  // For automatic invoice number generation
+  const [isGeneratingInvoiceNumber, setIsGeneratingInvoiceNumber] = useState(false);
+  
   // Default form values
   const defaultValues: InvoiceFormValues = {
     invoiceNumber: isEditMode && invoiceData?.invoice 
       ? invoiceData.invoice.invoiceNumber
-      : `INV-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+      : `INV-${getIndianFinancialYear(new Date())}-001`, // Initial placeholder, will be updated
     customerId: isEditMode && invoiceData?.invoice ? String(invoiceData.invoice.customerId) : '',
     projectId: isEditMode && invoiceData?.invoice && invoiceData.invoice.projectId 
       ? String(invoiceData.invoice.projectId) 
@@ -168,6 +174,45 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       });
     }
   }, [isEditMode, invoiceData, form]);
+  
+  // Effect to auto-generate invoice number when issue date changes (for new invoices only)
+  useEffect(() => {
+    const updateInvoiceNumber = async () => {
+      if (!isEditMode) {
+        // Get the current issue date
+        const currentIssueDate = form.getValues('issueDate');
+        if (currentIssueDate) {
+          try {
+            setIsGeneratingInvoiceNumber(true);
+            const nextInvoiceNumber = await getNextInvoiceNumber(currentIssueDate);
+            form.setValue('invoiceNumber', nextInvoiceNumber);
+          } catch (error) {
+            console.error('Failed to generate invoice number:', error);
+            // Fallback to a basic format if API fails
+            const financialYear = getIndianFinancialYear(currentIssueDate);
+            form.setValue('invoiceNumber', `INV-${financialYear}-001`);
+          } finally {
+            setIsGeneratingInvoiceNumber(false);
+          }
+        }
+      }
+    };
+    
+    // Generate invoice number on initial load for new invoices
+    if (!isEditMode && !isGeneratingInvoiceNumber) {
+      updateInvoiceNumber();
+    }
+    
+    // Set up a subscription to the issue date field
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'issueDate' && !isEditMode && !isGeneratingInvoiceNumber) {
+        updateInvoiceNumber();
+      }
+    });
+    
+    // Clean up the subscription
+    return () => subscription.unsubscribe();
+  }, [form, isEditMode, isGeneratingInvoiceNumber]);
   
   // Create invoice mutation
   const createInvoice = useMutation({
@@ -289,21 +334,30 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   // Show loading state when fetching data
   if (isLoadingCustomers || isLoadingProjects || (isEditMode && isLoadingInvoice)) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="mr-2 h-16 w-16 animate-spin" />
-        <p>Loading...</p>
-      </div>
+      <Layout>
+        <Helmet>
+          <title>{isEditMode ? 'Edit Invoice' : 'Create Invoice'} | Thermopac</title>
+        </Helmet>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="mr-2 h-16 w-16 animate-spin" />
+          <p>Loading...</p>
+        </div>
+      </Layout>
     );
   }
   
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Invoice' : 'Create New Invoice'}</h1>
-        <Button variant="outline" onClick={() => navigate('/finance/invoices')}>
-          Cancel
-        </Button>
-      </div>
+    <Layout>
+      <Helmet>
+        <title>{isEditMode ? 'Edit Invoice' : 'Create Invoice'} | Thermopac</title>
+      </Helmet>
+      <div className="container py-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Invoice' : 'Create New Invoice'}</h1>
+          <Button variant="outline" onClick={() => navigate('/finance/invoices')}>
+            Cancel
+          </Button>
+        </div>
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -323,8 +377,25 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                     <FormItem>
                       <FormLabel>Invoice Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="INV-2025-001" {...field} />
+                        <div className="relative">
+                          <Input 
+                            placeholder="INV-2025-001" 
+                            {...field} 
+                            readOnly={!isEditMode} 
+                            className={!isEditMode ? "bg-muted cursor-not-allowed" : ""}
+                          />
+                          {isGeneratingInvoiceNumber && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
                       </FormControl>
+                      {!isEditMode && (
+                        <FormDescription>
+                          Automatically generated based on financial year. The format is INV-YYYY-SERIES.
+                        </FormDescription>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -653,6 +724,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           </Card>
         </form>
       </Form>
-    </div>
+      </div>
+    </Layout>
   );
 }
