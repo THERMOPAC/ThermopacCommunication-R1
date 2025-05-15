@@ -31,7 +31,12 @@ import {
   CalendarClock,
   BarChart4,
   UsersRound,
-  Megaphone
+  Megaphone,
+  Receipt,
+  IndianRupee,
+  CreditCard,
+  PieChart,
+  DollarSign
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -49,6 +54,7 @@ export default function Layout({ children }: LayoutProps) {
   const [isProcurementMenuOpen, setIsProcurementMenuOpen] = useState(false);
   const [isProductionMenuOpen, setIsProductionMenuOpen] = useState(false);
   const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
+  const [isFinanceMenuOpen, setIsFinanceMenuOpen] = useState(false);
 
   // Get all module permissions for the current user
   const { data: modulePermissions, isLoading: isLoadingPermissions } = useAllModulePermissions();
@@ -83,6 +89,14 @@ export default function Layout({ children }: LayoutProps) {
                         location === '/quality-assurance-plan' ||
                         location === '/calibration-management' ||
                         location === '/template-management';
+                        
+  // Check if we're on any finance-related page
+  const isOnFinancePage = location === '/finance' ||
+                        location === '/finance/dashboard' ||
+                        location === '/finance/invoices' ||
+                        location === '/finance/payments' ||
+                        location.startsWith('/finance/reports') ||
+                        location === '/finance/brc';
   
   // Auto-open menus based on current page
   useEffect(() => {
@@ -105,7 +119,11 @@ export default function Layout({ children }: LayoutProps) {
     if (isOnQualityPage && !isQualityMenuOpen) {
       setIsQualityMenuOpen(true);
     }
-  }, [isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage]);
+    
+    if (isOnFinancePage && !isFinanceMenuOpen) {
+      setIsFinanceMenuOpen(true);
+    }
+  }, [isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -137,6 +155,19 @@ export default function Layout({ children }: LayoutProps) {
         { icon: UsersRound, label: "Leads", href: "/leads" },
         { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
         { icon: TrendingUp, label: "Campaigns", href: "/campaigns" }
+      ]
+    }] : []),
+    ...(hasViewPermission("Finance") ? [{ 
+      icon: IndianRupee, 
+      label: "Finance", 
+      isSubmenu: true,
+      isOpen: isFinanceMenuOpen,
+      toggle: () => setIsFinanceMenuOpen(!isFinanceMenuOpen),
+      children: [
+        { icon: PieChart, label: "Dashboard", href: "/finance/dashboard" },
+        { icon: Receipt, label: "Invoices", href: "/finance/invoices" },
+        { icon: CreditCard, label: "Payments", href: "/finance/payments" },
+        { icon: DollarSign, label: "BRC", href: "/finance/brc" }
       ]
     }] : []),
     ...(hasViewPermission("Project Management") ? [{ 
