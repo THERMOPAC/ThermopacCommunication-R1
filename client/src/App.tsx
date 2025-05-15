@@ -35,7 +35,10 @@ import MarketingDashboardPage from "@/pages/marketing-dashboard-page";
 // Finance module pages
 import FinanceDashboardPage from "@/pages/finance/finance-dashboard-page";
 import InvoicesPage from "@/pages/finance/invoices-page";
+import InvoiceCreatePage from "@/pages/finance/invoice-create-page";
+import InvoiceDetailPage from "@/pages/finance/invoice-detail-page";
 import PaymentsPage from "@/pages/finance/payments-page";
+import PaymentDetailPage from "@/pages/finance/payment-detail-page";
 
 // New Material Identification pages
 import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";
@@ -128,7 +131,10 @@ function Router() {
       <ProtectedRoute path="/finance" component={FinanceDashboardPage} />
       <ProtectedRoute path="/finance/dashboard" component={FinanceDashboardPage} />
       <ProtectedRoute path="/finance/invoices" component={InvoicesPage} />
+      <ProtectedRoute path="/finance/invoices/new" component={() => <InvoiceCreatePage />} />
+      <ProtectedRoute path="/finance/invoices/:id" component={() => <InvoiceDetailPage />} />
       <ProtectedRoute path="/finance/payments" component={PaymentsPage} />
+      <ProtectedRoute path="/finance/payments/:id" component={() => <PaymentDetailPage />} />
       
       <ProtectedRoute path="/projects" component={ProjectsPage} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />
