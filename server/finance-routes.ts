@@ -60,7 +60,17 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
 // Get a specific invoice with its items
 router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    const idParam = req.params.id;
+    // Make sure id is a valid integer
+    if (!/^\d+$/.test(idParam)) {
+      return res.status(400).json({ error: 'Invalid invoice ID format' });
+    }
+    
+    const id = parseInt(idParam);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid invoice ID' });
+    }
     
     const invoice = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
     
@@ -419,10 +429,10 @@ router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => 
 // Get next invoice number
 router.get('/invoices/next-number', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { financialYear } = req.query;
+    const financialYear = req.query.financialYear as string;
     
-    if (!financialYear) {
-      return res.status(400).json({ error: 'Financial year is required' });
+    if (!financialYear || !/^\d{4}$/.test(financialYear)) {
+      return res.status(400).json({ error: 'Valid financial year is required (YYYY format)' });
     }
     
     // Find the highest serial number for the given financial year
@@ -437,6 +447,12 @@ router.get('/invoices/next-number', ensureAuthenticated, async (req: Request, re
     
     let nextNumber = 1;
     const maxInvoiceNumber = result[0]?.maxInvoiceNumber;
+    
+    console.log(`Generating invoice number for financial year ${financialYear}`, {
+      maxInvoiceNumber,
+      financialYear,
+      yearPattern
+    });
     
     if (maxInvoiceNumber) {
       // Extract the serial number from the invoice number (format: INV-YYYY-SERIES)
@@ -453,6 +469,7 @@ router.get('/invoices/next-number', ensureAuthenticated, async (req: Request, re
     const formattedNextNumber = String(nextNumber).padStart(3, '0');
     const nextInvoiceNumber = `INV-${financialYear}-${formattedNextNumber}`;
     
+    console.log(`Generated next invoice number: ${nextInvoiceNumber}`);
     res.json({ invoiceNumber: nextInvoiceNumber });
   } catch (error) {
     console.error('Error generating next invoice number:', error);
@@ -538,6 +555,69 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
   } catch (error) {
     console.error('Error fetching finance dashboard data:', error);
     res.status(500).json({ error: 'Failed to fetch dashboard data' });
+  }
+});
+
+// Test invoice number generation (for debugging purposes)
+router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { date } = req.query;
+    
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required (format: YYYY-MM-DD)' });
+    }
+    
+    // Parse the date
+    const testDate = new Date(date as string);
+    
+    // Determine financial year
+    const month = testDate.getMonth(); // 0-11 (Jan-Dec)
+    const year = testDate.getFullYear();
+    
+    // If month is January(0), February(1), or March(2), it's the previous year's financial year
+    // Otherwise, it's the current year's financial year
+    const financialYear = month < 3 ? year - 1 : year;
+    
+    // Find the highest serial number for the given financial year
+    const yearPattern = `INV-${financialYear}-%`;
+    
+    const result = await db
+      .select({
+        maxInvoiceNumber: sql<string>`MAX(${invoices.invoiceNumber})`,
+      })
+      .from(invoices)
+      .where(sql`${invoices.invoiceNumber} LIKE ${yearPattern}`);
+    
+    let nextNumber = 1;
+    const maxInvoiceNumber = result[0]?.maxInvoiceNumber;
+    
+    if (maxInvoiceNumber) {
+      // Extract the serial number from the invoice number (format: INV-YYYY-SERIES)
+      const parts = maxInvoiceNumber.split('-');
+      if (parts.length === 3) {
+        const currentSerial = parseInt(parts[2]);
+        if (!isNaN(currentSerial)) {
+          nextNumber = currentSerial + 1;
+        }
+      }
+    }
+    
+    // Format the next invoice number with leading zeros (e.g., 001, 010, 100)
+    const formattedNextNumber = String(nextNumber).padStart(3, '0');
+    const nextInvoiceNumber = `INV-${financialYear}-${formattedNextNumber}`;
+    
+    res.json({
+      testDate: testDate.toISOString().split('T')[0],
+      month: month + 1, // Add 1 to make it 1-12 for human readability
+      year,
+      financialYear,
+      yearPattern,
+      currentMaxInvoice: maxInvoiceNumber || 'None',
+      nextInvoiceNumber
+    });
+  } catch (error) {
+    console.error('Error in test invoice number generation:', error);
+    res.status(500).json({ error: 'Failed to test invoice number generation' });
   }
 });
 
