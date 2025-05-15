@@ -723,30 +723,29 @@ export default function PaymentCreatePage() {
                 )}
               </div>
               
-              {/* Selected invoices */}
+              {/* Payment allocation summary */}
               <div className="border rounded-md mt-6">
-                <div className="px-4 py-2 bg-muted font-medium flex justify-between items-center">
-                  <h3>Selected Invoices</h3>
-                  <div className="text-sm">
-                    Remaining: 
-                    <span className={getRemainingAmount() !== 0 ? "text-red-500 ml-1 font-bold" : "text-green-500 ml-1 font-bold"}>
-                      {(() => {
-                        const currencyCode = form.getValues().currency || 'INR';
-                        return currencyCode === 'INR' 
-                          ? formatRupees(getRemainingAmount())
-                          : new Intl.NumberFormat('en-US', {
-                              style: 'currency',
-                              currency: currencyCode,
-                            }).format(getRemainingAmount());
-                      })()}
-                    </span>
-                  </div>
+                <div className="px-4 py-3 bg-muted flex justify-between items-center">
+                  <h3 className="font-medium">Payment Allocation Details</h3>
+                  {getRemainingAmount() !== 0 && (
+                    <Badge variant={getRemainingAmount() > 0 ? 'outline' : 'destructive'}>
+                      {getRemainingAmount() > 0 
+                        ? `${formatRupees(getRemainingAmount())} unallocated` 
+                        : `${formatRupees(Math.abs(getRemainingAmount()))} over-allocated`}
+                    </Badge>
+                  )}
                 </div>
                 <div className="p-4">
                   {fields.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">
-                      No invoices selected yet
-                    </p>
+                    <div className="p-6 text-center">
+                      <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <h4 className="text-lg font-medium">No invoices allocated</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {selectedCustomerId 
+                          ? "Enter a payment amount and invoices will be auto-allocated" 
+                          : "Select a customer above to view their outstanding invoices"}
+                      </p>
+                    </div>
                   ) : (
                     <div className="space-y-4">
                       {fields.map((field, index) => {
@@ -755,7 +754,7 @@ export default function PaymentCreatePage() {
                         const invoice = outstandingInvoices?.find((inv: any) => String(inv.id) === invoiceId);
                         
                         return (
-                          <div key={field.id} className="border p-4 rounded-md space-y-4">
+                          <div key={field.id} className="border p-4 rounded-md space-y-3">
                             <div className="flex justify-between items-center">
                               <div>
                                 <h4 className="font-medium flex items-center gap-2">
@@ -765,15 +764,13 @@ export default function PaymentCreatePage() {
                                   </Badge>
                                 </h4>
                                 <p className="text-sm text-muted-foreground">
-                                  Total: {(() => {
-                                    const currencyCode = invoice?.currency || 'INR';
-                                    return currencyCode === 'INR'
-                                      ? formatRupees(invoice?.totalAmount || 0)
-                                      : new Intl.NumberFormat('en-US', {
-                                          style: 'currency',
-                                          currency: currencyCode,
-                                        }).format(invoice?.totalAmount || 0);
-                                  })()}
+                                  Total: {invoice?.currency === 'INR'
+                                    ? formatRupees(invoice?.totalAmount || 0)
+                                    : new Intl.NumberFormat('en-US', {
+                                        style: 'currency',
+                                        currency: invoice?.currency || 'INR',
+                                      }).format(invoice?.totalAmount || 0)
+                                  }
                                 </p>
                               </div>
                               {fields.length > 1 && (
