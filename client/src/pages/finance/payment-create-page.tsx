@@ -38,7 +38,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format } from 'date-fns';
-import { Loader2, CalendarIcon, Plus, Trash2, Search, AlertCircle } from "lucide-react";
+import { Loader2, CalendarIcon, Plus, Trash2, Search, AlertCircle, ArrowDownUp, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
@@ -71,10 +71,17 @@ export default function PaymentCreatePage() {
   const { toast } = useToast();
   const [searchInvoice, setSearchInvoice] = useState('');
   const [selectedInvoices, setSelectedInvoices] = useState<any[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [autoAllocateEnabled, setAutoAllocateEnabled] = useState(true);
   
-  // Get outstanding invoices
+  // Get all invoices and customers data
   const { data: outstandingInvoices, isLoading: isLoadingInvoices, error: invoicesError } = useQuery({
     queryKey: ['/api/finance/invoices'],
+  });
+  
+  const { data: customersList, isLoading: isLoadingCustomers } = useQuery({
+    queryKey: ['/api/customers'],
+    enabled: true,
   });
   
   // Default form values
@@ -85,12 +92,7 @@ export default function PaymentCreatePage() {
     currency: 'INR',
     paymentMethod: 'bank transfer',
     notes: '',
-    invoiceLinks: [
-      {
-        invoiceId: '',
-        amountApplied: '0',
-      },
-    ],
+    invoiceLinks: [],
   };
   
   // Create form
@@ -188,7 +190,91 @@ export default function PaymentCreatePage() {
       }) 
     : [];
   
-  // Add invoice to form
+  // Auto-allocate payment to invoices (highest to lowest value)
+  const autoAllocatePayment = (totalAmount: number, invoicesToAllocate: any[]) => {
+    // Sort invoices by total amount (highest to lowest)
+    const sortedInvoices = [...invoicesToAllocate].sort((a, b) => 
+      parseFloat(b.totalAmount) - parseFloat(a.totalAmount)
+    );
+    
+    let remainingAmount = totalAmount;
+    const allocations: { invoiceId: string; amountApplied: string }[] = [];
+    const newSelectedInvoices: any[] = [];
+    
+    // Clear existing invoice links
+    form.setValue('invoiceLinks', []);
+    
+    // Allocate to each invoice until amount is exhausted
+    for (const invoice of sortedInvoices) {
+      if (remainingAmount <= 0) break;
+      
+      const invoiceAmount = parseFloat(invoice.totalAmount);
+      const amountToApply = Math.min(invoiceAmount, remainingAmount);
+      
+      allocations.push({
+        invoiceId: String(invoice.id),
+        amountApplied: String(amountToApply.toFixed(2))
+      });
+      
+      newSelectedInvoices.push(invoice);
+      remainingAmount -= amountToApply;
+    }
+    
+    // Update form with new allocations
+    allocations.forEach(allocation => {
+      append(allocation);
+    });
+    
+    // Update selected invoices for display
+    setSelectedInvoices(newSelectedInvoices);
+    
+    return allocations;
+  };
+  
+  // Handle customer selection change
+  const handleCustomerChange = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    
+    // Reset invoice selection
+    setSelectedInvoices([]);
+    form.setValue('invoiceLinks', []);
+    
+    // If auto-allocate is enabled and payment amount is entered, allocate automatically
+    const paymentAmount = parseFloat(form.getValues().amount || '0');
+    if (autoAllocateEnabled && paymentAmount > 0) {
+      // Filter invoices for selected customer
+      const customerInvoices = Array.isArray(outstandingInvoices) 
+        ? outstandingInvoices.filter((invoice: any) => 
+            invoice.customerId === parseInt(customerId) && 
+            (invoice.status === 'Pending' || invoice.status === 'Partially Paid')
+          )
+        : [];
+      
+      autoAllocatePayment(paymentAmount, customerInvoices);
+    }
+  };
+  
+  // Handle payment amount change
+  const handlePaymentAmountChange = (amount: string) => {
+    form.setValue('amount', amount);
+    
+    // If auto-allocate is enabled and customer is selected, allocate automatically
+    if (autoAllocateEnabled && selectedCustomerId) {
+      const paymentAmount = parseFloat(amount || '0');
+      
+      // Filter invoices for selected customer
+      const customerInvoices = Array.isArray(outstandingInvoices) 
+        ? outstandingInvoices.filter((invoice: any) => 
+            invoice.customerId === parseInt(selectedCustomerId) && 
+            (invoice.status === 'Pending' || invoice.status === 'Partially Paid')
+          )
+        : [];
+      
+      autoAllocatePayment(paymentAmount, customerInvoices);
+    }
+  };
+  
+  // Add invoice to form manually
   const addInvoiceToForm = (invoice: any) => {
     // Check if invoice is already in the list
     const isAlreadyAdded = form.getValues().invoiceLinks.some(
