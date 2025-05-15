@@ -88,7 +88,7 @@ export default function InvoiceDetailPage({ download = false, print = false }: I
     mutationFn: async (status: string) => {
       return await apiRequest(`/api/finance/invoices/${invoiceId}/status`, {
         method: 'PATCH',
-        body: { status },
+        body: JSON.stringify({ status }),
       });
     },
     onSuccess: () => {
