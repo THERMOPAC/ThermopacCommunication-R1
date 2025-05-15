@@ -137,10 +137,7 @@ export default function InvoiceCreatePage() {
         }))
       };
       
-      return apiRequest('/api/finance/invoices', {
-        method: 'POST',
-        body: JSON.stringify(apiData),
-      });
+      return apiRequest('/api/finance/invoices', 'POST', JSON.stringify(apiData));
     },
     onSuccess: () => {
       toast({
@@ -291,7 +288,7 @@ export default function InvoiceCreatePage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No Project</SelectItem>
+                          <SelectItem value="none">No Project</SelectItem>
                           {projects?.map((project: any) => (
                             <SelectItem key={project.id} value={project.id.toString()}>
                               {project.projectName || project.title}

@@ -78,10 +78,7 @@ export default function InvoiceDetailPage() {
   // Mutation for updating invoice status
   const updateStatus = useMutation({
     mutationFn: async (status: string) => {
-      return apiRequest(`/api/finance/invoices/${invoiceId}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
-      });
+      return apiRequest(`/api/finance/invoices/${invoiceId}/status`, 'PATCH', JSON.stringify({ status }));
     },
     onSuccess: () => {
       toast({
