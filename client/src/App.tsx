@@ -32,6 +32,11 @@ import LeadsPage from "@/pages/leads-page";
 import CampaignsPage from "@/pages/campaigns-page";
 import MarketingDashboardPage from "@/pages/marketing-dashboard-page";
 
+// Finance module pages
+import FinanceDashboardPage from "@/pages/finance/finance-dashboard-page";
+import InvoicesPage from "@/pages/finance/invoices-page";
+import PaymentsPage from "@/pages/finance/payments-page";
+
 // New Material Identification pages
 import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";
 import MaterialIdentificationListNewPage from "@/pages/material-identification-list-new-page";
@@ -118,6 +123,12 @@ function Router() {
       <ProtectedRoute path="/leads" component={LeadsPage} />
       <ProtectedRoute path="/campaigns" component={CampaignsPage} />
       <ProtectedRoute path="/marketing-dashboard" component={MarketingDashboardPage} />
+      
+      {/* Finance Module Routes */}
+      <ProtectedRoute path="/finance" component={FinanceDashboardPage} />
+      <ProtectedRoute path="/finance/dashboard" component={FinanceDashboardPage} />
+      <ProtectedRoute path="/finance/invoices" component={InvoicesPage} />
+      <ProtectedRoute path="/finance/payments" component={PaymentsPage} />
       
       <ProtectedRoute path="/projects" component={ProjectsPage} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />
