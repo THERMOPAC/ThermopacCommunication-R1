@@ -447,13 +447,15 @@ export default function PaymentCreatePage() {
                             <td className="px-4 py-2 text-sm">{format(new Date(invoice.issueDate), 'MMM d, yyyy')}</td>
                             <td className="px-4 py-2 text-sm">{format(new Date(invoice.dueDate), 'MMM d, yyyy')}</td>
                             <td className="px-4 py-2 text-sm text-right">
-                              {invoice.currency === 'INR' 
-                                ? formatRupees(invoice.totalAmount)
-                                : new Intl.NumberFormat('en-US', {
-                                    style: 'currency',
-                                    currency: invoice.currency,
-                                  }).format(invoice.totalAmount)
-                              }
+                              {(() => {
+                                const currencyCode = invoice.currency || 'INR';
+                                return currencyCode === 'INR'
+                                  ? formatRupees(invoice.totalAmount || 0)
+                                  : new Intl.NumberFormat('en-US', {
+                                      style: 'currency',
+                                      currency: currencyCode,
+                                    }).format(invoice.totalAmount || 0);
+                              })()}
                             </td>
                             <td className="px-4 py-2 text-sm text-center">
                               <Button
@@ -486,13 +488,15 @@ export default function PaymentCreatePage() {
                   <div className="text-sm">
                     Remaining: 
                     <span className={getRemainingAmount() !== 0 ? "text-red-500 ml-1 font-bold" : "text-green-500 ml-1 font-bold"}>
-                      {form.getValues().currency === 'INR' 
-                        ? formatRupees(getRemainingAmount())
-                        : new Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: form.getValues().currency,
-                          }).format(getRemainingAmount())
-                      }
+                      {(() => {
+                        const currencyCode = form.getValues().currency || 'INR';
+                        return currencyCode === 'INR' 
+                          ? formatRupees(getRemainingAmount())
+                          : new Intl.NumberFormat('en-US', {
+                              style: 'currency',
+                              currency: currencyCode,
+                            }).format(getRemainingAmount());
+                      })()}
                     </span>
                   </div>
                 </div>
@@ -519,13 +523,15 @@ export default function PaymentCreatePage() {
                                   </Badge>
                                 </h4>
                                 <p className="text-sm text-muted-foreground">
-                                  Total: {invoice?.currency === 'INR' 
-                                    ? formatRupees(invoice?.totalAmount)
-                                    : new Intl.NumberFormat('en-US', {
-                                        style: 'currency',
-                                        currency: invoice?.currency,
-                                      }).format(invoice?.totalAmount)
-                                  }
+                                  Total: {(() => {
+                                    const currencyCode = invoice?.currency || 'INR';
+                                    return currencyCode === 'INR'
+                                      ? formatRupees(invoice?.totalAmount || 0)
+                                      : new Intl.NumberFormat('en-US', {
+                                          style: 'currency',
+                                          currency: currencyCode,
+                                        }).format(invoice?.totalAmount || 0);
+                                  })()}
                                 </p>
                               </div>
                               {fields.length > 1 && (
