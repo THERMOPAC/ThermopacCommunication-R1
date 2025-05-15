@@ -773,7 +773,7 @@ export default function MarketingDashboardPage() {
               ) : (
                 <div>
                   <div className="text-lg font-bold flex flex-col gap-0 text-right">
-                    <span>INR {formatIndianRupees(expectedRevenueStats.totalINR)}</span>
+                    <span>INR {formatINRInCrores(expectedRevenueStats.totalINR)}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 text-right">
                     calculated based on lead probabilities
