@@ -46,6 +46,9 @@ export function formatRupees(amount: number | string, useLakhs: boolean = false)
   // Convert string to number if needed
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   
+  // Handle NaN case
+  if (isNaN(numAmount)) return '₹0.00';
+  
   if (useLakhs) {
     // Format in Indian numbering system (lakhs and crores)
     if (numAmount >= 10000000) {
