@@ -332,20 +332,25 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
 // Get foreign currency payments without BRC
 router.get('/payments/foreign-without-brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Get all foreign currency payments
-    const foreignPayments = await db.query.payments.findMany({
-      where: (payments, { ne }) => ne(payments.currency, 'INR'),
-      orderBy: (payments, { desc }) => [desc(payments.paymentDate)]
-    });
+    // Use raw SQL query to get foreign currency payments
+    const paymentsResult = await db.execute(
+      sql`
+        SELECT id, payment_date, amount, currency, payment_method, reference_number
+        FROM payments 
+        WHERE currency != 'INR'
+        ORDER BY payment_date DESC
+        LIMIT 100
+      `
+    );
 
     // Return the payments data in a structured format
-    const result = foreignPayments.map(payment => ({
+    const result = paymentsResult.rows.map(payment => ({
       id: payment.id,
-      paymentDate: payment.paymentDate,
+      paymentDate: payment.payment_date,
       amount: payment.amount,
       currency: payment.currency,
-      paymentMethod: payment.paymentMethod,
-      referenceNumber: payment.referenceNumber,
+      paymentMethod: payment.payment_method,
+      referenceNumber: payment.reference_number,
       // Default customer info to avoid null errors
       customer: {
         id: 0,
@@ -817,17 +822,19 @@ router.get('/test/payment-number', ensureAuthenticated, async (req: Request, res
     const financialYear = `${startYearStr}${endYearStr}`;
     
     // Find the highest serial number for the given financial year
+    // Use a direct SQL query with precise pattern matching for more reliable results
     const yearPattern = `PAY-${financialYear}-%`;
     
-    const result = await db
-      .select({
-        maxReferenceNumber: sql<string>`MAX(${paymentsTable.referenceNumber})`,
-      })
-      .from(paymentsTable)
-      .where(sql`${paymentsTable.referenceNumber} LIKE ${yearPattern}`);
+    const result = await db.execute(
+      sql`
+        SELECT MAX(reference_number) as max_reference_number
+        FROM payments 
+        WHERE reference_number LIKE ${yearPattern}
+      `
+    );
     
     let nextNumber = 1;
-    const maxReferenceNumber = result[0]?.maxReferenceNumber;
+    const maxReferenceNumber = result.rows[0]?.max_reference_number;
     
     if (maxReferenceNumber) {
       // Extract the serial number from the payment number (format: PAY-YYZZ-SERIES)
