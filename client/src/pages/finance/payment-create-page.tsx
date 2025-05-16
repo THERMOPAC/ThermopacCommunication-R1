@@ -185,18 +185,29 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   
   // Set up form values based on whether we're creating or editing
   const initialFormValues: PaymentFormValues = isEditMode && paymentData && paymentData.payment ? {
-    referenceNumber: paymentData.payment.reference_number || '',
-    paymentDate: paymentData.payment.payment_date ? new Date(paymentData.payment.payment_date) : new Date(),
-    amount: paymentData.payment.amount ? paymentData.payment.amount.toString() : '',
+    // Use both camelCase and snake_case key formats to account for API response variations
+    referenceNumber: paymentData.payment.referenceNumber || paymentData.payment.reference_number || '',
+    paymentDate: new Date(paymentData.payment.paymentDate || paymentData.payment.payment_date || new Date()),
+    amount: String(paymentData.payment.amount || ''),
     currency: paymentData.payment.currency || 'INR',
-    paymentMethod: paymentData.payment.payment_method || 'bank transfer',
+    paymentMethod: paymentData.payment.paymentMethod || paymentData.payment.payment_method || 'bank transfer',
     notes: paymentData.payment.notes || '',
-    isAdvancePayment: paymentData.payment.is_advance_payment || false,
-    customerId: paymentData.payment.customer_id ? paymentData.payment.customer_id.toString() : '',
-    invoiceLinks: paymentData.invoiceLinks ? paymentData.invoiceLinks.map(link => ({
-      invoiceId: String(link.invoice ? link.invoice.id : link.invoice_id),
-      amountApplied: String(link.amountApplied || link.amount_applied)
-    })) : [],
+    isAdvancePayment: Boolean(paymentData.payment.isAdvancePayment || paymentData.payment.is_advance_payment || false),
+    customerId: String(paymentData.payment.customerId || paymentData.payment.customer_id || ''),
+    invoiceLinks: paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0 ? 
+      paymentData.invoiceLinks.map(link => ({
+        invoiceId: String(
+          (link.invoice && link.invoice.id) || 
+          link.invoice_id || 
+          link.invoiceId || 
+          ''
+        ),
+        amountApplied: String(
+          link.amountApplied || 
+          link.amount_applied || 
+          '0'
+        )
+      })) : [],
   } : {
     referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
     paymentDate: new Date(),
