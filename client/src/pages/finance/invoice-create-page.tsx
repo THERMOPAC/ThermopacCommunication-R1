@@ -80,6 +80,7 @@ interface InvoiceCreatePageProps {
 export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreatePageProps) {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   
   // Extract invoice ID from URL if in edit mode
   let invoiceId: string | null = null;
@@ -102,6 +103,12 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   const { data: invoiceData, isLoading: isLoadingInvoice } = useQuery({
     queryKey: [`/api/finance/invoices/${invoiceId}`],
     enabled: !!isEditMode && !!invoiceId,
+  });
+  
+  // Get unallocated advance payments for selected customer
+  const { data: unallocatedAdvances, isLoading: isLoadingAdvances } = useQuery({
+    queryKey: ['/api/finance/payments/unallocated-advances', selectedCustomerId],
+    enabled: !!selectedCustomerId && !isEditMode,
   });
   
   // For automatic invoice number generation
@@ -472,7 +479,13 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedCustomerId(value);
+                        }} 
+                        value={field.value || ""}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select customer" />
