@@ -60,12 +60,27 @@ const paymentFormSchema = z.object({
   currency: z.string().default("INR"),
   paymentMethod: z.string().min(1, "Payment method is required"),
   notes: z.string().optional(),
+  isAdvancePayment: z.boolean().default(false),
+  customerId: z.string().optional(),
   invoiceLinks: z.array(
     z.object({
       invoiceId: z.string().min(1, "Invoice is required"),
       amountApplied: z.string().min(1, "Amount is required"),
     })
-  ).min(1, "At least one invoice must be linked"),
+  ).optional(),
+}).refine((data) => {
+  // Validate that invoiceLinks are provided if not an advance payment
+  if (!data.isAdvancePayment) {
+    return data.invoiceLinks && data.invoiceLinks.length > 0;
+  }
+  // For advance payments, customerId is required
+  if (data.isAdvancePayment) {
+    return !!data.customerId;
+  }
+  return true;
+}, {
+  message: "Please either link an invoice or mark as an advance payment and select a customer",
+  path: ["invoiceLinks"],
 });
 
 type PaymentFormValues = z.infer<typeof paymentFormSchema>;
@@ -97,6 +112,8 @@ export default function PaymentCreatePage() {
     currency: 'INR',
     paymentMethod: 'bank transfer',
     notes: '',
+    isAdvancePayment: false,
+    customerId: '',
     invoiceLinks: [],
   };
   
@@ -168,11 +185,13 @@ export default function PaymentCreatePage() {
           currency: values.currency,
           paymentMethod: values.paymentMethod,
           notes: values.notes || null,
+          isAdvancePayment: values.isAdvancePayment,
+          customerId: values.isAdvancePayment ? parseInt(values.customerId || '0') : null,
         },
-        invoiceLinks: values.invoiceLinks.map(link => ({
+        invoiceLinks: values.invoiceLinks ? values.invoiceLinks.map(link => ({
           invoiceId: parseInt(link.invoiceId),
           amountApplied: String(link.amountApplied),
-        }))
+        })) : []
       };
       
       return apiRequest('POST', '/api/finance/payments', apiData);
@@ -198,7 +217,22 @@ export default function PaymentCreatePage() {
   
   // Submit handler
   const onSubmit = (values: PaymentFormValues) => {
-    // Validate that total applied amount matches payment amount
+    // For advance payments, just make sure a customer is selected
+    if (values.isAdvancePayment) {
+      if (!values.customerId) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a customer for this advance payment",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      createPayment.mutate(values);
+      return;
+    }
+    
+    // For regular payments, validate invoice links
     const totalApplied = calculateTotalApplied();
     const totalAmount = parseFloat(values.amount);
     
@@ -213,7 +247,7 @@ export default function PaymentCreatePage() {
     
     // Validate that all selected invoices have the same currency as the payment
     const paymentCurrency = values.currency;
-    const invoiceCurrencyMismatch = values.invoiceLinks.some(link => {
+    const invoiceCurrencyMismatch = values.invoiceLinks?.some(link => {
       const invoiceId = link.invoiceId;
       const invoice = outstandingInvoices?.find((inv: any) => String(inv.id) === invoiceId);
       return invoice && invoice.currency !== paymentCurrency;
