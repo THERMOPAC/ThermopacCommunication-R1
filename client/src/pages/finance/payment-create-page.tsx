@@ -50,6 +50,33 @@ import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { formatRupees, getIndianFinancialYear, getNextPaymentReferenceNumber } from "@/lib/utils";
 
+// Define payment data structure types
+interface PaymentInvoiceLink {
+  id: number;
+  payment_id: number;
+  invoice_id: number;
+  amount_applied: string;
+  invoiceId?: string;
+  amountApplied?: string;
+}
+
+interface PaymentData {
+  payment: {
+    id: number;
+    reference_number: string;
+    payment_date: string;
+    amount: string;
+    currency: string;
+    payment_method: string;
+    notes: string | null;
+    is_advance_payment: boolean;
+    customer_id: number | null;
+    created_at: string;
+    updated_at: string;
+  };
+  invoiceLinks: PaymentInvoiceLink[];
+}
+
 // Payment form schema
 const paymentFormSchema = z.object({
   referenceNumber: z.string().min(1, "Reference number is required"),
@@ -106,18 +133,44 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     }
   }, [isEditMode, location]);
   
+  // Define invoice and customer data types
+  interface Invoice {
+    id: number;
+    invoiceNumber: string;
+    invoiceDate: string;
+    dueDate: string;
+    amount: string;
+    currency: string;
+    customerId: number;
+    customerName: string;
+    status: string;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }
+
+  interface Customer {
+    id: number;
+    bpCode: string;
+    bpName: string;
+    contactPerson: string | null;
+    email: string | null;
+    country: string | null;
+    city: string | null;
+  }
+
   // Get all invoices and customers data
-  const { data: outstandingInvoices, isLoading: isLoadingInvoices, error: invoicesError } = useQuery({
+  const { data: outstandingInvoices, isLoading: isLoadingInvoices, error: invoicesError } = useQuery<Invoice[]>({
     queryKey: ['/api/finance/invoices'],
   });
   
-  const { data: customersList, isLoading: isLoadingCustomers } = useQuery({
+  const { data: customersList, isLoading: isLoadingCustomers } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],
     enabled: true,
   });
   
   // Get payment details if in edit mode
-  const { data: paymentData, isLoading: isLoadingPayment } = useQuery({
+  const { data: paymentData, isLoading: isLoadingPayment } = useQuery<PaymentData>({
     queryKey: [`/api/finance/payments/${paymentId}`],
     enabled: isEditMode && paymentId !== null,
   });
@@ -132,7 +185,10 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     notes: paymentData.payment.notes || '',
     isAdvancePayment: paymentData.payment.is_advance_payment || false,
     customerId: paymentData.payment.customer_id ? paymentData.payment.customer_id.toString() : '',
-    invoiceLinks: paymentData.invoiceLinks || [],
+    invoiceLinks: paymentData.invoiceLinks ? paymentData.invoiceLinks.map(link => ({
+      invoiceId: link.invoice_id.toString(),
+      amountApplied: link.amount_applied.toString()
+    })) : [],
   } : {
     referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
     paymentDate: new Date(),
