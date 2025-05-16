@@ -151,7 +151,7 @@ export default function BrcPage() {
   const filteredPayments = Array.isArray(payments)
     ? payments.filter((payment: any) =>
         payment.referenceNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        payment.customer?.bpName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        payment.customer?.companyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         payment.amount?.toString().includes(searchQuery)
       )
     : [];
@@ -160,7 +160,7 @@ export default function BrcPage() {
   const filteredBrcs = Array.isArray(brcs)
     ? brcs.filter((brc: any) =>
         brc.brcNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        brc.payment?.customer?.bpName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        brc.payment?.customer?.companyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         brc.amount?.toString().includes(searchQuery)
       )
     : [];
@@ -248,7 +248,7 @@ export default function BrcPage() {
                         <TableRow key={payment.id}>
                           <TableCell className="font-medium">{payment.referenceNumber}</TableCell>
                           <TableCell>{format(new Date(payment.paymentDate), 'dd MMM yyyy')}</TableCell>
-                          <TableCell>{payment.customer?.bpName}</TableCell>
+                          <TableCell>{payment.customer?.companyName}</TableCell>
                           <TableCell className="text-right">
                             {new Intl.NumberFormat('en-US', {
                               style: 'currency',
@@ -318,7 +318,7 @@ export default function BrcPage() {
                           <TableCell className="font-medium">{brc.brcNumber}</TableCell>
                           <TableCell>{format(new Date(brc.issueDate), 'dd MMM yyyy')}</TableCell>
                           <TableCell>{brc.payment?.referenceNumber}</TableCell>
-                          <TableCell>{brc.payment?.customer?.bpName}</TableCell>
+                          <TableCell>{brc.payment?.customer?.companyName}</TableCell>
                           <TableCell className="text-right">
                             {new Intl.NumberFormat('en-US', {
                               style: 'currency',
@@ -368,7 +368,7 @@ export default function BrcPage() {
                   </div>
                   <div className="flex justify-between mb-1">
                     <span className="font-medium">Customer:</span>
-                    <span>{selectedPayment.customer?.bpName}</span>
+                    <span>{selectedPayment.customer?.companyName}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Amount:</span>
