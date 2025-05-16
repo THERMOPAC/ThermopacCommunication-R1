@@ -31,7 +31,7 @@ import {
   LineChart,
   Line
 } from "recharts";
-import { formatRupees, formatDate } from "@/lib/utils";
+import { formatRupees, formatDate, formatUSD } from "@/lib/utils";
 import { Link } from "wouter";
 
 // Define interfaces for type safety
@@ -144,7 +144,7 @@ export default function FinanceDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {formatRupees(data?.totalInvoices?.amount || 0)}
+                    {formatUSD(data?.totalInvoices?.amount || 0)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {data?.totalInvoices?.count || 0} {data?.totalInvoices?.count === 1 ? 'invoice' : 'invoices'} total
@@ -158,7 +158,7 @@ export default function FinanceDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {formatRupees(data?.outstandingInvoices?.amount || 0)}
+                    {formatUSD(data?.outstandingInvoices?.amount || 0)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {data?.outstandingInvoices?.count || 0} {data?.outstandingInvoices?.count === 1 ? 'invoice' : 'invoices'} pending
@@ -172,7 +172,7 @@ export default function FinanceDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-red-500">
-                    {formatRupees(data?.overdueInvoices?.amount || 0)}
+                    {formatUSD(data?.overdueInvoices?.amount || 0)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {data?.overdueInvoices?.count || 0} {data?.overdueInvoices?.count === 1 ? 'invoice' : 'invoices'} overdue
@@ -186,7 +186,7 @@ export default function FinanceDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-green-600">
-                    {formatRupees(data?.totalPayments?.amount || 0)}
+                    {formatUSD(data?.totalPayments?.amount || 0)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {data?.totalPayments?.count || 0} {data?.totalPayments?.count === 1 ? 'payment' : 'payments'} received
@@ -217,7 +217,7 @@ export default function FinanceDashboardPage() {
                         <XAxis dataKey="name" />
                         <YAxis />
                         <Tooltip 
-                          formatter={(value) => [formatRupees(value as number), "Revenue"]}
+                          formatter={(value) => [formatUSD(value as number), "Revenue"]}
                         />
                         <Bar 
                           dataKey="revenue" 
@@ -299,7 +299,7 @@ export default function FinanceDashboardPage() {
                         <td className="px-4 py-3 text-left text-sm">{invoice.clientName}</td>
                         <td className="px-4 py-3 text-left text-sm">{formatDate(new Date(invoice.issueDate))}</td>
                         <td className="px-4 py-3 text-left text-sm">{formatDate(new Date(invoice.dueDate))}</td>
-                        <td className="px-4 py-3 text-right text-sm font-medium">{formatRupees(invoice.amount)}</td>
+                        <td className="px-4 py-3 text-right text-sm font-medium">{formatUSD(invoice.amount)}</td>
                         <td className="px-4 py-3 text-center">
                           <span className={`rounded-full px-2 py-1 text-xs font-medium ${
                             invoice.status === 'Paid' 
@@ -355,7 +355,7 @@ export default function FinanceDashboardPage() {
                         </td>
                         <td className="px-4 py-3 text-left text-sm">{formatDate(new Date(payment.paymentDate))}</td>
                         <td className="px-4 py-3 text-left text-sm">{payment.paymentMethod}</td>
-                        <td className="px-4 py-3 text-right text-sm font-medium">{formatRupees(payment.amount)}</td>
+                        <td className="px-4 py-3 text-right text-sm font-medium">{formatUSD(payment.amount)}</td>
                         <td className="px-4 py-3 text-center">
                           <Button variant="ghost" size="sm" asChild>
                             <Link href={`/finance/payments/${payment.id}`}>View Details</Link>
