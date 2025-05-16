@@ -1426,6 +1426,41 @@ router.get('/reports/outstanding', ensureAuthenticated, async (req: Request, res
   }
 });
 
+// Get unallocated advance payments for a specific customer
+router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const customerId = parseInt(req.params.customerId);
+    
+    if (isNaN(customerId)) {
+      return res.status(400).json({ error: 'Invalid customer ID' });
+    }
+    
+    // Get all advance payments with unallocated amounts for this customer
+    const unallocatedAdvances = await db
+      .select()
+      .from(paymentsTable)
+      .where(and(
+        eq(paymentsTable.customerId, customerId),
+        eq(paymentsTable.isAdvancePayment, true),
+        gt(paymentsTable.unallocatedAmount, 0)
+      ))
+      .orderBy(asc(paymentsTable.paymentDate));
+    
+    const totalUnallocated = unallocatedAdvances.reduce((sum, payment) => {
+      return sum + Number(payment.unallocatedAmount || 0);
+    }, 0);
+    
+    res.json({
+      advances: unallocatedAdvances,
+      totalUnallocated: totalUnallocated,
+      currency: unallocatedAdvances.length > 0 ? unallocatedAdvances[0].currency : 'INR'
+    });
+  } catch (error) {
+    console.error('Error fetching unallocated advances:', error);
+    res.status(500).json({ error: 'Failed to fetch unallocated advances' });
+  }
+});
+
 // Inward remittances report
 router.get('/reports/remittances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
