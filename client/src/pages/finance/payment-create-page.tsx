@@ -349,7 +349,17 @@ export default function PaymentCreatePage() {
   
   // Handle customer selection change
   const handleCustomerChange = (customerId: string) => {
+    // Handle "all" value
+    if (customerId === 'all') {
+      customerId = '';
+    }
+    
     setSelectedCustomerId(customerId);
+    
+    // If this is for advance payment, also set the form customerId
+    if (form.watch('isAdvancePayment') && customerId) {
+      form.setValue('customerId', customerId);
+    }
     
     // Reset invoice selection
     setSelectedInvoices([]);
@@ -357,11 +367,11 @@ export default function PaymentCreatePage() {
     
     // If auto-allocate is enabled and payment amount is entered, allocate automatically
     const paymentAmount = parseFloat(form.getValues().amount || '0');
-    if (autoAllocateEnabled && paymentAmount > 0) {
+    if (autoAllocateEnabled && paymentAmount > 0 && !form.watch('isAdvancePayment')) {
       // Filter invoices for selected customer
       const customerInvoices = Array.isArray(outstandingInvoices) 
         ? outstandingInvoices.filter((invoice: any) => 
-            invoice.customerId === parseInt(customerId) && 
+            (customerId ? invoice.customerId === parseInt(customerId) : true) && 
             (invoice.status === 'Pending' || invoice.status === 'Partially Paid')
           )
         : [];
@@ -808,7 +818,7 @@ export default function PaymentCreatePage() {
                         <SelectValue placeholder="Select customer" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Customers</SelectItem>
+                        <SelectItem value="all">All Customers</SelectItem>
                         {customersList?.map((customer: any) => (
                           <SelectItem key={customer.id} value={String(customer.id)}>
                             {customer.bpName}
