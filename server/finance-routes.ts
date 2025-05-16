@@ -28,17 +28,19 @@ function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
 // Helper to get the next payment reference number
 async function getNextPaymentReferenceNumber(financialYear: string): Promise<string> {
   try {
-    // Find all payments with the given financial year pattern
-    const payments = await db.select({ reference_number: paymentsTable.reference_number })
-      .from(paymentsTable)
-      .where(sql`${paymentsTable.reference_number} LIKE ${'PAY-' + financialYear + '-%'}`)
-      .orderBy(paymentsTable.reference_number, 'desc');
+    // Find all payments with the given financial year pattern using raw SQL for more flexibility
+    const result = await db.execute(
+      sql`SELECT reference_number FROM payments 
+          WHERE reference_number LIKE ${'PAY-' + financialYear + '-%'} 
+          ORDER BY reference_number DESC 
+          LIMIT 1`
+    );
     
     let sequenceNumber = 1;
     
-    if (payments.length > 0) {
+    if (result.rows.length > 0) {
       // Extract sequence number from the latest reference number
-      const latestRef = payments[0].reference_number;
+      const latestRef = result.rows[0].reference_number;
       const parts = latestRef.split('-');
       
       if (parts.length === 3) {
@@ -380,8 +382,32 @@ router.get('/payments/latest-reference', ensureAuthenticated, async (req: Reques
     const endYearStr = endYear.toString().slice(-2);
     const financialYear = `${startYearStr}${endYearStr}`;
     
-    // Get latest reference number for this financial year
-    const nextReference = await getNextPaymentReferenceNumber(financialYear);
+    // Find latest payment reference number with the current financial year pattern
+    const result = await db.execute(
+      sql`SELECT reference_number FROM payments 
+          WHERE reference_number LIKE ${'PAY-' + financialYear + '-%'} 
+          ORDER BY id DESC 
+          LIMIT 1`
+    );
+    
+    let nextReference = `PAY-${financialYear}-001`;
+    
+    if (result.rows.length > 0) {
+      // Extract sequence number from the latest reference number
+      const latestRef = result.rows[0].reference_number;
+      const parts = latestRef.split('-');
+      
+      if (parts.length === 3) {
+        const currentSeq = parseInt(parts[2], 10);
+        if (!isNaN(currentSeq)) {
+          // Increment the sequence number
+          const nextSeq = currentSeq + 1;
+          // Format with leading zeros
+          const seqStr = nextSeq.toString().padStart(3, '0');
+          nextReference = `PAY-${financialYear}-${seqStr}`;
+        }
+      }
+    }
     
     res.json({ latestReference: nextReference });
   } catch (error) {
