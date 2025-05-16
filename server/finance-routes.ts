@@ -1331,18 +1331,20 @@ router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: R
       .groupBy(sql`to_char(${invoices.issueDate}, 'YYYY-MM')`)
       .orderBy(sql`to_char(${invoices.issueDate}, 'YYYY-MM')`);
     
-    // 2. Get monthly received amounts (from payments linked to invoices)
+    // 2. Get monthly received amounts (from payments)
     const receivedQuery = db
       .select({
-        month: sql<string>`to_char(${invoices.issueDate}, 'YYYY-MM')`,
-        received: sql<string>`SUM(${paymentInvoiceLinks.amountApplied})`
+        month: sql<string>`to_char(${paymentsTable.paymentDate}, 'YYYY-MM')`,
+        received: sql<string>`SUM(${paymentsTable.amount})`
       })
-      .from(paymentInvoiceLinks)
-      .innerJoin(invoices, eq(paymentInvoiceLinks.invoiceId, invoices.id))
-      .innerJoin(paymentsTable, eq(paymentInvoiceLinks.paymentId, paymentsTable.id))
-      .where(currencyFilter)
-      .groupBy(sql`to_char(${invoices.issueDate}, 'YYYY-MM')`)
-      .orderBy(sql`to_char(${invoices.issueDate}, 'YYYY-MM')`);
+      .from(paymentsTable)
+      .where(
+        currency && currency !== 'all'
+          ? eq(paymentsTable.currency, currency as string)
+          : sql`1=1` // No currency filter
+      )
+      .groupBy(sql`to_char(${paymentsTable.paymentDate}, 'YYYY-MM')`)
+      .orderBy(sql`to_char(${paymentsTable.paymentDate}, 'YYYY-MM')`);
     
     // 3. Get totals for the summary
     const totalInvoicedQuery = db
@@ -1354,11 +1356,14 @@ router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: R
     
     const totalReceivedQuery = db
       .select({
-        total: sql<string>`SUM(${paymentInvoiceLinks.amountApplied})`
+        total: sql<string>`SUM(${paymentsTable.amount})`
       })
-      .from(paymentInvoiceLinks)
-      .innerJoin(invoices, eq(paymentInvoiceLinks.invoiceId, invoices.id))
-      .where(currencyFilter);
+      .from(paymentsTable)
+      .where(
+        currency && currency !== 'all'
+          ? eq(paymentsTable.currency, currency as string)
+          : sql`1=1` // No currency filter
+      );
     
     // Execute all queries
     const [invoicedResults, receivedResults, totalInvoicedResult, totalReceivedResult] = await Promise.all([
@@ -1389,8 +1394,13 @@ router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: R
       const invoicedAmount = invoiced ? parseFloat(invoiced.invoiced) : 0;
       const receivedAmount = received ? parseFloat(received.received) : 0;
       
+      // Convert month to readable format for display
+      const [yearStr, monthStr] = month.split('-');
+      const monthDate = new Date(parseInt(yearStr), parseInt(monthStr) - 1, 1);
+      const displayMonth = monthDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+      
       monthlyData.push({
-        month,
+        month: displayMonth,
         invoiced: invoicedAmount,
         received: receivedAmount,
         outstanding: Math.max(0, invoicedAmount - receivedAmount)
