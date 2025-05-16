@@ -187,8 +187,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     isAdvancePayment: paymentData.payment.is_advance_payment || false,
     customerId: paymentData.payment.customer_id ? paymentData.payment.customer_id.toString() : '',
     invoiceLinks: paymentData.invoiceLinks ? paymentData.invoiceLinks.map(link => ({
-      invoiceId: String(link.invoice_id),
-      amountApplied: String(link.amount_applied)
+      invoiceId: String(link.invoice ? link.invoice.id : link.invoice_id),
+      amountApplied: String(link.amountApplied || link.amount_applied)
     })) : [],
   } : {
     referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
