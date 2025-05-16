@@ -34,8 +34,40 @@ import {
 import { formatRupees, formatDate } from "@/lib/utils";
 import { Link } from "wouter";
 
+// Define interfaces for type safety
+interface FinanceDashboardData {
+  totalInvoices: { count: number; amount: string };
+  totalPaid: { count: number; amount: string };
+  totalUnpaid: { count: number; amount: string };
+  outstandingInvoices: { count: number; amount: string };
+  overdueInvoices: { count: number; amount: string };
+  totalOutstanding: { count: number; amount: string };
+  totalOverdue: { count: number; amount: string };
+  totalPayments: { count: number; amount: string };
+  recentInvoices: Array<{
+    id: number;
+    invoiceNumber: string;
+    clientName: string;
+    issueDate: string;
+    dueDate: string;
+    amount: string;
+    status: string;
+  }>;
+  latestPayments: Array<{
+    id: number;
+    referenceNumber: string;
+    customerId: number;
+    paymentDate: string;
+    amount: string;
+    paymentMethod: string;
+    currency: string;
+    allocationStatus: string;
+  }>;
+  monthlyRevenue?: Array<{ month: string; total: string }>;
+}
+
 export default function FinanceDashboardPage() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<FinanceDashboardData>({
     queryKey: ['/api/finance/dashboard'],
     retry: 1
   });
@@ -256,31 +288,38 @@ export default function FinanceDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {/* This would be populated with real data from API */}
-                  <tr className="border-t hover:bg-muted/50">
-                    <td className="px-4 py-3 text-left text-sm">
-                      <Link href="/finance/invoices/1" className="text-primary hover:underline">INV-2025-001</Link>
-                    </td>
-                    <td className="px-4 py-3 text-left text-sm">Company A</td>
-                    <td className="px-4 py-3 text-left text-sm">May 10, 2025</td>
-                    <td className="px-4 py-3 text-left text-sm">June 9, 2025</td>
-                    <td className="px-4 py-3 text-right text-sm font-medium">₹45,000.00</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="rounded-full px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
-                    </td>
-                  </tr>
-                  <tr className="border-t hover:bg-muted/50">
-                    <td className="px-4 py-3 text-left text-sm">
-                      <Link href="/finance/invoices/2" className="text-primary hover:underline">INV-2025-002</Link>
-                    </td>
-                    <td className="px-4 py-3 text-left text-sm">Company B</td>
-                    <td className="px-4 py-3 text-left text-sm">May 5, 2025</td>
-                    <td className="px-4 py-3 text-left text-sm">June 4, 2025</td>
-                    <td className="px-4 py-3 text-right text-sm font-medium">₹78,500.00</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="rounded-full px-2 py-1 text-xs font-medium bg-green-100 text-green-800">Paid</span>
-                    </td>
-                  </tr>
+                  {data && data.recentInvoices && data.recentInvoices.length > 0 ? (
+                    data.recentInvoices.map((invoice) => (
+                      <tr key={invoice.id} className="border-t hover:bg-muted/50">
+                        <td className="px-4 py-3 text-left text-sm">
+                          <Link href={`/finance/invoices/${invoice.id}`} className="text-primary hover:underline">
+                            {invoice.invoiceNumber}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3 text-left text-sm">{invoice.clientName}</td>
+                        <td className="px-4 py-3 text-left text-sm">{formatDate(new Date(invoice.issueDate))}</td>
+                        <td className="px-4 py-3 text-left text-sm">{formatDate(new Date(invoice.dueDate))}</td>
+                        <td className="px-4 py-3 text-right text-sm font-medium">{formatRupees(invoice.amount)}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                            invoice.status === 'Paid' 
+                              ? 'bg-green-100 text-green-800' 
+                              : invoice.status === 'Overdue'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {invoice.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr className="border-t">
+                      <td colSpan={6} className="px-4 py-3 text-center text-sm text-muted-foreground">
+                        No invoices found
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -306,33 +345,31 @@ export default function FinanceDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {/* This would be populated with real data from API */}
-                  <tr className="border-t hover:bg-muted/50">
-                    <td className="px-4 py-3 text-left text-sm">
-                      <Link href="/finance/payments/1" className="text-primary hover:underline">PAY-2025-001</Link>
-                    </td>
-                    <td className="px-4 py-3 text-left text-sm">May 12, 2025</td>
-                    <td className="px-4 py-3 text-left text-sm">Bank Transfer</td>
-                    <td className="px-4 py-3 text-right text-sm font-medium">₹78,500.00</td>
-                    <td className="px-4 py-3 text-center">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href="/finance/payments/1">View Details</Link>
-                      </Button>
-                    </td>
-                  </tr>
-                  <tr className="border-t hover:bg-muted/50">
-                    <td className="px-4 py-3 text-left text-sm">
-                      <Link href="/finance/payments/2" className="text-primary hover:underline">PAY-2025-002</Link>
-                    </td>
-                    <td className="px-4 py-3 text-left text-sm">May 3, 2025</td>
-                    <td className="px-4 py-3 text-left text-sm">Check</td>
-                    <td className="px-4 py-3 text-right text-sm font-medium">₹32,000.00</td>
-                    <td className="px-4 py-3 text-center">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href="/finance/payments/2">View Details</Link>
-                      </Button>
-                    </td>
-                  </tr>
+                  {data?.latestPayments?.length > 0 ? (
+                    data.latestPayments.map((payment: any) => (
+                      <tr key={payment.id} className="border-t hover:bg-muted/50">
+                        <td className="px-4 py-3 text-left text-sm">
+                          <Link href={`/finance/payments/${payment.id}`} className="text-primary hover:underline">
+                            {payment.referenceNumber}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3 text-left text-sm">{formatDate(new Date(payment.paymentDate))}</td>
+                        <td className="px-4 py-3 text-left text-sm">{payment.paymentMethod}</td>
+                        <td className="px-4 py-3 text-right text-sm font-medium">{formatRupees(payment.amount)}</td>
+                        <td className="px-4 py-3 text-center">
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link href={`/finance/payments/${payment.id}`}>View Details</Link>
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr className="border-t">
+                      <td colSpan={5} className="px-4 py-3 text-center text-sm text-muted-foreground">
+                        No payments found
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

@@ -22,6 +22,14 @@ router.get('/dashboard', ensureAuthenticated, (req: Request, res: Response) => {
         count: 3,
         amount: "400000.00"
       },
+      outstandingInvoices: {
+        count: 3,
+        amount: "400000.00"
+      },
+      overdueInvoices: {
+        count: 2,
+        amount: "200000.00"
+      },
       totalOutstanding: {
         count: 3,
         amount: "400000.00"
@@ -34,6 +42,53 @@ router.get('/dashboard', ensureAuthenticated, (req: Request, res: Response) => {
         count: 2,
         amount: "225000.00"
       },
+      recentInvoices: [
+        {
+          id: 1,
+          invoiceNumber: "INV-2526-001",
+          clientName: "Acme Corporation",
+          issueDate: "2025-05-15",
+          dueDate: "2025-06-14",
+          amount: "150000.00",
+          status: "Paid"
+        },
+        {
+          id: 2,
+          invoiceNumber: "INV-2526-002",
+          clientName: "Globex Corporation",
+          issueDate: "2025-06-02",
+          dueDate: "2025-07-01", 
+          amount: "200000.00",
+          status: "Pending"
+        },
+        {
+          id: 3,
+          invoiceNumber: "INV-2526-003",
+          clientName: "Stark Industries",
+          issueDate: "2025-06-10",
+          dueDate: "2025-07-09",
+          amount: "125000.00",
+          status: "Overdue"
+        },
+        {
+          id: 4,
+          invoiceNumber: "INV-2526-004",
+          clientName: "Wayne Enterprises",
+          issueDate: "2025-06-15",
+          dueDate: "2025-07-14",
+          amount: "75000.00",
+          status: "Pending"
+        },
+        {
+          id: 5,
+          invoiceNumber: "INV-2526-005",
+          clientName: "LexCorp",
+          issueDate: "2025-06-20",
+          dueDate: "2025-07-19",
+          amount: "75000.00",
+          status: "Pending"
+        }
+      ],
       latestPayments: [
         {
           id: 1,
