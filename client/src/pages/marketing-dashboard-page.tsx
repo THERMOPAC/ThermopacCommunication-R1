@@ -449,13 +449,33 @@ export default function MarketingDashboardPage() {
     };
   }, [leadsData, exchangeRates]);
 
-  // Calculate total turnover (Expected Revenue + Orders in Hand)
+  // Fetch finance data for total turnover calculation
+  const { data: financeData, isLoading: isLoadingFinance } = useQuery({
+    queryKey: ['/api/finance/dashboard', dateRange],
+    queryFn: async () => {
+      const from = formatDateForApi(dateRange.from);
+      const to = formatDateForApi(dateRange.to);
+      const response = await fetch(`/api/finance/dashboard?from=${from}&to=${to}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch finance data');
+      }
+      return response.json();
+    },
+    refetchOnWindowFocus: false
+  });
+
+  // Calculate total turnover (Expected Revenue + Orders in Hand + Invoiced Amount)
   const calculateTotalTurnover = () => {
-    if (!expectedRevenueStats || !ordersData) {
+    if (!expectedRevenueStats || !ordersData || !financeData) {
       return 0;
     }
     
-    return expectedRevenueStats.totalINR + (ordersData.totalValueINR || 0);
+    // Convert finance data (totalInvoices) from string to number if needed
+    const invoicedAmount = financeData?.totalInvoices?.amount 
+      ? parseFloat(financeData.totalInvoices.amount) 
+      : 0;
+    
+    return expectedRevenueStats.totalINR + (ordersData.totalValueINR || 0) + invoicedAmount;
   };
 
   // Calculate campaign completion percentage
@@ -738,7 +758,7 @@ export default function MarketingDashboardPage() {
                 <CardHeader className="pb-2">
                   <CardDescription>Total Turnover</CardDescription>
                   <CardTitle className="text-2xl">
-                    {isLoadingLeads || isLoadingOrders ? (
+                    {isLoadingLeads || isLoadingOrders || isLoadingFinance ? (
                       <Skeleton className="h-8 w-20" />
                     ) : (
                       `₹${formatINRInCrores(calculateTotalTurnover())} Cr`
@@ -748,8 +768,19 @@ export default function MarketingDashboardPage() {
                 <CardContent>
                   <div className="text-sm text-muted-foreground flex items-center">
                     <DollarSign className="mr-1 h-4 w-4" />
-                    Expected + Orders
+                    Expected + Orders + Invoiced
                   </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="mt-1 p-0 h-6"
+                    onClick={() => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/finance/dashboard'] });
+                    }}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    <span className="text-xs">Refresh Finance Data</span>
+                  </Button>
                 </CardContent>
               </Card>
             </div>
