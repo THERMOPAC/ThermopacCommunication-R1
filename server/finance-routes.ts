@@ -781,7 +781,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    const { payment: paymentData, invoiceLinks } = req.body;
+    const { payment: paymentData, invoiceLinks, autoAllocate } = req.body;
     
     // Validate payment data
     const parsedPayment = insertPaymentSchema.parse({
@@ -797,14 +797,69 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
         .values(parsedPayment)
         .returning();
       
-      // Link payment to invoices
-      if (invoiceLinks && invoiceLinks.length > 0) {
+      let linksToProcess = invoiceLinks || [];
+      
+      // Auto-allocation logic if requested
+      if (autoAllocate && (!linksToProcess || linksToProcess.length === 0) && !parsedPayment.is_advance_payment) {
+        // Get customer's unpaid invoices, ordered by due date (oldest first)
+        const customerInvoices = await tx
+          .select()
+          .from(invoices)
+          .where(and(
+            eq(invoices.customerId, parsedPayment.customer_id),
+            not(eq(invoices.status, 'Paid'))
+          ))
+          .orderBy(asc(invoices.dueDate));
+        
+        let remainingAmount = parsedPayment.amount;
+        linksToProcess = [];
+        
+        // Auto-allocate payment to invoices, starting from oldest
+        for (const invoice of customerInvoices) {
+          if (remainingAmount <= 0) break;
+          
+          // Calculate total already paid for this invoice
+          const totalPaid = await tx
+            .select({
+              total: sql<number>`COALESCE(SUM(${paymentInvoiceLinks.amountApplied}), 0)`
+            })
+            .from(paymentInvoiceLinks)
+            .where(eq(paymentInvoiceLinks.invoiceId, invoice.id));
+          
+          const paidAmount = totalPaid[0]?.total || 0;
+          const remainingInvoiceAmount = invoice.totalAmount - paidAmount;
+          
+          if (remainingInvoiceAmount > 0) {
+            // Determine amount to apply to this invoice
+            const amountToApply = Math.min(remainingAmount, remainingInvoiceAmount);
+            
+            linksToProcess.push({
+              invoiceId: invoice.id,
+              amountApplied: amountToApply
+            });
+            
+            remainingAmount -= amountToApply;
+          }
+        }
+      }
+      
+      // Validate total allocation doesn't exceed payment amount
+      if (linksToProcess && linksToProcess.length > 0) {
+        const totalAllocated = linksToProcess.reduce((sum, link) => sum + Number(link.amountApplied), 0);
+        
+        if (totalAllocated > parsedPayment.amount) {
+          throw new Error('Total allocated amount exceeds payment amount');
+        }
+        
+        // Link payment to invoices
         await Promise.all(
-          invoiceLinks.map(async (link: any) => {
+          linksToProcess.map(async (link: any) => {
             const parsedLink = insertPaymentInvoiceLinkSchema.parse({
               paymentId: insertedPayment.id,
               invoiceId: link.invoiceId,
-              amountApplied: link.amountApplied
+              amountApplied: link.amountApplied,
+              allocatedBy: user.id,
+              allocatedAt: new Date()
             });
             
             await tx.insert(paymentInvoiceLinks).values(parsedLink);
@@ -819,16 +874,18 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
             if (invoice.length > 0) {
               const totalPaid = await tx
                 .select({
-                  total: sql<number>`SUM(${paymentInvoiceLinks.amountApplied})`
+                  total: sql<number>`COALESCE(SUM(${paymentInvoiceLinks.amountApplied}), 0)`
                 })
                 .from(paymentInvoiceLinks)
                 .where(eq(paymentInvoiceLinks.invoiceId, link.invoiceId));
               
               const paidAmount = totalPaid[0]?.total || 0;
               
-              let newStatus = invoice[0].status;
+              let newStatus = 'Unpaid';
               
-              if (paidAmount >= invoice[0].totalAmount) {
+              if (paidAmount > invoice[0].totalAmount) {
+                newStatus = 'Overpaid';
+              } else if (paidAmount === invoice[0].totalAmount) {
                 newStatus = 'Paid';
               } else if (paidAmount > 0) {
                 newStatus = 'Partially Paid';
