@@ -587,7 +587,92 @@ export default function MarketingDashboardPage() {
           {/* Overview Tab Content */}
           <TabsContent value="overview" className="space-y-6">
             {/* Stats Cards - First Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {/* Expected Revenue Card */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Expected Revenue</CardDescription>
+                  <CardTitle className="text-3xl flex items-center justify-between">
+                    <div>
+                      {isLoadingLeads || !exchangeRates ? (
+                        <Skeleton className="h-8 w-32" />
+                      ) : (
+                        <>
+                          <div className="flex items-center">
+                            <DollarSign className="h-6 w-6 mr-1" />
+                            <span>USD ${expectedRevenueStats ? (expectedRevenueStats.totalUSD || 0).toLocaleString() : '0'}</span>
+                          </div>
+                          <div className="text-base text-green-600 font-normal">
+                            ~INR ₹{expectedRevenueStats ? formatINRInCrores(expectedRevenueStats.totalINR) : '0'} Cr
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-muted-foreground">
+                    Based on probability
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="ml-2 p-0 h-6"
+                      onClick={() => {
+                        queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/leads'] });
+                      }}
+                    >
+                      <RefreshCw className="h-4 w-4" /> Refresh
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Orders in Hand Card */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription>Orders in Hand</CardDescription>
+                  <CardTitle className="text-3xl flex items-center justify-between">
+                    <div>
+                      {isLoadingOrders ? (
+                        <Skeleton className="h-8 w-32" />
+                      ) : (
+                        <>
+                          <div className="text-xl">
+                            {ordersData ? `${ordersData.count || 0} active orders` : '0 orders'}
+                          </div>
+                          <div className="flex items-center">
+                            <DollarSign className="h-6 w-6 mr-1" />
+                            <span>USD ${ordersData && ordersData.valuesByCurrency && ordersData.valuesByCurrency.USD ? 
+                              ordersData.valuesByCurrency.USD.toLocaleString() : '0'}</span>
+                          </div>
+                          <div className="text-base text-green-600 font-normal">
+                            ~INR ₹{ordersData ? formatINRInCrores(ordersData.totalValueINR) : '0'} Cr
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-muted-foreground">
+                    Total value of current orders
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="ml-2 p-0 h-6"
+                      onClick={() => {
+                        queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'] });
+                      }}
+                    >
+                      <RefreshCw className="h-4 w-4" /> Refresh
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Stats Cards - Second Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               {/* Lead Count Card */}
               <Card>
                 <CardHeader className="pb-2">
@@ -648,28 +733,22 @@ export default function MarketingDashboardPage() {
                 </CardContent>
               </Card>
               
-              {/* Orders in Hand Card */}
+              {/* Total Turnover Card */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription>Orders in Hand</CardDescription>
+                  <CardDescription>Total Turnover</CardDescription>
                   <CardTitle className="text-2xl">
-                    {isLoadingOrders ? (
+                    {isLoadingLeads || isLoadingOrders ? (
                       <Skeleton className="h-8 w-20" />
                     ) : (
-                      ordersData ? `${ordersData.count || 0}` : '0'
+                      `₹${formatINRInCrores(calculateTotalTurnover())} Cr`
                     )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm text-muted-foreground flex items-center">
                     <DollarSign className="mr-1 h-4 w-4" />
-                    {isLoadingOrders ? (
-                      <Skeleton className="h-4 w-28" />
-                    ) : (
-                      ordersData && ordersData.totalValueINR ? 
-                      `Value: ${formatINRInCrores(ordersData.totalValueINR)} Cr` : 
-                      'No orders yet'
-                    )}
+                    Expected + Orders
                   </div>
                 </CardContent>
               </Card>
