@@ -382,11 +382,41 @@ router.get('/payments/latest-reference', ensureAuthenticated, async (req: Reques
     const endYearStr = endYear.toString().slice(-2);
     const financialYear = `${startYearStr}${endYearStr}`;
     
-    // Use a simple default reference number - we're avoiding database operations since they're causing errors
-    const nextReference = `PAY-${financialYear}-001`;
+    // Pattern for this financial year's payments
+    const pattern = `PAY-${financialYear}-%`;
     
-    // Return the reference number without querying the database
-    res.json({ latestReference: nextReference });
+    try {
+      // Find highest payment reference number for the current financial year
+      const result = await db.query.payments.findMany({
+        where: sql`reference_number LIKE ${pattern}`,
+        orderBy: (payments, { desc }) => [desc(payments.id)],
+        limit: 1
+      });
+      
+      if (result && result.length > 0 && result[0]?.reference_number) {
+        const latestRefNumber = result[0].reference_number;
+        // Extract the sequence number from the reference number (format: PAY-YYZZ-NNN)
+        const parts = latestRefNumber.split('-');
+        if (parts.length === 3) {
+          // Get the number part and increment it
+          const sequence = parseInt(parts[2], 10);
+          if (!isNaN(sequence)) {
+            const nextSequence = sequence + 1;
+            // Format with leading zeros (3 digits)
+            const paddedSequence = nextSequence.toString().padStart(3, '0');
+            const nextRef = `PAY-${financialYear}-${paddedSequence}`;
+            return res.json({ latestReference: nextRef });
+          }
+        }
+      }
+      
+      // If no existing payments found or error in parsing, start with 001
+      return res.json({ latestReference: `PAY-${financialYear}-001` });
+    } catch (dbError) {
+      console.error('Database error getting payment reference:', dbError);
+      // Fallback to default pattern if database query fails
+      return res.json({ latestReference: `PAY-${financialYear}-001` });
+    }
   } catch (error) {
     console.error('Error generating payment reference number:', error);
     res.status(500).json({ error: 'Failed to generate payment reference number' });
