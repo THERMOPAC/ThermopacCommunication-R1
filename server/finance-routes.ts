@@ -1123,7 +1123,7 @@ router.get('/test/payment-number', ensureAuthenticated, async (req: Request, res
 });
 
 // Test invoice number generation (for debugging purposes)
-router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res: Response) => {
+router.get('/test/invoice-number', async (req: Request, res: Response) => {
   try {
     const { date } = req.query;
     
