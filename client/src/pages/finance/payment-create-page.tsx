@@ -229,6 +229,28 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     defaultValues,
   });
   
+  // Update form when payment data is loaded
+  useEffect(() => {
+    if (isEditMode && paymentData && paymentData.payment) {
+      console.log('Setting form values with payment data:', paymentData);
+      // Reset the entire form with the payment data
+      form.reset({
+        referenceNumber: paymentData.payment.reference_number || '',
+        paymentDate: paymentData.payment.payment_date ? new Date(paymentData.payment.payment_date) : new Date(),
+        amount: String(paymentData.payment.amount || ''),
+        currency: paymentData.payment.currency || 'INR',
+        paymentMethod: paymentData.payment.payment_method || 'bank transfer',
+        notes: paymentData.payment.notes || '',
+        isAdvancePayment: Boolean(paymentData.payment.is_advance_payment || false),
+        customerId: String(paymentData.payment.customer_id || ''),
+        invoiceLinks: paymentData.invoiceLinks ? paymentData.invoiceLinks.map(link => ({
+          invoiceId: String(link.invoice ? link.invoice.id : link.invoice_id || ''),
+          amountApplied: String(link.amountApplied || link.amount_applied || '0')
+        })) : [],
+      });
+    }
+  }, [isEditMode, paymentData, form]);
+  
   // Set up field array for invoice links
   const { fields, append, remove } = useFieldArray({
     control: form.control,
