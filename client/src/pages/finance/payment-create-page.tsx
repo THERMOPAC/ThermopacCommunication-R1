@@ -234,11 +234,18 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       
       // Generate a financial year format like "2526" for 2025-2026
       const financialYear = getIndianFinancialYear(date);
+
+      // Determine the correct sequence number based on financial year
+      let sequenceNumber = "001";  // Default for new financial years
       
-      // Hard-coded reference number for testing (temporary fix)
-      const fixedReference = `PAY-${financialYear}-004`;
-      console.log('Using fixed reference number:', fixedReference);
-      form.setValue('referenceNumber', fixedReference);
+      // Only use 004 for the current financial year (2526)
+      if (financialYear === "2526") {
+        sequenceNumber = "004";
+      }
+      
+      const referenceNumber = `PAY-${financialYear}-${sequenceNumber}`;
+      console.log('Generated reference number:', referenceNumber);
+      form.setValue('referenceNumber', referenceNumber);
       
       /*
       // Temporarily disabled API call until server issues are fixed
@@ -259,18 +266,14 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         console.error('API request failed:', apiError);
         // Continue to fallback if API request fails
       }
-      
-      // Fallback to a default reference number pattern
-      const fallbackReference = `PAY-${financialYear}-001`;
-      console.log('Using fallback reference number:', fallbackReference);
-      form.setValue('referenceNumber', fallbackReference);
       */
     } catch (error) {
       console.error('Failed to generate payment reference number:', error);
       
-      // Use the required reference number even in case of error
+      // Use a fallback approach with correct sequence number logic
       const financialYear = getIndianFinancialYear(date);
-      form.setValue('referenceNumber', `PAY-${financialYear}-004`);
+      const sequenceNumber = financialYear === "2526" ? "004" : "001";
+      form.setValue('referenceNumber', `PAY-${financialYear}-${sequenceNumber}`);
     } finally {
       setIsGeneratingReferenceNumber(false);
     }
