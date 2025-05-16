@@ -147,6 +147,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     notes: string | null;
     createdAt: string;
     updatedAt: string;
+    totalAmount?: string; // Added to fix type errors
   }
 
   interface Customer {
@@ -923,7 +924,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {customersList?.map((customer: any) => (
+                          {customersList && customersList.map((customer) => (
                             <SelectItem key={customer.id} value={String(customer.id)}>
                               {customer.bpName}
                             </SelectItem>
