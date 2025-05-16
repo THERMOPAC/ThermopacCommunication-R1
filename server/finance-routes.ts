@@ -572,6 +572,50 @@ router.post('/payments/:id/brc', ensureAuthenticated, (req: Request, res: Respon
 });
 
 /**
+ * Get next invoice number (test endpoint) based on Indian financial year
+ */
+router.get('/test/invoice-number', ensureAuthenticated, (req: Request, res: Response) => {
+  try {
+    const { date } = req.query;
+    
+    // Parse date or use current date
+    const issueDate = date ? new Date(date as string) : new Date();
+    
+    // Calculate Indian financial year (Apr-Mar)
+    const year = issueDate.getFullYear();
+    const month = issueDate.getMonth(); // 0-11
+    
+    // If month is January-March (0-2), use previous year as start
+    const startYear = month >= 0 && month <= 2 ? year - 1 : year;
+    const endYear = startYear + 1;
+    
+    // Format as YY-YY (e.g., 25-26)
+    const startYearStr = startYear.toString().slice(-2);
+    const endYearStr = endYear.toString().slice(-2);
+    const financialYear = `${startYearStr}${endYearStr}`;
+    
+    // Get the latest invoice number for this financial year
+    // In a real implementation, this would query the database
+    // For now, use hard-coded values based on the financial year
+    
+    // Default to 006 for current financial year (2526)
+    let sequenceNumber = "006";
+    
+    // Sample logic to determine next sequence number based on financial year
+    if (financialYear !== "2526") {
+      sequenceNumber = "001"; // For new financial years, start at 001
+    }
+    
+    const nextInvoiceNumber = `INV-${financialYear}-${sequenceNumber}`;
+    
+    res.json({ nextInvoiceNumber });
+  } catch (error) {
+    console.error('Error getting next invoice number:', error);
+    res.status(500).json({ error: 'Failed to get next invoice number' });
+  }
+});
+
+/**
  * Get all BRCs
  */
 router.get('/brc', ensureAuthenticated, (req: Request, res: Response) => {
