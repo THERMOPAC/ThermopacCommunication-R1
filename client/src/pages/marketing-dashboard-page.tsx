@@ -606,7 +606,42 @@ export default function MarketingDashboardPage() {
           
           {/* Overview Tab Content */}
           <TabsContent value="overview" className="space-y-6">
-            {/* Stats Cards - First Row */}
+            {/* Total Turnover Card - Top Row */}
+            <div className="mb-4">
+              <Card className="bg-primary/5 border-primary/20">
+                <CardHeader className="pb-2">
+                  <CardDescription>Total Turnover</CardDescription>
+                  <CardTitle className="text-3xl">
+                    {isLoadingLeads || isLoadingOrders || isLoadingFinance ? (
+                      <Skeleton className="h-10 w-36" />
+                    ) : (
+                      `₹${formatINRInCrores(calculateTotalTurnover())} Cr`
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-muted-foreground flex items-center">
+                    <DollarSign className="mr-1 h-4 w-4" />
+                    Expected + Orders + Invoiced
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="mt-1 p-0 h-6"
+                    onClick={() => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/finance/dashboard'] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/leads'] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'] });
+                    }}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    <span className="text-xs">Refresh All Data</span>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Stats Cards - Second Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               {/* Expected Revenue Card */}
               <Card>
