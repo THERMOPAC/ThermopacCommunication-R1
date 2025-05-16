@@ -384,8 +384,8 @@ router.get('/payments/latest-reference', ensureAuthenticated, async (req: Reques
     
     // Find latest payment reference number with the current financial year pattern
     const result = await db.execute(
-      sql`SELECT reference_number FROM payments 
-          WHERE reference_number LIKE ${'PAY-' + financialYear + '-%'} 
+      sql`SELECT "referenceNumber" FROM payments 
+          WHERE "referenceNumber" LIKE ${'PAY-' + financialYear + '-%'} 
           ORDER BY id DESC 
           LIMIT 1`
     );
@@ -394,17 +394,19 @@ router.get('/payments/latest-reference', ensureAuthenticated, async (req: Reques
     
     if (result.rows.length > 0) {
       // Extract sequence number from the latest reference number
-      const latestRef = result.rows[0].reference_number;
-      const parts = latestRef.split('-');
-      
-      if (parts.length === 3) {
-        const currentSeq = parseInt(parts[2], 10);
-        if (!isNaN(currentSeq)) {
-          // Increment the sequence number
-          const nextSeq = currentSeq + 1;
-          // Format with leading zeros
-          const seqStr = nextSeq.toString().padStart(3, '0');
-          nextReference = `PAY-${financialYear}-${seqStr}`;
+      const latestRef = result.rows[0].referenceNumber;
+      if (latestRef) {
+        const parts = latestRef.split('-');
+        
+        if (parts.length === 3) {
+          const currentSeq = parseInt(parts[2], 10);
+          if (!isNaN(currentSeq)) {
+            // Increment the sequence number
+            const nextSeq = currentSeq + 1;
+            // Format with leading zeros
+            const seqStr = nextSeq.toString().padStart(3, '0');
+            nextReference = `PAY-${financialYear}-${seqStr}`;
+          }
         }
       }
     }

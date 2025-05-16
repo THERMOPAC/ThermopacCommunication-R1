@@ -126,17 +126,17 @@ export async function getNextPaymentReferenceNumber(paymentDate: Date): Promise<
   const financialYear = getIndianFinancialYear(paymentDate);
   
   try {
-    // Use our test endpoint to avoid authentication issues during development
-    const response = await fetch(`/api/finance/test/payment-number?date=${paymentDate.toISOString().split('T')[0]}`);
+    // Use the real endpoint we created for payment reference numbers
+    const response = await fetch('/api/finance/payments/latest-reference');
     
     if (!response.ok) {
       throw new Error('Failed to get next payment reference number');
     }
     
     const data = await response.json();
-    return data.nextPaymentNumber;
+    return data.latestReference;
   } catch (error) {
-    console.error('Error getting next payment reference number:', error);
+    console.error('Failed to generate payment reference number:', error);
     // Fallback format if API fails
     return `PAY-${financialYear}-001`;
   }
