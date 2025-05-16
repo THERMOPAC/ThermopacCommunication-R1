@@ -615,11 +615,11 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   return (
     <Layout>
       <Helmet>
-        <title>Record New Payment | Thermopac</title>
+        <title>{isEditMode ? 'Edit Payment' : 'Record New Payment'} | Thermopac</title>
       </Helmet>
       
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Record New Payment</h1>
+        <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Payment' : 'Record New Payment'}</h1>
         <Button variant="outline" onClick={() => navigate('/finance/payments')}>
           Cancel
         </Button>
