@@ -25,6 +25,40 @@ function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
   res.status(401).json({ error: 'Not authenticated' });
 }
 
+// Helper to get the next payment reference number
+async function getNextPaymentReferenceNumber(financialYear: string): Promise<string> {
+  try {
+    // Find all payments with the given financial year pattern
+    const payments = await db.select({ reference_number: paymentsTable.reference_number })
+      .from(paymentsTable)
+      .where(sql`${paymentsTable.reference_number} LIKE ${'PAY-' + financialYear + '-%'}`)
+      .orderBy(paymentsTable.reference_number, 'desc');
+    
+    let sequenceNumber = 1;
+    
+    if (payments.length > 0) {
+      // Extract sequence number from the latest reference number
+      const latestRef = payments[0].reference_number;
+      const parts = latestRef.split('-');
+      
+      if (parts.length === 3) {
+        const currentSeq = parseInt(parts[2], 10);
+        if (!isNaN(currentSeq)) {
+          sequenceNumber = currentSeq + 1;
+        }
+      }
+    }
+    
+    // Format with leading zeros
+    const sequenceStr = sequenceNumber.toString().padStart(3, '0');
+    return `PAY-${financialYear}-${sequenceStr}`;
+  } catch (error) {
+    console.error('Error generating payment reference number:', error);
+    // Default to basic pattern if there's an error
+    return `PAY-${financialYear}-001`;
+  }
+}
+
 // Get all invoices with optional filters
 router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
@@ -326,6 +360,33 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
   } catch (error) {
     console.error('Error fetching payment:', error);
     res.status(500).json({ error: 'Failed to fetch payment details' });
+  }
+});
+
+// Get next payment reference number
+router.get('/payments/latest-reference', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Get current financial year if not provided
+    const today = new Date();
+    const month = today.getMonth(); // 0-11 (Jan-Dec)
+    const year = today.getFullYear();
+    
+    // If month is January(0), February(1), or March(2), it's the previous year's financial year
+    const startYear = month < 3 ? year - 1 : year;
+    const endYear = startYear + 1;
+    
+    // Format as YYZZ (last two digits of each year)
+    const startYearStr = startYear.toString().slice(-2);
+    const endYearStr = endYear.toString().slice(-2);
+    const financialYear = `${startYearStr}${endYearStr}`;
+    
+    // Get latest reference number for this financial year
+    const nextReference = await getNextPaymentReferenceNumber(financialYear);
+    
+    res.json({ latestReference: nextReference });
+  } catch (error) {
+    console.error('Error generating payment reference number:', error);
+    res.status(500).json({ error: 'Failed to generate payment reference number' });
   }
 });
 

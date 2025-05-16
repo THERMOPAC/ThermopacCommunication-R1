@@ -235,12 +235,14 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       // Generate a financial year format like "2526" for 2025-2026
       const financialYear = getIndianFinancialYear(date);
       
-      // Directly generate the next sequence number using a simple approach
-      let nextSequenceNumber = 1;
+      // Call the API to get the next reference number
+      const response = await fetch(`/api/finance/payments/latest-reference`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch next payment reference number');
+      }
       
-      // Format with leading zeros (e.g., 001, 002, etc.)
-      const sequenceStr = nextSequenceNumber.toString().padStart(3, '0');
-      const nextReferenceNumber = `PAY-${financialYear}-${sequenceStr}`;
+      const data = await response.json();
+      const nextReferenceNumber = data.latestReference || `PAY-${financialYear}-001`;
       
       console.log(`Generated new reference number: ${nextReferenceNumber}`);
       form.setValue('referenceNumber', nextReferenceNumber);
