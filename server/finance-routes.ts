@@ -22,6 +22,18 @@ router.get('/dashboard', ensureAuthenticated, (req: Request, res: Response) => {
         count: 3,
         amount: "400000.00"
       },
+      totalOutstanding: {
+        count: 3,
+        amount: "400000.00"
+      },
+      totalOverdue: {
+        count: 2,
+        amount: "200000.00"
+      },
+      totalPayments: {
+        count: 2,
+        amount: "225000.00"
+      },
       latestPayments: [
         {
           id: 1,
