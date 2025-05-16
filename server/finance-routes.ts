@@ -573,8 +573,9 @@ router.post('/payments/:id/brc', ensureAuthenticated, (req: Request, res: Respon
 
 /**
  * Get next invoice number (test endpoint) based on Indian financial year
+ * This endpoint is public for testing purposes only
  */
-router.get('/test/invoice-number', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/test/invoice-number', (req: Request, res: Response) => {
   try {
     const { date } = req.query;
     
