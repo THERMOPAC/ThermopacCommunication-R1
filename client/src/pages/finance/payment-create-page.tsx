@@ -1210,10 +1210,13 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                                 <td className="px-4 py-2 text-right">
                                   {invoice?.currency === 'INR' 
                                     ? formatRupees(invoice?.amount || '0')
-                                    : new Intl.NumberFormat('en-US', {
-                                        style: 'currency',
-                                        currency: invoice?.currency
-                                      }).format(parseFloat(invoice?.amount || '0'))
+                                    : (invoice?.currency 
+                                        ? new Intl.NumberFormat('en-US', {
+                                            style: 'currency',
+                                            currency: invoice?.currency
+                                          }).format(parseFloat(invoice?.amount || '0'))
+                                        : parseFloat(invoice?.amount || '0').toFixed(2)
+                                      )
                                   }
                                 </td>
                                 <td className="px-4 py-2 text-right">
