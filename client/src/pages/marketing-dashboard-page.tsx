@@ -464,9 +464,13 @@ export default function MarketingDashboardPage() {
     refetchOnWindowFocus: false
   });
 
-  // Calculate total turnover (Expected Revenue + Orders in Hand + Invoiced Amount)
+  // Calculate total turnover combining:
+  // 1. All invoice values (filtered by selected Financial Year)
+  // 2. All order values (not filtered by Financial Year)
+  // 3. Expected Revenue (not filtered by Financial Year)
   const calculateTotalTurnover = () => {
-    if (!expectedRevenueStats || !ordersData || !financeData) {
+    // If Finance data is loading or missing, only show expected revenue + orders
+    if (!expectedRevenueStats || !ordersData) {
       return 0;
     }
     
@@ -474,6 +478,13 @@ export default function MarketingDashboardPage() {
     const invoicedAmount = financeData?.totalInvoices?.amount 
       ? parseFloat(financeData.totalInvoices.amount) 
       : 0;
+    
+    // Log the calculation components
+    console.log('Total Turnover Components:', {
+      expectedRevenue: expectedRevenueStats.totalINR,
+      ordersValue: ordersData.totalValueINR || 0,
+      invoicedAmount: invoicedAmount
+    });
     
     return expectedRevenueStats.totalINR + (ordersData.totalValueINR || 0) + invoicedAmount;
   };
@@ -631,14 +642,27 @@ export default function MarketingDashboardPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-sm text-muted-foreground flex items-center">
-                    <DollarSign className="mr-1 h-4 w-4" />
-                    Expected + Orders + Invoiced
+                  <div className="flex flex-col space-y-1">
+                    <div className="text-sm font-medium">Combined Revenue Sources:</div>
+                    <div className="grid grid-cols-3 text-xs gap-1">
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                        <span>Expected Revenue</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                        <span>Orders in Hand</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-2 h-2 bg-amber-500 rounded-full mr-1"></div>
+                        <span>Invoiced (FY Only)</span>
+                      </div>
+                    </div>
                   </div>
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="mt-1 p-0 h-6"
+                    className="mt-2 p-0 h-6"
                     onClick={() => {
                       queryClient.invalidateQueries({ queryKey: ['/api/finance/dashboard'] });
                       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/leads'] });
