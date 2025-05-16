@@ -691,22 +691,20 @@ export default function MarketingDashboardPage() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription>Expected Revenue</CardDescription>
-                  <CardTitle className="text-3xl flex items-center justify-between">
-                    <div>
-                      {isLoadingLeads || !exchangeRates ? (
-                        <Skeleton className="h-8 w-32" />
-                      ) : (
-                        <>
-                          <div className="flex items-center">
-                            <DollarSign className="h-6 w-6 mr-1" />
-                            <span>USD ${expectedRevenueStats ? (expectedRevenueStats.totalUSD || 0).toLocaleString() : '0'}</span>
-                          </div>
-                          <div className="text-base text-green-600 font-normal">
-                            ~INR ₹{expectedRevenueStats ? formatINRInCrores(expectedRevenueStats.totalINR) : '0'} Cr
-                          </div>
-                        </>
-                      )}
-                    </div>
+                  <CardTitle className="text-3xl">
+                    {isLoadingLeads || !exchangeRates ? (
+                      <Skeleton className="h-8 w-32 ml-auto" />
+                    ) : (
+                      <div className="w-full">
+                        <div className="flex items-center justify-end">
+                          <DollarSign className="h-6 w-6 mr-1" />
+                          <span className="text-right">USD ${expectedRevenueStats ? (expectedRevenueStats.totalUSD || 0).toLocaleString() : '0'}</span>
+                        </div>
+                        <div className="text-base text-green-600 font-normal text-right">
+                          ~INR ₹{expectedRevenueStats ? formatINRInCrores(expectedRevenueStats.totalINR) : '0'} Cr
+                        </div>
+                      </div>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -730,26 +728,24 @@ export default function MarketingDashboardPage() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription>Orders in Hand</CardDescription>
-                  <CardTitle className="text-3xl flex items-center justify-between">
-                    <div>
-                      {isLoadingOrders ? (
-                        <Skeleton className="h-8 w-32" />
-                      ) : (
-                        <>
-                          <div className="text-xl">
-                            {ordersData ? `${ordersData.count || 0} active orders` : '0 orders'}
-                          </div>
-                          <div className="flex items-center">
-                            <DollarSign className="h-6 w-6 mr-1" />
-                            <span>USD ${ordersData && ordersData.valuesByCurrency && ordersData.valuesByCurrency.USD ? 
-                              ordersData.valuesByCurrency.USD.toLocaleString() : '0'}</span>
-                          </div>
-                          <div className="text-base text-green-600 font-normal">
-                            ~INR ₹{ordersData ? formatINRInCrores(ordersData.totalValueINR) : '0'} Cr
-                          </div>
-                        </>
-                      )}
-                    </div>
+                  <CardTitle className="text-3xl">
+                    {isLoadingOrders ? (
+                      <Skeleton className="h-8 w-32 ml-auto" />
+                    ) : (
+                      <div className="w-full">
+                        <div className="text-xl text-right">
+                          {ordersData ? `${ordersData.count || 0} active orders` : '0 orders'}
+                        </div>
+                        <div className="flex items-center justify-end">
+                          <DollarSign className="h-6 w-6 mr-1" />
+                          <span className="text-right">USD ${ordersData && ordersData.valuesByCurrency && ordersData.valuesByCurrency.USD ? 
+                            ordersData.valuesByCurrency.USD.toLocaleString() : '0'}</span>
+                        </div>
+                        <div className="text-base text-green-600 font-normal text-right">
+                          ~INR ₹{ordersData ? formatINRInCrores(ordersData.totalValueINR) : '0'} Cr
+                        </div>
+                      </div>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
