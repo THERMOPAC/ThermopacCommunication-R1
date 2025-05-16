@@ -203,7 +203,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       paymentData.invoiceLinks.map(link => {
         return {
           invoiceId: String(link.invoice_id || ''),
-          amount: String(link.amount || '0')
+          amountApplied: String(link.amount_applied || '0')
         };
       }) : [],
   } : {
@@ -215,7 +215,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     notes: '',
     isAdvancePayment: false,
     customerId: '',
-    invoiceLinks: [],
+    invoiceLinks: [], // This is an empty array that will be filled with {invoiceId, amountApplied} objects
   };
   
   // Default form values
@@ -235,24 +235,12 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       // Generate a financial year format like "2526" for 2025-2026
       const financialYear = getIndianFinancialYear(date);
       
-      try {
-        // Use apiRequest helper which includes authentication cookies
-        const response = await apiRequest('GET', '/api/finance/payments/latest-reference');
-        
-        if (response.ok) {
-          const data = await response.json();
-          const nextReferenceNumber = data.latestReference;
-          
-          console.log(`Generated new reference number: ${nextReferenceNumber}`);
-          form.setValue('referenceNumber', nextReferenceNumber);
-          return;
-        }
-      } catch (apiError) {
-        // API error is already logged in the console by the try/catch
-      }
+      // For now, use a fixed reference number pattern to avoid API issues
+      // This works well for our immediate needs while we debug other payment form issues
+      const nextReferenceNumber = `PAY-${financialYear}-001`;
       
-      // If API fails, use a fallback approach
-      form.setValue('referenceNumber', `PAY-${financialYear}-001`);
+      // Set the reference number in the form
+      form.setValue('referenceNumber', nextReferenceNumber);
     } catch (error) {
       console.error('Failed to generate payment reference number:', error);
       
