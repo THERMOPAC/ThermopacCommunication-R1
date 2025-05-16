@@ -3079,6 +3079,8 @@ export const payments = pgTable('payments', {
   referenceNumber: varchar('reference_number', { length: 100 }),
   notes: text('notes'),
   proofDocumentPath: varchar('proof_document_path', { length: 255 }),
+  isAdvancePayment: boolean('is_advance_payment').default(false),
+  customerId: integer('customer_id'),
   createdBy: integer('created_by').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow()
