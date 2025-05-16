@@ -463,36 +463,6 @@ export default function MarketingDashboardPage() {
     },
     refetchOnWindowFocus: false
   });
-  
-  // Fetch leads data with date range filter
-  const { data: leadsData = [], isLoading: isLoadingLeads } = useQuery({
-    queryKey: ['/api/sales-marketing/leads', dateRange],
-    queryFn: async () => {
-      const from = formatDateForApi(dateRange.from);
-      const to = formatDateForApi(dateRange.to);
-      const response = await fetch(`/api/sales-marketing/leads?from=${from}&to=${to}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch leads data');
-      }
-      return response.json();
-    },
-    refetchOnWindowFocus: false
-  });
-  
-  // Fetch orders in hand data with date range filter
-  const { data: ordersData, isLoading: isLoadingOrders } = useQuery({
-    queryKey: ['/api/sales-marketing/dashboard/orders-in-hand', dateRange],
-    queryFn: async () => {
-      const from = formatDateForApi(dateRange.from);
-      const to = formatDateForApi(dateRange.to);
-      const response = await fetch(`/api/sales-marketing/dashboard/orders-in-hand?from=${from}&to=${to}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch orders data');
-      }
-      return response.json();
-    },
-    refetchOnWindowFocus: false
-  });
 
   // Calculate total turnover (Expected Revenue + Orders in Hand + Invoiced Amount)
   const calculateTotalTurnover = () => {
