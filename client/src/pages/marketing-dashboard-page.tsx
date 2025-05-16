@@ -637,25 +637,34 @@ export default function MarketingDashboardPage() {
                     {isLoadingLeads || isLoadingOrders || isLoadingFinance ? (
                       <Skeleton className="h-10 w-36" />
                     ) : (
-                      `₹${formatINRInCrores(calculateTotalTurnover())} Cr`
+                      `${formatINRInCrores(calculateTotalTurnover())} Cr`
                     )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-col space-y-1">
                     <div className="text-sm font-medium">Combined Revenue Sources:</div>
-                    <div className="grid grid-cols-3 text-xs gap-1">
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
-                        <span>Expected Revenue</span>
+                    <div className="grid grid-cols-1 text-xs gap-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                          <span>Expected Revenue</span>
+                        </div>
+                        <span className="font-medium">₹{formatINRInCrores(expectedRevenueStats?.totalINR || 0)} Cr</span>
                       </div>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
-                        <span>Orders in Hand</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                          <span>Orders in Hand</span>
+                        </div>
+                        <span className="font-medium">₹{formatINRInCrores(ordersData?.totalValueINR || 0)} Cr</span>
                       </div>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-amber-500 rounded-full mr-1"></div>
-                        <span>Invoiced (FY Only)</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-amber-500 rounded-full mr-1"></div>
+                          <span>Invoiced (FY Only)</span>
+                        </div>
+                        <span className="font-medium">₹{formatINRInCrores(financeData?.totalInvoices?.amount ? parseFloat(financeData.totalInvoices.amount) : 0)} Cr</span>
                       </div>
                     </div>
                   </div>
@@ -823,34 +832,23 @@ export default function MarketingDashboardPage() {
                 </CardContent>
               </Card>
               
-              {/* Total Turnover Card */}
+              {/* Conversion Rate Card */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription>Total Turnover</CardDescription>
+                  <CardDescription>Lead Conversion Rate</CardDescription>
                   <CardTitle className="text-2xl">
-                    {isLoadingLeads || isLoadingOrders || isLoadingFinance ? (
+                    {isLoadingLeads ? (
                       <Skeleton className="h-8 w-20" />
                     ) : (
-                      `₹${formatINRInCrores(calculateTotalTurnover())} Cr`
+                      `${conversionStats.rate}%`
                     )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm text-muted-foreground flex items-center">
-                    <DollarSign className="mr-1 h-4 w-4" />
-                    Expected + Orders + Invoiced
+                    <TrendingUp className="mr-1 h-4 w-4" />
+                    {conversionStats.won} won out of {conversionStats.total}
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="mt-1 p-0 h-6"
-                    onClick={() => {
-                      queryClient.invalidateQueries({ queryKey: ['/api/finance/dashboard'] });
-                    }}
-                  >
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    <span className="text-xs">Refresh Finance Data</span>
-                  </Button>
                 </CardContent>
               </Card>
             </div>
