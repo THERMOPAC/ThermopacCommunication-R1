@@ -1444,7 +1444,7 @@ router.get('/reports/outstanding', ensureAuthenticated, async (req: Request, res
         id: invoices.id,
         invoiceNumber: invoices.invoiceNumber,
         customerId: invoices.customerId,
-        customerName: sql<string>`COALESCE((SELECT name FROM customers WHERE id = ${invoices.customerId}), 'Unknown')`,
+        customerName: sql<string>`'Customer-' || CAST(${invoices.customerId} AS TEXT)`,
         issueDate: invoices.issueDate,
         dueDate: invoices.dueDate,
         amount: invoices.totalAmount,
@@ -1635,19 +1635,15 @@ router.get('/reports/remittances', ensureAuthenticated, async (req: Request, res
           .where(eq(paymentInvoiceLinks.paymentId, payment.paymentId))
           .limit(1); // Just get the first invoice for simplicity
         
-        // Get customer name
-        const customerResult = await db
-          .select({
-            name: sql<string>`COALESCE((SELECT name FROM customers WHERE id = ${payment.customerId}), 'Unknown')`
-          })
-          .from(paymentsTable)
-          .where(eq(paymentsTable.id, payment.paymentId))
-          .limit(1);
+        // Use customer ID to create a customer name
+        const customerName = payment.customerId 
+          ? `Customer-${payment.customerId}`
+          : 'Unknown';
         
         // If there's any invoice link, include it in the remittance
         return {
           ...payment,
-          customerName: customerResult[0]?.name || 'Unknown',
+          customerName,
           invoiceNumber: invoiceLinks.length > 0 ? invoiceLinks[0].invoiceNumber : 'N/A'
         };
       })
