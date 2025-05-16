@@ -126,8 +126,10 @@ export async function getNextPaymentReferenceNumber(paymentDate: Date): Promise<
   const financialYear = getIndianFinancialYear(paymentDate);
   
   try {
-    // Use the real endpoint we created for payment reference numbers
-    const response = await fetch('/api/finance/payments/latest-reference');
+    // Use apiRequest helper which includes authentication cookies
+    const response = await import('@/lib/queryClient').then(module => {
+      return module.apiRequest('GET', '/api/finance/payments/latest-reference');
+    });
     
     if (!response.ok) {
       throw new Error('Failed to get next payment reference number');
