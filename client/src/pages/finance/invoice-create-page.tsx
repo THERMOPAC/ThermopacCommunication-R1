@@ -118,7 +118,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   const defaultValues: InvoiceFormValues = {
     invoiceNumber: isEditMode && invoiceData?.invoice 
       ? invoiceData.invoice.invoiceNumber
-      : `INV-${getIndianFinancialYear(new Date())}-001`, // Initial placeholder, will be updated
+      : '', // Leave blank for user to enter
     customerId: isEditMode && invoiceData?.invoice ? String(invoiceData.invoice.customerId) : '',
     projectId: isEditMode && invoiceData?.invoice && invoiceData.invoice.projectId 
       ? String(invoiceData.invoice.projectId) 
@@ -127,7 +127,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     dueDate: isEditMode && invoiceData?.invoice 
       ? new Date(invoiceData.invoice.dueDate)
       : new Date(new Date().setDate(new Date().getDate() + 30)), // Due in 30 days
-    currency: isEditMode && invoiceData?.invoice ? invoiceData.invoice.currency : 'INR',
+    currency: isEditMode && invoiceData?.invoice ? invoiceData.invoice.currency : 'USD',
     notes: isEditMode && invoiceData?.invoice ? invoiceData.invoice.notes || '' : '',
     items: isEditMode && invoiceData?.items && invoiceData.items.length > 0
       ? invoiceData.items.map((item: any) => ({
