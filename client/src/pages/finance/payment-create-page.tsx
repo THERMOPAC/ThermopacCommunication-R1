@@ -235,12 +235,25 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       // Generate a financial year format like "2526" for 2025-2026
       const financialYear = getIndianFinancialYear(date);
       
-      // For now, use a fixed reference number pattern to avoid API issues
-      // This works well for our immediate needs while we debug other payment form issues
-      const nextReferenceNumber = `PAY-${financialYear}-001`;
+      // Get the next reference number from the API
+      try {
+        const response = await apiRequest('GET', '/api/finance/payments/latest-reference');
+        const data = await response.json();
+        
+        if (data && data.latestReference) {
+          console.log('API returned reference number:', data.latestReference);
+          form.setValue('referenceNumber', data.latestReference);
+          return;
+        }
+      } catch (apiError) {
+        console.error('API request failed:', apiError);
+        // Continue to fallback if API request fails
+      }
       
-      // Set the reference number in the form
-      form.setValue('referenceNumber', nextReferenceNumber);
+      // Fallback to a default reference number pattern
+      const fallbackReference = `PAY-${financialYear}-001`;
+      console.log('Using fallback reference number:', fallbackReference);
+      form.setValue('referenceNumber', fallbackReference);
     } catch (error) {
       console.error('Failed to generate payment reference number:', error);
       
