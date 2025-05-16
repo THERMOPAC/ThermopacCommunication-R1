@@ -1300,69 +1300,117 @@ router.get('/test/invoice-number', async (req: Request, res: Response) => {
 // Turnover report
 router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { startDate, endDate, groupBy } = req.query;
+    const { startDate, endDate, currency } = req.query;
     
-    if (!startDate || !endDate) {
-      return res.status(400).json({ error: 'Start date and end date are required' });
-    }
+    // Default to the current date range if not provided
+    const effectiveStartDate = startDate || new Date(new Date().getFullYear(), new Date().getMonth() - 3, 1).toISOString().slice(0, 10);
+    const effectiveEndDate = endDate || new Date().toISOString().slice(0, 10);
     
-    let query: any;
+    console.log(`Generating turnover report from ${effectiveStartDate} to ${effectiveEndDate}`);
     
-    switch (groupBy) {
-      case 'client':
-        query = db
-          .select({
-            clientId: invoices.customerId,
-            total: sql<number>`SUM(${invoices.totalAmount})`
-          })
-          .from(invoices)
-          .where(
-            and(
-              gte(invoices.issueDate, startDate as string),
-              lte(invoices.issueDate, endDate as string)
-            )
-          )
-          .groupBy(invoices.customerId);
-        break;
+    // Build currency filter if specified
+    const currencyFilter = currency && currency !== 'all' 
+      ? and(
+          gte(invoices.issueDate, effectiveStartDate as string),
+          lte(invoices.issueDate, effectiveEndDate as string),
+          eq(invoices.currency, currency as string)
+        )
+      : and(
+          gte(invoices.issueDate, effectiveStartDate as string),
+          lte(invoices.issueDate, effectiveEndDate as string)
+        );
+    
+    // 1. Get monthly invoiced amounts
+    const invoicedQuery = db
+      .select({
+        month: sql<string>`to_char(${invoices.issueDate}, 'YYYY-MM')`,
+        invoiced: sql<string>`SUM(${invoices.totalAmount})`
+      })
+      .from(invoices)
+      .where(currencyFilter)
+      .groupBy(sql`to_char(${invoices.issueDate}, 'YYYY-MM')`)
+      .orderBy(sql`to_char(${invoices.issueDate}, 'YYYY-MM')`);
+    
+    // 2. Get monthly received amounts (from payments linked to invoices)
+    const receivedQuery = db
+      .select({
+        month: sql<string>`to_char(${invoices.issueDate}, 'YYYY-MM')`,
+        received: sql<string>`SUM(${paymentInvoiceLinks.amountApplied})`
+      })
+      .from(paymentInvoiceLinks)
+      .innerJoin(invoices, eq(paymentInvoiceLinks.invoiceId, invoices.id))
+      .innerJoin(paymentsTable, eq(paymentInvoiceLinks.paymentId, paymentsTable.id))
+      .where(currencyFilter)
+      .groupBy(sql`to_char(${invoices.issueDate}, 'YYYY-MM')`)
+      .orderBy(sql`to_char(${invoices.issueDate}, 'YYYY-MM')`);
+    
+    // 3. Get totals for the summary
+    const totalInvoicedQuery = db
+      .select({
+        total: sql<string>`SUM(${invoices.totalAmount})`
+      })
+      .from(invoices)
+      .where(currencyFilter);
+    
+    const totalReceivedQuery = db
+      .select({
+        total: sql<string>`SUM(${paymentInvoiceLinks.amountApplied})`
+      })
+      .from(paymentInvoiceLinks)
+      .innerJoin(invoices, eq(paymentInvoiceLinks.invoiceId, invoices.id))
+      .where(currencyFilter);
+    
+    // Execute all queries
+    const [invoicedResults, receivedResults, totalInvoicedResult, totalReceivedResult] = await Promise.all([
+      invoicedQuery,
+      receivedQuery,
+      totalInvoicedQuery,
+      totalReceivedQuery
+    ]);
+    
+    // Format the monthly data
+    const monthlyData: { 
+      month: string; 
+      invoiced: number; 
+      received: number; 
+      outstanding: number;
+    }[] = [];
+    
+    // Merge invoiced and received data by month
+    const allMonths = new Set([
+      ...invoicedResults.map(r => r.month),
+      ...receivedResults.map(r => r.month)
+    ]);
+    
+    Array.from(allMonths).sort().forEach(month => {
+      const invoiced = invoicedResults.find(r => r.month === month);
+      const received = receivedResults.find(r => r.month === month);
       
-      case 'project':
-        query = db
-          .select({
-            projectId: invoices.projectId,
-            total: sql<number>`SUM(${invoices.totalAmount})`
-          })
-          .from(invoices)
-          .where(
-            and(
-              gte(invoices.issueDate, startDate as string),
-              lte(invoices.issueDate, endDate as string),
-              sql`${invoices.projectId} IS NOT NULL`
-            )
-          )
-          .groupBy(invoices.projectId);
-        break;
+      const invoicedAmount = invoiced ? parseFloat(invoiced.invoiced) : 0;
+      const receivedAmount = received ? parseFloat(received.received) : 0;
       
-      case 'monthly':
-      default:
-        query = db
-          .select({
-            month: sql<string>`to_char(${invoices.issueDate}, 'YYYY-MM')`,
-            total: sql<number>`SUM(${invoices.totalAmount})`
-          })
-          .from(invoices)
-          .where(
-            and(
-              gte(invoices.issueDate, startDate as string),
-              lte(invoices.issueDate, endDate as string)
-            )
-          )
-          .groupBy(sql`to_char(${invoices.issueDate}, 'YYYY-MM')`)
-          .orderBy(sql`to_char(${invoices.issueDate}, 'YYYY-MM')`);
-        break;
-    }
+      monthlyData.push({
+        month,
+        invoiced: invoicedAmount,
+        received: receivedAmount,
+        outstanding: Math.max(0, invoicedAmount - receivedAmount)
+      });
+    });
     
-    const results = await query;
-    res.json(results);
+    // Format the totals
+    const totalInvoiced = totalInvoicedResult[0]?.total ? parseFloat(totalInvoicedResult[0].total) : 0;
+    const totalReceived = totalReceivedResult[0]?.total ? parseFloat(totalReceivedResult[0].total) : 0;
+    const totalOutstanding = Math.max(0, totalInvoiced - totalReceived);
+    
+    // Prepare response
+    const response = {
+      totalInvoiced,
+      totalReceived,
+      totalOutstanding,
+      monthlyData
+    };
+    
+    res.json(response);
   } catch (error) {
     console.error('Error generating turnover report:', error);
     res.status(500).json({ error: 'Failed to generate turnover report' });
