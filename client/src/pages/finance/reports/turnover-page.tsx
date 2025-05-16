@@ -236,9 +236,20 @@ export default function TurnoverReportPage() {
                       <CardTitle className="text-base">Total Invoiced</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-2xl font-bold text-right">
-                        {formatRupees(data.totalInvoiced || 0)}
-                      </p>
+                      {selectedCurrency === 'USD' || selectedCurrency === 'all' ? (
+                        <p className="text-2xl font-bold text-right">
+                          {formatUSD(data.totalInvoiced || 0)}
+                        </p>
+                      ) : (
+                        <p className="text-2xl font-bold text-right">
+                          {formatRupees(data.totalInvoiced || 0)}
+                        </p>
+                      )}
+                      {selectedCurrency === 'all' && (
+                        <p className="text-sm text-muted-foreground text-right mt-1">
+                          ~ {formatRupees(data.totalInvoicedINR || data.totalInvoiced * 85.55 || 0, true)}
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                   
@@ -247,9 +258,20 @@ export default function TurnoverReportPage() {
                       <CardTitle className="text-base">Total Received</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-2xl font-bold text-right">
-                        {formatRupees(data.totalReceived || 0)}
-                      </p>
+                      {selectedCurrency === 'USD' || selectedCurrency === 'all' ? (
+                        <p className="text-2xl font-bold text-right">
+                          {formatUSD(data.totalReceived || 0)}
+                        </p>
+                      ) : (
+                        <p className="text-2xl font-bold text-right">
+                          {formatRupees(data.totalReceived || 0)}
+                        </p>
+                      )}
+                      {selectedCurrency === 'all' && (
+                        <p className="text-sm text-muted-foreground text-right mt-1">
+                          ~ {formatRupees(data.totalReceivedINR || data.totalReceived * 85.55 || 0, true)}
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                   
@@ -258,9 +280,20 @@ export default function TurnoverReportPage() {
                       <CardTitle className="text-base">Outstanding Amount</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-2xl font-bold text-right">
-                        {formatRupees(data.totalOutstanding || 0)}
-                      </p>
+                      {selectedCurrency === 'USD' || selectedCurrency === 'all' ? (
+                        <p className="text-2xl font-bold text-right">
+                          {formatUSD(data.totalOutstanding || 0)}
+                        </p>
+                      ) : (
+                        <p className="text-2xl font-bold text-right">
+                          {formatRupees(data.totalOutstanding || 0)}
+                        </p>
+                      )}
+                      {selectedCurrency === 'all' && (
+                        <p className="text-sm text-muted-foreground text-right mt-1">
+                          ~ {formatRupees(data.totalOutstandingINR || data.totalOutstanding * 85.55 || 0, true)}
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
