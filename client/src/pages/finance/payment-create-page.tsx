@@ -862,7 +862,7 @@ export default function PaymentCreatePage() {
                                 <td className="px-4 py-2 text-left">
                                   {customersList?.find((c: any) => c.id === invoice.customerId)?.bpName || 'Unknown'}
                                 </td>
-                                <td className="px-4 py-2 text-left">{format(new Date(invoice.invoiceDate), 'MMM d, yyyy')}</td>
+                                <td className="px-4 py-2 text-left">{invoice.invoiceDate ? format(new Date(invoice.invoiceDate), 'MMM d, yyyy') : 'N/A'}</td>
                                 <td className="px-4 py-2 text-right">
                                   {invoice.currency === 'INR' 
                                     ? formatRupees(invoice.totalAmount)
