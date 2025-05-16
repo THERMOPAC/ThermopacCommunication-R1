@@ -386,58 +386,10 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                     <FormItem>
                       <FormLabel>Invoice Number</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <div className="flex">
-                            <Input 
-                              placeholder="INV-2025-001" 
-                              {...field} 
-                              readOnly={!isEditMode} 
-                              className={!isEditMode ? "bg-muted cursor-not-allowed rounded-r-none" : ""}
-                            />
-                            {!isEditMode && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                className="h-10 rounded-l-none border-l-0"
-                                onClick={async () => {
-                                  const currentIssueDate = form.getValues('issueDate');
-                                  if (currentIssueDate) {
-                                    try {
-                                      setIsGeneratingInvoiceNumber(true);
-                                      const nextInvoiceNumber = await getNextInvoiceNumber(currentIssueDate);
-                                      form.setValue('invoiceNumber', nextInvoiceNumber);
-                                    } catch (error) {
-                                      console.error('Failed to generate invoice number:', error);
-                                      toast({
-                                        title: "Error",
-                                        description: "Could not generate invoice number. Using fallback format.",
-                                        variant: "destructive",
-                                      });
-                                      const financialYear = getIndianFinancialYear(currentIssueDate);
-                                      form.setValue('invoiceNumber', `INV-${financialYear}-001`);
-                                    } finally {
-                                      setIsGeneratingInvoiceNumber(false);
-                                    }
-                                  }
-                                }}
-                                disabled={isGeneratingInvoiceNumber}
-                                title="Refresh invoice number"
-                              >
-                                {isGeneratingInvoiceNumber ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <RefreshCw className="h-4 w-4" />
-                                )}
-                              </Button>
-                            )}
-                          </div>
-                          {isGeneratingInvoiceNumber && !isEditMode && (
-                            <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
-                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                            </div>
-                          )}
-                        </div>
+                        <Input 
+                          placeholder="Enter invoice number" 
+                          {...field}
+                        />
                       </FormControl>
                       {!isEditMode && (
                         <FormDescription>
@@ -455,19 +407,16 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="INR">Indian Rupee (₹)</SelectItem>
-                          <SelectItem value="USD">US Dollar ($)</SelectItem>
-                          <SelectItem value="EUR">Euro (€)</SelectItem>
-                          <SelectItem value="GBP">British Pound (£)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input 
+                          placeholder="USD" 
+                          value="USD"
+                          {...field}
+                          onChange={() => {}} 
+                          readOnly 
+                          className="bg-muted cursor-not-allowed"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
