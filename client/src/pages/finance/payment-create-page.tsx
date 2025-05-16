@@ -187,8 +187,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     isAdvancePayment: paymentData.payment.is_advance_payment || false,
     customerId: paymentData.payment.customer_id ? paymentData.payment.customer_id.toString() : '',
     invoiceLinks: paymentData.invoiceLinks ? paymentData.invoiceLinks.map(link => ({
-      invoiceId: link.invoice_id.toString(),
-      amountApplied: link.amount_applied.toString()
+      invoiceId: String(link.invoice_id),
+      amountApplied: String(link.amount_applied)
     })) : [],
   } : {
     referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
@@ -431,7 +431,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         );
       })
       // Sort by amount (highest to lowest) to match auto-allocation logic
-      .sort((a, b) => parseFloat(b.totalAmount) - parseFloat(a.totalAmount))
+      .sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount))
     : [];
   
   // Auto-allocate payment to invoices (highest to lowest value)
@@ -1091,11 +1091,11 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                                 </td>
                                 <td className="px-4 py-2 text-right">
                                   {invoice?.currency === 'INR' 
-                                    ? formatRupees(invoice?.totalAmount)
+                                    ? formatRupees(invoice?.amount || '0')
                                     : new Intl.NumberFormat('en-US', {
                                         style: 'currency',
                                         currency: invoice?.currency
-                                      }).format(parseFloat(invoice?.totalAmount))
+                                      }).format(parseFloat(invoice?.amount || '0'))
                                   }
                                 </td>
                                 <td className="px-4 py-2 text-right">
@@ -1103,7 +1103,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                                     type="number"
                                     step="0.01"
                                     min="0"
-                                    max={invoice?.totalAmount}
+                                    max={invoice?.amount}
                                     className="w-32 text-right"
                                     {...form.register(`invoiceLinks.${index}.amountApplied`)}
                                   />

@@ -40,17 +40,20 @@ export function formatDate(date: Date | string): string {
  * @param useLakhs Whether to format large numbers in lakhs/crores format
  * @returns Formatted rupees string (e.g., "₹1,234.56" or "₹1.23 Cr")
  */
-export function formatRupees(amount: number, useLakhs: boolean = false): string {
+export function formatRupees(amount: number | string, useLakhs: boolean = false): string {
   if (amount === null || amount === undefined) return '₹0.00';
+  
+  // Convert string to number if needed
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   
   if (useLakhs) {
     // Format in Indian numbering system (lakhs and crores)
-    if (amount >= 10000000) {
+    if (numAmount >= 10000000) {
       // For crores (≥ 1 crore)
-      return `₹${(amount / 10000000).toFixed(2)} Cr`;
-    } else if (amount >= 100000) {
+      return `₹${(numAmount / 10000000).toFixed(2)} Cr`;
+    } else if (numAmount >= 100000) {
       // For lakhs (≥ 1 lakh)
-      return `₹${(amount / 100000).toFixed(2)} L`;
+      return `₹${(numAmount / 100000).toFixed(2)} L`;
     }
   }
   
@@ -60,7 +63,7 @@ export function formatRupees(amount: number, useLakhs: boolean = false): string 
     currency: 'INR',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount);
+  }).format(numAmount);
 }
 
 /**
