@@ -412,16 +412,28 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
         throw new Error('Payment not found');
       }
       
-      // If not an advance payment, handle invoice links
+      // Always delete existing invoice links first
+      await tx
+        .delete(paymentInvoiceLinks)
+        .where(eq(paymentInvoiceLinks.paymentId, id));
+      
+      // If not an advance payment, handle new invoice links
       if (!paymentData.isAdvancePayment) {
-        // Delete existing invoice links
-        await tx
-          .delete(paymentInvoiceLinks)
-          .where(eq(paymentInvoiceLinks.paymentId, id));
-        
         // Insert updated invoice links
-        if (invoiceLinks && invoiceLinks.length > 0) {
+        if (invoiceLinks && Array.isArray(invoiceLinks) && invoiceLinks.length > 0) {
           for (const link of invoiceLinks) {
+            // Skip if link or invoice is undefined or missing required properties
+            if (!link || !link.invoice || !link.invoice.id || !link.amountApplied) {
+              console.log('Skipping invalid link:', link);
+              continue;
+            }
+            
+            console.log('Adding invoice link:', {
+              paymentId: id,
+              invoiceId: link.invoice.id,
+              amountApplied: link.amountApplied
+            });
+            
             await tx
               .insert(paymentInvoiceLinks)
               .values({
