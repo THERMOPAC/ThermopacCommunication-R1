@@ -463,6 +463,36 @@ export default function MarketingDashboardPage() {
     },
     refetchOnWindowFocus: false
   });
+  
+  // Fetch leads data with date range filter
+  const { data: leadsData = [], isLoading: isLoadingLeads } = useQuery({
+    queryKey: ['/api/sales-marketing/leads', dateRange],
+    queryFn: async () => {
+      const from = formatDateForApi(dateRange.from);
+      const to = formatDateForApi(dateRange.to);
+      const response = await fetch(`/api/sales-marketing/leads?from=${from}&to=${to}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch leads data');
+      }
+      return response.json();
+    },
+    refetchOnWindowFocus: false
+  });
+  
+  // Fetch orders in hand data with date range filter
+  const { data: ordersData, isLoading: isLoadingOrders } = useQuery({
+    queryKey: ['/api/sales-marketing/dashboard/orders-in-hand', dateRange],
+    queryFn: async () => {
+      const from = formatDateForApi(dateRange.from);
+      const to = formatDateForApi(dateRange.to);
+      const response = await fetch(`/api/sales-marketing/dashboard/orders-in-hand?from=${from}&to=${to}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders data');
+      }
+      return response.json();
+    },
+    refetchOnWindowFocus: false
+  });
 
   // Calculate total turnover (Expected Revenue + Orders in Hand + Invoiced Amount)
   const calculateTotalTurnover = () => {
@@ -526,68 +556,79 @@ export default function MarketingDashboardPage() {
               <p className="text-muted-foreground">Track your marketing performance and lead generation</p>
             </div>
             
-            <div className="flex gap-2 items-center">
-              <Select 
-                value={selectedPreset} 
-                onValueChange={(value) => {
-                  setSelectedPreset(value);
-                  
-                  let newDateRange;
-                  let newLabel;
-                  
-                  if (value === "current") {
-                    newDateRange = getCurrentFinancialYearDates();
-                    newLabel = "Current Financial Year";
-                  } else if (value === "previous") {
-                    const { from, to } = getCurrentFinancialYearDates();
-                    newDateRange = { 
-                      from: new Date(from.getFullYear() - 1, from.getMonth(), from.getDate()),
-                      to: new Date(to.getFullYear() - 1, to.getMonth(), to.getDate())
-                    };
-                    newLabel = "Previous Financial Year";
-                  } else if (value === "last6months") {
-                    newDateRange = {
-                      from: new Date(new Date().setMonth(new Date().getMonth() - 6)),
-                      to: new Date()
-                    };
-                    newLabel = "Last 6 Months";
-                  }
-                  
-                  if (newDateRange) {
-                    setDateRange(newDateRange);
-                    setDateFilterLabel(newLabel);
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2 items-center">
+                <Select 
+                  value={selectedPreset} 
+                  onValueChange={(value) => {
+                    setSelectedPreset(value);
                     
-                    // Trigger data refresh with new date range
-                    setTimeout(() => {
-                      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/leads'] });
-                      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/campaigns'] });
-                      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'] });
-                    }, 0);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Financial Period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="current">Current FY</SelectItem>
-                  <SelectItem value="previous">Previous FY</SelectItem>
-                  <SelectItem value="last6months">Last 6 Months</SelectItem>
-                </SelectContent>
-              </Select>
+                    let newDateRange;
+                    let newLabel;
+                    
+                    if (value === "current") {
+                      newDateRange = getCurrentFinancialYearDates();
+                      newLabel = "Current Financial Year";
+                    } else if (value === "previous") {
+                      const { from, to } = getCurrentFinancialYearDates();
+                      newDateRange = { 
+                        from: new Date(from.getFullYear() - 1, from.getMonth(), from.getDate()),
+                        to: new Date(to.getFullYear() - 1, to.getMonth(), to.getDate())
+                      };
+                      newLabel = "Previous Financial Year";
+                    } else if (value === "last6months") {
+                      newDateRange = {
+                        from: new Date(new Date().setMonth(new Date().getMonth() - 6)),
+                        to: new Date()
+                      };
+                      newLabel = "Last 6 Months";
+                    }
+                    
+                    if (newDateRange) {
+                      setDateRange(newDateRange);
+                      setDateFilterLabel(newLabel);
+                      
+                      // Trigger data refresh with new date range
+                      setTimeout(() => {
+                        queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/leads'] });
+                        queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/campaigns'] });
+                        queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'] });
+                        queryClient.invalidateQueries({ queryKey: ['/api/finance/dashboard'] });
+                      }, 0);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Financial Period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="current">Current FY</SelectItem>
+                    <SelectItem value="previous">Previous FY</SelectItem>
+                    <SelectItem value="last6months">Last 6 Months</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/leads'] });
+                    queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/campaigns'] });
+                    queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'] });
+                    queryClient.invalidateQueries({ queryKey: ['/api/finance/dashboard'] });
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Refresh
+                </Button>
+              </div>
               
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => {
-                  queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/leads'] });
-                  queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/campaigns'] });
-                  queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'] });
-                }}
-              >
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Refresh
-              </Button>
+              {/* Display current date range */}
+              <div className="text-xs text-muted-foreground text-right">
+                <span className="font-medium">{dateFilterLabel}:</span>{' '}
+                {dateRange.from.toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})} - {' '}
+                {dateRange.to.toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})}
+              </div>
             </div>
           </div>
           
