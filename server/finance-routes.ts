@@ -297,34 +297,66 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
 // Get foreign currency payments without BRC
 router.get('/payments/foreign-without-brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Get payments in foreign currency that don't have a BRC
-    const foreignPayments = await db
-      .select({
-        payment: paymentsTable,
-        customer: db.db.dynamic.ref('customers'),
-      })
-      .from(paymentsTable)
-      .leftJoin(
-        bankRealizationCertificates,
-        eq(bankRealizationCertificates.relatedPaymentId, paymentsTable.id)
-      )
-      .leftJoin('customers', eq(paymentsTable.customerId, sql`customers.id`))
-      .where(
-        and(
-          sql`customers.id IS NOT NULL`,
-          sql`${bankRealizationCertificates.id} IS NULL`,
-          sql`${paymentsTable.currency} != 'INR'` // Only foreign currency payments
-        )
-      )
-      .orderBy(desc(paymentsTable.paymentDate));
-
-    // Extract and transform the results
-    const results = foreignPayments.map(fp => ({
-      ...fp.payment,
-      customer: fp.customer,
-    }));
-
-    res.json(results);
+    // Query for all foreign currency payments
+    const allForeignPayments = await db.execute(
+      sql`SELECT p.* FROM payments p WHERE p.currency != 'INR'`
+    );
+    
+    // Get all BRCs
+    const allBrcs = await db.select().from(bankRealizationCertificates);
+    
+    // Find which payment IDs already have BRCs
+    const paymentIdsWithBrc = new Set();
+    for (const brc of allBrcs) {
+      if (brc.relatedPaymentId) {
+        paymentIdsWithBrc.add(brc.relatedPaymentId);
+      }
+    }
+    
+    // Filter payments to those without BRCs
+    const filteredPayments = allForeignPayments.rows.filter(payment => 
+      !paymentIdsWithBrc.has(payment.id)
+    );
+    
+    // Enhance these payments with customer info by looking up associated invoices
+    const enhancedPayments = [];
+    
+    for (const payment of filteredPayments) {
+      try {
+        // Find invoices associated with this payment
+        const invoiceLinks = await db.execute(
+          sql`
+            SELECT pil.*, i.* 
+            FROM payment_invoice_links pil
+            JOIN invoices i ON pil.invoice_id = i.id
+            WHERE pil.payment_id = ${payment.id}
+          `
+        );
+        
+        if (invoiceLinks.rows.length > 0) {
+          // Get customer info for first invoice
+          const firstInvoice = invoiceLinks.rows[0];
+          const customerId = firstInvoice.customer_id;
+          
+          if (customerId) {
+            const customerInfo = await db.execute(
+              sql`SELECT * FROM customers WHERE id = ${customerId}`
+            );
+            
+            if (customerInfo.rows.length > 0) {
+              enhancedPayments.push({
+                ...payment,
+                customer: customerInfo.rows[0]
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`Error processing payment ID ${payment.id}:`, err);
+      }
+    }
+    
+    res.json(enhancedPayments);
   } catch (error) {
     console.error('Error fetching foreign payments:', error);
     res.status(500).json({ error: 'Failed to fetch foreign currency payments' });
@@ -334,28 +366,64 @@ router.get('/payments/foreign-without-brc', ensureAuthenticated, async (req: Req
 // Get all BRCs
 router.get('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const brcRecords = await db
-      .select({
-        brc: bankRealizationCertificates,
-        payment: paymentsTable,
-        customer: db.db.dynamic.ref('customers'),
-      })
-      .from(bankRealizationCertificates)
-      .leftJoin(
-        paymentsTable,
-        eq(bankRealizationCertificates.relatedPaymentId, paymentsTable.id)
-      )
-      .leftJoin('customers', eq(paymentsTable.customerId, sql`customers.id`))
-      .orderBy(desc(bankRealizationCertificates.issueDate));
-
-    // Extract and transform the results
-    const results = brcRecords.map(record => ({
-      ...record.brc,
-      payment: record.payment,
-      customer: record.customer,
-    }));
-
-    res.json(results);
+    // Get all BRCs
+    const brcs = await db.select().from(bankRealizationCertificates);
+    
+    // Enhance BRCs with payment and customer details
+    const enhancedBrcs = [];
+    
+    for (const brc of brcs) {
+      try {
+        // Get the related payment
+        const paymentId = brc.relatedPaymentId;
+        if (paymentId) {
+          const paymentResult = await db.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId));
+          const payment = paymentResult.length > 0 ? paymentResult[0] : null;
+          
+          if (payment && payment.customerId) {
+            // Get the customer for this payment
+            const customerResult = await db.execute(
+              sql`SELECT * FROM customers WHERE id = ${payment.customerId} LIMIT 1`
+            );
+            const customer = customerResult.rows.length > 0 ? customerResult.rows[0] : null;
+            
+            enhancedBrcs.push({
+              ...brc,
+              payment: payment,
+              customer: customer
+            });
+          } else {
+            enhancedBrcs.push({
+              ...brc,
+              payment: payment,
+              customer: null
+            });
+          }
+        } else {
+          enhancedBrcs.push({
+            ...brc,
+            payment: null,
+            customer: null
+          });
+        }
+      } catch (enhanceError) {
+        console.error('Error enhancing BRC:', enhanceError);
+        enhancedBrcs.push({
+          ...brc,
+          payment: null,
+          customer: null
+        });
+      }
+    }
+    
+    // Sort by issue date (most recent first)
+    enhancedBrcs.sort((a, b) => {
+      if (!a.issueDate) return 1;
+      if (!b.issueDate) return -1;
+      return new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime();
+    });
+    
+    res.json(enhancedBrcs);
   } catch (error) {
     console.error('Error fetching BRCs:', error);
     res.status(500).json({ error: 'Failed to fetch BRC records' });
@@ -365,20 +433,52 @@ router.get('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
 // Create a new BRC
 router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
     const user = req.user as any;
     const userId = user.id;
 
-    // Validate request data
-    const validatedData = insertBankRealizationCertificateSchema.parse({
-      ...req.body,
-      relatedPaymentId: parseInt(req.body.paymentId),
+    // Safely parse payment ID
+    let paymentId: number | null = null;
+    if (req.body.paymentId) {
+      try {
+        paymentId = parseInt(req.body.paymentId);
+        if (isNaN(paymentId)) {
+          return res.status(400).json({ error: 'Invalid payment ID format' });
+        }
+      } catch (parseError) {
+        return res.status(400).json({ error: 'Failed to parse payment ID' });
+      }
+    }
+
+    // Check that the payment exists
+    if (paymentId) {
+      const payment = await db.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId));
+      if (payment.length === 0) {
+        return res.status(404).json({ error: 'Payment not found' });
+      }
+    }
+
+    // Create the BRC data for insertion
+    const brcData = {
+      brcNumber: req.body.brcNumber,
+      issueDate: req.body.issueDate,
+      amount: req.body.amount,
+      currency: req.body.currency,
+      bankName: req.body.bankName || '',
+      remarks: req.body.remarks || '',
+      relatedPaymentId: paymentId,
       createdBy: userId,
-    });
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
     // Insert BRC record
     const [newBrc] = await db
       .insert(bankRealizationCertificates)
-      .values(validatedData)
+      .values(brcData)
       .returning();
 
     res.status(201).json(newBrc);
