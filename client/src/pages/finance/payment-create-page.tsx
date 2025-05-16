@@ -176,6 +176,13 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     enabled: isEditMode && paymentId !== null,
   });
   
+  // Log payment data for debugging
+  useEffect(() => {
+    if (isEditMode && paymentData) {
+      console.log('Payment Data:', paymentData);
+    }
+  }, [isEditMode, paymentData]);
+  
   // Set up form values based on whether we're creating or editing
   const initialFormValues: PaymentFormValues = isEditMode && paymentData && paymentData.payment ? {
     referenceNumber: paymentData.payment.reference_number || '',
