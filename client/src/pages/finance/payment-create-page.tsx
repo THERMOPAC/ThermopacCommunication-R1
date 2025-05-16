@@ -233,21 +233,31 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   useEffect(() => {
     if (isEditMode && paymentData && paymentData.payment) {
       console.log('Setting form values with payment data:', paymentData);
-      // Reset the entire form with the payment data
-      form.reset({
-        referenceNumber: paymentData.payment.reference_number || '',
-        paymentDate: paymentData.payment.payment_date ? new Date(paymentData.payment.payment_date) : new Date(),
-        amount: String(paymentData.payment.amount || ''),
-        currency: paymentData.payment.currency || 'INR',
-        paymentMethod: paymentData.payment.payment_method || 'bank transfer',
-        notes: paymentData.payment.notes || '',
-        isAdvancePayment: Boolean(paymentData.payment.is_advance_payment || false),
-        customerId: String(paymentData.payment.customer_id || ''),
-        invoiceLinks: paymentData.invoiceLinks ? paymentData.invoiceLinks.map(link => ({
-          invoiceId: String(link.invoice ? link.invoice.id : link.invoice_id || ''),
-          amountApplied: String(link.amountApplied || link.amount_applied || '0')
-        })) : [],
-      });
+      
+      // Delay the reset by a tiny bit to ensure it happens after component render
+      setTimeout(() => {
+        // Reset the entire form with the payment data
+        form.reset({
+          referenceNumber: paymentData.payment.reference_number || '',
+          paymentDate: paymentData.payment.payment_date ? new Date(paymentData.payment.payment_date) : new Date(),
+          amount: String(paymentData.payment.amount || ''),
+          currency: paymentData.payment.currency || 'INR',
+          paymentMethod: paymentData.payment.payment_method || 'bank transfer',
+          notes: paymentData.payment.notes || '',
+          isAdvancePayment: Boolean(paymentData.payment.is_advance_payment || false),
+          customerId: String(paymentData.payment.customer_id || ''),
+          invoiceLinks: paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0 ? 
+            paymentData.invoiceLinks.map(link => ({
+              invoiceId: String((link.invoice && link.invoice.id) || link.invoice_id || ''),
+              amountApplied: String(link.amountApplied || link.amount_applied || '0')
+            })) : [],
+        });
+        
+        // Also set the selected customer ID for the UI
+        if (paymentData.payment.customer_id) {
+          setSelectedCustomerId(String(paymentData.payment.customer_id));
+        }
+      }, 100);
     }
   }, [isEditMode, paymentData, form]);
   
