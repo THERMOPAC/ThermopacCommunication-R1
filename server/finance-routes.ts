@@ -261,32 +261,67 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
 // Get a specific payment with linked invoices
 router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
+    let id: number;
     
-    const payment = await db.select().from(paymentsTable).where(eq(paymentsTable.id, id)).limit(1);
+    try {
+      // Safely parse the ID parameter
+      id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid payment ID format' });
+      }
+    } catch (parseError) {
+      return res.status(400).json({ error: 'Invalid payment ID' });
+    }
     
-    if (!payment.length) {
+    // Use raw SQL for more reliable querying
+    const paymentResult = await db.execute(
+      sql`SELECT * FROM payments WHERE id = ${id} LIMIT 1`
+    );
+    
+    if (paymentResult.rows.length === 0) {
       return res.status(404).json({ error: 'Payment not found' });
     }
     
-    const invoiceLinks = await db
-      .select({
-        invoice: invoices,
-        amountApplied: paymentInvoiceLinks.amountApplied
-      })
-      .from(paymentInvoiceLinks)
-      .innerJoin(invoices, eq(paymentInvoiceLinks.invoiceId, invoices.id))
-      .where(eq(paymentInvoiceLinks.paymentId, id));
+    // Get linked invoice details
+    const invoiceLinksResult = await db.execute(
+      sql`
+        SELECT 
+          pil.amount_applied,
+          i.*
+        FROM payment_invoice_links pil
+        INNER JOIN invoices i ON pil.invoice_id = i.id
+        WHERE pil.payment_id = ${id}
+      `
+    );
     
-    const brc = await db
-      .select()
-      .from(bankRealizationCertificates)
-      .where(eq(bankRealizationCertificates.relatedPaymentId, id));
+    // Format the invoice links data
+    const invoiceLinks = invoiceLinksResult.rows.map(row => ({
+      invoice: {
+        id: row.id,
+        invoiceNumber: row.invoice_number,
+        issueDate: row.issue_date,
+        dueDate: row.due_date,
+        totalAmount: row.total_amount,
+        status: row.status,
+        currency: row.currency,
+        customerId: row.customer_id
+      },
+      amountApplied: row.amount_applied
+    }));
+    
+    // Get BRC if available
+    const brcResult = await db.execute(
+      sql`
+        SELECT * FROM bank_realization_certificates
+        WHERE related_payment_id = ${id}
+        LIMIT 1
+      `
+    );
     
     res.json({
-      payment: payment[0],
+      payment: paymentResult.rows[0],
       invoiceLinks,
-      bankRealizationCertificate: brc.length > 0 ? brc[0] : null
+      bankRealizationCertificate: brcResult.rows.length > 0 ? brcResult.rows[0] : null
     });
   } catch (error) {
     console.error('Error fetching payment:', error);
@@ -297,66 +332,75 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
 // Get foreign currency payments without BRC
 router.get('/payments/foreign-without-brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Query for all foreign currency payments
-    const allForeignPayments = await db.execute(
-      sql`SELECT p.* FROM payments p WHERE p.currency != 'INR'`
+    // Step 1: Get all payments with foreign currency (not INR)
+    const foreignPaymentsResult = await db.execute(
+      sql`
+        SELECT p.* 
+        FROM payments p 
+        WHERE p.currency != 'INR'
+      `
     );
     
-    // Get all BRCs
-    const allBrcs = await db.select().from(bankRealizationCertificates);
+    // Step 2: Get all payments that already have BRCs
+    const brcsResult = await db.execute(
+      sql`
+        SELECT related_payment_id 
+        FROM bank_realization_certificates 
+        WHERE related_payment_id IS NOT NULL
+      `
+    );
     
-    // Find which payment IDs already have BRCs
-    const paymentIdsWithBrc = new Set();
-    for (const brc of allBrcs) {
-      if (brc.relatedPaymentId) {
-        paymentIdsWithBrc.add(brc.relatedPaymentId);
-      }
+    // Create a set of payment IDs that already have BRCs
+    const paymentsWithBrc = new Set();
+    for (const row of brcsResult.rows) {
+      paymentsWithBrc.add(row.related_payment_id);
     }
     
-    // Filter payments to those without BRCs
-    const filteredPayments = allForeignPayments.rows.filter(payment => 
-      !paymentIdsWithBrc.has(payment.id)
+    // Step 3: Filter out payments that already have BRCs
+    const paymentsWithoutBrc = foreignPaymentsResult.rows.filter(payment => 
+      !paymentsWithBrc.has(payment.id)
     );
     
-    // Enhance these payments with customer info by looking up associated invoices
-    const enhancedPayments = [];
+    // Step 4: Get customer info for each payment by joining with invoices
+    const results = [];
     
-    for (const payment of filteredPayments) {
-      try {
-        // Find invoices associated with this payment
-        const invoiceLinks = await db.execute(
-          sql`
-            SELECT pil.*, i.* 
-            FROM payment_invoice_links pil
-            JOIN invoices i ON pil.invoice_id = i.id
-            WHERE pil.payment_id = ${payment.id}
-          `
-        );
+    for (const payment of paymentsWithoutBrc) {
+      // Find linked invoice that has customer info
+      const linkedInvoicesResult = await db.execute(
+        sql`
+          SELECT i.id, i.customer_id, i.invoice_number 
+          FROM payment_invoice_links pil
+          JOIN invoices i ON pil.invoice_id = i.id
+          WHERE pil.payment_id = ${payment.id}
+          LIMIT 1
+        `
+      );
+      
+      if (linkedInvoicesResult.rows.length > 0) {
+        const invoice = linkedInvoicesResult.rows[0];
         
-        if (invoiceLinks.rows.length > 0) {
-          // Get customer info for first invoice
-          const firstInvoice = invoiceLinks.rows[0];
-          const customerId = firstInvoice.customer_id;
+        if (invoice.customer_id) {
+          // Get customer details
+          const customerResult = await db.execute(
+            sql`
+              SELECT id, name, company_name 
+              FROM customers 
+              WHERE id = ${invoice.customer_id}
+            `
+          );
           
-          if (customerId) {
-            const customerInfo = await db.execute(
-              sql`SELECT * FROM customers WHERE id = ${customerId}`
-            );
-            
-            if (customerInfo.rows.length > 0) {
-              enhancedPayments.push({
-                ...payment,
-                customer: customerInfo.rows[0]
-              });
-            }
+          if (customerResult.rows.length > 0) {
+            results.push({
+              ...payment,
+              customer: customerResult.rows[0],
+              invoiceNumber: invoice.invoice_number
+            });
           }
         }
-      } catch (err) {
-        console.error(`Error processing payment ID ${payment.id}:`, err);
       }
     }
     
-    res.json(enhancedPayments);
+    res.json(results);
   } catch (error) {
     console.error('Error fetching foreign payments:', error);
     res.status(500).json({ error: 'Failed to fetch foreign currency payments' });
@@ -366,61 +410,69 @@ router.get('/payments/foreign-without-brc', ensureAuthenticated, async (req: Req
 // Get all BRCs
 router.get('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Get all BRCs
-    const brcs = await db.select().from(bankRealizationCertificates);
+    // Get all BRCs with complete information using SQL
+    const brcRecordsResult = await db.execute(
+      sql`
+        SELECT 
+          brc.*,
+          p.id AS payment_id,
+          p.payment_date,
+          p.amount AS payment_amount,
+          p.currency AS payment_currency,
+          p.payment_method,
+          p.reference_number AS payment_reference,
+          c.id AS customer_id,
+          c.name AS customer_name,
+          c.company_name AS customer_company
+        FROM bank_realization_certificates brc
+        LEFT JOIN payments p ON brc.related_payment_id = p.id
+        LEFT JOIN payment_invoice_links pil ON p.id = pil.payment_id
+        LEFT JOIN invoices i ON pil.invoice_id = i.id
+        LEFT JOIN customers c ON i.customer_id = c.id
+        ORDER BY brc.issue_date DESC
+      `
+    );
     
-    // Enhance BRCs with payment and customer details
-    const enhancedBrcs = [];
-    
-    for (const brc of brcs) {
-      try {
-        // Get the related payment
-        const paymentId = brc.relatedPaymentId;
-        if (paymentId) {
-          const paymentResult = await db.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId));
-          const payment = paymentResult.length > 0 ? paymentResult[0] : null;
-          
-          if (payment && payment.customerId) {
-            // Get the customer for this payment
-            const customerResult = await db.execute(
-              sql`SELECT * FROM customers WHERE id = ${payment.customerId} LIMIT 1`
-            );
-            const customer = customerResult.rows.length > 0 ? customerResult.rows[0] : null;
-            
-            enhancedBrcs.push({
-              ...brc,
-              payment: payment,
-              customer: customer
-            });
-          } else {
-            enhancedBrcs.push({
-              ...brc,
-              payment: payment,
-              customer: null
-            });
-          }
-        } else {
-          enhancedBrcs.push({
-            ...brc,
-            payment: null,
-            customer: null
-          });
-        }
-      } catch (enhanceError) {
-        console.error('Error enhancing BRC:', enhanceError);
-        enhancedBrcs.push({
-          ...brc,
-          payment: null,
-          customer: null
-        });
-      }
-    }
-    
-    // Sort by issue date (most recent first)
-    enhancedBrcs.sort((a, b) => {
-      if (!a.issueDate) return 1;
-      if (!b.issueDate) return -1;
-      return new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime();
+    // Transform the result to a more structured format
+    const enhancedBrcs = brcRecordsResult.rows.map(row => {
+      // Extract BRC fields
+      const brc = {
+        id: row.id,
+        certificateNumber: row.certificate_number,
+        issueDate: row.issue_date,
+        bankName: row.bank_name,
+        amount: row.amount,
+        currency: row.currency,
+        relatedPaymentId: row.related_payment_id,
+        documentPath: row.document_path,
+        notes: row.notes,
+        createdBy: row.created_by,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      };
+      
+      // Extract payment fields if available
+      const payment = row.payment_id ? {
+        id: row.payment_id,
+        paymentDate: row.payment_date,
+        amount: row.payment_amount,
+        currency: row.payment_currency,
+        paymentMethod: row.payment_method,
+        referenceNumber: row.payment_reference
+      } : null;
+      
+      // Extract customer fields if available
+      const customer = row.customer_id ? {
+        id: row.customer_id,
+        name: row.customer_name,
+        companyName: row.customer_company
+      } : null;
+      
+      return {
+        ...brc,
+        payment,
+        customer
+      };
     });
     
     res.json(enhancedBrcs);
@@ -455,33 +507,50 @@ router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => 
 
     // Check that the payment exists
     if (paymentId) {
-      const payment = await db.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId));
-      if (payment.length === 0) {
+      const paymentResult = await db.execute(
+        sql`SELECT * FROM payments WHERE id = ${paymentId} LIMIT 1`
+      );
+      
+      if (paymentResult.rows.length === 0) {
         return res.status(404).json({ error: 'Payment not found' });
       }
     }
 
-    // Create the BRC data for insertion
-    const brcData = {
-      brcNumber: req.body.brcNumber,
-      issueDate: req.body.issueDate,
-      amount: req.body.amount,
-      currency: req.body.currency,
-      bankName: req.body.bankName || '',
-      remarks: req.body.remarks || '',
-      relatedPaymentId: paymentId,
-      createdBy: userId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    // Use direct SQL insertion for more reliability
+    const result = await db.execute(
+      sql`
+        INSERT INTO bank_realization_certificates (
+          certificate_number, 
+          issue_date, 
+          bank_name, 
+          amount, 
+          currency, 
+          related_payment_id, 
+          notes, 
+          created_by,
+          created_at,
+          updated_at
+        ) VALUES (
+          ${req.body.certificateNumber || ''}, 
+          ${req.body.issueDate}, 
+          ${req.body.bankName || ''}, 
+          ${req.body.amount}, 
+          ${req.body.currency}, 
+          ${paymentId}, 
+          ${req.body.notes || ''}, 
+          ${userId},
+          NOW(),
+          NOW()
+        ) RETURNING *
+      `
+    );
 
-    // Insert BRC record
-    const [newBrc] = await db
-      .insert(bankRealizationCertificates)
-      .values(brcData)
-      .returning();
+    if (result.rows.length === 0) {
+      return res.status(500).json({ error: 'Failed to create BRC record' });
+    }
 
-    res.status(201).json(newBrc);
+    // Return the newly created BRC
+    res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error creating BRC:', error);
     res.status(500).json({ 
