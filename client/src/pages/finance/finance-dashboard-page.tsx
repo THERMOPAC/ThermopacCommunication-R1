@@ -105,7 +105,7 @@ export default function FinanceDashboardPage() {
     );
   }
 
-  const monthlyData = data?.monthlyRevenue?.map((month: any) => ({
+  const monthlyData = data?.monthlyRevenue?.map((month) => ({
     name: month.month,
     revenue: Number(month.total)
   })) || [];
@@ -345,8 +345,8 @@ export default function FinanceDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data?.latestPayments?.length > 0 ? (
-                    data.latestPayments.map((payment: any) => (
+                  {data && data.latestPayments && data.latestPayments.length > 0 ? (
+                    data.latestPayments.map((payment) => (
                       <tr key={payment.id} className="border-t hover:bg-muted/50">
                         <td className="px-4 py-3 text-left text-sm">
                           <Link href={`/finance/payments/${payment.id}`} className="text-primary hover:underline">
