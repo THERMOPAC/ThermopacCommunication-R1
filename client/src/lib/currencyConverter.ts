@@ -109,12 +109,15 @@ export const formatCurrency = (amount: number, currencyCode: string): string => 
 export const formatINRInCrores = (amount: number): string => {
   if (amount >= 10000000) { // 1 crore or more
     const crores = amount / 10000000;
-    return `₹${crores.toFixed(2)} Cr`;
+    return crores.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   } else if (amount >= 100000) { // 1 lakh or more
     const lakhs = amount / 100000;
-    return `₹${lakhs.toFixed(2)} L`;
+    return lakhs.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   } else {
-    // For smaller amounts, use the regular formatter
-    return formatCurrency(amount, 'INR');
+    // For smaller amounts, use the regular formatter without currency symbol
+    return new Intl.NumberFormat('en-IN', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount);
   }
 };

@@ -637,7 +637,7 @@ export default function MarketingDashboardPage() {
                     {isLoadingLeads || isLoadingOrders || isLoadingFinance ? (
                       <Skeleton className="h-10 w-36" />
                     ) : (
-                      `${formatINRInCrores(calculateTotalTurnover())} Cr`
+                      `₹${formatINRInCrores(calculateTotalTurnover())} Cr`
                     )}
                   </CardTitle>
                 </CardHeader>
@@ -650,21 +650,21 @@ export default function MarketingDashboardPage() {
                           <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
                           <span>Expected Revenue</span>
                         </div>
-                        <span className="font-medium">₹{formatINRInCrores(expectedRevenueStats?.totalINR || 0)} Cr</span>
+                        <span className="font-medium text-right w-24">₹{formatINRInCrores(expectedRevenueStats?.totalINR || 0)} Cr</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           <div className="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
                           <span>Orders in Hand</span>
                         </div>
-                        <span className="font-medium">₹{formatINRInCrores(ordersData?.totalValueINR || 0)} Cr</span>
+                        <span className="font-medium text-right w-24">₹{formatINRInCrores(ordersData?.totalValueINR || 0)} Cr</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           <div className="w-2 h-2 bg-amber-500 rounded-full mr-1"></div>
                           <span>Invoiced (FY Only)</span>
                         </div>
-                        <span className="font-medium">₹{formatINRInCrores(financeData?.totalInvoices?.amount ? parseFloat(financeData.totalInvoices.amount) : 0)} Cr</span>
+                        <span className="font-medium text-right w-24">₹{formatINRInCrores(financeData?.totalInvoices?.amount ? parseFloat(financeData.totalInvoices.amount) : 0)} Cr</span>
                       </div>
                     </div>
                   </div>
