@@ -286,21 +286,30 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
             })) : [],
         });
         
-        // Also set the selected customer ID for the UI
+        // Set selected customer ID for the UI if available
         if (paymentData.payment.customer_id) {
-          setSelectedCustomerId(String(paymentData.payment.customer_id));
+          const customerId = String(paymentData.payment.customer_id);
+          setSelectedCustomerId(customerId);
+          
+          // Make sure customerId is set in the form
+          form.setValue('customerId', customerId);
+          
+          console.log('Setting selected customer ID:', customerId);
         }
         
         // For edit mode, load the selected invoices for display
         if (paymentData.invoiceLinks && outstandingInvoices) {
-          const linkedInvoices = paymentData.invoiceLinks.map(link => {
-            const invoiceId = link.invoice_id || (link.invoice && link.invoice.id);
-            return outstandingInvoices.find(inv => inv.id === invoiceId);
-          }).filter(Boolean);
+          const linkedInvoices = paymentData.invoiceLinks
+            .map(link => {
+              const invoiceId = parseInt(String(link.invoice_id || (link.invoice && link.invoice.id)), 10);
+              return outstandingInvoices.find(inv => inv.id === invoiceId);
+            })
+            .filter(Boolean);
           
+          console.log('Linked invoices:', linkedInvoices);
           setSelectedInvoices(linkedInvoices);
         }
-      }, 100);
+      }, 200); // Increased delay to ensure data is loaded properly
     }
   }, [isEditMode, paymentData, form, outstandingInvoices]);
   
@@ -1264,14 +1273,28 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
             <Button variant="outline" type="button" onClick={() => navigate('/finance/payments')}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createPayment.isPending}>
-              {createPayment.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
+            <Button 
+              type="submit" 
+              disabled={isEditMode ? updatePayment.isPending : createPayment.isPending}
+            >
+              {isEditMode ? (
+                updatePayment.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Update Payment'
+                )
               ) : (
-                'Record Payment'
+                createPayment.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Record Payment'
+                )
               )}
             </Button>
           </CardFooter>
