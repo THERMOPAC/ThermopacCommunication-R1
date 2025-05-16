@@ -269,6 +269,10 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       
       // Delay the reset by a tiny bit to ensure it happens after component render
       setTimeout(() => {
+        // Get the advance payment status from the data
+        const isAdvancePayment = Boolean(paymentData.payment.is_advance_payment);
+        console.log('Is advance payment:', isAdvancePayment);
+        
         // Reset the entire form with the payment data
         form.reset({
           referenceNumber: paymentData.payment.reference_number || '',
@@ -277,7 +281,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
           currency: paymentData.payment.currency || 'INR',
           paymentMethod: paymentData.payment.payment_method || 'bank transfer',
           notes: paymentData.payment.notes || '',
-          isAdvancePayment: Boolean(paymentData.payment.is_advance_payment || false),
+          isAdvancePayment: isAdvancePayment,
           customerId: String(paymentData.payment.customer_id || ''),
           invoiceLinks: paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0 ? 
             paymentData.invoiceLinks.map(link => ({
@@ -285,6 +289,9 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
               amountApplied: String(link.amountApplied || link.amount_applied || '0')
             })) : [],
         });
+        
+        // Set advance payment switch directly
+        form.setValue('isAdvancePayment', isAdvancePayment);
         
         // Set selected customer ID for the UI if available
         if (paymentData.payment.customer_id) {
@@ -309,7 +316,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
           console.log('Linked invoices:', linkedInvoices);
           setSelectedInvoices(linkedInvoices);
         }
-      }, 200); // Increased delay to ensure data is loaded properly
+      }, 300); // Increased delay to ensure data is loaded properly
     }
   }, [isEditMode, paymentData, form, outstandingInvoices]);
   
