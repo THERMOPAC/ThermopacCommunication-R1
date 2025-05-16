@@ -229,6 +229,29 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     defaultValues,
   });
   
+  // Function to generate reference number based on payment date
+  const generateReferenceNumber = useCallback(async (date: Date) => {
+    try {
+      setIsGeneratingReferenceNumber(true);
+      // Generate a financial year format like "2425" for 2024-2025
+      const financialYear = getIndianFinancialYear(date);
+      // Use a simple default format, ideally this would come from the server
+      const nextReferenceNumber = `PAY-${financialYear}-001`;
+      form.setValue('referenceNumber', nextReferenceNumber);
+    } catch (error) {
+      console.error('Failed to generate payment reference number:', error);
+      toast({
+        title: "Error",
+        description: "Could not generate reference number. Using fallback format.",
+        variant: "destructive",
+      });
+      const financialYear = getIndianFinancialYear(date);
+      form.setValue('referenceNumber', `PAY-${financialYear}-001`);
+    } finally {
+      setIsGeneratingReferenceNumber(false);
+    }
+  }, [form, toast, setIsGeneratingReferenceNumber]);
+  
   // Generate reference number on component mount for new payments
   useEffect(() => {
     // Only for create mode, not edit mode
@@ -287,25 +310,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     name: "invoiceLinks",
   });
   
-  // Function to generate reference number based on payment date
-  const generateReferenceNumber = useCallback(async (date: Date) => {
-    try {
-      setIsGeneratingReferenceNumber(true);
-      const nextReferenceNumber = await getNextPaymentReferenceNumber(date);
-      form.setValue('referenceNumber', nextReferenceNumber);
-    } catch (error) {
-      console.error('Failed to generate payment reference number:', error);
-      toast({
-        title: "Error",
-        description: "Could not generate reference number. Using fallback format.",
-        variant: "destructive",
-      });
-      const financialYear = getIndianFinancialYear(date);
-      form.setValue('referenceNumber', `PAY-${financialYear}-001`);
-    } finally {
-      setIsGeneratingReferenceNumber(false);
-    }
-  }, [form, toast]);
+// This function has been moved to line 232
   
   // Update reference number when payment date changes - only in create mode
   useEffect(() => {
