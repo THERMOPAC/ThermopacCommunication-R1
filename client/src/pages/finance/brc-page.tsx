@@ -74,7 +74,8 @@ export default function BrcPage() {
   // Fetch foreign currency payments without BRC
   const { data: payments, isLoading, error } = useQuery({
     queryKey: ['/api/finance/payments/foreign-without-brc'],
-    enabled: true
+    enabled: true,
+    retry: false // Don't retry on error
   });
 
   // Fetch all BRCs
