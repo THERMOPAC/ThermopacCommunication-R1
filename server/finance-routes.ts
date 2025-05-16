@@ -1436,53 +1436,106 @@ router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: R
 // Outstanding report
 router.get('/reports/outstanding', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const outstandingInvoices = await db
+    const { startDate, endDate, currency } = req.query;
+    
+    // Get all invoices that are not fully paid
+    let query = db
       .select({
         id: invoices.id,
         invoiceNumber: invoices.invoiceNumber,
         customerId: invoices.customerId,
+        customerName: sql<string>`COALESCE((SELECT name FROM customers WHERE id = ${invoices.customerId}), 'Unknown')`,
         issueDate: invoices.issueDate,
         dueDate: invoices.dueDate,
-        totalAmount: invoices.totalAmount,
+        amount: invoices.totalAmount,
+        currency: invoices.currency,
         status: invoices.status,
-        agingDays: sql<number>`EXTRACT(DAY FROM NOW() - ${invoices.dueDate})::INTEGER`
+        daysOverdue: sql<number>`CASE WHEN NOW() > ${invoices.dueDate} THEN EXTRACT(DAY FROM NOW() - ${invoices.dueDate})::INTEGER ELSE 0 END`
       })
       .from(invoices)
       .where(
         and(
-          eq(invoices.status, 'Pending'),
-          lte(invoices.dueDate, new Date().toISOString().split('T')[0])
+          sql`${invoices.status} != 'Paid'`,
+          sql`${invoices.status} != 'Void'`,
+          sql`${invoices.status} != 'Cancelled'`
         )
-      )
-      .orderBy(desc(sql`EXTRACT(DAY FROM NOW() - ${invoices.dueDate})::INTEGER`));
+      );
     
-    // Group by aging brackets
-    const agingBrackets = {
-      '1-30': { count: 0, amount: 0 },
-      '31-60': { count: 0, amount: 0 },
-      '61-90': { count: 0, amount: 0 },
-      '90+': { count: 0, amount: 0 }
-    };
+    // Apply date filters if provided
+    if (startDate && endDate) {
+      query = query.where(
+        and(
+          gte(invoices.issueDate, startDate as string),
+          lte(invoices.issueDate, endDate as string)
+        )
+      );
+    }
     
-    outstandingInvoices.forEach(invoice => {
-      if (invoice.agingDays <= 30) {
-        agingBrackets['1-30'].count++;
-        agingBrackets['1-30'].amount += Number(invoice.totalAmount);
-      } else if (invoice.agingDays <= 60) {
-        agingBrackets['31-60'].count++;
-        agingBrackets['31-60'].amount += Number(invoice.totalAmount);
-      } else if (invoice.agingDays <= 90) {
-        agingBrackets['61-90'].count++;
-        agingBrackets['61-90'].amount += Number(invoice.totalAmount);
-      } else {
-        agingBrackets['90+'].count++;
-        agingBrackets['90+'].amount += Number(invoice.totalAmount);
-      }
-    });
+    // Apply currency filter if provided
+    if (currency && currency !== 'all') {
+      query = query.where(eq(invoices.currency, currency as string));
+    }
+    
+    // Get invoices with their payment details
+    const outstandingInvoices = await query.orderBy(desc(invoices.dueDate));
+    
+    // Calculate total balance due for each invoice
+    let totalOutstanding = 0;
+    let totalOverdue = 0;
+    let withinDueDate = 0;
+    let totalOutstandingINR = 0;
+    let totalOverdueINR = 0;
+    let withinDueDateINR = 0;
+    
+    // Fetch payment information for each invoice
+    const enhancedInvoices = await Promise.all(
+      outstandingInvoices.map(async (invoice) => {
+        // Get total payments applied to this invoice
+        const paymentsResult = await db
+          .select({
+            totalPaid: sql<number>`COALESCE(SUM(${paymentInvoiceLinks.amountApplied}), 0)`
+          })
+          .from(paymentInvoiceLinks)
+          .where(eq(paymentInvoiceLinks.invoiceId, invoice.id));
+        
+        const totalPaid = paymentsResult[0]?.totalPaid || 0;
+        const balanceDue = Number(invoice.amount) - totalPaid;
+        
+        // Convert to INR if needed
+        const exchangeRate = 85.55; // USD to INR exchange rate
+        const amountINR = invoice.currency === 'USD' ? Number(invoice.amount) * exchangeRate : Number(invoice.amount);
+        const balanceDueINR = invoice.currency === 'USD' ? balanceDue * exchangeRate : balanceDue;
+        
+        // Update totals
+        totalOutstanding += balanceDue;
+        totalOutstandingINR += balanceDueINR;
+        
+        if (invoice.daysOverdue > 0) {
+          totalOverdue += balanceDue;
+          totalOverdueINR += balanceDueINR;
+        } else {
+          withinDueDate += balanceDue;
+          withinDueDateINR += balanceDueINR;
+        }
+        
+        return {
+          ...invoice,
+          totalPaid,
+          balanceDue,
+          amountINR,
+          balanceDueINR
+        };
+      })
+    );
     
     res.json({
-      invoices: outstandingInvoices,
-      agingBrackets
+      totalOutstanding,
+      totalOverdue,
+      withinDueDate,
+      totalOutstandingINR,
+      totalOverdueINR,
+      withinDueDateINR,
+      invoices: enhancedInvoices
     });
   } catch (error) {
     console.error('Error generating outstanding report:', error);
@@ -1528,12 +1581,21 @@ router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, as
 // Inward remittances report
 router.get('/reports/remittances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { startDate, endDate, foreignCurrencyOnly } = req.query;
+    const { startDate, endDate, currency } = req.query;
     
+    // Query for payments and their BRC status
     let query = db
       .select({
-        payment: paymentsTable,
-        brc: bankRealizationCertificates
+        paymentId: paymentsTable.id,
+        remittanceNumber: paymentsTable.referenceNumber,
+        date: paymentsTable.paymentDate,
+        customerId: paymentsTable.customerId,
+        amount: paymentsTable.amount,
+        currency: paymentsTable.currency,
+        paymentMethod: paymentsTable.paymentMethod,
+        brcId: bankRealizationCertificates.id,
+        brcStatus: sql<string>`CASE WHEN ${bankRealizationCertificates.id} IS NOT NULL THEN 'Issued' ELSE 'Pending' END`,
+        brcDocumentUrl: bankRealizationCertificates.documentUrl
       })
       .from(paymentsTable)
       .leftJoin(
@@ -1541,6 +1603,7 @@ router.get('/reports/remittances', ensureAuthenticated, async (req: Request, res
         eq(paymentsTable.id, bankRealizationCertificates.relatedPaymentId)
       );
     
+    // Apply date filters if provided
     if (startDate && endDate) {
       query = query.where(
         and(
@@ -1550,12 +1613,77 @@ router.get('/reports/remittances', ensureAuthenticated, async (req: Request, res
       );
     }
     
-    if (foreignCurrencyOnly === 'true') {
-      query = query.where(sql`${paymentsTable.currency} != 'INR'`);
+    // Apply currency filter if provided
+    if (currency && currency !== 'all') {
+      query = query.where(eq(paymentsTable.currency, currency as string));
     }
     
-    const results = await query.orderBy(desc(paymentsTable.paymentDate));
-    res.json(results);
+    const paymentsResult = await query.orderBy(desc(paymentsTable.paymentDate));
+    
+    // Get related invoice information for each payment
+    const remittances = await Promise.all(
+      paymentsResult.map(async (payment) => {
+        // Get invoice details for this payment
+        const invoiceLinks = await db
+          .select({
+            invoiceId: paymentInvoiceLinks.invoiceId,
+            invoiceNumber: invoices.invoiceNumber,
+            amountApplied: paymentInvoiceLinks.amountApplied
+          })
+          .from(paymentInvoiceLinks)
+          .innerJoin(invoices, eq(paymentInvoiceLinks.invoiceId, invoices.id))
+          .where(eq(paymentInvoiceLinks.paymentId, payment.paymentId))
+          .limit(1); // Just get the first invoice for simplicity
+        
+        // Get customer name
+        const customerResult = await db
+          .select({
+            name: sql<string>`COALESCE((SELECT name FROM customers WHERE id = ${payment.customerId}), 'Unknown')`
+          })
+          .from(paymentsTable)
+          .where(eq(paymentsTable.id, payment.paymentId))
+          .limit(1);
+        
+        // If there's any invoice link, include it in the remittance
+        return {
+          ...payment,
+          customerName: customerResult[0]?.name || 'Unknown',
+          invoiceNumber: invoiceLinks.length > 0 ? invoiceLinks[0].invoiceNumber : 'N/A'
+        };
+      })
+    );
+    
+    // Calculate summary statistics
+    let totalRemittances = 0;
+    let totalRemittancesINR = 0;
+    let totalBRCs = 0;
+    let pendingBRCs = 0;
+    
+    remittances.forEach(remittance => {
+      const amount = Number(remittance.amount);
+      totalRemittances += amount;
+      
+      // Convert to INR for USD remittances
+      if (remittance.currency === 'USD') {
+        totalRemittancesINR += amount * 85.55; // USD to INR conversion rate
+      } else {
+        totalRemittancesINR += amount;
+      }
+      
+      if (remittance.brcStatus === 'Issued') {
+        totalBRCs++;
+      } else {
+        pendingBRCs++;
+      }
+    });
+    
+    res.json({
+      totalRemittances,
+      totalRemittancesINR,
+      totalBRCs,
+      pendingBRCs,
+      remittances
+    });
   } catch (error) {
     console.error('Error generating remittances report:', error);
     res.status(500).json({ error: 'Failed to generate remittances report' });
