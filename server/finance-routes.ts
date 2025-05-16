@@ -6,7 +6,7 @@ const router = Router();
 /**
  * Get overall financial dashboard data
  */
-router.get('/dashboard', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/dashboard', (req: Request, res: Response) => {
   try {
     // Return sample data for dashboard
     const dashboardData = {
