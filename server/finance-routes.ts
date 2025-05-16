@@ -1331,18 +1331,28 @@ router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: R
       .groupBy(sql`to_char(${invoices.issueDate}, 'YYYY-MM')`)
       .orderBy(sql`to_char(${invoices.issueDate}, 'YYYY-MM')`);
     
-    // 2. Get monthly received amounts (from payments)
+    // Build payment date filter
+    const paymentDateFilter = and(
+      gte(paymentsTable.paymentDate, effectiveStartDate as string),
+      lte(paymentsTable.paymentDate, effectiveEndDate as string)
+    );
+    
+    // Combine currency and date filters for payments
+    const paymentFilter = currency && currency !== 'all'
+      ? and(
+          paymentDateFilter,
+          eq(paymentsTable.currency, currency as string)
+        )
+      : paymentDateFilter;
+    
+    // 2. Get monthly received amounts (from payments with proper date filtering)
     const receivedQuery = db
       .select({
         month: sql<string>`to_char(${paymentsTable.paymentDate}, 'YYYY-MM')`,
         received: sql<string>`SUM(${paymentsTable.amount})`
       })
       .from(paymentsTable)
-      .where(
-        currency && currency !== 'all'
-          ? eq(paymentsTable.currency, currency as string)
-          : sql`1=1` // No currency filter
-      )
+      .where(paymentFilter)
       .groupBy(sql`to_char(${paymentsTable.paymentDate}, 'YYYY-MM')`)
       .orderBy(sql`to_char(${paymentsTable.paymentDate}, 'YYYY-MM')`);
     
@@ -1359,11 +1369,7 @@ router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: R
         total: sql<string>`SUM(${paymentsTable.amount})`
       })
       .from(paymentsTable)
-      .where(
-        currency && currency !== 'all'
-          ? eq(paymentsTable.currency, currency as string)
-          : sql`1=1` // No currency filter
-      );
+      .where(paymentFilter);
     
     // Execute all queries
     const [invoicedResults, receivedResults, totalInvoicedResult, totalReceivedResult] = await Promise.all([
