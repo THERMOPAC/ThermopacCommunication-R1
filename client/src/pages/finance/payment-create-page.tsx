@@ -233,10 +233,42 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   const generateReferenceNumber = useCallback(async (date: Date) => {
     try {
       setIsGeneratingReferenceNumber(true);
+      
       // Generate a financial year format like "2425" for 2024-2025
       const financialYear = getIndianFinancialYear(date);
-      // Use a simple default format, ideally this would come from the server
-      const nextReferenceNumber = `PAY-${financialYear}-001`;
+      
+      // Get all existing payments to determine the next sequence number
+      let nextSequenceNumber = 1;
+      
+      if (Array.isArray(outstandingInvoices) && outstandingInvoices.length > 0) {
+        // This is a fallback approach - we should query existing payments
+        // This simulates getting the last payment number
+        const existingPayments = Array.isArray(invoices) ? invoices : [];
+        const existingPaymentRefs = Array.isArray(existingPayments) 
+          ? existingPayments.map((p: any) => p.invoiceNumber || '')
+              .filter((ref: string) => ref.startsWith(`PAY-${financialYear}`))
+          : [];
+          
+        // If there are existing payments with this financial year prefix
+        if (existingPaymentRefs.length > 0) {
+          // Extract the sequence numbers
+          const sequenceNumbers = existingPaymentRefs.map((ref: string) => {
+            const parts = ref.split('-');
+            return parts.length === 3 ? parseInt(parts[2], 10) : 0;
+          }).filter((num: number) => !isNaN(num));
+          
+          // Get the max sequence number and add 1
+          if (sequenceNumbers.length > 0) {
+            nextSequenceNumber = Math.max(...sequenceNumbers) + 1;
+          }
+        }
+      }
+      
+      // Format with leading zeros (e.g., 001, 002, etc.)
+      const sequenceStr = nextSequenceNumber.toString().padStart(3, '0');
+      const nextReferenceNumber = `PAY-${financialYear}-${sequenceStr}`;
+      
+      console.log(`Generated new reference number: ${nextReferenceNumber}`);
       form.setValue('referenceNumber', nextReferenceNumber);
     } catch (error) {
       console.error('Failed to generate payment reference number:', error);
@@ -250,7 +282,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     } finally {
       setIsGeneratingReferenceNumber(false);
     }
-  }, [form, toast, setIsGeneratingReferenceNumber]);
+  }, [form, toast, setIsGeneratingReferenceNumber, outstandingInvoices, invoices]);
   
   // Generate reference number on component mount for new payments
   useEffect(() => {
