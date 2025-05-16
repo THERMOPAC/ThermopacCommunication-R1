@@ -365,6 +365,167 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
   }
 });
 
+// Update payment
+router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid payment ID' });
+    }
+    
+    const { payment: paymentData, invoiceLinks = [] } = req.body;
+    
+    if (!paymentData) {
+      return res.status(400).json({ error: 'Payment data is required' });
+    }
+    
+    // Begin transaction
+    await db.transaction(async (tx) => {
+      console.log('Updating payment with data:', paymentData);
+      
+      // Prepare payment update data
+      const updateData = {
+        payment_date: paymentData.paymentDate,
+        amount: paymentData.amount,
+        currency: paymentData.currency,
+        payment_method: paymentData.paymentMethod,
+        reference_number: paymentData.referenceNumber,
+        notes: paymentData.notes,
+        updated_at: new Date(),
+        is_advance_payment: !!paymentData.isAdvancePayment,
+        customer_id: paymentData.isAdvancePayment ? paymentData.customerId : null
+      };
+      
+      // Update payment
+      const [updatedPayment] = await tx
+        .update(paymentsTable)
+        .set(updateData)
+        .where(eq(paymentsTable.id, id))
+        .returning();
+      
+      if (!updatedPayment) {
+        throw new Error('Payment not found');
+      }
+      
+      // If not an advance payment, handle invoice links
+      if (!paymentData.isAdvancePayment) {
+        // Delete existing invoice links
+        await tx
+          .delete(paymentInvoiceLinks)
+          .where(eq(paymentInvoiceLinks.paymentId, id));
+        
+        // Insert updated invoice links
+        if (invoiceLinks && invoiceLinks.length > 0) {
+          for (const link of invoiceLinks) {
+            await tx
+              .insert(paymentInvoiceLinks)
+              .values({
+                paymentId: id,
+                invoiceId: link.invoice.id,
+                amountApplied: link.amountApplied
+              });
+            
+            // Update invoice status if needed
+            const invoice = await tx
+              .select()
+              .from(invoices)
+              .where(eq(invoices.id, link.invoice.id))
+              .limit(1);
+            
+            if (invoice && invoice.length > 0) {
+              // Get total paid amount for this invoice
+              const paidResult = await tx
+                .select({
+                  totalPaid: sql`SUM(${paymentInvoiceLinks.amountApplied})`
+                })
+                .from(paymentInvoiceLinks)
+                .where(eq(paymentInvoiceLinks.invoiceId, link.invoice.id));
+              
+              const totalPaid = paidResult[0]?.totalPaid || 0;
+              const invoiceAmount = parseFloat(invoice[0].totalAmount);
+              
+              // Update invoice status based on payment
+              let newStatus = 'Pending';
+              if (totalPaid >= invoiceAmount) {
+                newStatus = 'Paid';
+              } else if (totalPaid > 0) {
+                newStatus = 'Partially Paid';
+              }
+              
+              await tx
+                .update(invoices)
+                .set({
+                  status: newStatus,
+                  updatedAt: new Date()
+                })
+                .where(eq(invoices.id, link.invoice.id));
+            }
+          }
+        }
+      }
+      
+      return updatedPayment;
+    });
+    
+    // After successful transaction, get the updated payment with its links
+    const updatedPaymentResult = await db.execute(
+      sql`SELECT * FROM payments WHERE id = ${id} LIMIT 1`
+    );
+    
+    const invoiceLinksResult = await db.execute(
+      sql`
+        SELECT 
+          pil.amount_applied,
+          i.*
+        FROM payment_invoice_links pil
+        INNER JOIN invoices i ON pil.invoice_id = i.id
+        WHERE pil.payment_id = ${id}
+      `
+    );
+    
+    // Format the response
+    const updatedInvoiceLinks = invoiceLinksResult.rows.map(row => ({
+      invoice: {
+        id: row.id,
+        invoiceNumber: row.invoice_number,
+        issueDate: row.issue_date,
+        dueDate: row.due_date,
+        totalAmount: row.total_amount,
+        status: row.status,
+        currency: row.currency,
+        customerId: row.customer_id
+      },
+      amountApplied: row.amount_applied
+    }));
+    
+    // Get BRC if available
+    const brcResult = await db.execute(
+      sql`
+        SELECT * FROM bank_realization_certificates
+        WHERE related_payment_id = ${id}
+        LIMIT 1
+      `
+    );
+    
+    res.json({
+      payment: updatedPaymentResult.rows[0],
+      invoiceLinks: updatedInvoiceLinks,
+      bankRealizationCertificate: brcResult.rows.length > 0 ? brcResult.rows[0] : null
+    });
+  } catch (error) {
+    console.error('Error updating payment:', error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
+    res.status(500).json({ error: 'Failed to update payment: ' + (error as Error).message });
+  }
+});
+
 // Get next payment reference number
 router.get('/payments/latest-reference', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
