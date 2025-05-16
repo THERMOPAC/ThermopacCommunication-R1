@@ -908,13 +908,22 @@ router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => 
 // Get next invoice number
 router.get('/invoices/next-number', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const financialYear = req.query.financialYear as string;
+    // Calculate financial year for invoice number based on current date
+    // Using Indian financial year (April-March)
+    const currentDate = new Date();
+    const month = currentDate.getMonth(); // 0-11 (Jan-Dec)
+    const year = currentDate.getFullYear();
     
-    if (!financialYear || !/^\d{4}$/.test(financialYear)) {
-      return res.status(400).json({ error: 'Valid financial year is required (YYZZ format)' });
-    }
+    // If month is January(0), February(1), or March(2), it's the previous year's financial year
+    const startYear = month < 3 ? year - 1 : year;
+    const endYear = startYear + 1;
     
-    // Find the highest serial number for the given financial year
+    // Format as YYZZ (last two digits of each year)
+    const startYearStr = startYear.toString().slice(-2);
+    const endYearStr = endYear.toString().slice(-2);
+    const financialYear = `${startYearStr}${endYearStr}`;
+    
+    // Find the highest serial number for the current financial year
     const yearPattern = `INV-${financialYear}-%`;
     
     const result = await db
@@ -930,11 +939,15 @@ router.get('/invoices/next-number', ensureAuthenticated, async (req: Request, re
     console.log(`Generating invoice number for financial year ${financialYear}`, {
       maxInvoiceNumber,
       financialYear,
-      yearPattern
+      yearPattern,
+      currentDate: currentDate.toISOString(),
+      month,
+      startYear,
+      endYear
     });
     
     if (maxInvoiceNumber) {
-      // Extract the serial number from the invoice number (format: INV-YYYY-SERIES)
+      // Extract the serial number from the invoice number (format: INV-YYZZ-SERIES)
       const parts = maxInvoiceNumber.split('-');
       if (parts.length === 3) {
         const currentSerial = parseInt(parts[2]);
