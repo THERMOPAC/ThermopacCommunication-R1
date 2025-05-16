@@ -633,9 +633,9 @@ export default function MarketingDashboardPage() {
               <Card className="bg-primary/5 border-primary/20">
                 <CardHeader className="pb-2">
                   <CardDescription>Total Turnover</CardDescription>
-                  <CardTitle className="text-3xl">
+                  <CardTitle className="text-3xl text-right">
                     {isLoadingLeads || isLoadingOrders || isLoadingFinance ? (
-                      <Skeleton className="h-10 w-36" />
+                      <Skeleton className="h-10 w-36 ml-auto" />
                     ) : (
                       `₹${formatINRInCrores(calculateTotalTurnover())} Cr`
                     )}
