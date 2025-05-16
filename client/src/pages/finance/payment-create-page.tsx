@@ -210,7 +210,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
     paymentDate: new Date(),
     amount: '',
-    currency: 'INR',
+    currency: 'USD',
     paymentMethod: 'bank transfer',
     notes: '',
     isAdvancePayment: false,
@@ -898,39 +898,20 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency</FormLabel>
-                      <Select 
-                        onValueChange={(value) => {
-                          // Reset invoice links if currency changes
-                          if (value !== field.value && form.getValues().invoiceLinks?.length) {
-                            form.setValue('invoiceLinks', []);
-                            setSelectedInvoices([]);
-                            toast({
-                              title: "Currency Changed",
-                              description: "Invoice links have been cleared as currency has changed.",
-                              variant: "destructive",
-                            });
-                          }
-                          field.onChange(value);
-                        }}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="INR">Indian Rupee (₹)</SelectItem>
-                          <SelectItem value="USD">US Dollar ($)</SelectItem>
-                          <SelectItem value="EUR">Euro (€)</SelectItem>
-                          <SelectItem value="GBP">British Pound (£)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input 
+                          placeholder="USD" 
+                          {...field}
+                          onChange={(e) => {
+                            // Force the value to always be "USD"
+                            field.onChange("USD");
+                          }}
+                          readOnly 
+                          className="bg-muted cursor-not-allowed"
+                        />
+                      </FormControl>
                       <FormDescription>
-                        {form.watch('isAdvancePayment') 
-                          ? 'Currency of the advance payment'
-                          : 'All invoices must be in the same currency as the payment.'
-                        }
+                        All payments are recorded in US Dollars.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
