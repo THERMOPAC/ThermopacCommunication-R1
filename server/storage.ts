@@ -114,12 +114,16 @@ export class DatabaseStorage implements IStorage {
       throw new Error("DATABASE_URL is required");
     }
     this.sessionStore = new PostgresSessionStore({
-      conObject: {
-        connectionString: process.env.DATABASE_URL,
-      },
+      pool: pool, // Use the existing connection pool instead of creating new connections
       createTableIfMissing: true,
       tableName: 'session', // Explicit table name
       ttl: 86400 * 30, // 30 days in seconds
+      // Add connection retry logic and more conservative connection settings
+      errorOnConnectionFailure: false, // Don't throw error on connection failure
+      retry: {
+        max: 3,
+        interval: 1000, // 1 second between retries
+      }
     });
   }
 
