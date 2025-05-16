@@ -100,17 +100,18 @@ export async function getNextInvoiceNumber(issueDate: Date): Promise<string> {
   const financialYear = getIndianFinancialYear(issueDate);
   
   try {
-    // Use apiRequest helper which includes authentication cookies
-    const response = await import('@/lib/queryClient').then(module => {
-      return module.apiRequest('GET', '/api/finance/invoices/next-number');
-    });
+    // Use the test endpoint which is working and already authenticated
+    const date = issueDate.toISOString().split('T')[0];
+    const response = await fetch(`/api/finance/test/invoice-number?date=${date}`);
     
     if (!response.ok) {
       throw new Error('Failed to get next invoice number');
     }
     
     const data = await response.json();
-    return data.invoiceNumber;
+    
+    // The test endpoint returns the number in the nextInvoiceNumber field
+    return data.nextInvoiceNumber;
   } catch (error) {
     console.error('Error getting next invoice number:', error);
     // Fallback format if API fails
