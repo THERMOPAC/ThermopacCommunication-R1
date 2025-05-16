@@ -786,7 +786,9 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     // Validate payment data
     const parsedPayment = insertPaymentSchema.parse({
       ...paymentData,
-      createdBy: user.id
+      createdBy: user.id,
+      unallocatedAmount: paymentData.amount, // Initially all amount is unallocated
+      allocationStatus: 'Unallocated'
     });
     
     // Begin transaction
@@ -843,9 +845,13 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
         }
       }
       
+      // Track total allocated amount and set initial unallocated amount
+      let totalAllocated = 0;
+      let allocationStatus = 'Unallocated';
+      
       // Validate total allocation doesn't exceed payment amount
       if (linksToProcess && linksToProcess.length > 0) {
-        const totalAllocated = linksToProcess.reduce((sum, link) => sum + Number(link.amountApplied), 0);
+        totalAllocated = linksToProcess.reduce((sum, link) => sum + Number(link.amountApplied), 0);
         
         if (totalAllocated > parsedPayment.amount) {
           throw new Error('Total allocated amount exceeds payment amount');
@@ -903,7 +909,34 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
         );
       }
       
-      return insertedPayment;
+      // Calculate unallocated amount and update allocation status
+      const unallocatedAmount = parsedPayment.amount - totalAllocated;
+      
+      if (totalAllocated === 0) {
+        allocationStatus = 'Unallocated';
+      } else if (totalAllocated < parsedPayment.amount) {
+        allocationStatus = 'Partially Allocated';
+      } else {
+        allocationStatus = 'Fully Allocated';
+      }
+      
+      // Update payment with allocation information
+      await tx
+        .update(paymentsTable)
+        .set({
+          unallocatedAmount: unallocatedAmount,
+          allocationStatus: allocationStatus,
+          updatedAt: new Date()
+        })
+        .where(eq(paymentsTable.id, insertedPayment.id));
+      
+      // Get the updated payment record to return
+      const [updatedPayment] = await tx
+        .select()
+        .from(paymentsTable)
+        .where(eq(paymentsTable.id, insertedPayment.id));
+      
+      return updatedPayment;
     });
     
     res.status(201).json(result);

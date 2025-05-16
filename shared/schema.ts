@@ -3080,6 +3080,8 @@ export const payments = pgTable('payments', {
   notes: text('notes'),
   proofDocumentPath: varchar('proof_document_path', { length: 255 }),
   isAdvancePayment: boolean('is_advance_payment').default(false),
+  unallocatedAmount: decimal('unallocated_amount', { precision: 15, scale: 2 }),
+  allocationStatus: varchar('allocation_status', { length: 20 }).default('Unallocated'),
   customerId: integer('customer_id'),
   createdBy: integer('created_by').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -3092,6 +3094,10 @@ export const paymentInvoiceLinks = pgTable('payment_invoice_links', {
   paymentId: integer('payment_id').notNull().references(() => payments.id, { onDelete: 'cascade' }),
   invoiceId: integer('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
   amountApplied: decimal('amount_applied', { precision: 15, scale: 2 }).notNull(),
+  // Audit trail fields
+  allocatedBy: integer('allocated_by').references(() => users.id),
+  allocatedAt: timestamp('allocated_at'),
+  // Standard timestamps
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow()
 }, (table) => {
