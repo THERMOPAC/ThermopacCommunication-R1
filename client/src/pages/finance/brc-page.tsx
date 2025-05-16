@@ -71,9 +71,11 @@ export default function BrcPage() {
   });
   const [searchQuery, setSearchQuery] = useState('');
 
-  // For now, we'll use a simple mock data approach until the backend endpoint is fixed
-  const [payments] = useState([]);
-  const isLoading = false;
+  // Fetch foreign currency payments without BRC
+  const { data: payments, isLoading } = useQuery({
+    queryKey: ['/api/finance/payments/foreign-without-brc'],
+    enabled: true
+  });
 
   // Fetch all BRCs
   const { data: brcs, isLoading: isLoadingBrcs } = useQuery({
