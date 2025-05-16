@@ -709,6 +709,60 @@ router.post('/payments/:id/allocate', ensureAuthenticated, (req: Request, res: R
 });
 
 /**
+ * Test endpoint to generate next invoice number
+ * This endpoint is used by the frontend to generate the next invoice number
+ * Format: INV-YYZZ-XXX where YY is the last 2 digits of the start year,
+ * ZZ is the last 2 digits of the end year, and XXX is a sequence number
+ */
+router.get('/test/invoice-number', (req: Request, res: Response) => {
+  try {
+    const date = req.query.date ? new Date(req.query.date as string) : new Date();
+    
+    // Get the financial year
+    const startYear = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+    const endYear = startYear + 1;
+    
+    // Format YY-ZZ part
+    const startYearStr = startYear.toString().substring(2);
+    const endYearStr = endYear.toString().substring(2);
+    const financialYear = `${startYearStr}${endYearStr}`;
+    
+    // Find the existing invoice with the highest sequence number
+    // In a real app, this would query the database, but for now we'll use the sample data
+    const sampleInvoices = [
+      { id: 1, invoiceNumber: "INV-2526-001" },
+      { id: 2, invoiceNumber: "INV-2526-002" },
+      { id: 3, invoiceNumber: "INV-2526-003" },
+      { id: 4, invoiceNumber: "INV-2526-004" },
+      { id: 5, invoiceNumber: "INV-2526-005" }
+    ];
+    
+    // Find the max sequence number for this financial year
+    let maxSequenceNumber = 0;
+    for (const invoice of sampleInvoices) {
+      const match = invoice.invoiceNumber.match(/INV-(\d{4})-(\d{3})/);
+      if (match && match[1] === financialYear) {
+        const sequenceNumber = parseInt(match[2]);
+        maxSequenceNumber = Math.max(maxSequenceNumber, sequenceNumber);
+      }
+    }
+    
+    // Generate the next sequence number
+    const nextSequenceNumber = maxSequenceNumber + 1;
+    // Format it to 3 digits with leading zeros
+    const sequenceStr = nextSequenceNumber.toString().padStart(3, '0');
+    
+    // Return the next invoice number
+    const nextInvoiceNumber = `INV-${financialYear}-${sequenceStr}`;
+    res.json({ nextInvoiceNumber });
+    
+  } catch (error) {
+    console.error('Error generating next invoice number:', error);
+    res.status(500).json({ error: 'Failed to generate next invoice number' });
+  }
+});
+
+/**
  * Get unallocated advance payments
  */
 router.get('/payments/unallocated-advances', ensureAuthenticated, (req: Request, res: Response) => {
