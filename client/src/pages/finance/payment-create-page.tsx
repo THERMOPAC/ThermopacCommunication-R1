@@ -85,7 +85,7 @@ const paymentFormSchema = z.object({
 
 type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 
-export default function PaymentCreatePage() {
+export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?: boolean } = {}) {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
   const [searchInvoice, setSearchInvoice] = useState('');
@@ -93,6 +93,18 @@ export default function PaymentCreatePage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [autoAllocateEnabled, setAutoAllocateEnabled] = useState(true);
   const [isGeneratingReferenceNumber, setIsGeneratingReferenceNumber] = useState(false);
+  const [paymentId, setPaymentId] = useState<number | null>(null);
+  
+  // Extract payment ID from URL if in edit mode
+  useEffect(() => {
+    if (isEditMode) {
+      const pathParts = location.split('/');
+      const id = parseInt(pathParts[pathParts.length - 2], 10);
+      if (!isNaN(id)) {
+        setPaymentId(id);
+      }
+    }
+  }, [isEditMode, location]);
   
   // Get all invoices and customers data
   const { data: outstandingInvoices, isLoading: isLoadingInvoices, error: invoicesError } = useQuery({
@@ -104,8 +116,24 @@ export default function PaymentCreatePage() {
     enabled: true,
   });
   
-  // Default form values
-  const defaultValues: PaymentFormValues = {
+  // Get payment details if in edit mode
+  const { data: paymentData, isLoading: isLoadingPayment } = useQuery({
+    queryKey: [`/api/finance/payments/${paymentId}`],
+    enabled: isEditMode && paymentId !== null,
+  });
+  
+  // Set up form values based on whether we're creating or editing
+  const initialFormValues: PaymentFormValues = isEditMode && paymentData ? {
+    referenceNumber: paymentData.referenceNumber || '',
+    paymentDate: paymentData.paymentDate ? new Date(paymentData.paymentDate) : new Date(),
+    amount: paymentData.amount ? paymentData.amount.toString() : '',
+    currency: paymentData.currency || 'INR',
+    paymentMethod: paymentData.paymentMethod || 'bank transfer',
+    notes: paymentData.notes || '',
+    isAdvancePayment: paymentData.isAdvancePayment || false,
+    customerId: paymentData.customerId ? paymentData.customerId.toString() : '',
+    invoiceLinks: paymentData.invoiceLinks || [],
+  } : {
     referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
     paymentDate: new Date(),
     amount: '',
@@ -116,6 +144,9 @@ export default function PaymentCreatePage() {
     customerId: '',
     invoiceLinks: [],
   };
+  
+  // Default form values
+  const defaultValues = initialFormValues;
   
   // Create form
   const form = useForm<PaymentFormValues>({
