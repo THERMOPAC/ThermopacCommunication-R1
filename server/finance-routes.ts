@@ -332,75 +332,73 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
 // Get foreign currency payments without BRC
 router.get('/payments/foreign-without-brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Step 1: Get all payments with foreign currency (not INR)
-    const foreignPaymentsResult = await db.execute(
+    // Simpler query to find foreign currency payments without BRCs
+    const paymentsResult = await db.execute(
       sql`
         SELECT p.* 
         FROM payments p 
-        WHERE p.currency != 'INR'
+        LEFT JOIN bank_realization_certificates brc ON p.id = brc.related_payment_id
+        WHERE p.currency != 'INR' 
+        AND brc.id IS NULL
       `
     );
     
-    // Step 2: Get all payments that already have BRCs
-    const brcsResult = await db.execute(
-      sql`
-        SELECT related_payment_id 
-        FROM bank_realization_certificates 
-        WHERE related_payment_id IS NOT NULL
-      `
-    );
-    
-    // Create a set of payment IDs that already have BRCs
-    const paymentsWithBrc = new Set();
-    for (const row of brcsResult.rows) {
-      paymentsWithBrc.add(row.related_payment_id);
+    if (paymentsResult.rows.length === 0) {
+      return res.json([]);
     }
     
-    // Step 3: Filter out payments that already have BRCs
-    const paymentsWithoutBrc = foreignPaymentsResult.rows.filter(payment => 
-      !paymentsWithBrc.has(payment.id)
-    );
+    // Get customer info for each payment
+    const enhancedPayments = [];
     
-    // Step 4: Get customer info for each payment by joining with invoices
-    const results = [];
-    
-    for (const payment of paymentsWithoutBrc) {
-      // Find linked invoice that has customer info
-      const linkedInvoicesResult = await db.execute(
-        sql`
-          SELECT i.id, i.customer_id, i.invoice_number 
-          FROM payment_invoice_links pil
-          JOIN invoices i ON pil.invoice_id = i.id
-          WHERE pil.payment_id = ${payment.id}
-          LIMIT 1
-        `
-      );
-      
-      if (linkedInvoicesResult.rows.length > 0) {
-        const invoice = linkedInvoicesResult.rows[0];
+    for (const payment of paymentsResult.rows) {
+      try {
+        // Look up linked invoices to find customer
+        const invoiceResult = await db.execute(
+          sql`
+            SELECT 
+              pil.invoice_id,
+              i.invoice_number,
+              i.customer_id
+            FROM payment_invoice_links pil
+            JOIN invoices i ON pil.invoice_id = i.id
+            WHERE pil.payment_id = ${payment.id}
+            LIMIT 1
+          `
+        );
         
-        if (invoice.customer_id) {
-          // Get customer details
+        if (invoiceResult.rows.length > 0 && invoiceResult.rows[0].customer_id) {
+          // Get customer info
+          const customerId = invoiceResult.rows[0].customer_id;
           const customerResult = await db.execute(
             sql`
-              SELECT id, name, company_name 
-              FROM customers 
-              WHERE id = ${invoice.customer_id}
+              SELECT id, company_name
+              FROM customers
+              WHERE id = ${customerId}
             `
           );
           
           if (customerResult.rows.length > 0) {
-            results.push({
-              ...payment,
-              customer: customerResult.rows[0],
-              invoiceNumber: invoice.invoice_number
+            enhancedPayments.push({
+              id: payment.id,
+              paymentDate: payment.payment_date,
+              amount: payment.amount,
+              currency: payment.currency,
+              paymentMethod: payment.payment_method,
+              referenceNumber: payment.reference_number,
+              customer: {
+                id: customerResult.rows[0].id,
+                companyName: customerResult.rows[0].company_name
+              },
+              invoiceNumber: invoiceResult.rows[0].invoice_number
             });
           }
         }
+      } catch (err) {
+        console.error(`Error processing payment ID ${payment.id}:`, err);
       }
     }
     
-    res.json(results);
+    res.json(enhancedPayments);
   } catch (error) {
     console.error('Error fetching foreign payments:', error);
     res.status(500).json({ error: 'Failed to fetch foreign currency payments' });
@@ -410,70 +408,82 @@ router.get('/payments/foreign-without-brc', ensureAuthenticated, async (req: Req
 // Get all BRCs
 router.get('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Get all BRCs with complete information using SQL
-    const brcRecordsResult = await db.execute(
-      sql`
-        SELECT 
-          brc.*,
-          p.id AS payment_id,
-          p.payment_date,
-          p.amount AS payment_amount,
-          p.currency AS payment_currency,
-          p.payment_method,
-          p.reference_number AS payment_reference,
-          c.id AS customer_id,
-          c.name AS customer_name,
-          c.company_name AS customer_company
-        FROM bank_realization_certificates brc
-        LEFT JOIN payments p ON brc.related_payment_id = p.id
-        LEFT JOIN payment_invoice_links pil ON p.id = pil.payment_id
-        LEFT JOIN invoices i ON pil.invoice_id = i.id
-        LEFT JOIN customers c ON i.customer_id = c.id
-        ORDER BY brc.issue_date DESC
-      `
+    // First get all BRCs
+    const brcResult = await db.execute(
+      sql`SELECT * FROM bank_realization_certificates ORDER BY issue_date DESC`
     );
     
-    // Transform the result to a more structured format
-    const enhancedBrcs = brcRecordsResult.rows.map(row => {
-      // Extract BRC fields
-      const brc = {
-        id: row.id,
-        certificateNumber: row.certificate_number,
-        issueDate: row.issue_date,
-        bankName: row.bank_name,
-        amount: row.amount,
-        currency: row.currency,
-        relatedPaymentId: row.related_payment_id,
-        documentPath: row.document_path,
-        notes: row.notes,
-        createdBy: row.created_by,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-      };
+    // Convert to a nice format with empty arrays if there are no records
+    if (brcResult.rows.length === 0) {
+      return res.json([]);
+    }
+    
+    // For each BRC, get additional details
+    const enhancedBrcs = [];
+    
+    for (const brc of brcResult.rows) {
+      // Get payment details if there's a related payment
+      let payment = null;
+      let customer = null;
       
-      // Extract payment fields if available
-      const payment = row.payment_id ? {
-        id: row.payment_id,
-        paymentDate: row.payment_date,
-        amount: row.payment_amount,
-        currency: row.payment_currency,
-        paymentMethod: row.payment_method,
-        referenceNumber: row.payment_reference
-      } : null;
+      if (brc.related_payment_id) {
+        const paymentResult = await db.execute(
+          sql`
+            SELECT * FROM payments 
+            WHERE id = ${brc.related_payment_id}
+            LIMIT 1
+          `
+        );
+        
+        if (paymentResult.rows.length > 0) {
+          payment = paymentResult.rows[0];
+          
+          // Try to find a customer through invoice links
+          const invoiceResult = await db.execute(
+            sql`
+              SELECT i.customer_id 
+              FROM payment_invoice_links pil
+              JOIN invoices i ON pil.invoice_id = i.id
+              WHERE pil.payment_id = ${brc.related_payment_id}
+              LIMIT 1
+            `
+          );
+          
+          if (invoiceResult.rows.length > 0 && invoiceResult.rows[0].customer_id) {
+            const customerResult = await db.execute(
+              sql`
+                SELECT id, company_name 
+                FROM customers 
+                WHERE id = ${invoiceResult.rows[0].customer_id}
+                LIMIT 1
+              `
+            );
+            
+            if (customerResult.rows.length > 0) {
+              customer = customerResult.rows[0];
+            }
+          }
+        }
+      }
       
-      // Extract customer fields if available
-      const customer = row.customer_id ? {
-        id: row.customer_id,
-        name: row.customer_name,
-        companyName: row.customer_company
-      } : null;
-      
-      return {
-        ...brc,
-        payment,
-        customer
-      };
-    });
+      // Add to our result set
+      enhancedBrcs.push({
+        id: brc.id,
+        certificateNumber: brc.certificate_number,
+        issueDate: brc.issue_date,
+        bankName: brc.bank_name,
+        amount: brc.amount,
+        currency: brc.currency,
+        relatedPaymentId: brc.related_payment_id,
+        documentPath: brc.document_path,
+        notes: brc.notes,
+        createdBy: brc.created_by,
+        createdAt: brc.created_at,
+        updatedAt: brc.updated_at,
+        payment: payment,
+        customer: customer
+      });
+    }
     
     res.json(enhancedBrcs);
   } catch (error) {
