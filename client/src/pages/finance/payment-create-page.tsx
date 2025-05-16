@@ -229,6 +229,16 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     defaultValues,
   });
   
+  // Generate reference number on component mount for new payments
+  useEffect(() => {
+    // Only for create mode, not edit mode
+    if (!isEditMode) {
+      // Call the function directly to generate reference number
+      // Using current date as default
+      generateReferenceNumber(new Date());
+    }
+  }, [isEditMode, generateReferenceNumber]);
+  
   // Update form when payment data is loaded
   useEffect(() => {
     if (isEditMode && paymentData && paymentData.payment) {
@@ -257,9 +267,19 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         if (paymentData.payment.customer_id) {
           setSelectedCustomerId(String(paymentData.payment.customer_id));
         }
+        
+        // For edit mode, load the selected invoices for display
+        if (paymentData.invoiceLinks && outstandingInvoices) {
+          const linkedInvoices = paymentData.invoiceLinks.map(link => {
+            const invoiceId = link.invoice_id || (link.invoice && link.invoice.id);
+            return outstandingInvoices.find(inv => inv.id === invoiceId);
+          }).filter(Boolean);
+          
+          setSelectedInvoices(linkedInvoices);
+        }
       }, 100);
     }
-  }, [isEditMode, paymentData, form]);
+  }, [isEditMode, paymentData, form, outstandingInvoices]);
   
   // Set up field array for invoice links
   const { fields, append, remove } = useFieldArray({
