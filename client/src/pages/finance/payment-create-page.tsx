@@ -123,15 +123,15 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   });
   
   // Set up form values based on whether we're creating or editing
-  const initialFormValues: PaymentFormValues = isEditMode && paymentData ? {
-    referenceNumber: paymentData.referenceNumber || '',
-    paymentDate: paymentData.paymentDate ? new Date(paymentData.paymentDate) : new Date(),
-    amount: paymentData.amount ? paymentData.amount.toString() : '',
-    currency: paymentData.currency || 'INR',
-    paymentMethod: paymentData.paymentMethod || 'bank transfer',
-    notes: paymentData.notes || '',
-    isAdvancePayment: paymentData.isAdvancePayment || false,
-    customerId: paymentData.customerId ? paymentData.customerId.toString() : '',
+  const initialFormValues: PaymentFormValues = isEditMode && paymentData && paymentData.payment ? {
+    referenceNumber: paymentData.payment.reference_number || '',
+    paymentDate: paymentData.payment.payment_date ? new Date(paymentData.payment.payment_date) : new Date(),
+    amount: paymentData.payment.amount ? paymentData.payment.amount.toString() : '',
+    currency: paymentData.payment.currency || 'INR',
+    paymentMethod: paymentData.payment.payment_method || 'bank transfer',
+    notes: paymentData.payment.notes || '',
+    isAdvancePayment: paymentData.payment.is_advance_payment || false,
+    customerId: paymentData.payment.customer_id ? paymentData.payment.customer_id.toString() : '',
     invoiceLinks: paymentData.invoiceLinks || [],
   } : {
     referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
@@ -180,16 +180,18 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     }
   }, [form, toast]);
   
-  // Update reference number when payment date changes
+  // Update reference number when payment date changes - only in create mode
   useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name === 'paymentDate' && value.paymentDate) {
-        generateReferenceNumber(value.paymentDate as Date);
-      }
-    });
-    
-    return () => subscription.unsubscribe();
-  }, [form, generateReferenceNumber]);
+    if (!isEditMode) {
+      const subscription = form.watch((value, { name }) => {
+        if (name === 'paymentDate' && value.paymentDate) {
+          generateReferenceNumber(value.paymentDate as Date);
+        }
+      });
+      
+      return () => subscription.unsubscribe();
+    }
+  }, [form, generateReferenceNumber, isEditMode]);
   
   // Calculate total amount applied to invoices
   const calculateTotalApplied = () => {
@@ -246,6 +248,52 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     },
   });
   
+  // Update payment mutation
+  const updatePayment = useMutation({
+    mutationFn: async (values: PaymentFormValues) => {
+      if (!paymentId) {
+        throw new Error("Payment ID is missing");
+      }
+      
+      // Transform values for API
+      const apiData = {
+        payment: {
+          referenceNumber: values.referenceNumber,
+          paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
+          amount: String(values.amount),
+          currency: values.currency,
+          paymentMethod: values.paymentMethod,
+          notes: values.notes || null,
+          isAdvancePayment: values.isAdvancePayment,
+          customerId: values.isAdvancePayment ? parseInt(values.customerId || '0') : null,
+        },
+        invoiceLinks: values.invoiceLinks ? values.invoiceLinks.map(link => ({
+          invoiceId: parseInt(link.invoiceId),
+          amountApplied: String(link.amountApplied),
+        })) : []
+      };
+      
+      return apiRequest('PUT', `/api/finance/payments/${paymentId}`, apiData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Payment updated",
+        description: "Payment has been updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/payments'] });
+      navigate('/finance/payments');
+    },
+    onError: (error: any) => {
+      console.error('Error updating payment:', error);
+      const errorMessage = error?.message || "Failed to update payment. Please try again.";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Submit handler
   const onSubmit = (values: PaymentFormValues) => {
     // For advance payments, just make sure a customer is selected
@@ -259,7 +307,11 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         return;
       }
       
-      createPayment.mutate(values);
+      if (isEditMode && paymentId) {
+        updatePayment.mutate(values);
+      } else {
+        createPayment.mutate(values);
+      }
       return;
     }
     
@@ -293,7 +345,11 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       return;
     }
     
-    createPayment.mutate(values);
+    if (isEditMode && paymentId) {
+      updatePayment.mutate(values);
+    } else {
+      createPayment.mutate(values);
+    }
   };
   
   // Filter invoices based on selected customer and search term
