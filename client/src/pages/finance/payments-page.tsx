@@ -3,18 +3,15 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Loader2, AlertCircle, FileText, Eye, Filter, Plus, Search, Download } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatRupees, formatDate } from "@/lib/utils";
 import { Link } from "wouter";
+import Layout from "@/components/layout";
 import { 
   Select,
   SelectContent,
@@ -22,20 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Helmet } from "react-helmet";
 
 // Method badge component
 const PaymentMethodBadge = ({ method }: { method: string }) => {
@@ -78,24 +68,48 @@ export default function PaymentsPage() {
     retry: 1
   });
 
+  // Filter the payments based on search term and payment method
+  const filteredPayments = data ? data.filter((payment: any) => {
+    const matchesSearch = searchTerm === '' || 
+      (payment.referenceNumber && payment.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesMethod = methodFilter === 'all' || 
+      payment.paymentMethod.toLowerCase() === methodFilter.toLowerCase();
+    
+    // Date range filtering
+    let matchesDateRange = true;
+    if (dateRange.from) {
+      matchesDateRange = matchesDateRange && new Date(payment.paymentDate) >= dateRange.from;
+    }
+    if (dateRange.to) {
+      matchesDateRange = matchesDateRange && new Date(payment.paymentDate) <= dateRange.to;
+    }
+    
+    return matchesSearch && matchesMethod && matchesDateRange;
+  }) : [];
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="mr-2 h-16 w-16 animate-spin" />
-        <p>Loading Payments...</p>
-      </div>
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="mr-2 h-16 w-16 animate-spin" />
+          <p>Loading Payments...</p>
+        </div>
+      </Layout>
     );
   }
 
   if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>
-          Failed to load payment records. Please try again later.
-        </AlertDescription>
-      </Alert>
+      <Layout>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            Failed to load payment records. Please try again later.
+          </AlertDescription>
+        </Alert>
+      </Layout>
     );
   }
 
@@ -120,16 +134,17 @@ export default function PaymentsPage() {
   }) || [];
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Payments</h1>
-        <Button asChild>
-          <Link href="/finance/payments/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Record New Payment
-          </Link>
-        </Button>
-      </div>
+    <Layout>
+      <div className="container mx-auto py-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Payments</h1>
+          <Button asChild>
+            <Link href="/finance/payments/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Record New Payment
+            </Link>
+          </Button>
+        </div>
 
       <Card className="mb-6">
         <CardContent className="p-4">
