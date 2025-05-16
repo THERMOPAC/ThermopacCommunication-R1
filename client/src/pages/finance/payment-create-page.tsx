@@ -285,7 +285,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
           customerId: String(paymentData.payment.customer_id || ''),
           invoiceLinks: paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0 ? 
             paymentData.invoiceLinks.map(link => ({
-              invoiceId: String((link.invoice && link.invoice.id) || link.invoice_id || ''),
+              invoiceId: String(link.invoice_id || ''),
               amountApplied: String(link.amountApplied || link.amount_applied || '0')
             })) : [],
         });
@@ -308,7 +308,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         if (paymentData.invoiceLinks && outstandingInvoices) {
           const linkedInvoices = paymentData.invoiceLinks
             .map(link => {
-              const invoiceId = parseInt(String(link.invoice_id || (link.invoice && link.invoice.id)), 10);
+              const invoiceId = parseInt(String(link.invoice_id || '0'), 10);
               return outstandingInvoices.find(inv => inv.id === invoiceId);
             })
             .filter(Boolean);
