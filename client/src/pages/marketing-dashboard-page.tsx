@@ -470,23 +470,29 @@ export default function MarketingDashboardPage() {
   // 3. Expected Revenue (not filtered by Financial Year)
   const calculateTotalTurnover = () => {
     // If Finance data is loading or missing, only show expected revenue + orders
-    if (!expectedRevenueStats || !ordersData) {
+    if (!expectedRevenueStats || !ordersData || !exchangeRates) {
       return 0;
     }
     
     // Convert finance data (totalInvoices) from string to number if needed
-    const invoicedAmount = financeData?.totalInvoices?.amount 
+    const invoicedAmountUSD = financeData?.totalInvoices?.amount 
       ? parseFloat(financeData.totalInvoices.amount) 
       : 0;
+    
+    // Convert invoiced amount from USD to INR using the same exchange rates
+    // as other components (1 USD = exchangeRates.INR INR)
+    const invoicedAmountINR = invoicedAmountUSD * exchangeRates.INR;
     
     // Log the calculation components
     console.log('Total Turnover Components:', {
       expectedRevenue: expectedRevenueStats.totalINR,
       ordersValue: ordersData.totalValueINR || 0,
-      invoicedAmount: invoicedAmount
+      invoicedAmountUSD: invoicedAmountUSD,
+      invoicedAmountINR: invoicedAmountINR,
+      exchangeRate: exchangeRates.INR
     });
     
-    return expectedRevenueStats.totalINR + (ordersData.totalValueINR || 0) + invoicedAmount;
+    return expectedRevenueStats.totalINR + (ordersData.totalValueINR || 0) + invoicedAmountINR;
   };
 
   // Calculate campaign completion percentage
