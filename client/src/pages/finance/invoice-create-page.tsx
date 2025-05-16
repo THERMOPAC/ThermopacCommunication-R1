@@ -111,14 +111,11 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     enabled: !!selectedCustomerId && !isEditMode,
   });
   
-  // For automatic invoice number generation
-  const [isGeneratingInvoiceNumber, setIsGeneratingInvoiceNumber] = useState(false);
-  
   // Default form values
   const defaultValues: InvoiceFormValues = {
     invoiceNumber: isEditMode && invoiceData?.invoice 
       ? invoiceData.invoice.invoiceNumber
-      : '', // Leave blank for user to enter
+      : '', // Leave blank for user to enter manually
     customerId: isEditMode && invoiceData?.invoice ? String(invoiceData.invoice.customerId) : '',
     projectId: isEditMode && invoiceData?.invoice && invoiceData.invoice.projectId 
       ? String(invoiceData.invoice.projectId) 
@@ -183,45 +180,6 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       });
     }
   }, [isEditMode, invoiceData, form]);
-  
-  // Effect to auto-generate invoice number when issue date changes (for new invoices only)
-  useEffect(() => {
-    const updateInvoiceNumber = async () => {
-      if (!isEditMode) {
-        // Get the current issue date
-        const currentIssueDate = form.getValues('issueDate');
-        if (currentIssueDate) {
-          try {
-            setIsGeneratingInvoiceNumber(true);
-            const nextInvoiceNumber = await getNextInvoiceNumber(currentIssueDate);
-            form.setValue('invoiceNumber', nextInvoiceNumber);
-          } catch (error) {
-            console.error('Failed to generate invoice number:', error);
-            // Fallback to a basic format if API fails
-            const financialYear = getIndianFinancialYear(currentIssueDate);
-            form.setValue('invoiceNumber', `INV-${financialYear}-001`);
-          } finally {
-            setIsGeneratingInvoiceNumber(false);
-          }
-        }
-      }
-    };
-    
-    // Generate invoice number on initial load for new invoices
-    if (!isEditMode && !isGeneratingInvoiceNumber) {
-      updateInvoiceNumber();
-    }
-    
-    // Set up a subscription to the issue date field
-    const subscription = form.watch((value, { name }) => {
-      if (name === 'issueDate' && !isEditMode && !isGeneratingInvoiceNumber) {
-        updateInvoiceNumber();
-      }
-    });
-    
-    // Clean up the subscription
-    return () => subscription.unsubscribe();
-  }, [form, isEditMode, isGeneratingInvoiceNumber]);
   
   // Create invoice mutation
   const createInvoice = useMutation({
