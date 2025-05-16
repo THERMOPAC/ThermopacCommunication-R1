@@ -35,6 +35,7 @@ import { roleHierarchy, canManage } from "@shared/roles";
 import { checkModulePermission } from "./utils/permission-utils";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
+import memorystore from "memorystore";
 import { db, pool } from "./db";
 import { 
   users, 
@@ -67,6 +68,7 @@ import {
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 
 const PostgresSessionStore = connectPg(session);
+const MemoryStore = memorystore(session);
 
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
@@ -110,17 +112,28 @@ export class DatabaseStorage implements IStorage {
   campaignChannelsTable = campaignChannels;
 
   constructor() {
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL is required");
+    try {
+      if (!process.env.DATABASE_URL) {
+        throw new Error("DATABASE_URL is required");
+      }
+      
+      console.log("Initializing PostgreSQL session store...");
+      this.sessionStore = new PostgresSessionStore({
+        conObject: {
+          connectionString: process.env.DATABASE_URL,
+        },
+        createTableIfMissing: true,
+        tableName: 'session', // Explicit table name
+        ttl: 86400 * 30, // 30 days in seconds
+      });
+      console.log("PostgreSQL session store initialized successfully");
+    } catch (error) {
+      console.warn("Error initializing PostgreSQL session store, falling back to memory store:", error);
+      this.sessionStore = new MemoryStore({
+        checkPeriod: 86400000 // prune expired entries every 24h
+      });
+      console.log("Memory session store initialized as fallback");
     }
-    this.sessionStore = new PostgresSessionStore({
-      conObject: {
-        connectionString: process.env.DATABASE_URL,
-      },
-      createTableIfMissing: true,
-      tableName: 'session', // Explicit table name
-      ttl: 86400 * 30, // 30 days in seconds
-    });
   }
 
   async getUser(id: number): Promise<User | undefined> {
