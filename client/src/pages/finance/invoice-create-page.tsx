@@ -504,6 +504,36 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   )}
                 />
                 
+                {/* Display unallocated advance payments if available */}
+                {!isEditMode && selectedCustomerId && unallocatedAdvances && unallocatedAdvances.totalUnallocated > 0 && (
+                  <div className="col-span-1 md:col-span-2 mt-2">
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                      <div className="flex items-center">
+                        <div className="mr-2 text-blue-700">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-blue-700">Available Advance Payment</h4>
+                          <p className="text-sm text-blue-700 mt-1">
+                            This customer has unallocated advance payments totaling{" "}
+                            <span className="font-mono bg-blue-100 text-blue-700 border border-blue-300 px-1 rounded">
+                              {unallocatedAdvances.currency === 'INR' ? '₹' : '$'}
+                              {typeof unallocatedAdvances.totalUnallocated === 'number' 
+                                ? unallocatedAdvances.totalUnallocated.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+                                : unallocatedAdvances.totalUnallocated}
+                            </span>
+                            {" "}which can be used against this invoice.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <FormField
                   control={form.control}
                   name="projectId"
