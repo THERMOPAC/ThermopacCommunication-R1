@@ -332,19 +332,25 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
 // Get foreign currency payments without BRC
 router.get('/payments/foreign-without-brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Use raw SQL query to get foreign currency payments
-    const paymentsResult = await db.execute(
+    // Use a simple, direct query to get payments that aren't in INR
+    // Using SQL to be explicit and avoid potential ORM complexity
+    const result = await db.execute(
       sql`
-        SELECT id, payment_date, amount, currency, payment_method, reference_number
+        SELECT 
+          id, 
+          payment_date, 
+          amount, 
+          currency, 
+          payment_method, 
+          reference_number
         FROM payments 
-        WHERE currency != 'INR'
+        WHERE currency <> 'INR' AND currency IS NOT NULL
         ORDER BY payment_date DESC
-        LIMIT 100
       `
     );
-
-    // Return the payments data in a structured format
-    const result = paymentsResult.rows.map(payment => ({
+    
+    // Map the result to the expected format
+    const formattedPayments = result.rows.map(payment => ({
       id: payment.id,
       paymentDate: payment.payment_date,
       amount: payment.amount,
@@ -358,7 +364,7 @@ router.get('/payments/foreign-without-brc', ensureAuthenticated, async (req: Req
       }
     }));
     
-    return res.json(result);
+    return res.json(formattedPayments);
   } catch (error) {
     console.error('Error fetching foreign payments:', error);
     // Return empty array in case of error instead of error message

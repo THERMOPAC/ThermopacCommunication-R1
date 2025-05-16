@@ -6,7 +6,7 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { Loader2, AlertCircle, FileText, Eye, Filter, Plus, Search, Download } from "lucide-react";
+import { Loader2, AlertCircle, FileText, Eye, Edit, Filter, Plus, Search, Download } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -289,6 +289,11 @@ export default function PaymentsPage() {
                         <Button variant="ghost" size="icon" asChild>
                           <Link href={`/finance/payments/${payment.id}`}>
                             <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button variant="ghost" size="icon" asChild>
+                          <Link href={`/finance/payments/${payment.id}/edit`}>
+                            <Edit className="h-4 w-4" />
                           </Link>
                         </Button>
                         <Button variant="ghost" size="icon" asChild>
