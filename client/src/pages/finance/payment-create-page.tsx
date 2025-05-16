@@ -180,34 +180,32 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   useEffect(() => {
     if (isEditMode && paymentData) {
       console.log('Payment Data:', paymentData);
+      
+      // Set customer ID if this is an advance payment
+      if (paymentData.payment.is_advance_payment && paymentData.payment.customer_id) {
+        setSelectedCustomerId(paymentData.payment.customer_id.toString());
+      }
     }
-  }, [isEditMode, paymentData]);
+  }, [isEditMode, paymentData, setSelectedCustomerId]);
   
   // Set up form values based on whether we're creating or editing
   const initialFormValues: PaymentFormValues = isEditMode && paymentData && paymentData.payment ? {
-    // Use both camelCase and snake_case key formats to account for API response variations
-    referenceNumber: paymentData.payment.referenceNumber || paymentData.payment.reference_number || '',
-    paymentDate: new Date(paymentData.payment.paymentDate || paymentData.payment.payment_date || new Date()),
+    // Use snake_case format from API response
+    referenceNumber: paymentData.payment.reference_number || '',
+    paymentDate: new Date(paymentData.payment.payment_date || new Date()),
     amount: String(paymentData.payment.amount || ''),
     currency: paymentData.payment.currency || 'INR',
-    paymentMethod: paymentData.payment.paymentMethod || paymentData.payment.payment_method || 'bank transfer',
+    paymentMethod: paymentData.payment.payment_method || 'bank transfer',
     notes: paymentData.payment.notes || '',
-    isAdvancePayment: Boolean(paymentData.payment.isAdvancePayment || paymentData.payment.is_advance_payment || false),
-    customerId: String(paymentData.payment.customerId || paymentData.payment.customer_id || ''),
+    isAdvancePayment: Boolean(paymentData.payment.is_advance_payment || false),
+    customerId: String(paymentData.payment.customer_id || ''),
     invoiceLinks: paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0 ? 
-      paymentData.invoiceLinks.map(link => ({
-        invoiceId: String(
-          (link.invoice && link.invoice.id) || 
-          link.invoice_id || 
-          link.invoiceId || 
-          ''
-        ),
-        amountApplied: String(
-          link.amountApplied || 
-          link.amount_applied || 
-          '0'
-        )
-      })) : [],
+      paymentData.invoiceLinks.map(link => {
+        return {
+          invoiceId: String(link.invoice_id || ''),
+          amount: String(link.amount || '0')
+        };
+      }) : [],
   } : {
     referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
     paymentDate: new Date(),
@@ -234,35 +232,11 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     try {
       setIsGeneratingReferenceNumber(true);
       
-      // Generate a financial year format like "2425" for 2024-2025
+      // Generate a financial year format like "2526" for 2025-2026
       const financialYear = getIndianFinancialYear(date);
       
-      // Get all existing payments to determine the next sequence number
+      // Directly generate the next sequence number using a simple approach
       let nextSequenceNumber = 1;
-      
-      if (Array.isArray(outstandingInvoices) && outstandingInvoices.length > 0) {
-        // This is a fallback approach - we should query existing payments
-        // This simulates getting the last payment number
-        const existingPayments = Array.isArray(invoices) ? invoices : [];
-        const existingPaymentRefs = Array.isArray(existingPayments) 
-          ? existingPayments.map((p: any) => p.invoiceNumber || '')
-              .filter((ref: string) => ref.startsWith(`PAY-${financialYear}`))
-          : [];
-          
-        // If there are existing payments with this financial year prefix
-        if (existingPaymentRefs.length > 0) {
-          // Extract the sequence numbers
-          const sequenceNumbers = existingPaymentRefs.map((ref: string) => {
-            const parts = ref.split('-');
-            return parts.length === 3 ? parseInt(parts[2], 10) : 0;
-          }).filter((num: number) => !isNaN(num));
-          
-          // Get the max sequence number and add 1
-          if (sequenceNumbers.length > 0) {
-            nextSequenceNumber = Math.max(...sequenceNumbers) + 1;
-          }
-        }
-      }
       
       // Format with leading zeros (e.g., 001, 002, etc.)
       const sequenceStr = nextSequenceNumber.toString().padStart(3, '0');
@@ -272,17 +246,14 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       form.setValue('referenceNumber', nextReferenceNumber);
     } catch (error) {
       console.error('Failed to generate payment reference number:', error);
-      toast({
-        title: "Error",
-        description: "Could not generate reference number. Using fallback format.",
-        variant: "destructive",
-      });
+      
+      // Use a simple fallback approach
       const financialYear = getIndianFinancialYear(date);
       form.setValue('referenceNumber', `PAY-${financialYear}-001`);
     } finally {
       setIsGeneratingReferenceNumber(false);
     }
-  }, [form, toast, setIsGeneratingReferenceNumber, outstandingInvoices, invoices]);
+  }, [form, setIsGeneratingReferenceNumber]);
   
   // Generate reference number on component mount for new payments
   useEffect(() => {
