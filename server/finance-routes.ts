@@ -294,6 +294,103 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
   }
 });
 
+// Get foreign currency payments without BRC
+router.get('/payments/foreign-without-brc', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Get payments in foreign currency that don't have a BRC
+    const foreignPayments = await db
+      .select({
+        payment: paymentsTable,
+        customer: db.db.dynamic.ref('customers'),
+      })
+      .from(paymentsTable)
+      .leftJoin(
+        bankRealizationCertificates,
+        eq(bankRealizationCertificates.relatedPaymentId, paymentsTable.id)
+      )
+      .leftJoin('customers', eq(paymentsTable.customerId, sql`customers.id`))
+      .where(
+        and(
+          sql`customers.id IS NOT NULL`,
+          sql`${bankRealizationCertificates.id} IS NULL`,
+          sql`${paymentsTable.currency} != 'INR'` // Only foreign currency payments
+        )
+      )
+      .orderBy(desc(paymentsTable.paymentDate));
+
+    // Extract and transform the results
+    const results = foreignPayments.map(fp => ({
+      ...fp.payment,
+      customer: fp.customer,
+    }));
+
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching foreign payments:', error);
+    res.status(500).json({ error: 'Failed to fetch foreign currency payments' });
+  }
+});
+
+// Get all BRCs
+router.get('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const brcRecords = await db
+      .select({
+        brc: bankRealizationCertificates,
+        payment: paymentsTable,
+        customer: db.db.dynamic.ref('customers'),
+      })
+      .from(bankRealizationCertificates)
+      .leftJoin(
+        paymentsTable,
+        eq(bankRealizationCertificates.relatedPaymentId, paymentsTable.id)
+      )
+      .leftJoin('customers', eq(paymentsTable.customerId, sql`customers.id`))
+      .orderBy(desc(bankRealizationCertificates.issueDate));
+
+    // Extract and transform the results
+    const results = brcRecords.map(record => ({
+      ...record.brc,
+      payment: record.payment,
+      customer: record.customer,
+    }));
+
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching BRCs:', error);
+    res.status(500).json({ error: 'Failed to fetch BRC records' });
+  }
+});
+
+// Create a new BRC
+router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const userId = user.id;
+
+    // Validate request data
+    const validatedData = insertBankRealizationCertificateSchema.parse({
+      ...req.body,
+      relatedPaymentId: parseInt(req.body.paymentId),
+      createdBy: userId,
+    });
+
+    // Insert BRC record
+    const [newBrc] = await db
+      .insert(bankRealizationCertificates)
+      .values(validatedData)
+      .returning();
+
+    res.status(201).json(newBrc);
+  } catch (error) {
+    console.error('Error creating BRC:', error);
+    res.status(500).json({ 
+      error: 'Failed to create BRC record',
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
 // Record a new payment and link to invoices
 router.post('/payments', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
