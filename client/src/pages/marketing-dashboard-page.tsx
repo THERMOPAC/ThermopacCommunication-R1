@@ -46,6 +46,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { fetchExchangeRates, convertCurrency, formatCurrency, formatINRInCrores } from "@/lib/currencyConverter";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 
 // Sample data for the dashboard
 // In a real implementation, this would come from the API
@@ -67,6 +69,63 @@ const LEAD_STATUS_COLORS = {
 };
 
 export default function MarketingDashboardPage() {
+  // Helper function to get current financial year dates (April 1 - March 31)
+  const getCurrentFinancialYearDates = (): { from: Date; to: Date } => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    // If current month is January to March (0-2), financial year is previous year to current year
+    // If current month is April to December (3-11), financial year is current year to next year
+    const financialYearStart = currentMonth < 3 
+      ? new Date(currentYear - 1, 3, 1) // April 1st of previous year
+      : new Date(currentYear, 3, 1);    // April 1st of current year
+    
+    const financialYearEnd = currentMonth < 3
+      ? new Date(currentYear, 2, 31)    // March 31st of current year
+      : new Date(currentYear + 1, 2, 31); // March 31st of next year
+    
+    return { from: financialYearStart, to: financialYearEnd };
+  };
+  
+  // Initialize date range with current financial year
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>(getCurrentFinancialYearDates());
+  
+  // Financial year preset options
+  const [selectedPreset, setSelectedPreset] = useState<string>("current");
+  
+  const financialYearPresets = [
+    { 
+      label: 'Current FY', 
+      value: 'current',
+      dateRange: getCurrentFinancialYearDates()
+    },
+    { 
+      label: 'Previous FY', 
+      value: 'previous',
+      dateRange: (() => {
+        const { from, to } = getCurrentFinancialYearDates();
+        return { 
+          from: new Date(from.getFullYear() - 1, from.getMonth(), from.getDate()),
+          to: new Date(to.getFullYear() - 1, to.getMonth(), to.getDate())
+        };
+      })()
+    },
+    { 
+      label: 'Last 6 Months', 
+      value: 'last6months',
+      dateRange: {
+        from: new Date(new Date().setMonth(new Date().getMonth() - 6)),
+        to: new Date()
+      }
+    },
+    { 
+      label: 'Custom', 
+      value: 'custom',
+      dateRange: null
+    }
+  ];
+  
   // State for currency conversion
   const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
   const [isLoadingRates, setIsLoadingRates] = useState(false);
@@ -100,9 +159,23 @@ export default function MarketingDashboardPage() {
     status: { id: number; name: string; };
   };
   
-  // Fetch leads data
+  // Format date for API queries
+  const formatDateForApi = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+  
+  // Fetch leads data with date range filter
   const { data: rawLeadsData, isLoading: isLoadingLeads } = useQuery<LeadWithDetails[]>({
-    queryKey: ['/api/sales-marketing/leads'],
+    queryKey: ['/api/sales-marketing/leads', dateRange],
+    queryFn: async () => {
+      const from = formatDateForApi(dateRange.from);
+      const to = formatDateForApi(dateRange.to);
+      const response = await fetch(`/api/sales-marketing/leads?from=${from}&to=${to}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch leads');
+      }
+      return response.json();
+    },
     refetchOnWindowFocus: false
   });
   
@@ -148,9 +221,18 @@ export default function MarketingDashboardPage() {
     updatedAt: string;
   };
   
-  // Fetch campaign data
+  // Fetch campaign data with date range filter
   const { data: campaignsData, isLoading: isLoadingCampaigns } = useQuery<Campaign[]>({
-    queryKey: ['/api/sales-marketing/campaigns'],
+    queryKey: ['/api/sales-marketing/campaigns', dateRange],
+    queryFn: async () => {
+      const from = formatDateForApi(dateRange.from);
+      const to = formatDateForApi(dateRange.to);
+      const response = await fetch(`/api/sales-marketing/campaigns?from=${from}&to=${to}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch campaigns');
+      }
+      return response.json();
+    },
     refetchOnWindowFocus: false
   });
   
@@ -295,10 +377,19 @@ export default function MarketingDashboardPage() {
     };
   };
   
-  // Fetch orders in hand data
+  // Fetch orders in hand data with date range filter
   const [refreshingOrders, setRefreshingOrders] = useState(false);
   const { data: ordersData, isLoading: isLoadingOrdersInitial, refetch: refetchOrders } = useQuery<OrderData>({
-    queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'],
+    queryKey: ['/api/sales-marketing/dashboard/orders-in-hand', dateRange],
+    queryFn: async () => {
+      const from = formatDateForApi(dateRange.from);
+      const to = formatDateForApi(dateRange.to);
+      const response = await fetch(`/api/sales-marketing/dashboard/orders-in-hand?from=${from}&to=${to}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders in hand');
+      }
+      return response.json();
+    },
     refetchOnWindowFocus: false
   });
   const isLoadingOrders = isLoadingOrdersInitial || refreshingOrders;
@@ -442,7 +533,53 @@ export default function MarketingDashboardPage() {
             <p className="text-muted-foreground">Track your marketing performance and lead generation</p>
           </div>
           
-          <Tabs defaultValue="overview" className="w-[400px]">
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2 items-center justify-end">
+              <label className="text-sm font-medium">Financial Year:</label>
+              <Select 
+                value={selectedPreset} 
+                onValueChange={(value) => {
+                  setSelectedPreset(value);
+                  const preset = financialYearPresets.find(p => p.value === value);
+                  
+                  if (preset && preset.dateRange) {
+                    setDateRange(preset.dateRange);
+                    // Trigger data refresh with new date range
+                    setTimeout(() => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/leads'] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/campaigns'] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'] });
+                    }, 0);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  {financialYearPresets.map((preset) => (
+                    <SelectItem key={preset.value} value={preset.value}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/leads'] });
+                  queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/campaigns'] });
+                  queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/dashboard/orders-in-hand'] });
+                }}
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Refresh
+              </Button>
+            </div>
+            
+            <Tabs defaultValue="overview" className="w-[400px]">
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
