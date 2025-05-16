@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
-import { formatRupees, formatDate } from "@/lib/utils";
+import { formatRupees, formatUSD, formatDate } from "@/lib/utils";
 import { Loader2, Download, Filter } from "lucide-react";
 
 export default function TurnoverReportPage() {
