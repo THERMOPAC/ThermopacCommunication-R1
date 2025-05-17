@@ -296,55 +296,57 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       
       // Delay the reset by a tiny bit to ensure it happens after component render
       setTimeout(() => {
-        // Get the advance payment status from the data
-        const isAdvancePayment = Boolean(paymentData.payment.is_advance_payment);
+        // We need to check for both snake_case and camelCase property names
+        // Because the API sends back camelCase but the database has snake_case
+        const isAdvancePayment = Boolean(
+          paymentData.payment.isAdvancePayment !== undefined 
+            ? paymentData.payment.isAdvancePayment 
+            : paymentData.payment.is_advance_payment
+        );
+        
         console.log('Is advance payment:', isAdvancePayment);
         
         // Parse the payment date string
         let paymentDate = new Date();
         try {
-          if (paymentData.payment.payment_date) {
-            paymentDate = new Date(paymentData.payment.payment_date);
+          const dateField = paymentData.payment.paymentDate || paymentData.payment.payment_date;
+          if (dateField) {
+            paymentDate = new Date(dateField);
             console.log('Parsed payment date:', paymentDate);
           }
         } catch (err) {
           console.error('Error parsing payment date:', err);
         }
         
-        // Reset the entire form with the payment data
-        form.reset({
-          referenceNumber: paymentData.payment.reference_number || '',
+        const formValues = {
+          // Prefer camelCase if available, fall back to snake_case
+          referenceNumber: paymentData.payment.referenceNumber || paymentData.payment.reference_number || '',
           paymentDate: paymentDate,
           amount: String(paymentData.payment.amount || ''),
           currency: paymentData.payment.currency || 'USD',
-          paymentMethod: paymentData.payment.payment_method || 'bank transfer',
+          paymentMethod: paymentData.payment.paymentMethod || paymentData.payment.payment_method || 'bank transfer',
           notes: paymentData.payment.notes || '',
           isAdvancePayment: isAdvancePayment,
-          customerId: String(paymentData.payment.customer_id || ''),
+          customerId: String(paymentData.payment.customerId || paymentData.payment.customer_id || ''),
           invoiceLinks: paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0 ? 
             paymentData.invoiceLinks.map(link => ({
-              invoiceId: String(link.invoice_id || ''),
-              amountApplied: String(link.amount_applied || '0')
+              invoiceId: String(link.invoiceId || link.invoice_id || ''),
+              amountApplied: String(link.amountApplied || link.amount_applied || '0')
             })) : [],
-        });
+        };
         
-        // Log what we're setting for debugging
-        console.log('Form values being set:', {
-          referenceNumber: paymentData.payment.reference_number,
-          paymentDate: paymentDate,
-          amount: paymentData.payment.amount,
-          currency: paymentData.payment.currency,
-          paymentMethod: paymentData.payment.payment_method,
-          isAdvancePayment: isAdvancePayment,
-          customerId: paymentData.payment.customer_id
-        });
+        console.log('Form values being set:', formValues);
         
-        // Set advance payment switch directly
+        // Reset the entire form with the payment data
+        form.reset(formValues);
+        
+        // Ensure Switch component value is set properly for advance payment
         form.setValue('isAdvancePayment', isAdvancePayment);
         
         // Set selected customer ID for the UI if available
-        if (paymentData.payment.customer_id) {
-          const customerId = String(paymentData.payment.customer_id);
+        const customerIdValue = paymentData.payment.customerId || paymentData.payment.customer_id;
+        if (customerIdValue) {
+          const customerId = String(customerIdValue);
           setSelectedCustomerId(customerId);
           
           // Make sure customerId is set in the form
