@@ -463,66 +463,81 @@ router.get('/payments/:id', ensureAuthenticated, (req: Request, res: Response) =
  */
 router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    console.log('Creating invoice with data:', JSON.stringify(req.body));
-    console.log('Request user:', req.user);
+    console.log('[INVOICE CREATE] Request body:', JSON.stringify(req.body));
+    console.log('[INVOICE CREATE] User:', req.user);
     
     // Extract data from the request body
     const { invoice, items } = req.body;
     
     if (!invoice) {
-      console.error('Invalid request body - invoice data missing:', req.body);
-      return res.status(400).json({ error: 'Invalid request body - invoice data missing' });
+      console.error('[INVOICE CREATE] Invalid request - invoice data missing');
+      return res.status(400).json({ error: 'Invoice data is missing from request body' });
     }
-    
-    // SQL to insert invoice and get ID
-    const insertInvoiceQuery = `
-      INSERT INTO invoices (
-        invoice_number, customer_id, project_id, 
-        issue_date, due_date, total_amount, 
-        currency, status, notes, 
-        sap_invoice_no, invoice_type, created_by
-      ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      RETURNING id, invoice_number, created_at;
-    `;
     
     // Ensure user is authenticated
     if (!req.user || !req.user.id) {
-      return res.status(401).json({ error: 'User not authenticated properly' });
+      console.error('[INVOICE CREATE] User not authenticated properly');
+      return res.status(401).json({ error: 'User authentication required' });
     }
     
-    const invoiceValues = [
-      invoice.invoiceNumber,
-      invoice.customerId,
-      invoice.projectId,
-      invoice.issueDate,
-      invoice.dueDate,
-      invoice.totalAmount,
-      invoice.currency || 'USD',
-      invoice.status || 'Pending',
-      invoice.notes,
-      invoice.sapInvoiceNo,
-      invoice.invoiceType || 'Product',
-      req.user.id
-    ];
-    
-    // Connect to DB and execute transaction
-    const { Pool } = require('pg');
+    // Connect to DB
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL
     });
+    console.log('[INVOICE CREATE] Database connection created');
     
     const client = await pool.connect();
+    console.log('[INVOICE CREATE] Database client connected');
     
     try {
       await client.query('BEGIN');
+      console.log('[INVOICE CREATE] Transaction started');
+      
+      // Prepare invoice data
+      const invoiceNumber = invoice.invoiceNumber;
+      const customerId = invoice.customerId;
+      const projectId = invoice.projectId || null;
+      const issueDate = invoice.issueDate;
+      const dueDate = invoice.dueDate;
+      const totalAmount = invoice.totalAmount;
+      const currency = invoice.currency || 'USD';
+      const status = invoice.status || 'Pending';
+      const notes = invoice.notes || null;
+      const sapInvoiceNo = invoice.sapInvoiceNo || null;
+      const invoiceType = invoice.invoiceType || 'Product';
+      const createdBy = req.user.id;
+      
+      console.log('[INVOICE CREATE] Prepared data:', {
+        invoiceNumber, customerId, projectId, issueDate, dueDate,
+        totalAmount, currency, status, notes, sapInvoiceNo, invoiceType
+      });
+      
+      // SQL to insert invoice and get ID
+      const insertInvoiceQuery = `
+        INSERT INTO invoices (
+          invoice_number, customer_id, project_id, 
+          issue_date, due_date, total_amount, 
+          currency, status, notes, 
+          sap_invoice_no, invoice_type, created_by
+        ) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING id, invoice_number, created_at;
+      `;
+      
+      const invoiceValues = [
+        invoiceNumber, customerId, projectId, issueDate, dueDate,
+        totalAmount, currency, status, notes, sapInvoiceNo, invoiceType, createdBy
+      ];
       
       // Insert invoice
+      console.log('[INVOICE CREATE] Executing invoice insert query');
       const invoiceResult = await client.query(insertInvoiceQuery, invoiceValues);
       const newInvoiceId = invoiceResult.rows[0].id;
+      console.log('[INVOICE CREATE] Invoice inserted with ID:', newInvoiceId);
       
       // Insert invoice items
       if (items && items.length > 0) {
+        console.log('[INVOICE CREATE] Processing invoice items:', items.length);
         const insertItemQuery = `
           INSERT INTO invoice_items (invoice_id, description, amount)
           VALUES ($1, $2, $3)
@@ -536,43 +551,50 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
             item.amount
           ]);
         }
+        console.log('[INVOICE CREATE] All invoice items inserted');
       }
       
       await client.query('COMMIT');
+      console.log('[INVOICE CREATE] Transaction committed');
       
       // Return the created invoice
-      // Ensure user is authenticated again (after all the async operations)
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ error: 'User not authenticated properly' });
-      }
-      
       res.status(201).json({
         id: newInvoiceId,
-        invoiceNumber: invoice.invoiceNumber,
-        customerId: invoice.customerId,
-        projectId: invoice.projectId,
-        issueDate: invoice.issueDate,
-        dueDate: invoice.dueDate,
-        totalAmount: invoice.totalAmount,
-        currency: invoice.currency,
-        sapInvoiceNo: invoice.sapInvoiceNo,
-        invoiceType: invoice.invoiceType,
-        status: invoice.status,
-        notes: invoice.notes,
-        createdBy: req.user.id,
+        invoiceNumber: invoiceNumber,
+        customerId: customerId,
+        projectId: projectId,
+        issueDate: issueDate,
+        dueDate: dueDate,
+        totalAmount: totalAmount,
+        currency: currency,
+        sapInvoiceNo: sapInvoiceNo,
+        invoiceType: invoiceType,
+        status: status,
+        notes: notes,
+        createdBy: createdBy,
         createdAt: invoiceResult.rows[0].created_at
       });
-    } catch (dbError) {
+      
+    } catch (dbError: any) {
       await client.query('ROLLBACK');
-      console.error('Database error creating invoice:', dbError);
-      res.status(500).json({ error: 'Failed to create invoice in database', details: dbError.message });
+      console.error('[INVOICE CREATE] Database error:', dbError);
+      console.error('[INVOICE CREATE] SQL error details:', dbError.code, dbError.message);
+      res.status(500).json({ 
+        error: 'Failed to create invoice in database', 
+        code: dbError.code || 'UNKNOWN',
+        details: dbError.message || 'Unknown database error'
+      });
     } finally {
       client.release();
+      console.log('[INVOICE CREATE] Database client released');
     }
     
-  } catch (error) {
-    console.error('Error creating invoice:', error);
-    res.status(500).json({ error: 'Failed to create invoice', details: error.message });
+  } catch (error: any) {
+    console.error('[INVOICE CREATE] General error:', error);
+    res.status(500).json({ 
+      error: 'Failed to create invoice',
+      details: error.message || 'Unknown error'
+    });
   }
 });
 
