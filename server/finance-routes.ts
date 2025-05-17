@@ -1507,27 +1507,52 @@ router.get('/test/invoice-number', (req: Request, res: Response) => {
 /**
  * Get unallocated advance payments
  */
-router.get('/payments/unallocated-advances', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const unallocatedAdvances = [
-      {
-        id: 4,
-        referenceNumber: "PAY-2526-004",
-        customerId: 1,
-        paymentDate: "2025-08-15",
-        amount: "200000.00",
-        paymentMethod: "Wire Transfer",
-        currency: "USD",
-        notes: "Advance payment for upcoming projects",
-        isAdvancePayment: true,
-        allocationStatus: "Unallocated",
-        createdBy: 1,
-        createdAt: "2025-08-15T09:15:00Z",
-        updatedAt: "2025-08-15T09:15:00Z"
-      }
-    ];
+    // Query payments from the database that are advance payments with unallocated amounts
+    const query = `
+      SELECT 
+        p.id,
+        p.reference_number as "referenceNumber",
+        p.customer_id as "customerId",
+        c.bp_name as "customerName",
+        p.payment_date as "paymentDate",
+        p.amount,
+        p.allocated_amount as "allocatedAmount",
+        p.unallocated_amount as "unallocatedAmount",
+        p.payment_method as "paymentMethod",
+        p.currency,
+        p.notes,
+        p.is_advance_payment as "isAdvancePayment",
+        CASE WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
+             WHEN p.unallocated_amount > 0 THEN 'Partially Allocated'
+             ELSE 'Fully Allocated' END as "allocationStatus",
+        p.created_by as "createdBy",
+        p.created_at as "createdAt",
+        p.updated_at as "updatedAt"
+      FROM 
+        payments p
+      JOIN 
+        customers c ON p.customer_id = c.id
+      WHERE 
+        p.is_advance_payment = true
+        AND p.unallocated_amount > 0
+      ORDER BY 
+        p.payment_date DESC
+    `;
     
-    res.json(unallocatedAdvances);
+    const result = await pool.query(query);
+    const advances = result.rows;
+    
+    // Calculate total unallocated amount
+    const totalUnallocatedAmount = advances.reduce((sum, payment) => 
+      sum + parseFloat(payment.unallocatedAmount), 0).toFixed(2);
+    
+    res.json({
+      advances: advances,
+      totalUnallocatedAmount: totalUnallocatedAmount,
+      count: advances.length
+    });
   } catch (error) {
     console.error('Error getting unallocated advances:', error);
     res.status(500).json({ error: 'Failed to get unallocated advances' });
