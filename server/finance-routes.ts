@@ -458,32 +458,103 @@ router.get('/payments/:id', ensureAuthenticated, (req: Request, res: Response) =
 });
 
 /**
- * Create a new invoice - just return success without creating
+ * Create a new invoice
  */
-router.post('/invoices', ensureAuthenticated, (req: Request, res: Response) => {
+router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const newInvoice = {
-      id: 6,
-      invoiceNumber: "INV-2526-006",
-      customerId: req.body.customerId,
-      issueDate: req.body.issueDate,
-      dueDate: req.body.dueDate,
-      totalAmount: req.body.totalAmount,
-      tax: req.body.tax || "0.00",
-      currency: req.body.currency || "USD",
-      sapInvoiceNo: req.body.sapInvoiceNo || null,
-      invoiceType: req.body.invoiceType || "Product",
-      status: req.body.status,
-      notes: req.body.notes || null,
-      createdBy: 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    console.log('Creating invoice with data:', JSON.stringify(req.body));
     
-    res.status(201).json(newInvoice);
+    // Extract data from the request body
+    const { invoice, items } = req.body;
+    
+    // SQL to insert invoice and get ID
+    const insertInvoiceQuery = `
+      INSERT INTO invoices (
+        invoice_number, customer_id, project_id, 
+        issue_date, due_date, total_amount, 
+        currency, status, notes, 
+        sap_invoice_no, invoice_type, created_by
+      ) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id, invoice_number, created_at;
+    `;
+    
+    const invoiceValues = [
+      invoice.invoiceNumber,
+      invoice.customerId,
+      invoice.projectId,
+      invoice.issueDate,
+      invoice.dueDate,
+      invoice.totalAmount,
+      invoice.currency || 'USD',
+      invoice.status || 'Pending',
+      invoice.notes,
+      invoice.sapInvoiceNo,
+      invoice.invoiceType || 'Product',
+      req.user.id
+    ];
+    
+    // Connect to DB and execute transaction
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL
+    });
+    
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Insert invoice
+      const invoiceResult = await client.query(insertInvoiceQuery, invoiceValues);
+      const newInvoiceId = invoiceResult.rows[0].id;
+      
+      // Insert invoice items
+      if (items && items.length > 0) {
+        const insertItemQuery = `
+          INSERT INTO invoice_items (invoice_id, description, amount)
+          VALUES ($1, $2, $3)
+          RETURNING id;
+        `;
+        
+        for (const item of items) {
+          await client.query(insertItemQuery, [
+            newInvoiceId,
+            item.description,
+            item.amount
+          ]);
+        }
+      }
+      
+      await client.query('COMMIT');
+      
+      // Return the created invoice
+      res.status(201).json({
+        id: newInvoiceId,
+        invoiceNumber: invoice.invoiceNumber,
+        customerId: invoice.customerId,
+        projectId: invoice.projectId,
+        issueDate: invoice.issueDate,
+        dueDate: invoice.dueDate,
+        totalAmount: invoice.totalAmount,
+        currency: invoice.currency,
+        sapInvoiceNo: invoice.sapInvoiceNo,
+        invoiceType: invoice.invoiceType,
+        status: invoice.status,
+        notes: invoice.notes,
+        createdBy: req.user.id,
+        createdAt: invoiceResult.rows[0].created_at
+      });
+    } catch (dbError) {
+      await client.query('ROLLBACK');
+      console.error('Database error creating invoice:', dbError);
+      res.status(500).json({ error: 'Failed to create invoice in database', details: dbError.message });
+    } finally {
+      client.release();
+    }
+    
   } catch (error) {
     console.error('Error creating invoice:', error);
-    res.status(500).json({ error: 'Failed to create invoice' });
+    res.status(500).json({ error: 'Failed to create invoice', details: error.message });
   }
 });
 
