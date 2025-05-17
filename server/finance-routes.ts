@@ -101,7 +101,6 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
         i.issue_date as "issueDate",
         i.due_date as "dueDate",
         i.total_amount as "totalAmount",
-        i.tax,
         i.currency,
         i.status,
         i.notes,
@@ -618,181 +617,126 @@ router.delete('/allocations/:id', ensureAuthenticated, async (req: Request, res:
 /**
  * Get a specific payment by ID
  */
-router.get('/payments/:id', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const paymentId = req.params.id;
+    const paymentId = parseInt(req.params.id);
     console.log(`Fetching payment details for payment ID: ${paymentId}`);
     
-    // Exact mapping of payment data for different IDs
-    let responseData;
+    if (isNaN(paymentId)) {
+      return res.status(400).json({ error: 'Invalid payment ID' });
+    }
     
-    if (paymentId === "1") {
-      responseData = {
-        payment: {
-          id: 1,
-          referenceNumber: "PAY-2526-001",
-          customerId: 1,
-          customerName: "Acme Corporation",
-          paymentDate: "2025-06-15",
-          amount: "125000.00",
-          paymentMethod: "Wire Transfer",
-          currency: "USD",
-          notes: "Payment for INV-2526-001",
-          isAdvancePayment: false,
-          allocationStatus: "Allocated",
-          createdBy: 1,
-          createdAt: "2025-06-15T10:00:00Z",
-          updatedAt: "2025-06-15T10:00:00Z"
-        },
-        invoiceLinks: [
-          {
-            link: {
-              id: 1,
-              paymentId: 1,
-              invoiceId: 1,
-              amountApplied: "125000.00",
-              createdAt: "2025-06-15T10:05:00Z",
-              updatedAt: "2025-06-15T10:05:00Z"
-            },
-            invoice: {
-              id: 1,
-              invoiceNumber: "INV-2526-001",
-              customerId: 1,
-              issueDate: "2025-05-01",
-              dueDate: "2025-05-31",
-              totalAmount: "125000.00",
-              tax: "10000.00",
-              currency: "USD",
-              status: "Paid",
-              notes: "Project A Phase 1",
-              createdBy: 1,
-              createdAt: "2025-05-01T10:00:00Z",
-              updatedAt: "2025-06-15T10:00:00Z"
-            }
-          }
-        ]
-      };
-      console.log(`Returning payment data for ID: 1 (PAY-2526-001)`);
-    } 
-    else if (paymentId === "2") {
-      responseData = {
-        payment: {
-          id: 2,
-          referenceNumber: "PAY-2526-002",
-          customerId: 2,
-          customerName: "TechSolutions Inc",
-          paymentDate: "2025-07-22",
-          amount: "100000.00",
-          paymentMethod: "Bank Transfer",
-          currency: "USD",
-          notes: "Payment for INV-2526-002",
-          isAdvancePayment: false,
-          allocationStatus: "Allocated",
-          createdBy: 1,
-          createdAt: "2025-07-22T10:00:00Z",
-          updatedAt: "2025-07-22T10:00:00Z"
-        },
-        invoiceLinks: [
-          {
-            link: {
-              id: 2,
-              paymentId: 2,
-              invoiceId: 2,
-              amountApplied: "100000.00",
-              createdAt: "2025-07-22T10:05:00Z",
-              updatedAt: "2025-07-22T10:05:00Z"
-            },
-            invoice: {
-              id: 2,
-              invoiceNumber: "INV-2526-002",
-              customerId: 2,
-              issueDate: "2025-06-02",
-              dueDate: "2025-07-01",
-              totalAmount: "100000.00",
-              tax: "8000.00",
-              currency: "USD",
-              status: "Paid",
-              notes: "Project B Phase 1",
-              createdBy: 1,
-              createdAt: "2025-06-02T10:00:00Z",
-              updatedAt: "2025-07-22T10:00:00Z"
-            }
-          }
-        ]
-      };
-      console.log(`Returning payment data for ID: 2 (PAY-2526-002)`);
+    // Get payment details from database
+    const paymentQuery = `
+      SELECT 
+        p.id,
+        p.reference_number as "referenceNumber",
+        p.customer_id as "customerId",
+        c.bp_name as "customerName",
+        p.payment_date as "paymentDate",
+        p.amount,
+        p.unallocated_amount as "unallocatedAmount",
+        p.payment_method as "paymentMethod",
+        p.currency,
+        p.notes,
+        p.is_advance_payment as "isAdvancePayment",
+        CASE WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
+             WHEN p.unallocated_amount > 0 THEN 'Partially Allocated'
+             ELSE 'Fully Allocated' END as "allocationStatus",
+        p.created_by as "createdBy",
+        p.created_at as "createdAt",
+        p.updated_at as "updatedAt"
+      FROM 
+        payments p
+      LEFT JOIN 
+        customers c ON p.customer_id = c.id
+      WHERE 
+        p.id = $1
+    `;
+    
+    const paymentResult = await pool.query(paymentQuery, [paymentId]);
+    
+    if (!paymentResult.rows || paymentResult.rows.length === 0) {
+      console.log(`Payment with ID ${paymentId} not found in database`);
+      return res.status(404).json({ error: 'Payment not found' });
     }
-    else if (paymentId === "3") {
-      responseData = {
-        payment: {
-          id: 3,
-          referenceNumber: "PAY-2526-003",
-          customerId: 3,
-          customerName: "Global Enterprises Ltd",
-          paymentDate: "2025-08-05",
-          amount: "75000.00",
-          paymentMethod: "Credit Card",
-          currency: "USD",
-          notes: "Advance payment for upcoming project",
-          isAdvancePayment: true,
-          allocationStatus: "Unallocated",
-          createdBy: 1,
-          createdAt: "2025-08-05T09:30:00Z",
-          updatedAt: "2025-08-05T09:30:00Z"
-        },
-        invoiceLinks: []
-      };
-      console.log(`Returning payment data for ID: 3 (PAY-2526-003)`);
+    
+    const payment = paymentResult.rows[0];
+    console.log(`Found payment in database: ${payment.referenceNumber}`);
+    
+    // Get any invoice allocation links
+    const allocationsQuery = `
+      SELECT 
+        pa.id,
+        pa.payment_id as "paymentId",
+        pa.invoice_id as "invoiceId",
+        pa.amount_applied as "amountApplied",
+        pa.created_at as "createdAt",
+        pa.updated_at as "updatedAt"
+      FROM 
+        payment_allocations pa
+      WHERE 
+        pa.payment_id = $1
+    `;
+    
+    const allocationsResult = await pool.query(allocationsQuery, [paymentId]);
+    const allocations = allocationsResult.rows || [];
+    
+    // Get related invoice details if there are allocations
+    const invoiceLinks = [];
+    
+    if (allocations.length > 0) {
+      for (const allocation of allocations) {
+        const invoiceQuery = `
+          SELECT 
+            i.id,
+            i.invoice_number as "invoiceNumber",
+            i.customer_id as "customerId",
+            i.issue_date as "issueDate", 
+            i.due_date as "dueDate", 
+            i.total_amount as "totalAmount",
+            i.currency, 
+            i.status,
+            i.notes,
+            i.created_by as "createdBy",
+            i.created_at as "createdAt", 
+            i.updated_at as "updatedAt"
+          FROM 
+            invoices i
+          WHERE 
+            i.id = $1
+        `;
+        
+        const invoiceResult = await pool.query(invoiceQuery, [allocation.invoiceId]);
+        
+        if (invoiceResult.rows && invoiceResult.rows.length > 0) {
+          invoiceLinks.push({
+            link: allocation,
+            invoice: invoiceResult.rows[0]
+          });
+        }
+      }
     }
-    else {
-      // Default to payment 1 if ID not recognized
-      responseData = {
-        payment: {
-          id: 1,
-          referenceNumber: "PAY-2526-001",
-          customerId: 1,
-          customerName: "Acme Corporation",
-          paymentDate: "2025-06-15",
-          amount: "125000.00",
-          paymentMethod: "Wire Transfer",
-          currency: "USD",
-          notes: "Payment for INV-2526-001",
-          isAdvancePayment: false,
-          allocationStatus: "Allocated",
-          createdBy: 1,
-          createdAt: "2025-06-15T10:00:00Z",
-          updatedAt: "2025-06-15T10:00:00Z"
-        },
-        invoiceLinks: [
-          {
-            link: {
-              id: 1,
-              paymentId: 1,
-              invoiceId: 1,
-              amountApplied: "125000.00",
-              createdAt: "2025-06-15T10:05:00Z",
-              updatedAt: "2025-06-15T10:05:00Z"
-            },
-            invoice: {
-              id: 1,
-              invoiceNumber: "INV-2526-001",
-              customerId: 1,
-              issueDate: "2025-05-01",
-              dueDate: "2025-05-31",
-              totalAmount: "125000.00",
-              tax: "10000.00",
-              currency: "USD",
-              status: "Paid",
-              notes: "Project A Phase 1",
-              createdBy: 1,
-              createdAt: "2025-05-01T10:00:00Z",
-              updatedAt: "2025-06-15T10:00:00Z"
-            }
-          }
-        ]
-      };
-      console.log(`ID ${paymentId} not found, returning default payment ID: 1`);
+    
+    // Format dates for the frontend
+    if (payment.paymentDate) {
+      payment.paymentDate = new Date(payment.paymentDate).toISOString().split('T')[0];
     }
+    
+    // Ensure amount is properly formatted as string
+    if (payment.amount) {
+      payment.amount = payment.amount.toString();
+    }
+    
+    if (payment.unallocatedAmount) {
+      payment.unallocatedAmount = payment.unallocatedAmount.toString();
+    }
+    
+    // Return the payment details and any linked invoices
+    const responseData = {
+      payment,
+      invoiceLinks
+    };
     
     // Send the response
     res.json(responseData);
