@@ -401,4 +401,109 @@ router.get('/invoices/:id/items', ensureAuthenticated, async (req: Request, res:
   }
 });
 
+/**
+ * Update an existing invoice
+ */
+router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = parseInt(req.params.id);
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ error: 'Invalid invoice ID' });
+    }
+    
+    // Extract data from the request body
+    const { invoice, items } = req.body;
+    
+    if (!invoice) {
+      return res.status(400).json({ error: 'Invalid request body - invoice data missing' });
+    }
+    
+    // First check if the invoice exists
+    const checkQuery = `SELECT id FROM invoices WHERE id = $1`;
+    const checkResult = await pool.query(checkQuery, [invoiceId]);
+    
+    if (!checkResult.rows || checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    
+    // Update the invoice in the database
+    const updateQuery = `
+      UPDATE invoices
+      SET 
+        invoice_number = $1,
+        customer_id = $2,
+        project_id = $3,
+        issue_date = $4,
+        due_date = $5,
+        total_amount = $6,
+        currency = $7,
+        sap_invoice_no = $8,
+        invoice_type = $9,
+        notes = $10,
+        updated_at = NOW()
+      WHERE id = $11
+      RETURNING *
+    `;
+    
+    const updateValues = [
+      invoice.invoiceNumber,
+      invoice.customerId,
+      invoice.projectId || null,
+      new Date(invoice.issueDate),
+      new Date(invoice.dueDate),
+      parseFloat(invoice.totalAmount),
+      invoice.currency || 'USD',
+      invoice.sapInvoiceNo || null,
+      invoice.invoiceType || 'Product',
+      invoice.notes || null,
+      invoiceId
+    ];
+    
+    const updateResult = await pool.query(updateQuery, updateValues);
+    
+    if (!updateResult.rows || updateResult.rows.length === 0) {
+      throw new Error('Failed to update invoice');
+    }
+    
+    const updatedInvoice = updateResult.rows[0];
+    
+    // Delete existing invoice items
+    const deleteItemsQuery = `DELETE FROM invoice_items WHERE invoice_id = $1`;
+    await pool.query(deleteItemsQuery, [invoiceId]);
+    
+    // Insert new invoice items
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const itemQuery = `
+          INSERT INTO invoice_items (
+            invoice_id, description, quantity, unit_price, amount, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+        `;
+        
+        const itemValues = [
+          invoiceId,
+          item.description || '',
+          parseFloat(item.quantity) || 1,
+          parseFloat(item.unitPrice) || 0,
+          parseFloat(item.amount) || 0
+        ];
+        
+        await pool.query(itemQuery, itemValues);
+      }
+    }
+    
+    // Format dates for response
+    updatedInvoice.issueDate = new Date(updatedInvoice.issue_date).toISOString().split('T')[0];
+    updatedInvoice.dueDate = new Date(updatedInvoice.due_date).toISOString().split('T')[0];
+    
+    res.json(updatedInvoice);
+  } catch (error: any) {
+    console.error('Error updating invoice:', error);
+    res.status(500).json({ 
+      error: 'Failed to update invoice',
+      details: error.message 
+    });
+  }
+});
+
 export default router;
