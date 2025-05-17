@@ -997,28 +997,157 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
 /**
  * Create a new payment - just return success without creating
  */
-router.post('/payments', ensureAuthenticated, (req: Request, res: Response) => {
+router.post('/payments', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const newPayment = {
-      id: 3,
-      referenceNumber: req.body.referenceNumber || "PAY-2526-003",
-      customerId: req.body.customerId,
-      paymentDate: req.body.paymentDate,
-      amount: req.body.amount,
-      paymentMethod: req.body.paymentMethod,
-      currency: req.body.currency || "USD",
-      notes: req.body.notes || null,
-      isAdvancePayment: req.body.isAdvancePayment || false,
-      allocationStatus: req.body.isAdvancePayment ? "Unallocated" : "Allocated",
-      createdBy: 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+    // Extract data from the request
+    const paymentData = req.body.payment || req.body;
+    const invoiceLinks = req.body.invoiceLinks || [];
+    
+    // Get the authenticated user
+    const userId = (req.user as any)?.id || 1;
+    
+    // Create a clean payment record for the database
+    const payment = {
+      reference_number: paymentData.referenceNumber || `PAY-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      payment_date: paymentData.paymentDate,
+      amount: parseFloat(paymentData.amount),
+      currency: paymentData.currency || "USD",
+      payment_method: paymentData.paymentMethod,
+      notes: paymentData.notes || null,
+      is_advance_payment: paymentData.isAdvancePayment || false,
+      unallocated_amount: parseFloat(paymentData.amount), // Start with all amount unallocated
+      customer_id: paymentData.customerId ? parseInt(paymentData.customerId) : null,
+      created_by: userId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
     
-    res.status(201).json(newPayment);
+    // Insert the payment into the database
+    const insertPaymentQuery = `
+      INSERT INTO payments (
+        reference_number, payment_date, amount, currency, payment_method, 
+        notes, is_advance_payment, unallocated_amount, customer_id,
+        created_by, created_at, updated_at
+      ) 
+      VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+      )
+      RETURNING *
+    `;
+    
+    const paymentValues = [
+      payment.reference_number,
+      payment.payment_date,
+      payment.amount,
+      payment.currency,
+      payment.payment_method,
+      payment.notes,
+      payment.is_advance_payment,
+      payment.unallocated_amount,
+      payment.customer_id,
+      payment.created_by,
+      payment.created_at,
+      payment.updated_at
+    ];
+    
+    const paymentResult = await pool.query(insertPaymentQuery, paymentValues);
+    
+    if (!paymentResult.rows || paymentResult.rows.length === 0) {
+      throw new Error("Failed to create payment");
+    }
+    
+    const newPayment = paymentResult.rows[0];
+    console.log(`Created payment with ID: ${newPayment.id}`);
+    
+    // If there are invoice links, create them as well
+    let allocations = [];
+    if (invoiceLinks && invoiceLinks.length > 0) {
+      for (const link of invoiceLinks) {
+        const allocationQuery = `
+          INSERT INTO payment_allocations (
+            payment_id, invoice_id, amount_applied, created_at, updated_at
+          ) 
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING *
+        `;
+        
+        const allocationValues = [
+          newPayment.id,
+          parseInt(link.invoiceId),
+          parseFloat(link.amountApplied),
+          new Date().toISOString(),
+          new Date().toISOString()
+        ];
+        
+        const allocationResult = await pool.query(allocationQuery, allocationValues);
+        
+        if (allocationResult.rows && allocationResult.rows.length > 0) {
+          allocations.push(allocationResult.rows[0]);
+          
+          // Update unallocated amount for the payment
+          const updatePaymentQuery = `
+            UPDATE payments 
+            SET unallocated_amount = unallocated_amount - $1, updated_at = $2
+            WHERE id = $3
+            RETURNING *
+          `;
+          
+          await pool.query(updatePaymentQuery, [
+            parseFloat(link.amountApplied),
+            new Date().toISOString(),
+            newPayment.id
+          ]);
+          
+          // Update invoice outstanding amount and status if needed
+          const updateInvoiceQuery = `
+            UPDATE invoices 
+            SET 
+              outstanding_amount = CASE 
+                WHEN outstanding_amount IS NULL THEN total_amount - $1
+                ELSE outstanding_amount - $1
+              END,
+              status = CASE 
+                WHEN (outstanding_amount - $1) <= 0 THEN 'Paid'
+                ELSE status
+              END,
+              updated_at = $2
+            WHERE id = $3
+            RETURNING *
+          `;
+          
+          await pool.query(updateInvoiceQuery, [
+            parseFloat(link.amountApplied),
+            new Date().toISOString(),
+            parseInt(link.invoiceId)
+          ]);
+        }
+      }
+    }
+    
+    // Return the created payment
+    const formattedPayment = {
+      id: newPayment.id,
+      referenceNumber: newPayment.reference_number,
+      customerId: newPayment.customer_id,
+      paymentDate: newPayment.payment_date,
+      amount: newPayment.amount.toString(),
+      paymentMethod: newPayment.payment_method,
+      currency: newPayment.currency,
+      notes: newPayment.notes,
+      isAdvancePayment: newPayment.is_advance_payment,
+      unallocatedAmount: newPayment.unallocated_amount.toString(),
+      createdBy: newPayment.created_by,
+      createdAt: newPayment.created_at,
+      updatedAt: newPayment.updated_at
+    };
+    
+    res.status(201).json(formattedPayment);
   } catch (error) {
     console.error('Error creating payment:', error);
-    res.status(500).json({ error: 'Failed to create payment' });
+    res.status(500).json({ 
+      error: 'Failed to create payment',
+      details: error.message 
+    });
   }
 });
 
