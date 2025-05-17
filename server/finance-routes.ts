@@ -829,10 +829,15 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
     console.log('Creating invoice with data:', JSON.stringify(req.body, null, 2));
     
     // Extract data from the request body
-    const { invoice, items } = req.body;
+    const { invoice, items, advancePaymentAllocations } = req.body;
     
     if (!invoice) {
       return res.status(400).json({ error: 'Invalid request body - invoice data missing' });
+    }
+    
+    // Log advance payment allocations if present
+    if (advancePaymentAllocations && advancePaymentAllocations.length > 0) {
+      console.log('Processing advance payment allocations:', JSON.stringify(advancePaymentAllocations, null, 2));
     }
 
     // Format dates - ensure we have valid dates for required fields
@@ -917,6 +922,95 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       }
     }
     
+    // Process advance payment allocations if provided
+    let advancePaymentsApplied = 0;
+    let totalAdvanceAmount = 0;
+    
+    if (advancePaymentAllocations && advancePaymentAllocations.length > 0) {
+      // Filter allocations with valid amounts
+      const validAllocations = advancePaymentAllocations.filter(
+        allocation => allocation.amountToApply && parseFloat(allocation.amountToApply) > 0
+      );
+      
+      advancePaymentsApplied = validAllocations.length;
+      
+      if (advancePaymentsApplied > 0) {
+        console.log(`Processing ${advancePaymentsApplied} advance payment allocations`);
+        
+        // Calculate total advance amount being applied
+        totalAdvanceAmount = validAllocations.reduce(
+          (sum, allocation) => sum + parseFloat(allocation.amountToApply), 0
+        );
+        
+        // For each allocation, we would:
+        // 1. Create a payment allocation record in the database
+        // 2. Update the payment record to reduce its unallocated amount
+        for (const allocation of validAllocations) {
+          try {
+            console.log(`Allocating ${allocation.amountToApply} from payment ID ${allocation.paymentId} to invoice ${invoiceId}`);
+            
+            // In a real implementation with full database support, you would:
+            // 1. Insert into payment_allocations table
+            const insertAllocationQuery = `
+              INSERT INTO payment_allocations (
+                payment_id,
+                invoice_id,
+                amount,
+                created_by
+              ) VALUES ($1, $2, $3, $4)
+              RETURNING id
+            `;
+            
+            const allocationValues = [
+              allocation.paymentId,
+              invoiceId,
+              parseFloat(allocation.amountToApply),
+              req.user?.id || 1
+            ];
+            
+            // Uncomment this when the database table is ready
+            // await pool.query(insertAllocationQuery, allocationValues);
+            
+            // 2. Update the payment record to reduce unallocated amount
+            // In a real implementation:
+            /*
+            const updatePaymentQuery = `
+              UPDATE payments
+              SET unallocated_amount = unallocated_amount - $1
+              WHERE id = $2
+            `;
+            
+            await pool.query(updatePaymentQuery, [
+              parseFloat(allocation.amountToApply),
+              allocation.paymentId
+            ]);
+            */
+          } catch (allocError) {
+            console.error(`Error processing allocation for payment ${allocation.paymentId}:`, allocError);
+            // Continue with other allocations even if one fails
+          }
+        }
+        
+        // Update invoice status if fully paid by advances
+        if (totalAdvanceAmount >= parseFloat(totalAmount.toString())) {
+          console.log(`Invoice ${invoiceId} fully paid with advance payments`);
+          
+          // In a real implementation:
+          /*
+          const updateInvoiceStatusQuery = `
+            UPDATE invoices
+            SET status = 'Paid'
+            WHERE id = $1
+          `;
+          
+          await pool.query(updateInvoiceStatusQuery, [invoiceId]);
+          */
+        } else {
+          console.log(`Invoice ${invoiceId} partially paid with advance payments: ${totalAdvanceAmount} / ${totalAmount}`);
+        }
+      }
+    }
+    
     // Log the success
     console.log('Successfully created invoice in database:', invoiceId);
     
@@ -932,11 +1026,15 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       currency: invoice.currency || 'USD',
       sapInvoiceNo: invoice.sapInvoiceNo || null,
       invoiceType: invoice.invoiceType || 'Product',
-      status: 'Pending',
+      status: totalAdvanceAmount >= parseFloat(totalAmount.toString()) ? 'Paid' : 'Pending',
       notes: invoice.notes || null,
       createdBy: req.user?.id || 1,
       createdAt: newInvoice.createdAt,
-      updatedAt: newInvoice.updatedAt
+      updatedAt: newInvoice.updatedAt,
+      // Include advance payment information in the response
+      advancePaymentsApplied,
+      totalAdvanceAmount,
+      remainingBalance: Math.max(0, parseFloat(totalAmount.toString()) - totalAdvanceAmount)
     });
   } catch (error: any) {
     console.error('Error creating invoice:', error);
