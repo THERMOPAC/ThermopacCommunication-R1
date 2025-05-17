@@ -62,9 +62,9 @@ export class PaymentAllocationService {
       
       const allocationId = allocationResult.rows[0].id;
       
-      // 4. Update payment unallocated amount
+      // 4. Update payment allocated and unallocated amounts
       await client.query(
-        'UPDATE payments SET unallocated_amount = unallocated_amount - $1 WHERE id = $2',
+        'UPDATE payments SET allocated_amount = allocated_amount + $1, unallocated_amount = unallocated_amount - $1 WHERE id = $2',
         [amount, paymentId]
       );
       
@@ -117,9 +117,9 @@ export class PaymentAllocationService {
       
       const allocation = allocationResult.rows[0];
       
-      // 2. Restore payment unallocated amount
+      // 2. Restore payment allocated and unallocated amounts
       await client.query(
-        'UPDATE payments SET unallocated_amount = unallocated_amount + $1 WHERE id = $2',
+        'UPDATE payments SET allocated_amount = allocated_amount - $1, unallocated_amount = unallocated_amount + $1 WHERE id = $2',
         [allocation.amount_allocated, allocation.payment_id]
       );
       
@@ -219,9 +219,9 @@ export class PaymentAllocationService {
           [allocation.paymentId, invoiceId, amountToApply, userId]
         );
         
-        // Update payment unallocated amount
+        // Update payment allocated and unallocated amounts
         await client.query(
-          'UPDATE payments SET unallocated_amount = unallocated_amount - $1 WHERE id = $2',
+          'UPDATE payments SET allocated_amount = allocated_amount + $1, unallocated_amount = unallocated_amount - $1 WHERE id = $2',
           [amountToApply, allocation.paymentId]
         );
         
