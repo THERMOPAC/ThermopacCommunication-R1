@@ -89,8 +89,6 @@ const invoiceFormSchema = z.object({
   items: z.array(
     z.object({
       description: z.string().min(1, "Description is required"),
-      quantity: z.string().min(1, "Quantity is required"),
-      unitPrice: z.string().min(1, "Unit price is required"),
       amount: z.string().min(1, "Amount is required"),
     })
   ).min(1, "At least one item is required"),
@@ -160,15 +158,11 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     items: isEditMode && invoiceData?.items && invoiceData.items.length > 0
       ? invoiceData.items.map((item: any) => ({
           description: item.description || '',
-          quantity: String(item.quantity) || '1',
-          unitPrice: String(item.unitPrice) || '0',
           amount: String(item.amount) || '0',
         }))
       : [
           {
             description: 'Items as per SAP invoice',
-            quantity: '1',
-            unitPrice: '0',
             amount: '0',
           },
         ],
@@ -691,7 +685,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                    <div className="md:col-span-6">
+                    <div className="md:col-span-8">
                       <FormField
                         control={form.control}
                         name="items.0.description"
@@ -707,59 +701,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                       />
                     </div>
                     
-                    <div className="md:col-span-2">
-                      <FormField
-                        control={form.control}
-                        name="items.0.quantity"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Quantity</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                className={hideNumberInputArrows}
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  calculateAmount(0);
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <div className="md:col-span-2">
-                      <FormField
-                        control={form.control}
-                        name="items.0.unitPrice"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Unit Price</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                className={hideNumberInputArrows}
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  calculateAmount(0);
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-4">
                       <FormField
                         control={form.control}
                         name="items.0.amount"
@@ -771,8 +713,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                readOnly
-                                className={`bg-gray-50 ${hideNumberInputArrows}`}
+                                className={`text-right ${hideNumberInputArrows}`}
                                 {...field}
                               />
                             </FormControl>
