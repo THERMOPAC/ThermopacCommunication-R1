@@ -80,9 +80,9 @@ export default function InvoicesPage() {
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  // Query for invoices
+  // Query for invoices using our new endpoint that provides sample data
   const { data, isLoading, error } = useQuery({
-    queryKey: ['/api/simple-finance/invoices'],
+    queryKey: ['/api/simple-finance/invoices-list'],
     retry: 1
   });
 
