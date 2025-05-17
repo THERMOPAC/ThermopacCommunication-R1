@@ -95,15 +95,16 @@ export default function InvoicesPage() {
     const matchesSearch = searchTerm === '' || 
       invoice.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Status filter with proper case handling
+    // Status filter to match exact values from your database
     let matchesStatus = false;
     if (statusFilter === 'all') {
       matchesStatus = true;
-    } else if (statusFilter === 'pending' && invoice.status?.toLowerCase() === 'pending') {
+    } else if (statusFilter === 'pending' && invoice.status === 'Pending') {
       matchesStatus = true;
-    } else if (statusFilter === 'overdue' && invoice.status?.toLowerCase() === 'overdue') {
-      matchesStatus = true;
-    } else if (statusFilter === 'paid' && invoice.status?.toLowerCase() === 'paid') {
+    } else if (statusFilter === 'overdue') {
+      // Since you don't have "Overdue" status yet, no invoices will match this filter
+      matchesStatus = false;
+    } else if (statusFilter === 'paid' && invoice.status === 'Paid') {
       matchesStatus = true;
     }
     
