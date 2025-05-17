@@ -1132,6 +1132,9 @@ router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Resp
     // Format dates for the database
     const paymentDate = payment.paymentDate ? new Date(payment.paymentDate) : new Date();
     
+    // Log payment method value for debugging
+    console.log('Payment method value received:', payment.paymentMethod);
+    
     // Update payment in database
     const updatePaymentQuery = `
       UPDATE payments SET
@@ -1153,7 +1156,7 @@ router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Resp
       paymentDate.toISOString().split('T')[0], // Format as YYYY-MM-DD for SQL
       payment.amount,
       payment.currency || 'USD',
-      payment.paymentMethod,
+      payment.paymentMethod || 'bank transfer', // Ensure a default if null
       payment.notes || null,
       payment.isAdvancePayment,
       payment.isAdvancePayment ? payment.customerId : null,
