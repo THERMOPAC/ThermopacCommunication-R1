@@ -153,6 +153,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       ? new Date(invoiceData.invoice.dueDate)
       : new Date(new Date().setDate(new Date().getDate() + 30)), // Due in 30 days
     currency: isEditMode && invoiceData?.invoice ? invoiceData.invoice.currency : 'USD',
+    invoiceType: isEditMode && invoiceData?.invoice && invoiceData.invoice.invoiceType
+      ? invoiceData.invoice.invoiceType
+      : 'Product',
     notes: isEditMode && invoiceData?.invoice ? invoiceData.invoice.notes || '' : '',
     items: isEditMode && invoiceData?.items && invoiceData.items.length > 0
       ? invoiceData.items.map((item: any) => ({
@@ -163,7 +166,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         }))
       : [
           {
-            description: '',
+            description: 'Items as per SAP invoice',
             quantity: '1',
             unitPrice: '0',
             amount: '0',
@@ -201,7 +204,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           unitPrice: String(item.unitPrice),
           amount: String(item.amount),
         })) || [{
-          description: '',
+          description: 'Items as per SAP invoice',
           quantity: '1',
           unitPrice: '0',
           amount: '0',
@@ -209,6 +212,25 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       });
     }
   }, [isEditMode, invoiceData, form]);
+  
+  // Effect to update the description when the invoice type changes
+  useEffect(() => {
+    const invoiceType = form.watch('invoiceType');
+    const currentDescription = form.getValues('items.0.description');
+    
+    // Only update if this is a default description or empty
+    const isDefaultDescription = !currentDescription ||
+      currentDescription === 'Items as per SAP invoice' ||
+      currentDescription === 'Service as per SAP invoice';
+      
+    if (isDefaultDescription) {
+      if (invoiceType === 'Product') {
+        form.setValue('items.0.description', 'Items as per SAP invoice');
+      } else if (invoiceType === 'Service') {
+        form.setValue('items.0.description', 'Service as per SAP invoice');
+      }
+    }
+  }, [form.watch('invoiceType')]);
   
   // Effect to auto-generate invoice number when issue date changes (for new invoices only)
   useEffect(() => {
@@ -663,125 +685,104 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {fields.map((field, index) => (
-                  <div key={field.id} className="border p-4 rounded-md space-y-4">
-                    <div className="flex justify-between items-center">
-                      <h4 className="font-medium">Item #{index + 1}</h4>
-                      {fields.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => remove(index)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Remove
-                        </Button>
-                      )}
+                <div className="border p-4 rounded-md space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-medium">Invoice Line</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div className="md:col-span-6">
+                      <FormField
+                        control={form.control}
+                        name="items.0.description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                      <div className="md:col-span-6">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.description`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Description</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="md:col-span-2">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.quantity`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Quantity</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    calculateAmount(index);
-                                  }}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="md:col-span-2">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.unitPrice`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Unit Price</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    calculateAmount(index);
-                                  }}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="md:col-span-2">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.amount`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Amount</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  readOnly
-                                  className="bg-gray-50"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+                    <div className="md:col-span-2">
+                      <FormField
+                        control={form.control}
+                        name="items.0.quantity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Quantity</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className={hideNumberInputArrows}
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  calculateAmount(0);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                      <FormField
+                        control={form.control}
+                        name="items.0.unitPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Unit Price</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className={hideNumberInputArrows}
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  calculateAmount(0);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                      <FormField
+                        control={form.control}
+                        name="items.0.amount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Amount</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                readOnly
+                                className={`bg-gray-50 ${hideNumberInputArrows}`}
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                   </div>
-                ))}
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={addItem}
-                  className="w-full"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Item
-                </Button>
+                </div>
               </div>
             </CardContent>
             
