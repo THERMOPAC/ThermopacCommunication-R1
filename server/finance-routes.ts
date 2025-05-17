@@ -535,109 +535,112 @@ router.get('/payments', ensureAuthenticated, (req: Request, res: Response) => {
 router.get('/payments/:id', ensureAuthenticated, (req: Request, res: Response) => {
   try {
     console.log(`Fetching payment details for ID: ${req.params.id}`);
-    const { id } = req.params;
-    const paymentId = parseInt(id);
+    const id = parseInt(req.params.id, 10);
+    console.log(`Parsed payment ID: ${id}`);
     
-    // Define sample payments with different IDs
+    // Define payment data based on ID
     let payment;
     let invoiceLinks;
     
-    // Based on the ID, return different mock data
-    if (paymentId === 2) {
-      payment = {
-        id: 2,
-        referenceNumber: "PAY-2526-002",
-        customerId: 2,
-        paymentDate: "2025-07-22",
-        amount: "100000.00",
-        paymentMethod: "Bank Transfer",
-        currency: "USD",
-        notes: "Payment for INV-2526-002",
-        isAdvancePayment: false,
-        allocationStatus: "Allocated",
-        createdBy: 1,
-        createdAt: "2025-07-22T10:00:00Z",
-        updatedAt: "2025-07-22T10:00:00Z"
-      };
-      
-      invoiceLinks = [
-        {
-          link: {
-            id: 2,
-            paymentId: 2,
-            invoiceId: 2,
-            amountApplied: "100000.00",
-            createdAt: "2025-07-22T10:05:00Z",
-            updatedAt: "2025-07-22T10:05:00Z"
-          },
-          invoice: {
-            id: 2,
-            invoiceNumber: "INV-2526-002",
-            customerId: 2,
-            issueDate: "2025-06-02",
-            dueDate: "2025-07-01",
-            totalAmount: "100000.00",
-            tax: "8000.00",
-            currency: "USD",
-            status: "Paid",
-            notes: "Project B Phase 1",
-            createdBy: 1,
-            createdAt: "2025-06-02T10:00:00Z",
-            updatedAt: "2025-07-22T10:00:00Z"
+    // Using a direct switch statement for clarity
+    switch(id) {
+      case 2:
+        payment = {
+          id: 2,
+          reference_number: "PAY-2526-002",
+          customer_id: 2,
+          payment_date: "2025-07-22",
+          amount: "100000.00",
+          payment_method: "Bank Transfer",
+          currency: "USD",
+          notes: "Payment for INV-2526-002",
+          is_advance_payment: false,
+          allocation_status: "Allocated",
+          created_by: 1,
+          created_at: "2025-07-22T10:00:00Z",
+          updated_at: "2025-07-22T10:00:00Z"
+        };
+        
+        invoiceLinks = [
+          {
+            link: {
+              id: 2,
+              payment_id: 2,
+              invoice_id: 2,
+              amount_applied: "100000.00",
+              created_at: "2025-07-22T10:05:00Z",
+              updated_at: "2025-07-22T10:05:00Z"
+            },
+            invoice: {
+              id: 2,
+              invoiceNumber: "INV-2526-002",
+              customerId: 2,
+              issueDate: "2025-06-02",
+              dueDate: "2025-07-01",
+              totalAmount: "100000.00",
+              tax: "8000.00",
+              currency: "USD",
+              status: "Paid",
+              notes: "Project B Phase 1",
+              createdBy: 1,
+              createdAt: "2025-06-02T10:00:00Z",
+              updatedAt: "2025-07-22T10:00:00Z"
+            }
           }
-        }
-      ];
-      
-      console.log(`Returning data for payment #2 with customerId: ${payment.customerId}`);
-    } else {
-      // Default to payment ID 1
-      payment = {
-        id: 1,
-        referenceNumber: "PAY-2526-001",
-        customerId: 1,
-        paymentDate: "2025-06-15",
-        amount: "125000.00",
-        paymentMethod: "Wire Transfer",
-        currency: "USD",
-        notes: "Payment for INV-2526-001",
-        isAdvancePayment: false,
-        allocationStatus: "Allocated",
-        createdBy: 1,
-        createdAt: "2025-06-15T10:00:00Z",
-        updatedAt: "2025-06-15T10:00:00Z"
-      };
-      
-      invoiceLinks = [
-        {
-          link: {
-            id: 1,
-            paymentId: 1,
-            invoiceId: 1,
-            amountApplied: "125000.00",
-            createdAt: "2025-06-15T10:05:00Z",
-            updatedAt: "2025-06-15T10:05:00Z"
-          },
-          invoice: {
-            id: 1,
-            invoiceNumber: "INV-2526-001",
-            customerId: 1,
-            issueDate: "2025-05-01",
-            dueDate: "2025-05-31",
-            totalAmount: "125000.00",
-            tax: "10000.00",
-            currency: "USD",
-            status: "Paid",
-            notes: "Project A Phase 1",
-            createdBy: 1,
-            createdAt: "2025-05-01T10:00:00Z",
-            updatedAt: "2025-06-15T10:00:00Z"
+        ];
+        console.log(`Returning payment #2 data with customer_id: ${payment.customer_id}`);
+        break;
+        
+      default:
+        // Default to payment ID 1 for any non-matching ID
+        payment = {
+          id: 1,
+          reference_number: "PAY-2526-001",
+          customer_id: 1,
+          payment_date: "2025-06-15",
+          amount: "125000.00",
+          payment_method: "Wire Transfer",
+          currency: "USD",
+          notes: "Payment for INV-2526-001",
+          is_advance_payment: false,
+          allocation_status: "Allocated",
+          created_by: 1,
+          created_at: "2025-06-15T10:00:00Z",
+          updated_at: "2025-06-15T10:00:00Z"
+        };
+        
+        invoiceLinks = [
+          {
+            link: {
+              id: 1,
+              payment_id: 1,
+              invoice_id: 1,
+              amount_applied: "125000.00",
+              created_at: "2025-06-15T10:05:00Z",
+              updated_at: "2025-06-15T10:05:00Z"
+            },
+            invoice: {
+              id: 1,
+              invoiceNumber: "INV-2526-001",
+              customerId: 1,
+              issueDate: "2025-05-01",
+              dueDate: "2025-05-31",
+              totalAmount: "125000.00",
+              tax: "10000.00",
+              currency: "USD",
+              status: "Paid",
+              notes: "Project A Phase 1",
+              createdBy: 1,
+              createdAt: "2025-05-01T10:00:00Z",
+              updatedAt: "2025-06-15T10:00:00Z"
+            }
           }
-        }
-      ];
-      
-      console.log(`Returning data for payment #1 with customerId: ${payment.customerId}`);
+        ];
+        console.log(`Returning payment #1 data with customer_id: ${payment.customer_id}`);
+        break;
     }
     
+    // Send the complete response
     res.json({
       payment,
       invoiceLinks
