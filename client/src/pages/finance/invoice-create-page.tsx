@@ -84,7 +84,7 @@ const invoiceFormSchema = z.object({
     required_error: "Due date is required",
   }),
   currency: z.string().default("INR"),
-  sapInvoiceNo: z.string().optional(),
+  sapInvoiceNo: z.string().min(1, "SAP Invoice No is required"),
   invoiceType: z.enum(["Product", "Service"]).default("Product"),
   notes: z.string().optional(),
   items: z.array(
