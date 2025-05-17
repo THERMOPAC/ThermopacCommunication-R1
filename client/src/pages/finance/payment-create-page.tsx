@@ -321,8 +321,10 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         form.setValue('isAdvancePayment', isAdvancePayment);
         
         // Set selected customer ID for the UI if available
-        if (paymentData.payment.customer_id) {
-          const customerId = String(paymentData.payment.customer_id);
+        // Check for both snake_case and camelCase property names since API might return either format
+        const customerIdValue = paymentData.payment.customer_id || paymentData.payment.customerId;
+        if (customerIdValue) {
+          const customerId = String(customerIdValue);
           setSelectedCustomerId(customerId);
           
           // Make sure customerId is set in the form
