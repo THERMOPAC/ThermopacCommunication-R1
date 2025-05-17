@@ -106,8 +106,10 @@ export default function InvoicesPage() {
     } else if (statusFilter === 'pending' && invoice.status === 'Pending') {
       matchesStatus = true;
     } else if (statusFilter === 'overdue') {
-      // Since you don't have "Overdue" status yet, no invoices will match this filter
-      matchesStatus = false;
+      // Check if the invoice is overdue by comparing the due date with today's date
+      const dueDate = new Date(invoice.dueDate);
+      const today = new Date();
+      matchesStatus = dueDate < today && invoice.status === 'Pending';
     } else if (statusFilter === 'paid' && invoice.status === 'Paid') {
       matchesStatus = true;
     }
