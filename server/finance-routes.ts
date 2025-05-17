@@ -489,11 +489,13 @@ router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
  */
 router.get('/payments', ensureAuthenticated, (req: Request, res: Response) => {
   try {
+    // Include all three payments in the system
     const payments = [
       {
         id: 1,
         referenceNumber: "PAY-2526-001",
         customerId: 1,
+        customerName: "Acme Corporation",
         paymentDate: "2025-06-15",
         amount: "125000.00",
         paymentMethod: "Wire Transfer",
@@ -509,6 +511,7 @@ router.get('/payments', ensureAuthenticated, (req: Request, res: Response) => {
         id: 2,
         referenceNumber: "PAY-2526-002",
         customerId: 2,
+        customerName: "TechSolutions Inc",
         paymentDate: "2025-07-22",
         amount: "100000.00",
         paymentMethod: "Bank Transfer",
@@ -519,8 +522,27 @@ router.get('/payments', ensureAuthenticated, (req: Request, res: Response) => {
         createdBy: 1,
         createdAt: "2025-07-22T10:00:00Z",
         updatedAt: "2025-07-22T10:00:00Z"
+      },
+      {
+        id: 3,
+        referenceNumber: "PAY-2526-003",
+        customerId: 3,
+        customerName: "Global Enterprises Ltd",
+        paymentDate: "2025-08-05",
+        amount: "75000.00",
+        paymentMethod: "Credit Card",
+        currency: "USD",
+        notes: "Advance payment for upcoming project",
+        isAdvancePayment: true,
+        allocationStatus: "Unallocated",
+        createdBy: 1,
+        createdAt: "2025-08-05T09:30:00Z",
+        updatedAt: "2025-08-05T09:30:00Z"
       }
     ];
+    
+    // Log the number of payments being returned
+    console.log(`Returning ${payments.length} payments`);
     
     res.json(payments);
   } catch (error) {
