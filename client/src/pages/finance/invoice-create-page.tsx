@@ -276,6 +276,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           dueDate: format(values.dueDate, 'yyyy-MM-dd'),
           totalAmount: String(values.items.reduce((total, item) => total + parseFloat(item.amount || '0'), 0)),
           currency: values.currency,
+          sapInvoiceNo: values.sapInvoiceNo || null,
+          invoiceType: values.invoiceType,
           status: 'Pending',
           notes: values.notes || null,
         },
@@ -319,6 +321,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           dueDate: format(values.dueDate, 'yyyy-MM-dd'),
           totalAmount: String(values.items.reduce((total, item) => total + parseFloat(item.amount || '0'), 0)),
           currency: values.currency,
+          sapInvoiceNo: values.sapInvoiceNo || null,
+          invoiceType: values.invoiceType,
           notes: values.notes || null,
         },
         items: values.items.map(item => ({

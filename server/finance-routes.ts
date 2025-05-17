@@ -471,6 +471,8 @@ router.post('/invoices', ensureAuthenticated, (req: Request, res: Response) => {
       totalAmount: req.body.totalAmount,
       tax: req.body.tax || "0.00",
       currency: req.body.currency || "USD",
+      sapInvoiceNo: req.body.sapInvoiceNo || null,
+      invoiceType: req.body.invoiceType || "Product",
       status: req.body.status,
       notes: req.body.notes || null,
       createdBy: 1,
