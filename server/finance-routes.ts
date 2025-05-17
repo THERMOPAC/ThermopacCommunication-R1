@@ -538,6 +538,22 @@ router.get('/payments', ensureAuthenticated, (req: Request, res: Response) => {
         createdBy: 1,
         createdAt: "2025-08-05T09:30:00Z",
         updatedAt: "2025-08-05T09:30:00Z"
+      },
+      {
+        id: 4,
+        referenceNumber: "PAY-2526-004",
+        customerId: 1,
+        customerName: "Acme Corporation",
+        paymentDate: "2025-08-10",
+        amount: "50000.00",
+        paymentMethod: "Bank Transfer",
+        currency: "USD",
+        notes: "Advance payment for future invoices",
+        isAdvancePayment: true,
+        allocationStatus: "Unallocated",
+        createdBy: 1,
+        createdAt: "2025-08-10T11:30:00Z",
+        updatedAt: "2025-08-10T11:30:00Z"
       }
     ];
     
@@ -548,6 +564,72 @@ router.get('/payments', ensureAuthenticated, (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error getting payments:', error);
     res.status(500).json({ error: 'Failed to get payments' });
+  }
+});
+
+/**
+ * Get unallocated advance payments for a specific customer
+ */
+router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, (req: Request, res: Response) => {
+  try {
+    const { customerId } = req.params;
+    console.log(`Fetching unallocated advance payments for customer ID: ${customerId}`);
+    
+    // Sample advance payments data
+    const advancePayments = [
+      {
+        id: 4,
+        referenceNumber: "PAY-2526-004",
+        customerId: 1,
+        customerName: "Acme Corporation",
+        paymentDate: "2025-08-10",
+        amount: "50000.00",
+        unallocatedAmount: "50000.00", // The amount not yet allocated to any invoice
+        paymentMethod: "Bank Transfer",
+        currency: "USD",
+        notes: "Advance payment for future invoices",
+        isAdvancePayment: true,
+        allocationStatus: "Unallocated",
+        createdBy: 1,
+        createdAt: "2025-08-10T11:30:00Z",
+        updatedAt: "2025-08-10T11:30:00Z"
+      },
+      {
+        id: 5,
+        referenceNumber: "PAY-2526-005",
+        customerId: 2,
+        customerName: "TechSolutions Inc",
+        paymentDate: "2025-08-15",
+        amount: "75000.00",
+        unallocatedAmount: "75000.00",
+        paymentMethod: "Wire Transfer",
+        currency: "USD",
+        notes: "Advance payment",
+        isAdvancePayment: true,
+        allocationStatus: "Unallocated",
+        createdBy: 1,
+        createdAt: "2025-08-15T09:45:00Z",
+        updatedAt: "2025-08-15T09:45:00Z"
+      }
+    ];
+    
+    // Filter advances for the specific customer
+    const customerAdvances = advancePayments.filter(payment => 
+      payment.customerId.toString() === customerId && 
+      payment.isAdvancePayment && 
+      payment.unallocatedAmount !== "0.00"
+    );
+    
+    console.log(`Found ${customerAdvances.length} unallocated advance payments for customer ${customerId}`);
+    
+    res.json({
+      advances: customerAdvances,
+      totalUnallocatedAmount: customerAdvances.reduce((sum, payment) => 
+        sum + parseFloat(payment.unallocatedAmount), 0).toFixed(2)
+    });
+  } catch (error) {
+    console.error(`Error getting unallocated advances for customer ${req.params.customerId}:`, error);
+    res.status(500).json({ error: 'Failed to get unallocated advance payments' });
   }
 });
 
