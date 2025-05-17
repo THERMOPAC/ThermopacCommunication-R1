@@ -287,7 +287,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         }))
       };
       
-      return apiRequest('POST', '/api/finance/invoices', apiData);
+      // Use the simplified finance route that doesn't require database operations
+      return apiRequest('POST', '/api/simple-finance/invoices', apiData);
     },
     onSuccess: () => {
       toast({

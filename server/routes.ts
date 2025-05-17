@@ -30,6 +30,7 @@ import { setupApiTestRoutes } from "./api-test-route";
 import { setupDedicatedTestRoutes } from "./dedicated-test-route";
 import { setupSalesMarketingRoutes } from "./sales-marketing-routes";
 import { default as financeRoutes } from "./finance-routes";
+import { default as simpleFinanceRoutes } from "./simple-finance-routes";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
 import calibrationTestRoutes from "./testapi/calibration-test-routes";
 import { registerTemplateManagementRoutes } from "./template-management/register-routes";
@@ -122,6 +123,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up finance module routes
   app.use('/api/finance', financeRoutes);
+  
+  // Set up simplified finance routes (no database connection required)
+  app.use('/api/simple-finance', simpleFinanceRoutes);
   
   // Set up template management routes
   registerTemplateManagementRoutes(app);
