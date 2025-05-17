@@ -137,8 +137,8 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
     // Fetch invoices from database
     const invoices = await storage.getInvoices(filters);
     
-    // Return the invoices
-    res.json({ invoices });
+    // Return the invoices directly as an array to match frontend expectations
+    res.json(invoices);
   } catch (error: any) {
     console.error('Error fetching invoices:', error);
     res.status(500).json({
@@ -165,8 +165,8 @@ router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       return res.status(404).json({ error: 'Invoice not found' });
     }
     
-    // Return the invoice
-    res.json({ invoice });
+    // Return the invoice directly to match frontend expectations
+    res.json(invoice);
   } catch (error: any) {
     console.error(`Error fetching invoice ${req.params.id}:`, error);
     res.status(500).json({
@@ -196,8 +196,8 @@ router.get('/invoices/:id/items', ensureAuthenticated, async (req: Request, res:
     // Fetch the invoice items from database
     const items = await storage.getInvoiceItems(invoiceId);
     
-    // Return the items
-    res.json({ items });
+    // Return the items directly as an array to match frontend expectations
+    res.json(items);
   } catch (error: any) {
     console.error(`Error fetching items for invoice ${req.params.id}:`, error);
     res.status(500).json({

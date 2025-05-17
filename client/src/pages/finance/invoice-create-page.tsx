@@ -283,11 +283,21 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         },
         items: values.items.map(item => ({
           description: item.description,
+          quantity: "1",
+          unitPrice: String(parseFloat(item.amount || "0")),
           amount: String(parseFloat(item.amount || "0")),
+          taxRate: "0",
+          taxAmount: "0",
+          discountPercent: "0",
+          discountAmount: "0",
+          lineTotal: String(parseFloat(item.amount || "0")),
         }))
       };
       
-      // Use the simplified finance route that doesn't require database operations
+      // Log the data being sent
+      console.log('Sending invoice data:', JSON.stringify(apiData, null, 2));
+      
+      // Use the database-backed simple finance route
       return apiRequest('POST', '/api/simple-finance/invoices', apiData);
     },
     onSuccess: () => {
@@ -295,7 +305,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         title: "Invoice created",
         description: "Invoice has been created successfully",
       });
+      // Update both query keys to ensure proper refresh
       queryClient.invalidateQueries({ queryKey: ['/api/finance/invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/simple-finance/invoices'] });
       navigate('/finance/invoices');
     },
     onError: (error: any) => {
@@ -324,6 +336,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           currency: values.currency,
           sapInvoiceNo: values.sapInvoiceNo || null,
           invoiceType: values.invoiceType,
+          status: 'Pending',
           notes: values.notes || null,
         },
         items: values.items.map(item => ({
