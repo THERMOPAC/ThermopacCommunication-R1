@@ -95,8 +95,12 @@ export default function InvoicesPage() {
     const matchesSearch = searchTerm === '' || 
       invoice.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Status filter to match exact values from your database
+    // Status filter to match exact values from the database (case-sensitive)
     let matchesStatus = false;
+    
+    // Direct console debugging to see what we're dealing with
+    console.log(`Filtering invoice ${invoice.invoiceNumber} with status ${invoice.status} against filter ${statusFilter}`);
+    
     if (statusFilter === 'all') {
       matchesStatus = true;
     } else if (statusFilter === 'pending' && invoice.status === 'Pending') {
@@ -261,7 +265,7 @@ export default function InvoicesPage() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="all" className="mb-6">
+        <Tabs defaultValue="all" className="mb-6" onValueChange={setStatusFilter}>
           <TabsList>
             <TabsTrigger value="all">All Invoices</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
@@ -319,7 +323,7 @@ export default function InvoicesPage() {
               ]).map((invoice: any) => (
                 <tr key={invoice.id} className="border-t hover:bg-muted/50">
                   <td className="px-4 py-3 text-left text-sm">
-                    <Link href={`/finance/invoices/${invoice.id}`} className="text-primary hover:underline">
+                    <Link href={`/finance/invoices/view/${invoice.id}`} className="text-primary hover:underline">
                       {invoice.invoiceNumber}
                     </Link>
                   </td>
