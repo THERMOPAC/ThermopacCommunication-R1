@@ -194,13 +194,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         notes: invoiceData.invoice.notes || '',
         items: invoiceData.items?.map((item: any) => ({
           description: item.description,
-          quantity: String(item.quantity),
-          unitPrice: String(item.unitPrice),
           amount: String(item.amount),
         })) || [{
           description: 'Items as per SAP invoice',
-          quantity: '1',
-          unitPrice: '0',
           amount: '0',
         }],
       });
@@ -285,6 +281,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           description: item.description,
           amount: String(parseFloat(item.amount || "0")),
         }))
+      };
       
       return apiRequest('POST', '/api/finance/invoices', apiData);
     },
@@ -324,9 +321,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         },
         items: values.items.map(item => ({
           description: item.description,
-          quantity: String(parseFloat(item.quantity || '0')),
-          unitPrice: String(parseFloat(item.unitPrice || '0')),
-          amount: String(parseFloat(item.amount || '0')),
+          amount: String(parseFloat(item.amount || '0'))
         }))
       };
       
@@ -361,23 +356,10 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     }
   };
   
-  // Calculate item amount when quantity or unit price changes
-  const calculateAmount = (index: number) => {
-    const quantity = parseFloat(form.getValues(`items.${index}.quantity`) || '0');
-    const unitPrice = parseFloat(form.getValues(`items.${index}.unitPrice`) || '0');
-    const amount = (quantity * unitPrice).toFixed(2);
-    form.setValue(`items.${index}.amount`, amount);
-  };
+  // This function is now intentionally removed as we no longer need to calculate 
+  // the amount based on quantity and unit price. The user will enter the amount directly.
   
-  // Add new item
-  const addItem = () => {
-    append({
-      description: '',
-      quantity: '1',
-      unitPrice: '0',
-      amount: '0',
-    });
-  };
+  // Add item function is also removed as we'll only have a single invoice line
   
   // Show loading state when fetching data
   if (isLoadingCustomers || isLoadingProjects || (isEditMode && isLoadingInvoice)) {
