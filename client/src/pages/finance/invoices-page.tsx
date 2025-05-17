@@ -91,11 +91,21 @@ export default function InvoicesPage() {
   
   // Filter the invoices based on search term and status
   const filteredInvoices = invoices.filter((invoice: any) => {
+    // Search term filter
     const matchesSearch = searchTerm === '' || 
       invoice.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || 
-      invoice.status?.toLowerCase() === statusFilter.toLowerCase();
+    // Status filter with proper case handling
+    let matchesStatus = false;
+    if (statusFilter === 'all') {
+      matchesStatus = true;
+    } else if (statusFilter === 'pending' && invoice.status?.toLowerCase() === 'pending') {
+      matchesStatus = true;
+    } else if (statusFilter === 'overdue' && invoice.status?.toLowerCase() === 'overdue') {
+      matchesStatus = true;
+    } else if (statusFilter === 'paid' && invoice.status?.toLowerCase() === 'paid') {
+      matchesStatus = true;
+    }
     
     // Date range filtering
     let matchesDateRange = true;
