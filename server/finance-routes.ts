@@ -487,78 +487,41 @@ router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
 /**
  * Get all payments
  */
-router.get('/payments', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/payments', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Include all three payments in the system
-    const payments = [
-      {
-        id: 1,
-        referenceNumber: "PAY-2526-001",
-        customerId: 1,
-        customerName: "Acme Corporation",
-        paymentDate: "2025-06-15",
-        amount: "125000.00",
-        paymentMethod: "Wire Transfer",
-        currency: "USD",
-        notes: "Payment for INV-2526-001",
-        isAdvancePayment: false,
-        allocationStatus: "Allocated",
-        createdBy: 1,
-        createdAt: "2025-06-15T10:00:00Z",
-        updatedAt: "2025-06-15T10:00:00Z"
-      },
-      {
-        id: 2,
-        referenceNumber: "PAY-2526-002",
-        customerId: 2,
-        customerName: "TechSolutions Inc",
-        paymentDate: "2025-07-22",
-        amount: "100000.00",
-        paymentMethod: "Bank Transfer",
-        currency: "USD",
-        notes: "Payment for INV-2526-002",
-        isAdvancePayment: false,
-        allocationStatus: "Allocated",
-        createdBy: 1,
-        createdAt: "2025-07-22T10:00:00Z",
-        updatedAt: "2025-07-22T10:00:00Z"
-      },
-      {
-        id: 3,
-        referenceNumber: "PAY-2526-003",
-        customerId: 3,
-        customerName: "Global Enterprises Ltd",
-        paymentDate: "2025-08-05",
-        amount: "75000.00",
-        paymentMethod: "Credit Card",
-        currency: "USD",
-        notes: "Advance payment for upcoming project",
-        isAdvancePayment: true,
-        allocationStatus: "Unallocated",
-        createdBy: 1,
-        createdAt: "2025-08-05T09:30:00Z",
-        updatedAt: "2025-08-05T09:30:00Z"
-      },
-      {
-        id: 4,
-        referenceNumber: "PAY-2526-004",
-        customerId: 1,
-        customerName: "Acme Corporation",
-        paymentDate: "2025-08-10",
-        amount: "50000.00",
-        paymentMethod: "Bank Transfer",
-        currency: "USD",
-        notes: "Advance payment for future invoices",
-        isAdvancePayment: true,
-        allocationStatus: "Unallocated",
-        createdBy: 1,
-        createdAt: "2025-08-10T11:30:00Z",
-        updatedAt: "2025-08-10T11:30:00Z"
-      }
-    ];
+    // Query payments from the database
+    const query = `
+      SELECT 
+        p.id,
+        p.reference_number as "referenceNumber",
+        p.customer_id as "customerId",
+        c.bp_name as "customerName",
+        p.payment_date as "paymentDate",
+        p.amount,
+        p.unallocated_amount as "unallocatedAmount",
+        p.payment_method as "paymentMethod",
+        p.currency,
+        p.notes,
+        p.is_advance_payment as "isAdvancePayment",
+        CASE WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
+             WHEN p.unallocated_amount > 0 THEN 'Partially Allocated'
+             ELSE 'Fully Allocated' END as "allocationStatus",
+        p.created_by as "createdBy",
+        p.created_at as "createdAt",
+        p.updated_at as "updatedAt"
+      FROM 
+        payments p
+      LEFT JOIN 
+        customers c ON p.customer_id = c.id
+      ORDER BY 
+        p.payment_date DESC
+    `;
     
-    // Log the number of payments being returned
-    console.log(`Returning ${payments.length} payments`);
+    const result = await pool.query(query);
+    const payments = result.rows;
+    
+    // Log the number of payments being returned from the database
+    console.log(`Retrieved ${payments.length} payments from database`);
     
     res.json(payments);
   } catch (error) {
