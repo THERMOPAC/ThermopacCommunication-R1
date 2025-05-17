@@ -570,66 +570,120 @@ router.get('/payments', ensureAuthenticated, (req: Request, res: Response) => {
 /**
  * Get unallocated advance payments for a specific customer
  */
-router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { customerId } = req.params;
     console.log(`Fetching unallocated advance payments for customer ID: ${customerId}`);
     
-    // Sample advance payments data
-    const advancePayments = [
-      {
-        id: 4,
-        referenceNumber: "PAY-2526-004",
-        customerId: 1,
-        customerName: "Acme Corporation",
-        paymentDate: "2025-08-10",
-        amount: "50000.00",
-        unallocatedAmount: "50000.00", // The amount not yet allocated to any invoice
-        paymentMethod: "Bank Transfer",
-        currency: "USD",
-        notes: "Advance payment for future invoices",
-        isAdvancePayment: true,
-        allocationStatus: "Unallocated",
-        createdBy: 1,
-        createdAt: "2025-08-10T11:30:00Z",
-        updatedAt: "2025-08-10T11:30:00Z"
-      },
-      {
-        id: 5,
-        referenceNumber: "PAY-2526-005",
-        customerId: 2,
-        customerName: "TechSolutions Inc",
-        paymentDate: "2025-08-15",
-        amount: "75000.00",
-        unallocatedAmount: "75000.00",
-        paymentMethod: "Wire Transfer",
-        currency: "USD",
-        notes: "Advance payment",
-        isAdvancePayment: true,
-        allocationStatus: "Unallocated",
-        createdBy: 1,
-        createdAt: "2025-08-15T09:45:00Z",
-        updatedAt: "2025-08-15T09:45:00Z"
-      }
-    ];
+    // Get advance payments for the specific customer with unallocated amounts
+    const query = `
+      SELECT 
+        p.id,
+        p.reference_number as "referenceNumber",
+        p.customer_id as "customerId",
+        c.bp_name as "customerName",
+        p.payment_date as "paymentDate",
+        p.amount,
+        p.unallocated_amount as "unallocatedAmount",
+        p.payment_method as "paymentMethod",
+        p.currency,
+        p.notes,
+        p.is_advance_payment as "isAdvancePayment",
+        CASE WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
+             WHEN p.unallocated_amount > 0 THEN 'Partially Allocated'
+             ELSE 'Fully Allocated' END as "allocationStatus",
+        p.created_by as "createdBy",
+        p.created_at as "createdAt",
+        p.updated_at as "updatedAt"
+      FROM 
+        payments p
+      JOIN 
+        customers c ON p.customer_id = c.id
+      WHERE 
+        p.customer_id = $1
+        AND p.is_advance_payment = true
+        AND p.unallocated_amount > 0
+      ORDER BY 
+        p.payment_date DESC
+    `;
     
-    // Filter advances for the specific customer
-    const customerAdvances = advancePayments.filter(payment => 
-      payment.customerId.toString() === customerId && 
-      payment.isAdvancePayment && 
-      payment.unallocatedAmount !== "0.00"
-    );
+    const result = await pool.query(query, [customerId]);
+    const customerAdvances = result.rows;
     
     console.log(`Found ${customerAdvances.length} unallocated advance payments for customer ${customerId}`);
     
+    // Calculate total unallocated amount
+    const totalUnallocatedAmount = customerAdvances.reduce((sum, payment) => 
+      sum + parseFloat(payment.unallocatedAmount), 0).toFixed(2);
+    
+    // Return the advances and total
     res.json({
       advances: customerAdvances,
-      totalUnallocatedAmount: customerAdvances.reduce((sum, payment) => 
-        sum + parseFloat(payment.unallocatedAmount), 0).toFixed(2)
+      totalUnallocatedAmount,
+      currency: customerAdvances.length > 0 ? customerAdvances[0].currency : 'USD'
     });
   } catch (error) {
     console.error(`Error getting unallocated advances for customer ${req.params.customerId}:`, error);
     res.status(500).json({ error: 'Failed to get unallocated advance payments' });
+  }
+});
+
+/**
+ * Create a new payment allocation (manually apply a payment to an invoice)
+ */
+router.post('/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { paymentId, invoiceId, amount } = req.body;
+    
+    if (!paymentId || !invoiceId || !amount) {
+      return res.status(400).json({ 
+        error: 'Missing required fields. Please provide paymentId, invoiceId, and amount.' 
+      });
+    }
+    
+    // Import the payment allocation service
+    const { paymentAllocationService } = require('./payment-allocation-service');
+    
+    // Create the allocation
+    const allocation = await paymentAllocationService.allocatePaymentToInvoice(
+      parseInt(paymentId),
+      parseInt(invoiceId),
+      parseFloat(amount),
+      req.user?.id || 1
+    );
+    
+    // Return the created allocation
+    res.status(201).json(allocation);
+  } catch (error: any) {
+    console.error('Error creating payment allocation:', error);
+    res.status(500).json({ 
+      error: 'Failed to create payment allocation',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Remove a payment allocation
+ */
+router.delete('/allocations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Import the payment allocation service
+    const { paymentAllocationService } = require('./payment-allocation-service');
+    
+    // Remove the allocation
+    const result = await paymentAllocationService.removeAllocation(parseInt(id));
+    
+    // Return success message
+    res.json(result);
+  } catch (error: any) {
+    console.error(`Error removing allocation ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to remove payment allocation',
+      message: error.message
+    });
   }
 });
 
@@ -937,78 +991,45 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       if (advancePaymentsApplied > 0) {
         console.log(`Processing ${advancePaymentsApplied} advance payment allocations`);
         
-        // Calculate total advance amount being applied
-        totalAdvanceAmount = validAllocations.reduce(
-          (sum, allocation) => sum + parseFloat(allocation.amountToApply), 0
-        );
+        // Import the payment allocation service
+        const { paymentAllocationService } = require('./payment-allocation-service');
         
-        // For each allocation, we would:
-        // 1. Create a payment allocation record in the database
-        // 2. Update the payment record to reduce its unallocated amount
-        for (const allocation of validAllocations) {
-          try {
-            console.log(`Allocating ${allocation.amountToApply} from payment ID ${allocation.paymentId} to invoice ${invoiceId}`);
-            
-            // In a real implementation with full database support, you would:
-            // 1. Insert into payment_allocations table
-            const insertAllocationQuery = `
-              INSERT INTO payment_allocations (
-                payment_id,
-                invoice_id,
-                amount,
-                created_by
-              ) VALUES ($1, $2, $3, $4)
-              RETURNING id
-            `;
-            
-            const allocationValues = [
-              allocation.paymentId,
-              invoiceId,
-              parseFloat(allocation.amountToApply),
-              req.user?.id || 1
-            ];
-            
-            // Uncomment this when the database table is ready
-            // await pool.query(insertAllocationQuery, allocationValues);
-            
-            // 2. Update the payment record to reduce unallocated amount
-            // In a real implementation:
-            /*
-            const updatePaymentQuery = `
-              UPDATE payments
-              SET unallocated_amount = unallocated_amount - $1
-              WHERE id = $2
-            `;
-            
-            await pool.query(updatePaymentQuery, [
-              parseFloat(allocation.amountToApply),
-              allocation.paymentId
-            ]);
-            */
-          } catch (allocError) {
-            console.error(`Error processing allocation for payment ${allocation.paymentId}:`, allocError);
-            // Continue with other allocations even if one fails
-          }
-        }
-        
-        // Update invoice status if fully paid by advances
-        if (totalAdvanceAmount >= parseFloat(totalAmount.toString())) {
-          console.log(`Invoice ${invoiceId} fully paid with advance payments`);
+        try {
+          // Apply advance payments using our service
+          const result = await paymentAllocationService.applyAdvancePaymentsToInvoice(
+            invoiceId,
+            invoice.customerId,
+            validAllocations.map(allocation => ({
+              paymentId: allocation.paymentId,
+              amountToApply: parseFloat(allocation.amountToApply)
+            })),
+            req.user?.id || 1
+          );
           
-          // In a real implementation:
-          /*
-          const updateInvoiceStatusQuery = `
-            UPDATE invoices
-            SET status = 'Paid'
-            WHERE id = $1
-          `;
+          console.log('Applied advance payments:', result);
           
-          await pool.query(updateInvoiceStatusQuery, [invoiceId]);
-          */
-        } else {
-          console.log(`Invoice ${invoiceId} partially paid with advance payments: ${totalAdvanceAmount} / ${totalAmount}`);
+          totalAdvanceAmount = result.totalApplied;
+          advancePaymentsApplied = result.allocations.length;
+          
+          // The service has already updated:
+          // 1. Created payment allocation records
+          // 2. Updated payment unallocated amounts
+          // 3. Updated invoice outstanding amount
+          // 4. Updated invoice status
+        } catch (error) {
+          console.error('Error applying advance payments:', error);
+          // Continue with invoice creation even if advance payment application fails
         }
       }
+    } else {
+      // If no advance payments were specified but there are unallocated advances for this customer,
+      // we could auto-apply them here (optionally based on a setting)
+      
+      // Initialize outstanding_amount to total_amount
+      await pool.query(
+        'UPDATE invoices SET outstanding_amount = total_amount WHERE id = $1',
+        [invoiceId]
+      );
     }
     
     // Log the success
