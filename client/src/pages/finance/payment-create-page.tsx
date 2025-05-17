@@ -1079,23 +1079,35 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
+                      {isEditMode ? (
+                        // Read-only display for customer in edit mode
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a customer" />
-                          </SelectTrigger>
+                          <Input
+                            value={customersList?.find(c => String(c.id) === field.value)?.bpName || ''}
+                            readOnly
+                            className="bg-muted cursor-not-allowed"
+                          />
                         </FormControl>
-                        <SelectContent>
-                          {customersList && customersList.map((customer) => (
-                            <SelectItem key={customer.id} value={String(customer.id)}>
-                              {customer.bpName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      ) : (
+                        // Regular select dropdown for create mode
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a customer" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {customersList && customersList.map((customer) => (
+                              <SelectItem key={customer.id} value={String(customer.id)}>
+                                {customer.bpName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                       <FormDescription>
                         Select the customer who made this advance payment
                       </FormDescription>
