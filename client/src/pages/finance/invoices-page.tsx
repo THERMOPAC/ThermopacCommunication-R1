@@ -265,7 +265,10 @@ export default function InvoicesPage() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="all" className="mb-6" onValueChange={setStatusFilter}>
+        <Tabs defaultValue="all" className="mb-6" onValueChange={(value) => {
+          console.log("Tab changed to:", value);
+          setStatusFilter(value);
+        }} value={statusFilter}>
           <TabsList>
             <TabsTrigger value="all">All Invoices</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
@@ -344,7 +347,7 @@ export default function InvoicesPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem asChild>
-                          <Link href={`/finance/invoices/${invoice.id}`}>
+                          <Link href={`/finance/invoices/view/${invoice.id}`}>
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </Link>
