@@ -1652,4 +1652,226 @@ router.get('/reports/remittances', ensureAuthenticated, (req: Request, res: Resp
   res.json(remittanceData);
 });
 
+/**
+ * Create a write-off for an invoice
+ */
+router.post('/invoices/:id/write-off', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { amount, reason, glAccount } = req.body;
+    
+    if (!amount || !reason) {
+      return res.status(400).json({ 
+        error: 'Missing required fields. Please provide amount and reason.' 
+      });
+    }
+    
+    // Import the write-off service
+    const { writeOffService } = require('./write-off-service');
+    
+    // Create the write-off
+    const writeOff = await writeOffService.writeOffInvoice(
+      parseInt(id),
+      parseFloat(amount),
+      reason,
+      req.user?.id || 1,
+      {
+        glAccount
+      }
+    );
+    
+    // Return the created write-off
+    res.status(201).json(writeOff);
+  } catch (error: any) {
+    console.error(`Error creating write-off for invoice ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to create invoice write-off',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Create a write-off for a payment
+ */
+router.post('/payments/:id/write-off', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { amount, reason, glAccount } = req.body;
+    
+    if (!amount || !reason) {
+      return res.status(400).json({ 
+        error: 'Missing required fields. Please provide amount and reason.' 
+      });
+    }
+    
+    // Import the write-off service
+    const { writeOffService } = require('./write-off-service');
+    
+    // Create the write-off
+    const writeOff = await writeOffService.writeOffPayment(
+      parseInt(id),
+      parseFloat(amount),
+      reason,
+      req.user?.id || 1,
+      {
+        glAccount
+      }
+    );
+    
+    // Return the created write-off
+    res.status(201).json(writeOff);
+  } catch (error: any) {
+    console.error(`Error creating write-off for payment ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to create payment write-off',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Get write-offs for an invoice
+ */
+router.get('/invoices/:id/write-offs', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Import the write-off service
+    const { writeOffService } = require('./write-off-service');
+    
+    // Get the write-offs
+    const writeOffs = await writeOffService.getWriteOffsBySource('Invoice', parseInt(id));
+    
+    // Return the write-offs
+    res.json(writeOffs);
+  } catch (error: any) {
+    console.error(`Error getting write-offs for invoice ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to get invoice write-offs',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Get write-offs for a payment
+ */
+router.get('/payments/:id/write-offs', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Import the write-off service
+    const { writeOffService } = require('./write-off-service');
+    
+    // Get the write-offs
+    const writeOffs = await writeOffService.getWriteOffsBySource('Payment', parseInt(id));
+    
+    // Return the write-offs
+    res.json(writeOffs);
+  } catch (error: any) {
+    console.error(`Error getting write-offs for payment ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to get payment write-offs',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Get all write-offs with filtering options
+ */
+router.get('/write-offs', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { status, sourceType, createdBy, fromDate, toDate } = req.query;
+    
+    // Import the write-off service
+    const { writeOffService } = require('./write-off-service');
+    
+    // Prepare filters
+    const filters: any = {};
+    
+    if (status && ['Pending', 'Approved', 'Rejected'].includes(status as string)) {
+      filters.status = status;
+    }
+    
+    if (sourceType && ['Invoice', 'Payment'].includes(sourceType as string)) {
+      filters.sourceType = sourceType;
+    }
+    
+    if (createdBy) {
+      filters.createdBy = parseInt(createdBy as string);
+    }
+    
+    if (fromDate) {
+      filters.fromDate = new Date(fromDate as string);
+    }
+    
+    if (toDate) {
+      filters.toDate = new Date(toDate as string);
+    }
+    
+    // Get the write-offs
+    const writeOffs = await writeOffService.getAllWriteOffs(filters);
+    
+    // Return the write-offs
+    res.json(writeOffs);
+  } catch (error: any) {
+    console.error('Error getting write-offs:', error);
+    res.status(500).json({ 
+      error: 'Failed to get write-offs',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Approve a pending write-off
+ */
+router.post('/write-offs/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Import the write-off service
+    const { writeOffService } = require('./write-off-service');
+    
+    // Approve the write-off
+    const result = await writeOffService.approveWriteOff(parseInt(id), req.user?.id || 1);
+    
+    // Return the result
+    res.json(result);
+  } catch (error: any) {
+    console.error(`Error approving write-off ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to approve write-off',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Reject a pending write-off
+ */
+router.post('/write-offs/:id/reject', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    
+    // Import the write-off service
+    const { writeOffService } = require('./write-off-service');
+    
+    // Reject the write-off
+    const result = await writeOffService.rejectWriteOff(parseInt(id), req.user?.id || 1, reason);
+    
+    // Return the result
+    res.json(result);
+  } catch (error: any) {
+    console.error(`Error rejecting write-off ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to reject write-off',
+      message: error.message
+    });
+  }
+});
+
 export default router;
