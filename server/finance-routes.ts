@@ -743,6 +743,10 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       payment.amount = payment.amount.toString();
     }
     
+    if (payment.allocatedAmount) {
+      payment.allocatedAmount = payment.allocatedAmount.toString();
+    }
+    
     if (payment.unallocatedAmount) {
       payment.unallocatedAmount = payment.unallocatedAmount.toString();
     }
