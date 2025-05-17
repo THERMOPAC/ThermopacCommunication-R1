@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { formatRupees, formatDate } from "@/lib/utils";
+import { formatRupees, formatDate, formatCurrency } from "@/lib/utils";
 import { Link } from "wouter";
 import { 
   Select,
