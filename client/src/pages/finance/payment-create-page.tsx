@@ -300,10 +300,21 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         const isAdvancePayment = Boolean(paymentData.payment.is_advance_payment);
         console.log('Is advance payment:', isAdvancePayment);
         
+        // Parse the payment date string
+        let paymentDate = new Date();
+        try {
+          if (paymentData.payment.payment_date) {
+            paymentDate = new Date(paymentData.payment.payment_date);
+            console.log('Parsed payment date:', paymentDate);
+          }
+        } catch (err) {
+          console.error('Error parsing payment date:', err);
+        }
+        
         // Reset the entire form with the payment data
         form.reset({
           referenceNumber: paymentData.payment.reference_number || '',
-          paymentDate: paymentData.payment.payment_date ? new Date(paymentData.payment.payment_date) : new Date(),
+          paymentDate: paymentDate,
           amount: String(paymentData.payment.amount || ''),
           currency: paymentData.payment.currency || 'USD',
           paymentMethod: paymentData.payment.payment_method || 'bank transfer',
@@ -313,18 +324,27 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
           invoiceLinks: paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0 ? 
             paymentData.invoiceLinks.map(link => ({
               invoiceId: String(link.invoice_id || ''),
-              amountApplied: String(link.amountApplied || link.amount_applied || '0')
+              amountApplied: String(link.amount_applied || '0')
             })) : [],
+        });
+        
+        // Log what we're setting for debugging
+        console.log('Form values being set:', {
+          referenceNumber: paymentData.payment.reference_number,
+          paymentDate: paymentDate,
+          amount: paymentData.payment.amount,
+          currency: paymentData.payment.currency,
+          paymentMethod: paymentData.payment.payment_method,
+          isAdvancePayment: isAdvancePayment,
+          customerId: paymentData.payment.customer_id
         });
         
         // Set advance payment switch directly
         form.setValue('isAdvancePayment', isAdvancePayment);
         
         // Set selected customer ID for the UI if available
-        // Check for both snake_case and camelCase property names since API might return either format
-        const customerIdValue = paymentData.payment.customer_id || paymentData.payment.customerId;
-        if (customerIdValue) {
-          const customerId = String(customerIdValue);
+        if (paymentData.payment.customer_id) {
+          const customerId = String(paymentData.payment.customer_id);
           setSelectedCustomerId(customerId);
           
           // Make sure customerId is set in the form
