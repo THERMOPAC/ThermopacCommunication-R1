@@ -187,7 +187,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     advancePaymentAllocations: !isEditMode && unallocatedAdvances?.advances 
       ? unallocatedAdvances.advances.map((payment: any) => ({
           paymentId: payment.id,
-          amountToApply: payment.unallocatedAmount,
+          amountToApply: '0', // Start with zero and let the auto-calculate effect handle it
         })) 
       : [],
   };
@@ -285,6 +285,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     return () => subscription.unsubscribe();
   }, [form, isEditMode, isGeneratingInvoiceNumber]);
   
+  // Create a real-time watcher for item amount changes to immediately update advance payment allocation
+  const watchedItems = form.watch('items');
+  
   // Effect to auto-update the advance payment allocation amounts when invoice amount changes
   useEffect(() => {
     // Only do this if we're not in edit mode and have advance payments
@@ -297,7 +300,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       
       // Distribute the invoice amount across available advances
       let remainingToAllocate = invoiceTotal;
-      const advancePaymentAllocations = unallocatedAdvances.advances.map((payment: any) => {
+      const advancePaymentAllocations = unallocatedAdvances.advances.map((payment: any, index: number) => {
         const availableAmount = parseFloat(payment.unallocatedAmount);
         let amountToApply = 0;
         
@@ -307,15 +310,26 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           remainingToAllocate -= amountToApply;
         }
         
+        // Get current allocation to prevent unnecessary re-renders
+        const currentAllocation = form.getValues(`advancePaymentAllocations.${index}.amountToApply`);
+        const currentAmount = parseFloat(currentAllocation || '0');
+        
+        // Only update if amount changed
+        if (Math.abs(currentAmount - amountToApply) > 0.01) {
+          // Update individual fields to allow field-by-field change detection
+          form.setValue(`advancePaymentAllocations.${index}.amountToApply`, amountToApply.toFixed(2), {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
+        }
+        
         return {
           paymentId: payment.id,
           amountToApply: amountToApply.toFixed(2)
         };
       });
-      
-      form.setValue('advancePaymentAllocations', advancePaymentAllocations);
     }
-  }, [isEditMode, unallocatedAdvances, form.watch('items')]);
+  }, [isEditMode, unallocatedAdvances, watchedItems]);
   
   // Create invoice mutation
   const createInvoice = useMutation({
