@@ -472,7 +472,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         })) : []
       };
       
-      return apiRequest('PUT', `/api/finance/payments/${paymentId}`, apiData);
+      // Use POST instead of PUT to match server implementation
+      return apiRequest('POST', `/api/finance/payments/${paymentId}`, apiData);
     },
     onSuccess: () => {
       toast({
