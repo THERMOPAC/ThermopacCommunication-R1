@@ -463,8 +463,8 @@ router.get('/payments/:id', ensureAuthenticated, (req: Request, res: Response) =
  */
 router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    console.log('[INVOICE CREATE] Starting invoice creation process');
     console.log('[INVOICE CREATE] Request body:', JSON.stringify(req.body));
-    console.log('[INVOICE CREATE] User:', req.user);
     
     // Extract data from the request body
     const { invoice, items } = req.body;
@@ -480,37 +480,14 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       return res.status(401).json({ error: 'User authentication required' });
     }
     
-    // Connect to DB
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL
-    });
-    console.log('[INVOICE CREATE] Database connection created');
+    // Import the existing pool from db.ts
+    const { pool } = require('./db');
     
     const client = await pool.connect();
     console.log('[INVOICE CREATE] Database client connected');
     
     try {
       await client.query('BEGIN');
-      console.log('[INVOICE CREATE] Transaction started');
-      
-      // Prepare invoice data
-      const invoiceNumber = invoice.invoiceNumber;
-      const customerId = invoice.customerId;
-      const projectId = invoice.projectId || null;
-      const issueDate = invoice.issueDate;
-      const dueDate = invoice.dueDate;
-      const totalAmount = invoice.totalAmount;
-      const currency = invoice.currency || 'USD';
-      const status = invoice.status || 'Pending';
-      const notes = invoice.notes || null;
-      const sapInvoiceNo = invoice.sapInvoiceNo || null;
-      const invoiceType = invoice.invoiceType || 'Product';
-      const createdBy = req.user.id;
-      
-      console.log('[INVOICE CREATE] Prepared data:', {
-        invoiceNumber, customerId, projectId, issueDate, dueDate,
-        totalAmount, currency, status, notes, sapInvoiceNo, invoiceType
-      });
       
       // SQL to insert invoice and get ID
       const insertInvoiceQuery = `
@@ -525,19 +502,27 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       `;
       
       const invoiceValues = [
-        invoiceNumber, customerId, projectId, issueDate, dueDate,
-        totalAmount, currency, status, notes, sapInvoiceNo, invoiceType, createdBy
+        invoice.invoiceNumber,
+        invoice.customerId,
+        invoice.projectId || null,
+        invoice.issueDate,
+        invoice.dueDate,
+        invoice.totalAmount,
+        invoice.currency || 'USD',
+        invoice.status || 'Pending',
+        invoice.notes || null,
+        invoice.sapInvoiceNo || null,
+        invoice.invoiceType || 'Product',
+        req.user.id
       ];
       
       // Insert invoice
-      console.log('[INVOICE CREATE] Executing invoice insert query');
       const invoiceResult = await client.query(insertInvoiceQuery, invoiceValues);
       const newInvoiceId = invoiceResult.rows[0].id;
       console.log('[INVOICE CREATE] Invoice inserted with ID:', newInvoiceId);
       
       // Insert invoice items
       if (items && items.length > 0) {
-        console.log('[INVOICE CREATE] Processing invoice items:', items.length);
         const insertItemQuery = `
           INSERT INTO invoice_items (invoice_id, description, amount)
           VALUES ($1, $2, $3)
@@ -551,27 +536,25 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
             item.amount
           ]);
         }
-        console.log('[INVOICE CREATE] All invoice items inserted');
       }
       
       await client.query('COMMIT');
-      console.log('[INVOICE CREATE] Transaction committed');
       
       // Return the created invoice
       res.status(201).json({
         id: newInvoiceId,
-        invoiceNumber: invoiceNumber,
-        customerId: customerId,
-        projectId: projectId,
-        issueDate: issueDate,
-        dueDate: dueDate,
-        totalAmount: totalAmount,
-        currency: currency,
-        sapInvoiceNo: sapInvoiceNo,
-        invoiceType: invoiceType,
-        status: status,
-        notes: notes,
-        createdBy: createdBy,
+        invoiceNumber: invoice.invoiceNumber,
+        customerId: invoice.customerId,
+        projectId: invoice.projectId,
+        issueDate: invoice.issueDate,
+        dueDate: invoice.dueDate,
+        totalAmount: invoice.totalAmount,
+        currency: invoice.currency,
+        sapInvoiceNo: invoice.sapInvoiceNo,
+        invoiceType: invoice.invoiceType,
+        status: invoice.status || 'Pending',
+        notes: invoice.notes,
+        createdBy: req.user.id,
         createdAt: invoiceResult.rows[0].created_at
       });
       
@@ -586,7 +569,6 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       });
     } finally {
       client.release();
-      console.log('[INVOICE CREATE] Database client released');
     }
     
   } catch (error: any) {
