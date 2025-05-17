@@ -84,6 +84,7 @@ const paymentFormSchema = z.object({
     required_error: "Payment date is required",
   }),
   amount: z.string().min(1, "Amount is required"),
+  unallocatedAmount: z.string().optional(),
   currency: z.string().default("INR"),
   paymentMethod: z.string().min(1, "Payment method is required"),
   notes: z.string().optional(),
@@ -323,6 +324,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
           referenceNumber: paymentData.payment.referenceNumber || paymentData.payment.reference_number || '',
           paymentDate: paymentDate,
           amount: String(paymentData.payment.amount || ''),
+          unallocatedAmount: String(paymentData.payment.unallocatedAmount || paymentData.payment.unallocated_amount || '0'),
           currency: paymentData.payment.currency || 'USD',
           paymentMethod: paymentData.payment.paymentMethod || paymentData.payment.payment_method || 'bank transfer',
           notes: paymentData.payment.notes || '',
@@ -816,24 +818,33 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                       <FormLabel>Reference Number</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <div className="flex">
+                          {isEditMode ? (
                             <Input 
                               placeholder="PAY-2526-001" 
                               {...field} 
                               readOnly 
-                              className="bg-muted cursor-not-allowed rounded-r-none" 
+                              className="bg-muted cursor-not-allowed" 
                             />
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="outline"
-                              className="rounded-l-none border-l-0"
-                              disabled={isGeneratingReferenceNumber}
-                              onClick={() => generateReferenceNumber(form.getValues().paymentDate)}
-                            >
-                              <RefreshCw className={`h-4 w-4 ${isGeneratingReferenceNumber ? 'animate-spin' : ''}`} />
-                            </Button>
-                          </div>
+                          ) : (
+                            <div className="flex">
+                              <Input 
+                                placeholder="PAY-2526-001" 
+                                {...field} 
+                                readOnly 
+                                className="bg-muted cursor-not-allowed rounded-r-none" 
+                              />
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="outline"
+                                className="rounded-l-none border-l-0"
+                                disabled={isGeneratingReferenceNumber}
+                                onClick={() => generateReferenceNumber(form.getValues().paymentDate)}
+                              >
+                                <RefreshCw className={`h-4 w-4 ${isGeneratingReferenceNumber ? 'animate-spin' : ''}`} />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </FormControl>
                       <FormDescription>
@@ -957,6 +968,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                             min="0"
                             placeholder="0.00"
                             {...field}
+                            readOnly={isEditMode}
+                            className={isEditMode ? "bg-muted cursor-not-allowed" : ""}
                             onChange={(e) => {
                               field.onChange(e);
                               handlePaymentAmountChange(e.target.value);
