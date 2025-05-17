@@ -283,11 +283,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         },
         items: values.items.map(item => ({
           description: item.description,
-          quantity: String(parseFloat(item.quantity || '0')),
-          unitPrice: String(parseFloat(item.unitPrice || '0')),
-          amount: String(parseFloat(item.amount || '0')),
+          amount: String(parseFloat(item.amount || "0")),
         }))
-      };
       
       return apiRequest('POST', '/api/finance/invoices', apiData);
     },
