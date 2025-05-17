@@ -63,7 +63,12 @@ import {
   projectDocuments as projectDocumentsTable,
   masterItems as masterItemsTable,
   projectItems as projectItemsTable,
-  projectKeyStages
+  projectKeyStages,
+  invoices as invoicesTable,
+  invoiceItems as invoiceItemsTable,
+  payments as paymentsTable,
+  paymentInvoiceLinks as paymentInvoiceLinksTable,
+  bankRealizationCertificates as bankRealizationCertificatesTable
 } from "@shared/schema";
 import { eq, or, inArray, desc, and, sql, like, not } from "drizzle-orm";
 

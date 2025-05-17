@@ -16,7 +16,12 @@ import {
   PhaseApproval, InsertPhaseApproval,
   ProjectDocument, InsertProjectDocument,
   MasterItem, InsertMasterItem,
-  ProjectItem, InsertProjectItem
+  ProjectItem, InsertProjectItem,
+  Invoice, InsertInvoice,
+  InvoiceItem, InsertInvoiceItem,
+  Payment, InsertPayment,
+  PaymentInvoiceLink, InsertPaymentInvoiceLink,
+  BankRealizationCertificate, InsertBankRealizationCertificate
 } from "@shared/schema";
 import { Store } from "express-session";
 
@@ -207,4 +212,44 @@ export interface IStorage {
   updateProjectItem(id: number, updateData: Partial<ProjectItem>): Promise<ProjectItem>;
   deleteProjectItem(id: number): Promise<void>;
   deleteProjectItems(projectId: number): Promise<number>;
+  
+  // Finance - Invoices
+  createInvoice(invoice: InsertInvoice, items: InsertInvoiceItem[]): Promise<Invoice>;
+  getInvoice(id: number): Promise<Invoice | undefined>;
+  getInvoiceByNumber(invoiceNumber: string): Promise<Invoice | undefined>;
+  getInvoices(filters?: {
+    customerId?: number;
+    projectId?: number;
+    fromDate?: Date;
+    toDate?: Date;
+    status?: string;
+    currency?: string;
+  }): Promise<Invoice[]>;
+  updateInvoice(id: number, updateData: Partial<Invoice>): Promise<Invoice>;
+  
+  // Finance - Invoice Items
+  getInvoiceItems(invoiceId: number): Promise<InvoiceItem[]>;
+  addInvoiceItem(item: InsertInvoiceItem): Promise<InvoiceItem>;
+  updateInvoiceItem(id: number, updateData: Partial<InvoiceItem>): Promise<InvoiceItem>;
+  deleteInvoiceItem(id: number): Promise<void>;
+  
+  // Finance - Payments and Allocations
+  createPayment(payment: InsertPayment, allocations?: InsertPaymentInvoiceLink[]): Promise<Payment>;
+  getPayment(id: number): Promise<Payment | undefined>;
+  getPayments(filters?: {
+    customerId?: number;
+    fromDate?: Date;
+    toDate?: Date;
+    status?: string;
+    currency?: string;
+  }): Promise<Payment[]>;
+  getPaymentAllocations(paymentId: number): Promise<PaymentInvoiceLink[]>;
+  allocatePayment(allocation: InsertPaymentInvoiceLink): Promise<PaymentInvoiceLink>;
+  updatePayment(id: number, updateData: Partial<Payment>): Promise<Payment>;
+  
+  // Finance - Bank Realization Certificates
+  createBankRealizationCertificate(brc: InsertBankRealizationCertificate): Promise<BankRealizationCertificate>;
+  getBankRealizationCertificate(id: number): Promise<BankRealizationCertificate | undefined>;
+  getBankRealizationCertificatesForPayment(paymentId: number): Promise<BankRealizationCertificate[]>;
+  updateBankRealizationCertificate(id: number, updateData: Partial<BankRealizationCertificate>): Promise<BankRealizationCertificate>;
 }
