@@ -310,6 +310,21 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         }))
       };
       
+      // Add advance payment allocations if enabled
+      if (values.applyAdvancePayments && values.advancePaymentAllocations?.length > 0) {
+        // Filter out allocations with zero or empty amounts
+        const validAllocations = values.advancePaymentAllocations.filter(alloc => 
+          alloc.amountToApply && parseFloat(alloc.amountToApply) > 0
+        );
+        
+        if (validAllocations.length > 0) {
+          apiData.advancePaymentAllocations = validAllocations.map(alloc => ({
+            paymentId: alloc.paymentId,
+            amountToApply: alloc.amountToApply
+          }));
+        }
+      }
+      
       // Log the data being sent
       console.log('Sending invoice data:', JSON.stringify(apiData, null, 2));
       
@@ -708,6 +723,100 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
               </div>
             </CardContent>
           </Card>
+          
+          {/* Advance Payment Section - Only shown in create mode when customer is selected and has unallocated advances */}
+          {!isEditMode && selectedCustomerId && unallocatedAdvances?.advances?.length > 0 && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Apply Advance Payments</CardTitle>
+                <CardDescription>
+                  Use available advance payments from this customer to pay for this invoice
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="applyAdvancePayments"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                          <div className="flex h-5 items-center">
+                            <input
+                              type="checkbox"
+                              checked={field.value}
+                              onChange={field.onChange}
+                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                          </div>
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Apply available advance payments
+                          </FormLabel>
+                          <FormDescription>
+                            Total unallocated: {unallocatedAdvances.currency || 'USD'}{' '}
+                            {parseFloat(unallocatedAdvances.totalUnallocatedAmount || '0').toFixed(2)}
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch('applyAdvancePayments') && (
+                    <div className="border rounded-md overflow-hidden">
+                      <div className="bg-muted px-4 py-2 font-medium text-sm grid grid-cols-12 gap-4">
+                        <div className="col-span-3">Reference Number</div>
+                        <div className="col-span-2">Date</div>
+                        <div className="col-span-2">Total Amount</div>
+                        <div className="col-span-2">Available</div>
+                        <div className="col-span-3">Apply Amount</div>
+                      </div>
+                      
+                      {unallocatedAdvances.advances.map((payment: any, index: number) => (
+                        <div key={payment.id} className="px-4 py-3 border-t grid grid-cols-12 gap-4 items-center text-sm">
+                          <div className="col-span-3 font-medium">{payment.referenceNumber}</div>
+                          <div className="col-span-2">{new Date(payment.paymentDate).toLocaleDateString()}</div>
+                          <div className="col-span-2">{payment.currency} {parseFloat(payment.amount).toFixed(2)}</div>
+                          <div className="col-span-2">{payment.currency} {parseFloat(payment.unallocatedAmount).toFixed(2)}</div>
+                          <div className="col-span-3">
+                            <FormField
+                              control={form.control}
+                              name={`advancePaymentAllocations.${index}.amountToApply`}
+                              render={({ field }) => (
+                                <FormItem className="m-0">
+                                  <FormControl>
+                                    <div className="flex items-center">
+                                      <span className="mr-2">{payment.currency}</span>
+                                      <Input
+                                        {...field}
+                                        type="number"
+                                        min="0"
+                                        max={payment.unallocatedAmount}
+                                        step="0.01"
+                                        className={hideNumberInputArrows}
+                                      />
+                                    </div>
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`advancePaymentAllocations.${index}.paymentId`}
+                              render={({ field }) => (
+                                <input type="hidden" {...field} value={payment.id} />
+                              )}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           <Card>
             <CardHeader>
