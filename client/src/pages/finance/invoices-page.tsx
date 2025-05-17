@@ -80,14 +80,73 @@ export default function InvoicesPage() {
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  // Query for invoices using our new endpoint that provides sample data
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['/api/simple-finance/invoices-list'],
-    retry: 1
-  });
-
-  // Extract invoices from the response (direct array format)
-  const invoices = data || [];
+  // Temporarily provide static data directly
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  
+  // Hard-coded sample invoices while we work on the database connection
+  const invoices = [
+    {
+      id: 1,
+      invoiceNumber: 'INV-2023-001',
+      customerId: 1,
+      customerName: 'Sample Customer',
+      issueDate: '2025-01-01',
+      dueDate: '2025-01-31',
+      totalAmount: '10000.00',
+      currency: 'INR',
+      status: 'Pending',
+      sapInvoiceNo: 'SAP-001',
+      invoiceType: 'Product',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 2,
+      invoiceNumber: 'INV-2023-002',
+      customerId: 2,
+      customerName: 'Test Client',
+      issueDate: '2025-02-01',
+      dueDate: '2025-02-28',
+      totalAmount: '15000.00',
+      currency: 'USD',
+      status: 'Paid',
+      sapInvoiceNo: 'SAP-002',
+      invoiceType: 'Service',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 3,
+      invoiceNumber: 'INV-2023-003',
+      customerId: 3,
+      customerName: 'ABC Corporation',
+      issueDate: '2025-03-15',
+      dueDate: '2025-04-15',
+      totalAmount: '25000.00',
+      currency: 'INR',
+      status: 'Pending',
+      sapInvoiceNo: 'SAP-103',
+      invoiceType: 'Product',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 4,
+      invoiceNumber: 'INV-2023-004',
+      customerId: 1,
+      customerName: 'Sample Customer',
+      issueDate: '2025-04-01',
+      dueDate: '2025-05-01',
+      totalAmount: '8000.00',
+      currency: 'USD',
+      status: 'Overdue',
+      sapInvoiceNo: 'SAP-104',
+      invoiceType: 'Service',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+  ];
   
   // Filter the invoices based on search term and status
   const filteredInvoices = invoices.filter((invoice: any) => {
