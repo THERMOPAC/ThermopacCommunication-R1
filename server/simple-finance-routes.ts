@@ -4,63 +4,100 @@ import { storage } from './storage';
 import { InsertInvoice, InsertInvoiceItem } from '@shared/schema';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
+import { pool } from './db';
 
 const router = Router();
 
-// Add a route for getting invoice list that bypasses the problematic storage
+// Add a route for getting invoice list using direct database access
 router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     console.log('Getting invoices list with direct SQL');
     
-    // Try SQL query directly without any complicated parts
+    // Use a simple direct query to get all invoices
     try {
-      const result = await db.execute(sql`SELECT * FROM invoices LIMIT 50`);
+      const query = `
+        SELECT 
+          id,
+          invoice_number AS "invoiceNumber",
+          customer_id AS "customerId",
+          issue_date AS "issueDate",
+          due_date AS "dueDate",
+          total_amount AS "totalAmount",
+          currency,
+          status,
+          sap_invoice_no AS "sapInvoiceNo", 
+          invoice_type AS "invoiceType",
+          created_at AS "createdAt",
+          updated_at AS "updatedAt"
+        FROM invoices 
+        ORDER BY created_at DESC
+        LIMIT 50
+      `;
+      
+      const result = await pool.query(query);
+      
       if (result && result.rows && result.rows.length > 0) {
         console.log('Found invoices in database:', result.rows.length);
-        return res.json(result.rows);
+        
+        // Format dates for frontend display
+        const formattedInvoices = result.rows.map(invoice => ({
+          ...invoice,
+          issueDate: invoice.issueDate ? new Date(invoice.issueDate).toISOString().split('T')[0] : null,
+          dueDate: invoice.dueDate ? new Date(invoice.dueDate).toISOString().split('T')[0] : null,
+          customerName: `Customer ${invoice.customerId}` // Default placeholder
+        }));
+        
+        // Try to get customer names if possible
+        try {
+          const customerIds = formattedInvoices
+            .map(inv => inv.customerId)
+            .filter(id => id)
+            .filter((id, index, self) => self.indexOf(id) === index); // Get unique IDs
+          
+          if (customerIds.length > 0) {
+            // Create placeholder parameters for the query
+            const params = customerIds.map((_, i) => `$${i+1}`).join(',');
+            const customerQuery = `SELECT id, name FROM customers WHERE id IN (${params})`;
+            const customerResult = await pool.query(customerQuery, customerIds);
+            
+            if (customerResult && customerResult.rows && customerResult.rows.length > 0) {
+              // Create a lookup map of customer id to name
+              const customerMap = {};
+              customerResult.rows.forEach(customer => {
+                customerMap[customer.id] = customer.name;
+              });
+              
+              // Update the invoice data with customer names
+              formattedInvoices.forEach(invoice => {
+                if (invoice.customerId && customerMap[invoice.customerId]) {
+                  invoice.customerName = customerMap[invoice.customerId];
+                }
+              });
+            }
+          }
+        } catch (customerError) {
+          console.error('Error getting customer names:', customerError);
+          // Continue with default customer names
+        }
+        
+        return res.json(formattedInvoices);
+      } else {
+        console.log('No invoices found in database');
+        return res.json([]);
       }
     } catch (error) {
-      console.error('Error with simple invoice query:', error);
+      console.error('Error executing invoice query:', error);
+      return res.status(500).json({ 
+        error: 'Database query failed',
+        message: error.message 
+      });
     }
-    
-    // If no invoices were found or query failed, return sample data
-    const sampleInvoices = [
-      {
-        id: 1,
-        invoiceNumber: 'INV-2023-001',
-        customerId: 1,
-        customerName: 'Sample Customer',
-        issueDate: '2025-01-01',
-        dueDate: '2025-01-31',
-        totalAmount: '10000.00',
-        currency: 'INR',
-        status: 'Pending',
-        sapInvoiceNo: 'SAP-001',
-        invoiceType: 'Product',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 2,
-        invoiceNumber: 'INV-2023-002',
-        customerId: 2,
-        customerName: 'Test Client',
-        issueDate: '2025-02-01',
-        dueDate: '2025-02-28',
-        totalAmount: '15000.00',
-        currency: 'USD',
-        status: 'Paid',
-        sapInvoiceNo: 'SAP-002',
-        invoiceType: 'Service',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    ];
-    
-    return res.json(sampleInvoices);
   } catch (error) {
     console.error('Error in invoices-list route:', error);
-    return res.status(500).json({ error: 'Failed to fetch invoices' });
+    return res.status(500).json({ 
+      error: 'Failed to fetch invoices',
+      message: error.message
+    });
   }
 });
 
@@ -139,9 +176,6 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       console.error('Database error creating invoice:', dbError);
       throw dbError;
     }
-    
-    // Return success response
-    res.status(201).json(savedInvoice);
   } catch (error: any) {
     console.error('Error creating invoice:', error);
     res.status(500).json({ 
@@ -192,15 +226,13 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
       filters.currency = currency as string;
     }
     
-    // Instead of using the problematic storage function, use a direct database query
+    // Use direct query instead of storage function to avoid ORM issues
     try {
-      // Use a direct SQL query to fetch invoices from the database
-      const result = await db.execute(sql`
+      const query = `
         SELECT 
           i.id, 
           i.invoice_number as "invoiceNumber", 
           i.customer_id as "customerId",
-          c.name as "customerName",
           i.issue_date as "issueDate", 
           i.due_date as "dueDate", 
           i.total_amount as "totalAmount", 
@@ -211,113 +243,29 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
           i.created_at as "createdAt", 
           i.updated_at as "updatedAt"
         FROM invoices i
-        LEFT JOIN customers c ON i.customer_id = c.id
         ORDER BY i.created_at DESC
         LIMIT 50
-      `);
+      `;
       
-      console.log('Database query result:', result);
+      const result = await pool.query(query);
       
       // Get actual invoice data from the database query result
       if (result && result.rows && result.rows.length > 0) {
         console.log('Found invoices in database:', result.rows.length);
-        return res.json(result.rows);
+        const invoices = result.rows.map(inv => ({
+          ...inv,
+          issueDate: inv.issueDate ? new Date(inv.issueDate).toISOString().split('T')[0] : null,
+          dueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : null,
+          customerName: `Customer ${inv.customerId}` // Default name
+        }));
+        return res.json(invoices);
       } else {
-        console.log('No invoices found in database, returning existing data');
-        // Return fallback sample data if no invoices found in database
-        const sampleInvoices = [
-          {
-            id: 1,
-            invoiceNumber: 'INV-2023-001',
-            customerId: 1,
-            customerName: 'Sample Customer',
-            issueDate: '2025-01-01',
-            dueDate: '2025-01-31',
-            totalAmount: '10000.00',
-            currency: 'INR',
-            status: 'Pending',
-            sapInvoiceNo: 'SAP-001',
-            invoiceType: 'Product',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          },
-          {
-            id: 2,
-            invoiceNumber: 'INV-2023-002',
-            customerId: 2,
-            customerName: 'Test Client',
-            issueDate: '2025-02-01',
-            dueDate: '2025-02-28',
-            totalAmount: '15000.00',
-            currency: 'USD',
-            status: 'Paid',
-            sapInvoiceNo: 'SAP-002',
-            invoiceType: 'Service',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        ];
-        return res.json(sampleInvoices);
+        console.log('No invoices found in database');
+        return res.json([]);
       }
     } catch (dbError) {
-      console.error('Error with direct database query:', dbError);
-    }
-    
-    // If the direct query failed, use another approach
-    console.log('Trying to use the alternative query approach');
-    
-    // Try a simpler query directly with the database
-    try {
-      const result = await db.execute(sql`
-        SELECT * FROM invoices
-        ORDER BY created_at DESC
-        LIMIT 50
-      `);
-      
-      if (result && result.rows && result.rows.length > 0) {
-        console.log('Alternative query successful, found invoices:', result.rows.length);
-        return res.json(result.rows);
-      }
-    } catch (alternativeError) {
-      console.error('Alternative query approach failed:', alternativeError);
-    }
-    
-    // Return sample data as a last resort when we're unable to access the database
-    const fallbackInvoices = [
-      {
-        id: 3,
-        invoiceNumber: 'INV-2025-001',
-        customerId: 3,
-        customerName: 'ABC Corporation',
-        issueDate: '2025-03-15',
-        dueDate: '2025-04-15',
-        totalAmount: '25000.00',
-        currency: 'INR',
-        status: 'Pending',
-        sapInvoiceNo: 'SAP-101',
-        invoiceType: 'Product',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 4,
-        invoiceNumber: 'INV-2025-002',
-        customerId: 4,
-        customerName: 'XYZ Industries',
-        issueDate: '2025-03-20',
-        dueDate: '2025-04-20',
-        totalAmount: '18500.00',
-        currency: 'INR',
-        status: 'Paid',
-        sapInvoiceNo: 'SAP-102',
-        invoiceType: 'Service',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    ];
-    
-    console.log('Using fallback invoice data');
-    return res.json(fallbackInvoices);
+      console.error('Error with database query:', dbError);
+      throw dbError;
     }
   } catch (error: any) {
     console.error('Error fetching invoices:', error);
@@ -338,11 +286,58 @@ router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       return res.status(400).json({ error: 'Invalid invoice ID' });
     }
     
-    // Fetch the invoice from database
-    const invoice = await storage.getInvoice(invoiceId);
+    // Use direct query instead of storage function
+    const query = `
+      SELECT 
+        i.id, 
+        i.invoice_number as "invoiceNumber", 
+        i.customer_id as "customerId",
+        i.project_id as "projectId",
+        i.issue_date as "issueDate", 
+        i.due_date as "dueDate", 
+        i.total_amount as "totalAmount", 
+        i.currency, 
+        i.status,
+        i.sap_invoice_no as "sapInvoiceNo", 
+        i.invoice_type as "invoiceType",
+        i.notes,
+        i.created_at as "createdAt", 
+        i.updated_at as "updatedAt",
+        i.created_by as "createdBy"
+      FROM invoices i
+      WHERE i.id = $1
+    `;
     
-    if (!invoice) {
+    const result = await pool.query(query, [invoiceId]);
+    
+    if (!result || !result.rows || result.rows.length === 0) {
       return res.status(404).json({ error: 'Invoice not found' });
+    }
+    
+    const invoice = result.rows[0];
+    
+    // Format dates for frontend
+    if (invoice.issueDate) {
+      invoice.issueDate = new Date(invoice.issueDate).toISOString().split('T')[0];
+    }
+    if (invoice.dueDate) {
+      invoice.dueDate = new Date(invoice.dueDate).toISOString().split('T')[0];
+    }
+    
+    // Try to get customer name
+    try {
+      if (invoice.customerId) {
+        const customerQuery = `SELECT name FROM customers WHERE id = $1`;
+        const customerResult = await pool.query(customerQuery, [invoice.customerId]);
+        if (customerResult && customerResult.rows && customerResult.rows.length > 0) {
+          invoice.customerName = customerResult.rows[0].name;
+        } else {
+          invoice.customerName = `Customer ${invoice.customerId}`;
+        }
+      }
+    } catch (customerError) {
+      console.error('Error getting customer name:', customerError);
+      invoice.customerName = `Customer ${invoice.customerId}`;
     }
     
     // Return the invoice directly to match frontend expectations
@@ -366,18 +361,37 @@ router.get('/invoices/:id/items', ensureAuthenticated, async (req: Request, res:
       return res.status(400).json({ error: 'Invalid invoice ID' });
     }
     
-    // First check if the invoice exists
-    const invoice = await storage.getInvoice(invoiceId);
+    // Use direct query for invoice items
+    const query = `
+      SELECT 
+        id,
+        invoice_id as "invoiceId",
+        description,
+        quantity,
+        unit_price as "unitPrice",
+        amount,
+        tax_rate as "taxRate",
+        tax_amount as "taxAmount",
+        discount_percent as "discountPercent",
+        discount_amount as "discountAmount",
+        line_total as "lineTotal",
+        project_item_id as "projectItemId",
+        master_item_id as "masterItemId",
+        hsn_code as "hsnCode",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM invoice_items
+      WHERE invoice_id = $1
+    `;
     
-    if (!invoice) {
-      return res.status(404).json({ error: 'Invoice not found' });
+    const result = await pool.query(query, [invoiceId]);
+    
+    if (!result || !result.rows) {
+      return res.status(500).json({ error: 'Error fetching invoice items' });
     }
     
-    // Fetch the invoice items from database
-    const items = await storage.getInvoiceItems(invoiceId);
-    
     // Return the items directly as an array to match frontend expectations
-    res.json(items);
+    res.json(result.rows);
   } catch (error: any) {
     console.error(`Error fetching items for invoice ${req.params.id}:`, error);
     res.status(500).json({
