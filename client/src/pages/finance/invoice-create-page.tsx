@@ -93,6 +93,14 @@ const invoiceFormSchema = z.object({
       amount: z.string().min(1, "Amount is required"),
     })
   ).min(1, "At least one item is required"),
+  // Fields for advance payment application
+  applyAdvancePayments: z.boolean().default(false),
+  advancePaymentAllocations: z.array(
+    z.object({
+      paymentId: z.number(),
+      amountToApply: z.string(),
+    })
+  ).optional(),
 });
 
 type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;
@@ -168,6 +176,14 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
             amount: '0',
           },
         ],
+    // Add the new advance payment fields
+    applyAdvancePayments: !isEditMode && !!unallocatedAdvances?.advances?.length,
+    advancePaymentAllocations: !isEditMode && unallocatedAdvances?.advances 
+      ? unallocatedAdvances.advances.map((payment: any) => ({
+          paymentId: payment.id,
+          amountToApply: payment.unallocatedAmount,
+        })) 
+      : [],
   };
   
   // Create form
