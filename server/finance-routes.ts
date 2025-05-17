@@ -593,7 +593,7 @@ router.get('/payments/:id', ensureAuthenticated, (req: Request, res: Response) =
 /**
  * Create a new invoice
  */
-router.post('/invoices', ensureAuthenticated, (req: Request, res: Response) => {
+router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Log the received data for debugging
     console.log('Creating invoice with data:', JSON.stringify(req.body, null, 2));
@@ -604,33 +604,110 @@ router.post('/invoices', ensureAuthenticated, (req: Request, res: Response) => {
     if (!invoice) {
       return res.status(400).json({ error: 'Invalid request body - invoice data missing' });
     }
+
+    // Format dates - ensure we have valid dates for required fields
+    const issueDate = invoice.issueDate ? new Date(invoice.issueDate) : new Date();
+    const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : new Date(new Date().setDate(new Date().getDate() + 30));
     
-    // Create a response object without using database
-    const newInvoice = {
-      id: Math.floor(Math.random() * 1000), // Generate random ID
+    // Calculate total amount from items if not provided
+    const totalAmount = invoice.totalAmount || (items && items.length > 0 
+                 ? items.reduce((sum, item) => sum + parseFloat(item.amount || '0'), 0) 
+                 : 0);
+    
+    // Create invoice in database with direct query
+    const insertInvoiceQuery = `
+      INSERT INTO invoices (
+        invoice_number, 
+        customer_id, 
+        project_id, 
+        issue_date, 
+        due_date, 
+        total_amount, 
+        currency, 
+        status,
+        sap_invoice_no,
+        invoice_type,
+        notes,
+        created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id, invoice_number as "invoiceNumber", created_at as "createdAt", updated_at as "updatedAt"
+    `;
+    
+    const invoiceValues = [
+      invoice.invoiceNumber,
+      invoice.customerId,
+      invoice.projectId || null,
+      issueDate.toISOString().split('T')[0], // Format as YYYY-MM-DD for SQL
+      dueDate.toISOString().split('T')[0], // Format as YYYY-MM-DD for SQL
+      totalAmount,
+      invoice.currency || 'USD',
+      'Pending',
+      invoice.sapInvoiceNo || null,
+      invoice.invoiceType || 'Product',
+      invoice.notes || null,
+      req.user?.id || 1
+    ];
+    
+    console.log('Executing SQL with values:', invoiceValues);
+    const invoiceResult = await pool.query(insertInvoiceQuery, invoiceValues);
+    
+    if (!invoiceResult || !invoiceResult.rows || invoiceResult.rows.length === 0) {
+      throw new Error('Failed to create invoice in database');
+    }
+    
+    const newInvoice = invoiceResult.rows[0];
+    const invoiceId = newInvoice.id;
+    
+    // Create invoice items
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const insertItemQuery = `
+          INSERT INTO invoice_items (
+            invoice_id,
+            description,
+            quantity,
+            unit_price,
+            amount
+          ) VALUES ($1, $2, $3, $4, $5)
+          RETURNING id
+        `;
+        
+        const quantity = item.quantity || 1;
+        const unitPrice = parseFloat(item.amount) / quantity;
+        
+        const itemValues = [
+          invoiceId,
+          item.description || '',
+          quantity,
+          unitPrice,
+          parseFloat(item.amount) || 0
+        ];
+        
+        await pool.query(insertItemQuery, itemValues);
+      }
+    }
+    
+    // Log the success
+    console.log('Successfully created invoice in database:', invoiceId);
+    
+    // Return success response with the newly created invoice data
+    res.status(201).json({
+      id: invoiceId,
       invoiceNumber: invoice.invoiceNumber,
       customerId: invoice.customerId,
       projectId: invoice.projectId,
-      issueDate: invoice.issueDate,
-      dueDate: invoice.dueDate,
-      totalAmount: invoice.totalAmount || (items && items.length > 0 
-                   ? items.reduce((sum, item) => sum + parseFloat(item.amount || '0'), 0) 
-                   : 0),
+      issueDate: issueDate.toISOString().split('T')[0],
+      dueDate: dueDate.toISOString().split('T')[0],
+      totalAmount: totalAmount,
       currency: invoice.currency || 'USD',
       sapInvoiceNo: invoice.sapInvoiceNo || null,
       invoiceType: invoice.invoiceType || 'Product',
       status: 'Pending',
       notes: invoice.notes || null,
       createdBy: req.user?.id || 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    // Log the success
-    console.log('Successfully created invoice (stub):', newInvoice.id);
-    
-    // Return success response
-    res.status(201).json(newInvoice);
+      createdAt: newInvoice.createdAt,
+      updatedAt: newInvoice.updatedAt
+    });
   } catch (error: any) {
     console.error('Error creating invoice:', error);
     res.status(500).json({ 
