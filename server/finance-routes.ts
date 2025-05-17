@@ -1110,6 +1110,95 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
 });
 
 /**
+ * Update an existing payment
+ */
+router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const paymentId = parseInt(req.params.id, 10);
+    
+    if (isNaN(paymentId)) {
+      return res.status(400).json({ error: 'Invalid payment ID' });
+    }
+    
+    // Get payment data from request body
+    const { payment, invoiceLinks } = req.body;
+    
+    if (!payment) {
+      return res.status(400).json({ error: 'Invalid request body - payment data missing' });
+    }
+    
+    console.log(`Updating payment with ID ${paymentId}:`, payment);
+    
+    // Format dates for the database
+    const paymentDate = payment.paymentDate ? new Date(payment.paymentDate) : new Date();
+    
+    // Update payment in database
+    const updatePaymentQuery = `
+      UPDATE payments SET
+        reference_number = $1,
+        payment_date = $2,
+        amount = $3,
+        currency = $4,
+        payment_method = $5,
+        notes = $6,
+        is_advance_payment = $7,
+        customer_id = $8,
+        updated_at = NOW()
+      WHERE id = $9
+      RETURNING *
+    `;
+    
+    const paymentValues = [
+      payment.referenceNumber,
+      paymentDate.toISOString().split('T')[0], // Format as YYYY-MM-DD for SQL
+      payment.amount,
+      payment.currency || 'USD',
+      payment.paymentMethod,
+      payment.notes || null,
+      payment.isAdvancePayment,
+      payment.isAdvancePayment ? payment.customerId : null,
+      paymentId
+    ];
+    
+    console.log('Executing payment update with values:', paymentValues);
+    const paymentResult = await pool.query(updatePaymentQuery, paymentValues);
+    
+    if (!paymentResult || !paymentResult.rows || paymentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Payment not found or update failed' });
+    }
+    
+    const updatedPayment = paymentResult.rows[0];
+    
+    // Format the response data
+    const formattedPayment = {
+      id: updatedPayment.id,
+      referenceNumber: updatedPayment.reference_number,
+      customerId: updatedPayment.customer_id,
+      paymentDate: updatedPayment.payment_date,
+      amount: updatedPayment.amount.toString(),
+      paymentMethod: updatedPayment.payment_method,
+      currency: updatedPayment.currency,
+      notes: updatedPayment.notes,
+      isAdvancePayment: updatedPayment.is_advance_payment,
+      createdAt: updatedPayment.created_at,
+      updatedAt: updatedPayment.updated_at
+    };
+    
+    // Return success response
+    res.json({
+      message: 'Payment updated successfully',
+      payment: formattedPayment
+    });
+  } catch (error) {
+    console.error(`Error updating payment ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to update payment',
+      details: error.message
+    });
+  }
+});
+
+/**
  * Update invoice status - just return success without updating
  */
 router.patch('/invoices/:id/status', ensureAuthenticated, (req: Request, res: Response) => {
