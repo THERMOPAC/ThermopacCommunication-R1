@@ -1135,7 +1135,37 @@ router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Resp
     // Log payment method value for debugging
     console.log('Payment method value received:', payment.paymentMethod);
     
-    // Update payment in database
+    // First, retrieve current payment data to check allocated amount
+    const currentPaymentQuery = `
+      SELECT amount, unallocated_amount 
+      FROM payments 
+      WHERE id = $1
+    `;
+    const currentPaymentResult = await pool.query(currentPaymentQuery, [paymentId]);
+    const currentPayment = currentPaymentResult.rows[0];
+    
+    if (!currentPayment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    
+    // Calculate allocated amount (amount - unallocated)
+    const currentAmount = parseFloat(currentPayment.amount);
+    const currentUnallocated = parseFloat(currentPayment.unallocated_amount || currentAmount);
+    const allocatedAmount = currentAmount - currentUnallocated;
+    
+    // Calculate new unallocated amount
+    const newAmount = parseFloat(payment.amount);
+    const newUnallocatedAmount = newAmount - allocatedAmount;
+    
+    console.log('Payment amount update:', {
+      currentAmount,
+      currentUnallocated,
+      allocatedAmount,
+      newAmount,
+      newUnallocatedAmount
+    });
+    
+    // Update payment in database with updated unallocated amount
     const updatePaymentQuery = `
       UPDATE payments SET
         reference_number = $1,
@@ -1146,8 +1176,9 @@ router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Resp
         notes = $6,
         is_advance_payment = $7,
         customer_id = $8,
+        unallocated_amount = $9,
         updated_at = NOW()
-      WHERE id = $9
+      WHERE id = $10
       RETURNING *
     `;
     
@@ -1160,6 +1191,7 @@ router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Resp
       payment.notes || null,
       payment.isAdvancePayment,
       payment.isAdvancePayment ? payment.customerId : null,
+      newUnallocatedAmount,
       paymentId
     ];
     

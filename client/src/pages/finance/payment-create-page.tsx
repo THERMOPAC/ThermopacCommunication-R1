@@ -896,7 +896,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                       <FormLabel>Payment Method</FormLabel>
                       <Select 
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value || 'bank transfer'}
                       >
                         <FormControl>
                           <SelectTrigger>
