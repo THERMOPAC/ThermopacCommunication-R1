@@ -115,6 +115,13 @@ export class DatabaseStorage implements IStorage {
   marketingCampaignsTable = marketingCampaigns;
   campaignActivitiesTable = campaignActivities;
   campaignChannelsTable = campaignChannels;
+  
+  // Finance tables
+  invoicesTable = invoicesTable;
+  invoiceItemsTable = invoiceItemsTable;
+  paymentsTable = paymentsTable;
+  paymentInvoiceLinksTable = paymentInvoiceLinksTable;
+  bankRealizationCertificatesTable = bankRealizationCertificatesTable;
 
   constructor() {
     try {
@@ -3059,6 +3066,354 @@ export class DatabaseStorage implements IStorage {
     return await db.select()
       .from(campaignActivities)
       .where(eq(campaignActivities.campaignId, campaignId));
+  }
+
+  // Finance - Invoices
+  async createInvoice(invoice: InsertInvoice, items: InsertInvoiceItem[]): Promise<Invoice> {
+    console.log('Creating new invoice:', { ...invoice, items: items.length });
+    
+    // Start a transaction
+    const result = await db.transaction(async (tx) => {
+      // Insert the invoice
+      const [insertedInvoice] = await tx
+        .insert(invoicesTable)
+        .values(invoice)
+        .returning();
+      
+      // Insert all invoice items with the invoice ID
+      if (items.length > 0) {
+        const itemsWithInvoiceId = items.map(item => ({
+          ...item,
+          invoiceId: insertedInvoice.id
+        }));
+        
+        await tx
+          .insert(invoiceItemsTable)
+          .values(itemsWithInvoiceId);
+      }
+      
+      return insertedInvoice;
+    });
+    
+    console.log('Created invoice:', result);
+    return result as Invoice;
+  }
+  
+  async getInvoice(id: number): Promise<Invoice | undefined> {
+    console.log(`Getting invoice with ID: ${id}`);
+    const [invoice] = await db
+      .select()
+      .from(invoicesTable)
+      .where(eq(invoicesTable.id, id));
+    
+    return invoice as Invoice | undefined;
+  }
+  
+  async getInvoiceByNumber(invoiceNumber: string): Promise<Invoice | undefined> {
+    console.log(`Looking for invoice with number: ${invoiceNumber}`);
+    const [invoice] = await db
+      .select()
+      .from(invoicesTable)
+      .where(eq(invoicesTable.invoiceNumber, invoiceNumber));
+    
+    return invoice as Invoice | undefined;
+  }
+  
+  async getInvoices(filters?: {
+    customerId?: number;
+    projectId?: number;
+    fromDate?: Date;
+    toDate?: Date;
+    status?: string;
+    currency?: string;
+  }): Promise<Invoice[]> {
+    console.log('Getting invoices with filters:', filters);
+    
+    let query = db.select().from(invoicesTable);
+    
+    // Apply filters
+    if (filters) {
+      const conditions = [];
+      
+      if (filters.customerId) {
+        conditions.push(eq(invoicesTable.customerId, filters.customerId));
+      }
+      
+      if (filters.projectId) {
+        conditions.push(eq(invoicesTable.projectId, filters.projectId));
+      }
+      
+      if (filters.fromDate) {
+        conditions.push(sql`${invoicesTable.invoiceDate} >= ${filters.fromDate}`);
+      }
+      
+      if (filters.toDate) {
+        conditions.push(sql`${invoicesTable.invoiceDate} <= ${filters.toDate}`);
+      }
+      
+      if (filters.status) {
+        conditions.push(eq(invoicesTable.status, filters.status));
+      }
+      
+      if (filters.currency) {
+        conditions.push(eq(invoicesTable.currency, filters.currency));
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+    
+    const invoices = await query.orderBy(desc(invoicesTable.invoiceDate));
+    return invoices as Invoice[];
+  }
+  
+  async updateInvoice(id: number, updateData: Partial<Invoice>): Promise<Invoice> {
+    console.log(`Updating invoice ${id} with data:`, updateData);
+    
+    const [updatedInvoice] = await db
+      .update(invoicesTable)
+      .set(updateData)
+      .where(eq(invoicesTable.id, id))
+      .returning();
+    
+    if (!updatedInvoice) {
+      throw new Error("Invoice not found");
+    }
+    
+    console.log('Updated invoice:', updatedInvoice);
+    return updatedInvoice as Invoice;
+  }
+  
+  // Finance - Invoice Items
+  async getInvoiceItems(invoiceId: number): Promise<InvoiceItem[]> {
+    console.log(`Getting items for invoice ${invoiceId}`);
+    
+    const items = await db
+      .select()
+      .from(invoiceItemsTable)
+      .where(eq(invoiceItemsTable.invoiceId, invoiceId));
+    
+    return items as InvoiceItem[];
+  }
+  
+  async addInvoiceItem(item: InsertInvoiceItem): Promise<InvoiceItem> {
+    console.log('Adding invoice item:', item);
+    
+    const [insertedItem] = await db
+      .insert(invoiceItemsTable)
+      .values(item)
+      .returning();
+    
+    console.log('Added invoice item:', insertedItem);
+    return insertedItem as InvoiceItem;
+  }
+  
+  async updateInvoiceItem(id: number, updateData: Partial<InvoiceItem>): Promise<InvoiceItem> {
+    console.log(`Updating invoice item ${id} with data:`, updateData);
+    
+    const [updatedItem] = await db
+      .update(invoiceItemsTable)
+      .set(updateData)
+      .where(eq(invoiceItemsTable.id, id))
+      .returning();
+    
+    if (!updatedItem) {
+      throw new Error("Invoice item not found");
+    }
+    
+    console.log('Updated invoice item:', updatedItem);
+    return updatedItem as InvoiceItem;
+  }
+  
+  async deleteInvoiceItem(id: number): Promise<void> {
+    console.log(`Deleting invoice item ${id}`);
+    
+    await db
+      .delete(invoiceItemsTable)
+      .where(eq(invoiceItemsTable.id, id));
+    
+    console.log(`Deleted invoice item ${id}`);
+  }
+  
+  // Finance - Payments and Allocations
+  async createPayment(payment: InsertPayment, allocations?: InsertPaymentInvoiceLink[]): Promise<Payment> {
+    console.log('Creating new payment:', {
+      ...payment,
+      allocations: allocations?.length || 0
+    });
+    
+    const result = await db.transaction(async (tx) => {
+      // Insert the payment
+      const [insertedPayment] = await tx
+        .insert(paymentsTable)
+        .values(payment)
+        .returning();
+      
+      // Insert payment allocations if provided
+      if (allocations && allocations.length > 0) {
+        const allocationsWithPaymentId = allocations.map(allocation => ({
+          ...allocation,
+          paymentId: insertedPayment.id
+        }));
+        
+        await tx
+          .insert(paymentInvoiceLinksTable)
+          .values(allocationsWithPaymentId);
+      }
+      
+      return insertedPayment;
+    });
+    
+    console.log('Created payment:', result);
+    return result as Payment;
+  }
+  
+  async getPayment(id: number): Promise<Payment | undefined> {
+    console.log(`Getting payment with ID: ${id}`);
+    
+    const [payment] = await db
+      .select()
+      .from(paymentsTable)
+      .where(eq(paymentsTable.id, id));
+    
+    return payment as Payment | undefined;
+  }
+  
+  async getPayments(filters?: {
+    customerId?: number;
+    fromDate?: Date;
+    toDate?: Date;
+    status?: string;
+    currency?: string;
+  }): Promise<Payment[]> {
+    console.log('Getting payments with filters:', filters);
+    
+    let query = db.select().from(paymentsTable);
+    
+    // Apply filters
+    if (filters) {
+      const conditions = [];
+      
+      if (filters.customerId) {
+        conditions.push(eq(paymentsTable.customerId, filters.customerId));
+      }
+      
+      if (filters.fromDate) {
+        conditions.push(sql`${paymentsTable.paymentDate} >= ${filters.fromDate}`);
+      }
+      
+      if (filters.toDate) {
+        conditions.push(sql`${paymentsTable.paymentDate} <= ${filters.toDate}`);
+      }
+      
+      if (filters.status) {
+        conditions.push(eq(paymentsTable.status, filters.status));
+      }
+      
+      if (filters.currency) {
+        conditions.push(eq(paymentsTable.currency, filters.currency));
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+    
+    const payments = await query.orderBy(desc(paymentsTable.paymentDate));
+    return payments as Payment[];
+  }
+  
+  async getPaymentAllocations(paymentId: number): Promise<PaymentInvoiceLink[]> {
+    console.log(`Getting allocations for payment ${paymentId}`);
+    
+    const allocations = await db
+      .select()
+      .from(paymentInvoiceLinksTable)
+      .where(eq(paymentInvoiceLinksTable.paymentId, paymentId));
+    
+    return allocations as PaymentInvoiceLink[];
+  }
+  
+  async allocatePayment(allocation: InsertPaymentInvoiceLink): Promise<PaymentInvoiceLink> {
+    console.log('Adding payment allocation:', allocation);
+    
+    const [insertedAllocation] = await db
+      .insert(paymentInvoiceLinksTable)
+      .values(allocation)
+      .returning();
+    
+    console.log('Added payment allocation:', insertedAllocation);
+    return insertedAllocation as PaymentInvoiceLink;
+  }
+  
+  async updatePayment(id: number, updateData: Partial<Payment>): Promise<Payment> {
+    console.log(`Updating payment ${id} with data:`, updateData);
+    
+    const [updatedPayment] = await db
+      .update(paymentsTable)
+      .set(updateData)
+      .where(eq(paymentsTable.id, id))
+      .returning();
+    
+    if (!updatedPayment) {
+      throw new Error("Payment not found");
+    }
+    
+    console.log('Updated payment:', updatedPayment);
+    return updatedPayment as Payment;
+  }
+  
+  // Finance - Bank Realization Certificates
+  async createBankRealizationCertificate(brc: InsertBankRealizationCertificate): Promise<BankRealizationCertificate> {
+    console.log('Creating new BRC:', brc);
+    
+    const [insertedBRC] = await db
+      .insert(bankRealizationCertificatesTable)
+      .values(brc)
+      .returning();
+    
+    console.log('Created BRC:', insertedBRC);
+    return insertedBRC as BankRealizationCertificate;
+  }
+  
+  async getBankRealizationCertificate(id: number): Promise<BankRealizationCertificate | undefined> {
+    console.log(`Getting BRC with ID: ${id}`);
+    
+    const [brc] = await db
+      .select()
+      .from(bankRealizationCertificatesTable)
+      .where(eq(bankRealizationCertificatesTable.id, id));
+    
+    return brc as BankRealizationCertificate | undefined;
+  }
+  
+  async getBankRealizationCertificatesForPayment(paymentId: number): Promise<BankRealizationCertificate[]> {
+    console.log(`Getting BRCs for payment ${paymentId}`);
+    
+    const brcs = await db
+      .select()
+      .from(bankRealizationCertificatesTable)
+      .where(eq(bankRealizationCertificatesTable.paymentId, paymentId));
+    
+    return brcs as BankRealizationCertificate[];
+  }
+  
+  async updateBankRealizationCertificate(id: number, updateData: Partial<BankRealizationCertificate>): Promise<BankRealizationCertificate> {
+    console.log(`Updating BRC ${id} with data:`, updateData);
+    
+    const [updatedBRC] = await db
+      .update(bankRealizationCertificatesTable)
+      .set(updateData)
+      .where(eq(bankRealizationCertificatesTable.id, id))
+      .returning();
+    
+    if (!updatedBRC) {
+      throw new Error("Bank Realization Certificate not found");
+    }
+    
+    console.log('Updated BRC:', updatedBRC);
+    return updatedBRC as BankRealizationCertificate;
   }
 }
 

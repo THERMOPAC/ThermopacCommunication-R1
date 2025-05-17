@@ -1,5 +1,8 @@
 import { Request, Response, Router } from 'express';
 import { ensureAuthenticated } from './auth-middleware';
+import { storage } from './storage';
+import { InsertInvoice, InsertInvoiceItem } from '@shared/schema';
+import { db } from './db';
 
 const router = Router();
 
