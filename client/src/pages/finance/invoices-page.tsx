@@ -82,12 +82,15 @@ export default function InvoicesPage() {
 
   // Query for invoices
   const { data, isLoading, error } = useQuery({
-    queryKey: ['/api/finance/invoices'],
+    queryKey: ['/api/simple-finance/invoices'],
     retry: 1
   });
 
+  // Extract invoices from the response
+  const invoices = data?.invoices || [];
+  
   // Filter the invoices based on search term and status
-  const filteredInvoices = data?.filter((invoice: any) => {
+  const filteredInvoices = invoices.filter((invoice: any) => {
     const matchesSearch = searchTerm === '' || 
       invoice.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase());
     
