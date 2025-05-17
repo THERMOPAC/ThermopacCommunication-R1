@@ -635,6 +635,7 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",
         p.amount,
+        p.allocated_amount as "allocatedAmount",
         p.unallocated_amount as "unallocatedAmount",
         p.payment_method as "paymentMethod",
         p.currency,
@@ -1205,6 +1206,7 @@ router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Resp
       payment.notes || null,
       payment.isAdvancePayment,
       payment.isAdvancePayment ? payment.customerId : null,
+      newAllocatedAmount,
       newUnallocatedAmount,
       paymentId
     ];

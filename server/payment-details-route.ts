@@ -25,6 +25,7 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",
         p.amount,
+        p.allocated_amount as "allocatedAmount",
         p.unallocated_amount as "unallocatedAmount",
         p.payment_method as "paymentMethod",
         p.currency,
