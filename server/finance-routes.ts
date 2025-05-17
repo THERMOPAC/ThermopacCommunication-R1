@@ -299,53 +299,97 @@ router.get('/invoices', ensureAuthenticated, (req: Request, res: Response) => {
 });
 
 /**
- * Get a specific invoice by ID
+ * Get a specific invoice by ID - using real database
  */
-router.get('/invoices/:id', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
-    // Sample invoice data
-    const invoices = [
-      {
-        id: 1,
-        invoiceNumber: "INV-2526-001",
-        customerId: 1,
-        issueDate: "2025-05-01",
-        dueDate: "2025-05-31",
-        totalAmount: "125000.00",
-        tax: "10000.00",
-        currency: "USD",
-        status: "Paid",
-        notes: "Project A Phase 1",
-        createdBy: 1,
-        createdAt: "2025-05-01T10:00:00Z",
-        updatedAt: "2025-06-15T10:00:00Z"
-      },
-      {
-        id: 2,
-        invoiceNumber: "INV-2526-002",
-        customerId: 2,
-        issueDate: "2025-06-01",
-        dueDate: "2025-06-30",
-        totalAmount: "100000.00",
-        tax: "8000.00",
-        currency: "USD",
-        status: "Paid",
-        notes: "Project B Initial Payment",
-        createdBy: 1,
-        createdAt: "2025-06-01T10:00:00Z",
-        updatedAt: "2025-07-22T10:00:00Z"
-      }
-    ];
+    // Use direct database query to get the invoice
+    const query = `
+      SELECT 
+        i.id, 
+        i.invoice_number as "invoiceNumber", 
+        i.customer_id as "customerId",
+        i.project_id as "projectId",
+        i.issue_date as "issueDate", 
+        i.due_date as "dueDate", 
+        i.total_amount as "totalAmount", 
+        i.currency, 
+        i.status,
+        i.sap_invoice_no as "sapInvoiceNo", 
+        i.invoice_type as "invoiceType",
+        i.notes,
+        i.created_at as "createdAt", 
+        i.updated_at as "updatedAt",
+        i.created_by as "createdBy"
+      FROM invoices i
+      WHERE i.id = $1
+    `;
     
-    const invoice = invoices.find(inv => inv.id === parseInt(id));
+    const itemsQuery = `
+      SELECT 
+        id,
+        invoice_id as "invoiceId",
+        description,
+        quantity,
+        unit_price as "unitPrice",
+        amount,
+        tax_rate as "taxRate",
+        tax_amount as "taxAmount",
+        discount_percent as "discountPercent",
+        discount_amount as "discountAmount",
+        line_total as "lineTotal",
+        project_item_id as "projectItemId",
+        master_item_id as "masterItemId",
+        hsn_code as "hsnCode",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM invoice_items
+      WHERE invoice_id = $1
+    `;
     
-    if (!invoice) {
+    const invoiceResult = await pool.query(query, [id]);
+    
+    if (!invoiceResult || !invoiceResult.rows || invoiceResult.rows.length === 0) {
       return res.status(404).json({ error: 'Invoice not found' });
     }
     
-    res.json(invoice);
+    const invoice = invoiceResult.rows[0];
+    
+    // Format dates for frontend
+    if (invoice.issueDate) {
+      invoice.issueDate = new Date(invoice.issueDate).toISOString().split('T')[0];
+    }
+    if (invoice.dueDate) {
+      invoice.dueDate = new Date(invoice.dueDate).toISOString().split('T')[0];
+    }
+    
+    // Try to get customer name
+    try {
+      if (invoice.customerId) {
+        const customerQuery = `SELECT bp_name FROM customers WHERE id = $1`;
+        const customerResult = await pool.query(customerQuery, [invoice.customerId]);
+        if (customerResult && customerResult.rows && customerResult.rows.length > 0) {
+          invoice.customerName = customerResult.rows[0].bp_name;
+        } else {
+          invoice.customerName = `Customer ${invoice.customerId}`;
+        }
+      }
+    } catch (customerError) {
+      console.error('Error getting customer name:', customerError);
+      invoice.customerName = `Customer ${invoice.customerId}`;
+    }
+    
+    // Get invoice items
+    const itemsResult = await pool.query(itemsQuery, [id]);
+    const items = itemsResult.rows || [];
+    
+    // Return the invoice and items in the format expected by the frontend
+    res.json({
+      invoice: invoice,
+      items: items
+    });
   } catch (error) {
     console.error(`Error getting invoice ${req.params.id}:`, error);
     res.status(500).json({ error: 'Failed to get invoice' });
