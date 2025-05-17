@@ -651,9 +651,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           
           <Card>
             <CardHeader>
-              <CardTitle>Invoice Items</CardTitle>
+              <CardTitle>Invoice Item</CardTitle>
               <CardDescription>
-                Add items to this invoice
+                Enter the invoice line item details
               </CardDescription>
             </CardHeader>
             <CardContent>
