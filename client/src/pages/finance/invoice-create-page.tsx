@@ -139,7 +139,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   
   // Get unallocated advance payments for selected customer
   const { data: unallocatedAdvances, isLoading: isLoadingAdvances } = useQuery({
-    queryKey: ['/api/finance/payments/unallocated-advances', selectedCustomerId],
+    queryKey: [`/api/finance/payments/unallocated-advances/${selectedCustomerId}`],
     enabled: !!selectedCustomerId && !isEditMode,
   });
   
@@ -725,7 +725,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           </Card>
           
           {/* Advance Payment Section - Only shown in create mode when customer is selected and has unallocated advances */}
-          {!isEditMode && selectedCustomerId && unallocatedAdvances?.advances?.length > 0 && (
+          {!isEditMode && selectedCustomerId && unallocatedAdvances && Array.isArray(unallocatedAdvances.advances) && unallocatedAdvances.advances.length > 0 && (
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Apply Advance Payments</CardTitle>
@@ -755,8 +755,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                             Apply available advance payments
                           </FormLabel>
                           <FormDescription>
-                            Total unallocated: {unallocatedAdvances.currency || 'USD'}{' '}
-                            {parseFloat(unallocatedAdvances.totalUnallocatedAmount || '0').toFixed(2)}
+                            Total unallocated: {unallocatedAdvances?.currency || 'USD'}{' '}
+                            {parseFloat(unallocatedAdvances?.totalUnallocatedAmount || '0').toFixed(2)}
                           </FormDescription>
                         </div>
                       </FormItem>
@@ -773,7 +773,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                         <div className="col-span-3">Apply Amount</div>
                       </div>
                       
-                      {unallocatedAdvances.advances.map((payment: any, index: number) => (
+                      {Array.isArray(unallocatedAdvances?.advances) && unallocatedAdvances.advances.map((payment: any, index: number) => (
                         <div key={payment.id} className="px-4 py-3 border-t grid grid-cols-12 gap-4 items-center text-sm">
                           <div className="col-span-3 font-medium">{payment.referenceNumber}</div>
                           <div className="col-span-2">{new Date(payment.paymentDate).toLocaleDateString()}</div>
