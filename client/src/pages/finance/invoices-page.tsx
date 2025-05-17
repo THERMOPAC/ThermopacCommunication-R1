@@ -86,8 +86,8 @@ export default function InvoicesPage() {
     retry: 1
   });
 
-  // Extract invoices from the response
-  const invoices = data?.invoices || [];
+  // Extract invoices from the response (direct array format)
+  const invoices = data || [];
   
   // Filter the invoices based on search term and status
   const filteredInvoices = invoices.filter((invoice: any) => {

@@ -1,4 +1,5 @@
 import { IStorage, UserUpdate } from "./types";
+import { desc, sql } from 'drizzle-orm';
 import type { 
   User, Task, InsertUser, InsertTask,
   TaskHistory, InsertTaskHistory,
@@ -3164,7 +3165,8 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    const invoices = await query.orderBy(desc(invoicesTable.invoiceDate));
+    // Now using the imported desc function for descending order
+    const invoices = await query.orderBy(desc(invoicesTable.createdAt));
     return invoices as Invoice[];
   }
   
