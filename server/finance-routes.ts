@@ -7,198 +7,163 @@ const router = Router();
 /**
  * Get overall financial dashboard data
  */
-router.get('/dashboard', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Return sample data for dashboard
+    // Get invoices from database
+    const invoicesQuery = `
+      SELECT 
+        COUNT(*) as "totalCount",
+        COALESCE(SUM(total_amount), 0) as "totalAmount",
+        COUNT(CASE WHEN status = 'Paid' THEN 1 END) as "paidCount",
+        COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as "paidAmount",
+        COUNT(CASE WHEN status != 'Paid' THEN 1 END) as "unpaidCount",
+        COALESCE(SUM(CASE WHEN status != 'Paid' THEN total_amount ELSE 0 END), 0) as "unpaidAmount",
+        COALESCE(SUM(CASE WHEN status != 'Paid' THEN outstanding_amount ELSE 0 END), 0) as "outstandingAmount",
+        COUNT(CASE WHEN due_date < CURRENT_DATE AND status != 'Paid' THEN 1 END) as "overdueCount",
+        COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE AND status != 'Paid' THEN outstanding_amount ELSE 0 END), 0) as "overdueAmount"
+      FROM 
+        invoices
+    `;
+    
+    const invoiceStatsResult = await pool.query(invoicesQuery);
+    const invoiceStats = invoiceStatsResult.rows[0];
+    
+    // Get payment stats
+    const paymentsQuery = `
+      SELECT 
+        COUNT(*) as "totalCount",
+        COALESCE(SUM(amount), 0) as "totalAmount"
+      FROM 
+        payments
+    `;
+    
+    const paymentStatsResult = await pool.query(paymentsQuery);
+    const paymentStats = paymentStatsResult.rows[0];
+    
+    // Get recent invoices
+    const recentInvoicesQuery = `
+      SELECT 
+        i.id,
+        i.invoice_number as "invoiceNumber",
+        c.bp_name as "clientName",
+        i.issue_date as "issueDate",
+        i.due_date as "dueDate",
+        i.total_amount as "amount",
+        i.status,
+        CASE WHEN i.due_date < CURRENT_DATE AND i.status != 'Paid' THEN true ELSE false END as "overdue"
+      FROM 
+        invoices i
+      LEFT JOIN 
+        customers c ON i.customer_id = c.id
+      ORDER BY 
+        i.issue_date DESC
+      LIMIT 5
+    `;
+    
+    const recentInvoicesResult = await pool.query(recentInvoicesQuery);
+    const recentInvoices = recentInvoicesResult.rows;
+    
+    // Get recent payments
+    const recentPaymentsQuery = `
+      SELECT 
+        p.id,
+        p.reference_number as "referenceNumber",
+        c.bp_name as "clientName",
+        p.payment_date as "paymentDate",
+        p.amount,
+        p.payment_method as "paymentMethod",
+        p.currency,
+        p.notes,
+        p.is_advance_payment as "isAdvancePayment",
+        CASE WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
+             WHEN p.unallocated_amount > 0 THEN 'Partially Allocated'
+             ELSE 'Fully Allocated' END as "allocationStatus",
+        p.created_at as "createdAt",
+        p.updated_at as "updatedAt"
+      FROM 
+        payments p
+      LEFT JOIN 
+        customers c ON p.customer_id = c.id
+      ORDER BY 
+        p.payment_date DESC
+      LIMIT 5
+    `;
+    
+    const recentPaymentsResult = await pool.query(recentPaymentsQuery);
+    const latestPayments = recentPaymentsResult.rows;
+    
+    // Get all latest invoices with details
+    const latestInvoicesQuery = `
+      SELECT 
+        i.id,
+        i.invoice_number as "invoiceNumber",
+        i.customer_id as "customerId",
+        i.issue_date as "issueDate",
+        i.due_date as "dueDate",
+        i.total_amount as "totalAmount",
+        i.tax,
+        i.currency,
+        i.status,
+        i.notes,
+        i.created_at as "createdAt",
+        i.updated_at as "updatedAt"
+      FROM 
+        invoices i
+      ORDER BY 
+        i.issue_date DESC
+      LIMIT 5
+    `;
+    
+    const latestInvoicesResult = await pool.query(latestInvoicesQuery);
+    const latestInvoices = latestInvoicesResult.rows;
+    
+    // Calculate INR amount (for marketing dashboard)
+    const exchangeRate = 85.60; // USD to INR
+    const invoicedAmountUSD = parseFloat(invoiceStats.totalAmount || 0);
+    const invoicedAmountINR = invoicedAmountUSD * exchangeRate;
+    
+    // Construct the dashboard data
     const dashboardData = {
       totalInvoices: {
-        count: 5,
-        amount: "625000.00"
+        count: parseInt(invoiceStats.totalCount || 0),
+        amount: parseFloat(invoiceStats.totalAmount || 0).toFixed(2)
       },
       totalPaid: {
-        count: 2,
-        amount: "225000.00"
+        count: parseInt(invoiceStats.paidCount || 0),
+        amount: parseFloat(invoiceStats.paidAmount || 0).toFixed(2)
       },
       totalUnpaid: {
-        count: 3,
-        amount: "400000.00"
+        count: parseInt(invoiceStats.unpaidCount || 0),
+        amount: parseFloat(invoiceStats.unpaidAmount || 0).toFixed(2)
       },
       outstandingInvoices: {
-        count: 3,
-        amount: "400000.00"
+        count: parseInt(invoiceStats.unpaidCount || 0),
+        amount: parseFloat(invoiceStats.outstandingAmount || 0).toFixed(2)
       },
       overdueInvoices: {
-        count: 2,
-        amount: "200000.00"
+        count: parseInt(invoiceStats.overdueCount || 0),
+        amount: parseFloat(invoiceStats.overdueAmount || 0).toFixed(2)
       },
       totalOutstanding: {
-        count: 3,
-        amount: "400000.00"
+        count: parseInt(invoiceStats.unpaidCount || 0),
+        amount: parseFloat(invoiceStats.outstandingAmount || 0).toFixed(2)
       },
       totalOverdue: {
-        count: 2,
-        amount: "200000.00"
+        count: parseInt(invoiceStats.overdueCount || 0),
+        amount: parseFloat(invoiceStats.overdueAmount || 0).toFixed(2)
       },
       totalPayments: {
-        count: 2,
-        amount: "225000.00"
+        count: parseInt(paymentStats.totalCount || 0),
+        amount: parseFloat(paymentStats.totalAmount || 0).toFixed(2)
       },
-      recentInvoices: [
-        {
-          id: 1,
-          invoiceNumber: "INV-2526-001",
-          clientName: "Acme Corporation",
-          issueDate: "2025-05-15",
-          dueDate: "2025-06-14",
-          amount: "150000.00",
-          status: "Paid"
-        },
-        {
-          id: 2,
-          invoiceNumber: "INV-2526-002",
-          clientName: "Globex Corporation",
-          issueDate: "2025-06-02",
-          dueDate: "2025-07-01", 
-          amount: "200000.00",
-          status: "Pending"
-        },
-        {
-          id: 3,
-          invoiceNumber: "INV-2526-003",
-          clientName: "Stark Industries",
-          issueDate: "2025-06-10",
-          dueDate: "2025-07-09",
-          amount: "125000.00",
-          status: "Overdue"
-        },
-        {
-          id: 4,
-          invoiceNumber: "INV-2526-004",
-          clientName: "Wayne Enterprises",
-          issueDate: "2025-06-15",
-          dueDate: "2025-07-14",
-          amount: "75000.00",
-          status: "Pending"
-        },
-        {
-          id: 5,
-          invoiceNumber: "INV-2526-005",
-          clientName: "LexCorp",
-          issueDate: "2025-06-20",
-          dueDate: "2025-07-19",
-          amount: "75000.00",
-          status: "Pending"
-        }
-      ],
-      latestPayments: [
-        {
-          id: 1,
-          referenceNumber: "PAY-2526-001",
-          customerId: 1,
-          paymentDate: "2025-06-15",
-          amount: "125000.00",
-          paymentMethod: "Wire Transfer",
-          currency: "USD",
-          notes: "Payment for INV-2526-001",
-          isAdvancePayment: false,
-          allocationStatus: "Allocated",
-          createdBy: 1,
-          createdAt: "2025-06-15T10:00:00Z",
-          updatedAt: "2025-06-15T10:00:00Z"
-        },
-        {
-          id: 2,
-          referenceNumber: "PAY-2526-002",
-          customerId: 2,
-          paymentDate: "2025-07-22",
-          amount: "100000.00",
-          paymentMethod: "Bank Transfer",
-          currency: "USD",
-          notes: "Payment for INV-2526-002",
-          isAdvancePayment: false,
-          allocationStatus: "Allocated",
-          createdBy: 1,
-          createdAt: "2025-07-22T10:00:00Z",
-          updatedAt: "2025-07-22T10:00:00Z"
-        }
-      ],
-      latestInvoices: [
-        {
-          id: 1,
-          invoiceNumber: "INV-2526-001",
-          customerId: 1,
-          issueDate: "2025-05-01",
-          dueDate: "2025-05-31",
-          totalAmount: "125000.00",
-          tax: "10000.00",
-          currency: "USD",
-          status: "Paid",
-          notes: "Project A Phase 1",
-          createdBy: 1,
-          createdAt: "2025-05-01T10:00:00Z",
-          updatedAt: "2025-06-15T10:00:00Z"
-        },
-        {
-          id: 2,
-          invoiceNumber: "INV-2526-002",
-          customerId: 2,
-          issueDate: "2025-06-01",
-          dueDate: "2025-06-30",
-          totalAmount: "100000.00",
-          tax: "8000.00",
-          currency: "USD",
-          status: "Paid",
-          notes: "Project B Initial Payment",
-          createdBy: 1,
-          createdAt: "2025-06-01T10:00:00Z",
-          updatedAt: "2025-07-22T10:00:00Z"
-        },
-        {
-          id: 3,
-          invoiceNumber: "INV-2526-003",
-          customerId: 3,
-          issueDate: "2025-07-01",
-          dueDate: "2025-07-31",
-          totalAmount: "150000.00",
-          tax: "12000.00",
-          currency: "USD",
-          status: "Unpaid",
-          notes: "Project C Full Payment",
-          createdBy: 1,
-          createdAt: "2025-07-01T10:00:00Z",
-          updatedAt: "2025-07-01T10:00:00Z"
-        },
-        {
-          id: 4,
-          invoiceNumber: "INV-2526-004",
-          customerId: 1,
-          issueDate: "2025-07-15",
-          dueDate: "2025-08-15",
-          totalAmount: "125000.00",
-          tax: "10000.00",
-          currency: "USD",
-          status: "Unpaid",
-          notes: "Project A Phase 2",
-          createdBy: 1,
-          createdAt: "2025-07-15T10:00:00Z",
-          updatedAt: "2025-07-15T10:00:00Z"
-        },
-        {
-          id: 5,
-          invoiceNumber: "INV-2526-005",
-          customerId: 4,
-          issueDate: "2025-08-01",
-          dueDate: "2025-08-31",
-          totalAmount: "125000.00",
-          tax: "10000.00",
-          currency: "USD",
-          status: "Unpaid",
-          notes: "Project D Initial Payment",
-          createdBy: 1,
-          createdAt: "2025-08-01T10:00:00Z",
-          updatedAt: "2025-08-01T10:00:00Z"
-        }
-      ]
+      recentInvoices,
+      latestPayments,
+      latestInvoices,
+      
+      // For marketing dashboard
+      invoicedAmountUSD,
+      invoicedAmountINR,
+      exchangeRate
     };
     
     res.json(dashboardData);
