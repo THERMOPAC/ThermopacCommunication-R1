@@ -3165,8 +3165,8 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // Now using the imported desc function for descending order
-    const invoices = await query.orderBy(desc(invoicesTable.createdAt));
+    // Using SQL directly as a workaround for the desc syntax error
+    const invoices = await query.orderBy(sql`${invoicesTable.createdAt} DESC`);
     return invoices as Invoice[];
   }
   
