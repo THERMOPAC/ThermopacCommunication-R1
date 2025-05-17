@@ -143,6 +143,12 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     enabled: !!selectedCustomerId && !isEditMode,
   });
   
+  // Calculate total invoice amount for auto-applying advance payments
+  const calculateInvoiceTotal = () => {
+    const items = form.watch('items');
+    return items.reduce((total, item) => total + parseFloat(item.amount || '0'), 0);
+  };
+  
   // For automatic invoice number generation
   const [isGeneratingInvoiceNumber, setIsGeneratingInvoiceNumber] = useState(false);
   
@@ -278,6 +284,38 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     // Clean up the subscription
     return () => subscription.unsubscribe();
   }, [form, isEditMode, isGeneratingInvoiceNumber]);
+  
+  // Effect to auto-update the advance payment allocation amounts when invoice amount changes
+  useEffect(() => {
+    // Only do this if we're not in edit mode and have advance payments
+    if (!isEditMode && unallocatedAdvances?.advances?.length > 0) {
+      const invoiceTotal = calculateInvoiceTotal();
+      const totalUnallocated = parseFloat(unallocatedAdvances.totalUnallocatedAmount || '0');
+      
+      // If we have unallocated advances, enable the checkbox by default
+      form.setValue('applyAdvancePayments', true);
+      
+      // Distribute the invoice amount across available advances
+      let remainingToAllocate = invoiceTotal;
+      const advancePaymentAllocations = unallocatedAdvances.advances.map((payment: any) => {
+        const availableAmount = parseFloat(payment.unallocatedAmount);
+        let amountToApply = 0;
+        
+        if (remainingToAllocate > 0) {
+          // Apply either the full available amount or remaining invoice amount, whichever is smaller
+          amountToApply = Math.min(availableAmount, remainingToAllocate);
+          remainingToAllocate -= amountToApply;
+        }
+        
+        return {
+          paymentId: payment.id,
+          amountToApply: amountToApply.toFixed(2)
+        };
+      });
+      
+      form.setValue('advancePaymentAllocations', advancePaymentAllocations);
+    }
+  }, [isEditMode, unallocatedAdvances, form.watch('items')]);
   
   // Create invoice mutation
   const createInvoice = useMutation({
@@ -762,7 +800,24 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   />
 
                   {form.watch('applyAdvancePayments') && (
-                    <div className="border rounded-md overflow-hidden">
+                    <div className="border rounded-md overflow-hidden mt-4">
+                      <div className="bg-green-50 px-4 py-3 border-b">
+                        <div className="flex items-center">
+                          <div className="mr-2 text-green-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-green-700">Advance Payments Auto-Applied</h4>
+                            <p className="text-sm text-green-600">
+                              The system has automatically calculated optimal allocation of advance payments. You can adjust the amounts as needed.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
                       <div className="bg-muted px-4 py-2 font-medium text-sm grid grid-cols-12 gap-4">
                         <div className="col-span-3">Reference Number</div>
                         <div className="col-span-2">Date</div>
@@ -771,44 +826,84 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                         <div className="col-span-3">Apply Amount</div>
                       </div>
                       
-                      {Array.isArray(unallocatedAdvances?.advances) && unallocatedAdvances.advances.map((payment: any, index: number) => (
-                        <div key={payment.id} className="px-4 py-3 border-t grid grid-cols-12 gap-4 items-center text-sm">
-                          <div className="col-span-3 font-medium">{payment.referenceNumber}</div>
-                          <div className="col-span-2">{new Date(payment.paymentDate).toLocaleDateString()}</div>
-                          <div className="col-span-2">{payment.currency} {parseFloat(payment.amount).toFixed(2)}</div>
-                          <div className="col-span-2">{payment.currency} {parseFloat(payment.unallocatedAmount).toFixed(2)}</div>
-                          <div className="col-span-3">
-                            <FormField
-                              control={form.control}
-                              name={`advancePaymentAllocations.${index}.amountToApply`}
-                              render={({ field }) => (
-                                <FormItem className="m-0">
-                                  <FormControl>
-                                    <div className="flex items-center">
-                                      <span className="mr-2">{payment.currency}</span>
-                                      <Input
-                                        {...field}
-                                        type="number"
-                                        min="0"
-                                        max={payment.unallocatedAmount}
-                                        step="0.01"
-                                        className={hideNumberInputArrows}
-                                      />
-                                    </div>
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`advancePaymentAllocations.${index}.paymentId`}
-                              render={({ field }) => (
-                                <input type="hidden" {...field} value={payment.id} />
-                              )}
-                            />
+                      {Array.isArray(unallocatedAdvances?.advances) && unallocatedAdvances.advances.map((payment: any, index: number) => {
+                        const currentApplyAmount = form.watch(`advancePaymentAllocations.${index}.amountToApply`);
+                        const isApplying = parseFloat(currentApplyAmount) > 0;
+                        
+                        return (
+                          <div key={payment.id} className={`px-4 py-3 border-t grid grid-cols-12 gap-4 items-center text-sm ${isApplying ? 'bg-green-50' : ''}`}>
+                            <div className="col-span-3 font-medium">{payment.referenceNumber}</div>
+                            <div className="col-span-2">{new Date(payment.paymentDate).toLocaleDateString()}</div>
+                            <div className="col-span-2">{payment.currency} {parseFloat(payment.amount).toFixed(2)}</div>
+                            <div className="col-span-2">{payment.currency} {parseFloat(payment.unallocatedAmount).toFixed(2)}</div>
+                            <div className="col-span-3">
+                              <FormField
+                                control={form.control}
+                                name={`advancePaymentAllocations.${index}.amountToApply`}
+                                render={({ field }) => (
+                                  <FormItem className="m-0">
+                                    <FormControl>
+                                      <div className="flex items-center">
+                                        <span className="mr-2">{payment.currency}</span>
+                                        <Input
+                                          {...field}
+                                          type="number"
+                                          min="0"
+                                          max={payment.unallocatedAmount}
+                                          step="0.01"
+                                          className={`${hideNumberInputArrows} ${isApplying ? 'border-green-500 bg-green-50' : ''}`}
+                                        />
+                                      </div>
+                                    </FormControl>
+                                    {isApplying && (
+                                      <div className="text-xs text-green-600 mt-1">
+                                        This amount will be applied automatically
+                                      </div>
+                                    )}
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`advancePaymentAllocations.${index}.paymentId`}
+                                render={({ field }) => (
+                                  <input type="hidden" {...field} value={payment.id} />
+                                )}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Summary section */}
+                      <div className="bg-gray-50 px-4 py-3 border-t">
+                        <div className="flex justify-between">
+                          <div className="font-medium">Total Invoice Amount:</div>
+                          <div>{unallocatedAdvances?.currency || 'USD'} {calculateInvoiceTotal().toFixed(2)}</div>
+                        </div>
+                        
+                        <div className="flex justify-between mt-1">
+                          <div className="font-medium">Total Applied from Advances:</div>
+                          <div className="text-green-600 font-medium">
+                            {unallocatedAdvances?.currency || 'USD'} {
+                              form.watch('advancePaymentAllocations')?.reduce((total, alloc) => 
+                                total + parseFloat(alloc.amountToApply || '0'), 0).toFixed(2)
+                            }
                           </div>
                         </div>
-                      ))}
+                        
+                        <div className="flex justify-between mt-1">
+                          <div className="font-medium">Remaining to Pay:</div>
+                          <div className="text-blue-600 font-medium">
+                            {unallocatedAdvances?.currency || 'USD'} {
+                              Math.max(0, calculateInvoiceTotal() - 
+                                form.watch('advancePaymentAllocations')?.reduce((total, alloc) => 
+                                  total + parseFloat(alloc.amountToApply || '0'), 0)
+                              ).toFixed(2)
+                            }
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
