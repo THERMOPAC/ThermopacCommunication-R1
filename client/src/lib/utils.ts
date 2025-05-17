@@ -102,6 +102,38 @@ export function formatUSD(amount: number | string, useCrores: boolean = false): 
 }
 
 /**
+ * Format amount based on currency type
+ * @param amount The amount to format
+ * @param currency Currency code ('INR', 'USD', etc.)
+ * @returns Formatted currency string with appropriate symbol
+ */
+export function formatCurrency(amount: number | string, currency: string = 'INR'): string {
+  if (amount === null || amount === undefined) return '₹0.00';
+  
+  // Convert string to number if needed
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  
+  // Handle NaN case
+  if (isNaN(numAmount)) return '₹0.00';
+  
+  // Format based on currency type
+  switch(currency?.toUpperCase()) {
+    case 'USD':
+      return formatUSD(numAmount);
+    case 'INR':
+      return formatRupees(numAmount);
+    default:
+      // For other currencies, use a generic formatter with currency code
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency?.toUpperCase() || 'INR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(numAmount);
+  }
+}
+
+/**
  * Get the Indian financial year (April to March) for a given date
  * @param date Date to get financial year for
  * @returns Financial year string in "YYZZ" format (e.g., "2526" for dates between Apr 1, 2025 to Mar 31, 2026)
