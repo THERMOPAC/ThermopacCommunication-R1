@@ -341,11 +341,21 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         },
         items: values.items.map(item => ({
           description: item.description,
-          amount: String(parseFloat(item.amount || '0'))
+          quantity: "1",
+          unitPrice: String(parseFloat(item.amount || "0")),
+          amount: String(parseFloat(item.amount || "0")),
+          taxRate: "0",
+          taxAmount: "0",
+          discountPercent: "0",
+          discountAmount: "0",
+          lineTotal: String(parseFloat(item.amount || "0"))
         }))
       };
       
-      return apiRequest('PUT', `/api/finance/invoices/${invoiceId}`, apiData);
+      // Log the data being sent
+      console.log('Updating invoice data:', JSON.stringify(apiData, null, 2));
+      
+      return apiRequest('PUT', `/api/simple-finance/invoices/${invoiceId}`, apiData);
     },
     onSuccess: () => {
       toast({
