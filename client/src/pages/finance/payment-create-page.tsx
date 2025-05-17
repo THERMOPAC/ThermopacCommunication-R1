@@ -981,6 +981,34 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                     )}
                   />
                   
+                  {/* Unallocated Amount field - only show in edit mode */}
+                  {isEditMode && (
+                    <FormField
+                      control={form.control}
+                      name="unallocatedAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Unallocated Amount</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01" 
+                              min="0"
+                              placeholder="0.00"
+                              {...field}
+                              readOnly={true}
+                              className="bg-muted cursor-not-allowed"
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Amount that has not been allocated to invoices
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                  
                   {/* Auto-allocation toggle - only show for non-advance payments */}
                   {!form.watch('isAdvancePayment') && (
                     <div className="flex items-center space-x-2">
