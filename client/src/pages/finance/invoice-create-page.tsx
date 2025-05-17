@@ -48,6 +48,30 @@ import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { getIndianFinancialYear, getNextInvoiceNumber } from "@/lib/utils";
 
+// Add global CSS style to hide number input arrows
+const globalStyles = `
+@layer utilities {
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+`;
+
+// Add the style to the document
+if (typeof document !== 'undefined') {
+  const styleEl = document.createElement('style');
+  styleEl.innerHTML = globalStyles;
+  document.head.appendChild(styleEl);
+}
+
+// Custom CSS class for number inputs without arrows
+const hideNumberInputArrows = "appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+
 // Create form schema
 const invoiceFormSchema = z.object({
   invoiceNumber: z.string().min(1, "Invoice number is required"),
