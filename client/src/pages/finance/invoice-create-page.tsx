@@ -297,8 +297,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       // Log the data being sent
       console.log('Sending invoice data:', JSON.stringify(apiData, null, 2));
       
-      // Use the database-backed simple finance route
-      return apiRequest('POST', '/api/simple-finance/invoices', apiData);
+      // Use the updated database-backed finance route
+      return apiRequest('POST', '/api/finance/invoices', apiData);
     },
     onSuccess: () => {
       toast({
