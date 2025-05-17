@@ -76,7 +76,19 @@ export default function InvoiceDetailPage({ download = false, print = false }: I
   
   // Extract invoice ID from URL
   const pathSegments = location.split('/');
-  const invoiceId = pathSegments[pathSegments.indexOf('invoices') + 1];
+  const invoiceIndex = pathSegments.indexOf('invoices');
+  
+  // Handle both /finance/invoices/:id and /finance/invoices/view/:id patterns
+  let invoiceId;
+  if (pathSegments[invoiceIndex + 1] === 'view') {
+    invoiceId = pathSegments[invoiceIndex + 2]; // Get ID after 'view'
+  } else {
+    invoiceId = pathSegments[invoiceIndex + 1]; // Direct ID
+  }
+  
+  // Log the URL path for debugging
+  console.log('Invoice path segments:', pathSegments);
+  console.log('Detected invoice ID:', invoiceId);
   
   // Query for invoice details
   const { data, isLoading, error } = useQuery({
