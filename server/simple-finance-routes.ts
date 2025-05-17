@@ -55,9 +55,9 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
             .filter((id, index, self) => self.indexOf(id) === index); // Get unique IDs
           
           if (customerIds.length > 0) {
-            // Create placeholder parameters for the query
+            // Create placeholder parameters for the query - use bp_name for customer name
             const params = customerIds.map((_, i) => `$${i+1}`).join(',');
-            const customerQuery = `SELECT id, name FROM customers WHERE id IN (${params})`;
+            const customerQuery = `SELECT id, bp_name as name FROM customers WHERE id IN (${params})`;
             const customerResult = await pool.query(customerQuery, customerIds);
             
             if (customerResult && customerResult.rows && customerResult.rows.length > 0) {
@@ -324,13 +324,13 @@ router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       invoice.dueDate = new Date(invoice.dueDate).toISOString().split('T')[0];
     }
     
-    // Try to get customer name
+    // Try to get customer name from bp_name
     try {
       if (invoice.customerId) {
-        const customerQuery = `SELECT name FROM customers WHERE id = $1`;
+        const customerQuery = `SELECT bp_name FROM customers WHERE id = $1`;
         const customerResult = await pool.query(customerQuery, [invoice.customerId]);
         if (customerResult && customerResult.rows && customerResult.rows.length > 0) {
-          invoice.customerName = customerResult.rows[0].name;
+          invoice.customerName = customerResult.rows[0].bp_name;
         } else {
           invoice.customerName = `Customer ${invoice.customerId}`;
         }
