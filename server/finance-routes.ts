@@ -665,56 +665,70 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
     console.log(`Found payment in database: ${payment.referenceNumber}`);
     
     // Get any invoice allocation links
-    const allocationsQuery = `
-      SELECT 
-        pa.id,
-        pa.payment_id as "paymentId",
-        pa.invoice_id as "invoiceId",
-        pa.amount_applied as "amountApplied",
-        pa.created_at as "createdAt",
-        pa.updated_at as "updatedAt"
-      FROM 
-        payment_allocations pa
-      WHERE 
-        pa.payment_id = $1
-    `;
-    
-    const allocationsResult = await pool.query(allocationsQuery, [paymentId]);
-    const allocations = allocationsResult.rows || [];
+    let allocations = [];
+    try {
+      const allocationsQuery = `
+        SELECT 
+          pa.id,
+          pa.payment_id as "paymentId",
+          pa.invoice_id as "invoiceId",
+          pa.amount_applied as "amountApplied",
+          pa.created_at as "createdAt",
+          pa.updated_at as "updatedAt"
+        FROM 
+          payment_allocations pa
+        WHERE 
+          pa.payment_id = $1
+      `;
+      
+      const allocationsResult = await pool.query(allocationsQuery, [paymentId]);
+      allocations = allocationsResult.rows || [];
+    } catch (allocErr) {
+      console.log('No payment allocations found or table not yet created:', allocErr.message);
+      allocations = [];
+    }
     
     // Get related invoice details if there are allocations
     const invoiceLinks = [];
     
     if (allocations.length > 0) {
-      for (const allocation of allocations) {
-        const invoiceQuery = `
-          SELECT 
-            i.id,
-            i.invoice_number as "invoiceNumber",
-            i.customer_id as "customerId",
-            i.issue_date as "issueDate", 
-            i.due_date as "dueDate", 
-            i.total_amount as "totalAmount",
-            i.currency, 
-            i.status,
-            i.notes,
-            i.created_by as "createdBy",
-            i.created_at as "createdAt", 
-            i.updated_at as "updatedAt"
-          FROM 
-            invoices i
-          WHERE 
-            i.id = $1
-        `;
-        
-        const invoiceResult = await pool.query(invoiceQuery, [allocation.invoiceId]);
-        
-        if (invoiceResult.rows && invoiceResult.rows.length > 0) {
-          invoiceLinks.push({
-            link: allocation,
-            invoice: invoiceResult.rows[0]
-          });
+      try {
+        for (const allocation of allocations) {
+          try {
+            const invoiceQuery = `
+              SELECT 
+                i.id,
+                i.invoice_number as "invoiceNumber",
+                i.customer_id as "customerId",
+                i.issue_date as "issueDate", 
+                i.due_date as "dueDate", 
+                i.total_amount as "totalAmount",
+                i.currency, 
+                i.status,
+                i.notes,
+                i.created_by as "createdBy",
+                i.created_at as "createdAt", 
+                i.updated_at as "updatedAt"
+              FROM 
+                invoices i
+              WHERE 
+                i.id = $1
+            `;
+            
+            const invoiceResult = await pool.query(invoiceQuery, [allocation.invoiceId]);
+            
+            if (invoiceResult.rows && invoiceResult.rows.length > 0) {
+              invoiceLinks.push({
+                link: allocation,
+                invoice: invoiceResult.rows[0]
+              });
+            }
+          } catch (invoiceErr) {
+            console.error(`Error getting invoice detail for invoice ${allocation.invoiceId}:`, invoiceErr.message);
+          }
         }
+      } catch (err) {
+        console.error('Error processing payment allocations:', err.message);
       }
     }
     
