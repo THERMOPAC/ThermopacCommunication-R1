@@ -335,14 +335,6 @@ router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
         quantity,
         unit_price as "unitPrice",
         amount,
-        tax_rate as "taxRate",
-        tax_amount as "taxAmount",
-        discount_percent as "discountPercent",
-        discount_amount as "discountAmount",
-        line_total as "lineTotal",
-        project_item_id as "projectItemId",
-        master_item_id as "masterItemId",
-        hsn_code as "hsnCode",
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM invoice_items
