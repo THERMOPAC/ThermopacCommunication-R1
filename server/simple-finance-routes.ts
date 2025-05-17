@@ -64,11 +64,23 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       }
     }
     
-    // Save the invoice to the database
-    const savedInvoice = await storage.createInvoice(invoiceData, invoiceItems);
+    // Log the invoice data we're about to save
+    console.log('Attempting to save invoice with data:', JSON.stringify(invoiceData, null, 2));
+    console.log('Invoice items to save:', JSON.stringify(invoiceItems, null, 2));
     
-    // Log the success
-    console.log('Successfully created invoice:', savedInvoice.id);
+    try {
+      // Save the invoice to the database
+      const savedInvoice = await storage.createInvoice(invoiceData, invoiceItems);
+      
+      // Log the success
+      console.log('Successfully created invoice:', savedInvoice.id);
+      
+      // Return success response
+      return res.status(201).json(savedInvoice);
+    } catch (dbError) {
+      console.error('Database error creating invoice:', dbError);
+      throw dbError;
+    }
     
     // Return success response
     res.status(201).json(savedInvoice);
