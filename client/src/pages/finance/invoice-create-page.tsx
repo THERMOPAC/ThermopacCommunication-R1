@@ -84,6 +84,7 @@ const invoiceFormSchema = z.object({
     required_error: "Due date is required",
   }),
   currency: z.string().default("INR"),
+  invoiceType: z.enum(["Product", "Service"]).default("Product"),
   notes: z.string().optional(),
   items: z.array(
     z.object({
@@ -192,6 +193,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         issueDate: new Date(invoiceData.invoice.issueDate),
         dueDate: new Date(invoiceData.invoice.dueDate),
         currency: invoiceData.invoice.currency,
+        invoiceType: invoiceData.invoice.invoiceType || 'Product',
         notes: invoiceData.invoice.notes || '',
         items: invoiceData.items?.map((item: any) => ({
           description: item.description,
@@ -421,26 +423,53 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   )}
                 />
                 
-                <FormField
-                  control={form.control}
-                  name="currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Currency</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="USD" 
-                          value="USD"
-                          {...field}
-                          onChange={() => {}} 
-                          readOnly 
-                          className="bg-muted cursor-not-allowed"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="flex gap-4">
+                  <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormLabel>Currency</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="USD" 
+                            value="USD"
+                            {...field}
+                            onChange={() => {}} 
+                            readOnly 
+                            className="bg-muted cursor-not-allowed"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="invoiceType"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormLabel>Invoice Type</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Product">Product</SelectItem>
+                            <SelectItem value="Service">Service</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 
                 <FormField
                   control={form.control}
