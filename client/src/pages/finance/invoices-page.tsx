@@ -87,7 +87,7 @@ export default function InvoicesPage() {
   });
   
   // Extract invoices from the response or use empty array if no data
-  const invoices = data || [];
+  const invoices = Array.isArray(data) ? data : [];
   
   // Filter the invoices based on search term and status
   const filteredInvoices = invoices.filter((invoice: any) => {
@@ -293,96 +293,72 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody>
-              {/* Display either mock data or actual data once available */}
-              {(filteredInvoices.length > 0 ? filteredInvoices : [
-                {
-                  id: 1,
-                  invoiceNumber: 'INV-2025-001',
-                  customerId: 1,
-                  customerName: 'Company A',
-                  issueDate: '2025-05-10',
-                  dueDate: '2025-06-09',
-                  totalAmount: 45000,
-                  status: 'Pending'
-                },
-                {
-                  id: 2,
-                  invoiceNumber: 'INV-2025-002',
-                  customerId: 2,
-                  customerName: 'Company B',
-                  issueDate: '2025-05-05',
-                  dueDate: '2025-06-04',
-                  totalAmount: 78500,
-                  status: 'Paid'
-                },
-                {
-                  id: 3,
-                  invoiceNumber: 'INV-2025-003',
-                  customerId: 3,
-                  customerName: 'Company C',
-                  issueDate: '2025-04-20',
-                  dueDate: '2025-05-10',
-                  totalAmount: 32500,
-                  status: 'Overdue'
-                }
-              ]).map((invoice: any) => (
-                <tr key={invoice.id} className="border-t hover:bg-muted/50">
-                  <td className="px-4 py-3 text-left text-sm">
-                    <Link href={`/finance/invoices/view/${invoice.id}`} className="text-primary hover:underline">
-                      {invoice.invoiceNumber}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-left text-sm">{invoice.customerName}</td>
-                  <td className="px-4 py-3 text-left text-sm">{formatDate(invoice.issueDate)}</td>
-                  <td className="px-4 py-3 text-left text-sm">{formatDate(invoice.dueDate)}</td>
-                  <td className="px-4 py-3 text-right text-sm font-medium">{formatCurrency(invoice.totalAmount, invoice.currency)}</td>
-                  <td className="px-4 py-3 text-center">
-                    <StatusBadge status={invoice.status} />
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/finance/invoices/view/${invoice.id}`}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/finance/invoices/${invoice.id}/edit`}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit Invoice
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
-                          <Link href={`/finance/invoices/${invoice.id}/download`}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Download PDF
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/finance/invoices/${invoice.id}/print`}>
-                            <FileText className="h-4 w-4 mr-2" />
-                            Print Invoice
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600 focus:text-red-600">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {filteredInvoices.length > 0 ? (
+                filteredInvoices.map((invoice: any) => (
+                  <tr key={invoice.id} className="border-t hover:bg-muted/50">
+                    <td className="px-4 py-3 text-left text-sm">
+                      <Link href={`/finance/invoices/view/${invoice.id}`} className="text-primary hover:underline">
+                        {invoice.invoiceNumber}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-left text-sm">{invoice.customerName}</td>
+                    <td className="px-4 py-3 text-left text-sm">{formatDate(invoice.issueDate)}</td>
+                    <td className="px-4 py-3 text-left text-sm">{formatDate(invoice.dueDate)}</td>
+                    <td className="px-4 py-3 text-right text-sm font-medium">{formatCurrency(invoice.totalAmount, invoice.currency)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <StatusBadge status={invoice.status} />
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/finance/invoices/view/${invoice.id}`}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/finance/invoices/${invoice.id}/edit`}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Invoice
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem asChild>
+                            <Link href={`/finance/invoices/${invoice.id}/download`}>
+                              <Download className="h-4 w-4 mr-2" />
+                              Download PDF
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/finance/invoices/${invoice.id}/print`}>
+                              <FileText className="h-4 w-4 mr-2" />
+                              Print Invoice
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-red-600 focus:text-red-600">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                    No invoices found. Create your first invoice to get started.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
