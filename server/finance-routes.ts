@@ -536,49 +536,99 @@ router.get('/payments/:id', ensureAuthenticated, (req: Request, res: Response) =
   try {
     const { id } = req.params;
     
-    const payment = {
-      id: 1,
-      referenceNumber: "PAY-2526-001",
-      customerId: 1,
-      paymentDate: "2025-06-15",
-      amount: "125000.00",
-      paymentMethod: "Wire Transfer",
-      currency: "USD",
-      notes: "Payment for INV-2526-001",
-      isAdvancePayment: false,
-      allocationStatus: "Allocated",
-      createdBy: 1,
-      createdAt: "2025-06-15T10:00:00Z",
-      updatedAt: "2025-06-15T10:00:00Z"
-    };
-    
-    const invoiceLinks = [
+    // Define sample payments with different IDs
+    const payments = [
       {
-        link: {
-          id: 1,
-          paymentId: 1,
-          invoiceId: 1,
-          amountApplied: "125000.00",
-          createdAt: "2025-06-15T10:05:00Z",
-          updatedAt: "2025-06-15T10:05:00Z"
-        },
-        invoice: {
-          id: 1,
-          invoiceNumber: "INV-2526-001",
-          customerId: 1,
-          issueDate: "2025-05-01",
-          dueDate: "2025-05-31",
-          totalAmount: "125000.00",
-          tax: "10000.00",
-          currency: "USD",
-          status: "Paid",
-          notes: "Project A Phase 1",
-          createdBy: 1,
-          createdAt: "2025-05-01T10:00:00Z",
-          updatedAt: "2025-06-15T10:00:00Z"
-        }
+        id: 1,
+        referenceNumber: "PAY-2526-001",
+        customerId: 1,
+        paymentDate: "2025-06-15",
+        amount: "125000.00",
+        paymentMethod: "Wire Transfer",
+        currency: "USD",
+        notes: "Payment for INV-2526-001",
+        isAdvancePayment: false,
+        allocationStatus: "Allocated",
+        createdBy: 1,
+        createdAt: "2025-06-15T10:00:00Z",
+        updatedAt: "2025-06-15T10:00:00Z"
+      },
+      {
+        id: 2,
+        referenceNumber: "PAY-2526-002",
+        customerId: 2,
+        paymentDate: "2025-07-22",
+        amount: "100000.00",
+        paymentMethod: "Bank Transfer",
+        currency: "USD",
+        notes: "Payment for INV-2526-002",
+        isAdvancePayment: false,
+        allocationStatus: "Allocated",
+        createdBy: 1,
+        createdAt: "2025-07-22T10:00:00Z",
+        updatedAt: "2025-07-22T10:00:00Z"
       }
     ];
+    
+    // Find the payment with the matching ID
+    const payment = payments.find(p => p.id === parseInt(id)) || payments[0];
+    
+    // Links based on payment ID
+    const invoiceLinks = payment.id === 1 ? 
+      [
+        {
+          link: {
+            id: 1,
+            paymentId: 1,
+            invoiceId: 1,
+            amountApplied: "125000.00",
+            createdAt: "2025-06-15T10:05:00Z",
+            updatedAt: "2025-06-15T10:05:00Z"
+          },
+          invoice: {
+            id: 1,
+            invoiceNumber: "INV-2526-001",
+            customerId: 1,
+            issueDate: "2025-05-01",
+            dueDate: "2025-05-31",
+            totalAmount: "125000.00",
+            tax: "10000.00",
+            currency: "USD",
+            status: "Paid",
+            notes: "Project A Phase 1",
+            createdBy: 1,
+            createdAt: "2025-05-01T10:00:00Z",
+            updatedAt: "2025-06-15T10:00:00Z"
+          }
+        }
+      ] :
+      [
+        {
+          link: {
+            id: 2,
+            paymentId: 2,
+            invoiceId: 2,
+            amountApplied: "100000.00",
+            createdAt: "2025-07-22T10:05:00Z",
+            updatedAt: "2025-07-22T10:05:00Z"
+          },
+          invoice: {
+            id: 2,
+            invoiceNumber: "INV-2526-002",
+            customerId: 2,
+            issueDate: "2025-06-02",
+            dueDate: "2025-07-01",
+            totalAmount: "100000.00",
+            tax: "8000.00",
+            currency: "USD",
+            status: "Paid",
+            notes: "Project B Phase 1",
+            createdBy: 1,
+            createdAt: "2025-06-02T10:00:00Z",
+            updatedAt: "2025-07-22T10:00:00Z"
+          }
+        }
+      ];
     
     res.json({
       payment,
