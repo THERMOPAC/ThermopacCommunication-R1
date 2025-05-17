@@ -299,6 +299,102 @@ router.get('/invoices', ensureAuthenticated, (req: Request, res: Response) => {
 });
 
 /**
+ * Get an invoice by ID from the /invoices/view/:id route
+ */
+router.get('/invoices/view/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = parseInt(req.params.id);
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ error: 'Invalid invoice ID' });
+    }
+    
+    // Use direct database query to get the invoice
+    const query = `
+      SELECT 
+        i.id, 
+        i.invoice_number as "invoiceNumber", 
+        i.customer_id as "customerId",
+        i.project_id as "projectId",
+        i.issue_date as "issueDate", 
+        i.due_date as "dueDate", 
+        i.total_amount as "totalAmount", 
+        i.currency, 
+        i.status,
+        i.sap_invoice_no as "sapInvoiceNo", 
+        i.invoice_type as "invoiceType",
+        i.notes,
+        i.created_at as "createdAt", 
+        i.updated_at as "updatedAt",
+        i.created_by as "createdBy"
+      FROM invoices i
+      WHERE i.id = $1
+    `;
+    
+    const itemsQuery = `
+      SELECT 
+        id,
+        invoice_id as "invoiceId",
+        description,
+        quantity,
+        unit_price as "unitPrice",
+        amount,
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM invoice_items
+      WHERE invoice_id = $1
+    `;
+    
+    const invoiceResult = await pool.query(query, [invoiceId]);
+    
+    if (!invoiceResult || !invoiceResult.rows || invoiceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    
+    const invoice = invoiceResult.rows[0];
+    
+    // Format dates for frontend
+    if (invoice.issueDate) {
+      invoice.issueDate = new Date(invoice.issueDate).toISOString().split('T')[0];
+    }
+    if (invoice.dueDate) {
+      invoice.dueDate = new Date(invoice.dueDate).toISOString().split('T')[0];
+    }
+    
+    // Try to get customer name
+    try {
+      if (invoice.customerId) {
+        const customerQuery = `SELECT bp_name FROM customers WHERE id = $1`;
+        const customerResult = await pool.query(customerQuery, [invoice.customerId]);
+        if (customerResult && customerResult.rows && customerResult.rows.length > 0) {
+          invoice.customerName = customerResult.rows[0].bp_name;
+        } else {
+          invoice.customerName = `Customer ${invoice.customerId}`;
+        }
+      }
+    } catch (customerError) {
+      console.error('Error getting customer name:', customerError);
+      invoice.customerName = `Customer ${invoice.customerId}`;
+    }
+    
+    // Get invoice items
+    const itemsResult = await pool.query(itemsQuery, [invoiceId]);
+    const items = itemsResult.rows || [];
+    
+    // Return the invoice and items in the format expected by the frontend
+    res.json({
+      invoice: invoice,
+      items: items
+    });
+  } catch (error) {
+    console.error(`Error getting invoice view ${req.params.id}:`, error);
+    res.status(500).json({
+      error: 'Failed to get invoice',
+      details: error.message
+    });
+  }
+});
+
+/**
  * Get a specific invoice by ID - using real database
  */
 router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Response) => {
