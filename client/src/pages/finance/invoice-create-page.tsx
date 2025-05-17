@@ -573,7 +573,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                 />
                 
                 {/* Display unallocated advance payments if available */}
-                {!isEditMode && selectedCustomerId && unallocatedAdvances && unallocatedAdvances.totalUnallocated > 0 && (
+                {!isEditMode && selectedCustomerId && unallocatedAdvances && parseFloat(unallocatedAdvances.totalUnallocatedAmount || '0') > 0 && (
                   <div className="col-span-1 md:col-span-2 mt-2">
                     <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                       <div className="flex items-center">
@@ -590,9 +590,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                             This customer has unallocated advance payments totaling{" "}
                             <span className="font-mono bg-blue-100 text-blue-700 border border-blue-300 px-1 rounded">
                               {unallocatedAdvances.currency === 'INR' ? '₹' : '$'}
-                              {typeof unallocatedAdvances.totalUnallocated === 'number' 
-                                ? unallocatedAdvances.totalUnallocated.toLocaleString('en-IN', { maximumFractionDigits: 2 })
-                                : unallocatedAdvances.totalUnallocated}
+                              {parseFloat(unallocatedAdvances.totalUnallocatedAmount || '0').toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                             </span>
                             {" "}which can be used against this invoice.
                           </p>
