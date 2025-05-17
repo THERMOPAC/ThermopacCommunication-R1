@@ -1,5 +1,6 @@
 import { Request, Response, Router } from 'express';
 import { ensureAuthenticated } from './auth-middleware';
+import { Pool } from 'pg';
 
 const router = Router();
 
@@ -463,9 +464,15 @@ router.get('/payments/:id', ensureAuthenticated, (req: Request, res: Response) =
 router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     console.log('Creating invoice with data:', JSON.stringify(req.body));
+    console.log('Request user:', req.user);
     
     // Extract data from the request body
     const { invoice, items } = req.body;
+    
+    if (!invoice) {
+      console.error('Invalid request body - invoice data missing:', req.body);
+      return res.status(400).json({ error: 'Invalid request body - invoice data missing' });
+    }
     
     // SQL to insert invoice and get ID
     const insertInvoiceQuery = `
@@ -478,6 +485,11 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING id, invoice_number, created_at;
     `;
+    
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'User not authenticated properly' });
+    }
     
     const invoiceValues = [
       invoice.invoiceNumber,
@@ -495,6 +507,7 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
     ];
     
     // Connect to DB and execute transaction
+    const { Pool } = require('pg');
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL
     });
@@ -528,6 +541,11 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       await client.query('COMMIT');
       
       // Return the created invoice
+      // Ensure user is authenticated again (after all the async operations)
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'User not authenticated properly' });
+      }
+      
       res.status(201).json({
         id: newInvoiceId,
         invoiceNumber: invoice.invoiceNumber,
