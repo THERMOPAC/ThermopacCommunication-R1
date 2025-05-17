@@ -973,6 +973,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       payment_method: paymentData.paymentMethod,
       notes: paymentData.notes || null,
       is_advance_payment: paymentData.isAdvancePayment || false,
+      allocated_amount: 0.00, // Start with zero allocated amount
       unallocated_amount: parseFloat(paymentData.amount), // Start with all amount unallocated
       customer_id: paymentData.customerId ? parseInt(paymentData.customerId) : null,
       created_by: userId,
@@ -984,11 +985,11 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     const insertPaymentQuery = `
       INSERT INTO payments (
         reference_number, payment_date, amount, currency, payment_method, 
-        notes, is_advance_payment, unallocated_amount, customer_id,
+        notes, is_advance_payment, allocated_amount, unallocated_amount, customer_id,
         created_by, created_at, updated_at
       ) 
       VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
       )
       RETURNING *
     `;
@@ -1001,6 +1002,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       payment.payment_method,
       payment.notes,
       payment.is_advance_payment,
+      payment.allocated_amount,
       payment.unallocated_amount,
       payment.customer_id,
       payment.created_by,
@@ -1148,21 +1150,32 @@ router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Resp
       return res.status(404).json({ error: 'Payment not found' });
     }
     
-    // Calculate allocated amount (amount - unallocated)
+    // Get existing allocation information
     const currentAmount = parseFloat(currentPayment.amount);
     const currentUnallocated = parseFloat(currentPayment.unallocated_amount || currentAmount);
-    const allocatedAmount = currentAmount - currentUnallocated;
+    
+    // Calculate allocated amount - either use the existing allocated_amount or calculate it
+    let allocatedAmount = 0;
+    if ('allocated_amount' in currentPayment) {
+      // Use the existing allocated_amount if it exists
+      allocatedAmount = parseFloat(currentPayment.allocated_amount || 0);
+    } else {
+      // Fall back to calculating it from amount - unallocated (for backward compatibility)
+      allocatedAmount = currentAmount - currentUnallocated;
+    }
     
     // Calculate new unallocated amount
     const newAmount = parseFloat(payment.amount);
     const newUnallocatedAmount = newAmount - allocatedAmount;
+    const newAllocatedAmount = allocatedAmount; // Allocated amount stays the same when just updating payment details
     
     console.log('Payment amount update:', {
       currentAmount,
       currentUnallocated,
       allocatedAmount,
       newAmount,
-      newUnallocatedAmount
+      newUnallocatedAmount,
+      newAllocatedAmount
     });
     
     // Update payment in database with updated unallocated amount
@@ -1176,9 +1189,10 @@ router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Resp
         notes = $6,
         is_advance_payment = $7,
         customer_id = $8,
-        unallocated_amount = $9,
+        allocated_amount = $9,
+        unallocated_amount = $10,
         updated_at = NOW()
-      WHERE id = $10
+      WHERE id = $11
       RETURNING *
     `;
     
