@@ -84,6 +84,7 @@ const invoiceFormSchema = z.object({
     required_error: "Due date is required",
   }),
   currency: z.string().default("INR"),
+  sapInvoiceNo: z.string().optional(),
   invoiceType: z.enum(["Product", "Service"]).default("Product"),
   notes: z.string().optional(),
   items: z.array(
@@ -151,6 +152,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       ? new Date(invoiceData.invoice.dueDate)
       : new Date(new Date().setDate(new Date().getDate() + 30)), // Due in 30 days
     currency: isEditMode && invoiceData?.invoice ? invoiceData.invoice.currency : 'USD',
+    sapInvoiceNo: isEditMode && invoiceData?.invoice ? invoiceData.invoice.sapInvoiceNo || '' : '',
     invoiceType: isEditMode && invoiceData?.invoice && invoiceData.invoice.invoiceType
       ? invoiceData.invoice.invoiceType
       : 'Product',
@@ -399,7 +401,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <FormField
                   control={form.control}
                   name="invoiceNumber"
@@ -412,59 +414,73 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                           {...field}
                         />
                       </FormControl>
-                      {/* Help text for invoice number removed as requested */}
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 
-                <div className="flex gap-4">
-                  <FormField
-                    control={form.control}
-                    name="currency"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormLabel>Currency</FormLabel>
+                <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Currency</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="USD" 
+                          value="USD"
+                          {...field}
+                          onChange={() => {}} 
+                          readOnly 
+                          className="bg-muted cursor-not-allowed"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="sapInvoiceNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SAP Invoice No</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter SAP invoice number" 
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="invoiceType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Invoice Type</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
                         <FormControl>
-                          <Input 
-                            placeholder="USD" 
-                            value="USD"
-                            {...field}
-                            onChange={() => {}} 
-                            readOnly 
-                            className="bg-muted cursor-not-allowed"
-                          />
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="invoiceType"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormLabel>Invoice Type</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Product">Product</SelectItem>
-                            <SelectItem value="Service">Service</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                        <SelectContent>
+                          <SelectItem value="Product">Product</SelectItem>
+                          <SelectItem value="Service">Service</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 
                 <FormField
                   control={form.control}
