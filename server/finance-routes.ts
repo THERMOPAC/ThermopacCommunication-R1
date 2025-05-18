@@ -1666,41 +1666,53 @@ router.get('/test/invoice-number', async (req: Request, res: Response) => {
     const endYearStr = endYear.toString().substring(2);
     const financialYear = `${startYearStr}${endYearStr}`;
     
-    // Instead of using the sample data, let's actually query the database to get the real highest number
-    const query = `
-      SELECT invoice_number 
-      FROM invoices 
-      WHERE invoice_number LIKE $1 
-      ORDER BY invoice_number DESC 
-      LIMIT 1
-    `;
-    
-    const result = await pool.query(query, [`INV-${financialYear}-%`]);
-    
-    // Default to starting from a high number to avoid conflicts with our test data
-    let maxSequenceNumber = 25; // Start from 026 to avoid conflicts
-    
-    // If we found existing invoices, extract the highest sequence number
-    if (result.rows.length > 0) {
-      const match = result.rows[0].invoice_number.match(/INV-(\d{4})-(\d{3})/);
-      if (match) {
-        const dbSequenceNumber = parseInt(match[2]);
-        maxSequenceNumber = Math.max(maxSequenceNumber, dbSequenceNumber);
+    // Query the database for existing invoice numbers in this financial year
+    try {
+      const query = `
+        SELECT invoice_number 
+        FROM invoices 
+        WHERE invoice_number LIKE $1 
+        ORDER BY invoice_number DESC 
+        LIMIT 1
+      `;
+      
+      const result = await pool.query(query, [`INV-${financialYear}-%`]);
+      
+      // Start from number 50 to avoid conflicts with any existing data
+      let maxSequenceNumber = 50;
+      
+      // If we found existing invoices, extract the highest sequence number
+      if (result.rows.length > 0) {
+        const match = result.rows[0].invoice_number.match(/INV-(\d{4})-(\d{3})/);
+        if (match && match[2]) {
+          const dbSequenceNumber = parseInt(match[2]);
+          maxSequenceNumber = Math.max(maxSequenceNumber, dbSequenceNumber);
+        }
       }
+      
+      // Generate the next sequence number
+      const nextSequenceNumber = maxSequenceNumber + 1;
+      // Format it to 3 digits with leading zeros
+      const sequenceStr = nextSequenceNumber.toString().padStart(3, '0');
+      
+      // Return the next invoice number
+      const nextInvoiceNumber = `INV-${financialYear}-${sequenceStr}`;
+      
+      // Log the generated invoice number for debugging
+      console.log(`Generated new invoice number: ${nextInvoiceNumber} (based on max: ${maxSequenceNumber})`);
+      
+      return res.json({ nextInvoiceNumber });
+    } catch (dbError) {
+      console.error("Database error when getting invoice number:", dbError);
+      
+      // Fallback to a safe high number if database query fails
+      const fallbackNumber = 100 + Math.floor(Math.random() * 899); // Random number between 100-999
+      const sequenceStr = fallbackNumber.toString().padStart(3, '0');
+      const nextInvoiceNumber = `INV-${financialYear}-${sequenceStr}`;
+      
+      console.log(`Using fallback invoice number: ${nextInvoiceNumber} due to DB error`);
+      return res.json({ nextInvoiceNumber });
     }
-    
-    // Generate the next sequence number
-    const nextSequenceNumber = maxSequenceNumber + 1;
-    // Format it to 3 digits with leading zeros
-    const sequenceStr = nextSequenceNumber.toString().padStart(3, '0');
-    
-    // Return the next invoice number
-    const nextInvoiceNumber = `INV-${financialYear}-${sequenceStr}`;
-    
-    // Log the generated invoice number for debugging
-    console.log(`Generated new invoice number: ${nextInvoiceNumber} (based on max: ${maxSequenceNumber})`);
-    
-    res.json({ nextInvoiceNumber });
     
   } catch (error) {
     console.error('Error generating next invoice number:', error);

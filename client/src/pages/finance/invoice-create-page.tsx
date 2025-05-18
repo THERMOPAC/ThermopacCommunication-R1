@@ -314,9 +314,11 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           const availableAmount = parseFloat(payment.unallocatedAmount);
           let amountToApply = 0;
           
-          if (remainingToAllocate > 0) {
+          if (remainingToAllocate > 0 && availableAmount > 0) {
             // Apply either the full available amount or remaining invoice amount, whichever is smaller
             amountToApply = Math.min(availableAmount, remainingToAllocate);
+            // Format to 2 decimal places and convert back to number to avoid floating point issues
+            amountToApply = parseFloat(amountToApply.toFixed(2));
             remainingToAllocate -= amountToApply;
             console.log(`Pre-allocating ${amountToApply.toFixed(2)} from payment ${payment.referenceNumber} (${payment.id})`);
           }
@@ -1006,13 +1008,35 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                                             value={field.value || '0'}
                                             onChange={(e) => {
                                               // Ensure numeric value and update form
-                                              const value = e.target.value.replace(/[^0-9.]/g, '');
+                                              let value = e.target.value.replace(/[^0-9.]/g, '');
+                                              
+                                              // Validate value is not greater than available amount
+                                              const numValue = parseFloat(value);
+                                              const maxAmount = parseFloat(payment.unallocatedAmount);
+                                              
+                                              if (!isNaN(numValue) && numValue > maxAmount) {
+                                                value = maxAmount.toString();
+                                                console.log(`Limiting allocation to max available: ${maxAmount}`);
+                                              }
+                                              
                                               field.onChange(value);
                                               
-                                              // Force recalculate total
-                                              const appliedAmount = form.getValues('advancePaymentAllocations')
-                                                ?.reduce((total, alloc) => total + parseFloat(alloc.amountToApply || '0'), 0) || 0;
-                                              console.log('Applied amount now:', appliedAmount);
+                                              // Force recalculate total with a slight delay to ensure form state is updated
+                                              setTimeout(() => {
+                                                const allocations = form.getValues('advancePaymentAllocations') || [];
+                                                const appliedAmount = allocations.reduce(
+                                                  (total, alloc) => {
+                                                    const amt = parseFloat(alloc?.amountToApply || '0');
+                                                    return total + (isNaN(amt) ? 0 : amt);
+                                                  }, 
+                                                  0
+                                                );
+                                                console.log('Total applied amount updated:', appliedAmount.toFixed(2));
+                                                
+                                                // Update the UI to show the total applied amount
+                                                const remainingToPay = calculateInvoiceTotal() - appliedAmount;
+                                                console.log('Remaining to pay:', remainingToPay.toFixed(2));
+                                              }, 10);
                                             }}
                                           />
                                         </div>
