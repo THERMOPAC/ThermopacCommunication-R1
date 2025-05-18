@@ -295,42 +295,52 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   useEffect(() => {
     // Only do this if we're not in edit mode and have advance payments
     if (!isEditMode && unallocatedAdvances?.advances?.length > 0) {
-      const invoiceTotal = calculateInvoiceTotal();
-      const totalUnallocated = parseFloat(unallocatedAdvances.totalUnallocatedAmount || '0');
+      // Filter advances to match the current invoice type
+      const currentType = form.watch('invoiceType');
+      const filteredAdvances = unallocatedAdvances.advances.filter((payment: any) => 
+        payment.paymentType === currentType
+      );
       
-      // If we have unallocated advances, enable the checkbox by default
-      form.setValue('applyAdvancePayments', true);
-      
-      // Distribute the invoice amount across available advances
-      let remainingToAllocate = invoiceTotal;
-      const advancePaymentAllocations = unallocatedAdvances.advances.map((payment: any, index: number) => {
-        const availableAmount = parseFloat(payment.unallocatedAmount);
-        let amountToApply = 0;
+      if (filteredAdvances.length > 0) {
+        const invoiceTotal = calculateInvoiceTotal();
+        const totalUnallocated = parseFloat(unallocatedAdvances.totalUnallocatedAmount || '0');
         
-        if (remainingToAllocate > 0) {
-          // Apply either the full available amount or remaining invoice amount, whichever is smaller
-          amountToApply = Math.min(availableAmount, remainingToAllocate);
-          remainingToAllocate -= amountToApply;
-        }
+        // If we have unallocated advances, enable the checkbox by default
+        form.setValue('applyAdvancePayments', true);
         
-        // Get current allocation to prevent unnecessary re-renders
-        const currentAllocation = form.getValues(`advancePaymentAllocations.${index}.amountToApply`);
-        const currentAmount = parseFloat(currentAllocation || '0');
+        // Distribute the invoice amount across available advances
+        let remainingToAllocate = invoiceTotal;
         
-        // Only update if amount changed
-        if (Math.abs(currentAmount - amountToApply) > 0.01) {
-          // Update individual fields to allow field-by-field change detection
-          form.setValue(`advancePaymentAllocations.${index}.amountToApply`, amountToApply.toFixed(2), {
+        // Update the allocations
+        filteredAdvances.forEach((payment: any, index: number) => {
+          const availableAmount = parseFloat(payment.unallocatedAmount);
+          let amountToApply = 0;
+          
+          if (remainingToAllocate > 0) {
+            // Apply either the full available amount or remaining invoice amount, whichever is smaller
+            amountToApply = Math.min(availableAmount, remainingToAllocate);
+            remainingToAllocate -= amountToApply;
+          }
+          
+          // Get current allocation to prevent unnecessary re-renders
+          const currentAllocation = form.getValues(`advancePaymentAllocations.${index}.amountToApply`);
+          const currentAmount = parseFloat(currentAllocation || '0');
+          
+          // Only update if amount changed
+          if (Math.abs(currentAmount - amountToApply) > 0.01) {
+            // Update individual fields to allow field-by-field change detection
+            form.setValue(`advancePaymentAllocations.${index}.amountToApply`, amountToApply.toFixed(2), {
+              shouldValidate: true,
+              shouldDirty: true,
+            });
+          }
+          
+          // Set the payment ID for new allocations
+          form.setValue(`advancePaymentAllocations.${index}.paymentId`, payment.id, {
             shouldValidate: true,
-            shouldDirty: true,
           });
-        }
-        
-        return {
-          paymentId: payment.id,
-          amountToApply: amountToApply.toFixed(2)
-        };
-      });
+        });
+      }
     }
   }, [isEditMode, unallocatedAdvances, watchedItems]);
   
