@@ -497,14 +497,39 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         invoiceLinks: values.invoiceLinks || []
       };
       
-      // API call to update payment
-      const response = await apiRequest('PUT', `/api/finance/payments/${paymentId}`, apiData);
+      // API call to update payment - using fetch directly for better control
+      const response = await fetch(`/api/finance/payments/${paymentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(apiData),
+        credentials: 'include'
+      });
+      
+      // Try to parse response as text first
+      const responseText = await response.text();
+      
+      // If response is not successful
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update payment');
+        // Try to parse as JSON if possible
+        try {
+          const errorData = JSON.parse(responseText);
+          throw new Error(errorData.message || 'Failed to update payment');
+        } catch (e) {
+          // If can't parse as JSON, use text directly
+          throw new Error(responseText || 'Failed to update payment');
+        }
       }
       
-      return await response.json();
+      // Try to parse successful response as JSON
+      try {
+        return JSON.parse(responseText);
+      } catch (e) {
+        // If parsing fails but request was successful, return a default success object
+        return { success: true, message: 'Payment updated successfully' };
+      }
     },
     onSuccess: (data) => {
       // Show success message
