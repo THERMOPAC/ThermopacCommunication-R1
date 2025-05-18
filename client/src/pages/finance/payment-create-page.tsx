@@ -48,6 +48,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
 import { formatRupees, getIndianFinancialYear, getNextPaymentReferenceNumber } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -865,7 +866,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="customer"
+                  name="customerId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer</FormLabel>
