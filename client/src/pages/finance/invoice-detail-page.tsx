@@ -218,11 +218,11 @@ export default function InvoiceDetailPage({ download = false, print = false }: I
   
   const invoice = data?.invoice;
   const items = data?.items || [];
-  const payments = data?.payments || [];
+  const paymentAllocations = data?.paymentAllocations || [];
   
-  // Calculate total paid amount
-  const totalPaid = payments.reduce((sum: number, payment: any) => sum + payment.amountApplied, 0);
-  const balanceDue = invoice?.totalAmount - totalPaid;
+  // Calculate total paid amount from payment allocations
+  const totalPaid = paymentAllocations.reduce((sum: number, allocation: any) => sum + parseFloat(allocation.allocatedAmount), 0);
+  const balanceDue = invoice ? parseFloat(invoice.totalAmount) - totalPaid : 0;
   
   return (
     <Layout>

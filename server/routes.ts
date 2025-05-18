@@ -31,6 +31,7 @@ import { setupDedicatedTestRoutes } from "./dedicated-test-route";
 import { setupSalesMarketingRoutes } from "./sales-marketing-routes";
 import { default as financeRoutes } from "./finance-routes";
 import { default as simpleFinanceRoutes } from "./simple-finance-routes";
+import { default as paymentAllocationApi } from "./payment-allocation-api";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
 import calibrationTestRoutes from "./testapi/calibration-test-routes";
 import { registerTemplateManagementRoutes } from "./template-management/register-routes";
