@@ -1147,8 +1147,19 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
     // Format dates for the database
     const paymentDate = payment.paymentDate ? new Date(payment.paymentDate) : new Date();
     
-    // Log payment method value for debugging
-    console.log('Payment method value received:', payment.paymentMethod);
+    // Log detailed payment values for debugging
+    console.log('Payment values received:', {
+      referenceNumber: payment.referenceNumber,
+      paymentDate: payment.paymentDate,
+      sapPaymentNo: payment.sapPaymentNo,
+      paymentType: payment.paymentType,
+      amount: payment.amount,
+      currency: payment.currency,
+      paymentMethod: payment.paymentMethod,
+      notes: payment.notes,
+      isAdvancePayment: payment.isAdvancePayment,
+      customerId: payment.customerId
+    });
     
     // First, retrieve current payment data to check allocated amount
     const currentPaymentQuery = `
