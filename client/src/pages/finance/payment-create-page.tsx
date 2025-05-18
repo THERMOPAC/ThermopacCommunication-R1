@@ -812,7 +812,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
-                      <FormLabel>Advance Payment</FormLabel>
+                      <FormLabel className="text-red-600 font-medium">Advance Payment</FormLabel>
                       <FormDescription>
                         Record a payment not linked to any invoice
                       </FormDescription>
