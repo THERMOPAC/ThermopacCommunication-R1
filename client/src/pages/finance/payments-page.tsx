@@ -238,6 +238,7 @@ export default function PaymentsPage() {
               <tr className="bg-muted/50">
                 <th className="px-4 py-3 text-left text-sm font-medium">Reference #</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Payment Date</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Customer Name</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Payment Method</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Currency</th>
                 <th className="px-4 py-3 text-right text-sm font-medium">Amount</th>
@@ -255,6 +256,9 @@ export default function PaymentsPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-left text-sm">{formatDate(payment.paymentDate)}</td>
+                    <td className="px-4 py-3 text-left text-sm">
+                      {payment.customerName || (payment.customer ? payment.customer.bpName : "N/A")}
+                    </td>
                     <td className="px-4 py-3 text-left text-sm">
                       <PaymentMethodBadge method={payment.paymentMethod} />
                     </td>
