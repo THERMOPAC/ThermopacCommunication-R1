@@ -998,11 +998,43 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     // Get the authenticated user
     const userId = (req.user as any)?.id || 1;
     
+    // Validate date format
+    let paymentDate;
+    try {
+      // Handle date format - try to parse and format correctly for SQL
+      if (paymentData.paymentDate) {
+        const dateString = paymentData.paymentDate;
+        // Try to parse the date
+        if (typeof dateString === 'string') {
+          // If it's a string date (like "2025-05-18")
+          paymentDate = new Date(dateString);
+        } else {
+          // If it's already a date object
+          paymentDate = new Date(dateString);
+        }
+        // Check if date is valid
+        if (isNaN(paymentDate.getTime())) {
+          console.error('Invalid payment date provided:', dateString);
+          paymentDate = new Date(); // Fallback to current date
+        }
+      } else {
+        // Default to current date if none provided
+        paymentDate = new Date();
+      }
+    } catch (error) {
+      console.error('Error parsing payment date:', error);
+      paymentDate = new Date(); // Fallback to current date
+    }
+    
+    // Format the date as YYYY-MM-DD for SQL
+    const formattedDate = paymentDate.toISOString().split('T')[0];
+    console.log('Formatted payment date:', formattedDate);
+    
     // Create a clean payment record for the database
     const payment = {
       reference_number: paymentData.referenceNumber || `PAY-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       irm_no: paymentData.irmNo || null,
-      payment_date: paymentData.paymentDate,
+      payment_date: formattedDate, // Use the properly formatted date
       sap_payment_no: paymentData.sapPaymentNo || null,
       payment_type: paymentData.paymentType || 'Product',
       amount: parseFloat(paymentData.amount),
@@ -1030,6 +1062,16 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       )
       RETURNING *
     `;
+    
+    // Debug logging for payment creation
+    console.log('Creating payment with data:', {
+      reference_number: payment.reference_number,
+      payment_date: payment.payment_date,
+      amount: payment.amount,
+      currency: payment.currency,
+      method: payment.payment_method,
+      type: payment.payment_type
+    });
     
     const paymentValues = [
       payment.reference_number,

@@ -449,25 +449,52 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         invoiceLinks: values.invoiceLinks || []
       };
       
-      // API call to create payment
+      // API call to create payment with additional logging
       try {
-        const response = await apiRequest('POST', '/api/finance/payments', apiData);
+        console.log('Sending payment data to server:', JSON.stringify(apiData, null, 2));
+        
+        // Using fetch directly for better control over the request
+        const response = await fetch('/api/finance/payments', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(apiData)
+        });
+        
+        // Check response status
+        console.log('Payment creation response status:', response.status);
+        
         if (!response.ok) {
-          // Try to parse error response as JSON, but handle case where it's not valid JSON
+          // Get response text first
+          const responseText = await response.text();
+          console.log('Error response text:', responseText);
+          
+          // Try to parse as JSON if possible
           try {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to create payment');
+            const errorData = responseText ? JSON.parse(responseText) : {};
+            throw new Error(errorData.message || errorData.error || 'Failed to create payment');
           } catch (jsonError) {
-            // If response is not valid JSON
-            throw new Error('Failed to create payment: ' + (response.statusText || 'Unknown error'));
+            // If not valid JSON
+            throw new Error('Failed to create payment: ' + (response.statusText || responseText || 'Unknown error'));
           }
         }
         
-        // Try to parse successful response as JSON, but handle case where it's not valid JSON
-        try {
-          return await response.json();
-        } catch (jsonError) {
-          // If successful response is not valid JSON, return a simple success object
+        // Get response text for successful response
+        const responseText = await response.text();
+        console.log('Success response text:', responseText);
+        
+        // Try to parse successful response as JSON if it's not empty
+        if (responseText.trim()) {
+          try {
+            return JSON.parse(responseText);
+          } catch (jsonError) {
+            console.log('Response not valid JSON but payment was created successfully');
+            return { success: true, message: 'Payment created successfully' };
+          }
+        } else {
+          // Empty response but successful status code
           return { success: true, message: 'Payment created successfully' };
         }
       } catch (error) {
