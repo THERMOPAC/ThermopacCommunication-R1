@@ -501,9 +501,12 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
 router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { customerId } = req.params;
-    console.log(`Fetching unallocated advance payments for customer ID: ${customerId}`);
+    const invoiceType = req.query.invoiceType as string; // Get the invoice type from query params
+    
+    console.log(`Fetching unallocated advance payments for customer ID: ${customerId}, invoice type: ${invoiceType || 'all'}`);
     
     // Get advance payments for the specific customer with unallocated amounts
+    // If invoiceType is specified, filter by payment_type matching invoice_type
     const query = `
       SELECT 
         p.id,
@@ -515,6 +518,7 @@ router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, as
         p.allocated_amount as "allocatedAmount",
         p.unallocated_amount as "unallocatedAmount",
         p.payment_method as "paymentMethod",
+        p.payment_type as "paymentType",
         p.currency,
         p.notes,
         p.is_advance_payment as "isAdvancePayment",
@@ -532,11 +536,14 @@ router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, as
         p.customer_id = $1
         AND p.is_advance_payment = true
         AND p.unallocated_amount > 0
+        ${invoiceType ? 'AND p.payment_type = $2' : ''}
       ORDER BY 
         p.payment_date DESC
     `;
     
-    const result = await pool.query(query, [customerId]);
+    // Add the invoice type parameter if it's provided
+    const params = invoiceType ? [customerId, invoiceType] : [customerId];
+    const result = await pool.query(query, params);
     const customerAdvances = result.rows;
     
     console.log(`Found ${customerAdvances.length} unallocated advance payments for customer ${customerId}`);
