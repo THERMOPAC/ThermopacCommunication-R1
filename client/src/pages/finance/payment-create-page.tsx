@@ -643,6 +643,22 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   
   // Select invoice and add to form
   const handleSelectInvoice = (invoice: Invoice) => {
+    // Get current payment type from form
+    const paymentType = form.getValues().paymentType;
+    
+    // Get invoice type (checking both camelCase and snake_case properties)
+    const invoiceType = invoice.invoiceType || invoice.invoice_type;
+    
+    // Validate that invoice type matches payment type
+    if (invoiceType && paymentType && invoiceType !== paymentType) {
+      toast({
+        title: "Type mismatch",
+        description: `This ${invoiceType} invoice cannot be linked to a ${paymentType} payment. Please select an invoice with matching type.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // Add to selected invoices
     setSelectedInvoices(prev => [...prev, invoice]);
     
@@ -1052,6 +1068,10 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                         Allocated: {form.getValues().currency} {calculateTotalApplied().toFixed(2)} / {parseFloat(form.getValues().amount || '0').toFixed(2)}
                       </span>
                     </div>
+                    <div className="text-sm text-blue-500 mt-1 flex items-center">
+                      <Info className="h-4 w-4 mr-1" />
+                      Only {form.getValues().paymentType} invoices can be linked to this payment.
+                    </div>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -1187,6 +1207,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                             <th className="text-left p-2">Invoice</th>
                             <th className="text-left p-2">Date</th>
                             <th className="text-left p-2">Customer</th>
+                            <th className="text-left p-2">Type</th>
                             <th className="text-right p-2">Amount</th>
                             <th className="w-[100px] p-2"></th>
                           </tr>
@@ -1197,16 +1218,36 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                               <td className="p-2">{invoice.invoiceNumber}</td>
                               <td className="p-2">{format(new Date(invoice.invoiceDate), 'dd/MM/yyyy')}</td>
                               <td className="p-2">{invoice.customerName}</td>
+                              <td className="p-2">
+                                <Badge variant={(invoice.invoiceType || invoice.invoice_type) === "Product" ? "default" : "secondary"}>
+                                  {invoice.invoiceType || invoice.invoice_type || "Unknown"}
+                                </Badge>
+                              </td>
                               <td className="text-right p-2">{invoice.currency} {parseFloat(invoice.amount).toFixed(2)}</td>
                               <td className="p-2">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleSelectInvoice(invoice)}
-                                >
-                                  Select
-                                </Button>
+                                {/* Get invoice and payment types for comparison */}
+                                {(() => {
+                                  const paymentType = form.getValues().paymentType;
+                                  const invoiceType = invoice.invoiceType || invoice.invoice_type;
+                                  const isTypeMismatch = invoiceType && paymentType && invoiceType !== paymentType;
+                                  
+                                  return (
+                                    <Button
+                                      type="button"
+                                      variant={isTypeMismatch ? "ghost" : "outline"}
+                                      size="sm"
+                                      onClick={() => handleSelectInvoice(invoice)}
+                                      disabled={isTypeMismatch}
+                                      className={isTypeMismatch ? "opacity-60" : ""}
+                                    >
+                                      {isTypeMismatch ? (
+                                        "Type Mismatch"
+                                      ) : (
+                                        "Select"
+                                      )}
+                                    </Button>
+                                  );
+                                })()}
                               </td>
                             </tr>
                           ))}
