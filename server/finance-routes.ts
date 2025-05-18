@@ -1258,9 +1258,11 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
     });
   } catch (error) {
     console.error(`Error updating payment ${req.params.id}:`, error);
+    // Ensure we're sending a valid JSON response with proper headers
+    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({ 
       error: 'Failed to update payment',
-      details: error.message
+      details: error instanceof Error ? error.message : String(error)
     });
   }
 });
