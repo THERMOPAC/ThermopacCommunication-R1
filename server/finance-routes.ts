@@ -1196,8 +1196,8 @@ router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Resp
       UPDATE payments SET
         reference_number = $1,
         payment_date = $2,
-        sap_invoice_no = $3,
-        invoice_type = $4,
+        sap_payment_no = $3,
+        payment_type = $4,
         amount = $5,
         currency = $6,
         payment_method = $7,
@@ -1214,8 +1214,8 @@ router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Resp
     const paymentValues = [
       payment.referenceNumber,
       paymentDate.toISOString().split('T')[0], // Format as YYYY-MM-DD for SQL
-      payment.sapInvoiceNo || null,
-      payment.invoiceType || 'Product',
+      payment.sapPaymentNo || null,
+      payment.paymentType || 'Product',
       payment.amount,
       payment.currency || 'USD',
       payment.paymentMethod || 'bank transfer', // Ensure a default if null
