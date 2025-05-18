@@ -137,10 +137,57 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     enabled: !!isEditMode && !!invoiceId,
   });
   
-  // Get unallocated advance payments for selected customer
+  // Create form first, so we can watch the invoice type
+  const form = useForm<InvoiceFormValues>({
+    resolver: zodResolver(invoiceFormSchema),
+    defaultValues: {
+      invoiceNumber: isEditMode && invoiceData?.invoice 
+        ? invoiceData.invoice.invoiceNumber
+        : '', // Leave blank for user to enter
+      customerId: isEditMode && invoiceData?.invoice ? String(invoiceData.invoice.customerId) : '',
+      projectId: isEditMode && invoiceData?.invoice && invoiceData.invoice.projectId 
+        ? String(invoiceData.invoice.projectId) 
+        : '',
+      issueDate: isEditMode && invoiceData?.invoice ? new Date(invoiceData.invoice.issueDate) : new Date(),
+      dueDate: isEditMode && invoiceData?.invoice 
+        ? new Date(invoiceData.invoice.dueDate)
+        : new Date(new Date().setDate(new Date().getDate() + 30)), // Due in 30 days
+      currency: isEditMode && invoiceData?.invoice ? invoiceData.invoice.currency : 'USD',
+      sapInvoiceNo: isEditMode && invoiceData?.invoice ? invoiceData.invoice.sapInvoiceNo || '' : '',
+      invoiceType: isEditMode && invoiceData?.invoice && invoiceData.invoice.invoiceType
+        ? invoiceData.invoice.invoiceType
+        : 'Product',
+      notes: isEditMode && invoiceData?.invoice ? invoiceData.invoice.notes || '' : '',
+      items: isEditMode && invoiceData?.items && invoiceData.items.length > 0
+        ? invoiceData.items.map((item: any) => ({
+            description: item.description || '',
+            amount: String(item.amount) || '0',
+          }))
+        : [
+            {
+              description: 'Items as per SAP invoice',
+              amount: '0',
+            },
+          ],
+      // Add the new advance payment fields
+      applyAdvancePayments: false,
+      advancePaymentAllocations: [],
+    }
+  });
+  
+  // Get the current invoice type to filter advances by type
+  const currentInvoiceType = form.watch('invoiceType');
+  
+  // Get unallocated advance payments for selected customer, filtered by invoice type
   const { data: unallocatedAdvances, isLoading: isLoadingAdvances } = useQuery({
-    queryKey: [`/api/finance/payments/unallocated-advances/${selectedCustomerId}`],
-    enabled: !!selectedCustomerId && !isEditMode,
+    queryKey: [`/api/finance/payments/unallocated-advances/${selectedCustomerId}`, currentInvoiceType],
+    queryFn: async () => {
+      const response = await fetch(`/api/finance/payments/unallocated-advances/${selectedCustomerId}?invoiceType=${currentInvoiceType}`, {
+        credentials: 'include'
+      });
+      return response.json();
+    },
+    enabled: !!selectedCustomerId && !isEditMode && !!currentInvoiceType,
   });
   
   // Calculate total invoice amount for auto-applying advance payments
@@ -152,51 +199,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   // For automatic invoice number generation
   const [isGeneratingInvoiceNumber, setIsGeneratingInvoiceNumber] = useState(false);
   
-  // Default form values
-  const defaultValues: InvoiceFormValues = {
-    invoiceNumber: isEditMode && invoiceData?.invoice 
-      ? invoiceData.invoice.invoiceNumber
-      : '', // Leave blank for user to enter
-    customerId: isEditMode && invoiceData?.invoice ? String(invoiceData.invoice.customerId) : '',
-    projectId: isEditMode && invoiceData?.invoice && invoiceData.invoice.projectId 
-      ? String(invoiceData.invoice.projectId) 
-      : '',
-    issueDate: isEditMode && invoiceData?.invoice ? new Date(invoiceData.invoice.issueDate) : new Date(),
-    dueDate: isEditMode && invoiceData?.invoice 
-      ? new Date(invoiceData.invoice.dueDate)
-      : new Date(new Date().setDate(new Date().getDate() + 30)), // Due in 30 days
-    currency: isEditMode && invoiceData?.invoice ? invoiceData.invoice.currency : 'USD',
-    sapInvoiceNo: isEditMode && invoiceData?.invoice ? invoiceData.invoice.sapInvoiceNo || '' : '',
-    invoiceType: isEditMode && invoiceData?.invoice && invoiceData.invoice.invoiceType
-      ? invoiceData.invoice.invoiceType
-      : 'Product',
-    notes: isEditMode && invoiceData?.invoice ? invoiceData.invoice.notes || '' : '',
-    items: isEditMode && invoiceData?.items && invoiceData.items.length > 0
-      ? invoiceData.items.map((item: any) => ({
-          description: item.description || '',
-          amount: String(item.amount) || '0',
-        }))
-      : [
-          {
-            description: 'Items as per SAP invoice',
-            amount: '0',
-          },
-        ],
-    // Add the new advance payment fields
-    applyAdvancePayments: !isEditMode && !!unallocatedAdvances?.advances?.length,
-    advancePaymentAllocations: !isEditMode && unallocatedAdvances?.advances 
-      ? unallocatedAdvances.advances.map((payment: any) => ({
-          paymentId: payment.id,
-          amountToApply: '0', // Start with zero and let the auto-calculate effect handle it
-        })) 
-      : [],
-  };
-  
-  // Create form
-  const form = useForm<InvoiceFormValues>({
-    resolver: zodResolver(invoiceFormSchema),
-    defaultValues,
-  });
+  // Form was already created at the top of the component
   
   // Set up field array for invoice items
   const { fields, append, remove } = useFieldArray({
