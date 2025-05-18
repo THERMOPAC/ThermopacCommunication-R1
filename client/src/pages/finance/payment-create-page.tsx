@@ -83,6 +83,8 @@ const paymentFormSchema = z.object({
   paymentDate: z.date({
     required_error: "Payment date is required",
   }),
+  sapInvoiceNo: z.string().optional(),
+  invoiceType: z.enum(["Product", "Service"]).default("Product"),
   amount: z.string().min(1, "Amount is required"),
   unallocatedAmount: z.string().optional(),
   currency: z.string().default("INR"),
