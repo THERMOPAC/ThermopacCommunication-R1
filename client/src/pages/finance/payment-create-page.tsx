@@ -787,7 +787,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                 />
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Row with Payment Date, Payment Method, and Payment Amount with equal width */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="paymentDate"
@@ -861,6 +862,29 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                     </FormItem>
                   )}
                 />
+                
+                <FormField
+                  control={form.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Amount</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter amount" 
+                          {...field}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Total payment amount
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -895,29 +919,6 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Payment Amount</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="Enter amount" 
-                          {...field}
-                          type="number"
-                          step="0.01"
-                          min="0"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Total payment amount
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
