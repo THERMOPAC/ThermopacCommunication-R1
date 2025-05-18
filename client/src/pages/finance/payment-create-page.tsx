@@ -1228,7 +1228,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           {filteredInvoices?.map((invoice) => (
                             <tr key={invoice.id} className="border-t">
                               <td className="p-2">{invoice.invoiceNumber}</td>
-                              <td className="p-2">{format(new Date(invoice.invoiceDate), 'dd/MM/yyyy')}</td>
+                              <td className="p-2">{invoice.invoiceDate ? format(new Date(invoice.invoiceDate), 'dd/MM/yyyy') : 'N/A'}</td>
                               <td className="p-2">{invoice.customerName}</td>
                               <td className="p-2">
                                 <Badge variant={(invoice.invoiceType || invoice.invoice_type) === "Product" ? "default" : "secondary"}>
