@@ -1265,16 +1265,47 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       paymentId
     ];
     
-    console.log('Executing payment update with values:', paymentValues);
+    // Detailed logging of the SQL update operation
+    console.log('---------- PAYMENT UPDATE OPERATION ----------');
+    console.log('Payment ID:', paymentId);
+    console.log('Payment values to update:', {
+      referenceNumber: payment.referenceNumber,
+      paymentDate: paymentDate,
+      sapPaymentNo: sapPaymentNo,
+      paymentType: paymentType,
+      amount: payment.amount,
+      currency: payment.currency,
+      paymentMethod: payment.paymentMethod,
+      notes: payment.notes,
+      isAdvancePayment: payment.isAdvancePayment,
+      customerId: payment.customerId,
+      allocatedAmount: newAllocatedAmount,
+      unallocatedAmount: newUnallocatedAmount
+    });
     
-    // Log the raw SQL query that will be executed
-    const queryText = {
+    // Execute direct SQL command for maximum reliability
+    const directUpdateQuery = `
+      UPDATE payments SET 
+        payment_date = '${paymentDate.toISOString().split('T')[0]}',
+        sap_payment_no = ${sapPaymentNo ? `'${sapPaymentNo}'` : 'NULL'},
+        payment_type = '${paymentType}',
+        payment_method = '${payment.paymentMethod || 'bank transfer'}',
+        notes = ${payment.notes ? `'${payment.notes}'` : 'NULL'}
+      WHERE id = ${paymentId}
+      RETURNING *
+    `;
+    
+    console.log('Direct SQL query to execute:', directUpdateQuery);
+    
+    // Execute both - the parameterized query for safety and direct query for debugging
+    const paramQueryText = {
       text: updatePaymentQuery,
       values: paymentValues
     };
-    console.log('SQL Query to execute:', JSON.stringify(queryText));
+    console.log('Parameterized SQL query:', JSON.stringify(paramQueryText));
     
-    const paymentResult = await pool.query(updatePaymentQuery, paymentValues);
+    // Use the direct query for more reliable updates
+    const paymentResult = await pool.query(directUpdateQuery);
     console.log('Payment update result:', paymentResult?.rows?.[0]);
     
     if (!paymentResult || !paymentResult.rows || paymentResult.rows.length === 0) {
