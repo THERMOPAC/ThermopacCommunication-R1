@@ -196,6 +196,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     // Use snake_case format from API response
     referenceNumber: paymentData.payment.reference_number || '',
     paymentDate: new Date(paymentData.payment.payment_date || new Date()),
+    sapInvoiceNo: paymentData.payment.sap_invoice_no || '',
+    invoiceType: (paymentData.payment.invoice_type as "Product" | "Service") || 'Product',
     amount: String(paymentData.payment.amount || ''),
     currency: paymentData.payment.currency || 'USD',
     paymentMethod: paymentData.payment.payment_method || 'bank transfer',
@@ -212,6 +214,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   } : {
     referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
     paymentDate: new Date(),
+    sapInvoiceNo: '',
+    invoiceType: 'Product',
     amount: '',
     currency: 'USD',
     paymentMethod: 'bank transfer',
@@ -898,6 +902,24 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                     </FormItem>
                   )}
                 />
+                
+                <FormField
+                  control={form.control}
+                  name="sapInvoiceNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SAP Invoice No</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter SAP invoice number"
+                          {...field}
+                          value={field.value || ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -923,6 +945,31 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           <SelectItem value="check">Check</SelectItem>
                           <SelectItem value="credit card">Credit Card</SelectItem>
                           <SelectItem value="online payment">Online Payment</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="invoiceType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Invoice Type</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange}
+                        value={field.value || 'Product'}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select invoice type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Product">Product</SelectItem>
+                          <SelectItem value="Service">Service</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
