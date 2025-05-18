@@ -975,6 +975,8 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     const payment = {
       reference_number: paymentData.referenceNumber || `PAY-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       payment_date: paymentData.paymentDate,
+      sap_invoice_no: paymentData.sapInvoiceNo || null,
+      invoice_type: paymentData.invoiceType || 'Product',
       amount: parseFloat(paymentData.amount),
       currency: paymentData.currency || "USD",
       payment_method: paymentData.paymentMethod,
@@ -991,12 +993,12 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     // Insert the payment into the database
     const insertPaymentQuery = `
       INSERT INTO payments (
-        reference_number, payment_date, amount, currency, payment_method, 
+        reference_number, payment_date, sap_invoice_no, invoice_type, amount, currency, payment_method, 
         notes, is_advance_payment, allocated_amount, unallocated_amount, customer_id,
         created_by, created_at, updated_at
       ) 
       VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
       )
       RETURNING *
     `;
@@ -1004,6 +1006,8 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     const paymentValues = [
       payment.reference_number,
       payment.payment_date,
+      payment.sap_invoice_no,
+      payment.invoice_type,
       payment.amount,
       payment.currency,
       payment.payment_method,

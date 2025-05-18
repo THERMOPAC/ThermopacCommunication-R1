@@ -65,6 +65,8 @@ interface PaymentData {
     id: number;
     reference_number: string;
     payment_date: string;
+    sap_invoice_no: string | null;
+    invoice_type: "Product" | "Service" | null;
     amount: string;
     currency: string;
     payment_method: string;
@@ -469,6 +471,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         payment: {
           referenceNumber: values.referenceNumber,
           paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
+          sapInvoiceNo: values.sapInvoiceNo || null,
+          invoiceType: values.invoiceType || 'Product',
           amount: String(values.amount),
           currency: values.currency,
           paymentMethod: values.paymentMethod,
