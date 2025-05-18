@@ -995,7 +995,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     // Insert the payment into the database
     const insertPaymentQuery = `
       INSERT INTO payments (
-        reference_number, payment_date, sap_invoice_no, invoice_type, amount, currency, payment_method, 
+        reference_number, payment_date, sap_payment_no, payment_type, amount, currency, payment_method, 
         notes, is_advance_payment, allocated_amount, unallocated_amount, customer_id,
         created_by, created_at, updated_at
       ) 
