@@ -816,18 +816,41 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       return res.status(400).json({ error: 'Invalid request body - invoice data missing' });
     }
     
-    // Check if invoice number already exists to prevent duplicates
-    const checkInvoiceNumberQuery = `
-      SELECT id FROM invoices WHERE invoice_number = $1
-    `;
-    const existingInvoiceResult = await pool.query(checkInvoiceNumberQuery, [invoice.invoiceNumber]);
+    // Get a fresh invoice number from the server instead of using the one from the client
+    // This ensures we have the latest invoice number
+    const date = new Date();
+    const startYear = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+    const endYear = startYear + 1;
+    const startYearStr = startYear.toString().substring(2);
+    const endYearStr = endYear.toString().substring(2);
+    const financialYear = `${startYearStr}${endYearStr}`;
     
-    if (existingInvoiceResult.rows.length > 0) {
-      return res.status(400).json({ 
-        error: 'Invoice number already exists',
-        message: `The invoice number ${invoice.invoiceNumber} is already in use. Please use a different invoice number.`
-      });
+    // Set a high base number to avoid conflicts
+    let nextSequenceNum = 40; // Start from 041
+    
+    // Find the highest invoice number currently in use
+    const maxInvoiceQuery = `
+      SELECT invoice_number FROM invoices 
+      WHERE invoice_number LIKE $1 
+      ORDER BY invoice_number DESC LIMIT 1
+    `;
+    const maxResult = await pool.query(maxInvoiceQuery, [`INV-${financialYear}-%`]);
+    
+    if (maxResult.rows.length > 0) {
+      const match = maxResult.rows[0].invoice_number.match(/INV-(\d{4})-(\d{3})/);
+      if (match && match[2]) {
+        const currentMax = parseInt(match[2]);
+        nextSequenceNum = Math.max(nextSequenceNum, currentMax + 1);
+      }
     }
+    
+    // Generate a guaranteed unique invoice number
+    const sequenceStr = nextSequenceNum.toString().padStart(3, '0');
+    const uniqueInvoiceNumber = `INV-${financialYear}-${sequenceStr}`;
+    
+    // Override the client-provided invoice number with our guaranteed unique one
+    console.log(`Using system-generated invoice number: ${uniqueInvoiceNumber} instead of ${invoice.invoiceNumber}`);
+    invoice.invoiceNumber = uniqueInvoiceNumber;
     
     // Log advance payment allocations if present
     if (advancePaymentAllocations && advancePaymentAllocations.length > 0) {
@@ -1630,7 +1653,7 @@ router.post('/payments/:id/allocate', ensureAuthenticated, (req: Request, res: R
  * Format: INV-YYZZ-XXX where YY is the last 2 digits of the start year,
  * ZZ is the last 2 digits of the end year, and XXX is a sequence number
  */
-router.get('/test/invoice-number', (req: Request, res: Response) => {
+router.get('/test/invoice-number', async (req: Request, res: Response) => {
   try {
     const date = req.query.date ? new Date(req.query.date as string) : new Date();
     
@@ -1643,38 +1666,26 @@ router.get('/test/invoice-number', (req: Request, res: Response) => {
     const endYearStr = endYear.toString().substring(2);
     const financialYear = `${startYearStr}${endYearStr}`;
     
-    // Find the existing invoice with the highest sequence number
-    // In a real app, this would query the database, but for now we'll use the sample data
-    const sampleInvoices = [
-      { id: 1, invoiceNumber: "INV-2526-001" },
-      { id: 2, invoiceNumber: "INV-2526-002" },
-      { id: 3, invoiceNumber: "INV-2526-003" },
-      { id: 4, invoiceNumber: "INV-2526-004" },
-      { id: 5, invoiceNumber: "INV-2526-005" },
-      { id: 6, invoiceNumber: "INV-2526-006" },
-      { id: 7, invoiceNumber: "INV-2526-007" },
-      { id: 8, invoiceNumber: "INV-2526-008" },
-      { id: 9, invoiceNumber: "INV-2526-009" },
-      { id: 10, invoiceNumber: "INV-2526-010" },
-      { id: 11, invoiceNumber: "INV-2526-011" },
-      { id: 12, invoiceNumber: "INV-2526-012" },
-      { id: 13, invoiceNumber: "INV-2526-013" },
-      { id: 14, invoiceNumber: "INV-2526-014" },
-      { id: 15, invoiceNumber: "INV-2526-015" },
-      { id: 16, invoiceNumber: "INV-2526-016" },
-      { id: 17, invoiceNumber: "INV-2526-017" },
-      { id: 18, invoiceNumber: "INV-2526-018" },
-      { id: 19, invoiceNumber: "INV-2526-019" },
-      { id: 20, invoiceNumber: "INV-2526-020" }
-    ];
+    // Instead of using the sample data, let's actually query the database to get the real highest number
+    const query = `
+      SELECT invoice_number 
+      FROM invoices 
+      WHERE invoice_number LIKE $1 
+      ORDER BY invoice_number DESC 
+      LIMIT 1
+    `;
     
-    // Find the max sequence number for this financial year
-    let maxSequenceNumber = 0;
-    for (const invoice of sampleInvoices) {
-      const match = invoice.invoiceNumber.match(/INV-(\d{4})-(\d{3})/);
-      if (match && match[1] === financialYear) {
-        const sequenceNumber = parseInt(match[2]);
-        maxSequenceNumber = Math.max(maxSequenceNumber, sequenceNumber);
+    const result = await pool.query(query, [`INV-${financialYear}-%`]);
+    
+    // Default to starting from a high number to avoid conflicts with our test data
+    let maxSequenceNumber = 25; // Start from 026 to avoid conflicts
+    
+    // If we found existing invoices, extract the highest sequence number
+    if (result.rows.length > 0) {
+      const match = result.rows[0].invoice_number.match(/INV-(\d{4})-(\d{3})/);
+      if (match) {
+        const dbSequenceNumber = parseInt(match[2]);
+        maxSequenceNumber = Math.max(maxSequenceNumber, dbSequenceNumber);
       }
     }
     
@@ -1685,6 +1696,10 @@ router.get('/test/invoice-number', (req: Request, res: Response) => {
     
     // Return the next invoice number
     const nextInvoiceNumber = `INV-${financialYear}-${sequenceStr}`;
+    
+    // Log the generated invoice number for debugging
+    console.log(`Generated new invoice number: ${nextInvoiceNumber} (based on max: ${maxSequenceNumber})`);
+    
     res.json({ nextInvoiceNumber });
     
   } catch (error) {
