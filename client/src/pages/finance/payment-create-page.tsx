@@ -471,8 +471,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         payment: {
           referenceNumber: values.referenceNumber,
           paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
-          sapInvoiceNo: values.sapInvoiceNo || null,
-          invoiceType: values.invoiceType || 'Product',
+          sapPaymentNo: values.sapPaymentNo || null,
+          paymentType: values.paymentType || 'Product',
           amount: String(values.amount),
           currency: values.currency,
           paymentMethod: values.paymentMethod,

@@ -977,8 +977,8 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     const payment = {
       reference_number: paymentData.referenceNumber || `PAY-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       payment_date: paymentData.paymentDate,
-      sap_invoice_no: paymentData.sapInvoiceNo || null,
-      invoice_type: paymentData.invoiceType || 'Product',
+      sap_payment_no: paymentData.sapPaymentNo || null,
+      payment_type: paymentData.paymentType || 'Product',
       amount: parseFloat(paymentData.amount),
       currency: paymentData.currency || "USD",
       payment_method: paymentData.paymentMethod,
@@ -1008,8 +1008,8 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     const paymentValues = [
       payment.reference_number,
       payment.payment_date,
-      payment.sap_invoice_no,
-      payment.invoice_type,
+      payment.sap_payment_no,
+      payment.payment_type,
       payment.amount,
       payment.currency,
       payment.payment_method,
