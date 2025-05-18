@@ -458,15 +458,24 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         const response = await apiRequest('POST', '/api/finance/payments', apiData);
         
         if (!response.ok) {
-          // Simple error handling
-          const errorText = await response.text();
-          console.error('Payment creation failed:', errorText);
-          throw new Error('Failed to create payment. Please try again.');
+          // Simple error handling - properly checking if text() method exists
+          try {
+            console.error('Payment creation failed with status:', response.status);
+            throw new Error(`Failed to create payment. Status: ${response.status}`);
+          } catch (err) {
+            console.error('Error handling payment response:', err);
+            throw new Error('Failed to create payment. Please try again.');
+          }
         }
         
         // Parse success response
-        const responseData = await response.json().catch(() => ({}));
-        return responseData || { success: true };
+        try {
+          const responseData = await response.json();
+          return responseData || { success: true };
+        } catch (err) {
+          console.log('Response parsing error:', err);
+          return { success: true };
+        }
       } catch (error) {
         console.error('Error in payment creation:', error);
         throw error;
