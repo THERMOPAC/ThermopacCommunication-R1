@@ -974,7 +974,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                       {Array.isArray(unallocatedAdvances?.advances) && unallocatedAdvances.advances
                         .filter((payment: any) => payment.paymentType === form.watch('invoiceType'))
                         .map((payment: any, index: number) => {
-                        const currentApplyAmount = form.watch(`advancePaymentAllocations.${index}.amountToApply`);
+                        // Calculate the apply amount based on invoice total and previously allocated payments
+                        // Get either the current value from the form (if it exists) or the defaultValue (from our calculation)
+                        const currentApplyAmount = form.watch(`advancePaymentAllocations.${index}.amountToApply`) || '0';
                         const isApplying = parseFloat(currentApplyAmount) > 0;
                         
                         return (
@@ -987,34 +989,48 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                               <FormField
                                 control={form.control}
                                 name={`advancePaymentAllocations.${index}.amountToApply`}
-                                render={({ field }) => (
-                                  <FormItem className="m-0">
-                                    <FormControl>
-                                      <div className="flex items-center">
-                                        <span className="mr-2">{payment.currency}</span>
-                                        <Input
-                                          {...field}
-                                          type="number"
-                                          min="0"
-                                          max={payment.unallocatedAmount}
-                                          step="0.01"
-                                          className={`${hideNumberInputArrows} ${isApplying ? 'border-green-500 bg-green-50' : ''}`}
-                                        />
-                                      </div>
-                                    </FormControl>
-                                    {isApplying && (
-                                      <div className="text-xs text-green-600 mt-1">
-                                        This amount will be applied automatically
-                                      </div>
-                                    )}
-                                  </FormItem>
-                                )}
+                                render={({ field }) => {
+                                  // Make sure to sync up with the default value
+                                  // Using uncontrolled input with defaultValue to avoid rendering conflicts
+                                  return (
+                                    <FormItem className="m-0">
+                                      <FormControl>
+                                        <div className="flex items-center">
+                                          <span className="mr-2">{payment.currency}</span>
+                                          <Input
+                                            type="text"
+                                            min="0"
+                                            max={payment.unallocatedAmount}
+                                            step="0.01"
+                                            className={`${hideNumberInputArrows} ${isApplying ? 'border-green-500 bg-green-50' : ''}`}
+                                            value={field.value || '0'}
+                                            onChange={(e) => {
+                                              // Ensure numeric value and update form
+                                              const value = e.target.value.replace(/[^0-9.]/g, '');
+                                              field.onChange(value);
+                                              
+                                              // Force recalculate total
+                                              const appliedAmount = form.getValues('advancePaymentAllocations')
+                                                ?.reduce((total, alloc) => total + parseFloat(alloc.amountToApply || '0'), 0) || 0;
+                                              console.log('Applied amount now:', appliedAmount);
+                                            }}
+                                          />
+                                        </div>
+                                      </FormControl>
+                                      {isApplying && (
+                                        <div className="text-xs text-green-600 mt-1">
+                                          This amount will be applied automatically
+                                        </div>
+                                      )}
+                                    </FormItem>
+                                  );
+                                }}
                               />
                               <FormField
                                 control={form.control}
                                 name={`advancePaymentAllocations.${index}.paymentId`}
                                 render={({ field }) => (
-                                  <input type="hidden" {...field} value={payment.id} />
+                                  <input type="hidden" {...field} defaultValue={payment.id} />
                                 )}
                               />
                             </div>

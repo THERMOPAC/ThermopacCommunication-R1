@@ -1655,7 +1655,17 @@ router.get('/test/invoice-number', (req: Request, res: Response) => {
       { id: 7, invoiceNumber: "INV-2526-007" },
       { id: 8, invoiceNumber: "INV-2526-008" },
       { id: 9, invoiceNumber: "INV-2526-009" },
-      { id: 10, invoiceNumber: "INV-2526-010" }
+      { id: 10, invoiceNumber: "INV-2526-010" },
+      { id: 11, invoiceNumber: "INV-2526-011" },
+      { id: 12, invoiceNumber: "INV-2526-012" },
+      { id: 13, invoiceNumber: "INV-2526-013" },
+      { id: 14, invoiceNumber: "INV-2526-014" },
+      { id: 15, invoiceNumber: "INV-2526-015" },
+      { id: 16, invoiceNumber: "INV-2526-016" },
+      { id: 17, invoiceNumber: "INV-2526-017" },
+      { id: 18, invoiceNumber: "INV-2526-018" },
+      { id: 19, invoiceNumber: "INV-2526-019" },
+      { id: 20, invoiceNumber: "INV-2526-020" }
     ];
     
     // Find the max sequence number for this financial year
