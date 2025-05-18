@@ -288,43 +288,43 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       
       // Delay the reset by a tiny bit to ensure it happens after component render
       setTimeout(() => {
-        // We need to check for both snake_case and camelCase property names
-        // Because the API sends back camelCase but the database has snake_case
-        const isAdvancePayment = Boolean(
-          paymentData.payment.isAdvancePayment !== undefined 
-            ? paymentData.payment.isAdvancePayment 
-            : paymentData.payment.is_advance_payment
-        );
+        // Get values from API response - API returns camelCase properties
+        const isAdvancePayment = Boolean(paymentData.payment.isAdvancePayment);
         
         console.log('Is advance payment:', isAdvancePayment);
         
         // Parse the payment date string
         let paymentDate = new Date();
         try {
-          const dateField = paymentData.payment.paymentDate || paymentData.payment.payment_date;
-          if (dateField) {
-            paymentDate = new Date(dateField);
+          if (paymentData.payment.paymentDate) {
+            paymentDate = new Date(paymentData.payment.paymentDate);
             console.log('Parsed payment date:', paymentDate);
           }
         } catch (err) {
           console.error('Error parsing payment date:', err);
         }
         
+        // Extract values from payment data
+        const sapPaymentNo = paymentData.payment.sapInvoiceNo || ''; // renamed from sapInvoiceNo in API
+        const paymentType = paymentData.payment.invoiceType || 'Product'; // renamed from invoiceType in API
+        
+        // Prepare form values with all fields explicitly specified
         const formValues = {
-          // Prefer camelCase if available, fall back to snake_case
-          referenceNumber: paymentData.payment.referenceNumber || paymentData.payment.reference_number || '',
+          referenceNumber: paymentData.payment.referenceNumber || '',
           paymentDate: paymentDate,
+          sapPaymentNo: sapPaymentNo,
+          paymentType: paymentType as ("Product" | "Service"),
           amount: String(paymentData.payment.amount || ''),
-          unallocatedAmount: String(paymentData.payment.unallocatedAmount || paymentData.payment.unallocated_amount || '0'),
+          unallocatedAmount: String(paymentData.payment.unallocatedAmount || '0'),
           currency: paymentData.payment.currency || 'USD',
-          paymentMethod: paymentData.payment.paymentMethod || paymentData.payment.payment_method || 'bank transfer',
+          paymentMethod: paymentData.payment.paymentMethod || 'bank transfer',
           notes: paymentData.payment.notes || '',
           isAdvancePayment: isAdvancePayment,
-          customerId: String(paymentData.payment.customerId || paymentData.payment.customer_id || ''),
+          customerId: String(paymentData.payment.customerId || ''),
           invoiceLinks: paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0 ? 
             paymentData.invoiceLinks.map(link => ({
-              invoiceId: String(link.invoiceId || link.invoice_id || ''),
-              amountApplied: String(link.amountApplied || link.amount_applied || '0')
+              invoiceId: String(link.invoice ? link.invoice.id : (link.invoiceId || '')),
+              amountApplied: String(link.link ? link.link.amountApplied : (link.amountApplied || '0'))
             })) : [],
         };
         
@@ -337,9 +337,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         form.setValue('isAdvancePayment', isAdvancePayment);
         
         // Set selected customer ID for the UI if available
-        const customerIdValue = paymentData.payment.customerId || paymentData.payment.customer_id;
-        if (customerIdValue) {
-          const customerId = String(customerIdValue);
+        if (paymentData.payment.customerId) {
+          const customerId = String(paymentData.payment.customerId);
           setSelectedCustomerId(customerId);
           
           // Make sure customerId is set in the form
