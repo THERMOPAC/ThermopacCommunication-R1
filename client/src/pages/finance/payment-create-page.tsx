@@ -831,9 +831,10 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                       <Select 
                         onValueChange={field.onChange}
                         value={field.value || 'Product'}
+                        disabled={isEditMode}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className={isEditMode ? "bg-muted cursor-not-allowed" : ""}>
                             <SelectValue placeholder="Select payment type" />
                           </SelectTrigger>
                         </FormControl>
