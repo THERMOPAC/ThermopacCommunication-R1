@@ -1243,7 +1243,16 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
     ];
     
     console.log('Executing payment update with values:', paymentValues);
+    
+    // Log the raw SQL query that will be executed
+    const queryText = {
+      text: updatePaymentQuery,
+      values: paymentValues
+    };
+    console.log('SQL Query to execute:', JSON.stringify(queryText));
+    
     const paymentResult = await pool.query(updatePaymentQuery, paymentValues);
+    console.log('Payment update result:', paymentResult?.rows?.[0]);
     
     if (!paymentResult || !paymentResult.rows || paymentResult.rows.length === 0) {
       return res.status(404).json({ error: 'Payment not found or update failed' });
