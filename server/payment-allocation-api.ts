@@ -1,93 +1,197 @@
-import { Request, Response, Router } from 'express';
-import { ensureAuthenticated } from './auth-middleware';
+import { Router, Request, Response } from 'express';
 import { pool } from './db';
+import { ensureAuthenticated } from './auth-middleware';
 
-const router = Router();
+export const paymentAllocationApi = Router();
 
 /**
  * Get payment allocations for a specific invoice
  */
-router.get('/invoices/:invoiceId/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
+paymentAllocationApi.get('/invoices/:invoiceId/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { invoiceId } = req.params;
-
-    if (!invoiceId) {
-      return res.status(400).json({ error: 'Invoice ID is required' });
-    }
-
-    // First get the invoice details
-    const invoiceQuery = `
-      SELECT 
-        i.id,
-        i.invoice_number as "invoiceNumber",
-        i.customer_id as "customerId",
-        c.bp_name as "customerName",
-        i.issue_date as "issueDate",
-        i.due_date as "dueDate",
-        i.total_amount as "totalAmount",
-        i.outstanding_amount as "outstandingAmount",
-        i.currency,
-        i.status,
-        i.invoice_type as "invoiceType"
-      FROM 
-        invoices i
-      LEFT JOIN
-        customers c ON i.customer_id = c.id
-      WHERE 
-        i.id = $1
-    `;
-
-    const invoiceResult = await pool.query(invoiceQuery, [invoiceId]);
+    const invoiceId = parseInt(req.params.invoiceId);
     
-    if (invoiceResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Invoice not found' });
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ error: 'Invalid invoice ID' });
     }
     
-    const invoice = invoiceResult.rows[0];
-
-    // Get all payment allocations for this invoice
-    const allocationsQuery = `
+    // Get all payment allocations for this invoice with payment details
+    const query = `
       SELECT 
-        pa.id,
-        pa.invoice_id as "invoiceId",
-        pa.payment_id as "paymentId",
-        pa.amount as "allocatedAmount",
-        pa.created_at as "createdAt",
-        p.reference_number as "paymentReference",
-        p.payment_date as "paymentDate",
-        p.payment_method as "paymentMethod",
-        p.amount as "paymentTotal",
-        p.currency,
-        p.payment_type as "paymentType",
-        p.irm_no as "irmNo",
-        p.sap_payment_no as "sapPaymentNo"
+        pa.id as allocation_id,
+        pa.payment_id,
+        pa.invoice_id,
+        pa.amount_allocated,
+        pa.created_at as allocation_date,
+        p.reference_number as payment_reference,
+        p.payment_date,
+        p.payment_method,
+        p.payment_type,
+        p.sap_payment_no,
+        p.irm_no,
+        p.amount as payment_total,
+        p.currency
       FROM 
         payment_allocations pa
-      JOIN
+      JOIN 
         payments p ON pa.payment_id = p.id
       WHERE 
         pa.invoice_id = $1
-      ORDER BY
-        p.payment_date DESC
+      ORDER BY 
+        pa.created_at DESC
     `;
     
-    const allocationsResult = await pool.query(allocationsQuery, [invoiceId]);
-    const allocations = allocationsResult.rows;
-
-    // Calculate total allocated
-    const totalAllocated = allocations.reduce((total: number, allocation: any) => {
-      return total + parseFloat(allocation.allocatedAmount);
-    }, 0);
-
-    return res.status(200).json({ 
-      invoice,
-      allocations,
-      totalAllocated
-    });
+    const result = await pool.query(query, [invoiceId]);
+    
+    // Transform the results to a more frontend-friendly format
+    const allocations = result.rows.map(row => ({
+      id: row.allocation_id,
+      paymentId: row.payment_id,
+      invoiceId: row.invoice_id,
+      allocatedAmount: row.amount_allocated,
+      allocationDate: row.allocation_date,
+      paymentReference: row.payment_reference,
+      paymentDate: row.payment_date,
+      paymentMethod: row.payment_method,
+      paymentType: row.payment_type,
+      sapPaymentNo: row.sap_payment_no,
+      irmNo: row.irm_no,
+      paymentTotal: row.payment_total,
+      currency: row.currency
+    }));
+    
+    res.json(allocations);
   } catch (error) {
-    console.error('Error fetching invoice payment allocations:', error);
-    return res.status(500).json({ error: 'Error fetching invoice payment allocations' });
+    console.error('Error fetching payment allocations:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch payment allocations',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
-export default router;
+/**
+ * Get payment allocations for a specific payment
+ */
+paymentAllocationApi.get('/payments/:paymentId/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const paymentId = parseInt(req.params.paymentId);
+    
+    if (isNaN(paymentId)) {
+      return res.status(400).json({ error: 'Invalid payment ID' });
+    }
+    
+    // Get all invoice allocations for this payment with invoice details
+    const query = `
+      SELECT 
+        pa.id as allocation_id,
+        pa.payment_id,
+        pa.invoice_id,
+        pa.amount_allocated,
+        pa.created_at as allocation_date,
+        i.invoice_number,
+        i.issue_date,
+        i.due_date,
+        i.total_amount as invoice_total,
+        i.outstanding_amount,
+        i.status as invoice_status,
+        i.invoice_type,
+        i.sap_invoice_no,
+        i.currency
+      FROM 
+        payment_allocations pa
+      JOIN 
+        invoices i ON pa.invoice_id = i.id
+      WHERE 
+        pa.payment_id = $1
+      ORDER BY 
+        pa.created_at DESC
+    `;
+    
+    const result = await pool.query(query, [paymentId]);
+    
+    // Transform the results to a more frontend-friendly format
+    const allocations = result.rows.map(row => ({
+      id: row.allocation_id,
+      paymentId: row.payment_id,
+      invoiceId: row.invoice_id,
+      allocatedAmount: row.amount_allocated,
+      allocationDate: row.allocation_date,
+      invoiceNumber: row.invoice_number,
+      issueDate: row.issue_date,
+      dueDate: row.due_date,
+      invoiceTotal: row.invoice_total,
+      outstandingAmount: row.outstanding_amount,
+      invoiceStatus: row.invoice_status,
+      invoiceType: row.invoice_type,
+      sapInvoiceNo: row.sap_invoice_no,
+      currency: row.currency
+    }));
+    
+    res.json(allocations);
+  } catch (error) {
+    console.error('Error fetching payment allocations:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch payment allocations',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Get summary of allocation status for multiple invoices
+ */
+paymentAllocationApi.get('/invoices/allocation-summary', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const invoiceIds = req.query.ids;
+    
+    if (!invoiceIds) {
+      return res.status(400).json({ error: 'Invoice IDs are required' });
+    }
+    
+    // Parse the comma-separated IDs
+    const ids = String(invoiceIds).split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+    
+    if (ids.length === 0) {
+      return res.status(400).json({ error: 'No valid invoice IDs provided' });
+    }
+    
+    // Get summary of allocations for these invoices
+    const query = `
+      SELECT 
+        i.id as invoice_id,
+        i.invoice_number,
+        i.total_amount,
+        i.outstanding_amount,
+        COALESCE(SUM(pa.amount_allocated), 0) as total_allocated
+      FROM 
+        invoices i
+      LEFT JOIN 
+        payment_allocations pa ON i.id = pa.invoice_id
+      WHERE 
+        i.id = ANY($1::int[])
+      GROUP BY 
+        i.id, i.invoice_number, i.total_amount, i.outstanding_amount
+    `;
+    
+    const result = await pool.query(query, [ids]);
+    
+    // Transform to a more useful format
+    const summaries = result.rows.map(row => ({
+      invoiceId: row.invoice_id,
+      invoiceNumber: row.invoice_number,
+      totalAmount: parseFloat(row.total_amount),
+      outstandingAmount: parseFloat(row.outstanding_amount || row.total_amount),
+      totalAllocated: parseFloat(row.total_allocated),
+      paymentPercentage: parseFloat(row.total_allocated) / parseFloat(row.total_amount) * 100
+    }));
+    
+    res.json(summaries);
+  } catch (error) {
+    console.error('Error fetching allocation summaries:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch allocation summaries',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});

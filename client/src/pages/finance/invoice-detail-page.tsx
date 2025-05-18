@@ -95,6 +95,15 @@ export default function InvoiceDetailPage({ download = false, print = false }: I
     queryKey: [`/api/finance/invoices/${invoiceId}`],
   });
   
+  // Query for payment allocations
+  const { 
+    data: allocationsData, 
+    isLoading: allocationsLoading
+  } = useQuery({
+    queryKey: [`/api/finance/invoices/${invoiceId}/allocations`],
+    enabled: !!invoiceId
+  });
+  
   // Mutation for updating invoice status
   const updateStatus = useMutation({
     mutationFn: async (status: string) => {
@@ -218,7 +227,9 @@ export default function InvoiceDetailPage({ download = false, print = false }: I
   
   const invoice = data?.invoice;
   const items = data?.items || [];
-  const paymentAllocations = data?.paymentAllocations || [];
+  
+  // Use allocations data from the dedicated endpoint
+  const paymentAllocations = allocationsData || [];
   
   // Calculate total paid amount from payment allocations
   const totalPaid = paymentAllocations.reduce((sum: number, allocation: any) => sum + parseFloat(allocation.allocatedAmount), 0);
@@ -369,44 +380,95 @@ export default function InvoiceDetailPage({ download = false, print = false }: I
         </Card>
         
         <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Payment History</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div>
+              <CardTitle>Payment Allocations</CardTitle>
+              <CardDescription>Payments applied to this invoice</CardDescription>
+            </div>
+            <div className="rounded-full bg-green-100 px-3 py-1 text-sm text-green-800 font-medium">
+              Total Applied: {formatRupees(totalPaid)}
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="px-4 py-2 text-left text-sm font-medium">Payment ID</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Date</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Method</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Reference</th>
-                    <th className="px-4 py-2 text-right text-sm font-medium">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.length > 0 ? (
-                    payments.map((payment: any, index: number) => (
-                      <tr key={index} className="border-b">
-                        <td className="px-4 py-3 text-sm">
-                          <a href={`/finance/payments/${payment.id}`} className="text-primary hover:underline">
-                            {payment.paymentId}
-                          </a>
-                        </td>
-                        <td className="px-4 py-3 text-sm">{formatDate(payment.paymentDate)}</td>
-                        <td className="px-4 py-3 text-sm">{payment.paymentMethod}</td>
-                        <td className="px-4 py-3 text-sm">{payment.referenceNumber}</td>
-                        <td className="px-4 py-3 text-sm text-right">{formatRupees(payment.amountApplied)}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-3 text-sm text-center text-muted-foreground">No payments found</td>
+            {allocationsLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <span className="ml-2">Loading payment allocations...</span>
+              </div>
+            ) : paymentAllocations.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="px-4 py-2 text-left text-sm font-medium">Payment Reference</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">Payment Date</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">Payment Method</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium">Payment Type</th>
+                      <th className="px-4 py-2 text-right text-sm font-medium">Payment Total</th>
+                      <th className="px-4 py-2 text-right text-sm font-medium">Amount Applied</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {paymentAllocations.map((allocation: any, index: number) => (
+                      <tr key={index} className="border-b hover:bg-muted/20">
+                        <td className="px-4 py-3 text-sm">
+                          <a href={`/finance/payments/${allocation.paymentId}`} className="text-primary hover:underline font-medium">
+                            {allocation.paymentReference}
+                          </a>
+                          <div className="text-xs text-muted-foreground">
+                            {allocation.sapPaymentNo && <div>SAP: {allocation.sapPaymentNo}</div>}
+                            {allocation.irmNo && <div>IRM: {allocation.irmNo}</div>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm">{formatDate(allocation.paymentDate)}</td>
+                        <td className="px-4 py-3 text-sm">{allocation.paymentMethod}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <Badge variant={allocation.paymentType === "Product" ? "default" : "secondary"}>
+                            {allocation.paymentType}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          {formatRupees(allocation.paymentTotal)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right font-medium text-green-600">
+                          {formatRupees(allocation.allocatedAmount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t bg-muted/10">
+                      <td colSpan={5} className="px-4 py-3 text-sm font-medium text-right">
+                        Total Applied:
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium text-right text-green-600">
+                        {formatRupees(totalPaid)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan={5} className="px-4 py-3 text-sm font-medium text-right">
+                        Invoice Total:
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium text-right">
+                        {formatRupees(invoice?.totalAmount)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan={5} className="px-4 py-3 text-sm font-medium text-right">
+                        Balance Due:
+                      </td>
+                      <td className={`px-4 py-3 text-sm font-medium text-right ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {formatRupees(balanceDue)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            ) : (
+              <div className="p-8 text-center text-muted-foreground">
+                No payments have been applied to this invoice yet.
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
