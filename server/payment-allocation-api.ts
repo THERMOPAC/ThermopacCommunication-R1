@@ -16,6 +16,7 @@ paymentAllocationApi.get('/invoices/:invoiceId/allocations', ensureAuthenticated
     }
     
     // Get all payment allocations for this invoice with payment details
+    // Also join with invoices table to filter by matching payment and invoice types
     const query = `
       SELECT 
         pa.id as allocation_id,
@@ -30,13 +31,17 @@ paymentAllocationApi.get('/invoices/:invoiceId/allocations', ensureAuthenticated
         p.sap_payment_no,
         p.irm_no,
         p.amount as payment_total,
-        p.currency
+        p.currency,
+        i.invoice_type
       FROM 
         payment_allocations pa
       JOIN 
         payments p ON pa.payment_id = p.id
+      JOIN 
+        invoices i ON pa.invoice_id = i.id
       WHERE 
         pa.invoice_id = $1
+        AND p.payment_type = i.invoice_type
       ORDER BY 
         pa.created_at DESC
     `;

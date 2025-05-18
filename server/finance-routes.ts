@@ -809,6 +809,19 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       return res.status(400).json({ error: 'Invalid request body - invoice data missing' });
     }
     
+    // Check if invoice number already exists to prevent duplicates
+    const checkInvoiceNumberQuery = `
+      SELECT id FROM invoices WHERE invoice_number = $1
+    `;
+    const existingInvoiceResult = await pool.query(checkInvoiceNumberQuery, [invoice.invoiceNumber]);
+    
+    if (existingInvoiceResult.rows.length > 0) {
+      return res.status(400).json({ 
+        error: 'Invoice number already exists',
+        message: `The invoice number ${invoice.invoiceNumber} is already in use. Please use a different invoice number.`
+      });
+    }
+    
     // Log advance payment allocations if present
     if (advancePaymentAllocations && advancePaymentAllocations.length > 0) {
       console.log('Processing advance payment allocations:', JSON.stringify(advancePaymentAllocations, null, 2));
