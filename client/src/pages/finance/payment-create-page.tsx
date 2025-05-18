@@ -288,43 +288,64 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       
       // Delay the reset by a tiny bit to ensure it happens after component render
       setTimeout(() => {
-        // Get values from API response - API returns camelCase properties
-        const isAdvancePayment = Boolean(paymentData.payment.isAdvancePayment);
+        // Handle both snake_case (backend) and camelCase (frontend) property names
+        const payment = paymentData.payment;
         
+        // Determine if it's an advance payment (checking both naming formats)
+        const isAdvancePayment = Boolean(
+          payment.isAdvancePayment === true || 
+          payment.is_advance_payment === true
+        );
         console.log('Is advance payment:', isAdvancePayment);
         
-        // Parse the payment date string
+        // Parse the payment date from either format
         let paymentDate = new Date();
         try {
-          if (paymentData.payment.paymentDate) {
-            paymentDate = new Date(paymentData.payment.paymentDate);
+          const dateString = payment.paymentDate || payment.payment_date;
+          if (dateString) {
+            paymentDate = new Date(dateString);
             console.log('Parsed payment date:', paymentDate);
           }
         } catch (err) {
           console.error('Error parsing payment date:', err);
         }
         
-        // Extract values from payment data
-        const sapPaymentNo = paymentData.payment.sapInvoiceNo || ''; // renamed from sapInvoiceNo in API
-        const paymentType = paymentData.payment.invoiceType || 'Product'; // renamed from invoiceType in API
+        // Extract values accounting for field name changes
+        const sapPaymentNo = payment.sapPaymentNo || payment.sap_payment_no || payment.sapInvoiceNo || payment.sap_invoice_no || '';
+        const paymentType = payment.paymentType || payment.payment_type || payment.invoiceType || payment.invoice_type || 'Product';
         
-        // Prepare form values with all fields explicitly specified
+        // Handle customer ID from either naming format
+        const customerId = String(payment.customerId || payment.customer_id || '');
+        
+        // Prepare form values handling both naming formats
         const formValues = {
-          referenceNumber: paymentData.payment.referenceNumber || '',
+          referenceNumber: payment.referenceNumber || payment.reference_number || '',
           paymentDate: paymentDate,
           sapPaymentNo: sapPaymentNo,
           paymentType: paymentType as ("Product" | "Service"),
-          amount: String(paymentData.payment.amount || ''),
-          unallocatedAmount: String(paymentData.payment.unallocatedAmount || '0'),
-          currency: paymentData.payment.currency || 'USD',
-          paymentMethod: paymentData.payment.paymentMethod || 'bank transfer',
-          notes: paymentData.payment.notes || '',
+          amount: String(payment.amount || ''),
+          unallocatedAmount: String(payment.unallocatedAmount || payment.unallocated_amount || '0'),
+          currency: payment.currency || 'USD',
+          paymentMethod: payment.paymentMethod || payment.payment_method || 'bank transfer',
+          notes: payment.notes || '',
           isAdvancePayment: isAdvancePayment,
-          customerId: String(paymentData.payment.customerId || ''),
+          customerId: customerId,
           invoiceLinks: paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0 ? 
             paymentData.invoiceLinks.map(link => ({
-              invoiceId: String(link.invoice ? link.invoice.id : (link.invoiceId || '')),
-              amountApplied: String(link.link ? link.link.amountApplied : (link.amountApplied || '0'))
+              invoiceId: String(
+                (link.invoice && link.invoice.id) || 
+                (link.link && link.link.invoice_id) || 
+                link.invoiceId || 
+                link.invoice_id || 
+                ''
+              ),
+              amountApplied: String(
+                (link.link && link.link.amountApplied) || 
+                (link.link && link.link.amount_applied) || 
+                link.amountApplied || 
+                link.amount_applied || 
+                '0'
+              )
             })) : [],
         };
         
@@ -333,19 +354,26 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         // Reset the entire form with the payment data
         form.reset(formValues);
         
-        // Ensure Switch component value is set properly for advance payment
-        form.setValue('isAdvancePayment', isAdvancePayment);
-        
-        // Set selected customer ID for the UI if available
-        if (paymentData.payment.customerId) {
-          const customerId = String(paymentData.payment.customerId);
-          setSelectedCustomerId(customerId);
+        // Set form fields after a short delay to ensure proper rendering
+        setTimeout(() => {
+          // Set selected customer ID for the UI if available
+          const customerId = String(payment.customerId || payment.customer_id || '');
+          if (customerId) {
+            setSelectedCustomerId(customerId);
+            form.setValue('customerId', customerId);
+            console.log('Setting selected customer ID:', customerId);
+          }
           
-          // Make sure customerId is set in the form
-          form.setValue('customerId', customerId);
+          // Set the advance payment toggle
+          form.setValue('isAdvancePayment', isAdvancePayment);
           
-          console.log('Setting selected customer ID:', customerId);
-        }
+          // Update UI based on advance payment status
+          if (isAdvancePayment) {
+            setShowInvoiceSection(false);
+          } else {
+            setShowInvoiceSection(true);
+          }
+        }, 200);
         
         // For edit mode, load the selected invoices for display
         if (paymentData.invoiceLinks && outstandingInvoices) {
