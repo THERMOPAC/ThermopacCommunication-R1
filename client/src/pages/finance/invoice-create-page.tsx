@@ -895,7 +895,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           </Card>
           
           {/* Advance Payment Section - Only shown in create mode when customer is selected and has unallocated advances */}
-          {!isEditMode && selectedCustomerId && unallocatedAdvances && Array.isArray(unallocatedAdvances.advances) && unallocatedAdvances.advances.length > 0 && (
+          {!isEditMode && selectedCustomerId && unallocatedAdvances && Array.isArray(unallocatedAdvances.advances) && 
+           unallocatedAdvances.advances.filter(payment => payment.paymentType === form.watch('invoiceType')).length > 0 && (
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Apply Advance Payments</CardTitle>
