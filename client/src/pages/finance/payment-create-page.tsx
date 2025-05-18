@@ -85,8 +85,8 @@ const paymentFormSchema = z.object({
   paymentDate: z.date({
     required_error: "Payment date is required",
   }),
-  sapInvoiceNo: z.string().optional(),
-  invoiceType: z.enum(["Product", "Service"]).default("Product"),
+  sapPaymentNo: z.string().optional(),
+  paymentType: z.enum(["Product", "Service"]).default("Product"),
   amount: z.string().min(1, "Amount is required"),
   unallocatedAmount: z.string().optional(),
   currency: z.string().default("INR"),
@@ -198,8 +198,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     // Use snake_case format from API response
     referenceNumber: paymentData.payment.reference_number || '',
     paymentDate: new Date(paymentData.payment.payment_date || new Date()),
-    sapInvoiceNo: paymentData.payment.sap_invoice_no || '',
-    invoiceType: (paymentData.payment.invoice_type as "Product" | "Service") || 'Product',
+    sapPaymentNo: paymentData.payment.sap_payment_no || '',
+    paymentType: (paymentData.payment.payment_type as "Product" | "Service") || 'Product',
     amount: String(paymentData.payment.amount || ''),
     currency: paymentData.payment.currency || 'USD',
     paymentMethod: paymentData.payment.payment_method || 'bank transfer',
@@ -216,8 +216,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   } : {
     referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
     paymentDate: new Date(),
-    sapInvoiceNo: '',
-    invoiceType: 'Product',
+    sapPaymentNo: '',
+    paymentType: 'Product',
     amount: '',
     currency: 'USD',
     paymentMethod: 'bank transfer',
@@ -911,13 +911,13 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                 
                 <FormField
                   control={form.control}
-                  name="sapInvoiceNo"
+                  name="sapPaymentNo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>SAP Invoice No</FormLabel>
+                      <FormLabel>SAP Payment No</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Enter SAP invoice number"
+                          placeholder="Enter SAP payment number"
                           {...field}
                           value={field.value || ''}
                         />
@@ -960,17 +960,17 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                 
                 <FormField
                   control={form.control}
-                  name="invoiceType"
+                  name="paymentType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Invoice Type</FormLabel>
+                      <FormLabel>Payment Type</FormLabel>
                       <Select 
                         onValueChange={field.onChange}
                         value={field.value || 'Product'}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select invoice type" />
+                            <SelectValue placeholder="Select payment type" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
