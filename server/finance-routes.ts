@@ -1127,7 +1127,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
 /**
  * Update an existing payment
  */
-router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const paymentId = parseInt(req.params.id, 10);
     
