@@ -1260,7 +1260,7 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
     
     const updatedPayment = paymentResult.rows[0];
     
-    // Format the response data
+    // Format the response data with ALL payment fields
     const formattedPayment = {
       id: updatedPayment.id,
       referenceNumber: updatedPayment.reference_number,
@@ -1271,6 +1271,11 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       currency: updatedPayment.currency,
       notes: updatedPayment.notes,
       isAdvancePayment: updatedPayment.is_advance_payment,
+      sapPaymentNo: updatedPayment.sap_payment_no,
+      paymentType: updatedPayment.payment_type,
+      allocatedAmount: updatedPayment.allocated_amount ? updatedPayment.allocated_amount.toString() : "0.00",
+      unallocatedAmount: updatedPayment.unallocated_amount ? updatedPayment.unallocated_amount.toString() : updatedPayment.amount.toString(),
+      allocationStatus: updatedPayment.allocated_amount && parseFloat(updatedPayment.allocated_amount) > 0 ? "Partially Allocated" : "Unallocated",
       createdAt: updatedPayment.created_at,
       updatedAt: updatedPayment.updated_at
     };
