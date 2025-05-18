@@ -780,24 +780,20 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange}
-                        value={field.value || 'USD'}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="USD">USD</SelectItem>
-                          <SelectItem value="EUR">EUR</SelectItem>
-                          <SelectItem value="GBP">GBP</SelectItem>
-                          <SelectItem value="INR">INR</SelectItem>
-                          <SelectItem value="AED">AED</SelectItem>
-                          <SelectItem value="SAR">SAR</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input 
+                          value="USD" 
+                          readOnly 
+                          className="bg-muted cursor-not-allowed"
+                          onChange={(e) => {
+                            // Force USD value even on change attempts
+                            field.onChange("USD");
+                          }}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        All payments are processed in USD
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
