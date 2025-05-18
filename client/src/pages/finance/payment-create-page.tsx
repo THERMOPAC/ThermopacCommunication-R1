@@ -66,6 +66,7 @@ interface PaymentData {
   payment: {
     id: number;
     reference_number: string;
+    irmNo?: string;
     payment_date: string;
     sap_payment_no: string | null;
     payment_type: "Product" | "Service" | null;
@@ -84,6 +85,7 @@ interface PaymentData {
 // Payment form schema
 const paymentFormSchema = z.object({
   referenceNumber: z.string().min(1, "Reference number is required"),
+  irmNo: z.string().optional(),
   paymentDate: z.date({
     required_error: "Payment date is required",
   }),
@@ -91,7 +93,7 @@ const paymentFormSchema = z.object({
   paymentType: z.enum(["Product", "Service"]).default("Product"),
   amount: z.string().min(1, "Amount is required"),
   unallocatedAmount: z.string().optional(),
-  currency: z.string().default("INR"),
+  currency: z.string().default("USD"),
   paymentMethod: z.string().min(1, "Payment method is required"),
   notes: z.string().optional(),
   isAdvancePayment: z.boolean().default(false),
@@ -320,6 +322,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         // Prepare form values handling both naming formats
         const formValues = {
           referenceNumber: payment.referenceNumber || payment.reference_number || '',
+          irmNo: payment.irmNo || '',
           paymentDate: paymentDate,
           sapPaymentNo: sapPaymentNo,
           paymentType: paymentType as ("Product" | "Service"),
@@ -843,8 +846,26 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                 />
               </div>
               
-              {/* Row with Payment Date, Payment Method, and Payment Amount with equal width */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Row with IRM_NO, Payment Date, Payment Method, and Payment Amount with equal width */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <FormField
+                  control={form.control}
+                  name="irmNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>IRM NO</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter IRM number"
+                          {...field}
+                          value={field.value || ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
                 <FormField
                   control={form.control}
                   name="paymentDate"
