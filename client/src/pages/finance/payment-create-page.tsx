@@ -449,54 +449,24 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         invoiceLinks: values.invoiceLinks || []
       };
       
-      // API call to create payment with additional logging
+      // API call to create payment - simplified to avoid any Stripe dependencies
       try {
         console.log('Sending payment data to server:', JSON.stringify(apiData, null, 2));
         
-        // Using fetch directly for better control over the request
-        const response = await fetch('/api/finance/payments', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(apiData)
-        });
-        
-        // Check response status
-        console.log('Payment creation response status:', response.status);
+        // Simplified approach without any Stripe dependencies
+        // Using the provided apiRequest function directly
+        const response = await apiRequest('POST', '/api/finance/payments', apiData);
         
         if (!response.ok) {
-          // Get response text first
-          const responseText = await response.text();
-          console.log('Error response text:', responseText);
-          
-          // Try to parse as JSON if possible
-          try {
-            const errorData = responseText ? JSON.parse(responseText) : {};
-            throw new Error(errorData.message || errorData.error || 'Failed to create payment');
-          } catch (jsonError) {
-            // If not valid JSON
-            throw new Error('Failed to create payment: ' + (response.statusText || responseText || 'Unknown error'));
-          }
+          // Simple error handling
+          const errorText = await response.text();
+          console.error('Payment creation failed:', errorText);
+          throw new Error('Failed to create payment. Please try again.');
         }
         
-        // Get response text for successful response
-        const responseText = await response.text();
-        console.log('Success response text:', responseText);
-        
-        // Try to parse successful response as JSON if it's not empty
-        if (responseText.trim()) {
-          try {
-            return JSON.parse(responseText);
-          } catch (jsonError) {
-            console.log('Response not valid JSON but payment was created successfully');
-            return { success: true, message: 'Payment created successfully' };
-          }
-        } else {
-          // Empty response but successful status code
-          return { success: true, message: 'Payment created successfully' };
-        }
+        // Parse success response
+        const responseData = await response.json().catch(() => ({}));
+        return responseData || { success: true };
       } catch (error) {
         console.error('Error in payment creation:', error);
         throw error;
