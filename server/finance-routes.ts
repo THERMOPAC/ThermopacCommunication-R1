@@ -636,6 +636,8 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
         p.customer_id as "customerId",
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",
+        p.sap_invoice_no as "sapInvoiceNo",
+        p.invoice_type as "invoiceType",
         p.amount,
         p.allocated_amount as "allocatedAmount",
         p.unallocated_amount as "unallocatedAmount",
@@ -1194,22 +1196,26 @@ router.post('/payments/:id', ensureAuthenticated, async (req: Request, res: Resp
       UPDATE payments SET
         reference_number = $1,
         payment_date = $2,
-        amount = $3,
-        currency = $4,
-        payment_method = $5,
-        notes = $6,
-        is_advance_payment = $7,
-        customer_id = $8,
-        allocated_amount = $9,
-        unallocated_amount = $10,
+        sap_invoice_no = $3,
+        invoice_type = $4,
+        amount = $5,
+        currency = $6,
+        payment_method = $7,
+        notes = $8,
+        is_advance_payment = $9,
+        customer_id = $10,
+        allocated_amount = $11,
+        unallocated_amount = $12,
         updated_at = NOW()
-      WHERE id = $11
+      WHERE id = $13
       RETURNING *
     `;
     
     const paymentValues = [
       payment.referenceNumber,
       paymentDate.toISOString().split('T')[0], // Format as YYYY-MM-DD for SQL
+      payment.sapInvoiceNo || null,
+      payment.invoiceType || 'Product',
       payment.amount,
       payment.currency || 'USD',
       payment.paymentMethod || 'bank transfer', // Ensure a default if null
