@@ -158,6 +158,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     createdAt: string;
     updatedAt: string;
     totalAmount?: string; // Added to fix type errors
+    invoiceType?: "Product" | "Service"; // Added for type validation
+    invoice_type?: "Product" | "Service"; // Server-side field name
   }
 
   interface Customer {
