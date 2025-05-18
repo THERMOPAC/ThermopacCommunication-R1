@@ -433,6 +433,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       const apiData = {
         payment: {
           referenceNumber: values.referenceNumber,
+          irmNo: values.irmNo || null,
           paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
           sapPaymentNo: values.sapPaymentNo || null,
           paymentType: values.paymentType || 'Product',
@@ -489,6 +490,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       const apiData = {
         payment: {
           referenceNumber: values.referenceNumber,
+          irmNo: values.irmNo || null,
           paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
           sapPaymentNo: values.sapPaymentNo || null,
           paymentType: values.paymentType || 'Product',

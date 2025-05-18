@@ -1021,18 +1021,19 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     // Insert the payment into the database
     const insertPaymentQuery = `
       INSERT INTO payments (
-        reference_number, payment_date, sap_payment_no, payment_type, amount, currency, payment_method, 
+        reference_number, irm_no, payment_date, sap_payment_no, payment_type, amount, currency, payment_method, 
         notes, is_advance_payment, allocated_amount, unallocated_amount, customer_id,
         created_by, created_at, updated_at
       ) 
       VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
       )
       RETURNING *
     `;
     
     const paymentValues = [
       payment.reference_number,
+      payment.irm_no,
       payment.payment_date,
       payment.sap_payment_no,
       payment.payment_type,
@@ -1127,6 +1128,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     const formattedPayment = {
       id: newPayment.id,
       referenceNumber: newPayment.reference_number,
+      irmNo: newPayment.irm_no || '',
       customerId: newPayment.customer_id,
       paymentDate: newPayment.payment_date,
       amount: newPayment.amount.toString(),
