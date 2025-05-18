@@ -666,8 +666,31 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       return res.status(404).json({ error: 'Payment not found' });
     }
     
-    const payment = paymentResult.rows[0];
-    console.log(`Found payment in database: ${payment.referenceNumber}`);
+    // Get the raw payment data
+    const rawPayment = paymentResult.rows[0];
+    console.log(`Found payment in database: ${rawPayment.referenceNumber}`);
+    
+    // Format the payment with all required fields to ensure consistent structure
+    const payment = {
+      id: rawPayment.id,
+      referenceNumber: rawPayment.referenceNumber,
+      customerId: rawPayment.customerId,
+      customerName: rawPayment.customerName,
+      paymentDate: rawPayment.paymentDate,
+      sapPaymentNo: rawPayment.sapPaymentNo,
+      paymentType: rawPayment.paymentType,
+      amount: rawPayment.amount,
+      allocatedAmount: rawPayment.allocatedAmount,
+      unallocatedAmount: rawPayment.unallocatedAmount,
+      paymentMethod: rawPayment.paymentMethod,
+      currency: rawPayment.currency,
+      notes: rawPayment.notes,
+      isAdvancePayment: rawPayment.isAdvancePayment,
+      allocationStatus: rawPayment.allocationStatus,
+      createdBy: rawPayment.createdBy,
+      createdAt: rawPayment.createdAt,
+      updatedAt: rawPayment.updatedAt
+    };
     
     // Get any invoice allocation links
     let allocations = [];
