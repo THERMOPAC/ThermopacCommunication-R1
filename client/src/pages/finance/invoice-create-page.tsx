@@ -493,12 +493,99 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     },
   });
   
-  // Submit handler
-  const onSubmit = (values: InvoiceFormValues) => {
-    if (isEditMode && invoiceId) {
-      updateInvoice.mutate(values);
-    } else {
-      createInvoice.mutate(values);
+  // Submit handler - with improved error handling
+  const onSubmit = async (values: InvoiceFormValues) => {
+    console.log("Form submitted with values:", values);
+    
+    try {
+      if (isEditMode && invoiceId) {
+        console.log("Updating existing invoice:", invoiceId);
+        updateInvoice.mutate(values);
+      } else {
+        console.log("Creating new invoice");
+        
+        // Instead of using the mutation directly, manually handle the form submission
+        // Transform values for API
+        const apiData = {
+          invoice: {
+            invoiceNumber: values.invoiceNumber,
+            customerId: parseInt(values.customerId),
+            projectId: values.projectId ? parseInt(values.projectId) : null,
+            issueDate: format(values.issueDate, 'yyyy-MM-dd'),
+            dueDate: format(values.dueDate, 'yyyy-MM-dd'),
+            totalAmount: String(values.items.reduce((total, item) => total + parseFloat(item.amount || '0'), 0)),
+            currency: values.currency,
+            sapInvoiceNo: values.sapInvoiceNo || null,
+            invoiceType: values.invoiceType,
+            status: 'Pending',
+            notes: values.notes || null,
+          },
+          items: values.items.map(item => ({
+            description: item.description,
+            quantity: "1",
+            unitPrice: String(parseFloat(item.amount || "0")),
+            amount: String(parseFloat(item.amount || "0")),
+            taxRate: "0",
+            taxAmount: "0",
+            discountPercent: "0",
+            discountAmount: "0",
+            lineTotal: String(parseFloat(item.amount || "0")),
+          }))
+        };
+        
+        // Add advance payment allocations if enabled
+        if (values.applyAdvancePayments && values.advancePaymentAllocations?.length > 0) {
+          // Filter out allocations with zero or empty amounts
+          const validAllocations = values.advancePaymentAllocations.filter(alloc => 
+            alloc.amountToApply && parseFloat(alloc.amountToApply) > 0
+          );
+          
+          if (validAllocations.length > 0) {
+            apiData.advancePaymentAllocations = validAllocations.map(alloc => ({
+              paymentId: alloc.paymentId,
+              amountToApply: alloc.amountToApply
+            }));
+          }
+        }
+        
+        console.log('Sending invoice data to server:', JSON.stringify(apiData, null, 2));
+        
+        // Directly use fetch with credentials
+        const response = await fetch('/api/finance/invoices', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify(apiData)
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Invoice creation failed:', response.status, errorText);
+          throw new Error(`Failed to create invoice: ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Invoice created successfully:', data);
+        
+        // Show success message
+        toast({
+          title: "Invoice created",
+          description: "Invoice has been created successfully",
+        });
+        
+        // Invalidate queries and navigate
+        queryClient.invalidateQueries({ queryKey: ['/api/finance/invoices'] });
+        navigate('/finance/invoices');
+      }
+    } catch (error) {
+      console.error('Error in form submission:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process invoice. Please try again.",
+        variant: "destructive",
+      });
     }
   };
   
