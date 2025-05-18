@@ -956,6 +956,9 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           type="number"
                           step="0.01"
                           min="0"
+                          readOnly={isEditMode}
+                          disabled={isEditMode}
+                          className={isEditMode ? "bg-muted cursor-not-allowed" : ""}
                         />
                       </FormControl>
                       <FormDescription>
@@ -985,9 +988,10 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           }
                         }}
                         value={field.value?.toString() || ''}
+                        disabled={isEditMode}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className={isEditMode ? "bg-muted cursor-not-allowed" : ""}>
                             <SelectValue placeholder="Select customer" />
                           </SelectTrigger>
                         </FormControl>
@@ -1016,7 +1020,9 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                         placeholder="Enter any additional notes about this payment"
                         {...field}
                         value={field.value || ''}
-                        className="min-h-[100px]"
+                        className={`min-h-[100px] ${isEditMode ? "bg-muted cursor-not-allowed" : ""}`}
+                        readOnly={isEditMode}
+                        disabled={isEditMode}
                       />
                     </FormControl>
                     <FormMessage />
