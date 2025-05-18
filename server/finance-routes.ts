@@ -1161,6 +1161,10 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       customerId: payment.customerId
     });
     
+    // Ensure SAP Payment No and Payment Type are properly processed from all possible variations
+    const sapPaymentNo = payment.sapPaymentNo || payment.sap_payment_no || null;
+    const paymentType = payment.paymentType || payment.payment_type || 'Product';
+    
     // First, retrieve current payment data to check allocated amount
     const currentPaymentQuery = `
       SELECT amount, unallocated_amount 
@@ -1225,8 +1229,8 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
     const paymentValues = [
       payment.referenceNumber,
       paymentDate.toISOString().split('T')[0], // Format as YYYY-MM-DD for SQL
-      payment.sapPaymentNo || null,
-      payment.paymentType || 'Product',
+      sapPaymentNo, // Use our normalized variable instead of direct property access
+      paymentType, // Use our normalized variable instead of direct property access
       payment.amount,
       payment.currency || 'USD',
       payment.paymentMethod || 'bank transfer', // Ensure a default if null
