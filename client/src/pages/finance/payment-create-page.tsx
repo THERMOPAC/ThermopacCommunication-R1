@@ -450,13 +450,30 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       };
       
       // API call to create payment
-      const response = await apiRequest('POST', '/api/finance/payments', apiData);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create payment');
+      try {
+        const response = await apiRequest('POST', '/api/finance/payments', apiData);
+        if (!response.ok) {
+          // Try to parse error response as JSON, but handle case where it's not valid JSON
+          try {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to create payment');
+          } catch (jsonError) {
+            // If response is not valid JSON
+            throw new Error('Failed to create payment: ' + (response.statusText || 'Unknown error'));
+          }
+        }
+        
+        // Try to parse successful response as JSON, but handle case where it's not valid JSON
+        try {
+          return await response.json();
+        } catch (jsonError) {
+          // If successful response is not valid JSON, return a simple success object
+          return { success: true, message: 'Payment created successfully' };
+        }
+      } catch (error) {
+        console.error('Error in payment creation:', error);
+        throw error;
       }
-      
-      return await response.json();
     },
     onSuccess: (data) => {
       // Show success message
@@ -510,41 +527,39 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       console.log('SAP Payment No to be sent:', apiData.payment.sapPaymentNo);
       console.log('Payment Type to be sent:', apiData.payment.paymentType);
       
-      // API call to update payment using XMLHttpRequest for maximum control
-      return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', `/api/finance/payments/${paymentId}`);
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.setRequestHeader('Accept', 'application/json');
+      // Use fetch API instead of XMLHttpRequest for consistency
+      try {
+        const response = await fetch(`/api/finance/payments/${paymentId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(apiData)
+        });
         
-        xhr.onload = function() {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const response = JSON.parse(xhr.responseText);
-              console.log('Successful update response:', response);
-              resolve(response);
-            } catch (e) {
-              console.log('Successful update but non-JSON response:', xhr.responseText);
-              resolve({ success: true, message: 'Payment updated successfully' });
-            }
-          } else {
-            console.error('Error updating payment:', xhr.status, xhr.statusText, xhr.responseText);
-            try {
-              const errorData = JSON.parse(xhr.responseText);
-              reject(new Error(errorData.message || 'Failed to update payment'));
-            } catch (e) {
-              reject(new Error(xhr.responseText || 'Failed to update payment'));
-            }
+        if (!response.ok) {
+          // Try to parse error response as JSON, but handle case where it's not valid JSON
+          try {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to update payment');
+          } catch (jsonError) {
+            // If response is not valid JSON
+            throw new Error('Failed to update payment: ' + (response.statusText || 'Unknown error'));
           }
-        };
+        }
         
-        xhr.onerror = function() {
-          console.error('Network error during payment update');
-          reject(new Error('Network error during payment update'));
-        };
-        
-        xhr.send(JSON.stringify(apiData));
-      });
+        // Try to parse successful response as JSON, but handle case where it's not valid JSON
+        try {
+          return await response.json();
+        } catch (jsonError) {
+          console.log('Successful update but non-JSON response:', await response.text());
+          return { success: true, message: 'Payment updated successfully' };
+        }
+      } catch (error) {
+        console.error('Error in payment update:', error);
+        throw error;
+      }
     },
     onSuccess: (data) => {
       // Show success message
