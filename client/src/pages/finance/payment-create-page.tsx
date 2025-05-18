@@ -40,7 +40,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format } from 'date-fns';
-import { Loader2, CalendarIcon, Plus, Trash2, Search, AlertCircle, ArrowDownUp, CheckCircle } from "lucide-react";
+import { Loader2, CalendarIcon, Plus, Trash2, Search, AlertCircle, ArrowDownUp, CheckCircle, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
