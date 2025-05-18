@@ -380,8 +380,23 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       // Log the data being sent
       console.log('Sending invoice data:', JSON.stringify(apiData, null, 2));
       
-      // Use the updated database-backed finance route
-      return apiRequest('POST', '/api/finance/invoices', apiData);
+      // Use native fetch instead of apiRequest to avoid any issues
+      console.log('Sending invoice data to server...');
+      const response = await fetch('/api/finance/invoices', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(apiData)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error('Invoice creation failed:', response.status, errorText);
+        throw new Error(`Failed to create invoice: ${response.status} ${errorText}`);
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -438,7 +453,23 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       // Log the data being sent
       console.log('Updating invoice data:', JSON.stringify(apiData, null, 2));
       
-      return apiRequest('PUT', `/api/simple-finance/invoices/${invoiceId}`, apiData);
+      // Use native fetch instead of apiRequest for consistency
+      console.log('Updating invoice data on server...');
+      const response = await fetch(`/api/finance/invoices/${invoiceId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(apiData)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error('Invoice update failed:', response.status, errorText);
+        throw new Error(`Failed to update invoice: ${response.status} ${errorText}`);
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       toast({
