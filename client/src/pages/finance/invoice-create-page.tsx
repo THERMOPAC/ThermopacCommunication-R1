@@ -380,13 +380,14 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       // Log the data being sent
       console.log('Sending invoice data:', JSON.stringify(apiData, null, 2));
       
-      // Use native fetch instead of apiRequest to avoid any issues
+      // Use native fetch with credentials included
       console.log('Sending invoice data to server...');
       const response = await fetch('/api/finance/invoices', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Important: Include credentials for authenticated requests
         body: JSON.stringify(apiData)
       });
       
@@ -453,13 +454,14 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       // Log the data being sent
       console.log('Updating invoice data:', JSON.stringify(apiData, null, 2));
       
-      // Use native fetch instead of apiRequest for consistency
+      // Use native fetch with credentials included
       console.log('Updating invoice data on server...');
       const response = await fetch(`/api/finance/invoices/${invoiceId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include credentials for authenticated requests
         body: JSON.stringify(apiData)
       });
       
