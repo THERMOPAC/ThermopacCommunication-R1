@@ -303,43 +303,48 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       
       if (filteredAdvances.length > 0) {
         const invoiceTotal = calculateInvoiceTotal();
-        const totalUnallocated = parseFloat(unallocatedAdvances.totalUnallocatedAmount || '0');
         
         // If we have unallocated advances, enable the checkbox by default
         form.setValue('applyAdvancePayments', true);
         
-        // Distribute the invoice amount across available advances
-        let remainingToAllocate = invoiceTotal;
+        // First, initialize the array to make sure it has the right length
+        // This is important because the fields need to exist before we can set values on them
+        const initialAllocations = filteredAdvances.map(payment => ({
+          paymentId: payment.id,
+          amountToApply: '0'
+        }));
         
-        // Update the allocations
-        filteredAdvances.forEach((payment: any, index: number) => {
+        // Set the initial allocations array
+        form.setValue('advancePaymentAllocations', initialAllocations);
+        
+        // Now distribute the invoice amount across available advances
+        let remainingToAllocate = invoiceTotal;
+
+        // Create a new array of allocations with the proper amounts
+        for (let i = 0; i < filteredAdvances.length; i++) {
+          const payment = filteredAdvances[i];
           const availableAmount = parseFloat(payment.unallocatedAmount);
-          let amountToApply = 0;
           
-          if (remainingToAllocate > 0) {
-            // Apply either the full available amount or remaining invoice amount, whichever is smaller
-            amountToApply = Math.min(availableAmount, remainingToAllocate);
-            remainingToAllocate -= amountToApply;
-          }
+          // Only allocate if we still have invoice amount to cover
+          if (remainingToAllocate <= 0) break;
           
-          // Get current allocation to prevent unnecessary re-renders
-          const currentAllocation = form.getValues(`advancePaymentAllocations.${index}.amountToApply`);
-          const currentAmount = parseFloat(currentAllocation || '0');
+          // Apply either the full available amount or remaining invoice amount, whichever is smaller
+          const amountToApply = Math.min(availableAmount, remainingToAllocate);
+          remainingToAllocate -= amountToApply;
           
-          // Only update if amount changed
-          if (Math.abs(currentAmount - amountToApply) > 0.01) {
-            // Update individual fields to allow field-by-field change detection
-            form.setValue(`advancePaymentAllocations.${index}.amountToApply`, amountToApply.toFixed(2), {
-              shouldValidate: true,
-              shouldDirty: true,
-            });
-          }
+          // Set the allocation - Use a higher priority to ensure this update takes precedence
+          form.setValue(`advancePaymentAllocations.${i}.amountToApply`, amountToApply.toFixed(2), {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
           
-          // Set the payment ID for new allocations
-          form.setValue(`advancePaymentAllocations.${index}.paymentId`, payment.id, {
+          // Make sure the payment ID is set correctly
+          form.setValue(`advancePaymentAllocations.${i}.paymentId`, payment.id, {
             shouldValidate: true,
           });
-        });
+          
+          console.log(`Allocated ${amountToApply.toFixed(2)} from payment ${payment.referenceNumber} (${payment.id})`);
+        }
       }
     }
   }, [isEditMode, unallocatedAdvances, watchedItems]);
