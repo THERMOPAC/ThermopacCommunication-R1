@@ -1251,11 +1251,22 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       updatedAt: updatedPayment.updated_at
     };
     
-    // Return success response
-    res.json({
-      message: 'Payment updated successfully',
-      payment: formattedPayment
-    });
+    // Return success response with explicit headers
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const responseData = {
+        message: 'Payment updated successfully',
+        payment: formattedPayment
+      };
+      // Stringify first to validate it's proper JSON
+      const jsonString = JSON.stringify(responseData);
+      res.send(jsonString);
+    } catch (jsonError) {
+      console.error('Error converting response to JSON:', jsonError);
+      res.status(500).send(JSON.stringify({ 
+        error: 'Internal server error during response formatting' 
+      }));
+    }
   } catch (error) {
     console.error(`Error updating payment ${req.params.id}:`, error);
     // Ensure we're sending a valid JSON response with proper headers
