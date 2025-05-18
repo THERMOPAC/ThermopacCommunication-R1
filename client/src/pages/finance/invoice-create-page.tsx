@@ -961,7 +961,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                         <div className="col-span-3">Apply Amount</div>
                       </div>
                       
-                      {Array.isArray(unallocatedAdvances?.advances) && unallocatedAdvances.advances.map((payment: any, index: number) => {
+                      {Array.isArray(unallocatedAdvances?.advances) && unallocatedAdvances.advances
+                        .filter((payment: any) => payment.paymentType === form.watch('invoiceType'))
+                        .map((payment: any, index: number) => {
                         const currentApplyAmount = form.watch(`advancePaymentAllocations.${index}.amountToApply`);
                         const isApplying = parseFloat(currentApplyAmount) > 0;
                         
