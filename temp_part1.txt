@@ -1,0 +1,824 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useLocation } from 'wouter';
+import { Helmet } from "react-helmet";
+import Layout from "@/components/layout";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from 'date-fns';
+import { Loader2, CalendarIcon, Plus, Trash2, Search, AlertCircle, ArrowDownUp, CheckCircle, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
+import { formatRupees, getIndianFinancialYear, getNextPaymentReferenceNumber } from "@/lib/utils";
+
+// Define payment data structure types
+interface PaymentInvoiceLink {
+  id: number;
+  payment_id: number;
+  invoice_id: number;
+  amount_applied: string;
+  invoiceId?: string;
+  amountApplied?: string;
+}
+
+interface PaymentData {
+  payment: {
+    id: number;
+    reference_number: string;
+    payment_date: string;
+    sap_payment_no: string | null;
+    payment_type: "Product" | "Service" | null;
+    amount: string;
+    currency: string;
+    payment_method: string;
+    notes: string | null;
+    is_advance_payment: boolean;
+    customer_id: number | null;
+    created_at: string;
+    updated_at: string;
+  };
+  invoiceLinks: PaymentInvoiceLink[];
+}
+
+// Payment form schema
+const paymentFormSchema = z.object({
+  referenceNumber: z.string().min(1, "Reference number is required"),
+  paymentDate: z.date({
+    required_error: "Payment date is required",
+  }),
+  sapPaymentNo: z.string().optional(),
+  paymentType: z.enum(["Product", "Service"]).default("Product"),
+  amount: z.string().min(1, "Amount is required"),
+  unallocatedAmount: z.string().optional(),
+  currency: z.string().default("INR"),
+  paymentMethod: z.string().min(1, "Payment method is required"),
+  notes: z.string().optional(),
+  isAdvancePayment: z.boolean().default(false),
+  customerId: z.string().optional(),
+  invoiceLinks: z.array(
+    z.object({
+      invoiceId: z.string().min(1, "Invoice is required"),
+      amountApplied: z.string().min(1, "Amount is required"),
+    })
+  ).optional(),
+}).refine((data) => {
+  // Validate that invoiceLinks are provided if not an advance payment
+  if (!data.isAdvancePayment) {
+    return data.invoiceLinks && data.invoiceLinks.length > 0;
+  }
+  // For advance payments, customerId is required
+  if (data.isAdvancePayment) {
+    return !!data.customerId;
+  }
+  return true;
+}, {
+  message: "Please either link an invoice or mark as an advance payment and select a customer",
+  path: ["invoiceLinks"],
+});
+
+type PaymentFormValues = z.infer<typeof paymentFormSchema>;
+
+export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?: boolean } = {}) {
+  const [location, navigate] = useLocation();
+  const { toast } = useToast();
+  const [searchInvoice, setSearchInvoice] = useState('');
+  const [selectedInvoices, setSelectedInvoices] = useState<any[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [autoAllocateEnabled, setAutoAllocateEnabled] = useState(true);
+  const [isGeneratingReferenceNumber, setIsGeneratingReferenceNumber] = useState(false);
+  const [paymentId, setPaymentId] = useState<number | null>(null);
+  
+  // Extract payment ID from URL if in edit mode
+  useEffect(() => {
+    if (isEditMode) {
+      const pathParts = location.split('/');
+      const id = parseInt(pathParts[pathParts.length - 2], 10);
+      if (!isNaN(id)) {
+        setPaymentId(id);
+      }
+    }
+  }, [isEditMode, location]);
+  
+  // Define invoice and customer data types
+  interface Invoice {
+    id: number;
+    invoiceNumber: string;
+    invoiceDate: string;
+    dueDate: string;
+    amount: string;
+    currency: string;
+    customerId: number;
+    customerName: string;
+    status: string;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+    totalAmount?: string; // Added to fix type errors
+  }
+
+  interface Customer {
+    id: number;
+    bpCode: string;
+    bpName: string;
+    contactPerson: string | null;
+    email: string | null;
+    country: string | null;
+    city: string | null;
+  }
+
+  // Get all invoices and customers data
+  const { data: outstandingInvoices, isLoading: isLoadingInvoices, error: invoicesError } = useQuery<Invoice[]>({
+    queryKey: ['/api/finance/invoices'],
+  });
+  
+  const { data: customersList, isLoading: isLoadingCustomers } = useQuery<Customer[]>({
+    queryKey: ['/api/customers'],
+    enabled: true,
+  });
+  
+  // Get payment details if in edit mode
+  const { data: paymentData, isLoading: isLoadingPayment } = useQuery<PaymentData>({
+    queryKey: [`/api/finance/payments/${paymentId}`],
+    enabled: isEditMode && paymentId !== null,
+  });
+  
+  // Log payment data for debugging
+  useEffect(() => {
+    if (isEditMode && paymentData) {
+      console.log('Payment Data:', paymentData);
+      
+      // Set customer ID if this is an advance payment
+      if (paymentData.payment.is_advance_payment && paymentData.payment.customer_id) {
+        setSelectedCustomerId(paymentData.payment.customer_id.toString());
+      }
+    }
+  }, [isEditMode, paymentData, setSelectedCustomerId]);
+  
+  // Set up form values based on whether we're creating or editing
+  const initialFormValues: PaymentFormValues = isEditMode && paymentData && paymentData.payment ? {
+    // Use snake_case format from API response
+    referenceNumber: paymentData.payment.reference_number || '',
+    paymentDate: new Date(paymentData.payment.payment_date || new Date()),
+    sapPaymentNo: paymentData.payment.sap_payment_no || '',
+    paymentType: (paymentData.payment.payment_type as "Product" | "Service") || 'Product',
+    amount: String(paymentData.payment.amount || ''),
+    currency: paymentData.payment.currency || 'USD',
+    paymentMethod: paymentData.payment.payment_method || 'bank transfer',
+    notes: paymentData.payment.notes || '',
+    isAdvancePayment: Boolean(paymentData.payment.is_advance_payment || false),
+    customerId: String(paymentData.payment.customer_id || ''),
+    invoiceLinks: paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0 ? 
+      paymentData.invoiceLinks.map(link => {
+        return {
+          invoiceId: String(link.invoice_id || ''),
+          amountApplied: String(link.amount_applied || '0')
+        };
+      }) : [],
+  } : {
+    referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
+    paymentDate: new Date(),
+    sapPaymentNo: '',
+    paymentType: 'Product',
+    amount: '',
+    currency: 'USD',
+    paymentMethod: 'bank transfer',
+    notes: '',
+    isAdvancePayment: false,
+    customerId: '',
+    invoiceLinks: [], // This is an empty array that will be filled with {invoiceId, amountApplied} objects
+  };
+  
+  // Default form values
+  const defaultValues = initialFormValues;
+  
+  // Create form
+  const form = useForm<PaymentFormValues>({
+    resolver: zodResolver(paymentFormSchema),
+    defaultValues,
+  });
+  
+  // Function to generate reference number based on payment date
+  const generateReferenceNumber = useCallback(async (date: Date) => {
+    try {
+      setIsGeneratingReferenceNumber(true);
+      
+      // Generate a financial year format like "2526" for 2025-2026
+      const financialYear = getIndianFinancialYear(date);
+
+      // Determine the correct sequence number based on financial year
+      let sequenceNumber = "001";  // Default for new financial years
+      
+      // Only use 004 for the current financial year (2526)
+      if (financialYear === "2526") {
+        sequenceNumber = "004";
+      }
+      
+      const referenceNumber = `PAY-${financialYear}-${sequenceNumber}`;
+      console.log('Generated reference number:', referenceNumber);
+      form.setValue('referenceNumber', referenceNumber);
+      
+      /*
+      // Temporarily disabled API call until server issues are fixed
+      try {
+        const response = await apiRequest('GET', '/api/finance/payments/latest-reference');
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data && data.latestReference) {
+            console.log('API returned reference number:', data.latestReference);
+            form.setValue('referenceNumber', data.latestReference);
+            return;
+          }
+        } else {
+          throw new Error(`API responded with status ${response.status}`);
+        }
+      } catch (apiError) {
+        console.error('API request failed:', apiError);
+        // Continue to fallback if API request fails
+      }
+      */
+    } catch (error) {
+      console.error('Failed to generate payment reference number:', error);
+      
+      // Use a fallback approach with correct sequence number logic
+      const financialYear = getIndianFinancialYear(date);
+      const sequenceNumber = financialYear === "2526" ? "004" : "001";
+      form.setValue('referenceNumber', `PAY-${financialYear}-${sequenceNumber}`);
+    } finally {
+      setIsGeneratingReferenceNumber(false);
+    }
+  }, [form, setIsGeneratingReferenceNumber]);
+  
+  // Generate reference number on component mount for new payments
+  useEffect(() => {
+    // Only for create mode, not edit mode
+    if (!isEditMode) {
+      // Call the function directly to generate reference number
+      // Using current date as default
+      generateReferenceNumber(new Date());
+    }
+  }, [isEditMode, generateReferenceNumber]);
+  
+  // Update form when payment data is loaded
+  useEffect(() => {
+    if (isEditMode && paymentData && paymentData.payment) {
+      console.log('Setting form values with payment data:', paymentData);
+      
+      // Delay the reset by a tiny bit to ensure it happens after component render
+      setTimeout(() => {
+        // We need to check for both snake_case and camelCase property names
+        // Because the API sends back camelCase but the database has snake_case
+        const isAdvancePayment = Boolean(
+          paymentData.payment.isAdvancePayment !== undefined 
+            ? paymentData.payment.isAdvancePayment 
+            : paymentData.payment.is_advance_payment
+        );
+        
+        console.log('Is advance payment:', isAdvancePayment);
+        
+        // Parse the payment date string
+        let paymentDate = new Date();
+        try {
+          const dateField = paymentData.payment.paymentDate || paymentData.payment.payment_date;
+          if (dateField) {
+            paymentDate = new Date(dateField);
+            console.log('Parsed payment date:', paymentDate);
+          }
+        } catch (err) {
+          console.error('Error parsing payment date:', err);
+        }
+        
+        const formValues = {
+          // Prefer camelCase if available, fall back to snake_case
+          referenceNumber: paymentData.payment.referenceNumber || paymentData.payment.reference_number || '',
+          paymentDate: paymentDate,
+          amount: String(paymentData.payment.amount || ''),
+          unallocatedAmount: String(paymentData.payment.unallocatedAmount || paymentData.payment.unallocated_amount || '0'),
+          currency: paymentData.payment.currency || 'USD',
+          paymentMethod: paymentData.payment.paymentMethod || paymentData.payment.payment_method || 'bank transfer',
+          notes: paymentData.payment.notes || '',
+          isAdvancePayment: isAdvancePayment,
+          customerId: String(paymentData.payment.customerId || paymentData.payment.customer_id || ''),
+          invoiceLinks: paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0 ? 
+            paymentData.invoiceLinks.map(link => ({
+              invoiceId: String(link.invoiceId || link.invoice_id || ''),
+              amountApplied: String(link.amountApplied || link.amount_applied || '0')
+            })) : [],
+        };
+        
+        console.log('Form values being set:', formValues);
+        
+        // Reset the entire form with the payment data
+        form.reset(formValues);
+        
+        // Ensure Switch component value is set properly for advance payment
+        form.setValue('isAdvancePayment', isAdvancePayment);
+        
+        // Set selected customer ID for the UI if available
+        const customerIdValue = paymentData.payment.customerId || paymentData.payment.customer_id;
+        if (customerIdValue) {
+          const customerId = String(customerIdValue);
+          setSelectedCustomerId(customerId);
+          
+          // Make sure customerId is set in the form
+          form.setValue('customerId', customerId);
+          
+          console.log('Setting selected customer ID:', customerId);
+        }
+        
+        // For edit mode, load the selected invoices for display
+        if (paymentData.invoiceLinks && outstandingInvoices) {
+          const linkedInvoices = paymentData.invoiceLinks
+            .map(link => {
+              const invoiceId = parseInt(String(link.invoice_id || '0'), 10);
+              return outstandingInvoices.find(inv => inv.id === invoiceId);
+            })
+            .filter(Boolean);
+          
+          console.log('Linked invoices:', linkedInvoices);
+          setSelectedInvoices(linkedInvoices);
+        }
+      }, 300); // Increased delay to ensure data is loaded properly
+    }
+  }, [isEditMode, paymentData, form, outstandingInvoices]);
+  
+  // Set up field array for invoice links
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "invoiceLinks",
+  });
+  
+// This function has been moved to line 232
+  
+  // Update reference number when payment date changes - only in create mode
+  useEffect(() => {
+    if (!isEditMode) {
+      const subscription = form.watch((value, { name }) => {
+        if (name === 'paymentDate' && value.paymentDate) {
+          generateReferenceNumber(value.paymentDate as Date);
+        }
+      });
+      
+      return () => subscription.unsubscribe();
+    }
+  }, [form, generateReferenceNumber, isEditMode]);
+  
+  // Calculate total amount applied to invoices
+  const calculateTotalApplied = () => {
+    const values = form.getValues();
+    return values.invoiceLinks ? values.invoiceLinks.reduce((sum, link) => sum + parseFloat(link.amountApplied || '0'), 0) : 0;
+  };
+  
+  // Check if amount remaining to be applied
+  const getRemainingAmount = () => {
+    const totalAmount = parseFloat(form.getValues().amount || '0');
+    const totalApplied = calculateTotalApplied();
+    return totalAmount - totalApplied;
+  };
+  
+  // Create payment mutation
+  const createPayment = useMutation({
+    mutationFn: async (values: PaymentFormValues) => {
+      // Transform values for API
+      const apiData = {
+        payment: {
+          referenceNumber: values.referenceNumber,
+          paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
+          sapPaymentNo: values.sapPaymentNo || null,
+          paymentType: values.paymentType || 'Product',
+          amount: String(values.amount),
+          currency: values.currency,
+          paymentMethod: values.paymentMethod,
+          notes: values.notes || null,
+          isAdvancePayment: values.isAdvancePayment,
+          customerId: values.isAdvancePayment ? parseInt(values.customerId || '0') : null,
+        },
+        invoiceLinks: values.invoiceLinks ? values.invoiceLinks.map(link => ({
+          invoiceId: parseInt(link.invoiceId),
+          amountApplied: String(link.amountApplied),
+        })) : []
+      };
+      
+      return apiRequest('POST', '/api/finance/payments', apiData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Payment recorded",
+        description: "Payment has been recorded successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/payments'] });
+      navigate('/finance/payments');
+    },
+    onError: (error: any) => {
+      console.error('Error recording payment:', error);
+      const errorMessage = error?.message || "Failed to record payment. Please try again.";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Update payment mutation
+  const updatePayment = useMutation({
+    mutationFn: async (values: PaymentFormValues) => {
+      if (!paymentId) {
+        throw new Error("Payment ID is missing");
+      }
+      
+      // Transform values for API
+      const apiData = {
+        payment: {
+          referenceNumber: values.referenceNumber,
+          paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
+          sapPaymentNo: values.sapPaymentNo || null,
+          paymentType: values.paymentType || 'Product',
+          amount: String(values.amount),
+          currency: values.currency,
+          paymentMethod: values.paymentMethod,
+          notes: values.notes || null,
+          isAdvancePayment: values.isAdvancePayment,
+          customerId: values.isAdvancePayment ? parseInt(values.customerId || '0') : null,
+        },
+        invoiceLinks: values.invoiceLinks ? values.invoiceLinks.map(link => ({
+          invoiceId: parseInt(link.invoiceId),
+          amountApplied: String(link.amountApplied),
+        })) : []
+      };
+      
+      // Use POST instead of PUT to match server implementation
+      return apiRequest('POST', `/api/finance/payments/${paymentId}`, apiData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Payment updated",
+        description: "Payment has been updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/payments'] });
+      navigate('/finance/payments');
+    },
+    onError: (error: any) => {
+      console.error('Error updating payment:', error);
+      const errorMessage = error?.message || "Failed to update payment. Please try again.";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Submit handler
+  const onSubmit = (values: PaymentFormValues) => {
+    // For advance payments, just make sure a customer is selected
+    if (values.isAdvancePayment) {
+      if (!values.customerId) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a customer for this advance payment",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (isEditMode && paymentId) {
+        updatePayment.mutate(values);
+      } else {
+        createPayment.mutate(values);
+      }
+      return;
+    }
+    
+    // For regular payments, validate invoice links
+    const totalApplied = calculateTotalApplied();
+    const totalAmount = parseFloat(values.amount);
+    
+    if (Math.abs(totalApplied - totalAmount) > 0.01) {
+      toast({
+        title: "Validation Error",
+        description: "Total applied amount must equal the payment amount",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validate that all selected invoices have the same currency as the payment
+    const paymentCurrency = values.currency;
+    const invoiceCurrencyMismatch = values.invoiceLinks?.some(link => {
+      const invoiceId = link.invoiceId;
+      const invoice = outstandingInvoices?.find((inv: any) => String(inv.id) === invoiceId);
+      return invoice && invoice.currency !== paymentCurrency;
+    });
+    
+    if (invoiceCurrencyMismatch) {
+      toast({
+        title: "Currency Mismatch",
+        description: "All invoices must be in the same currency as the payment",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (isEditMode && paymentId) {
+      updatePayment.mutate(values);
+    } else {
+      createPayment.mutate(values);
+    }
+  };
+  
+  // Filter invoices based on selected customer and search term
+  const filteredInvoices = Array.isArray(outstandingInvoices) 
+    ? outstandingInvoices.filter((invoice: any) => {
+        // First filter by customer if one is selected
+        if (selectedCustomerId && invoice.customerId !== parseInt(selectedCustomerId)) {
+          return false;
+        }
+        
+        // Only include invoices that are pending or partially paid
+        if (invoice.status !== 'Pending' && invoice.status !== 'Partially Paid') {
+          return false;
+        }
+        
+        // Then filter by search term if one is provided
+        if (!searchInvoice) return true;
+        
+        return (
+          invoice.invoiceNumber?.toLowerCase().includes(searchInvoice.toLowerCase()) ||
+          String(invoice.id).includes(searchInvoice)
+        );
+      })
+      // Sort by amount (highest to lowest) to match auto-allocation logic
+      .sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount))
+    : [];
+  
+  // Auto-allocate payment to invoices (highest to lowest value)
+  const autoAllocatePayment = (totalAmount: number, invoicesToAllocate: any[]) => {
+    const paymentCurrency = form.getValues().currency;
+    
+    // Filter invoices by matching currency and sort by total amount (highest to lowest)
+    const matchingCurrencyInvoices = invoicesToAllocate.filter(invoice => 
+      invoice.currency === paymentCurrency
+    );
+    
+    // Show warning if any invoices were filtered due to currency mismatch
+    if (matchingCurrencyInvoices.length < invoicesToAllocate.length) {
+      toast({
+        title: "Currency Mismatch",
+        description: `Only invoices in ${paymentCurrency} will be allocated to this payment.`,
+        variant: "destructive",
+      });
+    }
+    
+    // Sort invoices by total amount (highest to lowest)
+    const sortedInvoices = [...matchingCurrencyInvoices].sort((a, b) => 
+      parseFloat(b.totalAmount) - parseFloat(a.totalAmount)
+    );
+    
+    let remainingAmount = totalAmount;
+    const allocations: { invoiceId: string; amountApplied: string }[] = [];
+    const newSelectedInvoices: any[] = [];
+    
+    // Clear existing invoice links
+    form.setValue('invoiceLinks', []);
+    
+    // Allocate to each invoice until amount is exhausted
+    for (const invoice of sortedInvoices) {
+      if (remainingAmount <= 0) break;
+      
+      const invoiceAmount = parseFloat(invoice.totalAmount);
+      const amountToApply = Math.min(invoiceAmount, remainingAmount);
+      
+      allocations.push({
+        invoiceId: String(invoice.id),
+        amountApplied: String(amountToApply.toFixed(2))
+      });
+      
+      newSelectedInvoices.push(invoice);
+      remainingAmount -= amountToApply;
+    }
+    
+    // Update form with new allocations
+    allocations.forEach(allocation => {
+      append(allocation);
+    });
+    
+    // Update selected invoices for display
+    setSelectedInvoices(newSelectedInvoices);
+    
+    return allocations;
+  };
+  
+  // Handle customer selection change
+  const handleCustomerChange = (customerId: string) => {
+    // Handle "all" value
+    if (customerId === 'all') {
+      customerId = '';
+    }
+    
+    setSelectedCustomerId(customerId);
+    
+    // If this is for advance payment, also set the form customerId
+    if (form.watch('isAdvancePayment') && customerId) {
+      form.setValue('customerId', customerId);
+    }
+    
+    // Reset invoice selection
+    setSelectedInvoices([]);
+    form.setValue('invoiceLinks', []);
+    
+    // If auto-allocate is enabled and payment amount is entered, allocate automatically
+    const paymentAmount = parseFloat(form.getValues().amount || '0');
+    if (autoAllocateEnabled && paymentAmount > 0 && !form.watch('isAdvancePayment')) {
+      // Filter invoices for selected customer
+      const customerInvoices = Array.isArray(outstandingInvoices) 
+        ? outstandingInvoices.filter((invoice: any) => 
+            (customerId ? invoice.customerId === parseInt(customerId) : true) && 
+            (invoice.status === 'Pending' || invoice.status === 'Partially Paid')
+          )
+        : [];
+      
+      autoAllocatePayment(paymentAmount, customerInvoices);
+    }
+  };
+  
+  // Handle payment amount change
+  const handlePaymentAmountChange = (amount: string) => {
+    form.setValue('amount', amount);
+    
+    // If auto-allocate is enabled and customer is selected, allocate automatically
+    if (autoAllocateEnabled && selectedCustomerId && !form.watch('isAdvancePayment')) {
+      const paymentAmount = parseFloat(amount || '0');
+      
+      // Filter invoices for selected customer
+      const customerInvoices = Array.isArray(outstandingInvoices) 
+        ? outstandingInvoices.filter((invoice: any) => 
+            invoice.customerId === parseInt(selectedCustomerId) && 
+            (invoice.status === 'Pending' || invoice.status === 'Partially Paid')
+          )
+        : [];
+      
+      autoAllocatePayment(paymentAmount, customerInvoices);
+    }
+  };
+  
+  // Add invoice to form manually
+  const addInvoiceToForm = (invoice: any) => {
+    // Check if invoice is already in the list
+    const isAlreadyAdded = form.getValues().invoiceLinks?.some(
+      link => link.invoiceId === String(invoice.id)
+    );
+    
+    if (isAlreadyAdded) {
+      toast({
+        title: "Invoice already added",
+        description: "This invoice is already in the list",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check if there's a currency mismatch
+    const paymentCurrency = form.getValues().currency;
+    if (invoice.currency !== paymentCurrency) {
+      toast({
+        title: "Currency Mismatch",
+        description: `This invoice is in ${invoice.currency}, but the payment is in ${paymentCurrency}. All invoices must match the payment currency.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Add invoice to the form
+    append({
+      invoiceId: String(invoice.id),
+      amountApplied: String(invoice.totalAmount), // Default to full amount, can be adjusted
+    });
+    
+    // Update selected invoices list for display
+    setSelectedInvoices(prev => [...prev, invoice]);
+    
+    // Update total amount if it's the first invoice
+    if (form.getValues().amount === '') {
+      form.setValue('amount', String(invoice.totalAmount));
+    }
+  };
+  
+  // Show loading state when fetching data
+  if (isLoadingInvoices) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="mr-2 h-16 w-16 animate-spin" />
+          <p>Loading...</p>
+        </div>
+      </Layout>
+    );
+  }
+  
+  if (invoicesError) {
+    return (
+      <Layout>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            Failed to load outstanding invoices. Please try again later.
+          </AlertDescription>
+        </Alert>
+      </Layout>
+    );
+  }
+  
+  return (
+    <Layout>
+      <Helmet>
+        <title>{isEditMode ? 'Edit Payment' : 'Record New Payment'} | Thermopac</title>
+      </Helmet>
+      
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Payment' : 'Record New Payment'}</h1>
+        <Button variant="outline" onClick={() => navigate('/finance/payments')}>
+          Cancel
+        </Button>
+      </div>
+      
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Information</CardTitle>
+              <CardDescription>
+                Enter the basic information for this payment
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Add Advance Payment Toggle */}
+              <FormField
+                control={form.control}
+                name="isAdvancePayment"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          // Clear invoice links if switching to advance payment
+                          if (checked) {
+                            form.setValue('invoiceLinks', []);
+                            setSelectedInvoices([]);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="text-red-600 font-medium">Advance Payment</FormLabel>
+                      <FormDescription>
+                        Record a payment not linked to any invoice
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
