@@ -635,6 +635,7 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
         p.reference_number as "referenceNumber",
         p.customer_id as "customerId",
         c.bp_name as "customerName",
+        p.irm_no as "irmNo",
         p.payment_date as "paymentDate",
         p.sap_payment_no as "sapPaymentNo",
         p.payment_type as "paymentType",
@@ -676,6 +677,7 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       referenceNumber: rawPayment.referenceNumber,
       customerId: rawPayment.customerId,
       customerName: rawPayment.customerName,
+      irmNo: rawPayment.irmNo || '',
       paymentDate: rawPayment.paymentDate,
       sapPaymentNo: rawPayment.sapPaymentNo,
       paymentType: rawPayment.paymentType,
@@ -999,6 +1001,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     // Create a clean payment record for the database
     const payment = {
       reference_number: paymentData.referenceNumber || `PAY-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      irm_no: paymentData.irmNo || null,
       payment_date: paymentData.paymentDate,
       sap_payment_no: paymentData.sapPaymentNo || null,
       payment_type: paymentData.paymentType || 'Product',
@@ -1286,6 +1289,7 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
     // Execute direct SQL command for maximum reliability
     const directUpdateQuery = `
       UPDATE payments SET 
+        irm_no = ${payment.irmNo ? `'${payment.irmNo}'` : 'NULL'},
         payment_date = '${paymentDate.toISOString().split('T')[0]}',
         sap_payment_no = ${sapPaymentNo ? `'${sapPaymentNo}'` : 'NULL'},
         payment_type = '${paymentType}',
