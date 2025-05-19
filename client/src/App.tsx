@@ -44,6 +44,7 @@ import BrcPage from "@/pages/finance/brc-page";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
+import ReconciliationReportPage from "@/pages/finance/reconciliation-report-page";
 
 // New Material Identification pages
 import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";
@@ -145,7 +146,7 @@ function Router() {
       <ProtectedRoute path="/finance/payments" component={PaymentsPage} />
       <ProtectedRoute path="/finance/payments/new" component={() => <PaymentCreatePage />} />
       <ProtectedRoute path="/finance/payments/:id/edit" component={() => <PaymentCreatePage isEditMode={true} />} />
-      <ProtectedRoute path="/finance/reports/reconciliation" component={() => <ReconciliationReportPage />} />
+      <ProtectedRoute path="/finance/reports/reconciliation" component={ReconciliationReportPage} />
       <ProtectedRoute path="/finance/payments/:id" component={() => <PaymentDetailPage />} />
       <ProtectedRoute path="/finance/brc" component={BrcPage} />
       <ProtectedRoute path="/finance/reports/turnover" component={TurnoverReportPage} />

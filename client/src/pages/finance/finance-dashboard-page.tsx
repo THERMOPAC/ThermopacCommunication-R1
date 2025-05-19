@@ -15,7 +15,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Loader2, AlertCircle, ChevronRight, ChevronDown, IndianRupee, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, AlertCircle, ChevronRight, ChevronDown, IndianRupee, DollarSign, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
