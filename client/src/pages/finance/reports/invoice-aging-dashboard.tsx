@@ -584,7 +584,7 @@ export default function InvoiceAgingDashboard() {
           
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Overdue (>30 days)</CardTitle>
+              <CardTitle className="text-sm font-medium">Overdue (more than 30 days)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">
@@ -605,7 +605,7 @@ export default function InvoiceAgingDashboard() {
           
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Severely Overdue (>90 days)</CardTitle>
+              <CardTitle className="text-sm font-medium">Severely Overdue (more than 90 days)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
@@ -1159,7 +1159,7 @@ export default function InvoiceAgingDashboard() {
                     <div>
                       <h4 className="font-medium">Payment Trend Analysis</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Average days to payment has 
+                        Average days to payment has
                         {data.paymentTrends[data.paymentTrends.length - 1].avgDaysToPayment < 
                          data.paymentTrends[data.paymentTrends.length - 2].avgDaysToPayment
                          ? " improved"

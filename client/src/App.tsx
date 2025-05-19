@@ -47,6 +47,7 @@ import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
 import ReconciliationReportPage from "@/pages/finance/reports/reconciliation-page.simple";
 import PaymentAllocationPage from "@/pages/finance/payment-allocation-page";
 import InvoiceAgingDashboard from "@/pages/finance/reports/invoice-aging-dashboard";
+import WriteOffManagementPage from "@/pages/finance/write-off-management";
 
 // New Material Identification pages
 import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";
@@ -156,6 +157,7 @@ function Router() {
       <ProtectedRoute path="/finance/reports/outstanding" component={OutstandingReportPage} />
       <ProtectedRoute path="/finance/reports/remittances" component={RemittancesReportPage} />
       <ProtectedRoute path="/finance/reports/invoice-aging" component={InvoiceAgingDashboard} />
+      <ProtectedRoute path="/finance/write-offs" component={WriteOffManagementPage} />
       
       <ProtectedRoute path="/projects" component={ProjectsPage} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />

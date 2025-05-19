@@ -268,6 +268,12 @@ export default function FinanceDashboardPage() {
                       </Link>
                     </Button>
                     <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/finance/write-offs">
+                        <FileText className="mr-2 h-4 w-4" />
+                        Write-off Management
+                      </Link>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" asChild>
                       <Link href="/finance/reports/remittances">
                         <DollarSign className="mr-2 h-4 w-4" />
                         Inward Remittances
