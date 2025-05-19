@@ -33,6 +33,7 @@ import { default as financeRoutes } from "./finance-routes";
 import { default as simpleFinanceRoutes } from "./simple-finance-routes";
 import { financeReportRouter } from "./finance-report-routes";
 import { paymentAllocationApi } from "./payment-allocation-api";
+import { default as financeWriteOffsRouter } from "./finance-write-offs";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
 import calibrationTestRoutes from "./testapi/calibration-test-routes";
 import { registerTemplateManagementRoutes } from "./template-management/register-routes";
