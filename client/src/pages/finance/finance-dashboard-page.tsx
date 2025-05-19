@@ -262,6 +262,12 @@ export default function FinanceDashboardPage() {
                       </Link>
                     </Button>
                     <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/finance/reports/invoice-aging">
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        Invoice Aging Dashboard
+                      </Link>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" asChild>
                       <Link href="/finance/reports/remittances">
                         <DollarSign className="mr-2 h-4 w-4" />
                         Inward Remittances
