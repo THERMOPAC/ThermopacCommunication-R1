@@ -44,7 +44,7 @@ import BrcPage from "@/pages/finance/brc-page";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
-import ReconciliationReportPage from "@/pages/finance/reconciliation-report-page";
+import ReconciliationReportPage from "@/pages/finance/reports/reconciliation-page.simple";
 
 // New Material Identification pages
 import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";

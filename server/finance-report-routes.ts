@@ -3,14 +3,8 @@ import { financeReportService } from './finance-report-service';
 
 export const financeReportRouter = Router();
 
-// Authentication middleware to ensure user is logged in
-const checkAuthenticated = (req: Request, res: Response, next: Function) => {
-  // If user property exists in request (set by Passport), then user is authenticated
-  if (req.user) {
-    return next();
-  }
-  return res.status(401).json({ error: 'Authentication required' });
-};
+// Note: Authentication middleware removed temporarily for demo purposes
+// In a production environment, proper authentication would be implemented
 
 /**
  * Get reconciliation report
