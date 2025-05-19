@@ -1,5 +1,6 @@
 import { db } from './db';
-import { writeOffs, invoices } from '@shared/schema';
+import { invoices } from '@shared/schema';
+import { writeOffs } from '@shared/schema-finance-write-offs';
 import { eq, and, gt } from 'drizzle-orm';
 import { Request, Response } from 'express';
 import { ensureAuthenticated } from './auth-middleware';
