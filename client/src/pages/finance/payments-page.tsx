@@ -305,6 +305,22 @@ export default function PaymentsPage() {
                             <Download className="h-4 w-4" />
                           </Link>
                         </Button>
+                        {/* Only show allocate button for unallocated or partially allocated payments */}
+                        {(!payment.fullyAllocated && payment.type !== 'Refund') && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-blue-600 hover:text-blue-800"
+                            asChild
+                          >
+                            <Link 
+                              href={`/finance/payment-allocation?paymentId=${payment.id}`} 
+                              title="Allocate Payment"
+                            >
+                              <span className="text-xs font-semibold">A</span>
+                            </Link>
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
