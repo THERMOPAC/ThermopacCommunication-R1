@@ -313,10 +313,10 @@ export class FinanceReportService {
           created_at >= CURRENT_DATE - INTERVAL '90 days'
       `);
 
-      const totalOutstanding = outstandingResult.rows?.[0]?.total_outstanding || 0;
-      const totalRevenue = revenueResult.rows?.[0]?.total_revenue || 0;
-      const avgDaysToPayment = daysToPaymentResult.rows?.[0]?.avg_days_to_payment || 0;
-      const totalWriteOffs = writeOffsResult.rows?.[0]?.total_writeoffs || 0;
+      const totalOutstanding = Number(outstandingResult.rows?.[0]?.total_outstanding || 0);
+      const totalRevenue = Number(revenueResult.rows?.[0]?.total_revenue || 0);
+      const avgDaysToPayment = Number(daysToPaymentResult.rows?.[0]?.avg_days_to_payment || 0);
+      const totalWriteOffs = Number(writeOffsResult.rows?.[0]?.total_writeoffs || 0);
       
       // Calculate DSO (Days Sales Outstanding)
       const dso = totalRevenue > 0 ? (totalOutstanding / totalRevenue) * 90 : 0;
@@ -361,10 +361,10 @@ export class FinanceReportService {
           AND (total_amount - COALESCE(allocated_amount, 0)) > 0
       `);
       
-      if (overdueResult.rows?.[0]?.count > 0) {
+      if (Number(overdueResult.rows?.[0]?.count) > 0) {
         priorityActions.push({
           action: "Follow up on aged receivables",
-          description: `${overdueResult.rows[0].count} invoices totaling INR ${Math.round(overdueResult.rows[0].amount)} are overdue by more than 90 days.`,
+          description: `${overdueResult.rows?.[0]?.count} invoices totaling INR ${Math.round(Number(overdueResult.rows?.[0]?.amount || 0))} are overdue by more than 90 days.`,
           priority: "High"
         });
       }
@@ -381,10 +381,10 @@ export class FinanceReportService {
           AND (amount - COALESCE(allocated_amount, 0)) > 0
       `);
       
-      if (advanceResult.rows?.[0]?.count > 0) {
+      if (Number(advanceResult.rows?.[0]?.count) > 0) {
         priorityActions.push({
           action: "Allocate advance payments",
-          description: `${advanceResult.rows[0].count} advance payments with INR ${Math.round(advanceResult.rows[0].amount)} remain unallocated.`,
+          description: `${advanceResult.rows?.[0]?.count} advance payments with INR ${Math.round(Number(advanceResult.rows?.[0]?.amount || 0))} remain unallocated.`,
           priority: "Medium"
         });
       }
@@ -405,10 +405,10 @@ export class FinanceReportService {
           ) < CURRENT_DATE - INTERVAL '30 days'
       `);
       
-      if (stalledResult.rows?.[0]?.count > 0) {
+      if (Number(stalledResult.rows?.[0]?.count) > 0) {
         priorityActions.push({
           action: "Follow up on stalled payments",
-          description: `${stalledResult.rows[0].count} invoices have received partial payments but no activity in the last 30 days.`,
+          description: `${stalledResult.rows?.[0]?.count} invoices have received partial payments but no activity in the last 30 days.`,
           priority: "Medium"
         });
       }

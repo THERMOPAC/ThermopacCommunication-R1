@@ -11,7 +11,7 @@ import { AlertCircle, Calendar as CalendarIcon, RefreshCw, TrendingUp, TrendingD
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { DataTable } from '@/components/ui/data-table';
+// Using standard table component instead of DataTable
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // Define the reconciliation report data structure
@@ -159,7 +159,7 @@ export default function ReconciliationReportPage() {
     
     return data.outstandingInvoices.aging.map(item => ({
       name: item.aging_period,
-      value: item.outstanding_amount
+      value: Number(item.outstanding_amount)
     }));
   };
 
@@ -169,7 +169,7 @@ export default function ReconciliationReportPage() {
     
     return data.outstandingInvoices.summary.map(item => ({
       name: item.invoice_type,
-      value: item.outstanding_amount
+      value: Number(item.outstanding_amount)
     }));
   };
 

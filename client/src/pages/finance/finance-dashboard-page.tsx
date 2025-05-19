@@ -238,6 +238,12 @@ export default function FinanceDashboardPage() {
                 <CardContent>
                   <div className="space-y-4">
                     <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/finance/reports/reconciliation">
+                        <BarChart3 className="mr-2 h-4 w-4" />
+                        Financial Reconciliation
+                      </Link>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" asChild>
                       <Link href="/finance/reports/turnover">
                         <TrendingUp className="mr-2 h-4 w-4" />
                         Turnover Report
