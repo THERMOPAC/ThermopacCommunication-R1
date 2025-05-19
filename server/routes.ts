@@ -57,6 +57,8 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Register finance report routes
+  app.use('/api/finance-reports', financeReportRouter);
   setupAuth(app);
   
   // Set up Gmail integration routes

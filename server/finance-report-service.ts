@@ -1,4 +1,4 @@
-import { pool } from './db';
+import { db } from './db';
 
 /**
  * Service class for generating financial reports
@@ -10,441 +10,426 @@ export class FinanceReportService {
    * @param endDate Optional end date for filtering report data
    */
   async generateReconciliationReport(startDate?: string, endDate?: string) {
-    try {
-      // Prepare date filters
-      const dateFilter = this.buildDateFilter(startDate, endDate);
-      
-      // 1. Get outstanding invoices summary
-      const outstandingInvoices = await this.getOutstandingInvoicesSummary(dateFilter);
-      
-      // 2. Get advance payment availability
-      const advancePayments = await this.getAdvancePaymentAvailability();
-      
-      // 3. Get recent payment allocations
-      const recentAllocations = await this.getRecentPaymentAllocations();
-      
-      // 4. Get write-off analysis
-      const writeOffs = await this.getWriteOffAnalysis(dateFilter);
-      
-      // 5. Calculate financial health indicators
-      const healthIndicators = await this.calculateFinancialHealthIndicators();
-      
-      // 6. Generate recommendations
-      const recommendations = await this.generateRecommendations();
-      
-      // Compile the full report
-      return {
-        reportDate: new Date().toISOString(),
-        filters: {
-          startDate: startDate || null,
-          endDate: endDate || null
-        },
-        outstandingInvoices,
-        advancePayments,
-        recentAllocations,
-        writeOffs,
-        healthIndicators,
-        recommendations
-      };
-    } catch (error) {
-      console.error('Error generating reconciliation report:', error);
-      throw new Error('Failed to generate financial reconciliation report');
-    }
+    const dateFilter = this.buildDateFilter(startDate, endDate);
+    
+    // Get the different components of the report
+    const outstandingInvoices = await this.getOutstandingInvoicesSummary(dateFilter);
+    const advancePayments = await this.getAdvancePaymentAvailability();
+    const recentAllocations = await this.getRecentPaymentAllocations();
+    const writeOffs = await this.getWriteOffAnalysis(dateFilter);
+    const healthIndicators = await this.calculateFinancialHealthIndicators();
+    const recommendations = await this.generateRecommendations();
+
+    return {
+      reportDate: new Date().toISOString(),
+      period: {
+        startDate: startDate || 'All Time',
+        endDate: endDate || 'Present'
+      },
+      outstandingInvoices,
+      advancePayments,
+      recentAllocations,
+      writeOffs,
+      healthIndicators,
+      recommendations
+    };
   }
-  
+
   /**
    * Build SQL date filter clause based on provided date range
    */
   private buildDateFilter(startDate?: string, endDate?: string): string {
-    const filters = [];
-    
-    if (startDate) {
-      filters.push(`issue_date >= '${startDate}'`);
+    let dateFilter = '';
+    if (startDate && endDate) {
+      dateFilter = `AND date BETWEEN '${startDate}' AND '${endDate}'`;
+    } else if (startDate) {
+      dateFilter = `AND date >= '${startDate}'`;
+    } else if (endDate) {
+      dateFilter = `AND date <= '${endDate}'`;
     }
-    
-    if (endDate) {
-      filters.push(`issue_date <= '${endDate}'`);
-    }
-    
-    return filters.length > 0 ? `AND ${filters.join(' AND ')}` : '';
+    return dateFilter;
   }
-  
+
   /**
    * Get summary of outstanding invoices grouped by type
    */
   private async getOutstandingInvoicesSummary(dateFilter: string) {
-    const query = `
-      SELECT 
-        invoice_type as type,
-        COUNT(*) as count,
-        SUM(total_amount::numeric) as total_value,
-        AVG(EXTRACT(DAY FROM (CURRENT_DATE - issue_date::date))) as avg_age,
-        SUM(CASE WHEN due_date < CURRENT_DATE AND status != 'Paid' THEN 1 ELSE 0 END) as overdue_count
-      FROM 
-        invoices
-      WHERE 
-        status != 'Paid'
-        ${dateFilter}
-      GROUP BY 
-        invoice_type
-    `;
-    
-    const result = await pool.query(query);
-    
-    let total = {
-      count: 0,
-      total_value: 0,
-      overdue_count: 0
-    };
-    
-    const summary = result.rows.map(row => {
-      total.count += parseInt(row.count);
-      total.total_value += parseFloat(row.total_value);
-      total.overdue_count += parseInt(row.overdue_count);
-      
+    try {
+      // Get total outstanding invoices by type
+      const result = await db.execute(`
+        SELECT
+          invoice_type,
+          COUNT(*) as count,
+          SUM(total_amount) as total_amount,
+          SUM(total_amount - COALESCE(allocated_amount, 0)) as outstanding_amount
+        FROM
+          invoices
+        WHERE
+          (total_amount - COALESCE(allocated_amount, 0)) > 0
+          ${dateFilter}
+        GROUP BY
+          invoice_type
+      `);
+
+      // Get aging analysis
+      const agingResult = await db.execute(`
+        SELECT
+          CASE
+            WHEN (CURRENT_DATE - date) <= 30 THEN '0-30 days'
+            WHEN (CURRENT_DATE - date) <= 60 THEN '31-60 days'
+            WHEN (CURRENT_DATE - date) <= 90 THEN '61-90 days'
+            ELSE 'Over 90 days'
+          END as aging_period,
+          COUNT(*) as count,
+          SUM(total_amount - COALESCE(allocated_amount, 0)) as outstanding_amount
+        FROM
+          invoices
+        WHERE
+          (total_amount - COALESCE(allocated_amount, 0)) > 0
+          ${dateFilter}
+        GROUP BY
+          aging_period
+        ORDER BY
+          CASE
+            WHEN aging_period = '0-30 days' THEN 1
+            WHEN aging_period = '31-60 days' THEN 2
+            WHEN aging_period = '61-90 days' THEN 3
+            ELSE 4
+          END
+      `);
+
+      // Get customer distribution
+      const customerResult = await db.execute(`
+        SELECT
+          c.name as customer_name,
+          COUNT(i.id) as invoice_count,
+          SUM(i.total_amount - COALESCE(i.allocated_amount, 0)) as outstanding_amount
+        FROM
+          invoices i
+        JOIN
+          customers c ON i.customer_id = c.id
+        WHERE
+          (i.total_amount - COALESCE(i.allocated_amount, 0)) > 0
+          ${dateFilter}
+        GROUP BY
+          c.name
+        ORDER BY
+          outstanding_amount DESC
+        LIMIT 5
+      `);
+
       return {
-        type: row.type,
-        count: parseInt(row.count),
-        totalValue: parseFloat(row.total_value).toFixed(2),
-        avgAge: Math.round(parseFloat(row.avg_age)),
-        overdueCount: parseInt(row.overdue_count),
-        status: parseInt(row.overdue_count) > 0 ? 'Warning' : 'Good'
+        summary: result.rows || [],
+        aging: agingResult.rows || [],
+        topCustomers: customerResult.rows || [],
+        totalOutstanding: result.rows?.reduce((acc, row) => acc + Number(row.outstanding_amount), 0) || 0
       };
-    });
-    
-    // Add total row
-    summary.push({
-      type: 'TOTAL',
-      count: total.count,
-      totalValue: total.total_value.toFixed(2),
-      avgAge: Math.round(result.rows.reduce((sum, row) => sum + (parseInt(row.count) * parseFloat(row.avg_age)), 0) / total.count),
-      overdueCount: total.overdue_count,
-      status: (total.overdue_count / total.count > 0.1) ? 'Warning' : 'Good'
-    });
-    
-    return summary;
+    } catch (error) {
+      console.error('Error getting outstanding invoices summary:', error);
+      return {
+        summary: [],
+        aging: [],
+        topCustomers: [],
+        totalOutstanding: 0
+      };
+    }
   }
-  
+
   /**
    * Get advance payment availability by type
    */
   private async getAdvancePaymentAvailability() {
-    const query = `
-      SELECT 
-        payment_type as type,
-        COUNT(*) as count,
-        SUM(
-          CASE 
-            WHEN allocated_amount IS NULL THEN amount::numeric
-            ELSE amount::numeric - allocated_amount::numeric
-          END
-        ) as unallocated_amount
-      FROM 
-        payments
-      WHERE 
-        (allocated_amount IS NULL OR amount::numeric > allocated_amount::numeric)
-      GROUP BY 
-        payment_type
-    `;
-    
-    const result = await pool.query(query);
-    
-    let total = {
-      count: 0,
-      unallocated_amount: 0
-    };
-    
-    const summary = result.rows.map(row => {
-      total.count += parseInt(row.count);
-      total.unallocated_amount += parseFloat(row.unallocated_amount);
-      
+    try {
+      const result = await db.execute(`
+        SELECT
+          payment_type,
+          COUNT(*) as count,
+          SUM(amount) as total_amount,
+          SUM(amount - COALESCE(allocated_amount, 0)) as unallocated_amount
+        FROM
+          payments
+        WHERE
+          payment_category = 'Advance'
+          AND (amount - COALESCE(allocated_amount, 0)) > 0
+        GROUP BY
+          payment_type
+      `);
+
       return {
-        type: row.type,
-        count: parseInt(row.count),
-        unallocatedAmount: parseFloat(row.unallocated_amount).toFixed(2),
-        status: parseFloat(row.unallocated_amount) > 0 ? 'Ready for allocation' : 'No funds available'
+        breakdown: result.rows || [],
+        totalAvailable: result.rows?.reduce((acc, row) => acc + Number(row.unallocated_amount), 0) || 0
       };
-    });
-    
-    // Add total row
-    summary.push({
-      type: 'TOTAL',
-      count: total.count,
-      unallocatedAmount: total.unallocated_amount.toFixed(2),
-      status: total.unallocated_amount > 0 ? 'Ready for allocation' : 'No funds available'
-    });
-    
-    return summary;
+    } catch (error) {
+      console.error('Error getting advance payment availability:', error);
+      return {
+        breakdown: [],
+        totalAvailable: 0
+      };
+    }
   }
-  
+
   /**
    * Get recent payment allocations
    */
   private async getRecentPaymentAllocations() {
-    const query = `
-      SELECT 
-        pa.created_at as date,
-        i.invoice_number,
-        p.reference_number as payment_ref,
-        pa.amount,
-        i.total_amount::numeric - COALESCE(
-          (SELECT SUM(amount::numeric) FROM payment_allocations WHERE invoice_id = i.id), 
-          0
-        ) as balance_after
-      FROM 
-        payment_allocations pa
-      JOIN 
-        invoices i ON pa.invoice_id = i.id
-      JOIN 
-        payments p ON pa.payment_id = p.id
-      WHERE 
-        pa.created_at >= CURRENT_DATE - INTERVAL '30 days'
-      ORDER BY 
-        pa.created_at DESC
-      LIMIT 10
-    `;
-    
-    const result = await pool.query(query);
-    
-    return result.rows.map(row => {
+    try {
+      const result = await db.execute(`
+        SELECT
+          pa.id,
+          p.payment_reference as payment_ref,
+          i.invoice_number,
+          pa.allocated_amount,
+          pa.created_at,
+          c.name as customer_name
+        FROM
+          payment_allocations pa
+        JOIN
+          payments p ON pa.payment_id = p.id
+        JOIN
+          invoices i ON pa.invoice_id = i.id
+        JOIN
+          customers c ON i.customer_id = c.id
+        ORDER BY
+          pa.created_at DESC
+        LIMIT 10
+      `);
+
       return {
-        date: new Date(row.date).toLocaleDateString(),
-        invoiceNumber: row.invoice_number,
-        paymentRef: row.payment_ref,
-        amountApplied: parseFloat(row.amount).toFixed(2),
-        balanceAfter: parseFloat(row.balance_after).toFixed(2),
-        status: parseFloat(row.balance_after) <= 0 ? 'Fully Paid' : 'Partially Paid'
+        recentAllocations: result.rows || [],
+        totalAllocated: result.rows?.reduce((acc, row) => acc + Number(row.allocated_amount), 0) || 0
       };
-    });
+    } catch (error) {
+      console.error('Error getting recent payment allocations:', error);
+      return {
+        recentAllocations: [],
+        totalAllocated: 0
+      };
+    }
   }
-  
+
   /**
    * Get write-off analysis
    */
   private async getWriteOffAnalysis(dateFilter: string) {
-    const query = `
-      SELECT 
-        write_off_type as type,
-        COUNT(*) as count,
-        SUM(amount::numeric) as total_amount,
-        SUM(CASE WHEN status = 'Approved' THEN 1 ELSE 0 END) as approved_count
-      FROM 
-        financial_write_offs
-      WHERE 
-        created_at >= CURRENT_DATE - INTERVAL '90 days'
-        ${dateFilter}
-      GROUP BY 
-        write_off_type
-    `;
-    
-    const result = await pool.query(query);
-    
-    let total = {
-      count: 0,
-      total_amount: 0,
-      approved_count: 0
-    };
-    
-    const summary = result.rows.map(row => {
-      total.count += parseInt(row.count);
-      total.total_amount += parseFloat(row.total_amount);
-      total.approved_count += parseInt(row.approved_count);
-      
+    try {
+      const result = await db.execute(`
+        SELECT
+          w.id,
+          i.invoice_number,
+          w.amount,
+          w.reason,
+          w.created_at,
+          c.name as customer_name
+        FROM
+          financial_writeoffs w
+        JOIN
+          invoices i ON w.invoice_id = i.id
+        JOIN
+          customers c ON i.customer_id = c.id
+        WHERE
+          1=1
+          ${dateFilter}
+        ORDER BY
+          w.created_at DESC
+        LIMIT 10
+      `);
+
+      // Get summary by reason
+      const reasonResult = await db.execute(`
+        SELECT
+          reason,
+          COUNT(*) as count,
+          SUM(amount) as total_amount
+        FROM
+          financial_writeoffs
+        WHERE
+          1=1
+          ${dateFilter}
+        GROUP BY
+          reason
+        ORDER BY
+          total_amount DESC
+      `);
+
       return {
-        category: row.type,
-        count: parseInt(row.count),
-        totalAmount: parseFloat(row.total_amount).toFixed(2),
-        approvalStatus: `${row.approved_count} Approved, ${parseInt(row.count) - parseInt(row.approved_count)} Pending`
+        recentWriteOffs: result.rows || [],
+        byReason: reasonResult.rows || [],
+        totalWrittenOff: reasonResult.rows?.reduce((acc, row) => acc + Number(row.total_amount), 0) || 0
       };
-    });
-    
-    // Add total row if we have data
-    if (summary.length > 0) {
-      summary.push({
-        category: 'TOTAL',
-        count: total.count,
-        totalAmount: total.total_amount.toFixed(2),
-        approvalStatus: `${((total.approved_count / total.count) * 100).toFixed(1)}% Approved`
-      });
+    } catch (error) {
+      console.error('Error getting write-off analysis:', error);
+      return {
+        recentWriteOffs: [],
+        byReason: [],
+        totalWrittenOff: 0
+      };
     }
-    
-    return summary;
   }
-  
+
   /**
    * Calculate financial health indicators
    */
   private async calculateFinancialHealthIndicators() {
-    // Days Sales Outstanding (DSO)
-    const dsoQuery = `
-      SELECT 
-        AVG(EXTRACT(DAY FROM (
-          CASE 
-            WHEN status = 'Paid' THEN 
-              (SELECT MAX(created_at) FROM payment_allocations WHERE invoice_id = i.id)::date
-            ELSE 
-              CURRENT_DATE
-          END - issue_date::date
-        ))) as dso
-      FROM 
-        invoices i
-      WHERE 
-        issue_date >= CURRENT_DATE - INTERVAL '90 days'
-    `;
-    
-    // Collection Efficiency
-    const collectionQuery = `
-      SELECT 
-        (SUM(CASE WHEN status = 'Paid' THEN total_amount::numeric ELSE 0 END) / 
-         NULLIF(SUM(total_amount::numeric), 0)) * 100 as efficiency
-      FROM 
-        invoices
-      WHERE 
-        issue_date >= CURRENT_DATE - INTERVAL '90 days'
-    `;
-    
-    // Advance Payment Ratio
-    const advanceRatioQuery = `
-      SELECT 
-        (SUM(
-          CASE 
-            WHEN allocated_amount IS NULL THEN amount::numeric
-            ELSE amount::numeric - allocated_amount::numeric
-          END
-        ) / NULLIF(
-          (SELECT SUM(total_amount::numeric) FROM invoices WHERE status != 'Paid'), 
-          0
-        )) * 100 as ratio
-      FROM 
-        payments
-      WHERE 
-        (allocated_amount IS NULL OR amount::numeric > allocated_amount::numeric)
-    `;
-    
-    // Unallocated Payment Aging
-    const unallocatedAgingQuery = `
-      SELECT 
-        AVG(EXTRACT(DAY FROM (CURRENT_DATE - payment_date::date))) as aging
-      FROM 
-        payments
-      WHERE 
-        (allocated_amount IS NULL OR amount::numeric > allocated_amount::numeric)
-    `;
-    
-    // Execute all queries
-    const dsoResult = await pool.query(dsoQuery);
-    const collectionResult = await pool.query(collectionQuery);
-    const advanceRatioResult = await pool.query(advanceRatioQuery);
-    const unallocatedAgingResult = await pool.query(unallocatedAgingQuery);
-    
-    // Build indicators
-    const indicators = [
-      {
-        metric: 'Days Sales Outstanding (DSO)',
-        value: Math.round(parseFloat(dsoResult.rows[0]?.dso || '0')),
-        target: '<45',
-        status: parseFloat(dsoResult.rows[0]?.dso || '0') < 45 ? 'Good' : 'Warning'
-      },
-      {
-        metric: 'Collection Efficiency',
-        value: parseFloat(collectionResult.rows[0]?.efficiency || '0').toFixed(1) + '%',
-        target: '>85%',
-        status: parseFloat(collectionResult.rows[0]?.efficiency || '0') > 85 ? 'Good' : 'Warning'
-      },
-      {
-        metric: 'Advance Payment Ratio',
-        value: parseFloat(advanceRatioResult.rows[0]?.ratio || '0').toFixed(1) + '%',
-        target: '>40%',
-        status: parseFloat(advanceRatioResult.rows[0]?.ratio || '0') > 40 ? 'Excellent' : 'Good'
-      },
-      {
-        metric: 'Unallocated Payment Aging',
-        value: Math.round(parseFloat(unallocatedAgingResult.rows[0]?.aging || '0')),
-        target: '<10',
-        status: parseFloat(unallocatedAgingResult.rows[0]?.aging || '0') < 10 ? 'Good' : 'Moderate'
-      }
-    ];
-    
-    return indicators;
+    try {
+      // Get total outstanding amount
+      const outstandingResult = await db.execute(`
+        SELECT
+          SUM(total_amount - COALESCE(allocated_amount, 0)) as total_outstanding
+        FROM
+          invoices
+        WHERE
+          (total_amount - COALESCE(allocated_amount, 0)) > 0
+      `);
+      
+      // Get total revenue in last 90 days
+      const revenueResult = await db.execute(`
+        SELECT
+          SUM(total_amount) as total_revenue
+        FROM
+          invoices
+        WHERE
+          date >= CURRENT_DATE - INTERVAL '90 days'
+      `);
+      
+      // Get average days to payment
+      const daysToPaymentResult = await db.execute(`
+        SELECT
+          AVG(pa.created_at - i.date) as avg_days_to_payment
+        FROM
+          payment_allocations pa
+        JOIN
+          invoices i ON pa.invoice_id = i.id
+        WHERE
+          pa.created_at >= CURRENT_DATE - INTERVAL '90 days'
+      `);
+      
+      // Get total write-offs in last 90 days
+      const writeOffsResult = await db.execute(`
+        SELECT
+          SUM(amount) as total_writeoffs
+        FROM
+          financial_writeoffs
+        WHERE
+          created_at >= CURRENT_DATE - INTERVAL '90 days'
+      `);
+
+      const totalOutstanding = outstandingResult.rows?.[0]?.total_outstanding || 0;
+      const totalRevenue = revenueResult.rows?.[0]?.total_revenue || 0;
+      const avgDaysToPayment = daysToPaymentResult.rows?.[0]?.avg_days_to_payment || 0;
+      const totalWriteOffs = writeOffsResult.rows?.[0]?.total_writeoffs || 0;
+      
+      // Calculate DSO (Days Sales Outstanding)
+      const dso = totalRevenue > 0 ? (totalOutstanding / totalRevenue) * 90 : 0;
+      
+      // Calculate write-off percentage
+      const writeOffPercentage = totalRevenue > 0 ? (totalWriteOffs / totalRevenue) * 100 : 0;
+
+      return {
+        dso: Math.round(dso * 10) / 10, // Round to 1 decimal place
+        avgDaysToPayment: Math.round(avgDaysToPayment),
+        writeOffPercentage: Math.round(writeOffPercentage * 100) / 100, // Round to 2 decimal places
+        outstandingToRevenueRatio: totalRevenue > 0 ? Math.round((totalOutstanding / totalRevenue) * 100) / 100 : 0
+      };
+    } catch (error) {
+      console.error('Error calculating financial health indicators:', error);
+      return {
+        dso: 0,
+        avgDaysToPayment: 0,
+        writeOffPercentage: 0,
+        outstandingToRevenueRatio: 0
+      };
+    }
   }
-  
+
   /**
    * Generate recommendations based on financial data
    */
   private async generateRecommendations() {
-    // Get overdue invoices
-    const overdueQuery = `
-      SELECT 
-        id, invoice_number, customer_id, total_amount, due_date,
-        EXTRACT(DAY FROM (CURRENT_DATE - due_date::date)) as days_overdue
-      FROM 
-        invoices
-      WHERE 
-        status != 'Paid' AND due_date < CURRENT_DATE
-      ORDER BY 
-        days_overdue DESC
-      LIMIT 3
-    `;
-    
-    // Get largest unallocated advances
-    const unallocatedQuery = `
-      SELECT 
-        id, reference_number, payment_type,
-        CASE 
-          WHEN allocated_amount IS NULL THEN amount::numeric
-          ELSE amount::numeric - allocated_amount::numeric
-        END as unallocated_amount
-      FROM 
-        payments
-      WHERE 
-        (allocated_amount IS NULL OR amount::numeric > allocated_amount::numeric)
-      ORDER BY 
-        unallocated_amount DESC
-      LIMIT 3
-    `;
-    
-    // Execute queries
-    const overdueResult = await pool.query(overdueQuery);
-    const unallocatedResult = await pool.query(unallocatedQuery);
-    
-    // Generate priority actions
-    const priorityActions = [];
-    
-    // Add overdue invoice actions
-    overdueResult.rows.forEach(invoice => {
-      priorityActions.push(
-        `Follow up on overdue invoice ${invoice.invoice_number} (${Math.round(invoice.days_overdue)} days past due)`
-      );
-    });
-    
-    // Add unallocated payment actions
-    unallocatedResult.rows.forEach(payment => {
-      priorityActions.push(
-        `Allocate ${payment.payment_type} payment ${payment.reference_number} with ${parseFloat(payment.unallocated_amount).toFixed(2)} available`
-      );
-    });
-    
-    // Generate optimization opportunities
-    const optimizationOpportunities = [
-      "Consider implementing automatic payment allocation for recurring customers",
-      "Review invoice payment terms for customers with consistent late payments",
-      "Analyze write-off patterns to identify potential process improvements"
-    ];
-    
-    if (unallocatedResult.rows.length > 0) {
-      const totalUnallocated = unallocatedResult.rows.reduce(
-        (sum, payment) => sum + parseFloat(payment.unallocated_amount), 0
-      );
+    try {
+      // Create an array to store priority actions
+      const priorityActions: Array<{action: string; description: string; priority: string}> = [];
       
-      optimizationOpportunities.unshift(
-        `Utilize ${totalUnallocated.toFixed(2)} in unallocated payments for upcoming projects`
-      );
+      // Check for invoices overdue by more than 90 days
+      const overdueResult = await db.execute(`
+        SELECT
+          COUNT(*) as count,
+          SUM(total_amount - COALESCE(allocated_amount, 0)) as amount
+        FROM
+          invoices
+        WHERE
+          (CURRENT_DATE - date) > 90
+          AND (total_amount - COALESCE(allocated_amount, 0)) > 0
+      `);
+      
+      if (overdueResult.rows?.[0]?.count > 0) {
+        priorityActions.push({
+          action: "Follow up on aged receivables",
+          description: `${overdueResult.rows[0].count} invoices totaling INR ${Math.round(overdueResult.rows[0].amount)} are overdue by more than 90 days.`,
+          priority: "High"
+        });
+      }
+      
+      // Check for unallocated advance payments
+      const advanceResult = await db.execute(`
+        SELECT
+          COUNT(*) as count,
+          SUM(amount - COALESCE(allocated_amount, 0)) as amount
+        FROM
+          payments
+        WHERE
+          payment_category = 'Advance'
+          AND (amount - COALESCE(allocated_amount, 0)) > 0
+      `);
+      
+      if (advanceResult.rows?.[0]?.count > 0) {
+        priorityActions.push({
+          action: "Allocate advance payments",
+          description: `${advanceResult.rows[0].count} advance payments with INR ${Math.round(advanceResult.rows[0].amount)} remain unallocated.`,
+          priority: "Medium"
+        });
+      }
+      
+      // Check for invoices with partial payments that are stalled
+      const stalledResult = await db.execute(`
+        SELECT
+          COUNT(*) as count
+        FROM
+          invoices i
+        WHERE
+          allocated_amount > 0
+          AND allocated_amount < total_amount
+          AND (
+            SELECT MAX(created_at) 
+            FROM payment_allocations pa 
+            WHERE pa.invoice_id = i.id
+          ) < CURRENT_DATE - INTERVAL '30 days'
+      `);
+      
+      if (stalledResult.rows?.[0]?.count > 0) {
+        priorityActions.push({
+          action: "Follow up on stalled payments",
+          description: `${stalledResult.rows[0].count} invoices have received partial payments but no activity in the last 30 days.`,
+          priority: "Medium"
+        });
+      }
+      
+      // Add general recommendations based on the data collected
+      return {
+        priorityActions,
+        generalRecommendations: [
+          "Review credit terms with customers that consistently pay late",
+          "Consider early payment discounts for customers with large outstanding balances",
+          "Implement more regular follow-ups on invoices as they approach 60 days outstanding",
+          "Review write-off policies to ensure they align with business goals"
+        ]
+      };
+    } catch (error) {
+      console.error('Error generating recommendations:', error);
+      return {
+        priorityActions: [],
+        generalRecommendations: []
+      };
     }
-    
-    return {
-      priorityActions: priorityActions.slice(0, 3),
-      optimizationOpportunities: optimizationOpportunities.slice(0, 3)
-    };
   }
 }
 

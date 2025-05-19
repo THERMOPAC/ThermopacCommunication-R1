@@ -1,13 +1,20 @@
 import { Router, Request, Response } from 'express';
-import { requireAuth } from './auth';
 import { financeReportService } from './finance-report-service';
 
 export const financeReportRouter = Router();
 
+// Authentication middleware to ensure user is logged in
+const checkAuthenticated = (req: Request, res: Response, next: Function) => {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  return res.status(401).json({ error: 'Authentication required' });
+};
+
 /**
  * Get reconciliation report
  */
-financeReportRouter.get('/reconciliation', ensureAuthenticated, async (req: Request, res: Response) => {
+financeReportRouter.get('/reconciliation', checkAuthenticated, async (req: Request, res: Response) => {
   try {
     const { startDate, endDate } = req.query;
     
@@ -26,7 +33,7 @@ financeReportRouter.get('/reconciliation', ensureAuthenticated, async (req: Requ
 /**
  * Get turnover report
  */
-financeReportRouter.get('/turnover', ensureAuthenticated, (req: Request, res: Response) => {
+financeReportRouter.get('/turnover', checkAuthenticated, (req: Request, res: Response) => {
   // Currently returning demo data
   // This will be implemented with real data in the future
   res.json({
@@ -69,7 +76,7 @@ financeReportRouter.get('/turnover', ensureAuthenticated, (req: Request, res: Re
 /**
  * Get outstanding invoices report
  */
-financeReportRouter.get('/outstanding', ensureAuthenticated, (req: Request, res: Response) => {
+financeReportRouter.get('/outstanding', checkAuthenticated, (req: Request, res: Response) => {
   // Currently returning demo data
   // This will be implemented with real data in the future
   res.json({
@@ -118,7 +125,7 @@ financeReportRouter.get('/outstanding', ensureAuthenticated, (req: Request, res:
 /**
  * Get inward remittances report
  */
-financeReportRouter.get('/remittances', ensureAuthenticated, (req: Request, res: Response) => {
+financeReportRouter.get('/remittances', checkAuthenticated, (req: Request, res: Response) => {
   // Currently returning demo data
   // This will be implemented with real data in the future
   res.json({
