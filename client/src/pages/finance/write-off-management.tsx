@@ -530,10 +530,11 @@ const WriteOffManagementPage: React.FC = () => {
                         <TableCell>
                           <Badge
                             variant={
-                              writeOff.status === "Approved" ? "success" :
+                              writeOff.status === "Approved" ? "default" :
                               writeOff.status === "Rejected" ? "destructive" :
                               "outline"
                             }
+                            className={writeOff.status === "Approved" ? "bg-green-600 text-white" : ""}
                           >
                             {writeOff.status === "Approved" && <CheckCircle className="mr-1 h-3 w-3" />}
                             {writeOff.status === "Rejected" && <XCircle className="mr-1 h-3 w-3" />}

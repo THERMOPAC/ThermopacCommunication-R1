@@ -24,7 +24,7 @@ export const getWriteOffs = async (req: Request, res: Response) => {
     
     // Apply status filter if provided
     if (status) {
-      query = query.where(eq(writeOffs.status, status as string));
+      return query.where(eq(writeOffs.status, status as string));
     }
     
     const results = await query.orderBy(writeOffs.dateCreated);
@@ -154,9 +154,12 @@ export const createWriteOff = async (req: Request, res: Response) => {
     // Create the write-off
     const [writeOff] = await db.insert(writeOffs)
       .values({
-        ...validatedData,
+        invoiceId: validatedData.invoiceId,
+        amount: validatedData.amount.toString(), // Convert to string for database
+        reason: validatedData.reason,
+        notes: validatedData.notes,
         dateCreated: new Date(),
-        createdBy: req.user!.id, // From authenticated user
+        createdBy: req.user?.id || 1, // From authenticated user or fallback
         status: 'Pending',
         approvedBy: null,
         approvalDate: null
