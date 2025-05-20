@@ -61,8 +61,8 @@ import {
 
 export default function BatchAdvanceAllocationPage() {
   const { toast } = useToast();
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [paymentTypeFilter, setPaymentTypeFilter] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("all");
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<string>("all");
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   // Query available advance payments
@@ -74,7 +74,7 @@ export default function BatchAdvanceAllocationPage() {
   } = useQuery({
     queryKey: ['/api/finance/payments/unallocated-advances', paymentTypeFilter],
     queryFn: async () => {
-      const endpoint = paymentTypeFilter 
+      const endpoint = paymentTypeFilter && paymentTypeFilter !== 'all'
         ? `/api/finance/payments/unallocated-advances?paymentType=${paymentTypeFilter}` 
         : '/api/finance/payments/unallocated-advances';
       
@@ -96,11 +96,11 @@ export default function BatchAdvanceAllocationPage() {
       let endpoint = '/api/finance/invoices/outstanding';
       const params = [];
       
-      if (selectedCustomerId) {
+      if (selectedCustomerId && selectedCustomerId !== 'all') {
         params.push(`customerId=${selectedCustomerId}`);
       }
       
-      if (paymentTypeFilter) {
+      if (paymentTypeFilter && paymentTypeFilter !== 'all') {
         params.push(`invoiceType=${paymentTypeFilter}`);
       }
       
@@ -352,7 +352,7 @@ export default function BatchAdvanceAllocationPage() {
                 <SelectValue placeholder="Select a customer" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Customers</SelectItem>
+                <SelectItem value="all">All Customers</SelectItem>
                 {customers && customers.map((customer: any) => (
                   <SelectItem 
                     key={customer.id} 
@@ -377,7 +377,7 @@ export default function BatchAdvanceAllocationPage() {
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="Product">Product</SelectItem>
                 <SelectItem value="Service">Service</SelectItem>
               </SelectContent>

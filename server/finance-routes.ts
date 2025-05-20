@@ -2007,8 +2007,19 @@ router.get('/test/invoice-number', async (req: Request, res: Response) => {
 router.get('/invoices/outstanding', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Extract optional filters from query params
-    const customerId = req.query.customerId ? parseInt(req.query.customerId as string) : null;
-    const invoiceType = req.query.invoiceType as string;
+    let customerId = null;
+    if (req.query.customerId && req.query.customerId !== 'all') {
+      const parsedId = parseInt(req.query.customerId as string);
+      if (!isNaN(parsedId)) {
+        customerId = parsedId;
+      }
+    }
+    
+    const invoiceType = (req.query.invoiceType && req.query.invoiceType !== 'all') 
+      ? req.query.invoiceType as string 
+      : null;
+    
+    console.log('Outstanding invoices filter params:', { customerId, invoiceType });
     
     // Build the base query
     let query = `
