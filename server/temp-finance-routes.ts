@@ -149,7 +149,7 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
         JOIN 
           customers c ON p.customer_id = c.id
         WHERE 
-          p.status != 'Refunded'
+          1 = 1 /* removed status check as column does not exist */
       `;
       
       // Add customer filter if specified
@@ -232,7 +232,7 @@ router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, as
         JOIN 
           customers c ON p.customer_id = c.id
         WHERE 
-          p.status != 'Refunded'
+          1 = 1 /* removed status check as column does not exist */
           AND p.customer_id = $1
         HAVING 
           (p.amount - COALESCE((
@@ -300,7 +300,7 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
             FROM payment_allocations pa 
             WHERE pa.payment_id = p.id
           ), 0)) AS "unallocatedAmount",
-          p.status,
+          
           p.created_at AS "createdAt"
         FROM 
           payments p
@@ -377,7 +377,7 @@ router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Re
           payments p
         WHERE 
           p.customer_id = $1
-          AND p.status != 'Refunded'
+          
         HAVING 
           (p.amount - COALESCE((
             SELECT SUM(pa.amount_applied) 
