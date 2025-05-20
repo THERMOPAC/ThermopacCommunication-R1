@@ -553,7 +553,7 @@ export default function ProductionPlanningPage() {
                     <Button 
                       variant="destructive"
                       onClick={cleanupWorkOrders}
-                      disabled={isCleaningUp || isGeneratingWorkOrders}
+                      disabled={true}
                       className="flex items-center"
                     >
                       {isCleaningUp ? (
