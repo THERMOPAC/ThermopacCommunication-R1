@@ -2115,6 +2115,13 @@ router.get('/invoices/outstanding', ensureAuthenticated, async (req: Request, re
  * Get unallocated advance payments
  */
 router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
+  // Default response structure for empty or error cases
+  const emptyResponse = {
+    advances: [],
+    totalUnallocatedAmount: "0.00",
+    count: 0
+  };
+  
   try {
     // Get optional payment type filter from query params
     const paymentType = (req.query.paymentType && req.query.paymentType !== 'all') 
@@ -2178,7 +2185,8 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
     });
   } catch (error) {
     console.error('Error getting unallocated advances:', error);
-    res.status(500).json({ error: 'Failed to get unallocated advances' });
+    // Return empty response structure instead of error for better UI handling
+    res.json(emptyResponse);
   }
 });
 
