@@ -277,140 +277,282 @@ router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, as
 /**
  * Get all payments
  */
-router.get('/payments', ensureAuthenticated, (req: Request, res: Response) => {
-  // Sample data for payments from all customers
-  const samplePayments = [
-    {
-      id: 101,
-      customerId: 8,
-      customerName: "FLUKAR SP. ZO.O.",
-      paymentNumber: "PAY-25-0015",
-      paymentDate: "2025-04-15",
-      paymentType: "Product",
-      paymentMethod: "Bank Transfer",
-      sapPaymentNo: "SAP-2345",
-      reference: "INV-REF-223",
-      amount: "150000.00",
-      unallocatedAmount: "75000.00",
-      status: "Partially Allocated",
-      currency: "INR",
-      createdAt: "2025-04-15T09:30:00Z"
-    },
-    {
-      id: 102,
-      customerId: 8,
-      customerName: "FLUKAR SP. ZO.O.",
-      paymentNumber: "PAY-25-0022",
-      paymentDate: "2025-05-10",
-      paymentType: "Service",
-      paymentMethod: "Wire Transfer",
-      sapPaymentNo: "SAP-2385",
-      reference: "INV-REF-225",
-      amount: "85000.00",
-      unallocatedAmount: "85000.00",
-      status: "Unallocated",
-      currency: "INR",
-      createdAt: "2025-05-10T10:15:00Z"
-    },
-    {
-      id: 103,
-      customerId: 6,
-      customerName: "ALPHA INDUSTRIES",
-      paymentNumber: "PAY-25-0031",
-      paymentDate: "2025-05-12",
-      paymentType: "Product",
-      paymentMethod: "Bank Transfer",
-      sapPaymentNo: "SAP-2401",
-      reference: "INV-REF-227",
-      amount: "223450.00",
-      unallocatedAmount: "0.00",
-      status: "Fully Allocated",
-      currency: "INR",
-      createdAt: "2025-05-12T14:22:00Z"
-    },
-    {
-      id: 104,
-      customerId: 3,
-      customerName: "AFRO INDUSTRIES",
-      paymentNumber: "PAY-25-0032",
-      paymentDate: "2025-05-05",
-      paymentType: "Service",
-      paymentMethod: "Wire Transfer",
-      sapPaymentNo: "SAP-2390",
-      reference: "INV-REF-230",
-      amount: "65000.00",
-      unallocatedAmount: "17500.00",
-      status: "Partially Allocated",
-      currency: "INR",
-      createdAt: "2025-05-05T11:40:00Z"
-    },
-    {
-      id: 105,
-      customerId: 4,
-      customerName: "BETA ENGINEERING",
-      paymentNumber: "PAY-25-0033",
-      paymentDate: "2025-04-20",
-      paymentType: "Product",
-      paymentMethod: "Online Payment",
-      sapPaymentNo: "SAP-2342",
-      reference: "INV-REF-210",
-      amount: "185000.00",
-      unallocatedAmount: "185000.00",
-      status: "Unallocated",
-      currency: "INR",
-      createdAt: "2025-04-20T09:15:00Z"
-    },
-    {
-      id: 106,
-      customerId: 5,
-      customerName: "GAMMA SOLUTIONS",
-      paymentNumber: "PAY-25-0034",
-      paymentDate: "2025-04-22",
-      paymentType: "Service",
-      paymentMethod: "Cheque",
-      sapPaymentNo: "SAP-2348",
-      reference: "INV-REF-215",
-      amount: "42000.00",
-      unallocatedAmount: "0.00",
-      status: "Fully Allocated",
-      currency: "INR",
-      createdAt: "2025-04-22T13:25:00Z"
-    },
-    {
-      id: 107,
-      customerId: 7,
-      customerName: "OMEGA TRADERS",
-      paymentNumber: "PAY-25-0035",
-      paymentDate: "2025-04-28",
-      paymentType: "Product",
-      paymentMethod: "Bank Transfer",
-      sapPaymentNo: "SAP-2355",
-      reference: "INV-REF-218",
-      amount: "322000.00",
-      unallocatedAmount: "122000.00",
-      status: "Partially Allocated",
-      currency: "INR",
-      createdAt: "2025-04-28T16:10:00Z"
+router.get('/payments', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Query all payments with their allocation status from the database
+    const client = await pool.connect();
+    try {
+      const query = `
+        SELECT 
+          p.id, 
+          p.customer_id AS "customerId", 
+          c.bp_name AS "customerName", 
+          p.payment_number AS "paymentNumber",
+          p.payment_date AS "paymentDate",
+          p.payment_type AS "paymentType",
+          p.payment_method AS "paymentMethod",
+          p.sap_payment_no AS "sapPaymentNo",
+          p.reference,
+          p.currency,
+          p.amount,
+          (p.amount - COALESCE((
+            SELECT SUM(pa.amount) 
+            FROM payment_allocations pa 
+            WHERE pa.payment_id = p.id
+          ), 0)) AS "unallocatedAmount",
+          p.status,
+          p.created_at AS "createdAt"
+        FROM 
+          payments p
+        JOIN 
+          customers c ON p.customer_id = c.id
+        ORDER BY 
+          p.payment_date DESC
+      `;
+      
+      const result = await client.query(query);
+      const payments = result.rows.map(row => {
+        // Calculate allocation status based on unallocated amount
+        const unallocatedAmount = parseFloat(row.unallocatedAmount || "0");
+        const totalAmount = parseFloat(row.amount || "0");
+        let status = row.status;
+        
+        if (unallocatedAmount <= 0) {
+          status = "Fully Allocated";
+        } else if (unallocatedAmount < totalAmount) {
+          status = "Partially Allocated";
+        } else {
+          status = "Unallocated";
+        }
+        
+        return {
+          ...row,
+          unallocatedAmount: row.unallocatedAmount ? row.unallocatedAmount.toString() : "0.00",
+          amount: row.amount ? row.amount.toString() : "0.00",
+          status
+        };
+      });
+      
+      res.json({
+        payments,
+        total: payments.length
+      });
+    } finally {
+      client.release();
     }
-  ];
-  
-  res.json({
-    payments: samplePayments,
-    total: samplePayments.length
-  });
+  } catch (error) {
+    console.error("Error fetching payments:", error);
+    // Return empty but valid response structure on error
+    res.json({
+      payments: [],
+      total: 0
+    });
+  }
 });
 
 /**
  * Apply batch allocation
  */
-router.post('/customers/:id/apply-advances', ensureAuthenticated, (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    uniquePaymentsUsed: 2,
-    uniqueInvoicesUpdated: 2,
-    totalAmount: "160000.00",
-    message: "Advance payments successfully allocated"
-  });
+router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Request, res: Response) => {
+  const customerId = parseInt(req.params.id);
+  
+  try {
+    const client = await pool.connect();
+    try {
+      // Start a transaction
+      await client.query('BEGIN');
+      
+      // 1. Get unallocated advance payments for this customer
+      const advancesQuery = `
+        SELECT 
+          p.id, 
+          p.payment_type AS payment_type,
+          p.amount,
+          (p.amount - COALESCE((
+            SELECT SUM(pa.amount) 
+            FROM payment_allocations pa 
+            WHERE pa.payment_id = p.id
+          ), 0)) AS unallocated_amount
+        FROM 
+          payments p
+        WHERE 
+          p.customer_id = $1
+          AND p.status != 'Refunded'
+        HAVING 
+          (p.amount - COALESCE((
+            SELECT SUM(pa.amount) 
+            FROM payment_allocations pa 
+            WHERE pa.payment_id = p.id
+          ), 0)) > 0
+        ORDER BY 
+          p.payment_date ASC
+      `;
+      
+      const advancesResult = await client.query(advancesQuery, [customerId]);
+      const advances = advancesResult.rows;
+      
+      // 2. Get outstanding invoices for this customer
+      const invoicesQuery = `
+        SELECT 
+          i.id, 
+          i.invoice_type,
+          i.total_amount,
+          (i.total_amount - COALESCE((
+            SELECT SUM(pa.amount) 
+            FROM payment_allocations pa 
+            WHERE pa.invoice_id = i.id
+          ), 0)) AS outstanding_amount
+        FROM 
+          invoices i
+        WHERE 
+          i.customer_id = $1
+          AND i.status != 'Paid'
+        HAVING 
+          (i.total_amount - COALESCE((
+            SELECT SUM(pa.amount) 
+            FROM payment_allocations pa 
+            WHERE pa.invoice_id = i.id
+          ), 0)) > 0
+        ORDER BY 
+          i.invoice_date ASC
+      `;
+      
+      const invoicesResult = await client.query(invoicesQuery, [customerId]);
+      const invoices = invoicesResult.rows;
+      
+      // 3. Apply allocations - match payment types with invoice types
+      const allocations = [];
+      let totalAllocated = 0;
+      const usedPaymentIds = new Set();
+      const updatedInvoiceIds = new Set();
+      
+      // Group by payment type
+      const productAdvances = advances.filter(a => a.payment_type === 'Product');
+      const serviceAdvances = advances.filter(a => a.payment_type === 'Service');
+      const productInvoices = invoices.filter(i => i.invoice_type === 'Product');
+      const serviceInvoices = invoices.filter(i => i.invoice_type === 'Service');
+      
+      // Helper function to allocate advances to invoices
+      const allocateAdvances = (advancesList, invoicesList) => {
+        for (const advance of advancesList) {
+          let remainingUnallocated = parseFloat(advance.unallocated_amount);
+          if (remainingUnallocated <= 0) continue;
+          
+          for (const invoice of invoicesList) {
+            let outstandingAmount = parseFloat(invoice.outstanding_amount);
+            if (outstandingAmount <= 0) continue;
+            
+            // Determine allocation amount
+            const allocationAmount = Math.min(remainingUnallocated, outstandingAmount);
+            if (allocationAmount <= 0) continue;
+            
+            // Create allocation
+            allocations.push({
+              payment_id: advance.id,
+              invoice_id: invoice.id,
+              amount: allocationAmount
+            });
+            
+            // Update tracking
+            remainingUnallocated -= allocationAmount;
+            invoice.outstanding_amount = (outstandingAmount - allocationAmount).toFixed(2);
+            totalAllocated += allocationAmount;
+            usedPaymentIds.add(advance.id);
+            updatedInvoiceIds.add(invoice.id);
+            
+            // If the advance is fully allocated, break to next advance
+            if (remainingUnallocated <= 0) break;
+          }
+        }
+      };
+      
+      // Allocate Product advances to Product invoices
+      allocateAdvances(productAdvances, productInvoices);
+      
+      // Allocate Service advances to Service invoices
+      allocateAdvances(serviceAdvances, serviceInvoices);
+      
+      // 4. Insert all allocations in batch
+      if (allocations.length > 0) {
+        const insertValues = allocations.map((a, index) => 
+          `($${index*3+1}, $${index*3+2}, $${index*3+3})`
+        ).join(', ');
+        
+        const insertParams = allocations.flatMap(a => 
+          [a.payment_id, a.invoice_id, a.amount]
+        );
+        
+        const insertQuery = `
+          INSERT INTO payment_allocations (payment_id, invoice_id, amount)
+          VALUES ${insertValues}
+        `;
+        
+        await client.query(insertQuery, insertParams);
+        
+        // 5. Update invoice statuses as needed
+        for (const invoiceId of updatedInvoiceIds) {
+          // Check if invoice is fully paid
+          const checkQuery = `
+            SELECT 
+              i.id,
+              i.total_amount,
+              COALESCE(SUM(pa.amount), 0) as paid_amount
+            FROM 
+              invoices i
+            LEFT JOIN 
+              payment_allocations pa ON i.id = pa.invoice_id
+            WHERE 
+              i.id = $1
+            GROUP BY 
+              i.id, i.total_amount
+          `;
+          
+          const checkResult = await client.query(checkQuery, [invoiceId]);
+          const invoice = checkResult.rows[0];
+          
+          if (parseFloat(invoice.paid_amount) >= parseFloat(invoice.total_amount)) {
+            // Update to Paid status
+            await client.query(
+              `UPDATE invoices SET status = 'Paid' WHERE id = $1`,
+              [invoiceId]
+            );
+          } else if (parseFloat(invoice.paid_amount) > 0) {
+            // Update to Partially Paid status
+            await client.query(
+              `UPDATE invoices SET status = 'Partially Paid' WHERE id = $1`,
+              [invoiceId]
+            );
+          }
+        }
+      }
+      
+      // Commit the transaction
+      await client.query('COMMIT');
+      
+      res.json({
+        success: true,
+        uniquePaymentsUsed: usedPaymentIds.size,
+        uniqueInvoicesUpdated: updatedInvoiceIds.size,
+        totalAmount: totalAllocated.toFixed(2),
+        message: allocations.length > 0 
+          ? "Advance payments successfully allocated" 
+          : "No matching payments and invoices were found for allocation"
+      });
+    } catch (error) {
+      // Rollback on error
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error("Error during batch allocation:", error);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred during batch allocation",
+      error: error.message
+    });
+  }
 });
 
 // Make sure to export properly for compatibility with routes.ts import
