@@ -676,6 +676,49 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     return customer ? customer.bpName : '';
   };
 
+  // Initialize form with payment data when editing
+  useEffect(() => {
+    if (isInEditMode && paymentData && !isLoadingPayment && customers && customers.length > 0) {
+      let payment = null;
+      
+      // Get the payment data, whether from an array or direct object
+      if (paymentData.payments && Array.isArray(paymentData.payments)) {
+        payment = paymentData.payments.find((p: any) => p.id === parseInt(id || '0'));
+      } else {
+        payment = paymentData.payment || paymentData;
+      }
+      
+      if (payment && payment.id) {
+        console.log('Refreshing form with payment data:', payment);
+        
+        // Get all fields with both camelCase and snake_case options
+        const customerId = payment.customerId || payment.customer_id || "";
+        const paymentMethod = payment.paymentMethod || payment.payment_method || "";
+        const sapPaymentNo = payment.sapPaymentNo || payment.sap_payment_no || "";
+        const notes = payment.notes || "";
+        
+        console.log('Important fields check: Customer:', customerId, 'Method:', paymentMethod, 'SAP No:', sapPaymentNo);
+        
+        // Make sure these fields are properly set
+        setShowInvoiceSection(true);
+        
+        // Force update with a small delay to ensure the form is ready
+        setTimeout(() => {
+          form.setValue('customerId', customerId.toString());
+          form.setValue('paymentMethod', paymentMethod);
+          form.setValue('sapPaymentNo', sapPaymentNo);
+          form.setValue('notes', notes);
+          
+          console.log('Form values after forced update:', {
+            customerId: form.getValues('customerId'),
+            paymentMethod: form.getValues('paymentMethod'),
+            sapPaymentNo: form.getValues('sapPaymentNo')
+          });
+        }, 100);
+      }
+    }
+  }, [isInEditMode, paymentData, isLoadingPayment, customers, id, form]);
+
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
