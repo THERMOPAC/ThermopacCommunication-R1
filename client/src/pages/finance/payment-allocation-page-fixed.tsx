@@ -147,18 +147,33 @@ export default function PaymentAllocationPage() {
   const payments: Payment[] = useMemo(() => {
     if (!paymentsData || !paymentsData.advances) return [];
     
-    return paymentsData.advances.map((payment: any) => ({
-      id: payment.id,
-      paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
-      paymentType: payment.paymentType,
-      paymentDate: payment.paymentDate,
-      amount: parseFloat(payment.amount),
-      allocatedAmount: parseFloat(payment.allocatedAmount || '0'),
-      remainingAmount: parseFloat(payment.unallocatedAmount || '0'),
-      currency: payment.currency || 'USD',
-      status: payment.allocationStatus || 'Unallocated',
-      customerName: payment.customerName
-    }));
+    return paymentsData.advances.map((payment: any) => {
+      // Ensure numeric values are properly parsed with fallbacks
+      const totalAmount = parseFloat(payment.amount) || 0;
+      const allocatedAmount = parseFloat(payment.allocatedAmount || '0') || 0;
+      // Calculate remaining amount or use the provided unallocatedAmount
+      const remainingAmount = parseFloat(payment.unallocatedAmount || payment.remainingAmount || (totalAmount - allocatedAmount).toString() || '0');
+      
+      console.log('Processing payment:', payment.id, {
+        total: totalAmount,
+        allocated: allocatedAmount,
+        remaining: remainingAmount,
+        raw: payment
+      });
+      
+      return {
+        id: payment.id,
+        paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
+        paymentType: payment.paymentType,
+        paymentDate: payment.paymentDate,
+        amount: totalAmount,
+        allocatedAmount: allocatedAmount,
+        remainingAmount: remainingAmount,
+        currency: payment.currency || 'USD',
+        status: payment.allocationStatus || 'Unallocated',
+        customerName: payment.customerName
+      };
+    });
   }, [paymentsData]);
 
   // Get outstanding invoices that can receive payment allocations
