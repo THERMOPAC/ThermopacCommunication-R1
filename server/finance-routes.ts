@@ -1454,6 +1454,133 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
 });
 
 /**
+ * Update an existing invoice
+ */
+router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = parseInt(req.params.id, 10);
+    
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ error: 'Invalid invoice ID' });
+    }
+    
+    // Get invoice data from request body
+    const { invoice, items } = req.body;
+    
+    if (!invoice || !items) {
+      return res.status(400).json({ error: 'Invalid request body - invoice or items data missing' });
+    }
+    
+    console.log(`Updating invoice with ID ${invoiceId}:`, { invoice, items });
+    
+    // Format dates for the database
+    const issueDate = invoice.issueDate ? new Date(invoice.issueDate) : new Date();
+    const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : new Date();
+    
+    // Update the invoice in the database
+    const updateInvoiceQuery = `
+      UPDATE invoices
+      SET 
+        invoice_number = $1,
+        customer_id = $2,
+        project_id = $3,
+        issue_date = $4,
+        due_date = $5,
+        total_amount = $6,
+        currency = $7,
+        sap_invoice_no = $8,
+        invoice_type = $9,
+        notes = $10,
+        updated_at = NOW()
+      WHERE id = $11
+      RETURNING *
+    `;
+    
+    const invoiceValues = [
+      invoice.invoiceNumber,
+      invoice.customerId,
+      invoice.projectId,
+      issueDate,
+      dueDate,
+      invoice.totalAmount,
+      invoice.currency,
+      invoice.sapInvoiceNo,
+      invoice.invoiceType,
+      invoice.notes,
+      invoiceId
+    ];
+    
+    const invoiceResult = await pool.query(updateInvoiceQuery, invoiceValues);
+    
+    if (!invoiceResult.rows || invoiceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found or update failed' });
+    }
+    
+    const updatedInvoice = invoiceResult.rows[0];
+    
+    // Delete existing invoice items
+    await pool.query('DELETE FROM invoice_items WHERE invoice_id = $1', [invoiceId]);
+    
+    // Insert new invoice items
+    for (const item of items) {
+      const insertItemQuery = `
+        INSERT INTO invoice_items (
+          invoice_id, description, quantity, unit_price, amount, 
+          tax_rate, tax_amount, discount_percent, discount_amount, line_total
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING *
+      `;
+      
+      const itemValues = [
+        invoiceId,
+        item.description,
+        item.quantity || '1',
+        item.unitPrice || item.amount,
+        item.amount,
+        item.taxRate || '0',
+        item.taxAmount || '0',
+        item.discountPercent || '0',
+        item.discountAmount || '0',
+        item.lineTotal || item.amount
+      ];
+      
+      await pool.query(insertItemQuery, itemValues);
+    }
+    
+    // Format the response data
+    const formattedInvoice = {
+      id: updatedInvoice.id,
+      invoiceNumber: updatedInvoice.invoice_number,
+      customerId: updatedInvoice.customer_id,
+      projectId: updatedInvoice.project_id,
+      issueDate: updatedInvoice.issue_date,
+      dueDate: updatedInvoice.due_date,
+      totalAmount: updatedInvoice.total_amount.toString(),
+      currency: updatedInvoice.currency,
+      sapInvoiceNo: updatedInvoice.sap_invoice_no,
+      invoiceType: updatedInvoice.invoice_type,
+      status: updatedInvoice.status,
+      notes: updatedInvoice.notes,
+      createdAt: updatedInvoice.created_at,
+      updatedAt: updatedInvoice.updated_at
+    };
+    
+    // Return success response
+    res.json({
+      message: 'Invoice updated successfully',
+      invoice: formattedInvoice
+    });
+  } catch (error) {
+    console.error(`Error updating invoice ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to update invoice',
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+/**
  * Update invoice status - just return success without updating
  */
 router.patch('/invoices/:id/status', ensureAuthenticated, (req: Request, res: Response) => {
