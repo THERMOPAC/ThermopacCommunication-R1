@@ -799,7 +799,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">
-                          <FormLabel className="font-medium cursor-pointer">
+                          <FormLabel className="font-medium cursor-pointer text-blue-600">
                             Advance Payment
                           </FormLabel>
                           <FormDescription>
