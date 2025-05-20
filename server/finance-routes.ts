@@ -1471,48 +1471,53 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       return res.status(400).json({ error: 'Invalid request body - invoice or items data missing' });
     }
     
-    console.log(`Updating invoice with ID ${invoiceId}:`, { invoice, items });
+    console.log(`Updating invoice with ID ${invoiceId}:`, JSON.stringify(req.body, null, 2));
     
-    // Log received data for debugging
-    console.log("Received invoice update data:", {
-      id: invoiceId,
-      invoiceNumber: invoice.invoiceNumber,
-      customerId: invoice.customerId,
-      projectId: invoice.projectId,
-      issueDate: invoice.issueDate,
-      dueDate: invoice.dueDate,
-      totalAmount: invoice.totalAmount,
-      currency: invoice.currency,
-      sapInvoiceNo: invoice.sapInvoiceNo,
-      invoiceType: invoice.invoiceType,
-      notes: invoice.notes
-    });
+    // Validate incoming data
+    if (!invoice.invoiceNumber) {
+      return res.status(400).json({ error: 'Invoice number is required' });
+    }
     
-    // Format dates for the database - ensure we have valid date objects
-    let issueDate, dueDate;
+    if (!invoice.customerId) {
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+    
+    // Format dates for the database
+    let issueDate: Date, dueDate: Date;
     try {
-      issueDate = invoice.issueDate ? new Date(invoice.issueDate) : new Date();
-      dueDate = invoice.dueDate ? new Date(invoice.dueDate) : new Date();
+      // Always convert string dates to proper JavaScript Date objects
+      issueDate = new Date(invoice.issueDate);
+      dueDate = new Date(invoice.dueDate);
       
-      // Validate dates are valid
+      // Ensure dates are valid
       if (isNaN(issueDate.getTime())) {
-        console.error('Invalid issue date format:', invoice.issueDate);
-        issueDate = new Date(); // Fallback to current date
+        console.error('Invalid issue date:', invoice.issueDate);
+        return res.status(400).json({ error: 'Invalid issue date format' });
       }
       
       if (isNaN(dueDate.getTime())) {
-        console.error('Invalid due date format:', invoice.dueDate);
-        dueDate = new Date(); // Fallback to current date
+        console.error('Invalid due date:', invoice.dueDate);
+        return res.status(400).json({ error: 'Invalid due date format' });
       }
     } catch (dateError) {
       console.error('Error processing dates:', dateError);
-      issueDate = new Date();
-      dueDate = new Date();
+      return res.status(400).json({ error: 'Invalid date format' });
     }
     
-    console.log('Formatted dates:', { issueDate, dueDate });
+    // Format project ID (can be null)
+    const projectId = invoice.projectId && invoice.projectId !== '' 
+      ? parseInt(invoice.projectId) 
+      : null;
     
-    // Update the invoice in the database
+    // Check if invoice exists before updating
+    const checkQuery = 'SELECT * FROM invoices WHERE id = $1';
+    const checkResult = await pool.query(checkQuery, [invoiceId]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    
+    // Update the invoice in the database with a direct, simpler query
     const updateInvoiceQuery = `
       UPDATE invoices
       SET 
@@ -1531,17 +1536,17 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       RETURNING *
     `;
     
-    // Ensure we have proper values or defaults for each field
+    // Prepare values with proper null handling
     const invoiceValues = [
-      invoice.invoiceNumber || '',
-      invoice.customerId || null,
-      invoice.projectId || null,
+      invoice.invoiceNumber,
+      parseInt(invoice.customerId),
+      projectId,
       issueDate,
       dueDate,
       invoice.totalAmount || '0',
       invoice.currency || 'USD',
       invoice.sapInvoiceNo || null,
-      invoice.invoiceType || 'Product',
+      invoice.invoiceType,
       invoice.notes || null,
       invoiceId
     ];
