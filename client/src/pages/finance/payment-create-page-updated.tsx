@@ -190,56 +190,73 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     if (isInEditMode && paymentData && paymentData.payment) {
       console.log('Setting form values with payment data:', paymentData);
       
-      // Delay the reset by a tiny bit to ensure it happens after component render
-      setTimeout(() => {
-        // Handle both snake_case (backend) and camelCase (frontend) property names
-        const payment = paymentData.payment;
+      // Get the payment details
+      const payment = paymentData.payment;
+      
+      // Log the raw payment data to debug
+      console.log('Raw payment data from API:', payment);
+      
+      // Set isAdvancePayment based on the payment data
+      const isAdvancePayment = payment.is_advance_payment || false;
+      console.log('Is advance payment:', isAdvancePayment);
+      
+      // Parse the payment date from the string to a Date object
+      const paymentDate = payment.payment_date ? new Date(payment.payment_date) : new Date();
+      console.log('Parsed payment date:', paymentDate);
+      
+      // Set up the initial form values from the payment data
+      const formValues: PaymentFormValues = {
+        referenceNumber: payment.reference_number || "",
+        irmNo: payment.irm_no || "", // Changed from irmNo to irm_no to match backend
+        paymentDate: paymentDate,
+        sapPaymentNo: payment.sap_payment_no || "",
+        paymentType: payment.payment_type || "Product",
+        amount: payment.amount || "",
+        unallocatedAmount: payment.unallocated_amount || payment.amount || "",
+        currency: payment.currency || "USD",
+        paymentMethod: payment.payment_method || "",
+        notes: payment.notes || "",
+        isAdvancePayment: isAdvancePayment,
+        customerId: payment.customer_id ? payment.customer_id.toString() : "",
+        invoiceLinks: [],
+      };
+      
+      console.log('Form values being set:', formValues);
+      
+      // Set all form values at once
+      form.reset(formValues);
+      
+      // Set the selected invoices for display
+      if (paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0) {
+        const invoiceLinks = paymentData.invoiceLinks.map(link => ({
+          invoiceId: link.invoice_id.toString(),
+          amountApplied: link.amount_applied,
+        }));
         
-        // Set isAdvancePayment based on the payment data
-        const isAdvancePayment = payment.is_advance_payment || false;
-        console.log('Is advance payment:', isAdvancePayment);
+        form.setValue('invoiceLinks', invoiceLinks);
         
-        // Parse the payment date from the string to a Date object
-        const paymentDate = payment.payment_date ? new Date(payment.payment_date) : new Date();
-        console.log('Parsed payment date:', paymentDate);
-        
-        // Set up the initial form values from the payment data
-        const formValues: PaymentFormValues = {
-          referenceNumber: payment.reference_number || "",
-          irmNo: payment.irmNo || "",
-          paymentDate: paymentDate,
-          sapPaymentNo: payment.sap_payment_no || "",
-          paymentType: payment.payment_type || "Product",
-          amount: payment.amount || "",
-          unallocatedAmount: payment.unallocatedAmount || payment.amount || "",
-          currency: payment.currency || "USD",
-          paymentMethod: payment.payment_method || "",
-          notes: payment.notes || "",
-          isAdvancePayment: isAdvancePayment,
-          customerId: payment.customer_id?.toString() || "",
-          invoiceLinks: [],
-        };
-        
-        console.log('Form values being set:', formValues);
-        
-        // Set all form values at once
-        form.reset(formValues);
-        
-        // If a customer is selected, show the invoice section
-        if (payment.customer_id) {
-          console.log('Setting selected customer ID:', payment.customer_id.toString());
-          setShowInvoiceSection(true);
+        // Also setup the selected invoices UI state if we have invoice data
+        if (Array.isArray(paymentData.invoices)) {
+          const selectedInvoiceDetails = paymentData.invoiceLinks.map(link => {
+            const matchingInvoice = paymentData.invoices.find(
+              (inv: any) => inv.id === link.invoice_id
+            );
+            return {
+              ...matchingInvoice,
+              id: link.invoice_id,
+              amountApplied: link.amount_applied,
+            };
+          });
+          
+          setSelectedInvoices(selectedInvoiceDetails);
         }
-        
-        // Set any existing invoice links
-        if (paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0) {
-          const invoiceLinks = paymentData.invoiceLinks.map(link => ({
-            invoiceId: link.invoice_id.toString(),
-            amountApplied: link.amount_applied,
-          }));
-          form.setValue('invoiceLinks', invoiceLinks);
-        }
-      }, 0);
+      }
+      
+      // If a customer is selected, show the invoice section
+      if (payment.customer_id) {
+        console.log('Setting selected customer ID:', payment.customer_id.toString());
+        setShowInvoiceSection(true);
+      }
     }
   }, [isInEditMode, paymentData, form]);
   
@@ -304,7 +321,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       // Format the values for the API
       const payload = {
         reference_number: values.referenceNumber,
-        irmNo: values.irmNo,
+        irm_no: values.irmNo, // Changed from irmNo to irm_no to match backend
         payment_date: format(values.paymentDate, "yyyy-MM-dd"),
         sap_payment_no: values.sapPaymentNo,
         payment_type: values.paymentType,
