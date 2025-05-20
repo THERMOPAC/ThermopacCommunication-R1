@@ -2055,6 +2055,245 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
   }
 });
 
+/**
+ * Apply available advance payments to an existing invoice
+ */
+router.post('/invoices/:id/apply-advances', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = parseInt(req.params.id);
+    const userId = req.user?.id || 1;
+    
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ error: 'Invalid invoice ID' });
+    }
+    
+    // Get invoice details to verify it exists and get customer ID
+    const invoiceQuery = `SELECT id, customer_id, invoice_type, outstanding_amount FROM invoices WHERE id = $1`;
+    const invoiceResult = await pool.query(invoiceQuery, [invoiceId]);
+    
+    if (invoiceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    
+    const invoice = invoiceResult.rows[0];
+    const customerId = invoice.customer_id;
+    const invoiceType = invoice.invoice_type;
+    const outstandingAmount = parseFloat(invoice.outstanding_amount || 0);
+    
+    // Check if invoice is already fully paid
+    if (outstandingAmount <= 0) {
+      return res.status(400).json({ message: 'Invoice is already fully paid' });
+    }
+    
+    // Query for available advance payments for this customer and matching type
+    const advancePaymentsQuery = `
+      SELECT id, unallocated_amount 
+      FROM payments 
+      WHERE customer_id = $1 
+        AND is_advance_payment = true 
+        AND unallocated_amount > 0
+        AND payment_type = $2
+      ORDER BY payment_date ASC
+    `;
+    
+    const advancePaymentsResult = await pool.query(
+      advancePaymentsQuery, 
+      [customerId, invoiceType]
+    );
+    
+    if (advancePaymentsResult.rows.length === 0) {
+      return res.status(404).json({ 
+        message: `No unallocated advance payments found for customer ID ${customerId} and type ${invoiceType}` 
+      });
+    }
+    
+    console.log(`Found ${advancePaymentsResult.rows.length} advance payments available for auto-allocation`);
+    
+    // Create allocation data for each advance payment
+    const advanceAllocations = advancePaymentsResult.rows.map(payment => ({
+      paymentId: payment.id,
+      amountToApply: parseFloat(payment.unallocated_amount)
+    }));
+    
+    // Apply advance payments using our service
+    const result = await paymentAllocationService.applyAdvancePaymentsToInvoice(
+      invoiceId,
+      customerId,
+      advanceAllocations,
+      userId
+    );
+    
+    console.log('Applied advance payments to existing invoice:', result);
+    
+    res.json({
+      success: true,
+      invoiceId,
+      message: `Successfully applied ${result.allocations.length} advance payments totaling ${result.totalApplied} to invoice`,
+      totalApplied: result.totalApplied,
+      allocations: result.allocations
+    });
+    
+  } catch (error) {
+    console.error('Error applying advance payments to invoice:', error);
+    res.status(500).json({ 
+      error: 'Failed to apply advance payments to invoice', 
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Batch apply advance payments to multiple invoices for a customer
+ */
+router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const customerId = parseInt(req.params.id);
+    const userId = req.user?.id || 1;
+    
+    if (isNaN(customerId)) {
+      return res.status(400).json({ error: 'Invalid customer ID' });
+    }
+    
+    // Get outstanding invoices for the customer
+    const invoicesQuery = `
+      SELECT id, invoice_number, invoice_type, outstanding_amount 
+      FROM invoices 
+      WHERE customer_id = $1 
+        AND outstanding_amount > 0
+      ORDER BY issue_date ASC
+    `;
+    
+    const invoicesResult = await pool.query(invoicesQuery, [customerId]);
+    
+    if (invoicesResult.rows.length === 0) {
+      return res.status(404).json({ 
+        message: `No outstanding invoices found for customer ID ${customerId}` 
+      });
+    }
+    
+    // Get available advance payments for this customer
+    const advancePaymentsQuery = `
+      SELECT id, payment_type, unallocated_amount 
+      FROM payments 
+      WHERE customer_id = $1 
+        AND is_advance_payment = true 
+        AND unallocated_amount > 0
+      ORDER BY payment_date ASC
+    `;
+    
+    const advancePaymentsResult = await pool.query(advancePaymentsQuery, [customerId]);
+    
+    if (advancePaymentsResult.rows.length === 0) {
+      return res.status(404).json({ 
+        message: `No unallocated advance payments found for customer ID ${customerId}` 
+      });
+    }
+    
+    // Process each invoice type separately
+    const results = [];
+    
+    // Group invoices by type
+    const productInvoices = invoicesResult.rows.filter(inv => inv.invoice_type === 'Product');
+    const serviceInvoices = invoicesResult.rows.filter(inv => inv.invoice_type === 'Service');
+    
+    // Group advance payments by type
+    const productAdvances = advancePaymentsResult.rows.filter(pay => pay.payment_type === 'Product');
+    const serviceAdvances = advancePaymentsResult.rows.filter(pay => pay.payment_type === 'Service');
+    
+    // Process product invoices
+    if (productInvoices.length > 0 && productAdvances.length > 0) {
+      for (const invoice of productInvoices) {
+        try {
+          // Create allocation data for each advance payment
+          const advanceAllocations = productAdvances.map(payment => ({
+            paymentId: payment.id,
+            amountToApply: parseFloat(payment.unallocated_amount)
+          }));
+          
+          // Apply advance payments using our service
+          const result = await paymentAllocationService.applyAdvancePaymentsToInvoice(
+            invoice.id,
+            customerId,
+            advanceAllocations,
+            userId
+          );
+          
+          results.push({
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoice_number,
+            type: 'Product',
+            totalApplied: result.totalApplied,
+            numAllocations: result.allocations.length
+          });
+          
+          // Update the remaining unallocated amounts for advances
+          productAdvances.forEach(adv => {
+            const allocation = result.allocations.find(a => a.paymentId === adv.id);
+            if (allocation) {
+              adv.unallocated_amount = (parseFloat(adv.unallocated_amount) - allocation.amountAllocated).toString();
+            }
+          });
+        } catch (invoiceError) {
+          console.error(`Error applying advance payments to product invoice ${invoice.id}:`, invoiceError);
+        }
+      }
+    }
+    
+    // Process service invoices
+    if (serviceInvoices.length > 0 && serviceAdvances.length > 0) {
+      for (const invoice of serviceInvoices) {
+        try {
+          // Create allocation data for each advance payment
+          const advanceAllocations = serviceAdvances.map(payment => ({
+            paymentId: payment.id,
+            amountToApply: parseFloat(payment.unallocated_amount)
+          }));
+          
+          // Apply advance payments using our service
+          const result = await paymentAllocationService.applyAdvancePaymentsToInvoice(
+            invoice.id,
+            customerId,
+            advanceAllocations,
+            userId
+          );
+          
+          results.push({
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoice_number,
+            type: 'Service',
+            totalApplied: result.totalApplied,
+            numAllocations: result.allocations.length
+          });
+          
+          // Update the remaining unallocated amounts for advances
+          serviceAdvances.forEach(adv => {
+            const allocation = result.allocations.find(a => a.paymentId === adv.id);
+            if (allocation) {
+              adv.unallocated_amount = (parseFloat(adv.unallocated_amount) - allocation.amountAllocated).toString();
+            }
+          });
+        } catch (invoiceError) {
+          console.error(`Error applying advance payments to service invoice ${invoice.id}:`, invoiceError);
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      customer: customerId,
+      message: `Successfully processed ${results.length} invoices with advance payments`,
+      results
+    });
+    
+  } catch (error) {
+    console.error('Error batch applying advance payments:', error);
+    res.status(500).json({ 
+      error: 'Failed to batch apply advance payments', 
+      message: error.message
+    });
+  }
+});
+
 // Financial reports
 
 /**
