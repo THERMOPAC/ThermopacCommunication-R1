@@ -470,24 +470,51 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       // Log the data being sent
       console.log('Updating invoice data:', JSON.stringify(apiData, null, 2));
       
-      // Use native fetch with credentials included
-      console.log('Updating invoice data on server...');
-      const response = await fetch(`/api/finance/invoices/${invoiceId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include credentials for authenticated requests
-        body: JSON.stringify(apiData)
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        console.error('Invoice update failed:', response.status, errorText);
-        throw new Error(`Failed to update invoice: ${response.status} ${errorText}`);
+      try {
+        // Use native fetch with credentials included
+        console.log('Updating invoice data on server...');
+        const response = await fetch(`/api/finance/invoices/${invoiceId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          credentials: 'include', // Include credentials for authenticated requests
+          body: JSON.stringify(apiData)
+        });
+        
+        // Special handling for non-JSON responses
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") === -1) {
+          // Not a JSON response, handle as text
+          const text = await response.text();
+          console.error('Received non-JSON response:', text);
+          
+          if (!response.ok) {
+            throw new Error(`Server returned non-JSON response with status ${response.status}`);
+          }
+          
+          // If somehow we got here with a successful non-JSON response
+          return { success: true, message: "Invoice updated successfully" };
+        }
+        
+        // Handle normal JSON response
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('Invoice update failed:', response.status, errorData);
+          throw new Error(errorData.error || `Failed to update invoice: ${response.status}`);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('Error during fetch operation:', error);
+        // If it's an Error instance, rethrow it
+        if (error instanceof Error) {
+          throw error;
+        }
+        // Otherwise create a new error
+        throw new Error('Failed to communicate with the server');
       }
-      
-      return await response.json();
     },
     onSuccess: () => {
       toast({

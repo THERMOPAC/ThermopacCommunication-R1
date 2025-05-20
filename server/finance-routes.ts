@@ -1566,17 +1566,31 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       updatedAt: updatedInvoice.updated_at
     };
     
-    // Return success response
-    res.json({
-      message: 'Invoice updated successfully',
-      invoice: formattedInvoice
-    });
+    // Return success response with explicit content type and manual JSON formatting
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const responseData = {
+        message: 'Invoice updated successfully',
+        invoice: formattedInvoice
+      };
+      // Manually convert to JSON string to ensure proper formatting
+      const jsonString = JSON.stringify(responseData);
+      // Send the response as a string with proper headers
+      res.send(jsonString);
+    } catch (jsonError) {
+      console.error('Error converting response to JSON:', jsonError);
+      res.status(500).json({ 
+        error: 'Failed to properly format response'
+      });
+    }
   } catch (error) {
     console.error(`Error updating invoice ${req.params.id}:`, error);
-    res.status(500).json({ 
+    // Ensure we're sending valid JSON with proper content type
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).send(JSON.stringify({ 
       error: 'Failed to update invoice',
       details: error instanceof Error ? error.message : String(error)
-    });
+    }));
   }
 });
 
