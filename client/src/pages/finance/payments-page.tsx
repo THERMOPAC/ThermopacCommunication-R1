@@ -295,7 +295,7 @@ export default function PaymentsPage() {
                           </Link>
                         </Button>
                         <Button variant="ghost" size="icon" asChild title="Edit Payment">
-                          <Link href={`/finance/payments/edit/${payment.id}`}>
+                          <Link href={`/finance/payments/${payment.id}/edit`}>
                             <Edit className="h-4 w-4" />
                           </Link>
                         </Button>
