@@ -13,6 +13,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
   try {
     const { status } = req.query;
     
+    // Build the query
     let query = db.select().from(writeOffs)
       .leftJoin(invoices, eq(writeOffs.invoiceId, invoices.id))
       .leftJoin(users, eq(writeOffs.createdBy, users.id));
@@ -22,6 +23,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
       query = query.where(eq(writeOffs.status, status as string));
     }
     
+    // Execute the query
     const results = await query.orderBy(writeOffs.dateCreated);
     
     // Map the join results to a clean response object
@@ -161,7 +163,7 @@ router.post('/', ensureAuthenticated, async (req, res) => {
       dateCreated: writeOff.dateCreated,
       createdBy: {
         id: writeOff.createdBy,
-        name: req.user.username
+        name: req.user?.username || 'Unknown'
       },
       status: writeOff.status,
       currency: invoice.currency
@@ -181,7 +183,7 @@ router.patch('/:id/status', ensureAuthenticated, async (req, res) => {
     const { status } = req.body;
     
     // Only managers or above can approve/reject write-offs
-    if (!canManage(req.user.role, 'Manager')) {
+    if (!req.user || !canManage(req.user.role, 'Manager')) {
       return res.status(403).json({ error: 'Not authorized to approve or reject write-offs' });
     }
     
@@ -208,8 +210,8 @@ router.patch('/:id/status', ensureAuthenticated, async (req, res) => {
     const [updatedWriteOff] = await db.update(writeOffs)
       .set({
         status,
-        approvedBy: req.user.id,
-        approvalDate: new Date().toISOString()
+        approvedBy: req.user?.id || null,
+        approvalDate: new Date()
       })
       .where(eq(writeOffs.id, parseInt(id)))
       .returning();
@@ -222,7 +224,7 @@ router.patch('/:id/status', ensureAuthenticated, async (req, res) => {
       status: updatedWriteOff.status,
       approvedBy: {
         id: updatedWriteOff.approvedBy,
-        name: req.user.username
+        name: req.user?.username || 'Unknown'
       },
       approvalDate: updatedWriteOff.approvalDate,
       success: true 
