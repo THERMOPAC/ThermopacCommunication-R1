@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { formatRupees, formatDate } from "@/lib/utils";
+import { formatRupees, formatUSD, formatDate } from "@/lib/utils";
 import { Loader2, ArrowLeft, Download, FileText, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
@@ -185,11 +185,11 @@ export default function PaymentDetailPage() {
             <CardContent className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-sm font-medium">Total Amount:</span>
-                <span className="text-sm font-semibold">{formatRupees(payment?.amount)} {payment?.currency}</span>
+                <span className="text-sm font-semibold">{formatUSD(payment?.amount)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm font-medium">Applied to Invoices:</span>
-                <span className="text-sm">{formatRupees(totalApplied)}</span>
+                <span className="text-sm">{formatUSD(totalApplied)}</span>
               </div>
               {unappliedAmount > 0 && (
                 <>
@@ -210,11 +210,11 @@ export default function PaymentDetailPage() {
             <CardContent className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-sm font-medium">Allocated Amount:</span>
-                <span className="text-sm">{formatRupees(payment?.allocatedAmount)}</span>
+                <span className="text-sm">{formatUSD(payment?.allocatedAmount)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm font-medium">Unallocated Amount:</span>
-                <span className="text-sm">{formatRupees(payment?.unallocatedAmount)}</span>
+                <span className="text-sm">{formatUSD(payment?.unallocatedAmount)}</span>
               </div>
               {payment?.isAdvancePayment && payment?.unallocatedAmount && parseFloat(payment.unallocatedAmount) > 0 && (
                 <Button variant="outline" className="w-full mt-4" size="sm" asChild>
