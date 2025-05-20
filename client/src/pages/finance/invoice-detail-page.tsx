@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import PaymentAllocations from "./components/payment-allocations";
+import AdvancePaymentAllocator from "./components/advance-payment-allocator";
 import {
   Select,
   SelectContent,
@@ -377,11 +378,27 @@ export default function InvoiceDetailPage({ download = false, print = false }: I
         
         {/* Import our reusable payment allocation component */}
         {invoice && invoice.id && (
-          <PaymentAllocations 
-            invoiceId={invoice.id} 
-            invoiceAmount={parseFloat(invoice.totalAmount)} 
-            currency={invoice.currency || 'USD'} 
-          />
+          <>
+            {/* Add the advance payment allocator first */}
+            <AdvancePaymentAllocator
+              invoiceId={invoice.id}
+              customerId={invoice.customerId}
+              invoiceType={invoice.invoiceType || 'Product'}
+              outstandingAmount={balanceDue}
+              currency={invoice.currency || 'USD'}
+              onAllocationComplete={() => {
+                // Refetch invoice data and allocations when complete
+                queryClient.invalidateQueries({ queryKey: [`/api/finance/invoices/${invoiceId}`] });
+              }}
+            />
+            
+            {/* Show existing payment allocations */}
+            <PaymentAllocations 
+              invoiceId={invoice.id} 
+              invoiceAmount={parseFloat(invoice.totalAmount)} 
+              currency={invoice.currency || 'USD'} 
+            />
+          </>
         )}
       </div>
       
