@@ -2344,7 +2344,7 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
 /**
  * Get unallocated advance payments with actual database queries
  */
-router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
+router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Default empty response for error cases
     const emptyResponse = {

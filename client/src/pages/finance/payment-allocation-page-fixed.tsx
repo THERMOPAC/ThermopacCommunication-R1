@@ -128,12 +128,14 @@ export default function PaymentAllocationPage() {
 
   // Get unallocated payments
   const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
-    queryKey: ['/api/finance/unallocated-advances'],
+    queryKey: ['/api/finance/payments/unallocated-advances'],
     queryFn: async () => {
-      const response = await fetch('/api/finance/unallocated-advances');
+      const response = await fetch('/api/finance/payments/unallocated-advances');
       if (!response.ok) {
         throw new Error('Failed to fetch unallocated payments');
       }
+      
+      console.log('Response from unallocated payments API:', await response.clone().json());
       return await response.json();
     }
   });
@@ -163,6 +165,8 @@ export default function PaymentAllocationPage() {
       // Only fetch invoices if a payment is selected
       if (!selectedPayment) return { invoices: [] };
       
+      console.log('Fetching outstanding invoices for payment type:', selectedPayment.paymentType);
+      
       const url = new URL('/api/finance/outstanding-invoices', window.location.origin);
       
       // Add query parameters for filtering
@@ -170,11 +174,16 @@ export default function PaymentAllocationPage() {
         url.searchParams.append('invoiceType', selectedPayment.paymentType);
       }
       
+      console.log('Fetching from URL:', url.toString());
+      
       const response = await fetch(url.toString());
       if (!response.ok) {
         throw new Error('Failed to fetch outstanding invoices');
       }
-      return await response.json();
+      
+      const data = await response.json();
+      console.log('Outstanding invoices response:', data);
+      return data;
     },
     enabled: !!selectedPayment // Only run this query when a payment is selected
   });
