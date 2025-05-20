@@ -577,8 +577,44 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       console.log('Updating invoice data:', JSON.stringify(apiData, null, 2));
       
       try {
-        // Use apiRequest from queryClient for consistent error handling
-        return await apiRequest('PUT', `/api/finance/invoices/${invoiceId}`, apiData);
+        // Use the fetch API directly with better error handling for this specific case
+        console.log('Updating invoice with direct fetch...');
+        const response = await fetch(`/api/finance/invoices/${invoiceId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify(apiData)
+        });
+        
+        // Check response before trying to parse as JSON
+        if (!response.ok) {
+          const contentType = response.headers.get('content-type');
+          if (contentType && !contentType.includes('application/json')) {
+            // Handle non-JSON error response
+            const errorText = await response.text();
+            console.error('Received non-JSON error response:', errorText);
+            throw new Error(`Server returned an error: ${response.status}`);
+          } else {
+            // Try to get JSON error
+            try {
+              const errorData = await response.json();
+              throw new Error(errorData.error || `Server error: ${response.status}`);
+            } catch (jsonError) {
+              throw new Error(`Failed to update invoice: ${response.status}`);
+            }
+          }
+        }
+        
+        // For successful responses
+        try {
+          return await response.json();
+        } catch (jsonError) {
+          console.log('Response was OK but could not parse JSON, returning success object');
+          return { success: true, message: 'Invoice updated successfully' };
+        }
       } catch (error) {
         console.error('Error during invoice update:', error);
         // If it's an Error instance, rethrow it
