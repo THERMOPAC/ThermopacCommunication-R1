@@ -795,6 +795,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                               }
                             }}
                             disabled={false}
+                            className="data-[state=checked]:bg-blue-500"
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">
