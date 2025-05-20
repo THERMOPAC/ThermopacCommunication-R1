@@ -285,7 +285,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       queryClient.invalidateQueries({ queryKey: ['/api/finance/payments'] });
       
       // Navigate to the payment details page
-      setLocation(`/finance/payments/${data.id}`);
+      setLocation(`/finance/payments/${data.payment.id}`);
     },
     onError: (error: Error) => {
       toast({
