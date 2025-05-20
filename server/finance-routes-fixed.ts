@@ -193,12 +193,23 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
       const reference_number = body.referenceNumber || body.reference || '';
       const irm_no = body.irmNo || body.irm_no || body.paymentNumber || '';
       const payment_date = body.paymentDate || body.payment_date || new Date().toISOString().split('T')[0];
-      const sap_payment_no = body.sapPaymentNo || body.sap_payment_no || '';
+      
+      // Special handling for SAP Payment No which is known to have issues
+      // Make sure to check all possible property formats
+      const sap_payment_no = body.sapPaymentNo !== undefined ? body.sapPaymentNo : 
+                           (body.sap_payment_no !== undefined ? body.sap_payment_no : '');
+      console.log('SAP Payment No found in request:', sap_payment_no);
+      
       const payment_type = body.paymentType || body.payment_type || 'Service';
       const amount = body.amount || '0.00';
       const currency = body.currency || 'USD';
       const payment_method = body.paymentMethod || body.payment_method || '';
-      const notes = body.notes || '';
+      
+      // Special handling for Notes field which is known to have issues
+      // Make sure to check if the field exists before assuming it's empty
+      const notes = body.notes !== undefined ? body.notes : '';
+      console.log('Notes found in request:', notes);
+      
       const is_advance_payment = body.isAdvancePayment !== undefined ? body.isAdvancePayment : 
                                (body.is_advance_payment !== undefined ? body.is_advance_payment : false);
       const customer_id = body.customerId || body.customer_id || null;

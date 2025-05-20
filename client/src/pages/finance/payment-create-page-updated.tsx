@@ -235,9 +235,12 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       const customerId = payment.customerId || payment.customer_id || "";
       console.log('Customer ID:', customerId);
       
-      // Get SAP payment number (might not be present)
-      const sapPaymentNo = payment.sapPaymentNo || payment.sap_payment_no || "";
-      console.log('SAP Payment Number:', sapPaymentNo);
+      // Check for both property formats for SAP Payment No and Notes
+      let sapPaymentNo = payment.sapPaymentNo || payment.sap_payment_no || "";
+      let notes = payment.notes || "";
+      
+      console.log('Initial SAP Payment No:', sapPaymentNo);
+      console.log('Initial Notes:', notes);
       
       // Set up the initial form values from the payment data
       const formValues: PaymentFormValues = {
@@ -250,7 +253,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         unallocatedAmount: payment.unallocatedAmount || payment.unallocated_amount || payment.amount || "",
         currency: payment.currency || "USD",
         paymentMethod: payment.paymentMethod || payment.payment_method || "",
-        notes: payment.notes || "",
+        notes: notes,
         isAdvancePayment: isAdvancePayment,
         customerId: customerId ? customerId.toString() : "",
         invoiceLinks: [],
@@ -260,6 +263,31 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       
       // Set all form values at once
       form.reset(formValues);
+      
+      // After setting initial form values, fetch direct database values 
+      // for SAP Payment No and Notes which sometimes have format issues
+      fetch(`/api/finance/payments/${id}/direct-fields`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.payment) {
+            console.log('Retrieved direct database fields:', data.payment);
+            
+            // Update SAP Payment No if available directly from database
+            if (data.payment.sap_payment_no !== undefined) {
+              console.log('Setting SAP Payment No from DB:', data.payment.sap_payment_no);
+              form.setValue('sapPaymentNo', data.payment.sap_payment_no || '');
+            }
+            
+            // Update Notes if available directly from database
+            if (data.payment.notes !== undefined) {
+              console.log('Setting Notes from DB:', data.payment.notes);
+              form.setValue('notes', data.payment.notes || '');
+            }
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching direct database fields:', err);
+        });
       
       // Set the selected invoices for display
       if (paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0) {
