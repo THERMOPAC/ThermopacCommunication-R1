@@ -838,7 +838,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                         <FormControl>
                           <Input
                             value="USD"
-                            readOnly
+                            readOnly={false}
                           />
                         </FormControl>
                         <FormDescription className="text-xs">

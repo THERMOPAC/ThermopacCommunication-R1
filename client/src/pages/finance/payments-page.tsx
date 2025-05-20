@@ -277,7 +277,7 @@ export default function PaymentsPage() {
                       {payment.unallocatedAmount > 0 ? (
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium 
                           ${parseFloat(payment.unallocatedAmount) === parseFloat(payment.amount) 
-                            ? 'bg-red-100 text-red-800' 
+                            ? 'bg-blue-100 text-blue-800' 
                             : 'bg-amber-100 text-amber-800'}`}>
                           {formatCurrency(payment.unallocatedAmount, payment.currency || 'USD')}
                         </span>
