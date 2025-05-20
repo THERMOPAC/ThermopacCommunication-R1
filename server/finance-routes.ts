@@ -515,9 +515,19 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
 router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { customerId } = req.params;
-    const invoiceType = req.query.invoiceType as string; // Get the invoice type from query params
     
-    console.log(`Fetching unallocated advance payments for customer ID: ${customerId}, invoice type: ${invoiceType || 'all'}`);
+    // Parse and validate the customer ID to ensure it's a valid number
+    const customerIdNum = parseInt(customerId);
+    if (isNaN(customerIdNum)) {
+      return res.status(400).json({ error: 'Invalid customer ID - must be a number' });
+    }
+    
+    // Get the invoice type from query params, handle 'all' value properly
+    const invoiceType = (req.query.invoiceType && req.query.invoiceType !== 'all') 
+      ? req.query.invoiceType as string 
+      : null;
+    
+    console.log(`Fetching unallocated advance payments for customer ID: ${customerIdNum}, invoice type: ${invoiceType || 'all'}`);
     
     // Get advance payments for the specific customer with unallocated amounts
     // If invoiceType is specified, filter by payment_type matching invoice_type
@@ -556,11 +566,11 @@ router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, as
     `;
     
     // Add the invoice type parameter if it's provided
-    const params = invoiceType ? [customerId, invoiceType] : [customerId];
+    const params = invoiceType ? [customerIdNum, invoiceType] : [customerIdNum];
     const result = await pool.query(query, params);
     const customerAdvances = result.rows;
     
-    console.log(`Found ${customerAdvances.length} unallocated advance payments for customer ${customerId}`);
+    console.log(`Found ${customerAdvances.length} unallocated advance payments for customer ${customerIdNum}`);
     
     // Calculate total unallocated amount
     const totalUnallocatedAmount = customerAdvances.reduce((sum, payment) => 

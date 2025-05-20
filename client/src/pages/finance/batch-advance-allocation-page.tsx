@@ -158,7 +158,7 @@ export default function BatchAdvanceAllocationPage() {
       return [];
     }
     
-    if (!selectedCustomerId) {
+    if (!selectedCustomerId || selectedCustomerId === 'all') {
       return advancePayments.advances;
     }
     
@@ -173,7 +173,7 @@ export default function BatchAdvanceAllocationPage() {
       return [];
     }
     
-    if (!selectedCustomerId) {
+    if (!selectedCustomerId || selectedCustomerId === 'all') {
       return outstandingInvoices.invoices;
     }
     
