@@ -65,13 +65,12 @@ export default function AdvancePaymentAllocator({
   } = useQuery({
     queryKey: [`/api/finance/payments/unallocated-advances`, invoiceType],
     queryFn: async () => {
-      const response = await apiRequest('GET', `/api/finance/payments/unallocated-advances`);
+      const response = await apiRequest('GET', `/api/finance/payments/unallocated-advances?paymentType=${invoiceType}`);
       const data = await response.json();
       
-      // Filter by customer and matching payment type
+      // Further filter by customer ID, as we've already filtered by payment type on the server
       return data.advances.filter((advance: any) => 
-        advance.customerId === customerId && 
-        advance.paymentType === invoiceType
+        advance.customerId === customerId
       );
     },
     enabled: !!customerId && !!invoiceType

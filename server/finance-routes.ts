@@ -2005,8 +2005,11 @@ router.get('/test/invoice-number', async (req: Request, res: Response) => {
  */
 router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Query payments from the database that are advance payments with unallocated amounts
-    const query = `
+    // Get optional payment type filter from query params
+    const paymentType = req.query.paymentType as string;
+    
+    // Build the query with optional payment type filter
+    let query = `
       SELECT 
         p.id,
         p.reference_number as "referenceNumber",
@@ -2017,6 +2020,7 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
         p.allocated_amount as "allocatedAmount",
         p.unallocated_amount as "unallocatedAmount",
         p.payment_method as "paymentMethod",
+        p.payment_type as "paymentType",
         p.currency,
         p.notes,
         p.is_advance_payment as "isAdvancePayment",
@@ -2033,10 +2037,17 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
       WHERE 
         p.is_advance_payment = true
         AND p.unallocated_amount > 0
-      ORDER BY 
-        p.payment_date DESC
     `;
     
+    // Add payment type filter if provided
+    if (paymentType) {
+      query += ` AND p.payment_type = '${paymentType}'`;
+    }
+    
+    // Add order by clause
+    query += ` ORDER BY p.payment_date DESC`;
+    
+    console.log('Querying for unallocated advances with filter:', paymentType || 'None');
     const result = await pool.query(query);
     const advances = result.rows;
     
@@ -2087,7 +2098,13 @@ router.post('/invoices/:id/apply-advances', ensureAuthenticated, async (req: Req
     
     // Query for available advance payments for this customer and matching type
     const advancePaymentsQuery = `
-      SELECT id, unallocated_amount 
+      SELECT 
+        id, 
+        unallocated_amount, 
+        reference_number as "referenceNumber",
+        payment_date as "paymentDate",
+        payment_method as "paymentMethod",
+        payment_type as "paymentType"
       FROM payments 
       WHERE customer_id = $1 
         AND is_advance_payment = true 
