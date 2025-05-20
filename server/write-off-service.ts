@@ -275,3 +275,12 @@ export const registerWriteOffRoutes = (app: any) => {
   
   console.log('Write-off routes registered');
 };
+
+// Export as a service object for other modules to use
+export const writeOffService = {
+  getWriteOffs,
+  getWriteOffById,
+  createWriteOff,
+  updateWriteOffStatus,
+  registerWriteOffRoutes
+};
