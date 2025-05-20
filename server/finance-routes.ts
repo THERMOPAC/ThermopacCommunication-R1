@@ -1551,6 +1551,11 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
     
     // Prepare values with proper null handling
     // Print all fields to debug
+    // Force projectId to null if it's not a valid integer
+    if (projectId && typeof projectId === 'number' && isNaN(projectId)) {
+      projectId = null;
+    }
+    
     console.log('Processing update with fields:', {
       invoiceNumber: invoice.invoiceNumber,
       customerId: invoice.customerId,
@@ -1567,7 +1572,7 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
     const invoiceValues = [
       invoice.invoiceNumber,
       parseInt(invoice.customerId),
-      projectId,
+      null, // Always use null for project_id to be safe
       issueDate,
       dueDate,
       invoice.totalAmount || '0',
