@@ -219,48 +219,63 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   
   // Effect to update form when invoice data is loaded in edit mode
   useEffect(() => {
-    if (isEditMode && invoiceData && invoiceData.invoice && form) {
-      // Log invoice data to help debugging
-      console.log('Resetting form with invoice data:', invoiceData.invoice);
-      console.log('Invoice total amount:', invoiceData.invoice.totalAmount);
+    if (isEditMode && invoiceData && form) {
+      // Log received data for debugging
+      console.log('Received invoice data for edit:', invoiceData);
       
-      // Create a default item if none exists
-      let formItems;
-      if (invoiceData.items && invoiceData.items.length > 0) {
-        formItems = invoiceData.items.map((item: any) => ({
-          description: item.description || '',
-          amount: String(item.amount || invoiceData.invoice.totalAmount || '0')
-        }));
-      } else {
-        // If no items exist, create one with the invoice total amount
-        const defaultDescription = invoiceData.invoice.invoiceType === 'Service' 
-          ? 'Service as per SAP invoice' 
-          : 'Items as per SAP invoice';
-          
-        formItems = [{
-          description: defaultDescription,
-          amount: String(invoiceData.invoice.totalAmount || '0')
-        }];
+      // Handle both possible data structures (direct or nested inside 'invoice')
+      const invoice = invoiceData.invoice || invoiceData;
+      
+      if (invoice && invoice.id) {
+        console.log('Using invoice data:', invoice);
+        
+        // Create a default item if none exists
+        let formItems;
+        if (invoiceData.items && invoiceData.items.length > 0) {
+          formItems = invoiceData.items.map((item: any) => ({
+            description: item.description || '',
+            amount: String(item.amount || invoice.totalAmount || '0')
+          }));
+        } else {
+          // If no items exist, create one with the invoice total amount
+          const defaultDescription = invoice.invoiceType === 'Service' 
+            ? 'Service as per SAP invoice' 
+            : 'Items as per SAP invoice';
+            
+          formItems = [{
+            description: defaultDescription,
+            amount: String(invoice.totalAmount || '0')
+          }];
+        }
+        
+        console.log('Setting form items:', formItems);
+        
+        // Handle projectId (use empty string when null for proper dropdown display)
+        const projectIdValue = invoice.projectId ? String(invoice.projectId) : '';
+        console.log('Setting projectId to:', projectIdValue);
+        
+        // Reset form with complete data
+        form.reset({
+          invoiceNumber: invoice.invoiceNumber,
+          customerId: String(invoice.customerId),
+          projectId: projectIdValue,
+          issueDate: new Date(invoice.issueDate),
+          dueDate: new Date(invoice.dueDate),
+          currency: invoice.currency || 'USD',
+          sapInvoiceNo: invoice.sapInvoiceNo || '',
+          invoiceType: invoice.invoiceType || 'Product',
+          notes: invoice.notes || '',
+          items: formItems,
+        });
+        
+        // Immediately verify critical fields are set properly
+        setTimeout(() => {
+          console.log('Verifying form values are set properly');
+          form.setValue('invoiceNumber', invoice.invoiceNumber);
+          form.setValue('customerId', String(invoice.customerId));
+          form.setValue('sapInvoiceNo', invoice.sapInvoiceNo || '');
+        }, 100);
       }
-      
-      console.log('Setting form items:', formItems);
-      
-      // Handle projectId (use 'none' as the value when empty for proper dropdown display)
-      const projectIdValue = invoiceData.invoice.projectId ? String(invoiceData.invoice.projectId) : 'none';
-      console.log('Setting projectId to:', projectIdValue);
-      
-      form.reset({
-        invoiceNumber: invoiceData.invoice.invoiceNumber,
-        customerId: String(invoiceData.invoice.customerId),
-        projectId: projectIdValue,
-        issueDate: new Date(invoiceData.invoice.issueDate),
-        dueDate: new Date(invoiceData.invoice.dueDate),
-        currency: invoiceData.invoice.currency,
-        sapInvoiceNo: invoiceData.invoice.sapInvoiceNo || '',
-        invoiceType: invoiceData.invoice.invoiceType || 'Product',
-        notes: invoiceData.invoice.notes || '',
-        items: formItems,
-      });
     }
   }, [isEditMode, invoiceData, form]);
   
