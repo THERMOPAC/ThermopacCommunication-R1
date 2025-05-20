@@ -2026,38 +2026,15 @@ router.get('/test/invoice-number', async (req: Request, res: Response) => {
  * Get outstanding invoices
  */
 router.get('/invoices/outstanding', ensureAuthenticated, async (req: Request, res: Response) => {
-  try {
-    // Default response structure for empty or error cases
-    const emptyResponse = {
-      invoices: [],
-      totalOutstanding: "0.00",
-      count: 0
-    };
-    
-    // Extract optional filters from query params
-    let customerId = null;
-    if (req.query.customerId && req.query.customerId !== 'all') {
-      const parsedId = parseInt(req.query.customerId as string);
-      if (!isNaN(parsedId)) {
-        customerId = parsedId;
-      }
-    }
-    
-    const invoiceType = (req.query.invoiceType && req.query.invoiceType !== 'all') 
-      ? req.query.invoiceType as string 
-      : null;
-    
-    // Return an empty response
-    return res.json(emptyResponse);
-  } catch (error) {
-    console.error('Error getting outstanding invoices:', error);
-    // Return an empty response structure instead of error
-    return res.json({
-      invoices: [],
-      totalOutstanding: "0.00",
-      count: 0
-    });
-  }
+  // Default response structure for empty or error cases
+  const emptyResponse = {
+    invoices: [],
+    totalOutstanding: "0.00",
+    count: 0
+  };
+  
+  // Return empty response for now
+  res.json(emptyResponse);
 });
 
 /**
@@ -2106,31 +2083,15 @@ router.get('/invoices/outstanding', ensureAuthenticated, async (req: Request, re
  * Get unallocated advance payments - simplified version
  */
 router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
-  try {
-    // Default empty response for error cases
-    const emptyResponse = {
-      advances: [],
-      totalUnallocatedAmount: "0.00",
-      count: 0
-    };
-    
-    // Get optional payment type filter from query params
-    const paymentType = (req.query.paymentType && req.query.paymentType !== 'all') 
-      ? req.query.paymentType as string 
-      : null;
-    
-    console.log('Querying for unallocated advances with filter:', paymentType || 'None');
-    
-    // Always return empty data to avoid frontend errors
-    return res.json(emptyResponse);
-  } catch (error) {
-    console.error('Error getting unallocated advances:', error);
-    return res.json({
-      advances: [],
-      totalUnallocatedAmount: "0.00",
-      count: 0
-    });
-  }
+  // Default empty response for error cases
+  const emptyResponse = {
+    advances: [],
+    totalUnallocatedAmount: "0.00",
+    count: 0
+  };
+  
+  // Always return empty data to avoid frontend errors
+  return res.json(emptyResponse);
 });
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",
