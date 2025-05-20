@@ -1,4 +1,4 @@
-import express, { Router } from 'express';
+import express, { Router, Request, Response } from 'express';
 import { writeOffs } from '@shared/schema-finance-write-offs';
 import { invoices, users } from '@shared/schema';
 import { db } from './db';
@@ -6,10 +6,19 @@ import { eq, and, gt } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import { canManage } from '@shared/roles';
 
+// Type definition for authenticated request
+interface AuthRequest extends Request {
+  user?: {
+    id: number;
+    username: string;
+    role: string;
+  };
+}
+
 const router = Router();
 
 // Get all write-offs with optional filtering by status
-router.get('/', ensureAuthenticated, async (req, res) => {
+router.get('/', ensureAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { status } = req.query;
     
@@ -140,8 +149,8 @@ router.post('/', ensureAuthenticated, async (req, res) => {
         amount,
         reason,
         notes: notes || null,
-        dateCreated: new Date().toISOString(),
-        createdBy: req.user.id, // From authenticated user
+        dateCreated: new Date(),
+        createdBy: req.user?.id || 3, // From authenticated user with fallback
         status: 'Pending',
         approvedBy: null,
         approvalDate: null
