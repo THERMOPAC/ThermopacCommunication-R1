@@ -92,7 +92,8 @@ export default function BatchAdvanceAllocationPage() {
   // Query all customers
   const {
     data: customers,
-    isLoading: customersLoading
+    isLoading: customersLoading,
+    error: customersError
   } = useQuery({
     queryKey: ['/api/customers'],
   });
@@ -337,22 +338,20 @@ export default function BatchAdvanceAllocationPage() {
           <div className="flex-1">
             <Label htmlFor="customer-select">Customer</Label>
             <Select
-              value={selectedCustomerId || ""}
-              onValueChange={(value) => setSelectedCustomerId(value || null)}
+              value={selectedCustomerId || "all"}
+              onValueChange={(value) => setSelectedCustomerId(value)}
             >
               <SelectTrigger id="customer-select" className="w-full">
                 <SelectValue placeholder="Select a customer" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Customers</SelectItem>
-                {customers && customers.map((customer: any) => (
+                {customers && Array.isArray(customers) && customers.map((customer: any) => (
                   <SelectItem 
                     key={customer.id} 
                     value={customer.id.toString()}
-                    disabled={!customerHasBoth(customer.id)}
                   >
                     {customer.bpName}
-                    {customerHasBoth(customer.id) && !customerHasTypeMatch(customer.id) && " (No matching types)"}
                   </SelectItem>
                 ))}
               </SelectContent>
