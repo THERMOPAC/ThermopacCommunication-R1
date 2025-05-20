@@ -37,153 +37,241 @@ router.get('/dashboard', ensureAuthenticated, (req: Request, res: Response) => {
 /**
  * Get outstanding invoices
  */
-router.get('/outstanding-invoices', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, res: Response) => {
   const customerId = req.query.selectedCustomerId;
   const invoiceType = req.query.paymentTypeFilter;
   
-  // Sample data for FLUKAR customer (ID 8)
-  const sampleInvoices = [
-    {
-      id: 201,
-      customerId: 8,
-      customerName: "FLUKAR SP. ZO.O.",
-      invoiceNumber: "INV-2526-046",
-      invoiceDate: "2025-04-05",
-      invoiceType: "Product",
-      total: "125000.00",
-      outstandingAmount: "125000.00",
-      status: "Pending"
-    },
-    {
-      id: 202,
-      customerId: 8,
-      customerName: "FLUKAR SP. ZO.O.",
-      invoiceNumber: "INV-2526-047",
-      invoiceDate: "2025-04-18",
-      invoiceType: "Service",
-      total: "95000.00",
-      outstandingAmount: "95000.00",
-      status: "Pending"
+  try {
+    // Query outstanding invoices from the database
+    const client = await pool.connect();
+    try {
+      let query = `
+        SELECT 
+          i.id, 
+          i.customer_id AS "customerId", 
+          c.bp_name AS "customerName", 
+          i.invoice_number AS "invoiceNumber",
+          i.invoice_date AS "invoiceDate",
+          i.invoice_type AS "invoiceType",
+          i.total_amount AS "total",
+          (i.total_amount - COALESCE((
+            SELECT SUM(pa.amount) 
+            FROM payment_allocations pa 
+            WHERE pa.invoice_id = i.id
+          ), 0)) AS "outstandingAmount",
+          i.status
+        FROM 
+          invoices i
+        JOIN 
+          customers c ON i.customer_id = c.id
+        WHERE 
+          i.status != 'Paid'
+      `;
+      
+      // Add customer filter if specified
+      if (customerId && customerId !== 'all') {
+        query += ` AND i.customer_id = ${parseInt(customerId as string)}`;
+      }
+      
+      // Add invoice type filter if specified
+      if (invoiceType && invoiceType !== 'all') {
+        query += ` AND i.invoice_type = '${invoiceType}'`;
+      }
+      
+      query += `
+        HAVING 
+          (i.total_amount - COALESCE((
+            SELECT SUM(pa.amount) 
+            FROM payment_allocations pa 
+            WHERE pa.invoice_id = i.id
+          ), 0)) > 0
+        ORDER BY 
+          i.invoice_date DESC
+      `;
+      
+      const result = await client.query(query);
+      const invoices = result.rows.map(row => ({
+        ...row,
+        outstandingAmount: row.outstandingAmount ? row.outstandingAmount.toString() : "0.00",
+        total: row.total ? row.total.toString() : "0.00"
+      }));
+      
+      // Calculate total outstanding amount
+      const totalOutstanding = invoices.reduce((total, inv) => 
+        total + parseFloat(inv.outstandingAmount), 0).toFixed(2);
+      
+      res.json({
+        invoices,
+        totalOutstanding,
+        count: invoices.length
+      });
+    } finally {
+      client.release();
     }
-  ];
-  
-  // Filter by customerId if specified
-  let filteredInvoices = sampleInvoices;
-  if (customerId && customerId !== 'all') {
-    filteredInvoices = sampleInvoices.filter(inv => inv.customerId.toString() === customerId);
+  } catch (error) {
+    console.error("Error fetching outstanding invoices:", error);
+    // Return empty but valid response structure on error
+    res.json({
+      invoices: [],
+      totalOutstanding: "0.00",
+      count: 0
+    });
   }
-  
-  // Filter by invoiceType if specified
-  if (invoiceType && invoiceType !== 'all') {
-    filteredInvoices = filteredInvoices.filter(inv => inv.invoiceType === invoiceType);
-  }
-  
-  // Calculate total outstanding amount
-  const totalOutstanding = filteredInvoices.reduce((total, inv) => 
-    total + parseFloat(inv.outstandingAmount), 0).toFixed(2);
-  
-  res.json({
-    invoices: filteredInvoices,
-    totalOutstanding: totalOutstanding,
-    count: filteredInvoices.length
-  });
 });
 
 /**
  * Get unallocated advance payments
  */
-router.get('/unallocated-advances', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   const customerId = req.query.selectedCustomerId;
   const paymentType = req.query.paymentTypeFilter;
   
-  // Sample data for FLUKAR customer (ID 8)
-  const sampleAdvances = [
-    {
-      id: 101,
-      customerId: 8,
-      customerName: "FLUKAR SP. ZO.O.",
-      paymentNumber: "PAY-25-0015",
-      paymentDate: "2025-04-15",
-      paymentType: "Product",
-      amount: "150000.00",
-      unallocatedAmount: "75000.00"
-    },
-    {
-      id: 102,
-      customerId: 8,
-      customerName: "FLUKAR SP. ZO.O.",
-      paymentNumber: "PAY-25-0022",
-      paymentDate: "2025-05-10",
-      paymentType: "Service",
-      amount: "85000.00",
-      unallocatedAmount: "85000.00"
+  try {
+    // Query payments with unallocated amounts from the database
+    const client = await pool.connect();
+    try {
+      let query = `
+        SELECT 
+          p.id, 
+          p.customer_id AS "customerId", 
+          c.bp_name AS "customerName", 
+          p.payment_number AS "paymentNumber",
+          p.payment_date AS "paymentDate",
+          p.payment_type AS "paymentType",
+          p.amount,
+          (p.amount - COALESCE((
+            SELECT SUM(pa.amount) 
+            FROM payment_allocations pa 
+            WHERE pa.payment_id = p.id
+          ), 0)) AS "unallocatedAmount"
+        FROM 
+          payments p
+        JOIN 
+          customers c ON p.customer_id = c.id
+        WHERE 
+          p.status != 'Refunded'
+      `;
+      
+      // Add customer filter if specified
+      if (customerId && customerId !== 'all') {
+        query += ` AND p.customer_id = ${parseInt(customerId as string)}`;
+      }
+      
+      // Add payment type filter if specified
+      if (paymentType && paymentType !== 'all') {
+        query += ` AND p.payment_type = '${paymentType}'`;
+      }
+      
+      query += `
+        HAVING 
+          (p.amount - COALESCE((
+            SELECT SUM(pa.amount) 
+            FROM payment_allocations pa 
+            WHERE pa.payment_id = p.id
+          ), 0)) > 0
+        ORDER BY 
+          p.payment_date DESC
+      `;
+      
+      const result = await client.query(query);
+      const advances = result.rows.map(row => ({
+        ...row,
+        unallocatedAmount: row.unallocatedAmount ? row.unallocatedAmount.toString() : "0.00",
+        amount: row.amount ? row.amount.toString() : "0.00"
+      }));
+      
+      // Calculate total unallocated amount
+      const totalUnallocated = advances.reduce((total, adv) => 
+        total + parseFloat(adv.unallocatedAmount), 0).toFixed(2);
+      
+      res.json({
+        advances,
+        totalUnallocatedAmount: totalUnallocated,
+        count: advances.length
+      });
+    } finally {
+      client.release();
     }
-  ];
-  
-  // Filter by customerId if specified
-  let filteredAdvances = sampleAdvances;
-  if (customerId && customerId !== 'all') {
-    filteredAdvances = sampleAdvances.filter(adv => adv.customerId.toString() === customerId);
+  } catch (error) {
+    console.error("Error fetching unallocated advances:", error);
+    // Return empty but valid response structure on error
+    res.json({
+      advances: [],
+      totalUnallocatedAmount: "0.00",
+      count: 0
+    });
   }
-  
-  // Filter by paymentType if specified
-  if (paymentType && paymentType !== 'all') {
-    filteredAdvances = filteredAdvances.filter(adv => adv.paymentType === paymentType);
-  }
-  
-  // Calculate total unallocated amount
-  const totalUnallocated = filteredAdvances.reduce((total, adv) => 
-    total + parseFloat(adv.unallocatedAmount), 0).toFixed(2);
-  
-  res.json({
-    advances: filteredAdvances,
-    totalUnallocatedAmount: totalUnallocated,
-    count: filteredAdvances.length
-  });
 });
 
 /**
  * Get unallocated advance payments for a specific customer
  */
-router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, async (req: Request, res: Response) => {
   const customerId = req.params.customerId;
   
-  // Sample data for FLUKAR customer
-  const sampleAdvances = [
-    {
-      id: 101,
-      customerId: 8,
-      customerName: "FLUKAR SP. ZO.O.",
-      paymentNumber: "PAY-25-0015",
-      paymentDate: "2025-04-15",
-      paymentType: "Product",
-      amount: "150000.00",
-      unallocatedAmount: "75000.00"
-    },
-    {
-      id: 102,
-      customerId: 8,
-      customerName: "FLUKAR SP. ZO.O.",
-      paymentNumber: "PAY-25-0022",
-      paymentDate: "2025-05-10",
-      paymentType: "Service",
-      amount: "85000.00",
-      unallocatedAmount: "85000.00"
+  try {
+    // Get unallocated advance payments for the specific customer
+    const client = await pool.connect();
+    try {
+      const query = `
+        SELECT 
+          p.id, 
+          p.customer_id AS "customerId", 
+          c.bp_name AS "customerName", 
+          p.payment_number AS "paymentNumber",
+          p.payment_date AS "paymentDate",
+          p.payment_type AS "paymentType",
+          p.amount,
+          (p.amount - COALESCE((
+            SELECT SUM(pa.amount) 
+            FROM payment_allocations pa 
+            WHERE pa.payment_id = p.id
+          ), 0)) AS "unallocatedAmount"
+        FROM 
+          payments p
+        JOIN 
+          customers c ON p.customer_id = c.id
+        WHERE 
+          p.status != 'Refunded'
+          AND p.customer_id = $1
+        HAVING 
+          (p.amount - COALESCE((
+            SELECT SUM(pa.amount) 
+            FROM payment_allocations pa 
+            WHERE pa.payment_id = p.id
+          ), 0)) > 0
+        ORDER BY 
+          p.payment_date DESC
+      `;
+      
+      const result = await client.query(query, [parseInt(customerId)]);
+      const advances = result.rows.map(row => ({
+        ...row,
+        unallocatedAmount: row.unallocatedAmount ? row.unallocatedAmount.toString() : "0.00",
+        amount: row.amount ? row.amount.toString() : "0.00"
+      }));
+      
+      // Calculate total unallocated amount
+      const totalUnallocated = advances.reduce((total, adv) => 
+        total + parseFloat(adv.unallocatedAmount), 0).toFixed(2);
+      
+      res.json({
+        advances,
+        totalUnallocatedAmount: totalUnallocated,
+        count: advances.length
+      });
+    } finally {
+      client.release();
     }
-  ];
-  
-  // Filter by customerId
-  const filteredAdvances = customerId === '8' ? sampleAdvances : [];
-  
-  // Calculate total unallocated amount
-  const totalUnallocated = filteredAdvances.reduce((total, adv) => 
-    total + parseFloat(adv.unallocatedAmount), 0).toFixed(2);
-  
-  res.json({
-    advances: filteredAdvances,
-    totalUnallocatedAmount: totalUnallocated,
-    count: filteredAdvances.length
-  });
+  } catch (error) {
+    console.error("Error fetching customer's unallocated advances:", error);
+    // Return empty but valid response structure on error
+    res.json({
+      advances: [],
+      totalUnallocatedAmount: "0.00",
+      count: 0
+    });
+  }
 });
 
 /**
