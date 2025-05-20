@@ -17,10 +17,28 @@ export class BatchAllocationService {
    * 5. Returns allocation results with detailed information
    */
   async applyAdvancePaymentsForCustomer(customerId: number, userId: number) {
+    // Validate input parameters
+    if (!customerId || isNaN(customerId)) {
+      throw new Error('Invalid customer ID provided');
+    }
+    
     const client = await pool.connect();
     
     try {
       await client.query('BEGIN');
+      
+      // First, check if customer exists
+      const customerCheckResult = await client.query(
+        `SELECT id, bp_name FROM customers WHERE id = $1`,
+        [customerId]
+      );
+      
+      if (customerCheckResult.rows.length === 0) {
+        throw new Error(`Customer with ID ${customerId} does not exist`);
+      }
+      
+      const customerName = customerCheckResult.rows[0].bp_name;
+      console.log(`Processing batch allocation for customer: ${customerName} (ID: ${customerId})`);
       
       // Get outstanding invoices for this customer
       const invoicesResult = await client.query(
@@ -35,8 +53,10 @@ export class BatchAllocationService {
       
       if (invoicesResult.rows.length === 0) {
         await client.query('ROLLBACK');
-        throw new Error(`No outstanding invoices found for customer ID ${customerId}`);
+        throw new Error(`No outstanding invoices found for ${customerName} (ID: ${customerId})`);
       }
+      
+      console.log(`Found ${invoicesResult.rows.length} outstanding invoices for ${customerName}`);
       
       // Get unallocated advance payments for this customer
       const advancesResult = await client.query(
@@ -52,8 +72,10 @@ export class BatchAllocationService {
       
       if (advancesResult.rows.length === 0) {
         await client.query('ROLLBACK');
-        throw new Error(`No unallocated advance payments found for customer ID ${customerId}`);
+        throw new Error(`No unallocated advance payments found for ${customerName} (ID: ${customerId})`);
       }
+      
+      console.log(`Found ${advancesResult.rows.length} unallocated advance payments for ${customerName}`);
       
       // Group invoices by type
       const productInvoices = invoicesResult.rows.filter(inv => inv.invoice_type === 'Product');
@@ -62,6 +84,9 @@ export class BatchAllocationService {
       // Group advance payments by type
       const productAdvances = advancesResult.rows.filter(pmt => pmt.payment_type === 'Product');
       const serviceAdvances = advancesResult.rows.filter(pmt => pmt.payment_type === 'Service');
+      
+      console.log(`For ${customerName}: Found ${productInvoices.length} product invoices, ${serviceInvoices.length} service invoices`);
+      console.log(`For ${customerName}: Found ${productAdvances.length} product advances, ${serviceAdvances.length} service advances`);
       
       // Initialize results array to track all allocations
       const results = [];
@@ -156,6 +181,8 @@ export class BatchAllocationService {
       
       // Process service invoices (same logic as product invoices)
       if (serviceInvoices.length > 0 && serviceAdvances.length > 0) {
+        console.log(`Processing ${serviceInvoices.length} service invoices with ${serviceAdvances.length} service advances`);
+        
         // Set up working copies of advances with mutable unallocated amounts
         const workingAdvances = serviceAdvances.map(adv => ({
           ...adv,
@@ -165,6 +192,7 @@ export class BatchAllocationService {
         // Process each invoice oldest first
         for (const invoice of serviceInvoices) {
           let outstandingAmount = parseFloat(invoice.outstanding_amount);
+          console.log(`Processing service invoice #${invoice.invoice_number} with outstanding: ${outstandingAmount}`);
           
           // Skip if already paid
           if (outstandingAmount <= 0) continue;
