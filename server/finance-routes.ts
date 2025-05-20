@@ -3,6 +3,7 @@ import { ensureAuthenticated } from './auth-middleware';
 import { pool } from './db';
 import { paymentAllocationService } from './payment-allocation-service';
 import { writeOffService } from './write-off-service';
+import { batchAllocationService } from './batch-allocation-service';
 
 const router = Router();
 
