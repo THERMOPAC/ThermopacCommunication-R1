@@ -360,19 +360,48 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       const customerId = values.customerId ? parseInt(values.customerId) : 7; // Use 7 as default from original data if missing
       console.log('Customer ID for update:', customerId, 'Original value:', values.customerId);
       
-      // Use a minimal format matching exactly what we see in the GET response
+      // We need to ensure all fields are present and named correctly
       const payload = {
+        // Include all fields in both formats (camelCase and snake_case) to ensure compatibility
+        // Core payment information
         id: parseInt(id),
+        reference: values.referenceNumber,
+        reference_number: values.referenceNumber, // Snake case backup
+        
+        // IRM information
+        paymentNumber: values.irmNo,
+        irm_no: values.irmNo, // Snake case backup
+        
+        // Payment details
         paymentDate: format(values.paymentDate, "yyyy-MM-dd"),
-        paymentNumber: values.irmNo || "0419IREX0009015",
-        paymentType: values.paymentType || "Service",
-        paymentMethod: values.paymentMethod || "wire transfer",
-        reference: values.referenceNumber || "PAY-2526-004",
-        currency: values.currency || "USD",
+        payment_date: format(values.paymentDate, "yyyy-MM-dd"), // Snake case backup
+        
+        // SAP integration
+        sapPaymentNo: values.sapPaymentNo,
+        sap_payment_no: values.sapPaymentNo, // Snake case backup
+        
+        // Payment classification
+        paymentType: values.paymentType,
+        payment_type: values.paymentType, // Snake case backup
+        
+        // Financial details
         amount: values.amount,
-        isAdvancePayment: values.isAdvancePayment,
+        currency: values.currency,
+        
+        // Payment method
+        paymentMethod: values.paymentMethod,
+        payment_method: values.paymentMethod, // Snake case backup
+        
+        // Notes and additional details
+        notes: values.notes,
+        
+        // Advance payment flag
+        isAdvancePayment: values.isAdvancePayment, 
+        is_advance_payment: values.isAdvancePayment, // Snake case backup
+        
+        // Customer relationship
         customerId: customerId,
-        sapPaymentNo: values.sapPaymentNo || ""
+        customer_id: customerId // Snake case backup
       };
       
       // Let's try a different approach - use fetch directly instead of apiRequest
