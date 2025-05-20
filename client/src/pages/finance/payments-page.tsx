@@ -289,9 +289,14 @@ export default function PaymentsPage() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex justify-center gap-2">
-                        <Button variant="ghost" size="icon" asChild>
+                        <Button variant="ghost" size="icon" asChild title="View Payment">
                           <Link href={`/finance/payments/${payment.id}`}>
                             <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button variant="ghost" size="icon" asChild title="Edit Payment">
+                          <Link href={`/finance/payments/edit/${payment.id}`}>
+                            <Edit className="h-4 w-4" />
                           </Link>
                         </Button>
                         {parseFloat(payment.unallocatedAmount) > 0 && (

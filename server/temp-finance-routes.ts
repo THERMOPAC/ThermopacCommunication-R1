@@ -35,6 +35,93 @@ router.get('/dashboard', ensureAuthenticated, (req: Request, res: Response) => {
 });
 
 /**
+ * Get payment details by ID
+ */
+router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  const paymentId = parseInt(req.params.id);
+  
+  try {
+    const client = await pool.connect();
+    try {
+      // Query for the payment details
+      const paymentQuery = `
+        SELECT 
+          p.id, 
+          p.payment_date AS "paymentDate",
+          p.irm_no AS "paymentNumber",
+          p.payment_type AS "paymentType",
+          p.payment_method AS "paymentMethod",
+          p.sap_payment_no AS "sapPaymentNo",
+          p.reference_number AS reference,
+          p.currency,
+          p.amount,
+          p.is_advance_payment AS "isAdvancePayment",
+          p.customer_id AS "customerId",
+          p.unallocated_amount AS "unallocatedAmount",
+          p.allocated_amount AS "allocatedAmount",
+          p.notes,
+          c.bp_name AS "customerName"
+        FROM 
+          payments p
+        JOIN 
+          customers c ON p.customer_id = c.id
+        WHERE 
+          p.id = $1
+      `;
+      
+      const paymentResult = await client.query(paymentQuery, [paymentId]);
+      if (paymentResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Payment not found' });
+      }
+      
+      const payment = paymentResult.rows[0];
+      
+      // Get allocations for this payment
+      const allocationsQuery = `
+        SELECT 
+          pa.id,
+          pa.invoice_id AS "invoiceId",
+          pa.amount_applied AS "amountApplied",
+          i.invoice_number AS "invoiceNumber",
+          i.invoice_date AS "invoiceDate",
+          i.total_amount AS "invoiceAmount",
+          i.invoice_type AS "invoiceType"
+        FROM 
+          payment_allocations pa
+        JOIN 
+          invoices i ON pa.invoice_id = i.id
+        WHERE 
+          pa.payment_id = $1
+      `;
+      
+      const allocationsResult = await client.query(allocationsQuery, [paymentId]);
+      
+      res.json({
+        payment: {
+          ...payment,
+          amount: payment.amount ? payment.amount.toString() : "0.00",
+          unallocatedAmount: payment.unallocatedAmount ? payment.unallocatedAmount.toString() : "0.00",
+          allocatedAmount: payment.allocatedAmount ? payment.allocatedAmount.toString() : "0.00"
+        },
+        allocations: allocationsResult.rows.map(row => ({
+          ...row,
+          amountApplied: row.amountApplied ? row.amountApplied.toString() : "0.00",
+          invoiceAmount: row.invoiceAmount ? row.invoiceAmount.toString() : "0.00"
+        }))
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error fetching payment details:', error);
+    res.status(500).json({ 
+      error: 'Failed to retrieve payment details', 
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+/**
  * Get outstanding invoices
  */
 router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, res: Response) => {
