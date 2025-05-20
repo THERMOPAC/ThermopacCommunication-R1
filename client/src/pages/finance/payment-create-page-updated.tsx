@@ -467,12 +467,12 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   };
   
   // Function to update an invoice link amount
-  const handleUpdateInvoiceLinkAmount = (index: number, amount: string) => {
+  const handleUpdateInvoiceLinkAmount = (index: number, newAmount: string) => {
     const currentLinks = form.getValues().invoiceLinks;
     const updatedLinks = [...currentLinks];
     updatedLinks[index] = {
       ...updatedLinks[index],
-      amountApplied: amount,
+      amountApplied: newAmount,
     };
     form.setValue('invoiceLinks', updatedLinks);
     
@@ -480,35 +480,43 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     const updatedSelected = [...selectedInvoices];
     updatedSelected[index] = {
       ...updatedSelected[index],
-      amountApplied: amount,
+      amountApplied: newAmount,
     };
     setSelectedInvoices(updatedSelected);
   };
   
-  // Calculate total amount applied
+  // Function to calculate total applied amount
   const calculateTotalApplied = () => {
     const links = form.getValues().invoiceLinks;
     if (!links || links.length === 0) return 0;
     
     return links.reduce((sum, link) => {
-      return sum + parseFloat(link.amountApplied || "0");
+      return sum + parseFloat(link.amountApplied || '0');
     }, 0);
   };
   
-  // Get remaining amount to allocate
+  // Function to get remaining amount that can be allocated
   const getRemainingAmount = () => {
-    const totalAmount = parseFloat(form.getValues().amount || "0");
+    const totalAmount = parseFloat(form.getValues().amount || '0');
     const totalApplied = calculateTotalApplied();
-    return totalAmount - totalApplied;
+    
+    return Math.max(0, totalAmount - totalApplied);
   };
   
-  // Filter invoices based on search term
-  const filteredInvoices = invoices.filter(invoice => {
-    // Match by customer
-    const customerMatches = invoice.customerId?.toString() === form.getValues().customerId;
-    if (!customerMatches) return false;
+  // Filter invoices based on search term and payment type
+  const filteredInvoices = (invoices || []).filter(invoice => {
+    // First, check if it matches the payment type
+    const paymentType = form.getValues().paymentType;
+    const invoiceType = invoice.invoiceType || invoice.invoice_type;
+    if (invoiceType !== paymentType) return false;
     
-    // Match by search term
+    // Then, check if it's already selected
+    const isAlreadySelected = selectedInvoices.some(
+      selected => selected.id.toString() === invoice.id.toString()
+    );
+    if (isAlreadySelected) return false;
+    
+    // Finally, apply the search filter if there is a search term
     if (!searchTerm) return true;
     
     const searchLower = searchTerm.toLowerCase();
@@ -524,14 +532,21 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     setLocation("/finance/payments");
   };
 
+  // Get the customer name for display
+  const getCustomerName = (customerId: string | null) => {
+    if (!customerId || !customers) return '';
+    const customer = customers.find((c: any) => c.id.toString() === customerId.toString());
+    return customer ? customer.bpName : '';
+  };
+
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">
-          {isInEditMode ? "Edit Payment" : "Create New Payment"}
+          {isInEditMode ? "Edit Payment" : "Create Payment"}
         </h1>
         <Button
-          variant="ghost"
+          variant="outline"
           onClick={handleBack}
         >
           Cancel
@@ -547,16 +562,18 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold mb-2">Payment Information</h2>
-                <p className="text-sm text-muted-foreground mb-6">Enter the basic information for this payment</p>
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold mb-4">Payment Information</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Enter the basic information for this payment
+                </p>
                 
-                <div className="my-4">
+                <div className="flex items-center space-x-3 mb-6">
                   <FormField
                     control={form.control}
                     name="isAdvancePayment"
                     render={({ field }) => (
-                      <FormItem className="flex items-start space-x-3 space-y-0">
+                      <FormItem className="flex items-center space-x-3 space-y-0">
                         <FormControl>
                           <Switch
                             checked={field.value}
@@ -572,11 +589,11 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                             disabled={false}
                           />
                         </FormControl>
-                        <div className="leading-none">
-                          <FormLabel className="text-base cursor-pointer">
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="font-medium cursor-pointer">
                             Advance Payment
                           </FormLabel>
-                          <FormDescription className="text-xs">
+                          <FormDescription>
                             Record a payment not linked to any invoice
                           </FormDescription>
                         </div>
@@ -584,142 +601,133 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                     )}
                   />
                 </div>
+                
+                <div className="grid grid-cols-4 gap-4 mb-6">
+                  <FormField
+                    control={form.control}
+                    name="referenceNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Reference Number</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            value={field.value || ''} 
+                            readOnly={false}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
-                  {/* Row with Reference Number, Currency, SAP Payment No, and Payment Type with equal width */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="referenceNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Reference Number</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Auto-generated" 
-                              {...field} 
-                              value={field.value || ''} 
-                              readOnly={false}
-                              className=""
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="currency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Currency</FormLabel>
-                          <FormControl>
-                            <Input 
-                              value="USD" 
-                              readOnly={false} 
-                              className={false ? "bg-muted cursor-not-allowed" : ""}
-                              onChange={(e) => {
-                                // Force USD value even on change attempts
-                                field.onChange("USD");
-                              }}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            All payments are processed in USD
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="sapPaymentNo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SAP Payment No</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Enter SAP payment number"
-                              {...field}
-                              value={field.value || ''}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="paymentType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Payment Type</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange}
-                            value={field.value || 'Product'}
-                            disabled={isInEditMode}
-                          >
-                            <FormControl>
-                              <SelectTrigger className={isInEditMode ? "bg-muted cursor-not-allowed" : ""}>
-                                <SelectValue placeholder="Select payment type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Product">Product</SelectItem>
-                              <SelectItem value="Service">Service</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Currency</FormLabel>
+                        <FormControl>
+                          <Input
+                            value="USD"
+                            readOnly
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          All payments are processed in USD
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
                   
-                  {/* Row with IRM_NO, Payment Date, Payment Method, and Payment Amount with equal width */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="irmNo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>IRM NO</FormLabel>
+                  <FormField
+                    control={form.control}
+                    name="sapPaymentNo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>SAP Payment No</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter SAP payment number"
+                            {...field}
+                            value={field.value || ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="paymentType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Type</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                          value={field.value}
+                          disabled={isInEditMode} // In edit mode, type should be locked
+                        >
                           <FormControl>
-                            <Input 
-                              placeholder="Enter IRM number"
-                              {...field}
-                              value={field.value || ''}
-                            />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select payment type" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="paymentDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Payment Date</FormLabel>
+                          <SelectContent>
+                            <SelectItem value="Product">Product</SelectItem>
+                            <SelectItem value="Service">Service</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-4 gap-4 mb-6">
+                  <FormField
+                    control={form.control}
+                    name="irmNo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>IRM NO</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter IRM number"
+                            {...field}
+                            value={field.value || ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="paymentDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Date</FormLabel>
+                        <div className="relative">
                           <Popover>
                             <PopoverTrigger asChild>
                               <FormControl>
                                 <Button
-                                  variant="outline"
+                                  variant={"outline"}
                                   className={cn(
                                     "w-full pl-3 text-left font-normal",
                                     !field.value && "text-muted-foreground"
                                   )}
-                                  disabled={false}
                                 >
                                   {field.value ? (
-                                    format(field.value, "PPP")
+                                    format(field.value, "MMM dd, yyyy")
                                   ) : (
                                     <span>Pick a date</span>
                                   )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  <CalendarIcon className="ml-auto h-4 w-4" />
                                 </Button>
                               </FormControl>
                             </PopoverTrigger>
@@ -727,120 +735,83 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                               <Calendar
                                 mode="single"
                                 selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) =>
-                                  date > new Date() || date < new Date("1900-01-01")
-                                }
+                                onSelect={(date) => {
+                                  if (date) {
+                                    field.onChange(date);
+                                  }
+                                }}
                                 initialFocus
                               />
                             </PopoverContent>
                           </Popover>
-                          <FormDescription>
-                            Date when payment was received
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="paymentMethod"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Payment Method</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange}
-                            value={field.value || 'bank transfer'}
+                        </div>
+                        <FormDescription className="text-xs">
+                          Date when payment was received
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Method</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value || ''}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select payment method" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="bank transfer">Wire Transfer</SelectItem>
+                            <SelectItem value="check">Check</SelectItem>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="credit card">Credit Card</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Amount</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="0.00"
+                            {...field}
+                            value={field.value || ''}
+                            onChange={(e) => {
+                              field.onChange(e.target.value);
+                              // When amount changes, update the unallocated amount too
+                              form.setValue('unallocatedAmount', e.target.value);
+                            }}
+                            readOnly={false}
                             disabled={false}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select payment method" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="bank transfer">Bank Transfer</SelectItem>
-                              <SelectItem value="wire transfer">Wire Transfer</SelectItem>
-                              <SelectItem value="cash">Cash</SelectItem>
-                              <SelectItem value="check">Check</SelectItem>
-                              <SelectItem value="credit card">Credit Card</SelectItem>
-                              <SelectItem value="online payment">Online Payment</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Payment Amount</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                <DollarSign className="h-4 w-4 text-gray-400" />
-                              </div>
-                              <Input
-                                type="number"
-                                placeholder="0.00"
-                                className="pl-10"
-                                {...field}
-                                value={field.value || ''}
-                                onChange={(e) => {
-                                  field.onChange(e.target.value);
-                                  // When amount changes, update the unallocated amount too
-                                  form.setValue('unallocatedAmount', e.target.value);
-                                }}
-                                readOnly={false} // Make amount editable in both modes
-                                disabled={false}
-                                step="0.01"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <div className="my-4">
-                    <FormField
-                      control={form.control}
-                      name="isAdvancePayment"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={(checked) => {
-                                field.onChange(checked);
-                                
-                                // If switching to advance payment, clear any invoice links
-                                if (checked) {
-                                  form.setValue('invoiceLinks', []);
-                                  setSelectedInvoices([]);
-                                }
-                              }}
-                              disabled={false} // Make editable in both modes
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>
-                              Advance Payment
-                            </FormLabel>
-                            <FormDescription>
-                              Mark as advance payment if not linked to specific invoices yet
-                            </FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
+                            step="0.01"
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Total payment amount
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="mb-6">
                   <FormField
                     control={form.control}
                     name="customerId"
@@ -866,7 +837,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {customers.map((customer) => (
+                            {customers.map((customer: any) => (
                               <SelectItem key={customer.id} value={customer.id.toString()}>
                                 {customer.bpName}
                               </SelectItem>
@@ -877,8 +848,9 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                       </FormItem>
                     )}
                   />
-                  
-                  {/* Notes field moved to be right below the Customer field */}
+                </div>
+                
+                <div className="mb-6">
                   <FormField
                     control={form.control}
                     name="notes"
@@ -900,164 +872,163 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                     )}
                   />
                 </div>
-              </div>
-              
-              {/* Invoice allocation section */}
-              {showInvoiceSection && !form.getValues().isAdvancePayment && (
-                <div className="mt-8 border-t pt-6">
-                  <h2 className="text-lg font-semibold mb-4">
-                    Invoice Allocation
-                  </h2>
-                  
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <div className="text-sm text-muted-foreground">
-                        <span className="flex items-center">
-                          <ArrowDownUp className="mr-1 h-4 w-4" />
-                          Allocated: {form.getValues().currency} {calculateTotalApplied().toFixed(2)} / {parseFloat(form.getValues().amount || '0').toFixed(2)}
-                        </span>
+                
+                {/* Invoice allocation section */}
+                {showInvoiceSection && !form.getValues().isAdvancePayment && (
+                  <div className="border-t pt-6">
+                    <h2 className="text-lg font-semibold mb-4">
+                      Invoice Allocation
+                    </h2>
+                    
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <div className="text-sm text-muted-foreground">
+                          <span className="flex items-center">
+                            <ArrowDownUp className="mr-1 h-4 w-4" />
+                            Allocated: {form.getValues().currency} {calculateTotalApplied().toFixed(2)} / {parseFloat(form.getValues().amount || '0').toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="text-sm text-blue-500 mt-1 flex items-center">
+                          <Info className="h-4 w-4 mr-1" />
+                          Only {form.getValues().paymentType} invoices can be linked to this payment.
+                        </div>
                       </div>
-                      <div className="text-sm text-blue-500 mt-1 flex items-center">
-                        <Info className="h-4 w-4 mr-1" />
-                        Only {form.getValues().paymentType} invoices can be linked to this payment.
+                      
+                      <div className="flex items-center space-x-2">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={handleAddInvoice}
+                          disabled={!form.getValues().amount || parseFloat(form.getValues().amount) <= 0 || form.getValues().isAdvancePayment}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Invoice
+                        </Button>
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm"
-                        onClick={handleAddInvoice}
-                        disabled={!form.getValues().amount || parseFloat(form.getValues().amount) <= 0 || form.getValues().isAdvancePayment}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Invoice
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {/* Progress bar for allocation */}
-                  <Progress 
-                    value={(calculateTotalApplied() / parseFloat(form.getValues().amount || '1')) * 100} 
-                    className="h-2"
-                  />
-                  
-                  {/* Allocation status */}
-                  <div className="flex justify-between text-sm text-muted-foreground mt-1">
-                    <div>
-                      {parseFloat(form.getValues().amount || '0') > 0 && calculateTotalApplied() === parseFloat(form.getValues().amount || '0') && (
-                        <span className="text-green-500 flex items-center">
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Fully allocated
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      Remaining: {form.getValues().currency} {getRemainingAmount().toFixed(2)}
-                    </div>
-                  </div>
-                  
-                  {/* Auto-allocate toggle */}
-                  <div className="flex items-center space-x-2 mt-4">
-                    <Switch
-                      id="auto-allocate"
-                      checked={autoAllocate}
-                      onCheckedChange={setAutoAllocate}
+                    {/* Progress bar for allocation */}
+                    <Progress 
+                      value={(calculateTotalApplied() / parseFloat(form.getValues().amount || '1')) * 100} 
+                      className="h-2"
                     />
-                    <Label htmlFor="auto-allocate">Auto Allocate</Label>
                     
-                    {autoAllocate && (
-                      <Button 
-                        type="button" 
-                        variant="outline" 
+                    {/* Allocation status */}
+                    <div className="flex justify-between text-sm text-muted-foreground mt-1">
+                      <div>
+                        {parseFloat(form.getValues().amount || '0') > 0 && calculateTotalApplied() === parseFloat(form.getValues().amount || '0') && (
+                          <span className="text-green-500 flex items-center">
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Fully allocated
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        Remaining: {form.getValues().currency} {getRemainingAmount().toFixed(2)}
+                      </div>
+                    </div>
+                    
+                    {/* Auto-allocate toggle */}
+                    <div className="flex items-center space-x-2 mt-4">
+                      <Switch
+                        id="auto-allocate"
+                        checked={autoAllocate}
+                        onCheckedChange={setAutoAllocate}
+                      />
+                      <Label htmlFor="auto-allocate" className="text-sm">Auto-allocate to oldest invoices</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
                         size="sm"
                         onClick={handleAutoAllocate}
-                        disabled={!form.getValues().amount || parseFloat(form.getValues().amount) <= 0}
+                        disabled={!autoAllocate || !form.getValues().amount || parseFloat(form.getValues().amount) <= 0}
                         className="ml-2"
                       >
-                        Apply Auto Allocation
+                        Apply
                       </Button>
+                    </div>
+                    
+                    {form.getValues().invoiceLinks.length > 0 && (
+                      <div className="mt-4">
+                        <h3 className="text-sm font-medium mb-2">
+                          Selected Invoices
+                        </h3>
+                        <div className="border rounded-md">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead>
+                              <tr className="bg-muted">
+                                <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Invoice</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Date</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Amount</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground tracking-wider">Applied</th>
+                                <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground tracking-wider">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-card divide-y divide-gray-200">
+                              {selectedInvoices.length > 0 ? (
+                                selectedInvoices.map((invoice, index) => (
+                                  <tr key={index}>
+                                    <td className="px-4 py-2 text-sm">{invoice.invoiceNumber || invoice.id}</td>
+                                    <td className="px-4 py-2 text-sm">{format(new Date(invoice.invoiceDate || invoice.issue_date), "MMM dd, yyyy")}</td>
+                                    <td className="px-4 py-2 text-sm">{form.getValues().currency} {parseFloat(invoice.amount).toFixed(2)}</td>
+                                    <td className="px-4 py-2 text-sm">
+                                      <div className="flex items-center">
+                                        <span className="mr-2">{form.getValues().currency}</span>
+                                        <Input
+                                          type="number"
+                                          className="w-24"
+                                          step="0.01"
+                                          value={form.getValues().invoiceLinks[index]?.amountApplied || "0.00"}
+                                          onChange={(e) => handleUpdateInvoiceLinkAmount(index, e.target.value)}
+                                        />
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-2 text-sm text-right">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleRemoveInvoiceLink(index)}
+                                      >
+                                        <XCircle className="h-4 w-4" />
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={5} className="px-4 py-4 text-center text-sm text-muted-foreground">
+                                    No invoices selected. Click "Add Invoice" to link invoices to this payment.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  
-                  {/* List of allocated invoices */}
-                  {selectedInvoices.length > 0 && (
-                    <div className="mt-4">
-                      <h3 className="text-sm font-medium mb-2">Allocated Invoices</h3>
-                      <div className="bg-gray-50 rounded-md p-4">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="text-xs text-muted-foreground border-b">
-                              <th className="text-left p-2">Invoice Number</th>
-                              <th className="text-left p-2">Date</th>
-                              <th className="text-left p-2">Customer</th>
-                              <th className="text-left p-2">Type</th>
-                              <th className="text-right p-2">Total Amount</th>
-                              <th className="text-right p-2">Applied Amount</th>
-                              <th className="text-center p-2">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedInvoices.map((invoice, index) => (
-                              <tr key={index} className="border-b">
-                                <td className="p-2">{invoice.invoiceNumber}</td>
-                                <td className="p-2">{format(new Date(invoice.invoiceDate || invoice.issue_date), "MMM d, yyyy")}</td>
-                                <td className="p-2">{invoice.customerName}</td>
-                                <td className="p-2">
-                                  <Badge variant={(invoice.invoiceType || invoice.invoice_type) === "Product" ? "default" : "secondary"}>
-                                    {invoice.invoiceType || invoice.invoice_type || "Unknown"}
-                                  </Badge>
-                                </td>
-                                <td className="text-right p-2">{invoice.currency} {parseFloat(invoice.amount).toFixed(2)}</td>
-                                <td className="p-2">
-                                  <Input 
-                                    type="number"
-                                    className="w-24 text-right"
-                                    value={selectedInvoices[index].amountApplied || "0.00"}
-                                    onChange={(e) => handleUpdateInvoiceLinkAmount(index, e.target.value)}
-                                    min="0"
-                                    max={invoice.amount}
-                                    step="0.01"
-                                  />
-                                </td>
-                                <td className="text-center p-2">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleRemoveInvoiceLink(index)}
-                                    className="text-red-500 h-8 w-8 p-0"
-                                  >
-                                    <XCircle className="h-4 w-4" />
-                                  </Button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
               
-              <div className="flex justify-end space-x-4 mt-8">
-                <Button 
-                  type="button" 
+              {/* Action buttons */}
+              <div className="flex justify-end space-x-2 mt-8">
+                <Button
+                  type="button"
                   variant="outline"
                   onClick={handleBack}
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   type="submit"
                   disabled={createMutation.isPending || updateMutation.isPending}
                 >
                   {(createMutation.isPending || updateMutation.isPending) && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  {isInEditMode ? "Update" : "Create"} Payment
+                  {isInEditMode ? "Update Payment" : "Create Payment"}
                 </Button>
               </div>
             </form>
@@ -1067,88 +1038,92 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       
       {/* Invoice selection dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Select Invoice to Allocate</DialogTitle>
+            <DialogTitle>Select Invoice</DialogTitle>
             <DialogDescription>
-              Choose an invoice to allocate payment funds to.
+              Choose an invoice to apply this payment to.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search invoices..."
-                className="pl-10"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="mt-4 space-y-4">
+            <div className="flex items-center space-x-2">
+              <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <Search className="h-4 w-4 text-gray-400" />
+                </div>
+                <Input
+                  placeholder="Search invoices..."
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSearchTerm('')}
+              >
+                <FilterX className="h-4 w-4" />
+              </Button>
             </div>
-          </div>
-          
-          <div className="max-h-[400px] overflow-auto border rounded-md">
-            <table className="w-full">
-              <thead className="bg-muted sticky top-0">
-                <tr>
-                  <th className="text-left p-2">Invoice Number</th>
-                  <th className="text-left p-2">Date</th>
-                  <th className="text-left p-2">Customer</th>
-                  <th className="text-left p-2">Type</th>
-                  <th className="text-right p-2">Amount</th>
-                  <th className="text-center p-2">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredInvoices.map((invoice) => (
-                  <tr key={invoice.id} className="border-t">
-                    <td className="p-2">{invoice.invoiceNumber}</td>
-                    <td className="p-2">{format(new Date(invoice.invoiceDate || invoice.issue_date), "MMM d, yyyy")}</td>
-                    <td className="p-2">{invoice.customerName}</td>
-                    <td className="p-2">
-                      <Badge variant={(invoice.invoiceType || invoice.invoice_type) === "Product" ? "default" : "secondary"}>
-                        {invoice.invoiceType || invoice.invoice_type || "Unknown"}
-                      </Badge>
-                    </td>
-                    <td className="text-right p-2">{invoice.currency} {parseFloat(invoice.amount).toFixed(2)}</td>
-                    <td className="p-2">
-                      {/* Get invoice and payment types for comparison */}
-                      {(() => {
-                        const paymentType = form.getValues().paymentType;
-                        const invoiceType = invoice.invoiceType || invoice.invoice_type;
-                        const isTypeMismatch = invoiceType && paymentType && invoiceType !== paymentType;
-                        
-                        return (
-                          <Button
-                            type="button"
-                            variant={isTypeMismatch ? "ghost" : "outline"}
-                            size="sm"
-                            onClick={() => handleSelectInvoice(invoice)}
-                            disabled={isTypeMismatch}
-                            className={isTypeMismatch ? "opacity-60" : ""}
-                          >
-                            {isTypeMismatch ? (
-                              "Type Mismatch"
-                            ) : (
-                              "Select"
-                            )}
-                          </Button>
-                        );
-                      })()}
-                    </td>
-                  </tr>
-                ))}
-                
-                {filteredInvoices?.length === 0 && (
-                  <tr className="border-t">
-                    <td colSpan={5} className="p-4 text-center text-muted-foreground">
-                      No matching invoices found. Please select a customer or modify your search.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            
+            <ScrollArea className="h-[300px] rounded-md border p-2">
+              {isLoadingInvoices ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span className="ml-2">Loading invoices...</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredInvoices.length > 0 ? (
+                    filteredInvoices.map((invoice) => (
+                      <div
+                        key={invoice.id}
+                        className="flex items-center justify-between p-2 rounded-md hover:bg-muted cursor-pointer"
+                        onClick={() => handleSelectInvoice(invoice)}
+                      >
+                        <div>
+                          <div className="font-medium flex items-center">
+                            <FileText className="h-4 w-4 mr-1 text-blue-500" />
+                            {invoice.invoiceNumber || invoice.id}
+                            <Badge 
+                              variant={invoice.invoiceType === 'Product' ? 'outline' : 'secondary'} 
+                              className="ml-2"
+                            >
+                              {invoice.invoiceType || invoice.invoice_type}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground flex flex-col">
+                            <span>{invoice.customerName || 'Unknown Customer'}</span>
+                            <span>
+                              {format(new Date(invoice.invoiceDate || invoice.issue_date), "MMM dd, yyyy")}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium">
+                            {form.getValues().currency} {parseFloat(invoice.amount).toFixed(2)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Outstanding: {form.getValues().currency} {parseFloat(invoice.outstanding || invoice.amount).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                      <div className="text-muted-foreground mb-2">
+                        No matching invoices found
+                      </div>
+                      <div className="text-sm">
+                        Try adjusting your search or filter criteria
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </ScrollArea>
           </div>
         </DialogContent>
       </Dialog>
