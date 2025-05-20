@@ -1537,6 +1537,20 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
     `;
     
     // Prepare values with proper null handling
+    // Print all fields to debug
+    console.log('Processing update with fields:', {
+      invoiceNumber: invoice.invoiceNumber,
+      customerId: invoice.customerId,
+      projectId: projectId,
+      issueDate: issueDate,
+      dueDate: dueDate,
+      totalAmount: invoice.totalAmount,
+      currency: invoice.currency,
+      sapInvoiceNo: invoice.sapInvoiceNo,
+      invoiceType: invoice.invoiceType,
+      notes: invoice.notes
+    });
+    
     const invoiceValues = [
       invoice.invoiceNumber,
       parseInt(invoice.customerId),
@@ -1545,9 +1559,9 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       dueDate,
       invoice.totalAmount || '0',
       invoice.currency || 'USD',
-      invoice.sapInvoiceNo || null,
+      invoice.sapInvoiceNo, // Don't convert empty string to null
       invoice.invoiceType,
-      invoice.notes || null,
+      invoice.notes, // Don't convert empty string to null
       invoiceId
     ];
     
@@ -1555,30 +1569,31 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
     
     let updatedInvoice;
     
+    // Start a transaction to ensure data consistency
+    const client = await pool.connect();
+    
     try {
-      const invoiceResult = await pool.query(updateInvoiceQuery, invoiceValues);
-      console.log('SQL update result:', invoiceResult?.rows?.[0] || 'No result');
+      await client.query('BEGIN');
+      
+      // STEP 1: Update the invoice
+      console.log('Executing invoice update query with values:', JSON.stringify(invoiceValues, null, 2));
+      
+      // Execute the update query within the transaction
+      const invoiceResult = await client.query(updateInvoiceQuery, invoiceValues);
       
       if (!invoiceResult.rows || invoiceResult.rows.length === 0) {
+        await client.query('ROLLBACK');
         console.error('Invoice update failed: No rows returned');
         return res.status(404).json({ error: 'Invoice not found or update failed' });
       }
       
       updatedInvoice = invoiceResult.rows[0];
-      console.log('Updated invoice object:', updatedInvoice);
-    } catch (sqlError) {
-      console.error('SQL error during invoice update:', sqlError);
-      return res.status(500).json({ 
-        error: 'Database error while updating invoice',
-        details: sqlError instanceof Error ? sqlError.message : String(sqlError)
-      });
-    }
-    
-    try {
-      // Delete existing invoice items
-      await pool.query('DELETE FROM invoice_items WHERE invoice_id = $1', [invoiceId]);
+      console.log('Invoice updated successfully:', updatedInvoice);
       
-      // Insert new invoice items
+      // STEP 2: Delete existing invoice items
+      await client.query('DELETE FROM invoice_items WHERE invoice_id = $1', [invoiceId]);
+      
+      // STEP 3: Insert new invoice items
       for (const item of items) {
         const insertItemQuery = `
           INSERT INTO invoice_items (
@@ -1586,7 +1601,6 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
             tax_rate, tax_amount, discount_percent, discount_amount, line_total
           )
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-          RETURNING *
         `;
         
         const itemValues = [
@@ -1602,21 +1616,14 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
           item.lineTotal || item.amount
         ];
         
-        await pool.query(insertItemQuery, itemValues);
+        await client.query(insertItemQuery, itemValues);
       }
       
-      // Get the updated invoice directly from the database with a fresh query
-      const refreshQuery = `
-        SELECT * FROM invoices WHERE id = $1
-      `;
-      const refreshResult = await pool.query(refreshQuery, [invoiceId]);
+      // Commit the transaction
+      await client.query('COMMIT');
+      console.log('Transaction committed successfully');
       
-      if (refreshResult.rows && refreshResult.rows.length > 0) {
-        updatedInvoice = refreshResult.rows[0];
-        console.log('Fresh invoice data after update:', updatedInvoice);
-      }
-      
-      // Format the response data
+      // Format response data
       const formattedInvoice = {
         id: updatedInvoice.id,
         invoiceNumber: updatedInvoice.invoice_number,
@@ -1634,31 +1641,23 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
         updatedAt: updatedInvoice.updated_at
       };
       
-      // Return success response with explicit content type and manual JSON formatting
-      res.setHeader('Content-Type', 'application/json');
-      try {
-        const responseData = {
-          message: 'Invoice updated successfully',
-          invoice: formattedInvoice
-        };
-        // Manually convert to JSON string to ensure proper formatting
-        const jsonString = JSON.stringify(responseData);
-        // Send the response as a string with proper headers
-        res.send(jsonString);
-        return; // Important: return here to prevent further execution
-      } catch (jsonError) {
-        console.error('Error converting response to JSON:', jsonError);
-        res.status(500).json({ 
-          error: 'Failed to properly format response'
-        });
-        return; // Important: return here to prevent further execution
-      }
-    } catch (itemError) {
-      console.error('Error processing invoice items:', itemError);
-      return res.status(500).json({ 
-        error: 'Error updating invoice items',
-        details: itemError instanceof Error ? itemError.message : String(itemError)
+      // Send the successful response
+      return res.status(200).json({
+        message: 'Invoice updated successfully',
+        invoice: formattedInvoice
       });
+      
+    } catch (error) {
+      // Roll back the transaction on error
+      await client.query('ROLLBACK');
+      console.error('Transaction error during invoice update:', error);
+      return res.status(500).json({
+        error: 'Database error during invoice update',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    } finally {
+      // Always release the client back to the pool
+      client.release();
     }
     
     // Just in case this part of the code is still reached, we'll handle it

@@ -450,23 +450,23 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       
       // Format project ID correctly
       const projectId = values.projectId && values.projectId !== '' 
-        ? parseInt(values.projectId) 
+        ? values.projectId  // Keep as string for the API
         : null;
       
       // Transform values for API with explicit property assignments
       const apiData = {
         invoice: {
           invoiceNumber: values.invoiceNumber,
-          customerId: parseInt(values.customerId),
+          customerId: values.customerId, // Keep as string for the API
           projectId: projectId,
           issueDate: formattedIssueDate,
           dueDate: formattedDueDate,
           totalAmount: totalAmount,
           currency: values.currency,
-          sapInvoiceNo: values.sapInvoiceNo || null,
+          sapInvoiceNo: values.sapInvoiceNo || '',
           invoiceType: values.invoiceType,
           status: 'Pending',
-          notes: values.notes || null,
+          notes: values.notes || '',
         },
         items: values.items.map(item => ({
           description: item.description,
