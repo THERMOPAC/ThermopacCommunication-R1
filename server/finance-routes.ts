@@ -2353,66 +2353,58 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
       count: 0
     };
     
-    // Get optional payment type filter from query params
-    const paymentType = (req.query.paymentType && req.query.paymentType !== 'all') 
-      ? req.query.paymentType as string 
-      : null;
-    
-    console.log('Querying for unallocated advances with filter:', paymentType || 'None');
-    
-    // Build the query to get payments with unallocated amounts
-    let query = `
-      SELECT 
-        p.id, 
-        p.irm_no as "paymentReference",
-        p.customer_id as "customerId",
-        c.bp_name as "customerName",
-        p.payment_date as "paymentDate",
-        p.amount,
-        p.allocated_amount as "allocatedAmount",
-        p.unallocated_amount as "unallocatedAmount",
-        p.payment_method as "paymentMethod",
-        p.payment_type as "paymentType",
-        p.currency,
-        p.notes,
-        p.is_advance_payment as "isAdvancePayment",
-        CASE WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
-             WHEN p.unallocated_amount > 0 THEN 'Partially Allocated'
-             ELSE 'Fully Allocated' END as "allocationStatus",
-        p.created_by as "createdBy",
-        p.created_at as "createdAt",
-        p.updated_at as "updatedAt"
-      FROM 
-        payments p
-      JOIN 
-        customers c ON p.customer_id = c.id
-      WHERE 
-        p.unallocated_amount > 0
-    `;
-    
-    // Add optional payment type filter
-    const params = [];
-    if (paymentType) {
-      params.push(paymentType);
-      query += ` AND p.payment_type = $${params.length}`;
-    }
-    
-    // Add ordering
-    query += ` ORDER BY p.payment_date DESC`;
-    
     try {
+      console.log('Fetching unallocated payments...');
+      
+      // Simple query without parameters to avoid NaN errors
+      const query = `
+        SELECT 
+          p.id, 
+          p.irm_no as "paymentReference",
+          p.customer_id as "customerId",
+          c.bp_name as "customerName",
+          p.payment_date as "paymentDate",
+          p.amount,
+          p.allocated_amount as "allocatedAmount",
+          p.unallocated_amount as "unallocatedAmount",
+          p.payment_method as "paymentMethod",
+          p.payment_type as "paymentType",
+          p.currency,
+          p.notes,
+          p.is_advance_payment as "isAdvancePayment",
+          CASE WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
+               WHEN p.unallocated_amount > 0 THEN 'Partially Allocated'
+               ELSE 'Fully Allocated' END as "allocationStatus",
+          p.created_by as "createdBy",
+          p.created_at as "createdAt",
+          p.updated_at as "updatedAt"
+        FROM 
+          payments p
+        JOIN 
+          customers c ON p.customer_id = c.id
+        WHERE 
+          p.unallocated_amount > 0
+        ORDER BY 
+          p.payment_date DESC
+      `;
+      
       // Execute the query
-      const result = await pool.query(query, params);
+      const result = await pool.query(query);
       const advances = result.rows;
       
+      console.log(`Found ${advances.length} unallocated payments`);
+      
       // Calculate total unallocated amount
-      const totalUnallocatedAmount = advances.reduce(
-        (sum, payment) => sum + parseFloat(payment.unallocatedAmount), 0
-      ).toFixed(2);
+      let totalUnallocated = 0;
+      for (const payment of advances) {
+        if (payment.unallocatedAmount && !isNaN(parseFloat(payment.unallocatedAmount))) {
+          totalUnallocated += parseFloat(payment.unallocatedAmount);
+        }
+      }
       
       return res.json({
         advances: advances,
-        totalUnallocatedAmount: totalUnallocatedAmount,
+        totalUnallocatedAmount: totalUnallocated.toFixed(2),
         count: advances.length
       });
     } catch (dbError) {

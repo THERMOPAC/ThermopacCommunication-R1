@@ -35,6 +35,7 @@ import { default as financeRoutes } from "./finance-routes-fixed";
 import { default as simpleFinanceRoutes } from "./simple-finance-routes";
 import { financeReportRouter } from "./finance-report-routes";
 import { paymentAllocationApi } from "./payment-allocation-api";
+import { default as simplePaymentRoutes } from "./simple-payment-routes";
 import { default as financeWriteOffsRouter } from "./finance-write-offs";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
 import calibrationTestRoutes from "./testapi/calibration-test-routes";
@@ -136,6 +137,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up simplified finance routes (no database connection required)
   app.use('/api/simple-finance', simpleFinanceRoutes);
+  
+  // Set up simple payment allocation routes (with error handling)
+  app.use('/api/finance', simplePaymentRoutes);
   
   // Set up template management routes
   registerTemplateManagementRoutes(app);
