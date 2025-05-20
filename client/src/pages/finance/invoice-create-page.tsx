@@ -135,6 +135,16 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   const { data: invoiceData, isLoading: isLoadingInvoice } = useQuery({
     queryKey: [`/api/finance/invoices/${invoiceId}`],
     enabled: !!isEditMode && !!invoiceId,
+    queryFn: async ({queryKey}) => {
+      console.log('Fetching invoice data for ID:', invoiceId);
+      const response = await fetch(`/api/finance/invoices/${invoiceId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch invoice data');
+      }
+      const data = await response.json();
+      console.log('Received invoice data:', data);
+      return data;
+    },
   });
   
   // Create form first, so we can watch the invoice type
