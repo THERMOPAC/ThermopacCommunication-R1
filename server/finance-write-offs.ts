@@ -13,41 +13,47 @@ router.get('/', ensureAuthenticated, async (req, res) => {
   try {
     const { status } = req.query;
     
-    // Build the query
-    let query = db.select().from(writeOffs)
-      .leftJoin(invoices, eq(writeOffs.invoiceId, invoices.id))
-      .leftJoin(users, eq(writeOffs.createdBy, users.id));
+    // Create a query builder for selecting the data
+    const qb = db.select({
+      writeOff: writeOffs,
+      invoice: invoices,
+      user: users
+    })
+    .from(writeOffs)
+    .leftJoin(invoices, eq(writeOffs.invoiceId, invoices.id))
+    .leftJoin(users, eq(writeOffs.createdBy, users.id));
     
     // Apply status filter if provided
-    if (status) {
-      query = query.where(eq(writeOffs.status, status as string));
+    let results;
+    if (status && typeof status === 'string') {
+      results = await qb.where(eq(writeOffs.status, status))
+        .orderBy(writeOffs.dateCreated);
+    } else {
+      results = await qb.orderBy(writeOffs.dateCreated);
     }
-    
-    // Execute the query
-    const results = await query.orderBy(writeOffs.dateCreated);
     
     // Map the join results to a clean response object
     const formattedResults = results.map(row => ({
-      id: row.write_offs.id,
-      invoiceId: row.write_offs.invoiceId,
-      invoiceNumber: row.invoices?.invoiceNumber || 'Unknown',
-      customerName: 'Customer ' + row.invoices?.customerId, // We should join with customers table in a real implementation
-      amount: row.write_offs.amount,
-      originalInvoiceAmount: row.invoices?.totalAmount || 0,
-      reason: row.write_offs.reason,
-      notes: row.write_offs.notes,
-      dateCreated: row.write_offs.dateCreated,
+      id: row.writeOff.id,
+      invoiceId: row.writeOff.invoiceId,
+      invoiceNumber: row.invoice?.invoiceNumber || 'Unknown',
+      customerName: 'Customer ' + (row.invoice?.customerId || 'Unknown'),
+      amount: row.writeOff.amount,
+      originalInvoiceAmount: row.invoice?.totalAmount || '0',
+      reason: row.writeOff.reason,
+      notes: row.writeOff.notes,
+      dateCreated: row.writeOff.dateCreated,
       createdBy: {
-        id: row.write_offs.createdBy,
-        name: row.users?.username || 'Unknown'
+        id: row.writeOff.createdBy,
+        name: row.user?.username || 'Unknown'
       },
-      status: row.write_offs.status,
-      approvedBy: row.write_offs.approvedBy ? {
-        id: row.write_offs.approvedBy,
+      status: row.writeOff.status,
+      approvedBy: row.writeOff.approvedBy ? {
+        id: row.writeOff.approvedBy,
         name: 'Approver' // We should join with users table for approver in a real implementation
       } : null,
-      approvalDate: row.write_offs.approvalDate,
-      currency: row.invoices?.currency || 'INR'
+      approvalDate: row.writeOff.approvalDate,
+      currency: row.invoice?.currency || 'INR'
     }));
     
     res.status(200).json(formattedResults);
@@ -62,11 +68,15 @@ router.get('/:id', ensureAuthenticated, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const [result] = await db.select()
-      .from(writeOffs)
-      .leftJoin(invoices, eq(writeOffs.invoiceId, invoices.id))
-      .leftJoin(users, eq(writeOffs.createdBy, users.id))
-      .where(eq(writeOffs.id, parseInt(id)));
+    const [result] = await db.select({
+      writeOff: writeOffs,
+      invoice: invoices,
+      user: users
+    })
+    .from(writeOffs)
+    .leftJoin(invoices, eq(writeOffs.invoiceId, invoices.id))
+    .leftJoin(users, eq(writeOffs.createdBy, users.id))
+    .where(eq(writeOffs.id, parseInt(id)));
     
     if (!result) {
       return res.status(404).json({ error: 'Write-off not found' });
@@ -74,26 +84,26 @@ router.get('/:id', ensureAuthenticated, async (req, res) => {
     
     // Format the response
     const writeOff = {
-      id: result.write_offs.id,
-      invoiceId: result.write_offs.invoiceId,
-      invoiceNumber: result.invoices?.invoiceNumber || 'Unknown',
-      customerName: 'Customer ' + result.invoices?.customerId, // We should join with customers table in a real implementation
-      amount: result.write_offs.amount,
-      originalInvoiceAmount: result.invoices?.totalAmount || 0,
-      reason: result.write_offs.reason,
-      notes: result.write_offs.notes,
-      dateCreated: result.write_offs.dateCreated,
+      id: result.writeOff.id,
+      invoiceId: result.writeOff.invoiceId,
+      invoiceNumber: result.invoice?.invoiceNumber || 'Unknown',
+      customerName: 'Customer ' + (result.invoice?.customerId || 'Unknown'),
+      amount: result.writeOff.amount,
+      originalInvoiceAmount: result.invoice?.totalAmount || '0',
+      reason: result.writeOff.reason,
+      notes: result.writeOff.notes,
+      dateCreated: result.writeOff.dateCreated,
       createdBy: {
-        id: result.write_offs.createdBy,
-        name: result.users?.username || 'Unknown'
+        id: result.writeOff.createdBy,
+        name: result.user?.username || 'Unknown'
       },
-      status: result.write_offs.status,
-      approvedBy: result.write_offs.approvedBy ? {
-        id: result.write_offs.approvedBy,
+      status: result.writeOff.status,
+      approvedBy: result.writeOff.approvedBy ? {
+        id: result.writeOff.approvedBy,
         name: 'Approver' // We should join with users table for approver in a real implementation
       } : null,
-      approvalDate: result.write_offs.approvalDate,
-      currency: result.invoices?.currency || 'INR'
+      approvalDate: result.writeOff.approvalDate,
+      currency: result.invoice?.currency || 'INR'
     };
     
     res.status(200).json(writeOff);
