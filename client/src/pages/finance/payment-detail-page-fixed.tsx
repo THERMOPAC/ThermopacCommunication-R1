@@ -196,7 +196,7 @@ export default function PaymentDetailPage() {
                   <Separator className="my-2" />
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Unapplied Amount:</span>
-                    <span className="text-sm font-bold text-amber-600">{formatRupees(unappliedAmount)}</span>
+                    <span className="text-sm font-bold text-amber-600">{formatUSD(unappliedAmount)}</span>
                   </div>
                 </>
               )}
@@ -263,13 +263,13 @@ export default function PaymentDetailPage() {
                             {allocation.invoiceType}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right text-sm">{formatRupees(allocation.invoiceAmount)}</td>
-                        <td className="px-4 py-3 text-right text-sm font-medium">{formatRupees(allocation.amountApplied)}</td>
+                        <td className="px-4 py-3 text-right text-sm">{formatUSD(allocation.invoiceAmount)}</td>
+                        <td className="px-4 py-3 text-right text-sm font-medium">{formatUSD(allocation.amountApplied)}</td>
                       </tr>
                     ))}
                     <tr className="bg-muted/50">
                       <td colSpan={3} className="px-4 py-3 text-right text-sm font-bold">Total Applied:</td>
-                      <td className="px-4 py-3 text-right text-sm font-bold">{formatRupees(totalApplied)}</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold">{formatUSD(totalApplied)}</td>
                     </tr>
                   </tbody>
                 </table>
