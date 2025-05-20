@@ -292,7 +292,7 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
           p.payment_type AS "paymentType",
           p.payment_method AS "paymentMethod",
           p.sap_payment_no AS "sapPaymentNo",
-          p.reference,
+          p.reference_number AS reference,
           p.currency,
           p.amount,
           (p.amount - COALESCE((
