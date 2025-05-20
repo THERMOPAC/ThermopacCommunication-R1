@@ -187,38 +187,53 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   
   // Update form when payment data is loaded
   useEffect(() => {
-    if (isInEditMode && paymentData && paymentData.payment) {
+    if (isInEditMode && paymentData) {
       console.log('Setting form values with payment data:', JSON.stringify(paymentData, null, 2));
       
-      // Get the payment details
-      const payment = paymentData.payment;
+      // Check different possible structures for payment data
+      // The API might return payment directly or nested in a payment property
+      const payment = paymentData.payment || paymentData;
       
       // Log the raw payment data to debug with stringified version to see all fields
       console.log('Raw payment data from API:', payment);
       console.log('Payment data stringified:', JSON.stringify(payment, null, 2));
+      
+      if (!payment || !payment.id) {
+        console.error('No valid payment data found in:', paymentData);
+        return;
+      }
       
       // Set isAdvancePayment based on the payment data
       const isAdvancePayment = payment.is_advance_payment || false;
       console.log('Is advance payment:', isAdvancePayment);
       
       // Parse the payment date from the string to a Date object
-      const paymentDate = payment.payment_date ? new Date(payment.payment_date) : new Date();
+      // Handle different date field names
+      const paymentDateStr = payment.payment_date || payment.paymentDate;
+      const paymentDate = paymentDateStr ? new Date(paymentDateStr) : new Date();
       console.log('Parsed payment date:', paymentDate);
+      
+      // The backend may use either snake_case or camelCase property names
+      // So we check for both versions of each field
       
       // Set up the initial form values from the payment data
       const formValues: PaymentFormValues = {
-        referenceNumber: payment.reference_number || "",
-        irmNo: payment.irm_no || "", // Changed from irmNo to irm_no to match backend
+        referenceNumber: payment.reference_number || payment.referenceNumber || "",
+        irmNo: payment.irm_no || payment.irmNo || "",
         paymentDate: paymentDate,
-        sapPaymentNo: payment.sap_payment_no || "",
-        paymentType: payment.payment_type || "Product",
+        sapPaymentNo: payment.sap_payment_no || payment.sapPaymentNo || "",
+        paymentType: payment.payment_type || payment.paymentType || "Product",
         amount: payment.amount || "",
-        unallocatedAmount: payment.unallocated_amount || payment.amount || "",
+        unallocatedAmount: payment.unallocated_amount || payment.unallocatedAmount || payment.amount || "",
         currency: payment.currency || "USD",
-        paymentMethod: payment.payment_method || "",
+        paymentMethod: payment.payment_method || payment.paymentMethod || "",
         notes: payment.notes || "",
         isAdvancePayment: isAdvancePayment,
-        customerId: payment.customer_id ? payment.customer_id.toString() : "",
+        customerId: payment.customer_id 
+          ? payment.customer_id.toString() 
+          : payment.customerId 
+            ? payment.customerId.toString() 
+            : "",
         invoiceLinks: [],
       };
       
