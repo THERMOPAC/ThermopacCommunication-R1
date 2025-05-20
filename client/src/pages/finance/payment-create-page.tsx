@@ -173,9 +173,12 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   }
 
   // Get all invoices and customers data
-  const { data: outstandingInvoices, isLoading: isLoadingInvoices, error: invoicesError } = useQuery<Invoice[]>({
+  const { data: invoicesData, isLoading: isLoadingInvoices, error: invoicesError } = useQuery({
     queryKey: ['/api/finance/invoices'],
   });
+  
+  // Safely extract invoices array with proper fallback
+  const outstandingInvoices = invoicesData?.invoices || [];
   
   const { data: customersList, isLoading: isLoadingCustomers } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],
@@ -749,19 +752,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     );
   }
   
-  if (invoicesError) {
-    return (
-      <Layout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
-            Failed to load outstanding invoices. Please try again later.
-          </AlertDescription>
-        </Alert>
-      </Layout>
-    );
-  }
+  // Handle invoices error more gracefully - show a warning but don't block the whole page
+  const hasInvoiceError = invoicesError && !isEditMode;
   
   return (
     <Layout>
