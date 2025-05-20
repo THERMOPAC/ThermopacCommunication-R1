@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -264,20 +264,31 @@ export default function PaymentAllocationPage() {
 
   // Filter invoices based on selected payment
   useEffect(() => {
-    if (selectedPayment) {
-      // Filter by payment type matching invoice type and only show unpaid/partially paid
-      const filtered = sampleInvoices.filter(
-        invoice => 
-          invoice.invoiceType === selectedPayment.paymentType && 
-          invoice.outstandingAmount > 0 &&
-          invoice.customerName === selectedPayment.customerName
+    if (selectedPayment && invoicesData?.invoices?.length > 0) {
+      // Transform API data to match our component's expected format
+      const filtered = invoicesData.invoices.map((invoice: any) => ({
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceType: invoice.invoiceType,
+        invoiceDate: invoice.issueDate || invoice.invoiceDate,
+        dueDate: invoice.dueDate,
+        totalAmount: parseFloat(invoice.totalAmount || invoice.total || '0'),
+        paidAmount: parseFloat(invoice.totalAmount || invoice.total || '0') - parseFloat(invoice.outstandingAmount || '0'),
+        outstandingAmount: parseFloat(invoice.outstandingAmount || '0'),
+        currency: invoice.currency || 'USD',
+        status: invoice.status || 'Unpaid',
+        customerName: invoice.customerName
+      })).filter(invoice => 
+        invoice.invoiceType === selectedPayment.paymentType && 
+        invoice.outstandingAmount > 0
       );
+      
       setFilteredInvoices(filtered);
       form.setValue('paymentId', selectedPayment.id);
     } else {
       setFilteredInvoices([]);
     }
-  }, [selectedPayment, form]);
+  }, [selectedPayment, invoicesData, form]);
 
   // Toggle invoice selection
   const toggleInvoice = (invoice: Invoice) => {
@@ -320,6 +331,53 @@ export default function PaymentAllocationPage() {
     return invoices.reduce((total, invoice) => total + invoice.allocationAmount, 0);
   };
 
+  // API mutation for submitting allocations
+  const allocateMutation = useMutation({
+    mutationFn: async (values: AllocationFormValues) => {
+      const response = await fetch(`/api/finance/payments/${values.paymentId}/allocate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          invoiceAllocations: values.invoices.map(inv => ({
+            invoiceId: inv.invoiceId,
+            amountApplied: inv.allocationAmount
+          })),
+          comment: values.comment || ''
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to allocate payment');
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      // Invalidate related queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/unallocated-advances'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/outstanding-invoices'] });
+      
+      toast({
+        title: "Payment Allocated Successfully",
+        description: "The payment has been allocated to the selected invoices.",
+      });
+      
+      // Reset form and selection state
+      resetAllocation();
+      setConfirmationOpen(true);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Allocation Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   // Handle form submission
   const onSubmit = (values: AllocationFormValues) => {
     // Check if total allocation exceeds remaining amount
@@ -344,9 +402,8 @@ export default function PaymentAllocationPage() {
       return;
     }
 
-    // In a real implementation, this would call the API
-    console.log('Allocation submitted:', values);
-    setConfirmationOpen(true);
+    console.log('Submitting allocation:', values);
+    allocateMutation.mutate(values);
   };
 
   // Reset allocation form
@@ -356,18 +413,73 @@ export default function PaymentAllocationPage() {
     form.reset();
   };
 
-  // In a real implementation, these would be API calls
-  const { data: payments = samplePayments, isLoading: paymentsLoading } = useQuery({
-    queryKey: ['/api/finance/payments/unallocated'],
+  // Get payments with unallocated amounts that can be allocated to invoices
+  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
+    queryKey: ['/api/finance/unallocated-advances'],
     queryFn: async () => {
-      // This would normally be an API call
-      return samplePayments;
+      const response = await fetch('/api/finance/unallocated-advances');
+      if (!response.ok) {
+        throw new Error('Failed to fetch unallocated payments');
+      }
+      return await response.json();
     }
   });
 
+  // Transform the API response to match our component's expected format
+  const payments: Payment[] = useMemo(() => {
+    if (!paymentsData || !paymentsData.advances) return [];
+    
+    return paymentsData.advances.map((payment: any) => ({
+      id: payment.id,
+      paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
+      paymentType: payment.paymentType,
+      paymentDate: payment.paymentDate,
+      amount: parseFloat(payment.amount),
+      allocatedAmount: parseFloat(payment.allocatedAmount || '0'),
+      remainingAmount: parseFloat(payment.unallocatedAmount || '0'),
+      currency: payment.currency || 'USD',
+      status: payment.allocationStatus || 'Unallocated',
+      customerName: payment.customerName
+    }));
+  }, [paymentsData]);
+
+  // Get outstanding invoices that can receive payment allocations
+  const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
+    queryKey: ['/api/finance/outstanding-invoices', selectedPayment?.paymentType, selectedPayment?.customerName],
+    queryFn: async () => {
+      // Only fetch invoices if a payment is selected
+      if (!selectedPayment) return { invoices: [] };
+      
+      const url = new URL('/api/finance/outstanding-invoices', window.location.origin);
+      
+      // Add query parameters for filtering
+      if (selectedPayment.paymentType) {
+        url.searchParams.append('invoiceType', selectedPayment.paymentType);
+      }
+      
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error('Failed to fetch outstanding invoices');
+      }
+      return await response.json();
+    },
+    enabled: !!selectedPayment // Only run this query when a payment is selected
+  });
+
   // Get allocations for a specific payment
-  const getPaymentAllocations = (paymentId: number) => {
-    return sampleAllocations.filter(allocation => allocation.paymentId === paymentId);
+  const getPaymentAllocations = async (paymentId: number) => {
+    try {
+      const response = await fetch(`/api/finance/payments/${paymentId}/allocations`);
+      if (!response.ok) {
+        console.error('Failed to fetch payment allocations');
+        return [];
+      }
+      const data = await response.json();
+      return data.allocations || [];
+    } catch (error) {
+      console.error('Error fetching payment allocations:', error);
+      return [];
+    }
   };
 
   return (
