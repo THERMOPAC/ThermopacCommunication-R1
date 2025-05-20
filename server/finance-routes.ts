@@ -987,13 +987,60 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       }
     } else {
       // If no advance payments were specified but there are unallocated advances for this customer,
-      // we could auto-apply them here (optionally based on a setting)
+      // automatically apply available advance payments
+      console.log('Checking for available advance payments to apply automatically');
       
-      // Initialize outstanding_amount to total_amount
-      await pool.query(
-        'UPDATE invoices SET outstanding_amount = total_amount WHERE id = $1',
-        [invoiceId]
-      );
+      try {
+        // First, initialize outstanding_amount to total_amount
+        await pool.query(
+          'UPDATE invoices SET outstanding_amount = total_amount WHERE id = $1',
+          [invoiceId]
+        );
+        
+        // Query for available advance payments for this customer and matching type
+        const advancePaymentsQuery = `
+          SELECT id, unallocated_amount 
+          FROM payments 
+          WHERE customer_id = $1 
+            AND is_advance_payment = true 
+            AND unallocated_amount > 0
+            AND payment_type = $2
+          ORDER BY payment_date ASC
+        `;
+        
+        const advancePaymentsResult = await pool.query(
+          advancePaymentsQuery, 
+          [invoice.customerId, invoice.invoiceType]
+        );
+        
+        if (advancePaymentsResult.rows.length > 0) {
+          console.log(`Found ${advancePaymentsResult.rows.length} advance payments available for auto-allocation`);
+          
+          // Create allocation data for each advance payment
+          const advanceAllocations = advancePaymentsResult.rows.map(payment => ({
+            paymentId: payment.id,
+            amountToApply: parseFloat(payment.unallocated_amount)
+          }));
+          
+          // Apply advance payments using our service
+          const result = await paymentAllocationService.applyAdvancePaymentsToInvoice(
+            invoiceId,
+            invoice.customerId,
+            advanceAllocations,
+            req.user?.id || 1
+          );
+          
+          console.log('Auto-applied advance payments:', result);
+          
+          totalAdvanceAmount = result.totalApplied;
+          advancePaymentsApplied = result.allocations.length;
+        } else {
+          console.log('No available advance payments found for auto-allocation');
+        }
+      } catch (error) {
+        console.error('Error auto-applying advance payments:', error);
+        // Continue with invoice creation even if advance payment application fails
+      }
     }
     
     // Log the success
