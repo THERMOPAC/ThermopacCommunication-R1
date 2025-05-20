@@ -608,7 +608,7 @@ router.delete('/allocations/:id', ensureAuthenticated, async (req: Request, res:
     const { id } = req.params;
     
     // Import the payment allocation service
-    // Using paymentAllocationService imported at the top of the file
+    const { paymentAllocationService } = require('./payment-allocation-service');
     
     // Remove the allocation
     const result = await paymentAllocationService.removeAllocation(parseInt(id));
@@ -956,7 +956,7 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
         console.log(`Processing ${advancePaymentsApplied} advance payment allocations`);
         
         // Import the payment allocation service
-        // Using paymentAllocationService imported at the top of the file
+        const { paymentAllocationService } = require('./payment-allocation-service');
         
         try {
           // Apply advance payments using our service
@@ -2070,7 +2070,7 @@ router.post('/invoices/:id/write-off', ensureAuthenticated, async (req: Request,
     }
     
     // Import the write-off service
-    // Using writeOffService imported at the top of the file
+    const { writeOffService } = require('./write-off-service');
     
     // Create the write-off
     const writeOff = await writeOffService.writeOffInvoice(
@@ -2109,7 +2109,7 @@ router.post('/payments/:id/write-off', ensureAuthenticated, async (req: Request,
     }
     
     // Import the write-off service
-    // Using writeOffService imported at the top of the file
+    const { writeOffService } = require('./write-off-service');
     
     // Create the write-off
     const writeOff = await writeOffService.writeOffPayment(
@@ -2141,7 +2141,7 @@ router.get('/invoices/:id/write-offs', ensureAuthenticated, async (req: Request,
     const { id } = req.params;
     
     // Import the write-off service
-    // Using writeOffService imported at the top of the file
+    const { writeOffService } = require('./write-off-service');
     
     // Get the write-offs
     const writeOffs = await writeOffService.getWriteOffsBySource('Invoice', parseInt(id));
@@ -2165,7 +2165,7 @@ router.get('/payments/:id/write-offs', ensureAuthenticated, async (req: Request,
     const { id } = req.params;
     
     // Import the write-off service
-    // Using writeOffService imported at the top of the file
+    const { writeOffService } = require('./write-off-service');
     
     // Get the write-offs
     const writeOffs = await writeOffService.getWriteOffsBySource('Payment', parseInt(id));
@@ -2189,7 +2189,7 @@ router.get('/write-offs', ensureAuthenticated, async (req: Request, res: Respons
     const { status, sourceType, createdBy, fromDate, toDate } = req.query;
     
     // Import the write-off service
-    // Using writeOffService imported at the top of the file
+    const { writeOffService } = require('./write-off-service');
     
     // Prepare filters
     const filters: any = {};
@@ -2236,7 +2236,7 @@ router.post('/write-offs/:id/approve', ensureAuthenticated, async (req: Request,
     const { id } = req.params;
     
     // Import the write-off service
-    // Using writeOffService imported at the top of the file
+    const { writeOffService } = require('./write-off-service');
     
     // Approve the write-off
     const result = await writeOffService.approveWriteOff(parseInt(id), req.user?.id || 1);
@@ -2261,7 +2261,7 @@ router.post('/write-offs/:id/reject', ensureAuthenticated, async (req: Request, 
     const { reason } = req.body;
     
     // Import the write-off service
-    // Using writeOffService imported at the top of the file
+    const { writeOffService } = require('./write-off-service');
     
     // Reject the write-off
     const result = await writeOffService.rejectWriteOff(parseInt(id), req.user?.id || 1, reason);
