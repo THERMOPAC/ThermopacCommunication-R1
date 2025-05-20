@@ -193,9 +193,13 @@ export async function getNextPaymentReferenceNumber(paymentDate: Date): Promise<
   const financialYear = getIndianFinancialYear(paymentDate);
   
   try {
-    // Use apiRequest helper which includes authentication cookies
-    const response = await import('@/lib/queryClient').then(module => {
-      return module.apiRequest('GET', '/api/finance/payments/latest-reference');
+    // Use direct fetch with proper authentication
+    const response = await fetch('/api/finance/payments/latest-reference', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include' // Include cookies for authentication
     });
     
     if (!response.ok) {
