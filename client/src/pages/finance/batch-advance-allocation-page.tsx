@@ -132,7 +132,7 @@ export default function BatchAdvanceAllocationPage() {
       
       toast({
         title: "Batch Allocation Successful",
-        description: `Applied advance payments to ${result.results.length} invoices.`,
+        description: `Applied ${result.uniquePaymentsUsed || 0} advance payments to ${result.uniqueInvoicesUpdated || 0} invoices.`,
         variant: "default",
       });
       
@@ -143,12 +143,29 @@ export default function BatchAdvanceAllocationPage() {
       // Close the dialog
       setConfirmDialogOpen(false);
     },
-    onError: (error: any) => {
+    onError: async (error: any) => {
+      // Try to parse the response error message if available
+      let errorMessage = "Failed to apply advance payments. Please try again.";
+      
+      try {
+        if (error.response) {
+          const errorData = await error.response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+      } catch (e) {
+        console.error("Error parsing error response:", e);
+      }
+      
       toast({
         title: "Batch Allocation Failed",
-        description: error.message || "Failed to apply advance payments. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
+      
+      // Close the dialog
+      setConfirmDialogOpen(false);
     }
   });
 
