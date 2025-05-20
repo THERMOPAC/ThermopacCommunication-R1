@@ -568,8 +568,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                               placeholder="Auto-generated" 
                               {...field} 
                               value={field.value || ''} 
-                              readOnly={true}
-                              className="bg-muted cursor-not-allowed"
+                              readOnly={false}
+                              className=""
                             />
                           </FormControl>
                           <FormMessage />
@@ -765,8 +765,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                                   // When amount changes, update the unallocated amount too
                                   form.setValue('unallocatedAmount', e.target.value);
                                 }}
-                                readOnly={isInEditMode} // In edit mode, amount should be locked
-                                disabled={isInEditMode}
+                                readOnly={false} // Make amount editable in both modes
+                                disabled={false}
                                 step="0.01"
                               />
                             </div>
@@ -795,7 +795,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                                   setSelectedInvoices([]);
                                 }
                               }}
-                              disabled={isInEditMode} // Lock in edit mode
+                              disabled={false} // Make editable in both modes
                             />
                           </FormControl>
                           <div className="space-y-1 leading-none">
@@ -847,28 +847,29 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                       </FormItem>
                     )}
                   />
+                  
+                  {/* Notes field moved to be right below the Customer field */}
+                  <FormField
+                    control={form.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Notes</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Enter any additional notes about this payment"
+                            {...field}
+                            value={field.value || ''}
+                            className="min-h-[100px]"
+                            readOnly={false}
+                            disabled={false}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-                
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Enter any additional notes about this payment"
-                          {...field}
-                          value={field.value || ''}
-                          className="min-h-[100px]"
-                          readOnly={false}
-                          disabled={false}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
               
               {/* Invoice allocation section */}
