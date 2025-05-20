@@ -7,31 +7,136 @@ const router = Router();
 /**
  * Get overall financial dashboard data
  */
-router.get('/dashboard', ensureAuthenticated, (req: Request, res: Response) => {
-  res.json({
-    totalInvoices: {
-      count: 0,
-      amount: "0.00"
-    },
-    paidInvoices: {
-      count: 0,
-      amount: "0.00"
-    },
-    unpaidInvoices: {
-      count: 0,
-      amount: "0.00"
-    },
-    overdueInvoices: {
-      count: 0,
-      amount: "0.00"
-    },
-    totalPayments: {
-      count: 0,
-      amount: "0.00"
-    },
-    recentInvoices: [],
-    recentPayments: []
-  });
+router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Get invoices from database
+    const invoicesQuery = `
+      SELECT 
+        COUNT(*) as "totalCount",
+        COALESCE(SUM(total_amount), 0) as "totalAmount",
+        COUNT(CASE WHEN status = 'Paid' THEN 1 END) as "paidCount",
+        COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as "paidAmount",
+        COUNT(CASE WHEN status != 'Paid' THEN 1 END) as "unpaidCount",
+        COALESCE(SUM(CASE WHEN status != 'Paid' THEN total_amount ELSE 0 END), 0) as "unpaidAmount",
+        COALESCE(SUM(CASE WHEN status != 'Paid' THEN outstanding_amount ELSE 0 END), 0) as "outstandingAmount",
+        COUNT(CASE WHEN due_date < CURRENT_DATE AND status != 'Paid' THEN 1 END) as "overdueCount",
+        COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE AND status != 'Paid' THEN outstanding_amount ELSE 0 END), 0) as "overdueAmount"
+      FROM 
+        invoices
+    `;
+    
+    const invoiceStatsResult = await pool.query(invoicesQuery);
+    const invoiceStats = invoiceStatsResult.rows[0];
+    
+    // Get payment stats
+    const paymentsQuery = `
+      SELECT 
+        COUNT(*) as "totalCount",
+        COALESCE(SUM(amount), 0) as "totalAmount"
+      FROM 
+        payments
+    `;
+    
+    const paymentStatsResult = await pool.query(paymentsQuery);
+    const paymentStats = paymentStatsResult.rows[0];
+    
+    // Get recent invoices
+    const recentInvoicesQuery = `
+      SELECT 
+        i.id,
+        i.invoice_number as "invoiceNumber",
+        c.bp_name as "clientName",
+        i.issue_date as "issueDate",
+        i.due_date as "dueDate",
+        i.total_amount as "amount",
+        i.status
+      FROM 
+        invoices i
+      LEFT JOIN
+        customers c ON i.customer_id = c.id
+      ORDER BY 
+        i.issue_date DESC
+      LIMIT 5
+    `;
+    
+    const recentInvoicesResult = await pool.query(recentInvoicesQuery);
+
+    // Get recent payments
+    const recentPaymentsQuery = `
+      SELECT 
+        p.id,
+        p.reference_number as "referenceNumber",
+        p.customer_id as "customerId", 
+        c.bp_name as "customerName",
+        p.payment_date as "paymentDate",
+        p.amount,
+        p.payment_method as "paymentMethod",
+        p.currency,
+        CASE 
+          WHEN p.unallocated_amount > 0 THEN 'Partially Allocated' 
+          WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
+          ELSE 'Fully Allocated'
+        END as "allocationStatus"
+      FROM 
+        payments p
+      LEFT JOIN
+        customers c ON p.customer_id = c.id
+      ORDER BY 
+        p.payment_date DESC
+      LIMIT 5
+    `;
+    
+    const recentPaymentsResult = await pool.query(recentPaymentsQuery);
+    
+    // Format response
+    res.json({
+      totalInvoices: {
+        count: parseInt(invoiceStats.totalCount),
+        amount: invoiceStats.totalAmount.toString()
+      },
+      paidInvoices: {
+        count: parseInt(invoiceStats.paidCount),
+        amount: invoiceStats.paidAmount.toString()
+      },
+      unpaidInvoices: {
+        count: parseInt(invoiceStats.unpaidCount),
+        amount: invoiceStats.unpaidAmount.toString()
+      },
+      overdueInvoices: {
+        count: parseInt(invoiceStats.overdueCount),
+        amount: invoiceStats.overdueAmount.toString()
+      },
+      totalOutstanding: {
+        count: parseInt(invoiceStats.unpaidCount),
+        amount: invoiceStats.outstandingAmount.toString()
+      },
+      totalOverdue: {
+        count: parseInt(invoiceStats.overdueCount),
+        amount: invoiceStats.overdueAmount.toString()
+      },
+      totalPayments: {
+        count: parseInt(paymentStats.totalCount),
+        amount: paymentStats.totalAmount.toString()
+      },
+      recentInvoices: recentInvoicesResult.rows.map(row => ({
+        ...row,
+        issueDate: row.issueDate ? new Date(row.issueDate).toISOString().split('T')[0] : '',
+        dueDate: row.dueDate ? new Date(row.dueDate).toISOString().split('T')[0] : '',
+        amount: row.amount ? row.amount.toString() : '0.00'
+      })),
+      latestPayments: recentPaymentsResult.rows.map(row => ({
+        ...row,
+        paymentDate: row.paymentDate ? new Date(row.paymentDate).toISOString().split('T')[0] : '',
+        amount: row.amount ? row.amount.toString() : '0.00'
+      }))
+    });
+  } catch (error) {
+    console.error('Error retrieving dashboard data:', error);
+    res.status(500).json({ 
+      error: 'Failed to retrieve dashboard data',
+      details: error instanceof Error ? error.message : String(error) 
+    });
+  }
 });
 
 /**
