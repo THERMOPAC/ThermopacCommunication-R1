@@ -2001,6 +2001,75 @@ router.get('/test/invoice-number', async (req: Request, res: Response) => {
 });
 
 /**
+ * Get outstanding invoices
+ */
+router.get('/invoices/outstanding', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Extract optional filters from query params
+    const customerId = req.query.customerId ? parseInt(req.query.customerId as string) : null;
+    const invoiceType = req.query.invoiceType as string;
+    
+    // Build the base query
+    let query = `
+      SELECT 
+        i.id,
+        i.invoice_number as "invoiceNumber",
+        i.customer_id as "customerId",
+        c.bp_name as "customerName",
+        i.issue_date as "issueDate",
+        i.due_date as "dueDate",
+        i.total_amount as "totalAmount",
+        i.outstanding_amount as "outstandingAmount",
+        i.currency,
+        i.invoice_type as "invoiceType",
+        i.status,
+        i.notes,
+        i.created_by as "createdBy",
+        i.created_at as "createdAt",
+        i.updated_at as "updatedAt"
+      FROM 
+        invoices i
+      JOIN 
+        customers c ON i.customer_id = c.id
+      WHERE 
+        i.outstanding_amount > 0
+    `;
+    
+    // Add filters if provided
+    const params = [];
+    if (customerId) {
+      params.push(customerId);
+      query += ` AND i.customer_id = $${params.length}`;
+    }
+    
+    if (invoiceType) {
+      params.push(invoiceType);
+      query += ` AND i.invoice_type = $${params.length}`;
+    }
+    
+    // Add order by clause
+    query += ` ORDER BY i.issue_date ASC`;
+    
+    console.log('Querying for outstanding invoices with filters:', { customerId, invoiceType });
+    const result = await pool.query(query, params);
+    const invoices = result.rows;
+    
+    // Calculate total outstanding amount
+    const totalOutstanding = invoices.reduce((sum, invoice) => 
+      sum + parseFloat(invoice.outstandingAmount), 0).toFixed(2);
+    
+    res.json({
+      invoices: invoices,
+      totalOutstanding: totalOutstanding,
+      count: invoices.length
+    });
+  } catch (error) {
+    console.error('Error getting outstanding invoices:', error);
+    res.status(500).json({ error: 'Failed to get outstanding invoices' });
+  }
+});
+
+/**
  * Get unallocated advance payments
  */
 router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {

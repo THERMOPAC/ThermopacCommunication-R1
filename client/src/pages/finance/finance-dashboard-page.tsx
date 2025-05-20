@@ -244,6 +244,12 @@ export default function FinanceDashboardPage() {
                       </Link>
                     </Button>
                     <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link href="/finance/batch-advance-allocation">
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Batch Advance Allocation
+                      </Link>
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" asChild>
                       <Link href="/finance/reports/reconciliation">
                         <BarChart3 className="mr-2 h-4 w-4" />
                         Financial Reconciliation
