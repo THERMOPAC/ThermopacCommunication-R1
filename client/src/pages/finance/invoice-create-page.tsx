@@ -549,7 +549,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       const apiData = {
         invoice: {
           invoiceNumber: values.invoiceNumber,
-          customerId: values.customerId, // Keep as string for the API
+          customerId: parseInt(values.customerId), // Ensure it's a number
           projectId: projectId,
           issueDate: formattedIssueDate,
           dueDate: formattedDueDate,
@@ -577,43 +577,10 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       console.log('Updating invoice data:', JSON.stringify(apiData, null, 2));
       
       try {
-        // Use native fetch with credentials included
-        console.log('Updating invoice data on server...');
-        const response = await fetch(`/api/finance/invoices/${invoiceId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          credentials: 'include', // Include credentials for authenticated requests
-          body: JSON.stringify(apiData)
-        });
-        
-        // Special handling for non-JSON responses
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.indexOf("application/json") === -1) {
-          // Not a JSON response, handle as text
-          const text = await response.text();
-          console.error('Received non-JSON response:', text);
-          
-          if (!response.ok) {
-            throw new Error(`Server returned non-JSON response with status ${response.status}`);
-          }
-          
-          // If somehow we got here with a successful non-JSON response
-          return { success: true, message: "Invoice updated successfully" };
-        }
-        
-        // Handle normal JSON response
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          console.error('Invoice update failed:', response.status, errorData);
-          throw new Error(errorData.error || `Failed to update invoice: ${response.status}`);
-        }
-        
-        return await response.json();
+        // Use apiRequest from queryClient for consistent error handling
+        return await apiRequest('PUT', `/api/finance/invoices/${invoiceId}`, apiData);
       } catch (error) {
-        console.error('Error during fetch operation:', error);
+        console.error('Error during invoice update:', error);
         // If it's an Error instance, rethrow it
         if (error instanceof Error) {
           throw error;
