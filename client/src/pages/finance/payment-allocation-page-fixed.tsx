@@ -128,15 +128,18 @@ export default function PaymentAllocationPage() {
 
   // Get unallocated payments
   const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
-    queryKey: ['/api/finance/payments/unallocated-advances'],
+    queryKey: ['/api/finance/unallocated-advances'],
     queryFn: async () => {
-      const response = await fetch('/api/finance/payments/unallocated-advances');
+      console.log('Fetching unallocated payments from simplified endpoint');
+      const response = await fetch('/api/finance/unallocated-advances');
       if (!response.ok) {
+        console.error('Failed to fetch unallocated payments:', response.statusText);
         throw new Error('Failed to fetch unallocated payments');
       }
       
-      console.log('Response from unallocated payments API:', await response.clone().json());
-      return await response.json();
+      const data = await response.json();
+      console.log('Response from unallocated payments API:', data);
+      return data;
     }
   });
 
@@ -176,14 +179,20 @@ export default function PaymentAllocationPage() {
       
       console.log('Fetching from URL:', url.toString());
       
-      const response = await fetch(url.toString());
-      if (!response.ok) {
-        throw new Error('Failed to fetch outstanding invoices');
+      try {
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+          console.error('Failed to fetch outstanding invoices:', response.statusText);
+          throw new Error('Failed to fetch outstanding invoices');
+        }
+        
+        const data = await response.json();
+        console.log('Outstanding invoices response:', data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching outstanding invoices:', error);
+        return { invoices: [] };
       }
-      
-      const data = await response.json();
-      console.log('Outstanding invoices response:', data);
-      return data;
     },
     enabled: !!selectedPayment // Only run this query when a payment is selected
   });
