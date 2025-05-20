@@ -899,14 +899,22 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                         <Select 
                           onValueChange={field.onChange} 
                           value={field.value || ''}
+                          defaultValue={field.value || ''}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select payment method" />
+                              <SelectValue placeholder="Select payment method">
+                                {field.value === 'bank transfer' && 'Wire Transfer'}
+                                {field.value === 'wire transfer' && 'Wire Transfer'}
+                                {field.value === 'check' && 'Check'}
+                                {field.value === 'cash' && 'Cash'}
+                                {field.value === 'credit card' && 'Credit Card'}
+                              </SelectValue>
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="bank transfer">Wire Transfer</SelectItem>
+                            <SelectItem value="wire transfer">Wire Transfer</SelectItem>
                             <SelectItem value="check">Check</SelectItem>
                             <SelectItem value="cash">Cash</SelectItem>
                             <SelectItem value="credit card">Credit Card</SelectItem>
@@ -966,11 +974,14 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                             }
                           }}
                           value={field.value?.toString() || ''}
+                          defaultValue={field.value?.toString() || ''}
                           disabled={false}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select customer" />
+                              <SelectValue placeholder="Select customer">
+                                {field.value && getCustomerName(field.value)}
+                              </SelectValue>
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
