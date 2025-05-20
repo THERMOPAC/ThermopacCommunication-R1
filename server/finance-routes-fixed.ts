@@ -177,7 +177,7 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
 router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   const paymentId = parseInt(req.params.id);
   console.log('Updating payment with ID:', paymentId);
-  console.log('Update payload:', req.body);
+  console.log('Update payload:', JSON.stringify(req.body, null, 2));
   
   try {
     const client = await pool.connect();
@@ -186,21 +186,21 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
       // Use the property that exists, with snake_case as preference
       const body = req.body;
       
-      // Extract payment data - check both naming formats
-      const reference_number = body.reference_number || body.reference || '';
-      const irm_no = body.irm_no || body.paymentNumber || '';
-      const payment_date = body.payment_date || body.paymentDate || new Date().toISOString().split('T')[0];
-      const sap_payment_no = body.sap_payment_no || body.sapPaymentNo || '';
-      const payment_type = body.payment_type || body.paymentType || 'Service';
+      // Extract payment data - check both naming formats with fallbacks to existing data
+      const reference_number = body.referenceNumber || body.reference || '';
+      const irm_no = body.irmNo || body.irm_no || body.paymentNumber || '';
+      const payment_date = body.paymentDate || body.payment_date || new Date().toISOString().split('T')[0];
+      const sap_payment_no = body.sapPaymentNo || body.sap_payment_no || '';
+      const payment_type = body.paymentType || body.payment_type || 'Service';
       const amount = body.amount || '0.00';
       const currency = body.currency || 'USD';
-      const payment_method = body.payment_method || body.paymentMethod || '';
+      const payment_method = body.paymentMethod || body.payment_method || '';
       const notes = body.notes || '';
-      const is_advance_payment = body.is_advance_payment !== undefined ? body.is_advance_payment : 
-                                (body.isAdvancePayment !== undefined ? body.isAdvancePayment : false);
-      const customer_id = body.customer_id || body.customerId || null;
+      const is_advance_payment = body.isAdvancePayment !== undefined ? body.isAdvancePayment : 
+                               (body.is_advance_payment !== undefined ? body.is_advance_payment : false);
+      const customer_id = body.customerId || body.customer_id || null;
       
-      console.log('Extracted payment data:', {
+      console.log('Extracted payment data for update:', {
         reference_number, irm_no, payment_date, sap_payment_no, 
         payment_type, amount, currency, payment_method, notes,
         is_advance_payment, customer_id
@@ -209,7 +209,21 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
       // Begin transaction
       await client.query('BEGIN');
       
-      // Update payment record
+      // Get existing payment to preserve values we don't want to change
+      const getPaymentQuery = `
+        SELECT * FROM payments WHERE id = $1
+      `;
+      const existingPaymentResult = await client.query(getPaymentQuery, [paymentId]);
+      
+      if (existingPaymentResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: 'Payment not found' });
+      }
+      
+      const existingPayment = existingPaymentResult.rows[0];
+      console.log('Existing payment:', existingPayment);
+      
+      // Update payment record - preserving data if not provided in update
       const updatePaymentQuery = `
         UPDATE payments 
         SET 
@@ -230,24 +244,19 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
       `;
       
       const paymentResult = await client.query(updatePaymentQuery, [
-        reference_number,
-        irm_no,
-        payment_date,
-        sap_payment_no,
-        payment_type,
-        amount,
-        currency,
-        payment_method,
-        notes,
-        is_advance_payment,
-        customer_id,
+        reference_number || existingPayment.reference_number,
+        irm_no || existingPayment.irm_no,
+        payment_date || existingPayment.payment_date,
+        sap_payment_no || existingPayment.sap_payment_no,
+        payment_type || existingPayment.payment_type,
+        amount || existingPayment.amount,
+        currency || existingPayment.currency,
+        payment_method || existingPayment.payment_method,
+        notes || existingPayment.notes,
+        is_advance_payment !== undefined ? is_advance_payment : existingPayment.is_advance_payment,
+        customer_id || existingPayment.customer_id,
         paymentId
       ]);
-      
-      if (paymentResult.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(404).json({ message: 'Payment not found' });
-      }
       
       // Commit the transaction
       await client.query('COMMIT');
@@ -264,13 +273,13 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
     } catch (dbError) {
       await client.query('ROLLBACK');
       console.error('Database error updating payment:', dbError);
-      res.status(500).json({ message: 'Database error occurred while updating the payment' });
+      res.status(500).json({ message: 'Database error occurred while updating the payment', error: dbError.message });
     } finally {
       client.release();
     }
   } catch (error) {
     console.error('Error updating payment:', error);
-    res.status(500).json({ message: 'An error occurred while processing the payment update' });
+    res.status(500).json({ message: 'An error occurred while processing the payment update', error: error instanceof Error ? error.message : String(error) });
   }
 });
 

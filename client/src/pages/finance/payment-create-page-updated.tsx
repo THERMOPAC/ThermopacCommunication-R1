@@ -406,8 +406,23 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       
       // Try with a simple POST request to an update endpoint
       try {
-        console.log('Submitting payment update with payload:', payload);
-        console.log('JSON payload:', JSON.stringify(payload, null, 2));
+        // Create a simplified payload with just the key fields we want to update
+        const simplifiedPayload = {
+          referenceNumber: values.referenceNumber,
+          irmNo: values.irmNo,
+          paymentDate: values.paymentDate,
+          sapPaymentNo: values.sapPaymentNo,
+          paymentType: values.paymentType,
+          amount: values.amount,
+          currency: values.currency,
+          paymentMethod: values.paymentMethod,
+          notes: values.notes,
+          isAdvancePayment: values.isAdvancePayment,
+          customerId: values.customerId
+        };
+        
+        console.log('Submitting payment update with simplified payload:', simplifiedPayload);
+        console.log('JSON payload:', JSON.stringify(simplifiedPayload, null, 2));
         
         // Use axios-style request with a POST to a dedicated update endpoint
         const response = await fetch(`/api/finance/payments/update/${id}`, {
@@ -415,7 +430,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(simplifiedPayload),
         });
         
         // Handle response - if server returns a redirect to login, that's actually success but will fail JSON parse
@@ -429,15 +444,22 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
               console.log('Server response (JSON):', data);
               return data;
             } else {
-              console.log('Server returned success with non-JSON response');
+              console.log('Server returned success with non-JSON response, showing HTML response');
+              const text = await response.text();
+              console.log('HTML response (first 200 chars):', text.substring(0, 200));
               return { success: true, message: 'Payment updated successfully' };
             }
           } catch (parseError) {
             console.log('Could not parse server response, but update was successful');
+            console.log('Parse error:', parseError);
             return { success: true, message: 'Payment updated successfully' };
           }
         } else {
           console.error('Server returned error status:', response.status);
+          try {
+            const errorText = await response.text();
+            console.error('Error response body:', errorText);
+          } catch {}
           throw new Error(`Failed to update payment: ${response.status} ${response.statusText}`);
         }
       } catch (error) {
