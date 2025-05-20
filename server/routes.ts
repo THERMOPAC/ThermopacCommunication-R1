@@ -31,7 +31,7 @@ import { setupDedicatedTestRoutes } from "./dedicated-test-route";
 import { setupSalesMarketingRoutes } from "./sales-marketing-routes";
 // Temporarily disable main finance routes due to syntax errors
 // import { default as financeRoutes } from "./finance-routes";
-import { default as financeRoutes } from "./temp-finance-routes";
+import { default as financeRoutes } from "./finance-routes-fixed";
 import { default as simpleFinanceRoutes } from "./simple-finance-routes";
 import { financeReportRouter } from "./finance-report-routes";
 import { paymentAllocationApi } from "./payment-allocation-api";
