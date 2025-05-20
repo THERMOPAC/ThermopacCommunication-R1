@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
+import Layout from "@/components/layout";
 import {
   Card,
   CardContent,
@@ -15,6 +16,7 @@ import { formatRupees, formatDate } from "@/lib/utils";
 import { Loader2, ArrowLeft, Download, FileText, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { Helmet } from "react-helmet";
 
 export default function PaymentDetailPage() {
   const [location] = useLocation();
@@ -49,27 +51,35 @@ export default function PaymentDetailPage() {
   }
   
   const payment = data?.payment;
-  const invoiceLinks = data?.invoiceLinks || [];
+  const allocations = data?.allocations || [];
   const brc = data?.bankRealizationCertificate;
   
   // Calculate total amount applied to invoices
-  const totalApplied = invoiceLinks.reduce((sum: number, link: any) => sum + link.amountApplied, 0);
-  const unappliedAmount = payment?.amount - totalApplied;
+  const totalApplied = allocations.reduce((sum: number, allocation: any) => {
+    const amount = parseFloat(allocation.amountApplied) || 0;
+    return sum + amount;
+  }, 0);
+  const unappliedAmount = payment ? parseFloat(payment.amount) - totalApplied : 0;
   
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center">
-          <Button variant="ghost" className="mr-2" asChild>
-            <a href="/finance/payments">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Payments
-            </a>
-          </Button>
-          <h1 className="text-3xl font-bold">Payment #{payment?.id}</h1>
-          {payment?.referenceNumber && (
-            <span className="ml-4 text-muted-foreground">Ref: {payment.referenceNumber}</span>
-          )}
+    <Layout>
+      <Helmet>
+        <title>Payment Details | Thermopac Finance</title>
+      </Helmet>
+      
+      <div className="container mx-auto py-6">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center">
+            <Button variant="ghost" className="mr-2" asChild>
+              <a href="/finance/payments">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Payments
+              </a>
+            </Button>
+            <h1 className="text-3xl font-bold">Payment #{payment?.paymentNumber || payment?.id}</h1>
+            {payment?.reference && (
+              <span className="ml-4 text-muted-foreground">Ref: {payment.reference}</span>
+            )}
         </div>
         <div className="flex gap-2">
           {payment?.proofDocumentPath && (
@@ -170,7 +180,7 @@ export default function PaymentDetailPage() {
         )}
       </div>
       
-      {invoiceLinks.length > 0 && (
+      {allocations.length > 0 && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Applied to Invoices</CardTitle>
@@ -185,39 +195,36 @@ export default function PaymentDetailPage() {
                   <tr className="border-b">
                     <th className="px-4 py-2 text-left text-sm font-medium">Invoice Number</th>
                     <th className="px-4 py-2 text-left text-sm font-medium">Invoice Date</th>
+                    <th className="px-4 py-2 text-center text-sm font-medium">Invoice Type</th>
                     <th className="px-4 py-2 text-right text-sm font-medium">Invoice Amount</th>
                     <th className="px-4 py-2 text-right text-sm font-medium">Applied Amount</th>
-                    <th className="px-4 py-2 text-center text-sm font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {invoiceLinks.map((link: any, index: number) => (
+                  {allocations.map((allocation: any, index: number) => (
                     <tr key={index} className="border-b">
                       <td className="px-4 py-3 text-left text-sm">
-                        <a href={`/finance/invoices/${link.invoice.id}`} className="text-primary hover:underline">
-                          {link.invoice.invoiceNumber}
+                        <a href={`/finance/invoices/${allocation.invoiceId}`} className="text-primary hover:underline">
+                          {allocation.invoiceNumber}
                         </a>
                       </td>
-                      <td className="px-4 py-3 text-left text-sm">{formatDate(link.invoice.issueDate)}</td>
-                      <td className="px-4 py-3 text-right text-sm">{formatRupees(link.invoice.totalAmount)}</td>
-                      <td className="px-4 py-3 text-right text-sm font-medium">{formatRupees(link.amountApplied)}</td>
+                      <td className="px-4 py-3 text-left text-sm">{formatDate(allocation.invoiceDate)}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`rounded-full px-2 py-1 text-xs font-medium ${
-                          link.invoice.status === 'Paid' 
-                            ? 'bg-green-100 text-green-800' 
-                            : link.invoice.status === 'Partially Paid'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-yellow-100 text-yellow-800'
+                          allocation.invoiceType === 'Product' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-green-100 text-green-800'
                         }`}>
-                          {link.invoice.status}
+                          {allocation.invoiceType}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-right text-sm">{formatRupees(allocation.invoiceAmount)}</td>
+                      <td className="px-4 py-3 text-right text-sm font-medium">{formatRupees(allocation.amountApplied)}</td>
                     </tr>
                   ))}
                   <tr className="bg-muted/50">
-                    <td colSpan={3} className="px-4 py-3 text-right text-sm font-bold">Total Applied:</td>
+                    <td colSpan={4} className="px-4 py-3 text-right text-sm font-bold">Total Applied:</td>
                     <td className="px-4 py-3 text-right text-sm font-bold">{formatRupees(totalApplied)}</td>
-                    <td></td>
                   </tr>
                 </tbody>
               </table>
