@@ -1593,14 +1593,13 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       // STEP 2: Delete existing invoice items
       await client.query('DELETE FROM invoice_items WHERE invoice_id = $1', [invoiceId]);
       
-      // STEP 3: Insert new invoice items
+      // STEP 3: Insert new invoice items - using only columns that exist in the table
       for (const item of items) {
         const insertItemQuery = `
           INSERT INTO invoice_items (
-            invoice_id, description, quantity, unit_price, amount, 
-            tax_rate, tax_amount, discount_percent, discount_amount, line_total
+            invoice_id, description, quantity, unit_price, amount
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          VALUES ($1, $2, $3, $4, $5)
         `;
         
         const itemValues = [
@@ -1608,12 +1607,7 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
           item.description,
           item.quantity || '1',
           item.unitPrice || item.amount,
-          item.amount,
-          item.taxRate || '0',
-          item.taxAmount || '0',
-          item.discountPercent || '0',
-          item.discountAmount || '0',
-          item.lineTotal || item.amount
+          item.amount
         ];
         
         await client.query(insertItemQuery, itemValues);
