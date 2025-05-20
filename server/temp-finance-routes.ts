@@ -85,7 +85,7 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
           i.invoice_number AS "invoiceNumber",
           i.issue_date AS "invoiceDate",
           i.total_amount AS "invoiceAmount",
-          i.type AS "invoiceType"
+          i.invoice_type AS "invoiceType"
         FROM 
           payment_allocations pa
         JOIN 
