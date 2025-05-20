@@ -92,7 +92,7 @@ paymentAllocationApi.get('/payments/:paymentId/allocations', ensureAuthenticated
         pa.id as allocation_id,
         pa.payment_id,
         pa.invoice_id,
-        pa.amount_allocated,
+        pa.amount_applied as amount_allocated,
         pa.created_at as allocation_date,
         i.invoice_number,
         i.issue_date,
