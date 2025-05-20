@@ -1505,9 +1505,22 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
     }
     
     // Format project ID (can be null)
-    const projectId = invoice.projectId && invoice.projectId !== '' 
-      ? parseInt(invoice.projectId) 
-      : null;
+    let projectId = null;
+    
+    if (invoice.projectId && invoice.projectId !== '' && invoice.projectId !== 'none') {
+      // Only try to parse if it's not empty, null, or "none"
+      try {
+        projectId = parseInt(invoice.projectId);
+        if (isNaN(projectId)) {
+          projectId = null;
+        }
+      } catch (e) {
+        console.error('Error parsing projectId:', e);
+        projectId = null;
+      }
+    }
+    
+    console.log('Processed projectId:', projectId);
     
     // Check if invoice exists before updating
     const checkQuery = 'SELECT * FROM invoices WHERE id = $1';

@@ -860,7 +860,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                           console.log("Project selected:", value);
                           field.onChange(value === "none" ? "" : value);
                         }}
-                        value={field.value || "none"}
+                        value={field.value === "" || field.value === null || field.value === undefined ? "none" : field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
