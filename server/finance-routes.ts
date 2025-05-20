@@ -1473,9 +1473,44 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
     
     console.log(`Updating invoice with ID ${invoiceId}:`, { invoice, items });
     
-    // Format dates for the database
-    const issueDate = invoice.issueDate ? new Date(invoice.issueDate) : new Date();
-    const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : new Date();
+    // Log received data for debugging
+    console.log("Received invoice update data:", {
+      id: invoiceId,
+      invoiceNumber: invoice.invoiceNumber,
+      customerId: invoice.customerId,
+      projectId: invoice.projectId,
+      issueDate: invoice.issueDate,
+      dueDate: invoice.dueDate,
+      totalAmount: invoice.totalAmount,
+      currency: invoice.currency,
+      sapInvoiceNo: invoice.sapInvoiceNo,
+      invoiceType: invoice.invoiceType,
+      notes: invoice.notes
+    });
+    
+    // Format dates for the database - ensure we have valid date objects
+    let issueDate, dueDate;
+    try {
+      issueDate = invoice.issueDate ? new Date(invoice.issueDate) : new Date();
+      dueDate = invoice.dueDate ? new Date(invoice.dueDate) : new Date();
+      
+      // Validate dates are valid
+      if (isNaN(issueDate.getTime())) {
+        console.error('Invalid issue date format:', invoice.issueDate);
+        issueDate = new Date(); // Fallback to current date
+      }
+      
+      if (isNaN(dueDate.getTime())) {
+        console.error('Invalid due date format:', invoice.dueDate);
+        dueDate = new Date(); // Fallback to current date
+      }
+    } catch (dateError) {
+      console.error('Error processing dates:', dateError);
+      issueDate = new Date();
+      dueDate = new Date();
+    }
+    
+    console.log('Formatted dates:', { issueDate, dueDate });
     
     // Update the invoice in the database
     const updateInvoiceQuery = `
@@ -1496,17 +1531,18 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       RETURNING *
     `;
     
+    // Ensure we have proper values or defaults for each field
     const invoiceValues = [
-      invoice.invoiceNumber,
-      invoice.customerId,
-      invoice.projectId,
+      invoice.invoiceNumber || '',
+      invoice.customerId || null,
+      invoice.projectId || null,
       issueDate,
       dueDate,
-      invoice.totalAmount,
-      invoice.currency,
-      invoice.sapInvoiceNo,
-      invoice.invoiceType,
-      invoice.notes,
+      invoice.totalAmount || '0',
+      invoice.currency || 'USD',
+      invoice.sapInvoiceNo || null,
+      invoice.invoiceType || 'Product',
+      invoice.notes || null,
       invoiceId
     ];
     
