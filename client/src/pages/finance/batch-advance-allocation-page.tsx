@@ -74,14 +74,26 @@ export default function BatchAdvanceAllocationPage() {
   } = useQuery({
     queryKey: ['/api/finance/payments/unallocated-advances', paymentTypeFilter],
     queryFn: async () => {
-      const endpoint = paymentTypeFilter && paymentTypeFilter !== 'all'
-        ? `/api/finance/payments/unallocated-advances?paymentType=${paymentTypeFilter}` 
-        : '/api/finance/payments/unallocated-advances';
-      
-      const response = await apiRequest('GET', endpoint);
-      return response.json();
+      try {
+        const endpoint = paymentTypeFilter && paymentTypeFilter !== 'all'
+          ? `/api/finance/payments/unallocated-advances?paymentType=${paymentTypeFilter}` 
+          : '/api/finance/payments/unallocated-advances';
+        
+        const response = await apiRequest('GET', endpoint);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch advance payments: ${response.statusText}`);
+        }
+        
+        return response.json();
+      } catch (error) {
+        console.error("Error fetching advance payments:", error);
+        // Return a default empty state to avoid crashes
+        return { advances: [], totalUnallocatedAmount: "0.00" };
+      }
     },
-    enabled: true
+    enabled: true,
+    retry: 1
   });
 
   // Query available invoices with outstanding amounts
@@ -93,25 +105,41 @@ export default function BatchAdvanceAllocationPage() {
   } = useQuery({
     queryKey: ['/api/finance/invoices/outstanding', selectedCustomerId, paymentTypeFilter],
     queryFn: async () => {
-      let endpoint = '/api/finance/invoices/outstanding';
-      const params = [];
-      
-      if (selectedCustomerId && selectedCustomerId !== 'all') {
-        params.push(`customerId=${selectedCustomerId}`);
+      try {
+        let endpoint = '/api/finance/invoices/outstanding';
+        const params = [];
+        
+        if (selectedCustomerId && selectedCustomerId !== 'all') {
+          params.push(`customerId=${selectedCustomerId}`);
+        }
+        
+        if (paymentTypeFilter && paymentTypeFilter !== 'all') {
+          params.push(`invoiceType=${paymentTypeFilter}`);
+        }
+        
+        if (params.length > 0) {
+          endpoint += '?' + params.join('&');
+        }
+        
+        const response = await apiRequest('GET', endpoint);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch outstanding invoices: ${response.statusText}`);
+        }
+        
+        return response.json();
+      } catch (error) {
+        console.error("Error fetching outstanding invoices:", error);
+        // Return a default empty state to avoid crashes
+        return {
+          invoices: [],
+          totalOutstanding: "0.00",
+          count: 0
+        };
       }
-      
-      if (paymentTypeFilter && paymentTypeFilter !== 'all') {
-        params.push(`invoiceType=${paymentTypeFilter}`);
-      }
-      
-      if (params.length > 0) {
-        endpoint += '?' + params.join('&');
-      }
-      
-      const response = await apiRequest('GET', endpoint);
-      return response.json();
     },
-    enabled: true
+    enabled: true,
+    retry: 1
   });
 
   // Query all customers
