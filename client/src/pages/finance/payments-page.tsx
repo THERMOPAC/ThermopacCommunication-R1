@@ -93,13 +93,17 @@ export default function PaymentsPage() {
     );
   }
 
+  // Handle the API response structure which returns { payments: [...] }
+  const payments = data?.payments || [];
+  
   // Filter the payments based on search term and payment method
-  const filteredPayments = data ? data.filter((payment: any) => {
+  const filteredPayments = payments.filter((payment: any) => {
     const matchesSearch = searchTerm === '' || 
-      (payment.referenceNumber && payment.referenceNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+      (payment.reference && payment.reference.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (payment.paymentNumber && payment.paymentNumber.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesMethod = methodFilter === 'all' || 
-      payment.paymentMethod.toLowerCase() === methodFilter.toLowerCase();
+      (payment.paymentMethod && payment.paymentMethod.toLowerCase() === methodFilter.toLowerCase());
     
     // Date range filtering
     let matchesDateRange = true;
@@ -111,7 +115,7 @@ export default function PaymentsPage() {
     }
     
     return matchesSearch && matchesMethod && matchesDateRange;
-  }) : [];
+  });
 
   return (
     <Layout>
@@ -236,13 +240,13 @@ export default function PaymentsPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-muted/50">
-                <th className="px-4 py-3 text-left text-sm font-medium">Reference #</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Payment #</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Payment Date</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Customer Name</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Payment Method</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Currency</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Type</th>
                 <th className="px-4 py-3 text-right text-sm font-medium">Amount</th>
-                <th className="px-4 py-3 text-center text-sm font-medium">BRC</th>
+                <th className="px-4 py-3 text-right text-sm font-medium">Unallocated</th>
                 <th className="px-4 py-3 text-center text-sm font-medium">Actions</th>
               </tr>
             </thead>
@@ -252,40 +256,35 @@ export default function PaymentsPage() {
                   <tr key={payment.id} className="border-t hover:bg-muted/50">
                     <td className="px-4 py-3 text-left text-sm">
                       <Link href={`/finance/payments/${payment.id}`} className="text-primary hover:underline">
-                        {payment.referenceNumber}
+                        {payment.paymentNumber || payment.reference || `PAY-${payment.id}`}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-left text-sm">{formatDate(payment.paymentDate)}</td>
+                    <td className="px-4 py-3 text-left text-sm">{formatDate(new Date(payment.paymentDate))}</td>
+                    <td className="px-4 py-3 text-left text-sm">{payment.customerName || "N/A"}</td>
                     <td className="px-4 py-3 text-left text-sm">
-                      {payment.customerName || (payment.customer ? payment.customer.bpName : "N/A")}
+                      <PaymentMethodBadge method={payment.paymentMethod || "Unknown"} />
                     </td>
                     <td className="px-4 py-3 text-left text-sm">
-                      <PaymentMethodBadge method={payment.paymentMethod} />
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium 
+                        ${payment.paymentType === 'Product' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
+                        {payment.paymentType || "Unknown"}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-left text-sm">{payment.currency}</td>
                     <td className="px-4 py-3 text-right text-sm font-medium">
-                      {payment.currency === 'INR' 
-                        ? formatRupees(payment.amount)
-                        : new Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: payment.currency,
-                          }).format(payment.amount)
-                      }
+                      {formatRupees(payment.amount)}
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      {payment.hasBRC ? (
-                        <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-800">
-                          <FileText className="h-4 w-4 mr-1" />
-                          View BRC
-                        </Button>
-                      ) : payment.currency !== 'INR' ? (
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/finance/brc/new?paymentId=${payment.id}`}>
-                            Create BRC
-                          </Link>
-                        </Button>
+                    <td className="px-4 py-3 text-right text-sm font-medium">
+                      {payment.unallocatedAmount > 0 ? (
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium 
+                          ${parseFloat(payment.unallocatedAmount) === parseFloat(payment.amount) 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-amber-100 text-amber-800'}`}>
+                          {formatRupees(payment.unallocatedAmount)}
+                        </span>
                       ) : (
-                        <span className="text-sm text-gray-500">N/A</span>
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                          Fully Allocated
+                        </span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -295,18 +294,7 @@ export default function PaymentsPage() {
                             <Eye className="h-4 w-4" />
                           </Link>
                         </Button>
-                        <Button variant="ghost" size="icon" asChild>
-                          <Link href={`/finance/payments/${payment.id}/edit`}>
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <Button variant="ghost" size="icon" asChild>
-                          <Link href={`/finance/payments/${payment.id}/receipt`}>
-                            <Download className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        {/* Only show allocate button for unallocated or partially allocated payments */}
-                        {(!payment.fullyAllocated && payment.type !== 'Refund') && (
+                        {parseFloat(payment.unallocatedAmount) > 0 && (
                           <Button 
                             variant="ghost" 
                             size="icon" 
