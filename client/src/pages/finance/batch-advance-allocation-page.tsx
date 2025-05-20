@@ -65,29 +65,27 @@ export default function BatchAdvanceAllocationPage() {
   const [paymentTypeFilter, setPaymentTypeFilter] = useState<string>("all");
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
-  // Mock advance payments data since the endpoint is not functioning
-  const advancePayments = {
-    advances: [],
-    totalUnallocatedAmount: "0.00",
-    count: 0
-  };
-  const advancesLoading = false;
-  const advancesError = null;
-  const refetchAdvances = () => {
-    console.log("Would refetch advances if endpoint was working");
-  };
+  // Fetch advance payments for the selected customer
+  const {
+    data: advancePayments = { advances: [], totalUnallocatedAmount: "0.00", count: 0 },
+    isLoading: advancesLoading,
+    error: advancesError,
+    refetch: refetchAdvances
+  } = useQuery({
+    queryKey: ['/api/finance/unallocated-advances', selectedCustomerId, paymentTypeFilter],
+    enabled: !!selectedCustomerId,
+  });
 
-  // Temporarily use static data while API endpoint issues are being resolved
-  const outstandingInvoices = {
-    invoices: [],
-    totalOutstanding: "0.00",
-    count: 0
-  };
-  const invoicesLoading = false;
-  const invoicesError = null;
-  const refetchInvoices = () => {
-    console.log("Would refetch invoices if endpoint was working");
-  };
+  // Fetch outstanding invoices for the selected customer
+  const {
+    data: outstandingInvoices = { invoices: [], totalOutstanding: "0.00", count: 0 },
+    isLoading: invoicesLoading,
+    error: invoicesError,
+    refetch: refetchInvoices
+  } = useQuery({
+    queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId, paymentTypeFilter],
+    enabled: !!selectedCustomerId,
+  });
 
   // Query all customers
   const {
@@ -145,6 +143,30 @@ export default function BatchAdvanceAllocationPage() {
     }
   });
 
+  // Define types for our data structures
+  type Payment = {
+    id: number;
+    customerId: number;
+    customerName: string;
+    paymentNumber: string;
+    paymentDate: string;
+    paymentType: string;
+    amount: string;
+    unallocatedAmount: string;
+  };
+
+  type Invoice = {
+    id: number;
+    customerId: number;
+    customerName: string;
+    invoiceNumber: string;
+    invoiceDate: string;
+    invoiceType: string;
+    total: string;
+    outstandingAmount: string;
+    status: string;
+  };
+
   // Filter advance payments by customer if selected
   const filteredAdvancePayments = useMemo(() => {
     if (!advancePayments?.advances || !Array.isArray(advancePayments.advances)) {
@@ -152,10 +174,10 @@ export default function BatchAdvanceAllocationPage() {
     }
     
     if (!selectedCustomerId || selectedCustomerId === 'all') {
-      return advancePayments.advances;
+      return advancePayments.advances as Payment[];
     }
     
-    return advancePayments.advances.filter(
+    return (advancePayments.advances as Payment[]).filter(
       payment => payment.customerId === parseInt(selectedCustomerId)
     );
   }, [advancePayments, selectedCustomerId]);
@@ -167,10 +189,10 @@ export default function BatchAdvanceAllocationPage() {
     }
     
     if (!selectedCustomerId || selectedCustomerId === 'all') {
-      return outstandingInvoices.invoices;
+      return outstandingInvoices.invoices as Invoice[];
     }
     
-    return outstandingInvoices.invoices.filter(
+    return (outstandingInvoices.invoices as Invoice[]).filter(
       invoice => invoice.customerId === parseInt(selectedCustomerId)
     );
   }, [outstandingInvoices, selectedCustomerId]);
