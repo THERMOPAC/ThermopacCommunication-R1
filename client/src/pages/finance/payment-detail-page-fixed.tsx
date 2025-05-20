@@ -34,6 +34,8 @@ export default function PaymentDetailPage() {
   // Get outstanding invoices for allocation - simplified to avoid issues
   const { 
     data: invoicesData,
+    isLoading: invoicesLoading,
+    isError: invoicesError
   } = useQuery({
     queryKey: ['/api/finance/invoices'],
     enabled: !!data?.payment, // Only load invoices after payment data is available
@@ -307,26 +309,13 @@ export default function PaymentDetailPage() {
                   This payment hasn't been applied to any invoices. You can allocate this payment to invoices by clicking the button below.
                 </AlertDescription>
               </Alert>
-              {invoicesLoading ? (
-                <div className="flex items-center justify-center py-4 mt-4">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  <span className="text-sm text-muted-foreground">Loading outstanding invoices...</span>
-                </div>
-              ) : invoicesError ? (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertDescription>
-                    Failed to load outstanding invoices. Please try again later.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <div className="flex justify-end mt-4">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/finance/allocate-payment/${payment.id}`}>
-                      Allocate Payment
-                    </Link>
-                  </Button>
-                </div>
-              )}
+              <div className="flex justify-end mt-4">
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/finance/allocate-payment/${payment.id}`}>
+                    Allocate Payment
+                  </Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

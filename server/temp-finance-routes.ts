@@ -198,10 +198,11 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
   } catch (error) {
     console.error("Error fetching outstanding invoices:", error);
     // Return empty but valid response structure on error
-    res.json({
+    res.status(200).json({
       invoices: [],
       totalOutstanding: "0.00",
-      count: 0
+      count: 0,
+      message: "No outstanding invoices found or an error occurred."
     });
   }
 });
