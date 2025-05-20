@@ -47,7 +47,9 @@ export default function PaymentDetailPage() {
   const outstandingInvoices = invoicesData?.invoices || [];
   
   const handleNavigateToEdit = () => {
-    setLocation(`/finance/payments/edit/${paymentId}`);
+    // Navigate to the edit page with the correct URL structure
+    // The URL should match what PaymentCreatePage expects (/finance/payments/:id/edit)
+    setLocation(`/finance/payments/${paymentId}/edit`);
   };
   
   if (isLoading) {
