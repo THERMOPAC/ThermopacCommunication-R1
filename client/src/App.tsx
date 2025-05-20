@@ -38,7 +38,7 @@ import InvoicesPage from "@/pages/finance/invoices-page";
 import InvoiceCreatePage from "@/pages/finance/invoice-create-page";
 import InvoiceDetailPage from "@/pages/finance/invoice-detail-page";
 import PaymentsPage from "@/pages/finance/payments-page";
-import PaymentDetailPage from "@/pages/finance/payment-detail-page";
+import PaymentDetailPage from "@/pages/finance/payment-detail-page-fixed";
 import PaymentCreatePage from "@/pages/finance/payment-create-page";
 import BrcPage from "@/pages/finance/brc-page";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
