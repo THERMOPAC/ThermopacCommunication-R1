@@ -1712,9 +1712,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }, 24 * 60 * 60 * 1000); // Run once per day
 
-  // Use finance write-offs router
-  app.use('/api/finance/write-offs', financeWriteOffsRouter);
-  console.log('Write-off routes registered at /api/finance/write-offs');
+  // Temporarily disable write-offs router to fix invoice update issues
+  // app.use('/api/finance/write-offs', financeWriteOffsRouter);
+  console.log('Write-off routes temporarily disabled');
 
   // Use standalone routes that bypass middleware (for special cases only)
   app.use('/api/standalone', standaloneRoutes);
