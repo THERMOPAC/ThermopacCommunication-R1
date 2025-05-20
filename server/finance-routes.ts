@@ -1546,79 +1546,118 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       invoiceId
     ];
     
-    const invoiceResult = await pool.query(updateInvoiceQuery, invoiceValues);
+    console.log('Executing SQL with values:', invoiceValues);
     
-    if (!invoiceResult.rows || invoiceResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Invoice not found or update failed' });
-    }
+    let updatedInvoice;
     
-    const updatedInvoice = invoiceResult.rows[0];
-    
-    // Delete existing invoice items
-    await pool.query('DELETE FROM invoice_items WHERE invoice_id = $1', [invoiceId]);
-    
-    // Insert new invoice items
-    for (const item of items) {
-      const insertItemQuery = `
-        INSERT INTO invoice_items (
-          invoice_id, description, quantity, unit_price, amount, 
-          tax_rate, tax_amount, discount_percent, discount_amount, line_total
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        RETURNING *
-      `;
-      
-      const itemValues = [
-        invoiceId,
-        item.description,
-        item.quantity || '1',
-        item.unitPrice || item.amount,
-        item.amount,
-        item.taxRate || '0',
-        item.taxAmount || '0',
-        item.discountPercent || '0',
-        item.discountAmount || '0',
-        item.lineTotal || item.amount
-      ];
-      
-      await pool.query(insertItemQuery, itemValues);
-    }
-    
-    // Format the response data
-    const formattedInvoice = {
-      id: updatedInvoice.id,
-      invoiceNumber: updatedInvoice.invoice_number,
-      customerId: updatedInvoice.customer_id,
-      projectId: updatedInvoice.project_id,
-      issueDate: updatedInvoice.issue_date,
-      dueDate: updatedInvoice.due_date,
-      totalAmount: updatedInvoice.total_amount.toString(),
-      currency: updatedInvoice.currency,
-      sapInvoiceNo: updatedInvoice.sap_invoice_no,
-      invoiceType: updatedInvoice.invoice_type,
-      status: updatedInvoice.status,
-      notes: updatedInvoice.notes,
-      createdAt: updatedInvoice.created_at,
-      updatedAt: updatedInvoice.updated_at
-    };
-    
-    // Return success response with explicit content type and manual JSON formatting
-    res.setHeader('Content-Type', 'application/json');
     try {
-      const responseData = {
-        message: 'Invoice updated successfully',
-        invoice: formattedInvoice
-      };
-      // Manually convert to JSON string to ensure proper formatting
-      const jsonString = JSON.stringify(responseData);
-      // Send the response as a string with proper headers
-      res.send(jsonString);
-    } catch (jsonError) {
-      console.error('Error converting response to JSON:', jsonError);
-      res.status(500).json({ 
-        error: 'Failed to properly format response'
+      const invoiceResult = await pool.query(updateInvoiceQuery, invoiceValues);
+      console.log('SQL update result:', invoiceResult?.rows?.[0] || 'No result');
+      
+      if (!invoiceResult.rows || invoiceResult.rows.length === 0) {
+        console.error('Invoice update failed: No rows returned');
+        return res.status(404).json({ error: 'Invoice not found or update failed' });
+      }
+      
+      updatedInvoice = invoiceResult.rows[0];
+      console.log('Updated invoice object:', updatedInvoice);
+    } catch (sqlError) {
+      console.error('SQL error during invoice update:', sqlError);
+      return res.status(500).json({ 
+        error: 'Database error while updating invoice',
+        details: sqlError instanceof Error ? sqlError.message : String(sqlError)
       });
     }
+    
+    try {
+      // Delete existing invoice items
+      await pool.query('DELETE FROM invoice_items WHERE invoice_id = $1', [invoiceId]);
+      
+      // Insert new invoice items
+      for (const item of items) {
+        const insertItemQuery = `
+          INSERT INTO invoice_items (
+            invoice_id, description, quantity, unit_price, amount, 
+            tax_rate, tax_amount, discount_percent, discount_amount, line_total
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          RETURNING *
+        `;
+        
+        const itemValues = [
+          invoiceId,
+          item.description,
+          item.quantity || '1',
+          item.unitPrice || item.amount,
+          item.amount,
+          item.taxRate || '0',
+          item.taxAmount || '0',
+          item.discountPercent || '0',
+          item.discountAmount || '0',
+          item.lineTotal || item.amount
+        ];
+        
+        await pool.query(insertItemQuery, itemValues);
+      }
+      
+      // Get the updated invoice directly from the database with a fresh query
+      const refreshQuery = `
+        SELECT * FROM invoices WHERE id = $1
+      `;
+      const refreshResult = await pool.query(refreshQuery, [invoiceId]);
+      
+      if (refreshResult.rows && refreshResult.rows.length > 0) {
+        updatedInvoice = refreshResult.rows[0];
+        console.log('Fresh invoice data after update:', updatedInvoice);
+      }
+      
+      // Format the response data
+      const formattedInvoice = {
+        id: updatedInvoice.id,
+        invoiceNumber: updatedInvoice.invoice_number,
+        customerId: updatedInvoice.customer_id,
+        projectId: updatedInvoice.project_id,
+        issueDate: updatedInvoice.issue_date,
+        dueDate: updatedInvoice.due_date,
+        totalAmount: updatedInvoice.total_amount.toString(),
+        currency: updatedInvoice.currency,
+        sapInvoiceNo: updatedInvoice.sap_invoice_no,
+        invoiceType: updatedInvoice.invoice_type,
+        status: updatedInvoice.status,
+        notes: updatedInvoice.notes,
+        createdAt: updatedInvoice.created_at,
+        updatedAt: updatedInvoice.updated_at
+      };
+      
+      // Return success response with explicit content type and manual JSON formatting
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const responseData = {
+          message: 'Invoice updated successfully',
+          invoice: formattedInvoice
+        };
+        // Manually convert to JSON string to ensure proper formatting
+        const jsonString = JSON.stringify(responseData);
+        // Send the response as a string with proper headers
+        res.send(jsonString);
+        return; // Important: return here to prevent further execution
+      } catch (jsonError) {
+        console.error('Error converting response to JSON:', jsonError);
+        res.status(500).json({ 
+          error: 'Failed to properly format response'
+        });
+        return; // Important: return here to prevent further execution
+      }
+    } catch (itemError) {
+      console.error('Error processing invoice items:', itemError);
+      return res.status(500).json({ 
+        error: 'Error updating invoice items',
+        details: itemError instanceof Error ? itemError.message : String(itemError)
+      });
+    }
+    
+    // Just in case this part of the code is still reached, we'll handle it
+    return;
   } catch (error) {
     console.error(`Error updating invoice ${req.params.id}:`, error);
     // Ensure we're sending valid JSON with proper content type

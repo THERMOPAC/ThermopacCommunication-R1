@@ -439,15 +439,29 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   // Update invoice mutation
   const updateInvoice = useMutation({
     mutationFn: async (values: InvoiceFormValues) => {
-      // Transform values for API
+      // Ensure dates are in proper format
+      const formattedIssueDate = format(values.issueDate, 'yyyy-MM-dd');
+      const formattedDueDate = format(values.dueDate, 'yyyy-MM-dd');
+      
+      // Calculate total amount from items
+      const totalAmount = String(values.items.reduce(
+        (total, item) => total + parseFloat(item.amount || '0'), 0
+      ));
+      
+      // Format project ID correctly
+      const projectId = values.projectId && values.projectId !== '' 
+        ? parseInt(values.projectId) 
+        : null;
+      
+      // Transform values for API with explicit property assignments
       const apiData = {
         invoice: {
           invoiceNumber: values.invoiceNumber,
           customerId: parseInt(values.customerId),
-          projectId: values.projectId ? parseInt(values.projectId) : null,
-          issueDate: format(values.issueDate, 'yyyy-MM-dd'),
-          dueDate: format(values.dueDate, 'yyyy-MM-dd'),
-          totalAmount: String(values.items.reduce((total, item) => total + parseFloat(item.amount || '0'), 0)),
+          projectId: projectId,
+          issueDate: formattedIssueDate,
+          dueDate: formattedDueDate,
+          totalAmount: totalAmount,
           currency: values.currency,
           sapInvoiceNo: values.sapInvoiceNo || null,
           invoiceType: values.invoiceType,
