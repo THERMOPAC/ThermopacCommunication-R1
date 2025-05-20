@@ -822,7 +822,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           <Input 
                             {...field} 
                             value={field.value || ''} 
-                            readOnly={isEditMode}
+                            readOnly={true}
                           />
                         </FormControl>
                         <FormMessage />
@@ -839,7 +839,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                         <FormControl>
                           <Input
                             value="USD"
-                            readOnly={Boolean(paymentId)}
+                            readOnly={true}
                           />
                         </FormControl>
                         <FormDescription className="text-xs">
@@ -1014,9 +1014,10 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                               // When amount changes, update the unallocated amount too
                               form.setValue('unallocatedAmount', e.target.value);
                             }}
-                            readOnly={false}
+                            readOnly={true}
                             disabled={false}
                             step="0.01"
+                            className="text-right"
                           />
                         </FormControl>
                         <FormDescription className="text-xs">
@@ -1047,7 +1048,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           }}
                           value={field.value?.toString() || ''}
                           defaultValue={field.value?.toString() || ''}
-                          disabled={false}
+                          disabled={true}
                         >
                           <FormControl>
                             <SelectTrigger>
