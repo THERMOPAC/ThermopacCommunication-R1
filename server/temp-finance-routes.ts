@@ -55,7 +55,7 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
           i.invoice_type AS "invoiceType",
           i.total_amount AS "total",
           (i.total_amount - COALESCE((
-            SELECT SUM(pa.amount) 
+            SELECT SUM(pa.amount_applied) 
             FROM payment_allocations pa 
             WHERE pa.invoice_id = i.id
           ), 0)) AS "outstandingAmount",
@@ -81,7 +81,7 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
       query += `
         HAVING 
           (i.total_amount - COALESCE((
-            SELECT SUM(pa.amount) 
+            SELECT SUM(pa.amount_applied) 
             FROM payment_allocations pa 
             WHERE pa.invoice_id = i.id
           ), 0)) > 0
@@ -140,7 +140,7 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
           p.payment_type AS "paymentType",
           p.amount,
           (p.amount - COALESCE((
-            SELECT SUM(pa.amount) 
+            SELECT SUM(pa.amount_applied) 
             FROM payment_allocations pa 
             WHERE pa.payment_id = p.id
           ), 0)) AS "unallocatedAmount"
@@ -165,7 +165,7 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
       query += `
         HAVING 
           (p.amount - COALESCE((
-            SELECT SUM(pa.amount) 
+            SELECT SUM(pa.amount_applied) 
             FROM payment_allocations pa 
             WHERE pa.payment_id = p.id
           ), 0)) > 0
@@ -223,7 +223,7 @@ router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, as
           p.payment_type AS "paymentType",
           p.amount,
           (p.amount - COALESCE((
-            SELECT SUM(pa.amount) 
+            SELECT SUM(pa.amount_applied) 
             FROM payment_allocations pa 
             WHERE pa.payment_id = p.id
           ), 0)) AS "unallocatedAmount"
@@ -236,7 +236,7 @@ router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, as
           AND p.customer_id = $1
         HAVING 
           (p.amount - COALESCE((
-            SELECT SUM(pa.amount) 
+            SELECT SUM(pa.amount_applied) 
             FROM payment_allocations pa 
             WHERE pa.payment_id = p.id
           ), 0)) > 0
@@ -296,7 +296,7 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
           p.currency,
           p.amount,
           (p.amount - COALESCE((
-            SELECT SUM(pa.amount) 
+            SELECT SUM(pa.amount_applied) 
             FROM payment_allocations pa 
             WHERE pa.payment_id = p.id
           ), 0)) AS "unallocatedAmount",
@@ -369,7 +369,7 @@ router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Re
           p.payment_type AS payment_type,
           p.amount,
           (p.amount - COALESCE((
-            SELECT SUM(pa.amount) 
+            SELECT SUM(pa.amount_applied) 
             FROM payment_allocations pa 
             WHERE pa.payment_id = p.id
           ), 0)) AS unallocated_amount
@@ -380,7 +380,7 @@ router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Re
           AND p.status != 'Refunded'
         HAVING 
           (p.amount - COALESCE((
-            SELECT SUM(pa.amount) 
+            SELECT SUM(pa.amount_applied) 
             FROM payment_allocations pa 
             WHERE pa.payment_id = p.id
           ), 0)) > 0
@@ -398,7 +398,7 @@ router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Re
           i.invoice_type,
           i.total_amount,
           (i.total_amount - COALESCE((
-            SELECT SUM(pa.amount) 
+            SELECT SUM(pa.amount_applied) 
             FROM payment_allocations pa 
             WHERE pa.invoice_id = i.id
           ), 0)) AS outstanding_amount
@@ -409,7 +409,7 @@ router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Re
           AND i.status != 'Paid'
         HAVING 
           (i.total_amount - COALESCE((
-            SELECT SUM(pa.amount) 
+            SELECT SUM(pa.amount_applied) 
             FROM payment_allocations pa 
             WHERE pa.invoice_id = i.id
           ), 0)) > 0
@@ -496,7 +496,7 @@ router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Re
             SELECT 
               i.id,
               i.total_amount,
-              COALESCE(SUM(pa.amount), 0) as paid_amount
+              COALESCE(SUM(pa.amount_applied), 0) as paid_amount
             FROM 
               invoices i
             LEFT JOIN 
