@@ -822,7 +822,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           <Input 
                             {...field} 
                             value={field.value || ''} 
-                            readOnly={false}
+                            readOnly={isEditMode}
                           />
                         </FormControl>
                         <FormMessage />
@@ -839,7 +839,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                         <FormControl>
                           <Input
                             value="USD"
-                            readOnly={false}
+                            readOnly={Boolean(paymentId)}
                           />
                         </FormControl>
                         <FormDescription className="text-xs">
