@@ -1920,32 +1920,211 @@ router.get('/payments/foreign-without-brc', ensureAuthenticated, (req: Request, 
 });
 
 /**
- * Allocate advance payment to invoices
+ * Allocate payment to invoices with real database updates
  */
-router.post('/payments/:id/allocate', ensureAuthenticated, (req: Request, res: Response) => {
+router.post('/payments/:id/allocate', ensureAuthenticated, async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  
   try {
-    const { id } = req.params;
-    const { invoiceAllocations } = req.body;
+    const paymentId = parseInt(req.params.id);
+    if (isNaN(paymentId)) {
+      return res.status(400).json({ error: 'Invalid payment ID' });
+    }
+    
+    const { invoiceAllocations, comment } = req.body;
     
     if (!invoiceAllocations || !Array.isArray(invoiceAllocations) || invoiceAllocations.length === 0) {
       return res.status(400).json({ error: 'Invoice allocations are required' });
     }
     
-    // Create a success response
+    // Validate the invoice allocations data
+    for (const allocation of invoiceAllocations) {
+      if (!allocation.invoiceId || isNaN(parseInt(allocation.invoiceId.toString()))) {
+        return res.status(400).json({ error: 'Invalid invoice ID in allocations' });
+      }
+      
+      if (!allocation.amountApplied || isNaN(parseFloat(allocation.amountApplied.toString()))) {
+        return res.status(400).json({ error: 'Invalid allocation amount' });
+      }
+      
+      if (parseFloat(allocation.amountApplied.toString()) <= 0) {
+        return res.status(400).json({ error: 'Allocation amount must be greater than zero' });
+      }
+    }
+    
+    // Start transaction
+    await client.query('BEGIN');
+    
+    // Step 1: Get payment details and verify it exists and has sufficient unallocated amount
+    const paymentQuery = `
+      SELECT id, irm_no, payment_type, unallocated_amount
+      FROM payments
+      WHERE id = $1
+    `;
+    
+    const paymentResult = await client.query(paymentQuery, [paymentId]);
+    
+    if (paymentResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    
+    const payment = paymentResult.rows[0];
+    const totalAllocationAmount = invoiceAllocations.reduce(
+      (sum: number, alloc: any) => sum + parseFloat(alloc.amountApplied.toString()), 
+      0
+    );
+    
+    if (totalAllocationAmount > parseFloat(payment.unallocated_amount)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ 
+        error: 'Total allocation amount exceeds the payment\'s available amount',
+        requested: totalAllocationAmount,
+        available: parseFloat(payment.unallocated_amount)
+      });
+    }
+    
+    // Step 2: Get invoice details and verify each invoice exists and has sufficient outstanding amount
+    const invoiceIds = invoiceAllocations.map(a => parseInt(a.invoiceId.toString()));
+    const invoicesQuery = `
+      SELECT id, invoice_number, invoice_type, outstanding_amount
+      FROM invoices
+      WHERE id = ANY($1)
+    `;
+    
+    const invoicesResult = await client.query(invoicesQuery, [invoiceIds]);
+    
+    // Create a map for easier lookup
+    const invoicesMap = new Map();
+    for (const invoice of invoicesResult.rows) {
+      invoicesMap.set(invoice.id, invoice);
+    }
+    
+    // Validate each allocation against the corresponding invoice
+    for (const allocation of invoiceAllocations) {
+      const invoiceId = parseInt(allocation.invoiceId.toString());
+      const invoice = invoicesMap.get(invoiceId);
+      
+      if (!invoice) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: `Invoice with ID ${invoiceId} not found` });
+      }
+      
+      // Validate payment type matches invoice type
+      if (payment.payment_type !== invoice.invoice_type) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Payment type (${payment.payment_type}) does not match invoice type (${invoice.invoice_type})` 
+        });
+      }
+      
+      // Check that allocation amount doesn't exceed outstanding amount
+      const allocationAmount = parseFloat(allocation.amountApplied.toString());
+      if (allocationAmount > parseFloat(invoice.outstanding_amount)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Allocation amount (${allocationAmount}) exceeds invoice outstanding amount (${invoice.outstanding_amount})`,
+          invoiceId: invoiceId,
+          invoiceNumber: invoice.invoice_number
+        });
+      }
+    }
+    
+    // Step 3: Insert payment allocations
+    const allocations = [];
+    const now = new Date();
+    const username = req.user?.username || 'System';
+    
+    for (const allocation of invoiceAllocations) {
+      const invoiceId = parseInt(allocation.invoiceId.toString());
+      const amountApplied = parseFloat(allocation.amountApplied.toString());
+      const invoice = invoicesMap.get(invoiceId);
+      
+      const insertQuery = `
+        INSERT INTO payment_allocations (
+          payment_id, invoice_id, amount_applied, notes, created_by, created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, payment_id, invoice_id, amount_applied, created_at
+      `;
+      
+      const insertResult = await client.query(insertQuery, [
+        paymentId, 
+        invoiceId, 
+        amountApplied,
+        comment || null,
+        username,
+        now
+      ]);
+      
+      allocations.push({
+        id: insertResult.rows[0].id,
+        paymentId: insertResult.rows[0].payment_id,
+        invoiceId: insertResult.rows[0].invoice_id,
+        invoiceNumber: invoice.invoice_number,
+        amountApplied: insertResult.rows[0].amount_applied,
+        allocationDate: insertResult.rows[0].created_at
+      });
+      
+      // Update invoice outstanding amount
+      const updateInvoiceQuery = `
+        UPDATE invoices
+        SET 
+          outstanding_amount = outstanding_amount - $1,
+          updated_at = $2,
+          status = CASE 
+            WHEN outstanding_amount - $1 <= 0 THEN 'Paid'
+            ELSE 'Partially Paid'
+          END
+        WHERE id = $3
+      `;
+      
+      await client.query(updateInvoiceQuery, [amountApplied, now, invoiceId]);
+    }
+    
+    // Step 4: Update payment allocated and unallocated amounts
+    const updatePaymentQuery = `
+      UPDATE payments
+      SET 
+        allocated_amount = allocated_amount + $1,
+        unallocated_amount = unallocated_amount - $1,
+        updated_at = $2
+      WHERE id = $3
+      RETURNING allocated_amount, unallocated_amount
+    `;
+    
+    const updatedPayment = await client.query(updatePaymentQuery, [
+      totalAllocationAmount, 
+      now, 
+      paymentId
+    ]);
+    
+    // Step 5: Commit transaction
+    await client.query('COMMIT');
+    
+    // Prepare success response
     const allocationResponse = {
       success: true,
       payment: {
-        id: parseInt(id),
-        allocationStatus: "Allocated",
-        updatedAt: new Date().toISOString()
+        id: paymentId,
+        allocationStatus: parseFloat(updatedPayment.rows[0].unallocated_amount) > 0 
+          ? "Partially Allocated" 
+          : "Fully Allocated",
+        allocatedAmount: updatedPayment.rows[0].allocated_amount,
+        unallocatedAmount: updatedPayment.rows[0].unallocated_amount,
+        updatedAt: now.toISOString()
       },
-      allocations: invoiceAllocations
+      allocations: allocations,
+      totalAllocated: totalAllocationAmount
     };
     
-    res.json(allocationResponse);
+    return res.json(allocationResponse);
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error(`Error allocating payment ${req.params.id}:`, error);
-    res.status(500).json({ error: 'Failed to allocate payment' });
+    return res.status(500).json({ error: 'Failed to allocate payment' });
+  } finally {
+    client.release();
   }
 });
 
@@ -2023,9 +2202,9 @@ router.get('/test/invoice-number', async (req: Request, res: Response) => {
 });
 
 /**
- * Get outstanding invoices
+ * Get outstanding invoices for payment allocation
  */
-router.get('/invoices/outstanding', ensureAuthenticated, async (req: Request, res: Response) => {
+router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Default response structure for empty or error cases
     const emptyResponse = {
@@ -2047,8 +2226,68 @@ router.get('/invoices/outstanding', ensureAuthenticated, async (req: Request, re
       ? req.query.invoiceType as string 
       : null;
     
-    // Return an empty response
-    return res.json(emptyResponse);
+    console.log('Querying for outstanding invoices with filters:', { customerId, invoiceType });
+    
+    // Build query to get outstanding invoices
+    let query = `
+      SELECT 
+        i.id,
+        i.invoice_number as "invoiceNumber",
+        i.customer_id as "customerId",
+        c.bp_name as "customerName",
+        i.issue_date as "issueDate",
+        i.due_date as "dueDate",
+        i.total_amount as "totalAmount",
+        i.outstanding_amount as "outstandingAmount",
+        i.currency,
+        i.invoice_type as "invoiceType",
+        i.status,
+        i.sap_invoice_no as "sapInvoiceNo",
+        i.notes,
+        i.created_at as "createdAt",
+        i.updated_at as "updatedAt"
+      FROM 
+        invoices i
+      JOIN 
+        customers c ON i.customer_id = c.id
+      WHERE 
+        i.outstanding_amount > 0
+    `;
+    
+    // Add filters if provided
+    const params = [];
+    if (customerId) {
+      params.push(customerId);
+      query += ` AND i.customer_id = $${params.length}`;
+    }
+    
+    if (invoiceType) {
+      params.push(invoiceType);
+      query += ` AND i.invoice_type = $${params.length}`;
+    }
+    
+    // Add order by clause
+    query += ` ORDER BY i.issue_date ASC`;
+    
+    try {
+      // Execute query
+      const result = await pool.query(query, params);
+      const invoices = result.rows;
+      
+      // Calculate total outstanding amount
+      const totalOutstanding = invoices.reduce(
+        (sum, invoice) => sum + parseFloat(invoice.outstandingAmount), 0
+      ).toFixed(2);
+      
+      return res.json({
+        invoices: invoices,
+        totalOutstanding: totalOutstanding,
+        count: invoices.length
+      });
+    } catch (dbError) {
+      console.error('Database error getting outstanding invoices:', dbError);
+      return res.json(emptyResponse);
+    }
   } catch (error) {
     console.error('Error getting outstanding invoices:', error);
     // Return an empty response structure instead of error
@@ -2103,9 +2342,9 @@ router.get('/invoices/outstanding', ensureAuthenticated, async (req: Request, re
 });
 
 /**
- * Get unallocated advance payments - simplified version
+ * Get unallocated advance payments with actual database queries
  */
-router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
+router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Default empty response for error cases
     const emptyResponse = {
@@ -2121,8 +2360,65 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
     
     console.log('Querying for unallocated advances with filter:', paymentType || 'None');
     
-    // Always return empty data to avoid frontend errors
-    return res.json(emptyResponse);
+    // Build the query to get payments with unallocated amounts
+    let query = `
+      SELECT 
+        p.id, 
+        p.irm_no as "paymentReference",
+        p.customer_id as "customerId",
+        c.bp_name as "customerName",
+        p.payment_date as "paymentDate",
+        p.amount,
+        p.allocated_amount as "allocatedAmount",
+        p.unallocated_amount as "unallocatedAmount",
+        p.payment_method as "paymentMethod",
+        p.payment_type as "paymentType",
+        p.currency,
+        p.notes,
+        p.is_advance_payment as "isAdvancePayment",
+        CASE WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
+             WHEN p.unallocated_amount > 0 THEN 'Partially Allocated'
+             ELSE 'Fully Allocated' END as "allocationStatus",
+        p.created_by as "createdBy",
+        p.created_at as "createdAt",
+        p.updated_at as "updatedAt"
+      FROM 
+        payments p
+      JOIN 
+        customers c ON p.customer_id = c.id
+      WHERE 
+        p.unallocated_amount > 0
+    `;
+    
+    // Add optional payment type filter
+    const params = [];
+    if (paymentType) {
+      params.push(paymentType);
+      query += ` AND p.payment_type = $${params.length}`;
+    }
+    
+    // Add ordering
+    query += ` ORDER BY p.payment_date DESC`;
+    
+    try {
+      // Execute the query
+      const result = await pool.query(query, params);
+      const advances = result.rows;
+      
+      // Calculate total unallocated amount
+      const totalUnallocatedAmount = advances.reduce(
+        (sum, payment) => sum + parseFloat(payment.unallocatedAmount), 0
+      ).toFixed(2);
+      
+      return res.json({
+        advances: advances,
+        totalUnallocatedAmount: totalUnallocatedAmount,
+        count: advances.length
+      });
+    } catch (dbError) {
+      console.error('Database error getting unallocated advances:', dbError);
+      return res.json(emptyResponse);
+    }
   } catch (error) {
     console.error('Error getting unallocated advances:', error);
     return res.json({
