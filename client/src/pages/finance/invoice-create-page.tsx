@@ -210,6 +210,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   // Effect to update form when invoice data is loaded in edit mode
   useEffect(() => {
     if (isEditMode && invoiceData && invoiceData.invoice && form) {
+      // Log invoice data to help debugging
+      console.log('Resetting form with invoice data:', invoiceData.invoice);
+      
       form.reset({
         invoiceNumber: invoiceData.invoice.invoiceNumber,
         customerId: String(invoiceData.invoice.customerId),
@@ -217,6 +220,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         issueDate: new Date(invoiceData.invoice.issueDate),
         dueDate: new Date(invoiceData.invoice.dueDate),
         currency: invoiceData.invoice.currency,
+        sapInvoiceNo: invoiceData.invoice.sapInvoiceNo || '',
         invoiceType: invoiceData.invoice.invoiceType || 'Product',
         notes: invoiceData.invoice.notes || '',
         items: invoiceData.items?.map((item: any) => ({
@@ -708,7 +712,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                       <FormLabel>Invoice Type</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
