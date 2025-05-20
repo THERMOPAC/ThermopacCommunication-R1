@@ -137,13 +137,35 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     enabled: !!isEditMode && !!invoiceId,
     queryFn: async ({queryKey}) => {
       console.log('Fetching invoice data for ID:', invoiceId);
-      const response = await fetch(`/api/finance/invoices/${invoiceId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch invoice data');
+      try {
+        const response = await fetch(`/api/finance/invoices/${invoiceId}`);
+        if (!response.ok) {
+          console.error('Server returned error:', response.status, response.statusText);
+          throw new Error('Failed to fetch invoice data');
+        }
+        
+        // Parse response with a fallback
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          console.error('Failed to parse JSON response:', e);
+          throw new Error('Invalid response format');
+        }
+        
+        console.log('Received invoice data:', data);
+        
+        // Verify we have the expected data structure
+        if (!data || (!data.invoice && !data.id)) {
+          console.error('Invoice data is missing expected structure:', data);
+          throw new Error('Invalid invoice data structure');
+        }
+        
+        return data;
+      } catch (error) {
+        console.error('Error in invoice data fetch:', error);
+        throw error;
       }
-      const data = await response.json();
-      console.log('Received invoice data:', data);
-      return data;
     },
   });
   
