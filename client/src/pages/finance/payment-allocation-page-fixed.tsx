@@ -36,7 +36,7 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from '@/components/ui/dialog';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { AlertCircle, Download, ArrowUpDown, Info, CheckCircle2 } from 'lucide-react';
@@ -103,14 +103,16 @@ export default function PaymentAllocationPage() {
   const [allocationsDialogOpen, setAllocationsDialogOpen] = useState(false);
   const [viewPaymentId, setViewPaymentId] = useState<number | null>(null);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [allocations, setAllocations] = useState<Allocation[]>([]);
   const { toast } = useToast();
 
-  // Format currency values
+  // Format currency values using USD
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(amount);
   };
 
@@ -123,6 +125,36 @@ export default function PaymentAllocationPage() {
       comment: ''
     }
   });
+
+  // Get unallocated payments
+  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
+    queryKey: ['/api/finance/unallocated-advances'],
+    queryFn: async () => {
+      const response = await fetch('/api/finance/unallocated-advances');
+      if (!response.ok) {
+        throw new Error('Failed to fetch unallocated payments');
+      }
+      return await response.json();
+    }
+  });
+
+  // Transform the API response to match our component's expected format
+  const payments: Payment[] = useMemo(() => {
+    if (!paymentsData || !paymentsData.advances) return [];
+    
+    return paymentsData.advances.map((payment: any) => ({
+      id: payment.id,
+      paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
+      paymentType: payment.paymentType,
+      paymentDate: payment.paymentDate,
+      amount: parseFloat(payment.amount),
+      allocatedAmount: parseFloat(payment.allocatedAmount || '0'),
+      remainingAmount: parseFloat(payment.unallocatedAmount || '0'),
+      currency: payment.currency || 'USD',
+      status: payment.allocationStatus || 'Unallocated',
+      customerName: payment.customerName
+    }));
+  }, [paymentsData]);
 
   // Get outstanding invoices that can receive payment allocations
   const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
@@ -151,7 +183,7 @@ export default function PaymentAllocationPage() {
   useEffect(() => {
     if (selectedPayment && invoicesData?.invoices?.length > 0) {
       // Transform API data to match our component's expected format
-      const filtered = invoicesData.invoices.map((invoice: any) => ({
+      const filtered = invoicesData.invoices.map((invoice) => ({
         id: invoice.id,
         invoiceNumber: invoice.invoiceNumber,
         invoiceType: invoice.invoiceType,
@@ -298,83 +330,42 @@ export default function PaymentAllocationPage() {
     form.reset();
   };
 
-  // Get payments with unallocated amounts that can be allocated to invoices
-  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
-    queryKey: ['/api/finance/unallocated-advances'],
-    queryFn: async () => {
-      const response = await fetch('/api/finance/unallocated-advances');
-      if (!response.ok) {
-        throw new Error('Failed to fetch unallocated payments');
-      }
-      return await response.json();
+  // Get payment allocations when dialog opens
+  useEffect(() => {
+    if (allocationsDialogOpen && viewPaymentId) {
+      const fetchAllocations = async () => {
+        try {
+          const response = await fetch(`/api/finance/payments/${viewPaymentId}/allocations`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.allocations) {
+              const formattedAllocations = data.allocations.map((item: any) => ({
+                id: item.id,
+                paymentId: item.paymentId,
+                invoiceId: item.invoiceId,
+                paymentReference: item.paymentReference || `PAY-${item.paymentId}`,
+                invoiceNumber: item.invoiceNumber,
+                allocationDate: item.allocationDate || item.createdAt || new Date().toISOString(),
+                amount: parseFloat(item.amount || item.amountApplied || '0'),
+                createdBy: item.createdBy || 'System'
+              }));
+              setAllocations(formattedAllocations);
+            } else {
+              setAllocations([]);
+            }
+          } else {
+            console.error('Failed to fetch payment allocations');
+            setAllocations([]);
+          }
+        } catch (error) {
+          console.error('Error fetching payment allocations:', error);
+          setAllocations([]);
+        }
+      };
+      
+      fetchAllocations();
     }
-  });
-
-  // Transform the API response to match our component's expected format
-  const payments: Payment[] = useMemo(() => {
-    if (!paymentsData || !paymentsData.advances) return [];
-    
-    return paymentsData.advances.map((payment: any) => ({
-      id: payment.id,
-      paymentReference: payment.paymentReference || payment.irm_no || `PAY-${payment.id}`,
-      paymentType: payment.paymentType,
-      paymentDate: payment.paymentDate,
-      amount: parseFloat(payment.amount),
-      allocatedAmount: parseFloat(payment.allocatedAmount || '0'),
-      remainingAmount: parseFloat(payment.unallocatedAmount || '0'),
-      currency: payment.currency || 'USD',
-      status: payment.allocationStatus || 'Unallocated',
-      customerName: payment.customerName
-    }));
-  }, [paymentsData]);
-
-  // Get outstanding invoices that can receive payment allocations
-  const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
-    queryKey: ['/api/finance/outstanding-invoices', selectedPayment?.paymentType, selectedPayment?.customerName],
-    queryFn: async () => {
-      // Only fetch invoices if a payment is selected
-      if (!selectedPayment) return { invoices: [] };
-      
-      const url = new URL('/api/finance/outstanding-invoices', window.location.origin);
-      
-      // Add query parameters for filtering
-      if (selectedPayment.paymentType) {
-        url.searchParams.append('invoiceType', selectedPayment.paymentType);
-      }
-      
-      const response = await fetch(url.toString());
-      if (!response.ok) {
-        throw new Error('Failed to fetch outstanding invoices');
-      }
-      return await response.json();
-    },
-    enabled: !!selectedPayment // Only run this query when a payment is selected
-  });
-
-  // Get allocations for a specific payment with proper typing
-  const getPaymentAllocations = async (paymentId: number): Promise<Allocation[]> => {
-    try {
-      const response = await fetch(`/api/finance/payments/${paymentId}/allocations`);
-      if (!response.ok) {
-        console.error('Failed to fetch payment allocations');
-        return [];
-      }
-      const data = await response.json();
-      return (data.allocations || []).map((allocation: any) => ({
-        id: allocation.id,
-        paymentId: allocation.paymentId,
-        invoiceId: allocation.invoiceId,
-        paymentReference: allocation.paymentReference || `PAY-${allocation.paymentId}`,
-        invoiceNumber: allocation.invoiceNumber,
-        allocationDate: allocation.allocationDate || allocation.createdAt || new Date().toISOString(),
-        amount: parseFloat(allocation.amount || allocation.amountApplied || '0'),
-        createdBy: allocation.createdBy || 'System'
-      }));
-    } catch (error) {
-      console.error('Error fetching payment allocations:', error);
-      return [];
-    }
-  };
+  }, [allocationsDialogOpen, viewPaymentId]);
 
   return (
     <Layout>
@@ -490,256 +481,231 @@ export default function PaymentAllocationPage() {
               </CardContent>
             </Card>
 
-            {/* Invoice Selection Section - Only visible if a payment is selected */}
+            {/* Allocation Section */}
             {selectedPayment && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Select Invoices to Allocate Payment</CardTitle>
-                  <CardDescription>
-                    Available amount: {formatCurrency(selectedPayment.remainingAmount)}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {filteredInvoices.length === 0 ? (
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>No matching invoices found</AlertTitle>
-                      <AlertDescription>
-                        There are no outstanding invoices matching the payment type ({selectedPayment.paymentType})
-                        for this customer.
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        <div className="overflow-x-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Select</TableHead>
-                                <TableHead>Invoice Number</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Customer</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Due Date</TableHead>
-                                <TableHead className="text-right">Total Amount</TableHead>
-                                <TableHead className="text-right">Outstanding</TableHead>
-                                <TableHead className="text-right">Allocation Amount</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {filteredInvoices.map(invoice => {
-                                const isSelected = selectedInvoices.some(i => i.id === invoice.id);
-                                const invoiceFormIndex = form.getValues('invoices')
-                                  .findIndex(i => i.invoiceId === invoice.id);
-                                const currentAllocation = invoiceFormIndex !== -1 
-                                  ? form.getValues(`invoices.${invoiceFormIndex}.allocationAmount`) 
-                                  : 0;
-                                
-                                return (
-                                  <TableRow key={invoice.id} className={isSelected ? "bg-muted/50" : ""}>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)}>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Allocate Payment: {selectedPayment.paymentReference}</CardTitle>
+                      <CardDescription>
+                        Allocate payment to outstanding invoices for {selectedPayment.customerName}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {invoicesLoading ? (
+                        <div className="text-center py-4">Loading invoices...</div>
+                      ) : filteredInvoices.length === 0 ? (
+                        <Alert>
+                          <Info className="h-4 w-4" />
+                          <AlertTitle>No outstanding invoices found</AlertTitle>
+                          <AlertDescription>
+                            There are no outstanding invoices matching this payment type.
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Select</TableHead>
+                                  <TableHead>Invoice Number</TableHead>
+                                  <TableHead>Date</TableHead>
+                                  <TableHead>Due Date</TableHead>
+                                  <TableHead className="text-right">Total Amount</TableHead>
+                                  <TableHead className="text-right">Outstanding</TableHead>
+                                  <TableHead>Allocation Amount</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {filteredInvoices.map(invoice => (
+                                  <TableRow 
+                                    key={invoice.id}
+                                    className={selectedInvoices.some(i => i.id === invoice.id) ? "bg-muted/50" : ""}
+                                  >
                                     <TableCell>
                                       <Checkbox 
-                                        checked={isSelected}
+                                        checked={selectedInvoices.some(i => i.id === invoice.id)}
                                         onCheckedChange={() => toggleInvoice(invoice)}
                                       />
                                     </TableCell>
                                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                                    <TableCell>{invoice.invoiceType}</TableCell>
-                                    <TableCell>{invoice.customerName}</TableCell>
-                                    <TableCell>{format(new Date(invoice.invoiceDate), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell>{format(new Date(invoice.dueDate), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(invoice.totalAmount)}</TableCell>
-                                    <TableCell className="text-right font-medium">
-                                      {formatCurrency(invoice.outstandingAmount)}
+                                    <TableCell>
+                                      {invoice.invoiceDate && format(new Date(invoice.invoiceDate), 'dd/MM/yyyy')}
                                     </TableCell>
-                                    <TableCell className="text-right">
-                                      {isSelected && (
+                                    <TableCell>
+                                      {invoice.dueDate && format(new Date(invoice.dueDate), 'dd/MM/yyyy')}
+                                    </TableCell>
+                                    <TableCell className="text-right">{formatCurrency(invoice.totalAmount)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(invoice.outstandingAmount)}</TableCell>
+                                    <TableCell className="w-44">
+                                      <div className="flex items-center space-x-2">
                                         <Input
                                           type="number"
-                                          min={0}
+                                          min="0"
+                                          step="0.01"
                                           max={Math.min(invoice.outstandingAmount, selectedPayment.remainingAmount)}
-                                          value={currentAllocation}
-                                          onChange={(e) => handleAllocationChange(invoice.id, parseFloat(e.target.value) || 0)}
-                                          className="w-32 text-right"
+                                          disabled={!selectedInvoices.some(i => i.id === invoice.id)}
+                                          className="h-8 text-right"
+                                          defaultValue="0.00"
+                                          onChange={(e) => {
+                                            const value = parseFloat(e.target.value || '0');
+                                            handleAllocationChange(invoice.id, value);
+                                          }}
                                         />
-                                      )}
+                                      </div>
                                     </TableCell>
                                   </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-
-                        {selectedInvoices.length > 0 && (
-                          <>
-                            <div className="bg-muted p-4 rounded-md">
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <h3 className="font-semibold">Allocation Summary</h3>
-                                  <p className="text-sm text-muted-foreground">
-                                    {selectedInvoices.length} invoice(s) selected
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-sm">Total Allocation</p>
-                                  <p className="font-semibold text-lg">
+                                ))}
+                                <TableRow className="bg-muted/30">
+                                  <TableCell colSpan={5} className="text-right font-medium">
+                                    Total Allocating:
+                                  </TableCell>
+                                  <TableCell colSpan={2} className="text-right font-medium">
                                     {formatCurrency(getTotalAllocation())}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Remaining after allocation: {formatCurrency(selectedPayment.remainingAmount - getTotalAllocation())}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
+                                  </TableCell>
+                                </TableRow>
+                                <TableRow className="bg-muted/30">
+                                  <TableCell colSpan={5} className="text-right font-medium">
+                                    Remaining Available:
+                                  </TableCell>
+                                  <TableCell colSpan={2} className="text-right font-medium">
+                                    {formatCurrency(
+                                      Math.max(0, selectedPayment.remainingAmount - getTotalAllocation())
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
+                          </div>
 
+                          <div>
                             <FormField
                               control={form.control}
                               name="comment"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Allocation Comment (Optional)</FormLabel>
+                                  <FormLabel>Notes</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Add a comment about this allocation" {...field} />
+                                    <Input 
+                                      placeholder="Optional notes about this allocation"
+                                      {...field}
+                                    />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
-
-                            <div className="flex justify-end gap-4">
-                              <Button type="button" variant="outline" onClick={resetAllocation}>
-                                Cancel
-                              </Button>
-                              <Button type="submit">Complete Allocation</Button>
-                            </div>
-                          </>
-                        )}
-                      </form>
-                    </Form>
-                  )}
-                </CardContent>
-              </Card>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                    {filteredInvoices.length > 0 && (
+                      <div className="px-6 py-4 border-t flex justify-end space-x-4">
+                        <Button 
+                          variant="outline"
+                          onClick={resetAllocation}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          type="submit"
+                          disabled={
+                            selectedInvoices.length === 0 || 
+                            getTotalAllocation() <= 0 ||
+                            getTotalAllocation() > selectedPayment.remainingAmount ||
+                            allocateMutation.isPending
+                          }
+                        >
+                          {allocateMutation.isPending ? "Processing..." : "Allocate Payment"}
+                        </Button>
+                      </div>
+                    )}
+                  </Card>
+                </form>
+              </Form>
             )}
           </TabsContent>
 
           <TabsContent value="history">
             <Card>
               <CardHeader>
-                <CardTitle>Payment Allocation History</CardTitle>
+                <CardTitle>Recent Payment Allocations</CardTitle>
                 <CardDescription>
-                  View all payment allocations made to invoices
+                  View history of recent payment allocations
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Allocation Date</TableHead>
-                        <TableHead>Payment Reference</TableHead>
-                        <TableHead>Invoice Number</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Created By</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sampleAllocations.map(allocation => (
-                        <TableRow key={allocation.id}>
-                          <TableCell>{format(new Date(allocation.allocationDate), 'dd/MM/yyyy')}</TableCell>
-                          <TableCell className="font-medium">{allocation.paymentReference}</TableCell>
-                          <TableCell>{allocation.invoiceNumber}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(allocation.amount)}</TableCell>
-                          <TableCell>{allocation.createdBy}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                {/* In a real implementation, this would call an API endpoint to get allocation history */}
+                <Alert className="mb-6">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Coming Soon</AlertTitle>
+                  <AlertDescription>
+                    The allocation history feature is under development.
+                  </AlertDescription>
+                </Alert>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
 
-        {/* View Allocations Dialog */}
+        {/* Allocation Details Dialog */}
         <Dialog open={allocationsDialogOpen} onOpenChange={setAllocationsDialogOpen}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle>Payment Allocations</DialogTitle>
+              <DialogTitle>Payment Allocation Details</DialogTitle>
               <DialogDescription>
-                {viewPaymentId && (
-                  <span>
-                    Viewing allocations for payment 
-                    <span className="font-medium">
-                      {' '}{payments.find(p => p.id === viewPaymentId)?.paymentReference}
-                    </span>
-                  </span>
-                )}
+                How this payment has been allocated to invoices
               </DialogDescription>
             </DialogHeader>
-            
-            {viewPaymentId && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-muted p-3 rounded-md">
-                    <p className="text-sm font-medium">Total Amount</p>
-                    <p className="text-lg">
-                      {formatCurrency(payments.find(p => p.id === viewPaymentId)?.amount || 0)}
-                    </p>
-                  </div>
-                  <div className="bg-muted p-3 rounded-md">
-                    <p className="text-sm font-medium">Allocated</p>
-                    <p className="text-lg">
-                      {formatCurrency(payments.find(p => p.id === viewPaymentId)?.allocatedAmount || 0)}
-                    </p>
-                  </div>
-                  <div className="bg-muted p-3 rounded-md">
-                    <p className="text-sm font-medium">Remaining</p>
-                    <p className="text-lg">
-                      {formatCurrency(payments.find(p => p.id === viewPaymentId)?.remainingAmount || 0)}
-                    </p>
-                  </div>
-                </div>
-                
-                <Separator />
-                
-                <div>
-                  <h3 className="text-sm font-medium mb-2">Allocation Details</h3>
-                  {getPaymentAllocations(viewPaymentId).length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Invoice</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                          <TableHead>Allocated By</TableHead>
+            <div className="space-y-4">
+              {allocations.length === 0 ? (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>No Allocations</AlertTitle>
+                  <AlertDescription>
+                    This payment has not been allocated to any invoices yet.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Invoice</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>By</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allocations.map((allocation) => (
+                        <TableRow key={allocation.id}>
+                          <TableCell className="font-medium">{allocation.invoiceNumber}</TableCell>
+                          <TableCell>
+                            {format(new Date(allocation.allocationDate), 'dd/MM/yyyy')}
+                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(allocation.amount)}</TableCell>
+                          <TableCell>{allocation.createdBy}</TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {getPaymentAllocations(viewPaymentId).map(allocation => (
-                          <TableRow key={allocation.id}>
-                            <TableCell>{format(new Date(allocation.allocationDate), 'dd/MM/yyyy')}</TableCell>
-                            <TableCell>{allocation.invoiceNumber}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(allocation.amount)}</TableCell>
-                            <TableCell>{allocation.createdBy}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <p className="text-sm text-muted-foreground py-2">
-                      No allocations have been made for this payment yet.
-                    </p>
-                  )}
+                      ))}
+                      <TableRow className="bg-muted/30">
+                        <TableCell colSpan={2} className="text-right font-medium">Total:</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(
+                            allocations.reduce((sum, alloc) => sum + alloc.amount, 0)
+                          )}
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </TableBody>
+                  </Table>
                 </div>
-              </div>
-            )}
-            
+              )}
+            </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setAllocationsDialogOpen(false)}>
-                Close
-              </Button>
+              <Button onClick={() => setAllocationsDialogOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -748,46 +714,18 @@ export default function PaymentAllocationPage() {
         <Dialog open={confirmationOpen} onOpenChange={setConfirmationOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                Allocation Successful
-              </DialogTitle>
+              <DialogTitle>Allocation Successful</DialogTitle>
               <DialogDescription>
-                Your payment allocation has been completed successfully
+                The payment has been successfully allocated to the selected invoices.
               </DialogDescription>
             </DialogHeader>
-            
-            <div className="space-y-4">
-              <p className="text-sm">
-                Payment <span className="font-medium">{selectedPayment?.paymentReference}</span> has been allocated to {selectedInvoices.length} invoice(s).
-              </p>
-              
-              <div className="bg-muted p-4 rounded-md">
-                <p className="font-medium">Allocation Summary</p>
-                <div className="mt-2 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Total allocated:</span>
-                    <span className="font-medium">{formatCurrency(getTotalAllocation())}</span>
-                  </div>
-                  {selectedPayment && (
-                    <div className="flex justify-between text-sm">
-                      <span>Remaining balance:</span>
-                      <span className="font-medium">{formatCurrency(selectedPayment.remainingAmount - getTotalAllocation())}</span>
-                    </div>
-                  )}
-                </div>
+            <div className="flex items-center justify-center p-6">
+              <div className="bg-green-100 text-green-800 rounded-full p-3">
+                <CheckCircle2 className="h-8 w-8" />
               </div>
             </div>
-            
             <DialogFooter>
-              <Button 
-                onClick={() => {
-                  setConfirmationOpen(false);
-                  resetAllocation();
-                }}
-              >
-                Done
-              </Button>
+              <Button onClick={() => setConfirmationOpen(false)}>Done</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
