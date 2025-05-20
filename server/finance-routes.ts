@@ -1,6 +1,8 @@
 import { Request, Response, Router } from 'express';
 import { ensureAuthenticated } from './auth-middleware';
 import { pool } from './db';
+import { paymentAllocationService } from './payment-allocation-service';
+import { writeOffService } from './write-off-service';
 
 const router = Router();
 
@@ -577,8 +579,7 @@ router.post('/allocations', ensureAuthenticated, async (req: Request, res: Respo
       });
     }
     
-    // Import the payment allocation service
-    const { paymentAllocationService } = require('./payment-allocation-service');
+    // Use the payment allocation service imported at the top of the file
     
     // Create the allocation
     const allocation = await paymentAllocationService.allocatePaymentToInvoice(
