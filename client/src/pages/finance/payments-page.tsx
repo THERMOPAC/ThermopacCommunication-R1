@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatRupees, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Link } from "wouter";
 import { 
   Select,
@@ -271,7 +271,7 @@ export default function PaymentsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-medium">
-                      {formatRupees(payment.amount)}
+                      {formatCurrency(payment.amount, payment.currency || 'USD')}
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-medium">
                       {payment.unallocatedAmount > 0 ? (
@@ -279,7 +279,7 @@ export default function PaymentsPage() {
                           ${parseFloat(payment.unallocatedAmount) === parseFloat(payment.amount) 
                             ? 'bg-red-100 text-red-800' 
                             : 'bg-amber-100 text-amber-800'}`}>
-                          {formatRupees(payment.unallocatedAmount)}
+                          {formatCurrency(payment.unallocatedAmount, payment.currency || 'USD')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
