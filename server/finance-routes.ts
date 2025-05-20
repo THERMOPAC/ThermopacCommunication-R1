@@ -368,6 +368,17 @@ router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
   try {
     const { id } = req.params;
     
+    // Skip if it's a special route like "outstanding", which is handled elsewhere
+    if (id === 'outstanding') {
+      return res.status(400).json({ error: 'Invalid invoice ID. Use /invoices/outstanding for outstanding invoices.' });
+    }
+    
+    // Parse the ID to ensure it's a valid number
+    const invoiceId = parseInt(id);
+    if (isNaN(invoiceId)) {
+      return res.status(400).json({ error: 'Invalid invoice ID - must be a number' });
+    }
+    
     // Use direct database query to get the invoice
     const query = `
       SELECT 
@@ -404,7 +415,7 @@ router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       WHERE invoice_id = $1
     `;
     
-    const invoiceResult = await pool.query(query, [id]);
+    const invoiceResult = await pool.query(query, [invoiceId]);
     
     if (!invoiceResult || !invoiceResult.rows || invoiceResult.rows.length === 0) {
       return res.status(404).json({ error: 'Invoice not found' });
@@ -437,7 +448,7 @@ router.get('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
     }
     
     // Get invoice items
-    const itemsResult = await pool.query(itemsQuery, [id]);
+    const itemsResult = await pool.query(itemsQuery, [invoiceId]);
     const items = itemsResult.rows || [];
     
     // Return the invoice and items in the format expected by the frontend
@@ -2087,7 +2098,11 @@ router.get('/invoices/outstanding', ensureAuthenticated, async (req: Request, re
 router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Get optional payment type filter from query params
-    const paymentType = req.query.paymentType as string;
+    const paymentType = (req.query.paymentType && req.query.paymentType !== 'all') 
+      ? req.query.paymentType as string 
+      : null;
+    
+    console.log('Querying for unallocated advances with filter:', paymentType || 'None');
     
     // Build the query with optional payment type filter
     let query = `
@@ -2120,16 +2135,17 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
         AND p.unallocated_amount > 0
     `;
     
-    // Add payment type filter if provided
-    if (paymentType) {
-      query += ` AND p.payment_type = '${paymentType}'`;
-    }
-    
     // Add order by clause
     query += ` ORDER BY p.payment_date DESC`;
     
-    console.log('Querying for unallocated advances with filter:', paymentType || 'None');
-    const result = await pool.query(query);
+    // Use parameterized query for safety
+    let params = [];
+    if (paymentType) {
+      query = query.replace('WHERE p.is_advance_payment = true', 'WHERE p.is_advance_payment = true AND p.payment_type = $1');
+      params.push(paymentType);
+    }
+    
+    const result = await pool.query(query, params);
     const advances = result.rows;
     
     // Calculate total unallocated amount

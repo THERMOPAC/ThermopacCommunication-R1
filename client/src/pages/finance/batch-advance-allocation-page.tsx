@@ -242,10 +242,10 @@ export default function BatchAdvanceAllocationPage() {
 
   // Handle apply button click
   const handleBatchApply = () => {
-    if (!selectedCustomerId) {
+    if (!selectedCustomerId || selectedCustomerId === 'all') {
       toast({
         title: "Customer Selection Required",
-        description: "Please select a customer first",
+        description: "Please select a specific customer before applying advance payments",
         variant: "destructive",
       });
       return;
@@ -256,7 +256,7 @@ export default function BatchAdvanceAllocationPage() {
 
   // Execute batch allocation
   const confirmBatchAllocation = () => {
-    if (!selectedCustomerId) {
+    if (!selectedCustomerId || selectedCustomerId === 'all') {
       return;
     }
     
