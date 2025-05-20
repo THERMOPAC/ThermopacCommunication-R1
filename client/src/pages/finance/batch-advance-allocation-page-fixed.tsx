@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
 import Layout from "@/components/layout";
@@ -11,7 +11,6 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -33,15 +32,9 @@ import {
 import { formatRupees, formatDate } from "@/lib/utils";
 import { 
   CreditCard, 
-  DollarSign, 
-  ChevronsUp, 
-  Filter, 
-  Search, 
   Wallet, 
-  FilePlus,
   FileText,
   Loader2, 
-  CheckCircle2,
   AlertOctagon
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -56,50 +49,71 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
+
+// Define data types
+type Payment = {
+  id: number;
+  customerId: number;
+  customerName: string;
+  paymentNumber: string;
+  paymentDate: string;
+  paymentType: string;
+  amount: string;
+  unallocatedAmount: string;
+};
+
+type Invoice = {
+  id: number;
+  customerId: number;
+  customerName: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  invoiceType: string;
+  total: string;
+  outstandingAmount: string;
+  status: string;
+};
+
+type AdvancePaymentsResponse = {
+  advances: Payment[];
+  totalUnallocatedAmount: string;
+  count: number;
+};
+
+type OutstandingInvoicesResponse = {
+  invoices: Invoice[];
+  totalOutstanding: string;
+  count: number;
+};
+
+type Customer = {
+  id: number;
+  bpCode: string;
+  bpName: string;
+};
+
+type CustomerGroup = {
+  customerId: number;
+  customerName: string;
+  advancePayments: Payment[];
+  totalUnallocated: number;
+  paymentTypes: Set<string>;
+};
+
+type InvoiceGroup = {
+  customerId: number;
+  customerName: string;
+  invoices: Invoice[];
+  totalOutstanding: number;
+  invoiceTypes: Set<string>;
+};
 
 export default function BatchAdvanceAllocationPage() {
   const { toast } = useToast();
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("all");
   const [paymentTypeFilter, setPaymentTypeFilter] = useState<string>("all");
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-
-  // Define types for our data structures
-  type Payment = {
-    id: number;
-    customerId: number;
-    customerName: string;
-    paymentNumber: string;
-    paymentDate: string;
-    paymentType: string;
-    amount: string;
-    unallocatedAmount: string;
-  };
-
-  type Invoice = {
-    id: number;
-    customerId: number;
-    customerName: string;
-    invoiceNumber: string;
-    invoiceDate: string;
-    invoiceType: string;
-    total: string;
-    outstandingAmount: string;
-    status: string;
-  };
-
-  type AdvancePaymentsResponse = {
-    advances: Payment[];
-    totalUnallocatedAmount: string;
-    count: number;
-  };
-
-  type OutstandingInvoicesResponse = {
-    invoices: Invoice[];
-    totalOutstanding: string;
-    count: number;
-  };
 
   // Fetch advance payments for the selected customer
   const {
@@ -109,7 +123,7 @@ export default function BatchAdvanceAllocationPage() {
     refetch: refetchAdvances
   } = useQuery<AdvancePaymentsResponse>({
     queryKey: ['/api/finance/unallocated-advances', selectedCustomerId, paymentTypeFilter],
-    enabled: !!selectedCustomerId,
+    enabled: true,
   });
 
   // Fetch outstanding invoices for the selected customer
@@ -120,15 +134,14 @@ export default function BatchAdvanceAllocationPage() {
     refetch: refetchInvoices
   } = useQuery<OutstandingInvoicesResponse>({
     queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId, paymentTypeFilter],
-    enabled: !!selectedCustomerId,
+    enabled: true,
   });
 
   // Query all customers
   const {
-    data: customers = [],
-    isLoading: customersLoading,
-    error: customersError
-  } = useQuery({
+    data: customers = [] as Customer[],
+    isLoading: customersLoading
+  } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],
   });
 
@@ -179,30 +192,6 @@ export default function BatchAdvanceAllocationPage() {
     }
   });
 
-  // Define types for our data structures
-  type Payment = {
-    id: number;
-    customerId: number;
-    customerName: string;
-    paymentNumber: string;
-    paymentDate: string;
-    paymentType: string;
-    amount: string;
-    unallocatedAmount: string;
-  };
-
-  type Invoice = {
-    id: number;
-    customerId: number;
-    customerName: string;
-    invoiceNumber: string;
-    invoiceDate: string;
-    invoiceType: string;
-    total: string;
-    outstandingAmount: string;
-    status: string;
-  };
-
   // Filter advance payments by customer if selected
   const filteredAdvancePayments = useMemo(() => {
     if (!advancePayments?.advances || !Array.isArray(advancePayments.advances)) {
@@ -210,10 +199,10 @@ export default function BatchAdvanceAllocationPage() {
     }
     
     if (!selectedCustomerId || selectedCustomerId === 'all') {
-      return advancePayments.advances as Payment[];
+      return advancePayments.advances;
     }
     
-    return (advancePayments.advances as Payment[]).filter(
+    return advancePayments.advances.filter(
       payment => payment.customerId === parseInt(selectedCustomerId)
     );
   }, [advancePayments, selectedCustomerId]);
@@ -225,10 +214,10 @@ export default function BatchAdvanceAllocationPage() {
     }
     
     if (!selectedCustomerId || selectedCustomerId === 'all') {
-      return outstandingInvoices.invoices as Invoice[];
+      return outstandingInvoices.invoices;
     }
     
-    return (outstandingInvoices.invoices as Invoice[]).filter(
+    return outstandingInvoices.invoices.filter(
       invoice => invoice.customerId === parseInt(selectedCustomerId)
     );
   }, [outstandingInvoices, selectedCustomerId]);
@@ -239,7 +228,7 @@ export default function BatchAdvanceAllocationPage() {
       return [];
     }
     
-    const grouped = advancePayments.advances.reduce((acc, payment) => {
+    const grouped = advancePayments.advances.reduce((acc: Record<number, CustomerGroup>, payment) => {
       const customerId = payment.customerId;
       
       if (!acc[customerId]) {
@@ -268,7 +257,7 @@ export default function BatchAdvanceAllocationPage() {
       return [];
     }
     
-    const grouped = outstandingInvoices.invoices.reduce((acc, invoice) => {
+    const grouped = outstandingInvoices.invoices.reduce((acc: Record<number, InvoiceGroup>, invoice) => {
       const customerId = invoice.customerId;
       
       if (!acc[customerId]) {
@@ -396,15 +385,15 @@ export default function BatchAdvanceAllocationPage() {
           <div className="flex-1">
             <Label htmlFor="customer-select">Customer</Label>
             <Select
-              value={selectedCustomerId || "all"}
-              onValueChange={(value) => setSelectedCustomerId(value)}
+              value={selectedCustomerId}
+              onValueChange={setSelectedCustomerId}
             >
               <SelectTrigger id="customer-select" className="w-full">
                 <SelectValue placeholder="Select a customer" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Customers</SelectItem>
-                {customers && Array.isArray(customers) && customers.map((customer: any) => (
+                {customers && Array.isArray(customers) && customers.map((customer) => (
                   <SelectItem 
                     key={customer.id} 
                     value={customer.id.toString()}
@@ -419,8 +408,8 @@ export default function BatchAdvanceAllocationPage() {
           <div className="flex-1">
             <Label htmlFor="payment-type">Invoice/Payment Type</Label>
             <Select
-              value={paymentTypeFilter || ""}
-              onValueChange={(value) => setPaymentTypeFilter(value || null)}
+              value={paymentTypeFilter}
+              onValueChange={setPaymentTypeFilter}
             >
               <SelectTrigger id="payment-type" className="w-full">
                 <SelectValue placeholder="All Types" />
@@ -494,11 +483,10 @@ export default function BatchAdvanceAllocationPage() {
                           <TableHead>Invoice Types</TableHead>
                           <TableHead className="text-right">Available Amount</TableHead>
                           <TableHead className="text-right">Outstanding Amount</TableHead>
-                          <TableHead></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {advancesByCustomer.map((customer: any) => {
+                        {advancesByCustomer.map((customer) => {
                           const outstandingData = outstandingByCustomer.find(
                             c => c.customerId === customer.customerId
                           );
@@ -506,67 +494,38 @@ export default function BatchAdvanceAllocationPage() {
                           // Skip customers without outstanding invoices
                           if (!outstandingData) return null;
                           
-                          // Check if there's a type match
-                          const hasTypeMatch = Array.from(customer.paymentTypes).some(
-                            type => outstandingData.invoiceTypes.has(type)
-                          );
-                          
                           return (
-                            <TableRow key={customer.customerId}>
-                              <TableCell className="font-medium">
-                                {customer.customerName}
-                              </TableCell>
+                            <TableRow 
+                              key={customer.customerId}
+                              onClick={() => setSelectedCustomerId(customer.customerId.toString())}
+                              className={`cursor-pointer ${selectedCustomerId === customer.customerId.toString() ? 'bg-accent' : ''}`}
+                            >
+                              <TableCell className="font-medium">{customer.customerName}</TableCell>
+                              <TableCell>{customer.advancePayments.length}</TableCell>
+                              <TableCell>{outstandingData.invoices.length}</TableCell>
                               <TableCell>
-                                {customer.advancePayments.length}
-                              </TableCell>
-                              <TableCell>
-                                {outstandingData.invoices.length}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-1">
-                                  {Array.from(customer.paymentTypes).map((type: any) => (
-                                    <Badge key={type} variant="outline">
-                                      {type}
-                                    </Badge>
+                                <div className="flex gap-1 flex-wrap">
+                                  {Array.from(customer.paymentTypes).map(type => (
+                                    <Badge key={type} variant="outline">{type}</Badge>
                                   ))}
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <div className="flex flex-wrap gap-1">
-                                  {Array.from(outstandingData.invoiceTypes).map((type: any) => (
-                                    <Badge key={type} variant="outline">
-                                      {type}
-                                    </Badge>
+                                <div className="flex gap-1 flex-wrap">
+                                  {Array.from(outstandingData.invoiceTypes).map(type => (
+                                    <Badge key={type} variant="outline">{type}</Badge>
                                   ))}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-right font-medium text-green-600">
+                              <TableCell className="text-right text-green-600 font-medium">
                                 {formatRupees(customer.totalUnallocated)}
                               </TableCell>
-                              <TableCell className="text-right font-medium text-red-600">
+                              <TableCell className="text-right text-red-600 font-medium">
                                 {formatRupees(outstandingData.totalOutstanding)}
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setSelectedCustomerId(customer.customerId.toString())}
-                                  disabled={!hasTypeMatch}
-                                >
-                                  {hasTypeMatch ? "Select" : "No Type Match"}
-                                </Button>
                               </TableCell>
                             </TableRow>
                           );
                         })}
-                        
-                        {advancesByCustomer.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                              No advance payments found. Create an advance payment first.
-                            </TableCell>
-                          </TableRow>
-                        )}
                       </TableBody>
                     </Table>
                   </div>
@@ -580,7 +539,7 @@ export default function BatchAdvanceAllocationPage() {
               <CardHeader>
                 <CardTitle>Available Advance Payments</CardTitle>
                 <CardDescription>
-                  All unallocated advance payments in the system
+                  All unallocated advance payments across customers
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -589,11 +548,11 @@ export default function BatchAdvanceAllocationPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <span className="ml-2">Loading advance payments...</span>
                   </div>
-                ) : advancePayments?.advances?.length === 0 ? (
+                ) : filteredAdvancePayments.length === 0 ? (
                   <Alert>
-                    <AlertTitle>No Advance Payments</AlertTitle>
+                    <AlertTitle>No Advance Payments Found</AlertTitle>
                     <AlertDescription>
-                      No unallocated advance payments found matching the current filter.
+                      No unallocated advance payments found for the selected filters.
                     </AlertDescription>
                   </Alert>
                 ) : (
@@ -601,57 +560,31 @@ export default function BatchAdvanceAllocationPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Reference Number</TableHead>
                           <TableHead>Customer</TableHead>
-                          <TableHead>Payment Date</TableHead>
-                          <TableHead>Payment Method</TableHead>
-                          <TableHead>Payment Type</TableHead>
+                          <TableHead>Payment Number</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Type</TableHead>
                           <TableHead className="text-right">Total Amount</TableHead>
                           <TableHead className="text-right">Unallocated Amount</TableHead>
-                          <TableHead>Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredAdvancePayments.map((payment: any) => (
+                        {filteredAdvancePayments.map((payment) => (
                           <TableRow key={payment.id}>
-                            <TableCell className="font-medium">
-                              {payment.referenceNumber}
-                            </TableCell>
+                            <TableCell className="font-medium">{payment.customerName}</TableCell>
+                            <TableCell>{payment.paymentNumber}</TableCell>
+                            <TableCell>{formatDate(payment.paymentDate)}</TableCell>
                             <TableCell>
-                              {payment.customerName}
-                            </TableCell>
-                            <TableCell>
-                              {formatDate(payment.paymentDate)}
-                            </TableCell>
-                            <TableCell>
-                              {payment.paymentMethod}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {payment.paymentType}
-                              </Badge>
+                              <Badge variant="outline">{payment.paymentType}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
                               {formatRupees(payment.amount)}
                             </TableCell>
-                            <TableCell className="text-right font-medium text-green-600">
+                            <TableCell className="text-right text-green-600 font-medium">
                               {formatRupees(payment.unallocatedAmount)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={payment.allocationStatus === 'Unallocated' ? 'default' : 'secondary'}>
-                                {payment.allocationStatus}
-                              </Badge>
                             </TableCell>
                           </TableRow>
                         ))}
-                        
-                        {filteredAdvancePayments.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                              No advance payments found. Create an advance payment first.
-                            </TableCell>
-                          </TableRow>
-                        )}
                       </TableBody>
                     </Table>
                   </div>
@@ -665,7 +598,7 @@ export default function BatchAdvanceAllocationPage() {
               <CardHeader>
                 <CardTitle>Outstanding Invoices</CardTitle>
                 <CardDescription>
-                  All invoices with balances due
+                  All invoices with outstanding balances
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -674,11 +607,11 @@ export default function BatchAdvanceAllocationPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <span className="ml-2">Loading outstanding invoices...</span>
                   </div>
-                ) : invoicesError ? (
-                  <Alert variant="destructive">
-                    <AlertTitle>Error</AlertTitle>
+                ) : filteredInvoices.length === 0 ? (
+                  <Alert>
+                    <AlertTitle>No Outstanding Invoices Found</AlertTitle>
                     <AlertDescription>
-                      Failed to load invoices. Please try again later.
+                      No invoices with outstanding balances found for the selected filters.
                     </AlertDescription>
                   </Alert>
                 ) : (
@@ -686,69 +619,43 @@ export default function BatchAdvanceAllocationPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Invoice Number</TableHead>
                           <TableHead>Customer</TableHead>
-                          <TableHead>Issue Date</TableHead>
-                          <TableHead>Due Date</TableHead>
-                          <TableHead>Invoice Type</TableHead>
+                          <TableHead>Invoice Number</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead className="text-right">Total Amount</TableHead>
                           <TableHead className="text-right">Outstanding Amount</TableHead>
-                          <TableHead>Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredInvoices.map((invoice: any) => (
+                        {filteredInvoices.map((invoice) => (
                           <TableRow key={invoice.id}>
-                            <TableCell className="font-medium">
-                              <a 
-                                href={`/finance/invoices/${invoice.id}`}
-                                className="text-primary hover:underline"
-                              >
-                                {invoice.invoiceNumber}
-                              </a>
+                            <TableCell className="font-medium">{invoice.customerName}</TableCell>
+                            <TableCell>{invoice.invoiceNumber}</TableCell>
+                            <TableCell>{formatDate(invoice.invoiceDate)}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{invoice.invoiceType}</Badge>
                             </TableCell>
                             <TableCell>
-                              {invoice.customerName}
-                            </TableCell>
-                            <TableCell>
-                              {formatDate(invoice.issueDate)}
-                            </TableCell>
-                            <TableCell>
-                              {formatDate(invoice.dueDate)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {invoice.invoiceType}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {formatRupees(invoice.totalAmount)}
-                            </TableCell>
-                            <TableCell className="text-right font-medium text-red-600">
-                              {formatRupees(invoice.outstandingAmount)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge 
-                                variant={invoice.status === 'Paid' 
-                                  ? 'success' 
-                                  : invoice.status === 'Partially Paid' 
-                                    ? 'warning' 
-                                    : 'default'
+                              <Badge
+                                variant={
+                                  invoice.status === "Paid" ? "outline" :
+                                  invoice.status === "Partial" ? "secondary" :
+                                  "default"
                                 }
                               >
                                 {invoice.status}
                               </Badge>
                             </TableCell>
-                          </TableRow>
-                        ))}
-                        
-                        {filteredInvoices.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                              No outstanding invoices found.
+                            <TableCell className="text-right">
+                              {formatRupees(invoice.total)}
+                            </TableCell>
+                            <TableCell className="text-right text-red-600 font-medium">
+                              {formatRupees(invoice.outstandingAmount)}
                             </TableCell>
                           </TableRow>
-                        )}
+                        ))}
                       </TableBody>
                     </Table>
                   </div>
@@ -764,78 +671,68 @@ export default function BatchAdvanceAllocationPage() {
           <DialogHeader>
             <DialogTitle>Confirm Batch Allocation</DialogTitle>
             <DialogDescription>
-              This will automatically apply all matching advance payments to outstanding invoices for the selected customer.
+              This will automatically apply all matching advance payments to
+              outstanding invoices for the selected customer.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="py-4">
-            <div className="space-y-4">
-              <div className="bg-muted p-4 rounded-md">
-                <h4 className="font-medium mb-2">Customer</h4>
-                <p>
-                  {customers?.find((c: any) => c.id.toString() === selectedCustomerId)?.bpName || 'Selected Customer'}
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <h4 className="font-medium">Customer</h4>
+              <p>
+                {customers.find((c) => c.id.toString() === selectedCustomerId)?.bpName || 'Selected Customer'}
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h4 className="font-medium text-green-600">Available Advances</h4>
+                <p className="text-2xl font-bold">{filteredAdvancePayments.length}</p>
+                <p className="text-sm text-muted-foreground">
+                  Total: {formatRupees(
+                    filteredAdvancePayments.reduce((total, adv) => 
+                      total + parseFloat(adv.unallocatedAmount), 0)
+                  )}
                 </p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-green-50 p-4 rounded-md border border-green-100">
-                  <h4 className="font-medium mb-2 text-green-700">Available Advances</h4>
-                  <p className="text-2xl font-semibold text-green-700">
-                    {advancesByCustomer.find((c: any) => c.customerId.toString() === selectedCustomerId)?.advancePayments.length || 0}
-                  </p>
-                  <p className="text-sm text-green-600 mt-1">
-                    Total: {formatRupees(advancesByCustomer.find((c: any) => c.customerId.toString() === selectedCustomerId)?.totalUnallocated || 0)}
-                  </p>
-                </div>
-                
-                <div className="bg-orange-50 p-4 rounded-md border border-orange-100">
-                  <h4 className="font-medium mb-2 text-orange-700">Outstanding Invoices</h4>
-                  <p className="text-2xl font-semibold text-orange-700">
-                    {outstandingByCustomer.find((c: any) => c.customerId.toString() === selectedCustomerId)?.invoices.length || 0}
-                  </p>
-                  <p className="text-sm text-orange-600 mt-1">
-                    Total: {formatRupees(outstandingByCustomer.find((c: any) => c.customerId.toString() === selectedCustomerId)?.totalOutstanding || 0)}
-                  </p>
-                </div>
+              <div>
+                <h4 className="font-medium text-red-600">Outstanding Invoices</h4>
+                <p className="text-2xl font-bold">{filteredInvoices.length}</p>
+                <p className="text-sm text-muted-foreground">
+                  Total: {formatRupees(
+                    filteredInvoices.reduce((total, inv) => 
+                      total + parseFloat(inv.outstandingAmount), 0)
+                  )}
+                </p>
               </div>
-              
-              <div className="bg-yellow-50 p-4 rounded-md border border-yellow-100">
-                <h4 className="font-medium mb-2 text-yellow-700 flex items-center">
-                  <AlertOctagon className="h-4 w-4 mr-2" />
-                  Important Notes
-                </h4>
-                <ul className="text-sm text-yellow-700 list-disc pl-5 space-y-1">
-                  <li>Only advance payments with matching invoice types will be applied</li>
-                  <li>Payments will be applied oldest invoice first</li>
-                  <li>This action cannot be undone</li>
-                </ul>
-              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h4 className="font-medium flex items-center">
+                <AlertOctagon className="w-4 h-4 mr-2 text-amber-500" />
+                Important Notes
+              </h4>
+              <ul className="space-y-1 text-sm">
+                <li>• Only advance payments with matching invoice types will be applied</li>
+                <li>• Payments will be applied oldest invoice first</li>
+                <li>• This action cannot be undone</li>
+              </ul>
             </div>
           </div>
           
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setConfirmDialogOpen(false)}
-              disabled={batchApplyMutation.isPending}
-            >
+            <Button variant="outline" onClick={() => setConfirmDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={confirmBatchAllocation}
-              disabled={batchApplyMutation.isPending}
-              className="bg-green-600 hover:bg-green-700"
-            >
+            <Button onClick={confirmBatchAllocation} disabled={batchApplyMutation.isPending}>
               {batchApplyMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Processing...
                 </>
               ) : (
-                <>
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Confirm Allocation
-                </>
+                "Confirm Allocation"
               )}
             </Button>
           </DialogFooter>
