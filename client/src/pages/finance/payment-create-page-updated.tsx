@@ -188,13 +188,14 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   // Update form when payment data is loaded
   useEffect(() => {
     if (isInEditMode && paymentData && paymentData.payment) {
-      console.log('Setting form values with payment data:', paymentData);
+      console.log('Setting form values with payment data:', JSON.stringify(paymentData, null, 2));
       
       // Get the payment details
       const payment = paymentData.payment;
       
-      // Log the raw payment data to debug
+      // Log the raw payment data to debug with stringified version to see all fields
       console.log('Raw payment data from API:', payment);
+      console.log('Payment data stringified:', JSON.stringify(payment, null, 2));
       
       // Set isAdvancePayment based on the payment data
       const isAdvancePayment = payment.is_advance_payment || false;
