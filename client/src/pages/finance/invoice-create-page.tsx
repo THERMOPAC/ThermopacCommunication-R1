@@ -212,24 +212,44 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     if (isEditMode && invoiceData && invoiceData.invoice && form) {
       // Log invoice data to help debugging
       console.log('Resetting form with invoice data:', invoiceData.invoice);
+      console.log('Invoice total amount:', invoiceData.invoice.totalAmount);
+      
+      // Create a default item if none exists
+      let formItems;
+      if (invoiceData.items && invoiceData.items.length > 0) {
+        formItems = invoiceData.items.map((item: any) => ({
+          description: item.description || '',
+          amount: String(item.amount || invoiceData.invoice.totalAmount || '0')
+        }));
+      } else {
+        // If no items exist, create one with the invoice total amount
+        const defaultDescription = invoiceData.invoice.invoiceType === 'Service' 
+          ? 'Service as per SAP invoice' 
+          : 'Items as per SAP invoice';
+          
+        formItems = [{
+          description: defaultDescription,
+          amount: String(invoiceData.invoice.totalAmount || '0')
+        }];
+      }
+      
+      console.log('Setting form items:', formItems);
+      
+      // Handle projectId (use 'none' as the value when empty for proper dropdown display)
+      const projectIdValue = invoiceData.invoice.projectId ? String(invoiceData.invoice.projectId) : 'none';
+      console.log('Setting projectId to:', projectIdValue);
       
       form.reset({
         invoiceNumber: invoiceData.invoice.invoiceNumber,
         customerId: String(invoiceData.invoice.customerId),
-        projectId: invoiceData.invoice.projectId ? String(invoiceData.invoice.projectId) : '',
+        projectId: projectIdValue,
         issueDate: new Date(invoiceData.invoice.issueDate),
         dueDate: new Date(invoiceData.invoice.dueDate),
         currency: invoiceData.invoice.currency,
         sapInvoiceNo: invoiceData.invoice.sapInvoiceNo || '',
         invoiceType: invoiceData.invoice.invoiceType || 'Product',
         notes: invoiceData.invoice.notes || '',
-        items: invoiceData.items?.map((item: any) => ({
-          description: item.description,
-          amount: String(item.amount),
-        })) || [{
-          description: 'Items as per SAP invoice',
-          amount: '0',
-        }],
+        items: formItems,
       });
     }
   }, [isEditMode, invoiceData, form]);
@@ -836,8 +856,11 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                     <FormItem>
                       <FormLabel>Project (Optional)</FormLabel>
                       <Select 
-                        onValueChange={field.onChange} 
-                        value={field.value || ""}
+                        onValueChange={(value) => {
+                          console.log("Project selected:", value);
+                          field.onChange(value === "none" ? "" : value);
+                        }}
+                        value={field.value || "none"}
                       >
                         <FormControl>
                           <SelectTrigger>
