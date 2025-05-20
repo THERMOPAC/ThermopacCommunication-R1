@@ -59,8 +59,11 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
           p.customer_id AS "customerId",
           p.unallocated_amount AS "unallocatedAmount",
           p.allocated_amount AS "allocatedAmount",
-          p.notes,
-          c.bp_name AS "customerName"
+          p.notes AS "notes",
+          c.bp_name AS "customerName",
+          -- Include original field names as well for better compatibility
+          p.sap_payment_no,
+          p.notes
         FROM 
           payments p
         JOIN 
@@ -280,6 +283,39 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
   } catch (error) {
     console.error('Error updating payment:', error);
     res.status(500).json({ message: 'An error occurred while processing the payment update', error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+/**
+ * Direct access to payment fields in their original database format
+ * This helps client applications get the raw field values from the database
+ */
+router.get('/payments/:id/direct-fields', ensureAuthenticated, async (req: Request, res: Response) => {
+  const paymentId = parseInt(req.params.id);
+  
+  try {
+    const client = await pool.connect();
+    try {
+      // Simple query that returns all fields with original database column names
+      const query = `
+        SELECT * FROM payments WHERE id = $1
+      `;
+      
+      const result = await client.query(query, [paymentId]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: 'Payment not found' });
+      }
+      
+      res.json({
+        payment: result.rows[0]
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error retrieving payment direct fields:', error);
+    res.status(500).json({ message: 'Failed to retrieve payment fields' });
   }
 });
 
