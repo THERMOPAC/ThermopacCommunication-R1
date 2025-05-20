@@ -471,11 +471,11 @@ export default function BatchAdvanceAllocationPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <span className="ml-2">Loading payment data...</span>
                   </div>
-                ) : advancesError || invoicesError ? (
-                  <Alert variant="destructive">
-                    <AlertTitle>Error</AlertTitle>
+                ) : advancePayments?.advances?.length === 0 && outstandingInvoices?.invoices?.length === 0 ? (
+                  <Alert>
+                    <AlertTitle>No Data Found</AlertTitle>
                     <AlertDescription>
-                      Failed to load payment data. Please try again later.
+                      No advance payments or outstanding invoices found matching the selected criteria.
                     </AlertDescription>
                   </Alert>
                 ) : (
@@ -585,11 +585,11 @@ export default function BatchAdvanceAllocationPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <span className="ml-2">Loading advance payments...</span>
                   </div>
-                ) : advancesError ? (
-                  <Alert variant="destructive">
-                    <AlertTitle>Error</AlertTitle>
+                ) : advancePayments?.advances?.length === 0 ? (
+                  <Alert>
+                    <AlertTitle>No Advance Payments</AlertTitle>
                     <AlertDescription>
-                      Failed to load advance payments. Please try again later.
+                      No unallocated advance payments found matching the current filter.
                     </AlertDescription>
                   </Alert>
                 ) : (
