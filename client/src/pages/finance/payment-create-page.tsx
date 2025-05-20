@@ -820,8 +820,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           <Input 
                             placeholder="PAY-2526-001" 
                             {...field} 
-                            readOnly 
-                            className="bg-muted cursor-not-allowed" 
+                            readOnly={!isEditMode} 
+                            className={!isEditMode ? "bg-muted cursor-not-allowed" : ""} 
                           />
                         </div>
                       </FormControl>
@@ -839,8 +839,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                       <FormControl>
                         <Input 
                           value="USD" 
-                          readOnly 
-                          className="bg-muted cursor-not-allowed"
+                          readOnly={!isEditMode} 
+                          className={!isEditMode ? "bg-muted cursor-not-allowed" : ""}
                           onChange={(e) => {
                             // Force USD value even on change attempts
                             field.onChange("USD");
@@ -935,6 +935,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                                 "w-full pl-3 text-left font-normal",
                                 !field.value && "text-muted-foreground"
                               )}
+                              disabled={false}
                             >
                               {field.value ? (
                                 format(field.value, "PPP")
