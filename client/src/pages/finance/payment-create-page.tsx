@@ -975,6 +975,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                       <Select 
                         onValueChange={field.onChange}
                         value={field.value || 'bank transfer'}
+                        disabled={false}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -1072,9 +1073,9 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                         placeholder="Enter any additional notes about this payment"
                         {...field}
                         value={field.value || ''}
-                        className={`min-h-[100px] ${isEditMode ? "bg-muted cursor-not-allowed" : ""}`}
-                        readOnly={isEditMode}
-                        disabled={isEditMode}
+                        className="min-h-[100px]"
+                        readOnly={false}
+                        disabled={false}
                       />
                     </FormControl>
                     <FormMessage />
