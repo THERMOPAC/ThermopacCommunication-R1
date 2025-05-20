@@ -190,9 +190,17 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     if (isInEditMode && paymentData) {
       console.log('Setting form values with payment data:', JSON.stringify(paymentData, null, 2));
       
-      // Check different possible structures for payment data
-      // The API might return payment directly or nested in a payment property
-      const payment = paymentData.payment || paymentData;
+      // First, check if we have a payments list in the data (this is what we see in the console)
+      let payment = null;
+      
+      if (paymentData.payments && Array.isArray(paymentData.payments)) {
+        // Find the payment with the matching ID
+        payment = paymentData.payments.find((p: any) => p.id === parseInt(id || '0'));
+        console.log('Found payment in payments array:', payment);
+      } else {
+        // Otherwise check for a direct payment object or nested in payment property
+        payment = paymentData.payment || paymentData;
+      }
       
       // Log the raw payment data to debug with stringified version to see all fields
       console.log('Raw payment data from API:', payment);
@@ -203,37 +211,48 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         return;
       }
       
+      // Based on console logs, we can see the actual data structure
+      // The API returns camelCase field names with specific fields
+      
       // Set isAdvancePayment based on the payment data
-      const isAdvancePayment = payment.is_advance_payment || false;
+      const isAdvancePayment = payment.isAdvancePayment === true;
       console.log('Is advance payment:', isAdvancePayment);
       
       // Parse the payment date from the string to a Date object
-      // Handle different date field names
-      const paymentDateStr = payment.payment_date || payment.paymentDate;
+      const paymentDateStr = payment.paymentDate || payment.payment_date;
       const paymentDate = paymentDateStr ? new Date(paymentDateStr) : new Date();
       console.log('Parsed payment date:', paymentDate);
       
-      // The backend may use either snake_case or camelCase property names
-      // So we check for both versions of each field
+      // Get reference which is used instead of reference_number
+      const referenceNumber = payment.reference || payment.reference_number || "";
+      console.log('Reference number:', referenceNumber);
+      
+      // Get payment number which is used instead of irm_no
+      const irmNo = payment.paymentNumber || payment.irm_no || "";
+      console.log('IRM/Payment number:', irmNo);
+      
+      // Get customer ID
+      const customerId = payment.customerId || payment.customer_id || "";
+      console.log('Customer ID:', customerId);
+      
+      // Get SAP payment number (might not be present)
+      const sapPaymentNo = payment.sapPaymentNo || payment.sap_payment_no || "";
+      console.log('SAP Payment Number:', sapPaymentNo);
       
       // Set up the initial form values from the payment data
       const formValues: PaymentFormValues = {
-        referenceNumber: payment.reference_number || payment.referenceNumber || "",
-        irmNo: payment.irm_no || payment.irmNo || "",
+        referenceNumber: referenceNumber,
+        irmNo: irmNo,
         paymentDate: paymentDate,
-        sapPaymentNo: payment.sap_payment_no || payment.sapPaymentNo || "",
-        paymentType: payment.payment_type || payment.paymentType || "Product",
+        sapPaymentNo: sapPaymentNo,
+        paymentType: payment.paymentType || payment.payment_type || "Product",
         amount: payment.amount || "",
-        unallocatedAmount: payment.unallocated_amount || payment.unallocatedAmount || payment.amount || "",
+        unallocatedAmount: payment.unallocatedAmount || payment.unallocated_amount || payment.amount || "",
         currency: payment.currency || "USD",
-        paymentMethod: payment.payment_method || payment.paymentMethod || "",
+        paymentMethod: payment.paymentMethod || payment.payment_method || "",
         notes: payment.notes || "",
         isAdvancePayment: isAdvancePayment,
-        customerId: payment.customer_id 
-          ? payment.customer_id.toString() 
-          : payment.customerId 
-            ? payment.customerId.toString() 
-            : "",
+        customerId: customerId ? customerId.toString() : "",
         invoiceLinks: [],
       };
       
