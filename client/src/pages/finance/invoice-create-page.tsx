@@ -531,9 +531,17 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   // Update invoice mutation
   const updateInvoice = useMutation({
     mutationFn: async (values: InvoiceFormValues) => {
-      // Ensure dates are in proper format
-      const formattedIssueDate = format(values.issueDate, 'yyyy-MM-dd');
-      const formattedDueDate = format(values.dueDate, 'yyyy-MM-dd');
+      console.log('Original form values for update:', values);
+      
+      // Ensure dates are in proper format - make sure we have valid Date objects first
+      let issueDate = values.issueDate instanceof Date ? values.issueDate : new Date(values.issueDate);
+      let dueDate = values.dueDate instanceof Date ? values.dueDate : new Date(values.dueDate);
+      
+      // Format dates for API
+      const formattedIssueDate = format(issueDate, 'yyyy-MM-dd');
+      const formattedDueDate = format(dueDate, 'yyyy-MM-dd');
+      
+      console.log('Formatted dates:', { issueDate, dueDate, formattedIssueDate, formattedDueDate });
       
       // Calculate total amount from items
       const totalAmount = String(values.items.reduce(
@@ -545,6 +553,19 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         ? values.projectId  // Keep as string for the API
         : null;
       
+      // Extract SAP Invoice Number with fallback
+      const sapInvoiceNo = typeof values.sapInvoiceNo === 'string' ? values.sapInvoiceNo : '';
+      
+      // Extract notes with fallback
+      const notes = typeof values.notes === 'string' ? values.notes : '';
+      
+      console.log('Extracted values:', { 
+        sapInvoiceNo, 
+        notes,
+        projectId,
+        customerId: values.customerId
+      });
+      
       // Transform values for API with explicit property assignments
       const apiData = {
         invoice: {
@@ -555,10 +576,10 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           dueDate: formattedDueDate,
           totalAmount: totalAmount,
           currency: values.currency,
-          sapInvoiceNo: values.sapInvoiceNo || '',
+          sapInvoiceNo: sapInvoiceNo,
           invoiceType: values.invoiceType,
           status: 'Pending',
-          notes: values.notes || '',
+          notes: notes,
         },
         items: values.items.map(item => ({
           description: item.description,
