@@ -190,7 +190,7 @@ router.get('/payments/unallocated-advances/:customerId', ensureAuthenticated, (r
  * Get all payments
  */
 router.get('/payments', ensureAuthenticated, (req: Request, res: Response) => {
-  // Sample data for payments
+  // Sample data for payments from all customers
   const samplePayments = [
     {
       id: 101,
@@ -223,6 +223,86 @@ router.get('/payments', ensureAuthenticated, (req: Request, res: Response) => {
       status: "Unallocated",
       currency: "INR",
       createdAt: "2025-05-10T10:15:00Z"
+    },
+    {
+      id: 103,
+      customerId: 6,
+      customerName: "ALPHA INDUSTRIES",
+      paymentNumber: "PAY-25-0031",
+      paymentDate: "2025-05-12",
+      paymentType: "Product",
+      paymentMethod: "Bank Transfer",
+      sapPaymentNo: "SAP-2401",
+      reference: "INV-REF-227",
+      amount: "223450.00",
+      unallocatedAmount: "0.00",
+      status: "Fully Allocated",
+      currency: "INR",
+      createdAt: "2025-05-12T14:22:00Z"
+    },
+    {
+      id: 104,
+      customerId: 3,
+      customerName: "AFRO INDUSTRIES",
+      paymentNumber: "PAY-25-0032",
+      paymentDate: "2025-05-05",
+      paymentType: "Service",
+      paymentMethod: "Wire Transfer",
+      sapPaymentNo: "SAP-2390",
+      reference: "INV-REF-230",
+      amount: "65000.00",
+      unallocatedAmount: "17500.00",
+      status: "Partially Allocated",
+      currency: "INR",
+      createdAt: "2025-05-05T11:40:00Z"
+    },
+    {
+      id: 105,
+      customerId: 4,
+      customerName: "BETA ENGINEERING",
+      paymentNumber: "PAY-25-0033",
+      paymentDate: "2025-04-20",
+      paymentType: "Product",
+      paymentMethod: "Online Payment",
+      sapPaymentNo: "SAP-2342",
+      reference: "INV-REF-210",
+      amount: "185000.00",
+      unallocatedAmount: "185000.00",
+      status: "Unallocated",
+      currency: "INR",
+      createdAt: "2025-04-20T09:15:00Z"
+    },
+    {
+      id: 106,
+      customerId: 5,
+      customerName: "GAMMA SOLUTIONS",
+      paymentNumber: "PAY-25-0034",
+      paymentDate: "2025-04-22",
+      paymentType: "Service",
+      paymentMethod: "Cheque",
+      sapPaymentNo: "SAP-2348",
+      reference: "INV-REF-215",
+      amount: "42000.00",
+      unallocatedAmount: "0.00",
+      status: "Fully Allocated",
+      currency: "INR",
+      createdAt: "2025-04-22T13:25:00Z"
+    },
+    {
+      id: 107,
+      customerId: 7,
+      customerName: "OMEGA TRADERS",
+      paymentNumber: "PAY-25-0035",
+      paymentDate: "2025-04-28",
+      paymentType: "Product",
+      paymentMethod: "Bank Transfer",
+      sapPaymentNo: "SAP-2355",
+      reference: "INV-REF-218",
+      amount: "322000.00",
+      unallocatedAmount: "122000.00",
+      status: "Partially Allocated",
+      currency: "INR",
+      createdAt: "2025-04-28T16:10:00Z"
     }
   ];
   
