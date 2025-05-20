@@ -792,6 +792,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                         <Input 
                           placeholder="Enter invoice number" 
                           {...field}
+                          readOnly={isEditMode}
+                          className={isEditMode ? "bg-muted cursor-not-allowed" : ""}
                         />
                       </FormControl>
                       <FormMessage />
@@ -843,20 +845,30 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Invoice Type</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        value={field.value}
-                      >
+                      {isEditMode ? (
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
+                          <Input
+                            value={field.value}
+                            readOnly
+                            className="bg-muted cursor-not-allowed"
+                          />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Product">Product</SelectItem>
-                          <SelectItem value="Service">Service</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      ) : (
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Product">Product</SelectItem>
+                            <SelectItem value="Service">Service</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -868,26 +880,36 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer</FormLabel>
-                      <Select 
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          setSelectedCustomerId(value);
-                        }} 
-                        value={field.value || ""}
-                      >
+                      {isEditMode ? (
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select customer" />
-                          </SelectTrigger>
+                          <Input
+                            value={customers?.find((c: any) => c.id.toString() === field.value)?.bpName || field.value}
+                            readOnly
+                            className="bg-muted cursor-not-allowed"
+                          />
                         </FormControl>
-                        <SelectContent>
-                          {customers?.map((customer: any) => (
-                            <SelectItem key={customer.id} value={customer.id.toString()}>
-                              {customer.bpName} ({customer.bpCode})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      ) : (
+                        <Select 
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            setSelectedCustomerId(value);
+                          }} 
+                          value={field.value || ""}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select customer" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {customers?.map((customer: any) => (
+                              <SelectItem key={customer.id} value={customer.id.toString()}>
+                                {customer.bpName} ({customer.bpCode})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1261,7 +1283,11 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                           <FormItem>
                             <FormLabel>Description</FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input 
+                                {...field} 
+                                readOnly={isEditMode}
+                                className={isEditMode ? "bg-muted cursor-not-allowed" : ""}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1281,8 +1307,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                className={`text-right ${hideNumberInputArrows}`}
+                                className={`text-right ${hideNumberInputArrows} ${isEditMode ? "bg-muted cursor-not-allowed" : ""}`}
                                 {...field}
+                                readOnly={isEditMode}
                               />
                             </FormControl>
                             <FormMessage />
