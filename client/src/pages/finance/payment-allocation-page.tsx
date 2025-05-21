@@ -188,7 +188,8 @@ export default function PaymentAllocationPage() {
         currentInvoices.filter(i => i.invoiceId !== invoice.id)
       );
     } else {
-      setSelectedInvoices([...selectedInvoices, invoice]);
+      // Add the invoice to the selectedInvoices state
+      setSelectedInvoices(prevSelected => [...prevSelected, invoice]);
       
       // Add to form value with the invoice's outstanding amount as the default allocation amount
       const currentInvoices = form.getValues('invoices');
@@ -200,22 +201,16 @@ export default function PaymentAllocationPage() {
       );
       
       // Add the invoice to the form with the calculated default allocation amount
-      const updatedInvoices = [...currentInvoices, { 
-        invoiceId: invoice.id, 
-        allocationAmount: defaultAllocationAmount
-      }];
-      
-      // Update the form state
-      form.setValue('invoices', updatedInvoices);
-      
-      // Force a re-render to make sure the UI reflects the new value
-      setTimeout(() => {
-        const invoiceIndex = updatedInvoices.findIndex(i => i.invoiceId === invoice.id);
-        if (invoiceIndex !== -1) {
-          console.log('Setting default allocation amount:', defaultAllocationAmount);
-          form.setValue(`invoices.${invoiceIndex}.allocationAmount`, defaultAllocationAmount);
-        }
-      }, 0);
+      form.setValue(
+        'invoices', 
+        [
+          ...currentInvoices, 
+          { 
+            invoiceId: invoice.id, 
+            allocationAmount: defaultAllocationAmount 
+          }
+        ]
+      );
     }
   };
 
@@ -576,14 +571,26 @@ export default function PaymentAllocationPage() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                       {isSelected && (
-                                        <Input
-                                          type="number"
-                                          min={0}
-                                          max={Math.min(invoice.outstandingAmount, selectedPayment.remainingAmount)}
-                                          value={currentAllocation || invoice.outstandingAmount}
-                                          onChange={(e) => handleAllocationChange(invoice.id, parseFloat(e.target.value) || 0)}
-                                          className="w-32 text-right"
-                                        />
+                                        <div className="flex flex-col gap-1">
+                                          <Input
+                                            key={`invoice-allocation-${invoice.id}`}
+                                            type="number"
+                                            min={0}
+                                            max={Math.min(invoice.outstandingAmount, selectedPayment.remainingAmount)}
+                                            value={currentAllocation || invoice.outstandingAmount}
+                                            onChange={(e) => handleAllocationChange(invoice.id, parseFloat(e.target.value) || 0)}
+                                            className="w-32 text-right"
+                                          />
+                                          <Button 
+                                            type="button" 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            className="text-xs"
+                                            onClick={() => handleAllocationChange(invoice.id, invoice.outstandingAmount)}
+                                          >
+                                            Use max
+                                          </Button>
+                                        </div>
                                       )}
                                     </TableCell>
                                   </TableRow>
