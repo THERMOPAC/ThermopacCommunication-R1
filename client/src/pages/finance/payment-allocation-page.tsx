@@ -189,11 +189,19 @@ export default function PaymentAllocationPage() {
       );
     } else {
       setSelectedInvoices([...selectedInvoices, invoice]);
-      // Add to form value with 0 allocation amount
+      
+      // Add to form value with the invoice's outstanding amount as the default allocation amount
       const currentInvoices = form.getValues('invoices');
+      
+      // Get the default allocation amount (either the invoice's outstanding amount or the remaining payment amount, whichever is smaller)
+      const defaultAllocationAmount = Math.min(
+        invoice.outstandingAmount,
+        selectedPayment ? selectedPayment.remainingAmount - getTotalAllocation() : 0
+      );
+      
       form.setValue(
         'invoices', 
-        [...currentInvoices, { invoiceId: invoice.id, allocationAmount: 0 }]
+        [...currentInvoices, { invoiceId: invoice.id, allocationAmount: defaultAllocationAmount }]
       );
     }
   };
