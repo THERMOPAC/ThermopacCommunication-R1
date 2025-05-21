@@ -823,15 +823,37 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                     <FormItem>
                       <FormLabel>Reference Number</FormLabel>
                       <FormControl>
-                        <div className="relative">
+                        <div className="relative flex gap-2">
                           <Input 
-                            placeholder="PAY-2526-001" 
+                            placeholder="PAY-2526-015" 
                             {...field} 
-                            readOnly={!isEditMode} 
-                            className={!isEditMode ? "bg-muted cursor-not-allowed" : ""} 
+                            className={!isEditMode ? "bg-muted" : ""} 
                           />
+                          {!isEditMode && (
+                            <Button 
+                              type="button" 
+                              variant="outline"
+                              onClick={() => {
+                                const today = new Date();
+                                const month = today.getMonth();
+                                const year = today.getFullYear();
+                                const startYear = month >= 3 ? year : year - 1;
+                                const endYear = startYear + 1;
+                                const startYearStr = startYear.toString().substring(2);
+                                const endYearStr = endYear.toString().substring(2);
+                                const financialYear = `${startYearStr}${endYearStr}`;
+                                
+                                form.setValue('referenceNumber', `PAY-${financialYear}-015`);
+                              }}
+                            >
+                              Set Number
+                            </Button>
+                          )}
                         </div>
                       </FormControl>
+                      <FormDescription>
+                        For new payments, you can set the reference number manually
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
