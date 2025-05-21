@@ -257,8 +257,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       const formattedDate = format(date, "yyyy-MM-dd");
       console.log(`Generating reference number for date: ${formattedDate}`);
       
-      // Use the test endpoint that follows the successful invoice number approach
-      const response = await fetch(`/api/finance/test/payment-reference?date=${formattedDate}`, {
+      // Use the existing working endpoint for payment reference number generation
+      const response = await fetch(`/api/finance/generate-payment-reference?date=${formattedDate}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json'
