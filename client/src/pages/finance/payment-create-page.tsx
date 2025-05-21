@@ -269,9 +269,10 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       // Call the dedicated server endpoint to generate the reference number
       try {
         // Format date as YYYY-MM-DD for the query parameter
-        const formattedDate = date.toISOString().split('T')[0];
+        const formattedDate = date.toISOString();
+        console.log(`Sending payment date to server: ${formattedDate}`);
         
-        const response = await fetch(`/api/finance/generate-payment-reference?date=${formattedDate}`, {
+        const response = await fetch(`/api/finance/generate-payment-reference?date=${encodeURIComponent(formattedDate)}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json'

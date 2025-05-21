@@ -1892,21 +1892,30 @@ router.get('/generate-payment-reference', ensureAuthenticated, async (req: Reque
     res.setHeader('Content-Type', 'application/json');
     
     // Get date from query parameter or use current date
-    const date = req.query.date ? new Date(req.query.date as string) : new Date();
+    let date;
+    try {
+      date = req.query.date ? new Date(req.query.date as string) : new Date();
+      console.log(`Using payment date for reference generation: ${date.toISOString()}`);
+    } catch (dateError) {
+      console.error('Invalid date format:', dateError);
+      date = new Date(); // Fallback to current date
+    }
     
     // Calculate financial year based on Indian calendar (April to March)
     const month = date.getMonth(); // 0-11 (0 = January, 3 = April)
     const year = date.getFullYear();
     
     // Indian financial year runs April to March
-    // If month is January to March (0-2), it's the previous year's financial year
-    const startYear = month >= 3 ? year : year - 1;
+    // If month is January to March (0-2), use previous year as start year
+    const startYear = month < 3 ? year - 1 : year;
     const endYear = startYear + 1;
     
-    // Format as YY-ZZ (e.g., 2526 for 2025-2026)
+    // Format as YYZZ (e.g., "2425" for 2024-2025)
     const startYearStr = startYear.toString().slice(-2);
     const endYearStr = endYear.toString().slice(-2);
     const financialYear = `${startYearStr}${endYearStr}`;
+    
+    console.log(`Calculated financial year ${financialYear} for date ${date.toDateString()} (month: ${month})`);
     
     try {
       // Query database for highest existing payment reference number with this prefix
@@ -1918,7 +1927,7 @@ router.get('/generate-payment-reference', ensureAuthenticated, async (req: Reque
         LIMIT 1
       `;
       
-      console.log(`Generating payment reference number for financial year ${financialYear}`);
+      console.log(`Looking for payment references with pattern: PAY-${financialYear}-%`);
       const result = await pool.query(query, [`PAY-${financialYear}-%`]);
       
       let nextSequenceNumber = 1; // Start from 1 if no existing payments
@@ -1935,7 +1944,7 @@ router.get('/generate-payment-reference', ensureAuthenticated, async (req: Reque
           console.log(`Current sequence: ${currentSequence}, next: ${nextSequenceNumber}`);
         }
       } else {
-        console.log(`No existing payments found for financial year ${financialYear}`);
+        console.log(`No existing payments found for financial year ${financialYear}, starting with 001`);
       }
       
       // Format with leading zeros (3 digits)
