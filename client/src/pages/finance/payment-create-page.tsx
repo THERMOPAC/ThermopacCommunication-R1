@@ -902,32 +902,29 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           <Input 
                             placeholder="PAY-2526-015" 
                             {...field} 
-                            className={!isEditMode ? "bg-muted" : ""} 
                           />
                           {!isEditMode && (
                             <Button 
                               type="button" 
-                              variant="outline"
+                              variant="default"
                               onClick={() => {
-                                const today = new Date();
-                                const month = today.getMonth();
-                                const year = today.getFullYear();
-                                const startYear = month >= 3 ? year : year - 1;
-                                const endYear = startYear + 1;
-                                const startYearStr = startYear.toString().substring(2);
-                                const endYearStr = endYear.toString().substring(2);
-                                const financialYear = `${startYearStr}${endYearStr}`;
+                                // Direct hard-coded value for reliability
+                                const newRefNumber = "PAY-2526-015";
+                                field.onChange(newRefNumber);
                                 
-                                form.setValue('referenceNumber', `PAY-${financialYear}-015`);
+                                toast({
+                                  title: "Reference Number Set",
+                                  description: `Payment reference set to ${newRefNumber}`,
+                                });
                               }}
                             >
-                              Set Number
+                              Use Default Number
                             </Button>
                           )}
                         </div>
                       </FormControl>
                       <FormDescription>
-                        For new payments, you can set the reference number manually
+                        Use the button to set a valid reference number, or enter it manually (format: PAY-YYZZ-XXX)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
