@@ -172,13 +172,19 @@ export async function getNextInvoiceNumber(issueDate: Date): Promise<string> {
       throw new Error('Failed to get next invoice number');
     }
     
+    // Check if the response is JSON by looking at the content-type header
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Response is not JSON format');
+    }
+    
     const data = await response.json();
     
     // The test endpoint returns the number in the nextInvoiceNumber field
     return data.nextInvoiceNumber;
   } catch (error) {
     console.error('Error getting next invoice number:', error);
-    // Fallback format if API fails
+    // Fallback format if API fails - generate predictable number based on financial year
     return `INV-${financialYear}-001`;
   }
 }
