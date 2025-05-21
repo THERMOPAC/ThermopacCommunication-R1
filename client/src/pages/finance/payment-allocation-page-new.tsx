@@ -5,7 +5,7 @@ import * as z from "zod";
 import { format } from "date-fns";
 import { AlertCircle, CheckCircle, Info } from "lucide-react";
 import { useQuery, useMutation, QueryKey } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 import {
@@ -197,13 +197,22 @@ export default function PaymentAllocationPage() {
   // Fetch payment allocations for the view dialog
   const fetchAllocations = async (paymentId: number): Promise<Allocation[]> => {
     try {
-      const response = await fetch(`${window.location.origin}/api/finance/payment-allocations/${paymentId}`);
+      // Use our new simple allocations API endpoint
+      const response = await fetch(`${window.location.origin}/api/finance/simple-allocations/payment-allocations/${paymentId}`);
+      
       if (!response.ok) {
         throw new Error('Failed to fetch allocations');
       }
+      
       const data = await response.json();
       console.log("Fetched allocations:", data);
-      return data.allocations;
+      
+      // The new API returns allocations in a different format
+      if (data.success === false) {
+        throw new Error(data.message || 'Failed to fetch allocations');
+      }
+      
+      return data.allocations || [];
     } catch (error) {
       console.error('Error fetching allocations:', error);
       return [];
@@ -211,7 +220,7 @@ export default function PaymentAllocationPage() {
   };
 
   // Get all payments from the query result
-  const payments = paymentsData?.advances || [];
+  const payments = (paymentsData as { advances: Payment[] })?.advances || [];
 
   // Update filtered invoices when payment selection changes
   useEffect(() => {
@@ -361,7 +370,17 @@ export default function PaymentAllocationPage() {
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Check if response indicates failure
+      if (data && data.success === false) {
+        toast({
+          title: "Allocation Failed",
+          description: data.message || "There was an error processing the allocation.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       toast({
         title: "Payment Allocated Successfully",
         description: "The payment has been allocated to the selected invoices.",
@@ -370,10 +389,16 @@ export default function PaymentAllocationPage() {
       // Reset the form
       resetAllocation();
       
-      // Refetch data
-      const queryClient = window.queryClient;
+      // Refetch data using the imported queryClient
       queryClient.invalidateQueries({ queryKey: ['/api/finance/unallocated-advances'] });
       queryClient.invalidateQueries({ queryKey: ['/api/finance/outstanding-invoices'] });
+      
+      // Also invalidate allocations if we were viewing them
+      if (viewPaymentId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/finance/simple-allocations/payment-allocations', viewPaymentId.toString()] 
+        });
+      }
     },
     onError: (error: Error) => {
       toast({
