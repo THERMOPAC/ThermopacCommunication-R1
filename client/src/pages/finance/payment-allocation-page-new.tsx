@@ -318,18 +318,36 @@ export default function PaymentAllocationPage() {
   // Allocation mutation
   const allocateMutation = useMutation({
     mutationFn: async (values: AllocationFormValues) => {
-      const response = await apiRequest(
-        'POST',
-        '/api/finance/allocate-payment',
-        values
-      );
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to allocate payment');
+      try {
+        // Make a direct fetch to ensure proper handling
+        const response = await fetch(`${window.location.origin}/api/finance/allocate-payment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(values),
+          credentials: 'include'
+        });
+        
+        // Handle non-JSON responses
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Server returned non-JSON response:', text);
+          throw new Error('Server returned non-JSON response. Please try again later.');
+        }
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to allocate payment');
+        }
+        
+        return data;
+      } catch (error) {
+        console.error('Allocation error:', error);
+        throw error;
       }
-      
-      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -398,7 +416,7 @@ export default function PaymentAllocationPage() {
   }, [viewPaymentId, allocationsDialogOpen]);
 
   return (
-    <div className="container py-10">
+    <div className="py-10 px-4 md:px-6 w-full max-w-screen-xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Payment Allocation</h1>
         <p className="text-muted-foreground">
