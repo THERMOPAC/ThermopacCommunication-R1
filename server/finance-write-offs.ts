@@ -39,7 +39,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
       id: row.writeOff.id,
       invoiceId: row.writeOff.invoiceId,
       invoiceNumber: row.invoice?.invoiceNumber || 'Unknown',
-      customerName: row.customer?.name || 'Unknown Customer',
+      customerName: row.customer?.bp_name || 'Unknown Customer',
       amount: row.writeOff.amount,
       originalInvoiceAmount: row.invoice?.totalAmount || '0',
       reason: row.writeOff.reason,
@@ -73,11 +73,13 @@ router.get('/:id', ensureAuthenticated, async (req, res) => {
     const [result] = await db.select({
       writeOff: writeOffs,
       invoice: invoices,
-      user: users
+      user: users,
+      customer: customers
     })
     .from(writeOffs)
     .leftJoin(invoices, eq(writeOffs.invoiceId, invoices.id))
     .leftJoin(users, eq(writeOffs.createdBy, users.id))
+    .leftJoin(customers, eq(invoices.customerId, customers.id))
     .where(eq(writeOffs.id, parseInt(id)));
     
     if (!result) {
@@ -89,7 +91,7 @@ router.get('/:id', ensureAuthenticated, async (req, res) => {
       id: result.writeOff.id,
       invoiceId: result.writeOff.invoiceId,
       invoiceNumber: result.invoice?.invoiceNumber || 'Unknown',
-      customerName: 'Customer ' + (result.invoice?.customerId || 'Unknown'),
+      customerName: result.customer?.bp_name || 'Unknown Customer',
       amount: result.writeOff.amount,
       originalInvoiceAmount: result.invoice?.totalAmount || '0',
       reason: result.writeOff.reason,
