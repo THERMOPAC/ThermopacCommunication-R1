@@ -256,6 +256,9 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       // Calculate financial year for temporary display
       const month = date.getMonth(); // 0-based (0 = January, 3 = April)
       const year = date.getFullYear();
+      const day = date.getDate();
+      
+      // Start with a temporary value
       const startYear = month >= 3 ? year : year - 1;
       const endYear = startYear + 1;
       const startYearStr = startYear.toString().slice(-2);
@@ -268,11 +271,16 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       
       // Call the dedicated server endpoint to generate the reference number
       try {
-        // Format date as YYYY-MM-DD for the query parameter
-        const formattedDate = date.toISOString();
-        console.log(`Sending payment date to server: ${formattedDate}`);
+        // Send individual date components to avoid timezone issues
+        const queryParams = new URLSearchParams({
+          year: year.toString(),
+          month: (month + 1).toString(), // Convert to 1-based month
+          day: day.toString()
+        });
         
-        const response = await fetch(`/api/finance/generate-payment-reference?date=${encodeURIComponent(formattedDate)}`, {
+        console.log(`Sending payment date to server: Year: ${year}, Month: ${month + 1}, Day: ${day}`);
+        
+        const response = await fetch(`/api/finance/generate-payment-reference?${queryParams.toString()}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json'
@@ -302,7 +310,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       // Use a reliable fallback approach with financial year
       const month = date.getMonth();
       const year = date.getFullYear();
-      const startYear = month >= 3 ? year : year - 1;
+      const startYear = month < 3 ? year - 1 : year;
       const endYear = startYear + 1;
       const startYearStr = startYear.toString().slice(-2);
       const endYearStr = endYear.toString().slice(-2);

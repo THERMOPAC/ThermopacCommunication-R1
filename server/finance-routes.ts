@@ -1888,25 +1888,31 @@ router.get('/brc', ensureAuthenticated, (req: Request, res: Response) => {
  */
 router.get('/generate-payment-reference', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Set proper content type header
-    res.setHeader('Content-Type', 'application/json');
+    // Get date parameters from query
+    let year, month, day;
     
-    // Get date from query parameter or use current date
-    let date;
-    try {
-      date = req.query.date ? new Date(req.query.date as string) : new Date();
-      console.log(`Using payment date for reference generation: ${date.toISOString()}`);
-    } catch (dateError) {
-      console.error('Invalid date format:', dateError);
-      date = new Date(); // Fallback to current date
+    if (req.query.year && req.query.month && req.query.day) {
+      // If individual date components are provided, use them
+      year = parseInt(req.query.year as string);
+      month = parseInt(req.query.month as string);
+      day = parseInt(req.query.day as string);
+      
+      // Month is 0-based in JavaScript Date (0 = January, 11 = December)
+      month = month - 1;
+    } else {
+      // Use current date
+      const today = new Date();
+      year = today.getFullYear();
+      month = today.getMonth();
+      day = today.getDate();
     }
     
-    // Calculate financial year based on Indian calendar (April to March)
-    const month = date.getMonth(); // 0-11 (0 = January, 3 = April)
-    const year = date.getFullYear();
+    // Create date object
+    const date = new Date(year, month, day);
+    console.log(`Using payment date for reference: ${date.toDateString()} (y:${year} m:${month} d:${day})`);
     
-    // Indian financial year runs April to March
-    // If month is January to March (0-2), use previous year as start year
+    // Calculate financial year based on Indian calendar (April to March)
+    // If month is January(0), February(1), or March(2), use previous year as start year
     const startYear = month < 3 ? year - 1 : year;
     const endYear = startYear + 1;
     
@@ -1915,7 +1921,7 @@ router.get('/generate-payment-reference', ensureAuthenticated, async (req: Reque
     const endYearStr = endYear.toString().slice(-2);
     const financialYear = `${startYearStr}${endYearStr}`;
     
-    console.log(`Calculated financial year ${financialYear} for date ${date.toDateString()} (month: ${month})`);
+    console.log(`Calculated financial year ${financialYear} for date ${date.toDateString()}`);
     
     try {
       // Query database for highest existing payment reference number with this prefix
