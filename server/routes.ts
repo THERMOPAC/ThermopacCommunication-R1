@@ -1720,6 +1720,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }, 24 * 60 * 60 * 1000); // Run once per day
 
   // Use finance write-offs router (fixed)
+  // Register simple payment allocation API
+  app.use('/api/finance/simple-allocations', simplePaymentAllocationApi);
+  console.log('Simple payment allocation API registered at /api/finance/simple-allocations');
+  
   app.use('/api/finance/write-offs', financeWriteOffsRouter);
   console.log('Write-off routes registered at /api/finance/write-offs');
 

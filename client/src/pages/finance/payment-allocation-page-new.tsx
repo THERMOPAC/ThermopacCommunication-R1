@@ -319,13 +319,25 @@ export default function PaymentAllocationPage() {
   const allocateMutation = useMutation({
     mutationFn: async (values: AllocationFormValues) => {
       try {
-        // Make a direct fetch to ensure proper handling
-        const response = await fetch(`${window.location.origin}/api/finance/allocate-payment`, {
+        // Filter out invoices with no allocation
+        const selectedInvoices = values.invoices.filter(inv => inv.allocationAmount > 0);
+        
+        // Create payload for new API
+        const payload = {
+          paymentId: selectedPayment?.id,
+          invoices: selectedInvoices,
+          comment: values.comment || undefined
+        };
+        
+        console.log('Allocation payload:', payload);
+        
+        // Make a direct fetch to ensure proper handling - using our new API endpoint
+        const response = await fetch(`${window.location.origin}/api/finance/simple-allocations/allocate-payment`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(values),
+          body: JSON.stringify(payload),
           credentials: 'include'
         });
         
@@ -339,7 +351,7 @@ export default function PaymentAllocationPage() {
         
         const data = await response.json();
         
-        if (!response.ok) {
+        if (!response.ok || data.success === false) {
           throw new Error(data.message || 'Failed to allocate payment');
         }
         
