@@ -26,7 +26,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
-import { formatRupees, formatUSD, formatDate } from "@/lib/utils";
+import { formatRupees, formatUSD } from "@/lib/utils";
+import { format } from "date-fns";
 import { Loader2, Download, Filter } from "lucide-react";
 
 export default function TurnoverReportPage() {
@@ -88,8 +89,8 @@ export default function TurnoverReportPage() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['/api/finance/reports/turnover', dateRange, selectedCurrency],
     queryFn: async () => {
-      const startDate = dateRange.from ? formatDate(dateRange.from, 'yyyy-MM-dd') : '';
-      const endDate = dateRange.to ? formatDate(dateRange.to, 'yyyy-MM-dd') : '';
+      const startDate = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '';
+      const endDate = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '';
       const currencyParam = selectedCurrency !== 'all' ? `&currency=${selectedCurrency}` : '';
       
       const response = await fetch(`/api/finance/reports/turnover?startDate=${startDate}&endDate=${endDate}${currencyParam}`);
@@ -171,10 +172,12 @@ export default function TurnoverReportPage() {
                   <DatePicker
                     value={dateRange}
                     onChange={(date) => {
-                      setDateRange(date);
-                      setSelectedPreset('custom'); // Switch to custom when manually selected
-                      if (date.from && date.to) {
-                        refetch();
+                      if (date) {
+                        setDateRange(date);
+                        setSelectedPreset('custom'); // Switch to custom when manually selected
+                        if (date.from && date.to) {
+                          refetch();
+                        }
                       }
                     }}
                   />
@@ -216,7 +219,7 @@ export default function TurnoverReportPage() {
             <CardTitle>Turnover Summary</CardTitle>
             <CardDescription>
               {dateRange.from && dateRange.to
-                ? `${formatDate(dateRange.from)} to ${formatDate(dateRange.to)}`
+                ? `${format(dateRange.from, 'MMM dd, yyyy')} to ${format(dateRange.to, 'MMM dd, yyyy')}`
                 : "Select a date range to view the report"}
             </CardDescription>
           </CardHeader>
