@@ -1198,6 +1198,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                           placeholder="Enter any additional notes here..."
                           className="min-h-[100px]"
                           {...field}
+                          defaultValue={isEditMode && invoiceData?.invoice?.notes 
+                            ? invoiceData.invoice.notes 
+                            : ''}
                         />
                       </FormControl>
                       <FormMessage />
