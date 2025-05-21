@@ -257,26 +257,56 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       const formattedDate = format(date, "yyyy-MM-dd");
       console.log(`Generating reference number for date: ${formattedDate}`);
       
-      // Use the existing working endpoint for payment reference number generation
-      const response = await fetch(`/api/finance/generate-payment-reference?date=${formattedDate}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        },
-        credentials: 'include'
-      });
+      // Directly set a working reference number pattern first before API call
+      // This ensures at least something appears before the API completes
+      const month = date.getMonth();
+      const year = date.getFullYear();
+      const startYear = month >= 3 ? year : year - 1;
+      const endYear = startYear + 1;
+      const startYearStr = startYear.toString().substring(2);
+      const endYearStr = endYear.toString().substring(2);
+      const financialYear = `${startYearStr}${endYearStr}`;
       
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-      }
+      // Set a temporary value immediately (will be replaced if API succeeds)
+      const temporaryRef = `PAY-${financialYear}-???`;
+      form.setValue('referenceNumber', temporaryRef);
       
-      const data = await response.json();
-      
-      if (data && data.referenceNumber) {
-        console.log(`Generated reference number from server: ${data.referenceNumber}`);
-        form.setValue('referenceNumber', data.referenceNumber);
-      } else {
-        throw new Error('Server response missing reference number');
+      // Now try the API call
+      try {
+        const response = await fetch(`/api/finance/generate-payment-reference?date=${formattedDate}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          },
+          credentials: 'include'
+        });
+        
+        // Print full response details for debugging
+        console.log(`Response status: ${response.status} ${response.statusText}`);
+        const responseText = await response.text();
+        console.log(`Response body: ${responseText}`);
+        
+        // Try to parse the response as JSON
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (jsonError) {
+          console.error('Failed to parse response as JSON:', jsonError);
+          throw new Error('Invalid JSON response from server');
+        }
+        
+        if (data && data.referenceNumber) {
+          console.log(`Generated reference number from server: ${data.referenceNumber}`);
+          form.setValue('referenceNumber', data.referenceNumber);
+          return; // Success case - exit early
+        } else {
+          console.error('Response missing referenceNumber:', data);
+          throw new Error('Server response missing reference number');
+        }
+      } catch (fetchError) {
+        // Let it fall through to the fallback mechanism
+        console.error('API call failed:', fetchError);
+        throw fetchError;
       }
     } catch (error) {
       console.error('Failed to generate reference number:', error);
