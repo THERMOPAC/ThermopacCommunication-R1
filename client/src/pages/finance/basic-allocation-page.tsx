@@ -51,7 +51,8 @@ type Invoice = {
   customerName: string;
 };
 
-export default function BasicAllocationPageContent() {
+// Content component for the basic allocation page
+function BasicAllocationPageContent() {
   // State management
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
