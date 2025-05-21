@@ -38,28 +38,22 @@ router.get('/', ensureAuthenticated, async (req, res) => {
     // Log the first row of results to see what we're working with
     console.log("Customer data from first write-off:", results[0]?.customer);
     
-    // Directly log the first few rows' data structure for debugging
-    if (results.length > 0) {
-      console.log("Raw customer data from first row:", JSON.stringify({
-        customer_data: results[0].customer,
-        bp_name_field: results[0].customer?.bpName,
-        writeOff_id: results[0].writeOff.id
-      }, null, 2));
+    // Log the actual properties on the customer object
+    if (results.length > 0 && results[0].customer) {
+      console.log("Customer object keys:", Object.keys(results[0].customer));
+      for (const key of Object.keys(results[0].customer)) {
+        console.log(`Key: ${key}, Value: ${results[0].customer[key]}`);
+      }
     }
     
     const formattedResults = results.map(row => {
-      // Look for the key in the customer object, regardless of case
-      console.log("Customer object keys:", row.customer ? Object.keys(row.customer) : "No customer");
-      
-      // Access the field using the correct camelCase name
-      const customerBpName = row.customer?.bpName;
-      console.log(`Write-off ID: ${row.writeOff.id}, Customer ID: ${row.customer?.id}, BP Name from database: "${customerBpName}"`);
-      
-      // Ensure proper string value for customer name
-      const customerName = customerBpName || 'Unknown Customer';
-      
-      // Log what we're returning
-      console.log(`Write-off ${row.writeOff.id} - Using customer name: "${customerName}"`);
+      // Get customer name regardless of case convention
+      let customerName = 'Unknown Customer';
+      if (row.customer) {
+        // Try both ways of accessing the property
+        customerName = row.customer.bpName || row.customer['bpName'] || 'Unknown Customer';
+        console.log(`Customer ID: ${row.customer.id}, Name found: ${customerName}`);
+      }
       
       return {
         id: row.writeOff.id,
@@ -118,7 +112,7 @@ router.get('/:id', ensureAuthenticated, async (req, res) => {
       id: result.writeOff.id,
       invoiceId: result.writeOff.invoiceId,
       invoiceNumber: result.invoice?.invoiceNumber || 'Unknown',
-      customerName: result.customer?.bp_name || 'Unknown Customer',
+      customerName: result.customer?.bpName || 'Unknown Customer',
       amount: result.writeOff.amount,
       originalInvoiceAmount: result.invoice?.totalAmount || '0',
       reason: result.writeOff.reason,
@@ -202,7 +196,7 @@ router.post('/', ensureAuthenticated, async (req, res) => {
       id: writeOff.id,
       invoiceId: writeOff.invoiceId,
       invoiceNumber: invoice.invoiceNumber,
-      customerName: result.customer?.bp_name || 'Unknown Customer',
+      customerName: result.customer?.bpName || 'Unknown Customer',
       amount: writeOff.amount,
       originalInvoiceAmount: parseFloat(invoice.totalAmount),
       reason: writeOff.reason,
