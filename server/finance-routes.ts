@@ -1302,6 +1302,10 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       }
     }
     
+    // Display more detailed logging for troubleshooting
+    console.log(`Payment created successfully with ID: ${newPayment.id}`);
+    console.log(`Full payment record:`, JSON.stringify(newPayment));
+
     // Return the created payment
     const formattedPayment = {
       id: newPayment.id,

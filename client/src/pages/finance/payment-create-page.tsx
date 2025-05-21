@@ -84,7 +84,7 @@ interface PaymentData {
 
 // Payment form schema
 const paymentFormSchema = z.object({
-  referenceNumber: z.string().optional(), // Made optional as it will be replaced by ID after saving
+  // Removed referenceNumber field as we're using database ID instead
   irmNo: z.string().optional(),
   paymentDate: z.date({
     required_error: "Payment date is required",
@@ -448,7 +448,9 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     },
     onSuccess: (data) => {
       // Extract the payment ID from the response data
-      const paymentId = data?.id || data?.payment?.id || 'system-generated';
+      const paymentId = data?.id;
+      
+      console.log('Payment creation succeeded with data:', data);
       
       // Show success message with the payment ID
       toast({
