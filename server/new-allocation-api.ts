@@ -140,22 +140,36 @@ newAllocationApi.post('/allocate', ensureAuthenticated, async (req: Request, res
     await client.query('COMMIT');
     
     // Send success response
-    res.json({ 
+    res.status(200).json({ 
       success: true, 
       message: 'Payment allocated successfully',
-      totalAllocated: totalAllocationAmount
+      totalAllocated: totalAllocationAmount,
+      paymentId,
+      invoicesAllocated: invoices.length
     });
     
   } catch (error) {
     // Roll back the transaction if any error occurs
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('Error during rollback:', rollbackError);
+    }
     
     console.error('Error allocating payment:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to allocate payment',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    
+    // Make sure we send a JSON response even in error cases
+    try {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to allocate payment',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } catch (responseError) {
+      console.error('Error sending error response:', responseError);
+      // Last resort - send a plain text response
+      res.status(500).send('Server error occurred during allocation');
+    }
   } finally {
     // Release the client back to the pool
     client.release();

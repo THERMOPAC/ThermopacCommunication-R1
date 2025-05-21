@@ -352,23 +352,26 @@ export default function PaymentAllocationPage() {
           credentials: 'include'
         });
         
-        // Better error handling for non-JSON responses
+        // Completely simplified response handling
         let data;
         try {
-          // First get the response as text
           const text = await response.text();
+          console.log('Raw server response:', text);
           
-          // Try to parse as JSON
+          if (!text || text.trim() === '') {
+            throw new Error('Server returned empty response');
+          }
+          
           try {
             data = JSON.parse(text);
-          } catch (e) {
-            // If parsing fails, log the text and throw an error
-            console.error('Server returned non-JSON response:', text);
-            throw new Error('Server returned non-JSON response. Please try again later.');
+            console.log('Parsed response data:', data);
+          } catch (parseError) {
+            console.error('JSON parse error:', parseError);
+            throw new Error('Unable to parse server response as JSON');
           }
         } catch (e) {
-          console.error('Error reading response:', e);
-          throw new Error('Failed to read server response. Please try again later.');
+          console.error('Response reading error:', e);
+          throw new Error(e instanceof Error ? e.message : 'Failed to process server response');
         }
         
         if (!response.ok || data.success === false) {
