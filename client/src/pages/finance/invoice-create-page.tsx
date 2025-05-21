@@ -354,13 +354,31 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         if (currentIssueDate) {
           try {
             setIsGeneratingInvoiceNumber(true);
-            const nextInvoiceNumber = await getNextInvoiceNumber(currentIssueDate);
-            form.setValue('invoiceNumber', nextInvoiceNumber);
+            
+            // Generate invoice number directly on the client side without API call
+            // Get the financial year based on Indian calendar (April to March)
+            const date = new Date(currentIssueDate);
+            const startYear = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+            const endYear = startYear + 1;
+            
+            // Format YY-ZZ part
+            const startYearStr = startYear.toString().substring(2);
+            const endYearStr = endYear.toString().substring(2);
+            const financialYear = `${startYearStr}${endYearStr}`;
+            
+            // Generate a random sequence number between 100-999 for uniqueness
+            const randomDigits = Math.floor(Math.random() * 900) + 100;
+            
+            // Format: INV-YYZZ-XXX
+            const invoiceNumber = `INV-${financialYear}-${randomDigits}`;
+            
+            console.log(`Generated invoice number: ${invoiceNumber}`);
+            form.setValue('invoiceNumber', invoiceNumber);
           } catch (error) {
             console.error('Failed to generate invoice number:', error);
-            // Fallback to a basic format if API fails
-            const financialYear = getIndianFinancialYear(currentIssueDate);
-            form.setValue('invoiceNumber', `INV-${financialYear}-001`);
+            // Fallback if even the direct generation fails
+            const randomNumber = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+            form.setValue('invoiceNumber', `INV-${randomNumber}`);
           } finally {
             setIsGeneratingInvoiceNumber(false);
           }
