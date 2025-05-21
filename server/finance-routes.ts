@@ -1183,7 +1183,9 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       amount: payment.amount,
       currency: payment.currency,
       method: payment.payment_method,
-      type: payment.payment_type
+      type: payment.payment_type,
+      customer_id: payment.customer_id,
+      is_advance_payment: payment.is_advance_payment
     });
     
     const paymentValues = [

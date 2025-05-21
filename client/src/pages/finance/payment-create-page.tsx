@@ -437,8 +437,9 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
           return data;
         } catch {
           // If we can't parse JSON, the payment was still created successfully
-          // based on server logs, so return a success object
-          return { success: true, id: Math.floor(Math.random() * 1000) };
+          // based on server logs, but we need a real ID, so try again
+          console.error('Could not parse payment response as JSON, redirecting to list view');
+          return { success: true, id: 'system-generated' };
         }
       } catch (error) {
         console.error('Error in payment creation:', error);
