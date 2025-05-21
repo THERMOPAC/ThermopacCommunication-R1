@@ -167,6 +167,8 @@ export default function Layout({ children }: LayoutProps) {
         { icon: PieChart, label: "Dashboard", href: "/finance/dashboard" },
         { icon: Receipt, label: "Invoices", href: "/finance/invoices" },
         { icon: CreditCard, label: "Payments", href: "/finance/payments" },
+        { icon: DollarSign, label: "Payment Allocation", href: "/finance/payment-allocation" },
+        { icon: DollarSign, label: "Basic Allocation", href: "/finance/basic-allocation" },
         { icon: DollarSign, label: "BRC", href: "/finance/brc" }
       ]
     }] : []),

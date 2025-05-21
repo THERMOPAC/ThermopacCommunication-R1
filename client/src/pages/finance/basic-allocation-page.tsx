@@ -217,7 +217,7 @@ export default function BasicAllocationPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="flex flex-col space-y-6">
         {/* Payment Selection */}
         <Card>
           <CardHeader>
