@@ -416,9 +416,9 @@ export default function PaymentAllocationPage() {
   }, [viewPaymentId, allocationsDialogOpen]);
 
   return (
-    <div className="py-10 px-4 md:px-6 w-full max-w-screen-xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Payment Allocation</h1>
+    <div className="py-6 px-4 md:px-6 w-full max-w-[calc(100vw-280px)] overflow-x-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Payment Allocation</h1>
         <p className="text-muted-foreground">
           Allocate unallocated payments to outstanding invoices
         </p>

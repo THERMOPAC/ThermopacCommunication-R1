@@ -35,6 +35,7 @@ import { default as financeRoutes } from "./finance-routes-fixed";
 import { default as simpleFinanceRoutes } from "./simple-finance-routes";
 import { financeReportRouter } from "./finance-report-routes";
 import { paymentAllocationApi } from "./payment-allocation-api";
+import { simplePaymentAllocationApi } from "./simple-payment-allocation-api";
 import { default as simplePaymentRoutes } from "./simple-payment-routes";
 import { default as financeWriteOffsRouter } from "./finance-write-offs";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
