@@ -209,7 +209,7 @@ export default function BasicAllocationPage() {
   };
 
   return (
-    <div className="py-6 px-4 md:px-6 w-full max-w-[calc(100vw-280px)] overflow-x-auto">
+    <div className="py-6 px-4 md:px-6 max-w-full">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Basic Payment Allocation</h1>
         <p className="text-muted-foreground">
