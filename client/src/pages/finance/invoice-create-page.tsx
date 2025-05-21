@@ -366,11 +366,17 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
             const endYearStr = endYear.toString().substring(2);
             const financialYear = `${startYearStr}${endYearStr}`;
             
-            // Generate a random sequence number between 100-999 for uniqueness
-            const randomDigits = Math.floor(Math.random() * 900) + 100;
+            // Use a sequential number based on date for more predictable invoicing
+            // We'll use the day of year + month value to create a sequential-like number
+            const dayOfYear = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000);
+            const sequentialBase = dayOfYear + (date.getMonth() * 10);
+            const sequenceNumber = (sequentialBase % 900) + 100; // Keep in 100-999 range
+            
+            // Format it to 3 digits with leading zeros if needed
+            const sequenceStr = sequenceNumber.toString().padStart(3, '0');
             
             // Format: INV-YYZZ-XXX
-            const invoiceNumber = `INV-${financialYear}-${randomDigits}`;
+            const invoiceNumber = `INV-${financialYear}-${sequenceStr}`;
             
             console.log(`Generated invoice number: ${invoiceNumber}`);
             form.setValue('invoiceNumber', invoiceNumber);
