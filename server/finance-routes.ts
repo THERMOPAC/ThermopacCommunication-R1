@@ -2225,11 +2225,16 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
       }
     }
     
-    const invoiceType = (req.query.invoiceType && req.query.invoiceType !== 'all') 
-      ? req.query.invoiceType as string 
-      : null;
+    // Check for invoiceType in query params, or fallback to 'type' parameter
+    let invoiceType = null;
+    if (req.query.invoiceType && req.query.invoiceType !== 'all') {
+      invoiceType = req.query.invoiceType as string;
+    } else if (req.query.type && req.query.type !== 'all') {
+      invoiceType = req.query.type as string;
+    }
     
     console.log('Querying for outstanding invoices with filters:', { customerId, invoiceType });
+    console.log('Raw query parameters:', req.query);
     
     // Build query to get outstanding invoices
     let query = `

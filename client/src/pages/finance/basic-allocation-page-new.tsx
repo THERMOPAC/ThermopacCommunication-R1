@@ -85,7 +85,8 @@ function BasicAllocationPageContent() {
       if (!selectedPayment) return { invoices: [] };
       
       const url = new URL('/api/finance/outstanding-invoices', window.location.origin);
-      url.searchParams.append('type', selectedPayment.paymentType);
+      url.searchParams.append('invoiceType', selectedPayment.paymentType);
+      console.log('Fetching outstanding invoices for payment type:', selectedPayment.paymentType);
       
       const response = await fetch(url.toString());
       if (!response.ok) {
