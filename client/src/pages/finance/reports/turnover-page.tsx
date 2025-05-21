@@ -101,7 +101,9 @@ export default function TurnoverReportPage() {
       if (!response.ok) {
         throw new Error('Failed to fetch turnover report');
       }
-      return response.json();
+      const data = await response.json();
+      console.log("Turnover report data:", data);
+      return data;
     },
     enabled: !!(dateRange.from && dateRange.to)
   });
