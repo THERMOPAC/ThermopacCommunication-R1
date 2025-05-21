@@ -44,11 +44,14 @@ router.get('/', ensureAuthenticated, async (req, res) => {
         console.log(`Write-off ID: ${row.writeOff.id}, Customer ID: ${row.customer.id}, BP Name: ${row.customer.bp_name}`);
       }
       
+      // Directly get bp_name from customer record
+      const customerName = row.customer?.bp_name ? row.customer.bp_name : 'Unknown Customer';
+      
       return {
         id: row.writeOff.id,
         invoiceId: row.writeOff.invoiceId,
         invoiceNumber: row.invoice?.invoiceNumber || 'Unknown',
-        customerName: row.customer?.bp_name || 'Unknown Customer',
+        customerName: customerName,
         amount: row.writeOff.amount,
         originalInvoiceAmount: row.invoice?.totalAmount || '0',
         reason: row.writeOff.reason,
