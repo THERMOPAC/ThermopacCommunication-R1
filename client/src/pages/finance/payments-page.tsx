@@ -59,12 +59,19 @@ const PaymentMethodBadge = ({ method }: { method: string }) => {
 export default function PaymentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [methodFilter, setMethodFilter] = useState('all');
+  const [customerFilter, setCustomerFilter] = useState('all');
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Query for payments
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<{ payments: any[] }>({
     queryKey: ['/api/finance/payments'],
+    retry: 1
+  });
+  
+  // Query for customers list
+  const { data: customersData = [] } = useQuery<any[]>({
+    queryKey: ['/api/customers'],
     retry: 1
   });
 
@@ -96,7 +103,7 @@ export default function PaymentsPage() {
   // Handle the API response structure which returns { payments: [...] }
   const payments = data?.payments || [];
   
-  // Filter the payments based on search term and payment method
+  // Filter the payments based on search term, payment method, and customer
   const filteredPayments = payments
     .filter((payment: any) => {
       const matchesSearch = searchTerm === '' || 
@@ -105,6 +112,10 @@ export default function PaymentsPage() {
       
       const matchesMethod = methodFilter === 'all' || 
         (payment.paymentMethod && payment.paymentMethod.toLowerCase() === methodFilter.toLowerCase());
+      
+      // Customer filtering
+      const matchesCustomer = customerFilter === 'all' || 
+        (payment.customerId && payment.customerId.toString() === customerFilter);
       
       // Date range filtering
       let matchesDateRange = true;
@@ -115,7 +126,7 @@ export default function PaymentsPage() {
         matchesDateRange = matchesDateRange && new Date(payment.paymentDate) <= dateRange.to;
       }
       
-      return matchesSearch && matchesMethod && matchesDateRange;
+      return matchesSearch && matchesMethod && matchesCustomer && matchesDateRange;
     })
     // Sort by payment ID in ascending order
     .sort((a: any, b: any) => Number(a.id) - Number(b.id));
@@ -163,6 +174,26 @@ export default function PaymentsPage() {
 
             {isFilterOpen && (
               <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Customer</label>
+                  <Select 
+                    value={customerFilter} 
+                    onValueChange={setCustomerFilter}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Customers</SelectItem>
+                      {customersData?.map((customer: any) => (
+                        <SelectItem key={customer.id} value={customer.id.toString()}>
+                          {customer.bpName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
                 <div>
                   <label className="text-sm font-medium mb-1 block">Payment Method</label>
                   <Select 
