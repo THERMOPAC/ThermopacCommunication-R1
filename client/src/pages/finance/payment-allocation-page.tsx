@@ -199,10 +199,23 @@ export default function PaymentAllocationPage() {
         selectedPayment ? selectedPayment.remainingAmount - getTotalAllocation() : 0
       );
       
-      form.setValue(
-        'invoices', 
-        [...currentInvoices, { invoiceId: invoice.id, allocationAmount: defaultAllocationAmount }]
-      );
+      // Add the invoice to the form with the calculated default allocation amount
+      const updatedInvoices = [...currentInvoices, { 
+        invoiceId: invoice.id, 
+        allocationAmount: defaultAllocationAmount
+      }];
+      
+      // Update the form state
+      form.setValue('invoices', updatedInvoices);
+      
+      // Force a re-render to make sure the UI reflects the new value
+      setTimeout(() => {
+        const invoiceIndex = updatedInvoices.findIndex(i => i.invoiceId === invoice.id);
+        if (invoiceIndex !== -1) {
+          console.log('Setting default allocation amount:', defaultAllocationAmount);
+          form.setValue(`invoices.${invoiceIndex}.allocationAmount`, defaultAllocationAmount);
+        }
+      }, 0);
     }
   };
 
@@ -567,7 +580,7 @@ export default function PaymentAllocationPage() {
                                           type="number"
                                           min={0}
                                           max={Math.min(invoice.outstandingAmount, selectedPayment.remainingAmount)}
-                                          value={currentAllocation}
+                                          value={currentAllocation || invoice.outstandingAmount}
                                           onChange={(e) => handleAllocationChange(invoice.id, parseFloat(e.target.value) || 0)}
                                           className="w-32 text-right"
                                         />
