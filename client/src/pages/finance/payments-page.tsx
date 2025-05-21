@@ -240,6 +240,7 @@ export default function PaymentsPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-muted/50">
+                <th className="px-4 py-3 text-left text-sm font-medium">Payment ID</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Payment #</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Payment Date</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Customer Name</th>
@@ -254,6 +255,9 @@ export default function PaymentsPage() {
               {filteredPayments.length > 0 ? (
                 filteredPayments.map((payment: any) => (
                   <tr key={payment.id} className="border-t hover:bg-muted/50">
+                    <td className="px-4 py-3 text-left text-sm font-medium">
+                      {payment.id}
+                    </td>
                     <td className="px-4 py-3 text-left text-sm">
                       <Link href={`/finance/payments/${payment.id}`} className="text-primary hover:underline">
                         {payment.paymentNumber || payment.reference || `PAY-${payment.id}`}

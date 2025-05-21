@@ -1306,22 +1306,11 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     console.log(`Payment created successfully with ID: ${newPayment.id}`);
     console.log(`Full payment record:`, JSON.stringify(newPayment));
 
-    // Return the created payment
+    // Return a simple success response with just the ID to avoid parsing issues
     const formattedPayment = {
+      success: true,
       id: newPayment.id,
-      referenceNumber: newPayment.reference_number || newPayment.id.toString(),
-      irmNo: newPayment.irm_no || '',
-      customerId: newPayment.customer_id,
-      paymentDate: newPayment.payment_date,
-      amount: newPayment.amount.toString(),
-      paymentMethod: newPayment.payment_method,
-      currency: newPayment.currency,
-      notes: newPayment.notes,
-      isAdvancePayment: newPayment.is_advance_payment,
-      unallocatedAmount: newPayment.unallocated_amount.toString(),
-      createdBy: newPayment.created_by,
-      createdAt: newPayment.created_at,
-      updatedAt: newPayment.updated_at
+      message: `Payment successfully created with ID: ${newPayment.id}`
     };
     
     res.status(201).json(formattedPayment);
