@@ -340,14 +340,22 @@ financeReportRouter.get('/turnover', async (req: Request, res: Response) => {
       // Format the data for response
       const monthlyData = result.rows.map(row => {
         const totalRevenue = parseFloat(row.total_revenue) || 0;
+        const productRevenue = parseFloat(row.product_revenue) || 0;
+        const serviceRevenue = parseFloat(row.service_revenue) || 0;
+        
         totalInvoiced += totalRevenue;
+        
+        // Log the row data for debugging
+        console.log('Processing monthly data row:', row);
         
         return {
           month: row.month.trim(), // Trim any whitespace
           invoiced: totalRevenue,
           // We'll simulate received and outstanding since we don't have real payment data yet
           received: totalRevenue * 0.7, // Simulate 70% collected
-          outstanding: totalRevenue * 0.3 // Simulate 30% outstanding
+          outstanding: totalRevenue * 0.3, // Simulate 30% outstanding
+          productRevenue: productRevenue,
+          serviceRevenue: serviceRevenue
         };
       });
       
