@@ -397,8 +397,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
             const endYearStr = endYear.toString().substring(2);
             const financialYear = `${startYearStr}${endYearStr}`;
             
-            // Use 100 as a safe starting sequence if we couldn't get it from the server
-            const sequenceStr = '100';
+            // Use 052 as the next number after 051 if we couldn't get it from the server
+            const sequenceStr = '052';
             
             form.setValue('invoiceNumber', `INV-${financialYear}-${sequenceStr}`);
           } finally {

@@ -2164,8 +2164,8 @@ router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res
       console.log(`Querying for latest invoice with pattern: INV-${financialYear}-%`);
       const result = await pool.query(query, [`INV-${financialYear}-%`]);
       
-      // Start from number 50 to avoid conflicts with any existing data
-      let maxSequenceNumber = 50;
+      // Start from number 1 if there are no existing invoices
+      let maxSequenceNumber = 0;
       
       // If we found existing invoices, extract the highest sequence number
       if (result.rows.length > 0) {
@@ -2197,9 +2197,9 @@ router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res
     } catch (dbError) {
       console.error("Database error when getting invoice number:", dbError);
       
-      // Fallback to the next invoice in sequence from a safe starting point
-      // Use a consistent starting number instead of random to ensure sequential numbering
-      const sequenceStr = '100'; // Start from 100 if the database query fails
+      // Fallback to the next invoice in sequence (INV-2526-052) if the database query fails
+      // This ensures we continue from the known latest invoice number
+      const sequenceStr = '052'; // Continue after INV-2526-051 which is the latest invoice
       const nextInvoiceNumber = `INV-${financialYear}-${sequenceStr}`;
       
       console.log(`Using fallback invoice number: ${nextInvoiceNumber} due to DB error`);
