@@ -98,7 +98,150 @@ const WriteOffManagementPage: React.FC = () => {
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
 
-  // Toggle row expansion
+  // Format currency values
+  const formatCurrency = (amount: number | string, currency: string) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return `${currency} ${numAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Format dates
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
+  // Fetch write-offs with optional status filter
+  const { data: writeOffs = [], isLoading } = useQuery({
+    queryKey: ['/api/finance/write-offs', activeTab],
+    queryFn: async () => {
+      const status = activeTab === 'all' ? undefined : activeTab === 'pending' ? 'Pending' : activeTab === 'approved' ? 'Approved' : 'Rejected';
+      const response = await fetch(`/api/finance/write-offs${status ? `?status=${status}` : ''}`);
+      if (!response.ok) throw new Error('Failed to fetch write-offs');
+      return response.json();
+    }
+  });
+
+  // Fetch invoices with outstanding balances for the create form
+  const { data: invoices = [] } = useQuery({
+    queryKey: ['/api/finance/invoices'],
+    queryFn: async () => {
+      const response = await fetch('/api/finance/invoices?status=Open');
+      if (!response.ok) throw new Error('Failed to fetch invoices');
+      return response.json();
+    },
+    enabled: createDialogOpen, // Only fetch when create dialog is open
+  });
+
+  // Create form
+  const createForm = useForm({
+    resolver: zodResolver(writeOffFormSchema),
+    defaultValues: {
+      invoiceId: 0,
+      amount: 0,
+      reason: '',
+      notes: '',
+    }
+  });
+
+  // Approval form
+  const approvalForm = useForm({
+    resolver: zodResolver(approvalFormSchema),
+    defaultValues: {
+      status: undefined,
+      notes: '',
+    }
+  });
+
+  // Selected invoice data for the create form
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+
+  // Handle invoice selection change
+  const handleInvoiceChange = (invoiceId: number) => {
+    const invoice = invoices.find((inv: Invoice) => inv.id === invoiceId);
+    setSelectedInvoice(invoice || null);
+    if (invoice) {
+      // Set default amount to the outstanding amount of the invoice
+      createForm.setValue('amount', invoice.outstandingAmount || parseFloat(invoice.totalAmount));
+    }
+  };
+
+  // Create write-off mutation
+  const createMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof writeOffFormSchema>) => {
+      const response = await apiRequest('/api/finance/write-offs', 'POST', data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create write-off');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Write-off created",
+        description: "Your write-off request has been successfully submitted.",
+      });
+      setCreateDialogOpen(false);
+      createForm.reset();
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/write-offs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/invoices'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to create write-off",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Approve/reject write-off mutation
+  const approvalMutation = useMutation({
+    mutationFn: async (data: { id: number; status: 'Approved' | 'Rejected'; notes?: string }) => {
+      const response = await apiRequest(`/api/finance/write-offs/${data.id}`, 'PATCH', { 
+        status: data.status, 
+        notes: data.notes
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update write-off status');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Write-off updated",
+        description: "The write-off status has been successfully updated.",
+      });
+      setApprovalDialogOpen(false);
+      approvalForm.reset();
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/write-offs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/invoices'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to update write-off",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Create form submission handler
+  const onCreateSubmit = (values: z.infer<typeof writeOffFormSchema>) => {
+    createMutation.mutate(values);
+  };
+
+  // Approval form submission handler
+  const onApprovalSubmit = (values: z.infer<typeof approvalFormSchema>) => {
+    if (!selectedWriteOff) return;
+    approvalMutation.mutate({
+      id: selectedWriteOff.id,
+      status: values.status,
+      notes: values.notes
+    });
+  };
+
+  // Toggle expanded row
   const toggleRowExpansion = (id: number) => {
     setExpandedRows(prev => ({
       ...prev,
@@ -106,231 +249,222 @@ const WriteOffManagementPage: React.FC = () => {
     }));
   };
 
-  // Fetch all write-offs
-  const { data: writeOffs, isLoading: writeOffsLoading } = useQuery({
-    queryKey: ['/api/finance/write-offs'],
-    queryFn: async () => {
-      const response = await apiRequest<WriteOff[]>("GET", "/api/finance/write-offs");
-      return response as WriteOff[];
-    }
-  });
+  // Filter write-offs based on active tab
+  const filteredWriteOffs = writeOffs;
 
-  // Fetch outstanding invoices for the creation form
-  const { data: invoices, isLoading: invoicesLoading } = useQuery({
-    queryKey: ['/api/finance/invoices', 'outstanding'],
-    queryFn: async () => {
-      // In a real implementation, we would have an endpoint that returns only outstanding invoices
-      // For now, we'll fetch all invoices and assume they have outstanding amounts
-      const response = await apiRequest<Invoice[]>("GET", "/api/finance/invoices");
-      return (response as Invoice[]).map((invoice: Invoice) => ({
-        ...invoice,
-        outstandingAmount: parseFloat(invoice.totalAmount)
-      }));
-    }
-  });
+  // Count by status for badges
+  const pendingCount = writeOffs.filter((wo: WriteOff) => wo.status === 'Pending').length;
+  const approvedCount = writeOffs.filter((wo: WriteOff) => wo.status === 'Approved').length;
+  const rejectedCount = writeOffs.filter((wo: WriteOff) => wo.status === 'Rejected').length;
 
-  // Create new write-off mutation
-  const createWriteOffMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof writeOffFormSchema>) => {
-      const response = await apiRequest("POST", "/api/finance/write-offs", data);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/finance/write-offs'] });
-      setCreateDialogOpen(false);
-      toast({
-        title: "Write-off created",
-        description: "The write-off has been created and is pending approval",
-      });
-      createForm.reset();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error creating write-off",
-        description: error.message || "An error occurred while creating the write-off",
-        variant: "destructive",
-      });
-    }
-  });
+  // Check if user can approve write-offs
+  const canApprove = user && canManage(user);
 
-  // Approve/reject write-off mutation
-  const updateWriteOffStatusMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number, data: z.infer<typeof approvalFormSchema> }) => {
-      const response = await apiRequest("PATCH", `/api/finance/write-offs/${id}/status`, data);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/finance/write-offs'] });
-      setApprovalDialogOpen(false);
-      toast({
-        title: "Write-off updated",
-        description: "The write-off status has been updated",
-      });
-      approvalForm.reset();
-      setSelectedWriteOff(null);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error updating write-off",
-        description: error.message || "An error occurred while updating the write-off",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Create write-off form
-  const createForm = useForm<z.infer<typeof writeOffFormSchema>>({
-    resolver: zodResolver(writeOffFormSchema),
-    defaultValues: {
-      invoiceId: undefined,
-      amount: undefined,
-      reason: "",
-      notes: "",
-    },
-  });
-
-  // Approval form
-  const approvalForm = useForm<z.infer<typeof approvalFormSchema>>({
-    resolver: zodResolver(approvalFormSchema),
-    defaultValues: {
-      status: undefined,
-      notes: "",
-    },
-  });
-
-  // Handler for creating a new write-off
-  const onCreateSubmit = (values: z.infer<typeof writeOffFormSchema>) => {
-    createWriteOffMutation.mutate(values);
+  // Get status variant for badge styling
+  const getStatusVariant = (status: string) => {
+    if (status === 'Approved') return 'default';
+    if (status === 'Rejected') return 'destructive';
+    return 'outline';
   };
-
-  // Handler for approving/rejecting a write-off
-  const onApprovalSubmit = (values: z.infer<typeof approvalFormSchema>) => {
-    if (!selectedWriteOff) return;
-    updateWriteOffStatusMutation.mutate({ id: selectedWriteOff.id, data: values });
-  };
-
-  // Set the selected invoice's details when it's selected in the form
-  const handleInvoiceChange = (invoiceId: number) => {
-    if (!invoices) return;
-    
-    const selectedInvoice = invoices.find(inv => inv.id === invoiceId);
-    if (selectedInvoice) {
-      createForm.setValue('amount', selectedInvoice.outstandingAmount || 0);
-    }
-  };
-
-  // Filter write-offs based on the active tab
-  const filteredWriteOffs = writeOffs?.filter((writeOff: WriteOff) => {
-    switch (activeTab) {
-      case "pending": return writeOff.status === "Pending";
-      case "approved": return writeOff.status === "Approved";
-      case "rejected": return writeOff.status === "Rejected";
-      default: return true;
-    }
-  }) || [];
-
-  // Count write-offs by status
-  const pendingCount = writeOffs?.filter((w: WriteOff) => w.status === "Pending").length || 0;
-  const approvedCount = writeOffs?.filter((w: WriteOff) => w.status === "Approved").length || 0;
-  const rejectedCount = writeOffs?.filter((w: WriteOff) => w.status === "Rejected").length || 0;
-
-  // Format currency
-  const formatCurrency = (amount: number | string, currency: string) => {
-    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: currency || 'INR'
-    }).format(numAmount);
-  };
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  // Determine if the user can approve/reject write-offs
-  const canApprove = user && canManage(user.role, 'Manager');
-
-  // Render a loading skeleton when data is being fetched
-  if (writeOffsLoading) {
-    return (
-      <div className="container py-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Write-off Management</CardTitle>
-            <CardDescription>
-              Manage invoice write-offs by creating, approving, or rejecting them
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between mb-6">
-              <div className="flex gap-2">
-                <Skeleton className="h-10 w-24" />
-                <Skeleton className="h-10 w-24" />
-                <Skeleton className="h-10 w-24" />
-              </div>
-              <Skeleton className="h-10 w-32" />
-            </div>
-            <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map(i => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
-    <div className="container py-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Write-off Management</CardTitle>
-          <CardDescription>
-            Manage invoice write-offs by creating, approving, or rejecting them
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-between mb-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList>
-                <TabsTrigger value="pending" className="flex gap-2">
-                  <Clock className="h-4 w-4" />
-                  Pending
-                  <Badge variant="outline">{pendingCount}</Badge>
-                </TabsTrigger>
-                <TabsTrigger value="approved" className="flex gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  Approved
-                  <Badge variant="outline">{approvedCount}</Badge>
-                </TabsTrigger>
-                <TabsTrigger value="rejected" className="flex gap-2">
-                  <XCircle className="h-4 w-4" />
-                  Rejected
-                  <Badge variant="outline">{rejectedCount}</Badge>
-                </TabsTrigger>
-              </TabsList>
-              
-              <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="ml-auto" onClick={() => setCreateDialogOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Write-off
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px]">
-                  <DialogHeader>
-                    <DialogTitle>Create New Write-off</DialogTitle>
-                    <DialogDescription>
-                      Create a write-off request for an invoice with an outstanding amount
-                    </DialogDescription>
-                  </DialogHeader>
+    <Layout>
+      <div className="container mx-auto py-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Write-off Management</h1>
+            <p className="text-muted-foreground">
+              Manage invoice write-offs by creating, approving, or rejecting them
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="p-6">
+            {isLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-64 w-full" />
+              </div>
+            ) : (
+              <div>
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <div className="flex justify-between items-center mb-4">
+                    <TabsList>
+                      <TabsTrigger value="pending" className="flex gap-2">
+                        <Clock className="h-4 w-4" />
+                        Pending
+                        <Badge variant="outline">{pendingCount}</Badge>
+                      </TabsTrigger>
+                      <TabsTrigger value="approved" className="flex gap-2">
+                        <CheckCircle className="h-4 w-4" />
+                        Approved
+                        <Badge variant="outline">{approvedCount}</Badge>
+                      </TabsTrigger>
+                      <TabsTrigger value="rejected" className="flex gap-2">
+                        <XCircle className="h-4 w-4" />
+                        Rejected
+                        <Badge variant="outline">{rejectedCount}</Badge>
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <Button onClick={() => setCreateDialogOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Write-off
+                    </Button>
+                  </div>
                   
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead style={{ width: '50px' }}></TableHead>
+                        <TableHead>Invoice</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        {activeTab === "pending" && canApprove && <TableHead>Actions</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredWriteOffs.map((writeOff: WriteOff) => (
+                        <React.Fragment key={writeOff.id}>
+                          <TableRow>
+                            <TableCell>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => toggleRowExpansion(writeOff.id)}
+                              >
+                                {expandedRows[writeOff.id] ? 
+                                  <ChevronUp className="h-4 w-4" /> : 
+                                  <ChevronDown className="h-4 w-4" />
+                                }
+                              </Button>
+                            </TableCell>
+                            <TableCell>{writeOff.invoiceNumber}</TableCell>
+                            <TableCell>{writeOff.customerName}</TableCell>
+                            <TableCell>{formatCurrency(writeOff.amount, writeOff.currency)}</TableCell>
+                            <TableCell>
+                              <div className="max-w-[200px] truncate" title={writeOff.reason}>
+                                {writeOff.reason}
+                              </div>
+                            </TableCell>
+                            <TableCell>{formatDate(writeOff.dateCreated)}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={getStatusVariant(writeOff.status)}
+                                className={writeOff.status === "Approved" ? "bg-green-600 text-white" : ""}
+                              >
+                                {writeOff.status === "Approved" && <CheckCircle className="mr-1 h-3 w-3" />}
+                                {writeOff.status === "Rejected" && <XCircle className="mr-1 h-3 w-3" />}
+                                {writeOff.status === "Pending" && <Clock className="mr-1 h-3 w-3" />}
+                                {writeOff.status}
+                              </Badge>
+                            </TableCell>
+                            {activeTab === "pending" && canApprove && (
+                              <TableCell>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedWriteOff(writeOff);
+                                    setApprovalDialogOpen(true);
+                                  }}
+                                >
+                                  Review
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+
+                          {expandedRows[writeOff.id] && (
+                            <TableRow key={`details-${writeOff.id}`} className="bg-muted/50">
+                              <TableCell colSpan={activeTab === "pending" && canApprove ? 8 : 7}>
+                                <div className="p-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                      <h4 className="font-medium text-sm">Write-off Details</h4>
+                                      <div className="space-y-2 mt-2">
+                                        <div className="flex items-start gap-2">
+                                          <DollarSign className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                                          <div>
+                                            <div className="text-sm font-medium">Original Invoice Amount</div>
+                                            <div className="text-sm">{formatCurrency(writeOff.originalInvoiceAmount, writeOff.currency)}</div>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                          <CalendarClock className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                                          <div>
+                                            <div className="text-sm font-medium">Created On</div>
+                                            <div className="text-sm">{formatDate(writeOff.dateCreated)}</div>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                          <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                                          <div>
+                                            <div className="text-sm font-medium">Created By</div>
+                                            <div className="text-sm">{writeOff.createdBy.name || 'Unknown'}</div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    <div>
+                                      <h4 className="font-medium text-sm">Notes</h4>
+                                      <p className="text-sm mt-2">
+                                        {writeOff.notes || 'No additional notes provided.'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  
+                                  {writeOff.status !== "Pending" && (
+                                    <div className="mt-4 pt-4 border-t">
+                                      <h4 className="font-medium text-sm mb-2">Approval Details</h4>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="flex items-start gap-2">
+                                          <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                                          <div>
+                                            <div className="text-sm font-medium">Processed By</div>
+                                            <div className="text-sm">{writeOff.approvedBy?.name || 'Unknown'}</div>
+                                          </div>
+                                        </div>
+                                        {writeOff.approvalDate && (
+                                          <div className="flex items-start gap-2">
+                                            <CalendarClock className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                                            <div>
+                                              <div className="text-sm font-medium">Processed On</div>
+                                              <div className="text-sm">{formatDate(writeOff.approvalDate)}</div>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Tabs>
+              </div>
+            )}
+
+            {/* Create Dialog */}
+            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                  <DialogTitle>Create New Write-off</DialogTitle>
+                  <DialogDescription>
+                    Create a write-off request for an invoice with an outstanding amount
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div>
                   <Form {...createForm}>
                     <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-4">
                       <FormField
@@ -352,38 +486,50 @@ const WriteOffManagementPage: React.FC = () => {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {invoices?.map(invoice => (
+                                {invoices.map((invoice: Invoice) => (
                                   <SelectItem key={invoice.id} value={invoice.id.toString()}>
-                                    {invoice.invoiceNumber} - {formatCurrency(invoice.outstandingAmount || 0, invoice.currency)}
+                                    {invoice.invoiceNumber} - {formatCurrency(invoice.outstandingAmount || invoice.totalAmount, invoice.currency)}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
-                            <FormDescription>
-                              Select an invoice that has an outstanding amount
-                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                      
+                      {selectedInvoice && (
+                        <div className="bg-muted p-3 rounded-md mb-4">
+                          <h4 className="text-sm font-medium mb-2">Invoice Information</h4>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="flex flex-col">
+                              <span className="text-muted-foreground">Total Amount:</span>
+                              <span>{formatCurrency(selectedInvoice.totalAmount, selectedInvoice.currency)}</span>
+                            </div>
+                            {selectedInvoice.outstandingAmount !== undefined && (
+                              <div className="flex flex-col">
+                                <span className="text-muted-foreground">Outstanding Amount:</span>
+                                <span>{formatCurrency(selectedInvoice.outstandingAmount, selectedInvoice.currency)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       
                       <FormField
                         control={createForm.control}
                         name="amount"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Amount</FormLabel>
+                            <FormLabel>Write-off Amount</FormLabel>
                             <FormControl>
                               <Input 
                                 type="number" 
                                 step="0.01" 
                                 {...field} 
-                                onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value))}
                               />
                             </FormControl>
-                            <FormDescription>
-                              Enter the amount to be written off
-                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -396,35 +542,11 @@ const WriteOffManagementPage: React.FC = () => {
                           <FormItem>
                             <FormLabel>Reason</FormLabel>
                             <FormControl>
-                              <Select
-                                onValueChange={(value) => {
-                                  field.onChange(value);
-                                  if (value === "Other") {
-                                    // Clear the field so user can type their own reason
-                                    field.onChange("");
-                                  }
-                                }}
-                                defaultValue={field.value}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select a reason" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Bad debt">Bad debt</SelectItem>
-                                  <SelectItem value="Customer dispute">Customer dispute</SelectItem>
-                                  <SelectItem value="Billing error">Billing error</SelectItem>
-                                  <SelectItem value="Customer goodwill">Customer goodwill</SelectItem>
-                                  <SelectItem value="Partial payment settlement">Partial payment settlement</SelectItem>
-                                  <SelectItem value="Currency exchange loss">Currency exchange loss</SelectItem>
-                                  <SelectItem value="Other">Other (specify)</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <Input {...field} />
                             </FormControl>
-                            {field.value === "Other" && (
-                              <FormControl>
-                                <Input placeholder="Enter custom reason" {...field} />
-                              </FormControl>
-                            )}
+                            <FormDescription>
+                              Provide a brief reason for this write-off
+                            </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -435,12 +557,12 @@ const WriteOffManagementPage: React.FC = () => {
                         name="notes"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Notes (Optional)</FormLabel>
+                            <FormLabel>Additional Notes</FormLabel>
                             <FormControl>
                               <Textarea 
-                                placeholder="Add any additional notes or context for this write-off request"
-                                className="min-h-[80px]"
-                                {...field}
+                                {...field} 
+                                value={field.value || ''}
+                                placeholder="Enter any additional details or context (optional)" 
                               />
                             </FormControl>
                             <FormMessage />
@@ -449,266 +571,94 @@ const WriteOffManagementPage: React.FC = () => {
                       />
                       
                       <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setCreateDialogOpen(false)}
+                        >
                           Cancel
                         </Button>
-                        <Button 
-                          type="submit" 
-                          disabled={createWriteOffMutation.isPending}
-                        >
-                          {createWriteOffMutation.isPending ? "Creating..." : "Create Write-off"}
+                        <Button type="submit" disabled={createMutation.isPending}>
+                          {createMutation.isPending ? "Creating..." : "Create Write-off"}
                         </Button>
                       </DialogFooter>
                     </form>
                   </Form>
-                </DialogContent>
-              </Dialog>
-            </Tabs>
-          </div>
+                </div>
+              </DialogContent>
+            </Dialog>
 
-          {filteredWriteOffs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10">
-              <FileText className="h-16 w-16 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium">No write-offs found</h3>
-              <p className="text-muted-foreground mt-1">
-                {activeTab === "pending" 
-                  ? "There are no pending write-offs waiting for approval"
-                  : activeTab === "approved"
-                  ? "No write-offs have been approved yet"
-                  : "No write-offs have been rejected yet"}
-              </p>
-              {activeTab === "pending" && (
-                <Button 
-                  className="mt-4" 
-                  variant="outline" 
-                  onClick={() => setCreateDialogOpen(true)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create a Write-off
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[50px]"></TableHead>
-                    <TableHead>Invoice</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Reason</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    {activeTab === "pending" && canApprove && <TableHead>Actions</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredWriteOffs.map((writeOff) => (
-                    <React.Fragment key={writeOff.id}>
-                      <TableRow>
-                        <TableCell>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => toggleRowExpansion(writeOff.id)}
-                          >
-                            {expandedRows[writeOff.id] ? 
-                              <ChevronUp className="h-4 w-4" /> : 
-                              <ChevronDown className="h-4 w-4" />
-                            }
-                          </Button>
-                        </TableCell>
-                        <TableCell>{writeOff.invoiceNumber}</TableCell>
-                        <TableCell>{writeOff.customerName}</TableCell>
-                        <TableCell>{formatCurrency(writeOff.amount, writeOff.currency)}</TableCell>
-                        <TableCell>
-                          <div className="max-w-[200px] truncate" title={writeOff.reason}>
-                            {writeOff.reason}
-                          </div>
-                        </TableCell>
-                        <TableCell>{formatDate(writeOff.dateCreated)}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              writeOff.status === "Approved" ? "default" :
-                              writeOff.status === "Rejected" ? "destructive" :
-                              "outline"
-                            }
-                            className={writeOff.status === "Approved" ? "bg-green-600 text-white" : ""}
-                          >
-                            {writeOff.status === "Approved" && <CheckCircle className="mr-1 h-3 w-3" />}
-                            {writeOff.status === "Rejected" && <XCircle className="mr-1 h-3 w-3" />}
-                            {writeOff.status === "Pending" && <Clock className="mr-1 h-3 w-3" />}
-                            {writeOff.status}
-                          </Badge>
-                        </TableCell>
-                        {activeTab === "pending" && canApprove && (
-                          <TableCell>
-                            <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-                              <DialogTrigger asChild>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedWriteOff(writeOff);
-                                    setApprovalDialogOpen(true);
-                                  }}
-                                >
-                                  Review
-                                </Button>
-                              </DialogTrigger>
-                            </Dialog>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                      
-                      {expandedRows[writeOff.id] && (
-                        <TableRow className="bg-muted/50">
-                          <TableCell colSpan={activeTab === "pending" && canApprove ? 8 : 7}>
-                            <div className="p-4">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                  <h4 className="font-medium text-sm">Write-off Details</h4>
-                                  <div className="space-y-2 mt-2">
-                                    <div className="flex items-start gap-2">
-                                      <DollarSign className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                                      <div>
-                                        <div className="text-sm font-medium">Original Invoice Amount</div>
-                                        <div className="text-sm">{formatCurrency(writeOff.originalInvoiceAmount, writeOff.currency)}</div>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-start gap-2">
-                                      <CalendarClock className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                                      <div>
-                                        <div className="text-sm font-medium">Created On</div>
-                                        <div className="text-sm">{formatDate(writeOff.dateCreated)}</div>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-start gap-2">
-                                      <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                                      <div>
-                                        <div className="text-sm font-medium">Created By</div>
-                                        <div className="text-sm">{writeOff.createdBy.name}</div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                {writeOff.status !== "Pending" && (
-                                  <div>
-                                    <h4 className="font-medium text-sm">Approval Details</h4>
-                                    <div className="space-y-2 mt-2">
-                                      <div className="flex items-start gap-2">
-                                        <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                                        <div>
-                                          <div className="text-sm font-medium">
-                                            {writeOff.status === "Approved" ? "Approved By" : "Rejected By"}
-                                          </div>
-                                          <div className="text-sm">{writeOff.approvedBy?.name || "Unknown"}</div>
-                                        </div>
-                                      </div>
-                                      {writeOff.approvalDate && (
-                                        <div className="flex items-start gap-2">
-                                          <CalendarClock className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                                          <div>
-                                            <div className="text-sm font-medium">
-                                              {writeOff.status === "Approved" ? "Approved On" : "Rejected On"}
-                                            </div>
-                                            <div className="text-sm">{formatDate(writeOff.approvalDate)}</div>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                              
-                              {writeOff.notes && (
-                                <div className="mt-2">
-                                  <h4 className="font-medium text-sm mb-1">Notes:</h4>
-                                  <p className="text-sm whitespace-pre-line p-2 border rounded-md bg-background">
-                                    {writeOff.notes}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-
-          {/* Approval Dialog */}
-          {selectedWriteOff && (
+            {/* Approval Dialog */}
             <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-              <DialogContent>
+              <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                   <DialogTitle>Review Write-off Request</DialogTitle>
                   <DialogDescription>
-                    Review and approve or reject this write-off request
+                    Approve or reject this write-off request
                   </DialogDescription>
                 </DialogHeader>
                 
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label>Invoice</Label>
-                    <div className="text-sm font-medium">{selectedWriteOff.invoiceNumber}</div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Customer</Label>
-                    <div className="text-sm font-medium">{selectedWriteOff.customerName}</div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label>Write-off Amount</Label>
-                      <div className="text-sm font-medium">{formatCurrency(selectedWriteOff.amount, selectedWriteOff.currency)}</div>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Original Invoice Amount</Label>
-                      <div className="text-sm font-medium">{formatCurrency(selectedWriteOff.originalInvoiceAmount, selectedWriteOff.currency)}</div>
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Reason</Label>
-                    <div className="text-sm font-medium">{selectedWriteOff.reason}</div>
-                  </div>
-                  {selectedWriteOff.notes && (
-                    <div className="grid gap-2">
-                      <Label>Notes</Label>
-                      <div className="text-sm whitespace-pre-line p-2 border rounded-md">{selectedWriteOff.notes}</div>
+                <div>
+                  {selectedWriteOff && (
+                    <div className="mb-6">
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="flex flex-col">
+                          <span className="text-sm text-muted-foreground">Invoice Number</span>
+                          <span className="font-medium">{selectedWriteOff.invoiceNumber}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm text-muted-foreground">Customer</span>
+                          <span className="font-medium">{selectedWriteOff.customerName}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm text-muted-foreground">Original Amount</span>
+                          <span className="font-medium">{formatCurrency(selectedWriteOff.originalInvoiceAmount, selectedWriteOff.currency)}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm text-muted-foreground">Write-off Amount</span>
+                          <span className="font-medium">{formatCurrency(selectedWriteOff.amount, selectedWriteOff.currency)}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col mb-4">
+                        <span className="text-sm text-muted-foreground">Reason</span>
+                        <span>{selectedWriteOff.reason}</span>
+                      </div>
+                      
+                      {selectedWriteOff.notes && (
+                        <div className="flex flex-col">
+                          <span className="text-sm text-muted-foreground">Additional Notes</span>
+                          <span>{selectedWriteOff.notes}</span>
+                        </div>
+                      )}
+                      
+                      <Separator className="my-4" />
                     </div>
                   )}
                   
-                  <Separator className="my-2" />
-                  
                   <Form {...approvalForm}>
-                    <form onSubmit={approvalForm.handleSubmit(onApprovalSubmit)}>
+                    <form onSubmit={approvalForm.handleSubmit(onApprovalSubmit)} className="space-y-4">
                       <FormField
                         control={approvalForm.control}
                         name="status"
                         render={({ field }) => (
-                          <FormItem className="mb-4">
+                          <FormItem>
                             <FormLabel>Decision</FormLabel>
                             <FormControl>
                               <div className="flex gap-4">
                                 <Button
                                   type="button"
-                                  variant={field.value === "Approved" ? "default" : "outline"}
-                                  className={field.value === "Approved" ? "bg-green-600 hover:bg-green-700" : ""}
-                                  onClick={() => field.onChange("Approved")}
+                                  variant={field.value === 'Approved' ? 'default' : 'outline'}
+                                  className={field.value === 'Approved' ? 'bg-green-600 text-white' : ''}
+                                  onClick={() => field.onChange('Approved')}
                                 >
                                   <CheckCircle className="mr-2 h-4 w-4" />
                                   Approve
                                 </Button>
                                 <Button
                                   type="button"
-                                  variant={field.value === "Rejected" ? "destructive" : "outline"}
-                                  onClick={() => field.onChange("Rejected")}
+                                  variant={field.value === 'Rejected' ? 'destructive' : 'outline'}
+                                  onClick={() => field.onChange('Rejected')}
                                 >
                                   <XCircle className="mr-2 h-4 w-4" />
                                   Reject
@@ -725,12 +675,12 @@ const WriteOffManagementPage: React.FC = () => {
                         name="notes"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Additional Notes (Optional)</FormLabel>
+                            <FormLabel>Comments</FormLabel>
                             <FormControl>
                               <Textarea 
-                                placeholder="Provide any additional information about your decision"
-                                className="min-h-[80px]"
-                                {...field}
+                                {...field} 
+                                value={field.value || ''}
+                                placeholder="Add any comments about your decision (optional)" 
                               />
                             </FormControl>
                             <FormMessage />
@@ -738,15 +688,16 @@ const WriteOffManagementPage: React.FC = () => {
                         )}
                       />
                       
-                      <DialogFooter className="mt-4">
-                        <Button type="button" variant="outline" onClick={() => setApprovalDialogOpen(false)}>
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setApprovalDialogOpen(false)}
+                        >
                           Cancel
                         </Button>
-                        <Button 
-                          type="submit" 
-                          disabled={updateWriteOffStatusMutation.isPending || !approvalForm.getValues().status}
-                        >
-                          {updateWriteOffStatusMutation.isPending ? "Submitting..." : "Submit Decision"}
+                        <Button type="submit" disabled={approvalMutation.isPending || !approvalForm.watch('status')}>
+                          {approvalMutation.isPending ? "Processing..." : "Submit Decision"}
                         </Button>
                       </DialogFooter>
                     </form>
@@ -754,10 +705,10 @@ const WriteOffManagementPage: React.FC = () => {
                 </div>
               </DialogContent>
             </Dialog>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+      </div>
+    </Layout>
   );
 };
 
