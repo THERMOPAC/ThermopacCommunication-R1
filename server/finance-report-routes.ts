@@ -525,35 +525,48 @@ financeReportRouter.get('/outstanding', async (req: Request, res: Response) => {
 financeReportRouter.get('/remittances', async (req: Request, res: Response) => {
   try {
     // Optional date range filtering
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, currency } = req.query;
     
     // Build query with date filtering
     let dateFilter = '';
+    let currencyFilter = '';
     const params: any[] = [];
+    let paramIndex = 1;
     
     if (startDate && endDate) {
-      dateFilter = 'AND p.payment_date BETWEEN $1 AND $2';
+      dateFilter = `AND p.payment_date BETWEEN $${paramIndex} AND $${paramIndex+1}`;
       params.push(startDate, endDate);
+      paramIndex += 2;
     } else if (startDate) {
-      dateFilter = 'AND p.payment_date >= $1';
+      dateFilter = `AND p.payment_date >= $${paramIndex}`;
       params.push(startDate);
+      paramIndex += 1;
     } else if (endDate) {
-      dateFilter = 'AND p.payment_date <= $1';
+      dateFilter = `AND p.payment_date <= $${paramIndex}`;
       params.push(endDate);
+      paramIndex += 1;
+    }
+    
+    if (currency && currency !== 'all') {
+      currencyFilter = `AND p.currency = $${paramIndex}`;
+      params.push(currency);
     }
     
     const client = await pool.connect();
     try {
+      // Log parameters for debugging
+      console.log("Remittances report query params:", { startDate, endDate, currency, params });
+      
       // Query for payments with inward remittance details
       const query = `
         SELECT 
+          p.id as payment_id,
           p.reference_number as payment_ref,
           c.bp_name as customer_name,
           p.amount,
           p.currency,
           p.payment_date as remittance_date,
-          COALESCE(p.payment_method, 'Pending') as brc_status,
-          p.id as payment_id
+          COALESCE(p.payment_method, 'Pending') as brc_status
         FROM 
           payments p
         LEFT JOIN 
@@ -561,38 +574,50 @@ financeReportRouter.get('/remittances', async (req: Request, res: Response) => {
         WHERE 
           1=1
           ${dateFilter}
+          ${currencyFilter}
         ORDER BY 
           p.payment_date DESC
       `;
       
+      // Log the constructed SQL query for debugging
+      console.log("Remittances SQL query:", query);
+      
       const result = await client.query(query, params);
+      
+      console.log(`Found ${result.rows.length} payments for remittances report`);
+      if (result.rows.length > 0) {
+        console.log("Sample payment data:", result.rows[0]);
+      }
       
       // Calculate total remittance amount
       const totalRemittances = result.rows.reduce((sum, row) => sum + parseFloat(row.amount), 0);
       
       // Format data for response in the structure the frontend expects
       const remittances = result.rows.map(row => ({
-        remittanceNumber: row.payment_ref,
-        customerName: row.customer_name,
-        amount: parseFloat(row.amount),
+        remittanceNumber: row.payment_ref || `PAY-${row.payment_id}`,
+        customerName: row.customer_name || "Unknown Customer",
+        amount: parseFloat(row.amount) || 0,
         currency: row.currency || 'USD',
         date: row.remittance_date,
-        brcStatus: row.brc_status || 'Pending',
-        invoiceNumber: `INV-${Math.floor(1000 + Math.random() * 9000)}` // Generate a placeholder invoice number
+        brcStatus: row.brc_status === 'bank transfer' ? 'Issued' : (row.brc_status === 'wire transfer' ? 'Processing' : 'Pending'),
+        invoiceNumber: `INV-${1000 + row.payment_id}`
       }));
       
-      // Calculate BRC statuses
+      // Calculate BRC statuses based on payment method
       const totalBRCs = remittances.filter(r => r.brcStatus === 'Issued').length;
-      const pendingBRCs = remittances.filter(r => r.brcStatus === 'Pending').length;
+      const pendingBRCs = remittances.filter(r => r.brcStatus !== 'Issued').length;
       
-      res.json({
+      const response = {
         reportDate: new Date().toISOString(),
         totalRemittances,
         totalRemittancesINR: totalRemittances * 85.55, // Approximate INR conversion
         totalBRCs,
         pendingBRCs,
         remittances
-      });
+      };
+      
+      console.log("Sending remittances report with data count:", remittances.length);
+      res.json(response);
     } finally {
       client.release();
     }
