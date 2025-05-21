@@ -253,26 +253,25 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     setIsGeneratingReferenceNumber(true);
     
     try {
-      // Calculate financial year
+      // Calculate financial year for temporary display
       const month = date.getMonth(); // 0-based (0 = January, 3 = April)
       const year = date.getFullYear();
-      
-      // Indian financial year runs April to March
       const startYear = month >= 3 ? year : year - 1;
       const endYear = startYear + 1;
-      
-      // Format as YY-ZZ (e.g., 25-26)
-      const startYearStr = startYear.toString().substring(2);
-      const endYearStr = endYear.toString().substring(2);
+      const startYearStr = startYear.toString().slice(-2);
+      const endYearStr = endYear.toString().slice(-2);
       const financialYear = `${startYearStr}${endYearStr}`;
       
       // Set a temporary reference number pattern while we're retrieving the data
       const tempRefNumber = `PAY-${financialYear}-...`;
       form.setValue('referenceNumber', tempRefNumber);
       
-      // Step 1: Get all existing payments to find the latest reference number
+      // Call the dedicated server endpoint to generate the reference number
       try {
-        const response = await fetch('/api/finance/payments', {
+        // Format date as YYYY-MM-DD for the query parameter
+        const formattedDate = date.toISOString().split('T')[0];
+        
+        const response = await fetch(`/api/finance/generate-payment-reference?date=${formattedDate}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json'
@@ -282,54 +281,18 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         
         if (response.ok) {
           const data = await response.json();
-          let sequenceNumber = 1; // Default starting number
           
-          if (data && data.payments && Array.isArray(data.payments)) {
-            // Filter payments that match the current financial year pattern
-            const currentYearPayments = data.payments.filter((payment: any) => {
-              // Check both snake_case and camelCase field names
-              const refNumber = payment.referenceNumber || payment.reference_number || '';
-              return refNumber.includes(`PAY-${financialYear}-`);
-            });
-            
-            if (currentYearPayments.length > 0) {
-              // Sort descending by reference number to get the highest sequence
-              currentYearPayments.sort((a: any, b: any) => {
-                const getSeq = (payment: any) => {
-                  const refNumber = payment.referenceNumber || payment.reference_number || '';
-                  const match = refNumber.match(/PAY-\d{4}-(\d{2,3})/);
-                  return match ? parseInt(match[1], 10) : 0;
-                };
-                return getSeq(b) - getSeq(a);
-              });
-              
-              // Extract the sequence number from the highest reference number
-              const highestPayment = currentYearPayments[0];
-              const highestRefNumber = highestPayment.referenceNumber || highestPayment.reference_number || '';
-              console.log(`Found highest payment reference: ${highestRefNumber}`);
-              
-              const match = highestRefNumber.match(/PAY-\d{4}-(\d{2,3})/);
-              if (match && match[1]) {
-                sequenceNumber = parseInt(match[1], 10) + 1;
-              }
-            } else {
-              console.log(`No payments found for financial year ${financialYear}. Starting with sequence 1.`);
-            }
+          if (data && data.referenceNumber) {
+            console.log(`Generated reference number from server: ${data.referenceNumber}`);
+            form.setValue('referenceNumber', data.referenceNumber);
+          } else {
+            throw new Error('Invalid response format: missing referenceNumber field');
           }
-          
-          // Format the sequence with leading zeros (001, 015, etc.)
-          const paddedSequence = sequenceNumber.toString().padStart(3, '0');
-          const newReferenceNumber = `PAY-${financialYear}-${paddedSequence}`;
-          console.log(`Generated reference number: ${newReferenceNumber}`);
-          
-          // Set the final reference number in the form
-          form.setValue('referenceNumber', newReferenceNumber);
-          return;
         } else {
-          throw new Error(`Failed to fetch payments: ${response.status} ${response.statusText}`);
+          throw new Error(`Failed to fetch reference number: ${response.status} ${response.statusText}`);
         }
       } catch (fetchError) {
-        console.error('Error fetching payment data:', fetchError);
+        console.error('Error fetching reference number:', fetchError);
         throw fetchError;
       }
     } catch (error) {
@@ -340,12 +303,12 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       const year = date.getFullYear();
       const startYear = month >= 3 ? year : year - 1;
       const endYear = startYear + 1;
-      const startYearStr = startYear.toString().substring(2);
-      const endYearStr = endYear.toString().substring(2);
+      const startYearStr = startYear.toString().slice(-2);
+      const endYearStr = endYear.toString().slice(-2);
       const financialYear = `${startYearStr}${endYearStr}`;
       
-      // Based on server logs, we know the next sequence is 015
-      const referenceNumber = `PAY-${financialYear}-015`;
+      // Fallback to a predictable pattern with financial year
+      const referenceNumber = `PAY-${financialYear}-001`;
       console.log(`Using fallback reference number: ${referenceNumber}`);
       form.setValue('referenceNumber', referenceNumber);
       

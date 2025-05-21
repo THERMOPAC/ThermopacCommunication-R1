@@ -1895,21 +1895,26 @@ router.get('/generate-payment-reference', ensureAuthenticated, async (req: Reque
     const date = req.query.date ? new Date(req.query.date as string) : new Date();
     
     // Calculate financial year based on Indian calendar (April to March)
-    const startYear = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+    const month = date.getMonth(); // 0-11 (0 = January, 3 = April)
+    const year = date.getFullYear();
+    
+    // Indian financial year runs April to March
+    // If month is January to March (0-2), it's the previous year's financial year
+    const startYear = month >= 3 ? year : year - 1;
     const endYear = startYear + 1;
     
-    // Format as YY-ZZ (e.g., 25-26)
-    const startYearStr = startYear.toString().substring(2);
-    const endYearStr = endYear.toString().substring(2);
+    // Format as YY-ZZ (e.g., 2526 for 2025-2026)
+    const startYearStr = startYear.toString().slice(-2);
+    const endYearStr = endYear.toString().slice(-2);
     const financialYear = `${startYearStr}${endYearStr}`;
     
-    // Query database for highest existing payment reference number with this prefix
     try {
+      // Query database for highest existing payment reference number with this prefix
       const query = `
         SELECT reference_number 
         FROM payments 
         WHERE reference_number LIKE $1 
-        ORDER BY created_at DESC
+        ORDER BY reference_number DESC
         LIMIT 1
       `;
       
@@ -1919,10 +1924,11 @@ router.get('/generate-payment-reference', ensureAuthenticated, async (req: Reque
       let nextSequenceNumber = 1; // Start from 1 if no existing payments
       
       if (result.rows.length > 0) {
-        console.log(`Found latest payment reference: ${result.rows[0].reference_number}`);
+        const latestRef = result.rows[0].reference_number;
+        console.log(`Found latest payment reference: ${latestRef}`);
         
         // Extract sequence number from reference number (PAY-YYZZ-XXX)
-        const match = result.rows[0].reference_number.match(/PAY-\d{4}-(\d{3})/);
+        const match = latestRef.match(/PAY-\d{4}-(\d{3})/);
         if (match && match[1]) {
           const currentSequence = parseInt(match[1], 10);
           nextSequenceNumber = currentSequence + 1;
