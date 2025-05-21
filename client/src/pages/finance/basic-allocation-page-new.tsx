@@ -169,7 +169,7 @@ function BasicAllocationPageContent() {
     setSuccess(null);
     
     try {
-      const response = await fetch('/api/finance/ultra-simple', {
+      const response = await fetch('/api/finance/ultra-simple/allocate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
