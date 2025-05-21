@@ -463,21 +463,21 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
     }
   }, [isEditMode, unallocatedAdvances, watchedItems]);
   
-  // Create invoice mutation
+  // Create invoice mutation using our more reliable direct route
   const createInvoice = useMutation({
     mutationFn: async (values: InvoiceFormValues) => {
-      // Transform values for API
+      // Transform values for direct API
+      // This uses our new SQL-direct approach that bypasses ORM mapping issues
       const apiData = {
         invoice: {
           invoiceNumber: values.invoiceNumber,
           customerId: parseInt(values.customerId),
           projectId: values.projectId ? parseInt(values.projectId) : null,
-          // Use correct field names that match the schema definition
           issueDate: format(values.issueDate, 'yyyy-MM-dd'),
           dueDate: format(values.dueDate, 'yyyy-MM-dd'),
           totalAmount: String(values.items.reduce((total, item) => total + parseFloat(item.amount || '0'), 0)),
           currency: values.currency,
-          // Add sap invoice no if needed in separate column update
+          sapInvoiceNo: values.sapInvoiceNo || null,
           invoiceType: values.invoiceType,
           status: 'Pending',
           notes: values.notes || null,
