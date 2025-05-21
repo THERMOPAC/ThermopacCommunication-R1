@@ -1145,7 +1145,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     
     // Create a clean payment record for the database
     const payment = {
-      reference_number: paymentData.referenceNumber || null, // No longer generating reference numbers automatically
+      reference_number: null, // Always start with null - will set to ID after creation
       irm_no: paymentData.irmNo || null,
       payment_date: formattedDate, // Use the properly formatted date
       sap_payment_no: paymentData.sapPaymentNo || null,
