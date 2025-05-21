@@ -46,7 +46,7 @@ import { Loader2, CalendarIcon, Plus, Trash2, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
-import { getIndianFinancialYear, getNextInvoiceNumber } from "@/lib/utils";
+// Use direct implementation instead of external utils
 
 // Add global CSS style to hide number input arrows
 const globalStyles = `
