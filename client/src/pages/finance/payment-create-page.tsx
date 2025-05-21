@@ -248,42 +248,27 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   
   // Function to generate reference number based on payment date
   const generateReferenceNumber = useCallback(async (date: Date) => {
+    if (isGeneratingReferenceNumber) return;
+    
+    setIsGeneratingReferenceNumber(true);
     try {
-      setIsGeneratingReferenceNumber(true);
-      
       // Format the date for the API request
       const formattedDate = format(date, "yyyy-MM-dd");
       console.log(`Generating reference number for date: ${formattedDate}`);
       
-      // Use our new dedicated endpoint for generating reference numbers
-      const response = await fetch(`/api/finance/generate-payment-reference?date=${formattedDate}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        credentials: 'include' // Include auth cookies
-      });
+      // Use the apiRequest utility from queryClient which handles JSON properly
+      const response = await apiRequest(
+        "GET", 
+        `/api/finance/generate-payment-reference?date=${formattedDate}`
+      );
       
-      // Check if we got a proper JSON response
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error(`Expected JSON response but got ${contentType}`);
-      }
+      const data = await response.json();
       
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data && data.referenceNumber) {
-          console.log(`Generated reference number from server: ${data.referenceNumber}`);
-          form.setValue('referenceNumber', data.referenceNumber);
-        } else {
-          throw new Error('Server response missing reference number');
-        }
+      if (data && data.referenceNumber) {
+        console.log(`Generated reference number from server: ${data.referenceNumber}`);
+        form.setValue('referenceNumber', data.referenceNumber);
       } else {
-        // If server returned an error, parse the error response
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate reference number');
+        throw new Error('Server response missing reference number');
       }
     } catch (error) {
       console.error('Failed to generate payment reference number:', error);
@@ -293,7 +278,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         variant: "destructive",
       });
       
-      // Use a fallback approach
+      // Use a fallback approach with financial year
       const financialYear = getIndianFinancialYear(date);
       const fallbackNumber = `PAY-${financialYear}-001`;
       console.log(`Using fallback reference number: ${fallbackNumber}`);
@@ -301,7 +286,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     } finally {
       setIsGeneratingReferenceNumber(false);
     }
-  }, [form, setIsGeneratingReferenceNumber, toast]);
+  }, [form, isGeneratingReferenceNumber, setIsGeneratingReferenceNumber, toast]);
   
   // Generate reference number on component mount for new payments
   useEffect(() => {
