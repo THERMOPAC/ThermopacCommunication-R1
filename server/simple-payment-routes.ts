@@ -11,10 +11,17 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
   try {
     console.log('Fetching unallocated payments (simple version)');
     
-    // Simple hardcoded response to avoid NaN errors
+    // Query payments with customer names
     const payments = await pool.query(`
-      SELECT * FROM payments 
-      WHERE unallocated_amount > 0
+      SELECT 
+        p.*,
+        c.bp_name as customer_name
+      FROM 
+        payments p
+      LEFT JOIN 
+        customers c ON p.customer_id = c.id
+      WHERE 
+        p.unallocated_amount > 0
       LIMIT 10
     `);
     
@@ -25,7 +32,7 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
       id: payment.id,
       paymentReference: payment.irm_no || `PAY-${payment.id}`,
       customerId: payment.customer_id,
-      customerName: 'Customer Name', // We'll get this separately if needed
+      customerName: payment.customer_name || 'Unknown Customer', // Use actual customer name
       paymentDate: payment.payment_date,
       amount: parseFloat(payment.amount),
       allocatedAmount: parseFloat(payment.allocated_amount || '0'),
