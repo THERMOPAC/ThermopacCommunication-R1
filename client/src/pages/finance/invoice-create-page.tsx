@@ -511,11 +511,11 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       }
       
       // Log the data being sent
-      console.log('Sending invoice data:', JSON.stringify(apiData, null, 2));
+      console.log('Sending invoice data using direct method:', JSON.stringify(apiData, null, 2));
       
-      // Use native fetch with credentials included
-      console.log('Sending invoice data to server...');
-      const response = await fetch('/api/finance/invoices', {
+      // Use native fetch with credentials included - targeting our new direct endpoint
+      console.log('Sending invoice data to direct invoice route...');
+      const response = await fetch('/api/finance/invoices/direct', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
