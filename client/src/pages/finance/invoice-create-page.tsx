@@ -968,10 +968,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                       <FormControl>
                         <Input 
                           placeholder="Enter SAP invoice number" 
-                          {...field} 
-                          defaultValue={isEditMode && invoiceData?.invoice?.sapInvoiceNo 
-                            ? invoiceData.invoice.sapInvoiceNo 
-                            : ''}
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1198,9 +1195,6 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                           placeholder="Enter any additional notes here..."
                           className="min-h-[100px]"
                           {...field}
-                          defaultValue={isEditMode && invoiceData?.invoice?.notes 
-                            ? invoiceData.invoice.notes 
-                            : ''}
                         />
                       </FormControl>
                       <FormMessage />
