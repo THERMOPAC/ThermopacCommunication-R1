@@ -1145,7 +1145,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     
     // Create a clean payment record for the database
     const payment = {
-      reference_number: paymentData.referenceNumber || `PAY-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      reference_number: paymentData.referenceNumber || null, // No longer generating reference numbers automatically
       irm_no: paymentData.irmNo || null,
       payment_date: formattedDate, // Use the properly formatted date
       sap_payment_no: paymentData.sapPaymentNo || null,
