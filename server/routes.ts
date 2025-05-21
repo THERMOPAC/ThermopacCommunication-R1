@@ -168,6 +168,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         referenceNumber: "",
         message: "Payment ID will be assigned automatically"
       });
+    } catch (error) {
+      console.error("Error in payment reference endpoint:", error);
+      return res.json({
+        referenceNumber: "",
+        message: "Using Payment ID instead of reference number"
+      });
+    }
+  });
+  
+  // OLD REFERENCE GENERATION CODE - KEPT FOR DOCUMENTATION BUT NO LONGER USED
+  /*app.get("/api/finance/generate-reference-old", async (req, res) => {
+    try {
+      let year, month, day;
       
       if (req.query.year && req.query.month && req.query.day) {
         // If individual date components are provided, use them
