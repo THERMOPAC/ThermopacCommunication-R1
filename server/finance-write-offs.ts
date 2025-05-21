@@ -38,14 +38,25 @@ router.get('/', ensureAuthenticated, async (req, res) => {
     // Log the first row of results to see what we're working with
     console.log("Customer data from first write-off:", results[0]?.customer);
     
+    // Directly log the first few rows' data structure for debugging
+    if (results.length > 0) {
+      console.log("Raw customer data from first row:", JSON.stringify({
+        customer_data: results[0].customer,
+        bp_name_field: results[0].customer?.bp_name,
+        writeOff_id: results[0].writeOff.id
+      }, null, 2));
+    }
+    
     const formattedResults = results.map(row => {
-      // Log customer data for debugging
-      if (row.customer) {
-        console.log(`Write-off ID: ${row.writeOff.id}, Customer ID: ${row.customer.id}, BP Name: ${row.customer.bp_name}`);
-      }
+      // Get bp_name from customer record - and log it
+      const customerBpName = row.customer?.bp_name;
+      console.log(`Write-off ID: ${row.writeOff.id}, Customer ID: ${row.customer?.id}, BP Name from database: "${customerBpName}"`);
       
-      // Directly get bp_name from customer record
-      const customerName = row.customer?.bp_name ? row.customer.bp_name : 'Unknown Customer';
+      // Ensure proper string value for customer name
+      const customerName = customerBpName || 'Unknown Customer';
+      
+      // Log what we're returning
+      console.log(`Write-off ${row.writeOff.id} - Using customer name: "${customerName}"`);
       
       return {
         id: row.writeOff.id,
