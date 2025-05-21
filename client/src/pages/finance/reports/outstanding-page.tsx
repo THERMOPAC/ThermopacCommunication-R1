@@ -203,10 +203,15 @@ export default function OutstandingReportPage() {
                   <DatePicker
                     value={dateRange}
                     onChange={(date) => {
-                      setDateRange(date);
-                      setSelectedPreset('custom'); // Switch to custom when manually selected
-                      if (date.from && date.to) {
-                        refetch();
+                      if (date !== undefined) {
+                        setDateRange({
+                          from: date.from || undefined,
+                          to: date.to || undefined
+                        });
+                        setSelectedPreset('custom'); // Switch to custom when manually selected
+                        if (date.from && date.to) {
+                          refetch();
+                        }
                       }
                     }}
                   />
@@ -248,7 +253,7 @@ export default function OutstandingReportPage() {
             <CardTitle>Outstanding Summary</CardTitle>
             <CardDescription>
               {dateRange.from && dateRange.to
-                ? `${formatDate(dateRange.from, 'MMMM d, yyyy')} to ${formatDate(dateRange.to, 'MMMM d, yyyy')}`
+                ? `${formatDate(dateRange.from)} to ${formatDate(dateRange.to)}`
                 : "Select a date range to view the report"}
             </CardDescription>
           </CardHeader>
@@ -341,8 +346,8 @@ export default function OutstandingReportPage() {
                         <TableRow key={index} className={invoice.daysOverdue > 0 ? 'bg-red-50' : ''}>
                           <TableCell>{invoice.invoiceNumber}</TableCell>
                           <TableCell>{invoice.customerName}</TableCell>
-                          <TableCell>{format(new Date(invoice.issueDate), 'MMM d, yyyy')}</TableCell>
-                          <TableCell>{format(new Date(invoice.dueDate), 'MMM d, yyyy')}</TableCell>
+                          <TableCell>{formatDate(new Date(invoice.issueDate))}</TableCell>
+                          <TableCell>{formatDate(new Date(invoice.dueDate))}</TableCell>
                           <TableCell>
                             {selectedCurrency === 'USD' || selectedCurrency === 'all' 
                               ? formatUSD(invoice.amount || 0)
