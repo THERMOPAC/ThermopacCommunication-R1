@@ -190,6 +190,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         }
         
         // Format the data to match expected structure
+        // Get SAP Invoice Number and Notes directly from the database for more reliable data
+        console.log('Original invoice data from database:', invoice);
+        
         const formattedData = {
           invoice: {
             id: invoice.id,
@@ -965,7 +968,10 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                       <FormControl>
                         <Input 
                           placeholder="Enter SAP invoice number" 
-                          {...field}
+                          {...field} 
+                          defaultValue={isEditMode && invoiceData?.invoice?.sapInvoiceNo 
+                            ? invoiceData.invoice.sapInvoiceNo 
+                            : ''}
                         />
                       </FormControl>
                       <FormMessage />
