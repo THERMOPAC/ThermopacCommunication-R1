@@ -342,8 +342,8 @@ export default function PaymentAllocationPage() {
         
         console.log('Allocation payload:', payload);
         
-        // Make a direct fetch to ensure proper handling - using our new API endpoint
-        const response = await fetch(`${window.location.origin}/api/finance/simple-allocations/allocate-payment`, {
+        // Make a direct fetch to ensure proper handling - using our newest API endpoint
+        const response = await fetch(`${window.location.origin}/api/finance/allocations-new/allocate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -36,6 +36,7 @@ import { default as simpleFinanceRoutes } from "./simple-finance-routes";
 import { financeReportRouter } from "./finance-report-routes";
 import { paymentAllocationApi } from "./payment-allocation-api";
 import { simplePaymentAllocationApi } from "./simple-payment-allocation-api";
+import { newAllocationApi } from "./new-allocation-api";
 import { default as simplePaymentRoutes } from "./simple-payment-routes";
 import { default as financeWriteOffsRouter } from "./finance-write-offs";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
@@ -1723,6 +1724,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register simple payment allocation API
   app.use('/api/finance/simple-allocations', simplePaymentAllocationApi);
   console.log('Simple payment allocation API registered at /api/finance/simple-allocations');
+  
+  // Register new payment allocation API
+  app.use('/api/finance/allocations-new', newAllocationApi);
+  console.log('New payment allocation API registered at /api/finance/allocations-new');
   
   app.use('/api/finance/write-offs', financeWriteOffsRouter);
   console.log('Write-off routes registered at /api/finance/write-offs');
