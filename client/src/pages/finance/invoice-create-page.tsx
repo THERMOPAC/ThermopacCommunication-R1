@@ -158,6 +158,37 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         
         console.log('Found invoice in list:', invoice);
         
+        // Get invoice items
+        let invoiceItems = [];
+        try {
+          const itemsResponse = await fetch(`/api/simple-finance/invoice-items/${invoice.id}`);
+          if (itemsResponse.ok) {
+            const itemsData = await itemsResponse.json();
+            if (Array.isArray(itemsData) && itemsData.length > 0) {
+              invoiceItems = itemsData.map((item: any) => ({
+                id: item.id,
+                description: item.description || 'Item description',
+                amount: String(item.amount || item.lineTotal || invoice.totalAmount)
+              }));
+            }
+          }
+        } catch (error) {
+          console.warn('Could not fetch invoice items, using default:', error);
+        }
+        
+        // If no items were found, create a default one
+        if (invoiceItems.length === 0) {
+          invoiceItems = [
+            {
+              id: 1,
+              description: invoice.invoiceType === 'Service' 
+                ? 'Service as per SAP invoice' 
+                : 'Items as per SAP invoice',
+              amount: String(invoice.totalAmount || '0')
+            }
+          ];
+        }
+        
         // Format the data to match expected structure
         const formattedData = {
           invoice: {
@@ -174,18 +205,10 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
             status: invoice.status,
             notes: invoice.notes || '',
           },
-          items: [
-            {
-              id: 1,
-              description: invoice.invoiceType === 'Service' 
-                ? 'Service as per SAP invoice' 
-                : 'Items as per SAP invoice',
-              amount: invoice.totalAmount
-            }
-          ]
+          items: invoiceItems
         };
         
-        console.log('Formatted invoice data:', formattedData);
+        console.log('Formatted invoice data for edit:', formattedData);
         return formattedData;
       } catch (error) {
         console.error('Error in invoice data fetch:', error);
@@ -623,9 +646,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       console.log('Updating invoice data:', JSON.stringify(apiData, null, 2));
       
       try {
-        // Use the fetch API directly with better error handling for this specific case
-        console.log('Updating invoice with direct fetch...');
-        const response = await fetch(`/api/finance/invoices/${invoiceId}`, {
+        // Use the direct invoice API for better field mapping between frontend and database
+        console.log('Updating invoice with direct invoice route...');
+        const response = await fetch(`/api/finance/invoices/direct/${invoiceId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
