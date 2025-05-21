@@ -386,9 +386,21 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
             }
           } catch (error) {
             console.error('Failed to generate invoice number:', error);
-            // Fallback if even the direct generation fails
-            const randomNumber = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-            form.setValue('invoiceNumber', `INV-${randomNumber}`);
+            // Use a consistent fallback format that follows our INV-YYZZ-XXX pattern
+            // Get the financial year based on Indian calendar (April to March)
+            const date = new Date(currentIssueDate);
+            const startYear = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+            const endYear = startYear + 1;
+            
+            // Format YY-ZZ part
+            const startYearStr = startYear.toString().substring(2);
+            const endYearStr = endYear.toString().substring(2);
+            const financialYear = `${startYearStr}${endYearStr}`;
+            
+            // Use 100 as a safe starting sequence if we couldn't get it from the server
+            const sequenceStr = '100';
+            
+            form.setValue('invoiceNumber', `INV-${financialYear}-${sequenceStr}`);
           } finally {
             setIsGeneratingInvoiceNumber(false);
           }

@@ -2197,9 +2197,9 @@ router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res
     } catch (dbError) {
       console.error("Database error when getting invoice number:", dbError);
       
-      // Fallback to a safe high number if database query fails
-      const fallbackNumber = 100 + Math.floor(Math.random() * 899); // Random number between 100-999
-      const sequenceStr = fallbackNumber.toString().padStart(3, '0');
+      // Fallback to the next invoice in sequence from a safe starting point
+      // Use a consistent starting number instead of random to ensure sequential numbering
+      const sequenceStr = '100'; // Start from 100 if the database query fails
       const nextInvoiceNumber = `INV-${financialYear}-${sequenceStr}`;
       
       console.log(`Using fallback invoice number: ${nextInvoiceNumber} due to DB error`);
