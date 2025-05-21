@@ -1100,7 +1100,7 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
 });
 
 /**
- * Create a new payment - just return success without creating
+ * Create a new payment with database ID as identifier
  */
 router.post('/payments', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
@@ -1211,7 +1211,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       throw new Error("Failed to create payment");
     }
     
-    const newPayment = paymentResult.rows[0];
+    let newPayment = paymentResult.rows[0];
     console.log(`Created payment with ID: ${newPayment.id}`);
     
     // If there are invoice links, create them as well
@@ -1279,10 +1279,31 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       }
     }
     
+    // Update the payment to use its ID as the reference number if none was provided
+    if (newPayment.reference_number === null) {
+      // Use the ID as the reference number
+      const updateRefQuery = `
+        UPDATE payments 
+        SET reference_number = $1
+        WHERE id = $2
+        RETURNING *
+      `;
+      
+      const updatedPaymentResult = await pool.query(updateRefQuery, [
+        newPayment.id.toString(), // Use the ID as the reference number
+        newPayment.id
+      ]);
+      
+      if (updatedPaymentResult.rows && updatedPaymentResult.rows.length > 0) {
+        newPayment = updatedPaymentResult.rows[0];
+        console.log(`Updated payment with ID ${newPayment.id} to use ID as reference_number`);
+      }
+    }
+    
     // Return the created payment
     const formattedPayment = {
       id: newPayment.id,
-      referenceNumber: newPayment.reference_number,
+      referenceNumber: newPayment.reference_number || newPayment.id.toString(),
       irmNo: newPayment.irm_no || '',
       customerId: newPayment.customer_id,
       paymentDate: newPayment.payment_date,
