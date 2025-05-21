@@ -368,31 +368,22 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           try {
             setIsGeneratingInvoiceNumber(true);
             
-            // Generate invoice number directly on the client side without API call
-            // Get the financial year based on Indian calendar (April to March)
-            const date = new Date(currentIssueDate);
-            const startYear = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
-            const endYear = startYear + 1;
+            // Make a request to the server to get the next invoice number
+            const dateStr = format(currentIssueDate, 'yyyy-MM-dd');
+            const response = await fetch(`/api/finance/test/invoice-number?date=${dateStr}`);
             
-            // Format YY-ZZ part
-            const startYearStr = startYear.toString().substring(2);
-            const endYearStr = endYear.toString().substring(2);
-            const financialYear = `${startYearStr}${endYearStr}`;
+            if (!response.ok) {
+              throw new Error('Failed to get invoice number from server');
+            }
             
-            // Look at the existing invoices in the current financial year and determine the next sequential number
-            // Since the latest invoice is INV-2526-049, the next should be INV-2526-050
+            const data = await response.json();
             
-            // Starting sequence number based on the current latest invoice
-            let nextSequenceNumber = 50; // Default to 50 if we can't determine the next number
-            
-            // Format it to 3 digits with leading zeros
-            const sequenceStr = nextSequenceNumber.toString().padStart(3, '0');
-            
-            // Format: INV-YYZZ-XXX
-            const invoiceNumber = `INV-${financialYear}-${sequenceStr}`;
-            
-            console.log(`Generated invoice number: ${invoiceNumber}`);
-            form.setValue('invoiceNumber', invoiceNumber);
+            if (data.nextInvoiceNumber) {
+              console.log(`Generated invoice number from server: ${data.nextInvoiceNumber}`);
+              form.setValue('invoiceNumber', data.nextInvoiceNumber);
+            } else {
+              throw new Error('Server did not return a valid invoice number');
+            }
           } catch (error) {
             console.error('Failed to generate invoice number:', error);
             // Fallback if even the direct generation fails
