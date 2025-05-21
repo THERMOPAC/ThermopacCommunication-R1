@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
+import { DateRange } from "react-day-picker";
 import Layout from "@/components/layout";
 import {
   Card,
@@ -32,7 +33,7 @@ import { Loader2, Download, Filter } from "lucide-react";
 
 export default function TurnoverReportPage() {
   // Helper function to get current financial year dates (April 1 - March 31) using Indian Financial Year
-  const getCurrentFinancialYearDates = (): { from: Date; to: Date } => {
+  const getCurrentFinancialYearDates = (): DateRange => {
     // For this sample data, we're matching the database which has 2025 dates
     const currentYear = 2025;
     
@@ -44,7 +45,7 @@ export default function TurnoverReportPage() {
   };
   
   // Initialize with current financial year
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>(
+  const [dateRange, setDateRange] = useState<DateRange>(
     getCurrentFinancialYearDates()
   );
   
@@ -61,11 +62,14 @@ export default function TurnoverReportPage() {
       label: 'Previous FY', 
       value: 'previous',
       dateRange: (() => {
-        const { from, to } = getCurrentFinancialYearDates();
-        return { 
-          from: new Date(from.getFullYear() - 1, from.getMonth(), from.getDate()),
-          to: new Date(to.getFullYear() - 1, to.getMonth(), to.getDate())
-        };
+        const currentRange = getCurrentFinancialYearDates();
+        if (currentRange.from && currentRange.to) {
+          return { 
+            from: new Date(currentRange.from.getFullYear() - 1, currentRange.from.getMonth(), currentRange.from.getDate()),
+            to: new Date(currentRange.to.getFullYear() - 1, currentRange.to.getMonth(), currentRange.to.getDate())
+          };
+        }
+        return { from: undefined, to: undefined };
       })()
     },
     { 
@@ -79,7 +83,7 @@ export default function TurnoverReportPage() {
     { 
       label: 'Custom', 
       value: 'custom',
-      dateRange: null
+      dateRange: { from: undefined, to: undefined }
     }
   ];
   
