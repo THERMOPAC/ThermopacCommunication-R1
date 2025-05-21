@@ -180,7 +180,9 @@ export default function PaymentAllocationPage() {
     const isSelected = selectedInvoices.some(i => i.id === invoice.id);
     
     if (isSelected) {
+      // Remove the invoice from selectedInvoices
       setSelectedInvoices(selectedInvoices.filter(i => i.id !== invoice.id));
+      
       // Remove from form value
       const currentInvoices = form.getValues('invoices');
       form.setValue(
@@ -191,26 +193,36 @@ export default function PaymentAllocationPage() {
       // Add the invoice to the selectedInvoices state
       setSelectedInvoices(prevSelected => [...prevSelected, invoice]);
       
-      // Add to form value with the invoice's outstanding amount as the default allocation amount
-      const currentInvoices = form.getValues('invoices');
-      
-      // Get the default allocation amount (either the invoice's outstanding amount or the remaining payment amount, whichever is smaller)
+      // Calculate the default allocation amount (use full outstanding amount or remaining payment amount, whichever is smaller)
       const defaultAllocationAmount = Math.min(
         invoice.outstandingAmount,
         selectedPayment ? selectedPayment.remainingAmount - getTotalAllocation() : 0
       );
       
+      // For debugging
+      console.log('Adding invoice with default allocation amount:', defaultAllocationAmount);
+      
       // Add the invoice to the form with the calculated default allocation amount
-      form.setValue(
-        'invoices', 
-        [
-          ...currentInvoices, 
-          { 
-            invoiceId: invoice.id, 
-            allocationAmount: defaultAllocationAmount 
-          }
-        ]
-      );
+      const updatedInvoices = [
+        ...form.getValues('invoices'),
+        { 
+          invoiceId: invoice.id, 
+          allocationAmount: defaultAllocationAmount 
+        }
+      ];
+      
+      // Update the form with the new invoice allocation
+      form.setValue('invoices', updatedInvoices);
+      
+      // Force an update of the form to ensure the allocation amount is properly displayed
+      setTimeout(() => {
+        // Find the index of the newly added invoice
+        const newInvoiceIndex = updatedInvoices.findIndex(i => i.invoiceId === invoice.id);
+        if (newInvoiceIndex !== -1) {
+          // Update the specific invoice allocation amount field to ensure it's displayed correctly
+          form.setValue(`invoices.${newInvoiceIndex}.allocationAmount`, defaultAllocationAmount);
+        }
+      }, 0);
     }
   };
 
