@@ -472,7 +472,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           invoiceNumber: values.invoiceNumber,
           customerId: parseInt(values.customerId),
           projectId: values.projectId ? parseInt(values.projectId) : null,
+          // Use both field names to be compatible with both endpoints
           issueDate: format(values.issueDate, 'yyyy-MM-dd'),
+          invoiceDate: format(values.issueDate, 'yyyy-MM-dd'),
           dueDate: format(values.dueDate, 'yyyy-MM-dd'),
           totalAmount: String(values.items.reduce((total, item) => total + parseFloat(item.amount || '0'), 0)),
           currency: values.currency,
