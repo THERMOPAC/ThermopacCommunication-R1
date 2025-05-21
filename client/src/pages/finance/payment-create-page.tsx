@@ -84,7 +84,7 @@ interface PaymentData {
 
 // Payment form schema
 const paymentFormSchema = z.object({
-  referenceNumber: z.string().min(1, "Reference number is required"),
+  referenceNumber: z.string().optional(), // Made optional as it will be replaced by ID after saving
   irmNo: z.string().optional(),
   paymentDate: z.date({
     required_error: "Payment date is required",
@@ -571,9 +571,11 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       console.log('Updating payment with values:', values);
       
       // Transform values for API with explicit fields for debugging
+      // Note: We're no longer sending the reference number as it will be replaced by ID
       const apiData = {
         payment: {
-          referenceNumber: values.referenceNumber,
+          // Only include referenceNumber when explicitly provided (likely in edit mode)
+          ...(values.referenceNumber ? { referenceNumber: values.referenceNumber } : {}),
           irmNo: values.irmNo || null,
           paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
           sapPaymentNo: values.sapPaymentNo || null,
@@ -872,44 +874,33 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
             
               {/* Row with 4 equal-width fields */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <FormField
-                  control={form.control}
-                  name="referenceNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Reference Number</FormLabel>
-                      <FormControl>
-                        <div className="grid grid-cols-1 gap-3">
-                          <Input 
-                            placeholder="PAY-2526-015" 
-                            {...field} 
-                          />
-                          {!isEditMode && (
-                            <div className="flex gap-2">
-                              <Button 
-                                type="button" 
-                                className="w-full"
-                                onClick={() => {
-                                  field.onChange("PAY-2526-015");
-                                  toast({
-                                    title: "Reference Number Set",
-                                    description: "Payment reference number set to PAY-2526-015",
-                                  });
-                                }}
-                              >
-                                Set to PAY-2526-015
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </FormControl>
-                      <FormDescription>
-                        Use the button above to set the reference number, or type it manually (format: PAY-YYZZ-XXX)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {isEditMode ? (
+                  // In edit mode, display Payment ID
+                  <div className="flex flex-col space-y-1.5">
+                    <Label>Payment ID</Label>
+                    <Input 
+                      value={paymentId || ''} 
+                      disabled 
+                      className="bg-muted cursor-not-allowed" 
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      The system-generated ID for this payment
+                    </p>
+                  </div>
+                ) : (
+                  // In create mode, show a placeholder explaining that ID will be assigned after creation
+                  <div className="flex flex-col space-y-1.5">
+                    <Label>Payment ID</Label>
+                    <Input 
+                      value="Will be assigned after saving" 
+                      disabled 
+                      className="bg-muted cursor-not-allowed" 
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      A system-generated ID will be assigned to this payment after saving
+                    </p>
+                  </div>
+                )}
                 
                 <FormField
                   control={form.control}
