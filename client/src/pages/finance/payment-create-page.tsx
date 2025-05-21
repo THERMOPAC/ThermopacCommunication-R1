@@ -128,7 +128,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   const [selectedInvoices, setSelectedInvoices] = useState<any[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [autoAllocateEnabled, setAutoAllocateEnabled] = useState(true);
-  const [isGeneratingReferenceNumber, setIsGeneratingReferenceNumber] = useState(false);
+  // Removed isGeneratingReferenceNumber state since we're using Payment ID instead of reference numbers
   const [paymentId, setPaymentId] = useState<number | null>(null);
   const [showInvoiceSection, setShowInvoiceSection] = useState(false);
   
@@ -246,85 +246,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     defaultValues,
   });
   
-  // Function to generate payment reference number based on payment date
-  const generateReferenceNumber = useCallback(async (date: Date) => {
-    if (isGeneratingReferenceNumber) return;
-    
-    setIsGeneratingReferenceNumber(true);
-    
-    try {
-      // Calculate financial year for temporary display
-      const month = date.getMonth(); // 0-based (0 = January, 3 = April)
-      const year = date.getFullYear();
-      const day = date.getDate();
-      
-      // Start with a temporary value
-      const startYear = month >= 3 ? year : year - 1;
-      const endYear = startYear + 1;
-      const startYearStr = startYear.toString().slice(-2);
-      const endYearStr = endYear.toString().slice(-2);
-      const financialYear = `${startYearStr}${endYearStr}`;
-      
-      // Set a temporary reference number pattern while we're retrieving the data
-      const tempRefNumber = `PAY-${financialYear}-...`;
-      form.setValue('referenceNumber', tempRefNumber);
-      
-      // Call the dedicated server endpoint to generate the reference number
-      try {
-        // Send individual date components to avoid timezone issues
-        const queryParams = new URLSearchParams({
-          year: year.toString(),
-          month: (month + 1).toString(), // Convert to 1-based month
-          day: day.toString()
-        });
-        
-        console.log(`Sending payment date to server: Year: ${year}, Month: ${month + 1}, Day: ${day}`);
-        
-        const response = await fetch(`/api/payment-reference/generate-reference?${queryParams.toString()}`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json'
-          },
-          credentials: 'include'
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data && data.referenceNumber) {
-            console.log(`Generated reference number from server: ${data.referenceNumber}`);
-            form.setValue('referenceNumber', data.referenceNumber);
-          } else {
-            throw new Error('Invalid response format: missing referenceNumber field');
-          }
-        } else {
-          throw new Error(`Failed to fetch reference number: ${response.status} ${response.statusText}`);
-        }
-      } catch (fetchError) {
-        console.error('Error fetching reference number:', fetchError);
-        throw fetchError;
-      }
-    } catch (error) {
-      console.error('Error generating reference number:', error);
-      
-      // Use a reliable fallback approach with financial year
-      const month = date.getMonth();
-      const year = date.getFullYear();
-      const startYear = month < 3 ? year - 1 : year;
-      const endYear = startYear + 1;
-      const startYearStr = startYear.toString().slice(-2);
-      const endYearStr = endYear.toString().slice(-2);
-      const financialYear = `${startYearStr}${endYearStr}`;
-      
-      // Fallback to a predictable pattern with financial year
-      const referenceNumber = `PAY-${financialYear}-001`;
-      console.log(`Using fallback reference number: ${referenceNumber}`);
-      form.setValue('referenceNumber', referenceNumber);
-      
-    } finally {
-      setIsGeneratingReferenceNumber(false);
-    }
-  }, [form, isGeneratingReferenceNumber, setIsGeneratingReferenceNumber]);
+  // We no longer need the generateReferenceNumber function since we're using Payment ID instead
   
   // We've disabled automatic reference number generation since it's causing errors
   // Instead, users will use the "Use Default Number" button or enter the number manually
@@ -462,18 +384,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     name: "invoiceLinks",
   });
   
-  // Update reference number when payment date changes - only in create mode
-  useEffect(() => {
-    if (!isEditMode) {
-      const subscription = form.watch((value, { name }) => {
-        if (name === 'paymentDate' && value.paymentDate) {
-          generateReferenceNumber(value.paymentDate as Date);
-        }
-      });
-      
-      return () => subscription.unsubscribe();
-    }
-  }, [form, generateReferenceNumber, isEditMode]);
+  // We no longer need to auto-generate reference numbers as they're replaced by ID
+  // This effect was removed as part of the conversion from reference numbers to ID
   
   // Calculate total amount applied to invoices
   const calculateTotalApplied = () => {
