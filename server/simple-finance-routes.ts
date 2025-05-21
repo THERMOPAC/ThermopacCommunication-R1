@@ -122,20 +122,18 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
         ? items.reduce((sum: number, item: any) => sum + parseFloat(item.amount || '0'), 0) 
         : 0);
     
-    // Prepare the invoice data for database insertion - using exact database column names
+    // Prepare the invoice data for database insertion - using the correct field names from the schema
     const invoiceData: InsertInvoice = {
-      invoice_number: invoice.invoiceNumber,
-      customer_id: invoice.customerId,
-      project_id: invoice.projectId || null,
-      issue_date: new Date(invoice.issue_date || invoice.issueDate),
-      due_date: new Date(invoice.due_date || invoice.dueDate),
-      total_amount: totalAmount,
+      invoiceNumber: invoice.invoiceNumber,
+      customerId: invoice.customerId,
+      projectId: invoice.projectId || null,
+      issueDate: new Date(invoice.issue_date || invoice.issueDate),
+      dueDate: new Date(invoice.due_date || invoice.dueDate),
+      totalAmount: totalAmount,
       currency: invoice.currency || 'USD',
-      sap_invoice_no: invoice.sap_invoice_no || invoice.sapInvoiceNo || null,
-      invoice_type: invoice.invoice_type || invoice.invoiceType || 'Product',
       status: 'Pending',
       notes: invoice.notes || null,
-      created_by: req.user?.id || 1
+      createdBy: req.user?.id || 1
     };
     
     // Prepare invoice items

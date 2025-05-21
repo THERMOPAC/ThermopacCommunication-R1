@@ -472,13 +472,13 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           invoiceNumber: values.invoiceNumber,
           customerId: parseInt(values.customerId),
           projectId: values.projectId ? parseInt(values.projectId) : null,
-          // Use exact field name to match database column name
-          issue_date: format(values.issueDate, 'yyyy-MM-dd'),
-          due_date: format(values.dueDate, 'yyyy-MM-dd'),
-          total_amount: String(values.items.reduce((total, item) => total + parseFloat(item.amount || '0'), 0)),
+          // Use correct field names that match the schema definition
+          issueDate: format(values.issueDate, 'yyyy-MM-dd'),
+          dueDate: format(values.dueDate, 'yyyy-MM-dd'),
+          totalAmount: String(values.items.reduce((total, item) => total + parseFloat(item.amount || '0'), 0)),
           currency: values.currency,
-          sap_invoice_no: values.sapInvoiceNo || null,
-          invoice_type: values.invoiceType,
+          // Add sap invoice no if needed in separate column update
+          invoiceType: values.invoiceType,
           status: 'Pending',
           notes: values.notes || null,
         },
