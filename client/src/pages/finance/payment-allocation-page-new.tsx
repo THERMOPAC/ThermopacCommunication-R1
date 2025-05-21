@@ -352,15 +352,24 @@ export default function PaymentAllocationPage() {
           credentials: 'include'
         });
         
-        // Handle non-JSON responses
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
+        // Better error handling for non-JSON responses
+        let data;
+        try {
+          // First get the response as text
           const text = await response.text();
-          console.error('Server returned non-JSON response:', text);
-          throw new Error('Server returned non-JSON response. Please try again later.');
+          
+          // Try to parse as JSON
+          try {
+            data = JSON.parse(text);
+          } catch (e) {
+            // If parsing fails, log the text and throw an error
+            console.error('Server returned non-JSON response:', text);
+            throw new Error('Server returned non-JSON response. Please try again later.');
+          }
+        } catch (e) {
+          console.error('Error reading response:', e);
+          throw new Error('Failed to read server response. Please try again later.');
         }
-        
-        const data = await response.json();
         
         if (!response.ok || data.success === false) {
           throw new Error(data.message || 'Failed to allocate payment');

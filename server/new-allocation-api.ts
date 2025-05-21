@@ -8,12 +8,22 @@ export const newAllocationApi = Router();
  * Allocate payment to invoices
  */
 newAllocationApi.post('/allocate', ensureAuthenticated, async (req: Request, res: Response) => {
+  console.log('Received allocation request:', req.body);
+  
+  // Ensure we're setting the correct content type
+  res.setHeader('Content-Type', 'application/json');
   // Start a database transaction
   const client = await pool.connect();
   
   try {
+    // Validate the request payload first
+    if (!req.body) {
+      return res.status(400).json({ success: false, message: 'Missing request body' });
+    }
+    
     // Extract the payment ID and allocations from the request body
     const { paymentId, invoices } = req.body;
+    console.log('Processing allocation for payment ID:', paymentId, 'with invoices:', invoices);
     
     if (!paymentId || !invoices || !Array.isArray(invoices) || invoices.length === 0) {
       return res.status(400).json({ success: false, message: 'Invalid request body' });
