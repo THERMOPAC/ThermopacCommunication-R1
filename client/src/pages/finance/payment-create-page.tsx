@@ -253,12 +253,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     setIsGeneratingReferenceNumber(true);
     
     try {
-      // Format the date for the API request
-      const formattedDate = format(date, "yyyy-MM-dd");
-      console.log(`Generating reference number for date: ${formattedDate}`);
-      
-      // Directly set a working reference number pattern first before API call
-      // This ensures at least something appears before the API completes
+      // Calculate financial year for temporary reference
       const month = date.getMonth();
       const year = date.getFullYear();
       const startYear = month >= 3 ? year : year - 1;
@@ -267,52 +262,38 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       const endYearStr = endYear.toString().substring(2);
       const financialYear = `${startYearStr}${endYearStr}`;
       
-      // Set a temporary value immediately (will be replaced if API succeeds)
+      // Set a temporary value immediately
       const temporaryRef = `PAY-${financialYear}-???`;
       form.setValue('referenceNumber', temporaryRef);
       
-      // Now try the API call
-      try {
-        const response = await fetch(`/api/finance/generate-payment-reference?date=${formattedDate}`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json'
-          },
-          credentials: 'include'
-        });
+      // Format the date for the API request
+      const formattedDate = format(date, "yyyy-MM-dd");
+      console.log(`Generating reference number for date: ${formattedDate}`);
+      
+      // Use the established apiRequest utility that's already working
+      const response = await apiRequest(
+        "GET", 
+        `/api/finance/generate-payment-reference?date=${formattedDate}`
+      );
+      
+      console.log("API response:", response);
+      
+      if (response && typeof response === 'object' && 'referenceNumber' in response) {
+        console.log(`Generated reference number: ${response.referenceNumber}`);
+        form.setValue('referenceNumber', response.referenceNumber);
+      } else {
+        // If we get here, the API response didn't include a referenceNumber
+        console.warn("API response missing referenceNumber property");
         
-        // Print full response details for debugging
-        console.log(`Response status: ${response.status} ${response.statusText}`);
-        const responseText = await response.text();
-        console.log(`Response body: ${responseText}`);
-        
-        // Try to parse the response as JSON
-        let data;
-        try {
-          data = JSON.parse(responseText);
-        } catch (jsonError) {
-          console.error('Failed to parse response as JSON:', jsonError);
-          throw new Error('Invalid JSON response from server');
-        }
-        
-        if (data && data.referenceNumber) {
-          console.log(`Generated reference number from server: ${data.referenceNumber}`);
-          form.setValue('referenceNumber', data.referenceNumber);
-          return; // Success case - exit early
-        } else {
-          console.error('Response missing referenceNumber:', data);
-          throw new Error('Server response missing reference number');
-        }
-      } catch (fetchError) {
-        // Let it fall through to the fallback mechanism
-        console.error('API call failed:', fetchError);
-        throw fetchError;
+        // Use a fallback sequential number
+        const fallbackNumber = `PAY-${financialYear}-001`;
+        form.setValue('referenceNumber', fallbackNumber);
       }
     } catch (error) {
       console.error('Failed to generate reference number:', error);
       toast({
         title: "Error",
-        description: "Failed to generate reference number. Using fallback value.",
+        description: "Failed to generate reference number. Using default pattern.",
         variant: "destructive",
       });
       
