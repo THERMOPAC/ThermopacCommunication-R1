@@ -747,8 +747,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         
         console.log('Sending invoice data to server:', JSON.stringify(apiData, null, 2));
         
-        // Directly use fetch with credentials
-        const response = await fetch('/api/finance/invoices', {
+        // Try simple-finance endpoint first, which respects our client-side invoice number
+        console.log('Trying simplified invoice creation endpoint with invoice number:', values.invoiceNumber);
+        const response = await fetch('/api/simple-finance/invoices', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -774,7 +775,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           
           // Log additional debugging info
           console.log('Invoice submission was successful (status 200) but response was not valid JSON');
-          console.log('Response received:', responseText);
+          console.log('Response received:', 'Response could not be displayed');
           
           // Make a second request to validate if the invoice was actually created
           try {
