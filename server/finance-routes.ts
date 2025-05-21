@@ -2152,14 +2152,16 @@ router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res
     
     // Query the database for existing invoice numbers in this financial year
     try {
+      // Changed to use created_at ordering to ensure we get the latest invoice
       const query = `
         SELECT invoice_number 
         FROM invoices 
         WHERE invoice_number LIKE $1 
-        ORDER BY invoice_number DESC 
+        ORDER BY created_at DESC, invoice_number DESC
         LIMIT 1
       `;
       
+      console.log(`Querying for latest invoice with pattern: INV-${financialYear}-%`);
       const result = await pool.query(query, [`INV-${financialYear}-%`]);
       
       // Start from number 50 to avoid conflicts with any existing data
@@ -2167,11 +2169,17 @@ router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res
       
       // If we found existing invoices, extract the highest sequence number
       if (result.rows.length > 0) {
+        console.log('Latest invoice found:', result.rows[0].invoice_number);
         const match = result.rows[0].invoice_number.match(/INV-(\d{4})-(\d{3})/);
         if (match && match[2]) {
-          const dbSequenceNumber = parseInt(match[2]);
+          const dbSequenceNumber = parseInt(match[2], 10);
           maxSequenceNumber = Math.max(maxSequenceNumber, dbSequenceNumber);
+          console.log(`Extracted sequence number: ${dbSequenceNumber}, new max: ${maxSequenceNumber}`);
+        } else {
+          console.log('Could not extract sequence number from invoice:', result.rows[0].invoice_number);
         }
+      } else {
+        console.log('No existing invoices found for this financial year');
       }
       
       // Generate the next sequence number
