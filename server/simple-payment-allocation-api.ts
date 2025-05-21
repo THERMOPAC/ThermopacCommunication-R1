@@ -88,16 +88,15 @@ simplePaymentAllocationApi.post('/allocate-payment', ensureAuthenticated, async 
       // Insert allocation record
       const allocationQuery = `
         INSERT INTO payment_allocations 
-        (payment_id, invoice_id, amount_applied, created_by, created_at, notes) 
-        VALUES ($1, $2, $3, $4, NOW(), $5)
+        (payment_id, invoice_id, amount_applied, created_at, notes) 
+        VALUES ($1, $2, $3, NOW(), $4)
         RETURNING id
       `;
       
       await client.query(allocationQuery, [
         paymentId, 
         allocation.invoiceId, 
-        allocation.allocationAmount, 
-        userId,
+        allocation.allocationAmount,
         comment || null
       ]);
       
@@ -180,16 +179,13 @@ simplePaymentAllocationApi.get('/payment-allocations/:paymentId', ensureAuthenti
         p.reference_number as "paymentReference",
         i.invoice_number as "invoiceNumber",
         pa.created_at as "allocationDate",
-        pa.amount_applied as "amount",
-        u.username as "createdBy"
+        pa.amount_applied as "amount"
       FROM 
         payment_allocations pa
       JOIN 
         payments p ON pa.payment_id = p.id
       JOIN 
         invoices i ON pa.invoice_id = i.id
-      JOIN
-        users u ON pa.created_by = u.id
       WHERE 
         pa.payment_id = $1
       ORDER BY 
@@ -227,16 +223,13 @@ simplePaymentAllocationApi.get('/payment-allocations', ensureAuthenticated, asyn
         p.reference_number as "paymentReference",
         i.invoice_number as "invoiceNumber",
         pa.created_at as "allocationDate",
-        pa.amount_applied as "amount",
-        u.username as "createdBy"
+        pa.amount_applied as "amount"
       FROM 
         payment_allocations pa
       JOIN 
         payments p ON pa.payment_id = p.id
       JOIN 
         invoices i ON pa.invoice_id = i.id
-      JOIN
-        users u ON pa.created_by = u.id
       ORDER BY 
         pa.created_at DESC
       LIMIT 100
