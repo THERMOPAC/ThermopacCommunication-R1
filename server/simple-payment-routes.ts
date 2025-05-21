@@ -181,10 +181,10 @@ router.post('/payments/:id/allocate', ensureAuthenticated, async (req: Request, 
       // Insert allocation record
       const allocResult = await client.query(
         `INSERT INTO payment_allocations 
-          (payment_id, invoice_id, amount_applied, notes, created_by, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6)
+          (payment_id, invoice_id, amount_applied, created_by, created_at)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING id`,
-        [paymentId, invoiceId, amountApplied, comment || null, username, now]
+        [paymentId, invoiceId, amountApplied, username, now]
       );
       
       // Update invoice outstanding amount
