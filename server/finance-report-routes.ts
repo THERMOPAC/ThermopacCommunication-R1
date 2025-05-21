@@ -392,61 +392,65 @@ financeReportRouter.get('/turnover', async (req: Request, res: Response) => {
  */
 financeReportRouter.get('/outstanding', async (req: Request, res: Response) => {
   try {
+    // Extract date range from query parameters
+    const { startDate, endDate, currency } = req.query;
+    
     const client = await pool.connect();
     try {
-      // Get customer-wise outstanding invoice data
+      // Build date filter conditions if dates are provided
+      let dateFilter = '';
+      if (startDate && endDate) {
+        dateFilter = `AND i.issue_date BETWEEN '${startDate}' AND '${endDate}'`;
+      }
+      
+      // Get invoice-level outstanding data
       const query = `
-        WITH invoice_summary AS (
-          SELECT 
-            i.customer_id,
-            c.bp_name as customer_name,
-            COUNT(i.id) as invoice_count,
-            SUM(i.outstanding_amount) as total_outstanding,
-            MIN(i.issue_date) as oldest_invoice_date,
-            SUM(CASE WHEN (CURRENT_DATE - i.issue_date) > 30 THEN 1 ELSE 0 END) as overdue_count
-          FROM 
-            invoices i
-          JOIN 
-            customers c ON i.customer_id = c.id
-          WHERE 
-            i.outstanding_amount > 0
-          GROUP BY 
-            i.customer_id, c.bp_name
-        )
         SELECT 
-          customer_name as customer,
-          invoice_count,
-          total_outstanding,
-          oldest_invoice_date,
+          i.id,
+          i.invoice_number as "invoiceNumber",
+          c.bp_name as "customerName",
+          i.issue_date as "issueDate",
+          i.due_date as "dueDate",
+          i.total_amount as amount,
+          i.outstanding_amount as "balanceDue",
           CASE 
-            WHEN overdue_count = 0 THEN 'Current'
-            WHEN overdue_count = invoice_count THEN 'All Overdue'
-            ELSE 'Some Overdue'
-          END as status
+            WHEN CURRENT_DATE > i.due_date THEN EXTRACT(DAY FROM CURRENT_DATE - i.due_date)::integer
+            ELSE 0
+          END as "daysOverdue"
         FROM 
-          invoice_summary
+          invoices i
+        JOIN 
+          customers c ON i.customer_id = c.id
+        WHERE 
+          i.outstanding_amount > 0
+          ${dateFilter}
         ORDER BY 
-          total_outstanding DESC
+          i.due_date ASC
       `;
       
       const result = await client.query(query);
       
       // Calculate total outstanding amount
-      const totalOutstanding = result.rows.reduce((sum, row) => sum + parseFloat(row.total_outstanding), 0);
+      const totalOutstanding = result.rows.reduce((sum, row) => sum + parseFloat(row.balanceDue), 0);
       
-      // Format dates and numbers
-      const formattedData = result.rows.map(row => ({
-        customer: row.customer,
-        invoiceCount: parseInt(row.invoice_count),
-        totalOutstanding: parseFloat(row.total_outstanding),
-        oldestInvoiceDate: row.oldest_invoice_date,
-        status: row.status
-      }));
+      // Calculate total overdue amount (invoices past due date)
+      const totalOverdue = result.rows
+        .filter(row => row.daysOverdue > 0)
+        .reduce((sum, row) => sum + parseFloat(row.balanceDue), 0);
+      
+      // Calculate amount within due date
+      const withinDueDate = totalOutstanding - totalOverdue;
       
       res.json({
         reportDate: new Date().toISOString(),
         totalOutstanding,
-        data: formattedData
+        totalOverdue,
+        withinDueDate,
+        // Adding currency conversion values for INR
+        totalOutstandingINR: totalOutstanding * 85.55,
+        totalOverdueINR: totalOverdue * 85.55,
+        withinDueDateINR: withinDueDate * 85.55,
+        invoices: result.rows
       });
     } finally {
       client.release();
