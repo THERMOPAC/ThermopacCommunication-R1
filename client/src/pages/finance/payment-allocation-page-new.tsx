@@ -154,9 +154,10 @@ export default function PaymentAllocationPage() {
     queryKey: ['/api/finance/unallocated-advances'],
     select: (data) => {
       // Process payments to include UI-specific fields like the formatted total for display
-      if (!data?.advances) return { advances: [] };
+      const typedData = data as { advances: Payment[] };
+      if (!typedData?.advances) return { advances: [] };
       
-      const processedPayments = data.advances.map((payment: any) => ({
+      const processedPayments = typedData.advances.map((payment: Payment) => ({
         ...payment,
         total: payment.amount,
         allocated: payment.allocatedAmount || 0,
@@ -237,8 +238,9 @@ export default function PaymentAllocationPage() {
       });
       
       // Filter invoices to match the payment type
-      const matchingInvoices = invoicesData.invoices
-        .filter(invoice => 
+      const typedInvoicesData = invoicesData as { invoices: Invoice[] };
+      const matchingInvoices = typedInvoicesData.invoices
+        .filter((invoice: Invoice) => 
           // Match invoice type to payment type
           invoice.invoiceType === selectedPayment.paymentType
         );

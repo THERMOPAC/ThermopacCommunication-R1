@@ -20,6 +20,10 @@ simplePaymentAllocationApi.post('/allocate-payment', ensureAuthenticated, async 
     }
 
     // Get user ID for tracking who made this allocation
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+    
     const userId = req.user.id;
     
     // Get payment details
