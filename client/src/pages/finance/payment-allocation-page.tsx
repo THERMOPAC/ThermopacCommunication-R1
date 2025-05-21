@@ -202,28 +202,37 @@ export default function PaymentAllocationPage() {
       // For debugging
       console.log('Adding invoice with default allocation amount:', defaultAllocationAmount);
       
-      // Add the invoice to the form with the calculated default allocation amount
-      const updatedInvoices = [
-        ...form.getValues('invoices'),
-        { 
-          invoiceId: invoice.id, 
-          allocationAmount: defaultAllocationAmount 
-        }
-      ];
-      
-      // Update the form with the new invoice allocation
-      form.setValue('invoices', updatedInvoices);
-      
-      // Force an update of the form to ensure the allocation amount is properly displayed
-      setTimeout(() => {
-        // Find the index of the newly added invoice
-        const newInvoiceIndex = updatedInvoices.findIndex(i => i.invoiceId === invoice.id);
-        if (newInvoiceIndex !== -1) {
-          // Update the specific invoice allocation amount field to ensure it's displayed correctly
-          form.setValue(`invoices.${newInvoiceIndex}.allocationAmount`, defaultAllocationAmount);
-        }
-      }, 0);
+      // Create a direct allocation entry for this invoice
+      handleDirectAllocation(invoice.id, defaultAllocationAmount);
     }
+  };
+  
+  // Handle direct allocation to an invoice
+  const handleDirectAllocation = (invoiceId: number, amount: number) => {
+    console.log(`Directly allocating ${amount} to invoice ${invoiceId}`);
+    
+    // Get current invoices
+    const currentInvoices = [...form.getValues('invoices')];
+    
+    // Find if this invoice already has an allocation
+    const existingIndex = currentInvoices.findIndex(i => i.invoiceId === invoiceId);
+    
+    if (existingIndex >= 0) {
+      // Update existing allocation
+      currentInvoices[existingIndex].allocationAmount = amount;
+    } else {
+      // Add new allocation
+      currentInvoices.push({ 
+        invoiceId: invoiceId, 
+        allocationAmount: amount 
+      });
+    }
+    
+    // Update the form with modified allocations
+    form.setValue('invoices', currentInvoices);
+    
+    // Force form to re-render with updated values
+    form.trigger('invoices');
   };
 
   // Handle allocation amount change
@@ -589,8 +598,9 @@ export default function PaymentAllocationPage() {
                                             type="number"
                                             min={0}
                                             max={Math.min(invoice.outstandingAmount, selectedPayment.remainingAmount)}
-                                            value={currentAllocation || invoice.outstandingAmount}
-                                            onChange={(e) => handleAllocationChange(invoice.id, parseFloat(e.target.value) || 0)}
+                                            defaultValue={invoice.outstandingAmount}
+                                            value={form.getValues(`invoices.${invoiceFormIndex}.allocationAmount`) || invoice.outstandingAmount}
+                                            onChange={(e) => handleDirectAllocation(invoice.id, parseFloat(e.target.value) || 0)}
                                             className="w-32 text-right"
                                           />
                                           <Button 
@@ -598,7 +608,7 @@ export default function PaymentAllocationPage() {
                                             variant="ghost" 
                                             size="sm" 
                                             className="text-xs"
-                                            onClick={() => handleAllocationChange(invoice.id, invoice.outstandingAmount)}
+                                            onClick={() => handleDirectAllocation(invoice.id, invoice.outstandingAmount)}
                                           >
                                             Use max
                                           </Button>
