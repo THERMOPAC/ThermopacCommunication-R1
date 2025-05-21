@@ -102,7 +102,7 @@ export default function TurnoverReportPage() {
       console.log("Turnover report data:", data);
       return data;
     },
-    enabled: !!(dateRange.from && dateRange.to)
+    enabled: true
   });
   
   const handleDownload = () => {
