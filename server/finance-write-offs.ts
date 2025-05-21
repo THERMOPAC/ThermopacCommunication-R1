@@ -48,7 +48,10 @@ router.get('/', ensureAuthenticated, async (req, res) => {
     }
     
     const formattedResults = results.map(row => {
-      // Get bp_name from customer record - and log it
+      // Look for the key in the customer object, regardless of case
+      console.log("Customer object keys:", row.customer ? Object.keys(row.customer) : "No customer");
+      
+      // Access the exact field using the correct snake_case name
       const customerBpName = row.customer?.bp_name;
       console.log(`Write-off ID: ${row.writeOff.id}, Customer ID: ${row.customer?.id}, BP Name from database: "${customerBpName}"`);
       
