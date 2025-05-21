@@ -342,36 +342,40 @@ export default function PaymentAllocationPage() {
         
         console.log('Allocation payload:', payload);
         
-        // Make a direct fetch to ensure proper handling - using our newest API endpoint
-        const response = await fetch(`${window.location.origin}/api/finance/allocations-new/allocate`, {
+        // Use our simplified API for better reliability
+        const response = await fetch(`${window.location.origin}/api/finance/simplified-allocations/allocate-multiple`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            paymentId: payload.paymentId,
+            allocations: payload.invoices.map(inv => ({
+              invoiceId: inv.invoiceId,
+              amount: inv.allocationAmount
+            }))
+          }),
           credentials: 'include'
         });
         
-        // Completely simplified response handling
-        let data;
+        // Careful, robust response handling
+        let data = { success: false, message: 'Unknown error' };
+        
         try {
-          const text = await response.text();
+          // Get the raw text first
+          const text = await response.text().catch(e => {
+            console.error('Failed to read response text:', e);
+            return '{"success":false,"message":"Failed to read response"}';
+          });
+          
           console.log('Raw server response:', text);
           
-          if (!text || text.trim() === '') {
-            throw new Error('Server returned empty response');
-          }
-          
-          try {
-            data = JSON.parse(text);
-            console.log('Parsed response data:', data);
-          } catch (parseError) {
-            console.error('JSON parse error:', parseError);
-            throw new Error('Unable to parse server response as JSON');
-          }
+          // Try to parse as JSON with a fallback for parse errors
+          data = text ? JSON.parse(text) : { success: false, message: 'Empty response' };
+          console.log('Parsed response data:', data);
         } catch (e) {
-          console.error('Response reading error:', e);
-          throw new Error(e instanceof Error ? e.message : 'Failed to process server response');
+          console.error('JSON parse error:', e);
+          throw new Error('Unable to process server response');
         }
         
         if (!response.ok || data.success === false) {
