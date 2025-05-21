@@ -9,49 +9,63 @@ export const ultraSimpleAllocationApi = Router();
  * This is designed to be extremely reliable
  */
 ultraSimpleAllocationApi.post('/allocate', ensureAuthenticated, async (req: Request, res: Response) => {
-  // Force content type
-  res.setHeader('Content-Type', 'application/json');
-  
   // Validate request
   const { paymentId, invoiceId, amount } = req.body;
   
   if (!paymentId || !invoiceId || !amount) {
-    return res.json({
+    return res.status(400).json({
       success: false,
       message: 'Missing required fields'
     });
   }
   
   try {
-    // 1. Insert allocation record
-    const insertResult = await pool.query(
-      'INSERT INTO payment_allocations (payment_id, invoice_id, amount_applied, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id',
-      [paymentId, invoiceId, amount]
-    );
+    // Start a database transaction
+    const client = await pool.connect();
     
-    const allocationId = insertResult.rows[0]?.id;
-    
-    // 2. Update invoice paid amount
-    await pool.query(
-      'UPDATE invoices SET paid_amount = COALESCE(paid_amount, 0) + $1, outstanding_amount = total_amount - (COALESCE(paid_amount, 0) + $1) WHERE id = $2',
-      [amount, invoiceId]
-    );
-    
-    // 3. Update payment allocated amount
-    await pool.query(
-      'UPDATE payments SET allocated_amount = COALESCE(allocated_amount, 0) + $1, remaining_amount = amount - (COALESCE(allocated_amount, 0) + $1) WHERE id = $2',
-      [amount, paymentId]
-    );
-    
-    // Return success
-    return res.json({
-      success: true,
-      message: 'Allocation successful',
-      allocationId
-    });
+    try {
+      await client.query('BEGIN');
+      
+      // 1. Insert allocation record
+      const insertResult = await client.query(
+        'INSERT INTO payment_allocations (payment_id, invoice_id, amount_applied, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id',
+        [paymentId, invoiceId, amount]
+      );
+      
+      const allocationId = insertResult.rows[0]?.id;
+      
+      // 2. Update invoice paid amount
+      await client.query(
+        'UPDATE invoices SET paid_amount = COALESCE(paid_amount, 0) + $1, outstanding_amount = total_amount - (COALESCE(paid_amount, 0) + $1) WHERE id = $2',
+        [amount, invoiceId]
+      );
+      
+      // 3. Update payment allocated amount
+      await client.query(
+        'UPDATE payments SET allocated_amount = COALESCE(allocated_amount, 0) + $1, remaining_amount = amount - (COALESCE(allocated_amount, 0) + $1) WHERE id = $2',
+        [amount, paymentId]
+      );
+      
+      // Commit the transaction
+      await client.query('COMMIT');
+      
+      // Return success
+      return res.status(200).json({
+        success: true,
+        message: 'Allocation successful',
+        allocationId
+      });
+    } catch (err) {
+      // Rollback in case of any error
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      // Release client back to pool
+      client.release();
+    }
   } catch (error) {
     console.error('Error in ultra-simple allocation:', error);
-    return res.json({
+    return res.status(500).json({
       success: false,
       message: 'Database error occurred',
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -63,9 +77,6 @@ ultraSimpleAllocationApi.post('/allocate', ensureAuthenticated, async (req: Requ
  * Get all allocations for a payment
  */
 ultraSimpleAllocationApi.get('/payment/:paymentId', ensureAuthenticated, async (req: Request, res: Response) => {
-  // Force content type
-  res.setHeader('Content-Type', 'application/json');
-  
   const { paymentId } = req.params;
   
   try {
@@ -80,13 +91,13 @@ ultraSimpleAllocationApi.get('/payment/:paymentId', ensureAuthenticated, async (
       [paymentId]
     );
     
-    return res.json({
+    return res.status(200).json({
       success: true,
       allocations: result.rows
     });
   } catch (error) {
     console.error('Error fetching allocations:', error);
-    return res.json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch allocations',
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -98,9 +109,6 @@ ultraSimpleAllocationApi.get('/payment/:paymentId', ensureAuthenticated, async (
  * Get all allocations for an invoice
  */
 ultraSimpleAllocationApi.get('/invoice/:invoiceId', ensureAuthenticated, async (req: Request, res: Response) => {
-  // Force content type
-  res.setHeader('Content-Type', 'application/json');
-  
   const { invoiceId } = req.params;
   
   try {
@@ -115,13 +123,13 @@ ultraSimpleAllocationApi.get('/invoice/:invoiceId', ensureAuthenticated, async (
       [invoiceId]
     );
     
-    return res.json({
+    return res.status(200).json({
       success: true,
       allocations: result.rows
     });
   } catch (error) {
     console.error('Error fetching allocations:', error);
-    return res.json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch allocations',
       error: error instanceof Error ? error.message : 'Unknown error'
