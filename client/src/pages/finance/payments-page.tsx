@@ -150,7 +150,7 @@ export default function PaymentsPage() {
 
         <Card className="mb-6">
           <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-4">
               <div className="relative flex-grow">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -162,38 +162,37 @@ export default function PaymentsPage() {
                 />
               </div>
               
+              <div className="w-full sm:w-72">
+                <Select 
+                  value={customerFilter} 
+                  onValueChange={setCustomerFilter}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Customers</SelectItem>
+                    {customersData?.map((customer: any) => (
+                      <SelectItem key={customer.id} value={customer.id.toString()}>
+                        {customer.bpName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <Button
                 variant="outline" 
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
                 className="w-full sm:w-auto"
               >
                 <Filter className="mr-2 h-4 w-4" />
-                Filters
+                More Filters
               </Button>
             </div>
 
             {isFilterOpen && (
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Customer</label>
-                  <Select 
-                    value={customerFilter} 
-                    onValueChange={setCustomerFilter}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Customers</SelectItem>
-                      {customersData?.map((customer: any) => (
-                        <SelectItem key={customer.id} value={customer.id.toString()}>
-                          {customer.bpName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-1 block">Payment Method</label>
                   <Select 
