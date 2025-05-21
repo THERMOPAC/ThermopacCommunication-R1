@@ -151,31 +151,17 @@ export default function BasicAllocationPage() {
     setIsSubmitting(true);
 
     try {
-      // Use the ultra-simple allocation API
-      const response = await fetch(`${window.location.origin}/api/finance/ultra-simple/allocate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          paymentId: selectedPayment.id,
-          invoiceId: selectedInvoice.id,
-          amount: allocationAmount
-        }),
-        credentials: 'include'
-      });
-
-      // Get text response first
-      const responseText = await response.text();
+      // Use the React Query api request function which handles errors better
+      const { apiRequest } = await import('@/lib/queryClient');
       
-      // Parse as JSON
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.error('Failed to parse response:', responseText);
-        throw new Error('Invalid response from server');
-      }
+      const data = await apiRequest('POST', '/api/finance/ultra-simple/allocate', {
+        paymentId: selectedPayment.id,
+        invoiceId: selectedInvoice.id,
+        amount: allocationAmount
+      }).then(res => res.json());
+      
+      // For debugging
+      console.log('Allocation response:', data);
 
       if (!data.success) {
         throw new Error(data.message || 'Failed to allocate payment');
