@@ -44,25 +44,30 @@ financeReportRouter.get('/reconciliation', async (req: Request, res: Response) =
       // 2. Get data for invoice aging
       const agingQuery = `
         SELECT
-          CASE
-            WHEN (CURRENT_DATE - issue_date) <= 30 THEN '0-30 days'
-            WHEN (CURRENT_DATE - issue_date) <= 60 THEN '31-60 days'
-            WHEN (CURRENT_DATE - issue_date) <= 90 THEN '61-90 days'
-            ELSE 'Over 90 days'
-          END as aging_period,
+          age_category as aging_period,
           COUNT(*) as count,
           SUM(outstanding_amount) as outstanding_amount
-        FROM
-          invoices
-        WHERE
-          status <> 'Paid'
+        FROM (
+          SELECT
+            CASE
+              WHEN (CURRENT_DATE - issue_date) <= 30 THEN '0-30 days'
+              WHEN (CURRENT_DATE - issue_date) <= 60 THEN '31-60 days'
+              WHEN (CURRENT_DATE - issue_date) <= 90 THEN '61-90 days'
+              ELSE 'Over 90 days'
+            END as age_category,
+            outstanding_amount
+          FROM
+            invoices
+          WHERE
+            status <> 'Paid'
+        ) as aged_invoices
         GROUP BY
-          aging_period
+          age_category
         ORDER BY
           CASE 
-            WHEN aging_period = '0-30 days' THEN 1
-            WHEN aging_period = '31-60 days' THEN 2
-            WHEN aging_period = '61-90 days' THEN 3
+            WHEN age_category = '0-30 days' THEN 1
+            WHEN age_category = '31-60 days' THEN 2
+            WHEN age_category = '61-90 days' THEN 3
             ELSE 4
           END
       `;
