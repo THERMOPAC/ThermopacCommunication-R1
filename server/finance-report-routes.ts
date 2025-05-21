@@ -281,16 +281,16 @@ financeReportRouter.get('/turnover', async (req: Request, res: Response) => {
     // Build query for monthly revenue data
     const query = `
       SELECT 
-        TO_CHAR(date, 'Month') as month,
-        EXTRACT(MONTH FROM date)::int as month_num,
+        TO_CHAR(issue_date, 'Month') as month,
+        EXTRACT(MONTH FROM issue_date)::int as month_num,
         SUM(CASE WHEN invoice_type = 'Product' THEN total_amount ELSE 0 END) as product_revenue,
         SUM(CASE WHEN invoice_type = 'Service' THEN total_amount ELSE 0 END) as service_revenue,
         SUM(total_amount) as total_revenue
       FROM 
         invoices
       WHERE 
-        EXTRACT(YEAR FROM date) = $1
-        ${month ? 'AND EXTRACT(MONTH FROM date) = $2' : ''}
+        EXTRACT(YEAR FROM issue_date) = $1
+        ${month ? 'AND EXTRACT(MONTH FROM issue_date) = $2' : ''}
       GROUP BY 
         month, month_num
       ORDER BY 
