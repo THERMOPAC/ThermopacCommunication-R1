@@ -492,9 +492,11 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   const createPayment = useMutation({
     mutationFn: async (values: PaymentFormValues) => {
       // Transform values for API
+      // Note: We're no longer sending the reference number as it will be replaced by ID
       const apiData = {
         payment: {
-          referenceNumber: values.referenceNumber,
+          // Only include referenceNumber when explicitly provided (not needed for create)
+          ...(values.referenceNumber ? { referenceNumber: values.referenceNumber } : {}),
           irmNo: values.irmNo || null,
           paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
           sapPaymentNo: values.sapPaymentNo || null,
@@ -541,10 +543,13 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       }
     },
     onSuccess: (data) => {
-      // Show success message
+      // Extract the payment ID from the response data
+      const paymentId = data?.id || data?.payment?.id || 'system-generated';
+      
+      // Show success message with the payment ID
       toast({
         title: "Payment successfully created",
-        description: "The payment has been recorded in the system",
+        description: `The payment has been recorded with ID: ${paymentId}`,
       });
       
       // Navigate back to payments list
