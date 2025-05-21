@@ -64,23 +64,25 @@ function BasicAllocationPageContent() {
   const { toast } = useToast();
 
   // Fetch unallocated payments
-  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
+  const { data: paymentsResponse, isLoading: paymentsLoading } = useQuery({
     queryKey: ['/api/finance/unallocated-advances'],
     queryFn: async () => {
       const response = await fetch('/api/finance/unallocated-advances');
       if (!response.ok) {
         throw new Error('Failed to fetch unallocated payments');
       }
-      const data = await response.json();
-      return data.advances;
+      return response.json();
     }
   });
+  
+  // Extract the payments array from the response
+  const paymentsData = paymentsResponse?.advances || [];
 
   // Fetch outstanding invoices
-  const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
+  const { data: invoicesResponse, isLoading: invoicesLoading } = useQuery({
     queryKey: ['/api/finance/outstanding-invoices', selectedPayment?.paymentType],
     queryFn: async () => {
-      if (!selectedPayment) return [];
+      if (!selectedPayment) return { invoices: [] };
       
       const url = new URL('/api/finance/outstanding-invoices', window.location.origin);
       url.searchParams.append('type', selectedPayment.paymentType);
@@ -89,11 +91,13 @@ function BasicAllocationPageContent() {
       if (!response.ok) {
         throw new Error('Failed to fetch outstanding invoices');
       }
-      const data = await response.json();
-      return data.invoices;
+      return response.json();
     },
     enabled: !!selectedPayment,
   });
+  
+  // Extract the invoices array from the response
+  const invoicesData = invoicesResponse?.invoices || [];
 
   // Handle payment selection
   const handleSelectPayment = (payment: Payment) => {
