@@ -160,6 +160,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up module permissions routes
   app.use(modulePermissionRoutes);
   
+  // Direct payment reference number generation route - fixing the path issue
+  app.get("/api/finance/generate-payment-reference", async (req, res) => {
+    try {
+      // Get date parameters from query
+      let year, month, day;
+      
+      if (req.query.year && req.query.month && req.query.day) {
+        // If individual date components are provided, use them
+        year = parseInt(req.query.year as string);
+        month = parseInt(req.query.month as string); 
+        day = parseInt(req.query.day as string);
+        
+        // Month is 0-based in JavaScript Date (0 = January, 11 = December)
+        month = month - 1;
+      } else if (req.query.date) {
+        // Parse date string if provided
+        const dateObj = new Date(req.query.date as string);
+        year = dateObj.getFullYear();
+        month = dateObj.getMonth();
+        day = dateObj.getDate();
+      } else {
+        // Use current date
+        const today = new Date();
+        year = today.getFullYear();
+        month = today.getMonth(); 
+        day = today.getDate();
+      }
+      
+      // Create date object
+      const date = new Date(year, month, day);
+      console.log(`Using payment date for reference: ${date.toDateString()} (y:${year} m:${month} d:${day})`);
+      
+      // Calculate financial year based on Indian calendar (April to March)
+      // If month is January(0), February(1), or March(2), use previous year as start year
+      const startYear = month < 3 ? year - 1 : year;
+      const endYear = startYear + 1;
+      
+      // Format as YYZZ (e.g., "2425" for 2024-2025)
+      const startYearStr = startYear.toString().slice(-2);
+      const endYearStr = endYear.toString().slice(-2);
+      const financialYear = `${startYearStr}${endYearStr}`;
+      
+      console.log(`Calculated financial year ${financialYear} for date ${date.toDateString()}`);
+      
+      // Query database for highest existing payment reference number with this prefix
+      const query = `
+        SELECT reference_number 
+        FROM payments 
+        WHERE reference_number LIKE $1 
+        ORDER BY reference_number DESC
+        LIMIT 1
+      `;
+      
+      console.log(`Looking for payment references with pattern: PAY-${financialYear}-%`);
+      const result = await db.query(query, [`PAY-${financialYear}-%`]);
+      
+      let nextSequenceNumber = 1; // Start from 1 if no existing payments
+      
+      if (result.rows.length > 0) {
+        const latestRef = result.rows[0].reference_number;
+        console.log(`Found latest payment reference: ${latestRef}`);
+        
+        // Extract sequence number from reference number (PAY-YYZZ-XXX)
+        const match = latestRef.match(/PAY-\d{4}-(\d{3})/);
+        if (match && match[1]) {
+          const currentSequence = parseInt(match[1], 10);
+          nextSequenceNumber = currentSequence + 1;
+          console.log(`Current sequence: ${currentSequence}, next: ${nextSequenceNumber}`);
+        }
+      } else {
+        console.log(`No existing payments found for financial year ${financialYear}, starting with 001`);
+      }
+      
+      // Format with leading zeros (3 digits)
+      const sequenceStr = nextSequenceNumber.toString().padStart(3, '0');
+      const referenceNumber = `PAY-${financialYear}-${sequenceStr}`;
+      
+      console.log(`Generated payment reference number: ${referenceNumber}`);
+      return res.json({ referenceNumber });
+    } catch (error) {
+      console.error('Error generating payment reference number:', error);
+      res.status(500).json({ 
+        error: 'Failed to generate reference number. Please try again or enter manually.'
+      });
+    }
+  });
+  
   // GCS Storage Diagnostics Route - only accessible by Superusers
   app.get("/api/gcs-permissions-check", async (req, res) => {
     try {
