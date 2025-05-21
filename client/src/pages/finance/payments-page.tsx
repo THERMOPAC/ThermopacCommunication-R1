@@ -97,25 +97,28 @@ export default function PaymentsPage() {
   const payments = data?.payments || [];
   
   // Filter the payments based on search term and payment method
-  const filteredPayments = payments.filter((payment: any) => {
-    const matchesSearch = searchTerm === '' || 
-      (payment.reference && payment.reference.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (payment.paymentNumber && payment.paymentNumber.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesMethod = methodFilter === 'all' || 
-      (payment.paymentMethod && payment.paymentMethod.toLowerCase() === methodFilter.toLowerCase());
-    
-    // Date range filtering
-    let matchesDateRange = true;
-    if (dateRange.from) {
-      matchesDateRange = matchesDateRange && new Date(payment.paymentDate) >= dateRange.from;
-    }
-    if (dateRange.to) {
-      matchesDateRange = matchesDateRange && new Date(payment.paymentDate) <= dateRange.to;
-    }
-    
-    return matchesSearch && matchesMethod && matchesDateRange;
-  });
+  const filteredPayments = payments
+    .filter((payment: any) => {
+      const matchesSearch = searchTerm === '' || 
+        (payment.reference && payment.reference.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (payment.paymentNumber && payment.paymentNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      const matchesMethod = methodFilter === 'all' || 
+        (payment.paymentMethod && payment.paymentMethod.toLowerCase() === methodFilter.toLowerCase());
+      
+      // Date range filtering
+      let matchesDateRange = true;
+      if (dateRange.from) {
+        matchesDateRange = matchesDateRange && new Date(payment.paymentDate) >= dateRange.from;
+      }
+      if (dateRange.to) {
+        matchesDateRange = matchesDateRange && new Date(payment.paymentDate) <= dateRange.to;
+      }
+      
+      return matchesSearch && matchesMethod && matchesDateRange;
+    })
+    // Sort by payment ID in ascending order
+    .sort((a: any, b: any) => Number(a.id) - Number(b.id));
 
   return (
     <Layout>
