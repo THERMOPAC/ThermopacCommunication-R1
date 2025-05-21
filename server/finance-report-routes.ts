@@ -403,6 +403,12 @@ financeReportRouter.get('/outstanding', async (req: Request, res: Response) => {
         dateFilter = `AND i.issue_date BETWEEN '${startDate}' AND '${endDate}'`;
       }
       
+      // Add currency filter if specified
+      let currencyFilter = '';
+      if (currency && currency !== 'all') {
+        currencyFilter = `AND i.currency = '${currency}'`;
+      }
+      
       // Get invoice-level outstanding data
       const query = `
         SELECT 
@@ -414,9 +420,10 @@ financeReportRouter.get('/outstanding', async (req: Request, res: Response) => {
           i.total_amount as amount,
           i.outstanding_amount as "balanceDue",
           CASE 
-            WHEN CURRENT_DATE > i.due_date THEN EXTRACT(DAY FROM CURRENT_DATE - i.due_date)::integer
+            WHEN CURRENT_DATE > i.due_date THEN (CURRENT_DATE - i.due_date)
             ELSE 0
-          END as "daysOverdue"
+          END as "daysOverdue",
+          i.currency
         FROM 
           invoices i
         JOIN 
@@ -424,33 +431,56 @@ financeReportRouter.get('/outstanding', async (req: Request, res: Response) => {
         WHERE 
           i.outstanding_amount > 0
           ${dateFilter}
+          ${currencyFilter}
         ORDER BY 
           i.due_date ASC
       `;
       
+      console.log('Running outstanding invoices query:', query);
       const result = await client.query(query);
+      console.log('Found', result.rows.length, 'outstanding invoices');
       
       // Calculate total outstanding amount
       const totalOutstanding = result.rows.reduce((sum, row) => sum + parseFloat(row.balanceDue), 0);
       
       // Calculate total overdue amount (invoices past due date)
       const totalOverdue = result.rows
-        .filter(row => row.daysOverdue > 0)
+        .filter(row => parseInt(row.daysOverdue) > 0)
         .reduce((sum, row) => sum + parseFloat(row.balanceDue), 0);
       
       // Calculate amount within due date
       const withinDueDate = totalOutstanding - totalOverdue;
+      
+      // Format the data for the frontend
+      const formattedInvoices = result.rows.map(row => ({
+        id: row.id,
+        invoiceNumber: row.invoiceNumber,
+        customerName: row.customerName,
+        issueDate: row.issueDate,
+        dueDate: row.dueDate,
+        amount: parseFloat(row.amount),
+        balanceDue: parseFloat(row.balanceDue),
+        daysOverdue: parseInt(row.daysOverdue),
+        currency: row.currency
+      }));
+      
+      console.log('Outstanding report summary:', {
+        totalOutstanding,
+        totalOverdue,
+        withinDueDate,
+        invoiceCount: formattedInvoices.length
+      });
       
       res.json({
         reportDate: new Date().toISOString(),
         totalOutstanding,
         totalOverdue,
         withinDueDate,
-        // Adding currency conversion values for INR
+        // Adding currency conversion values for INR (USD to INR rate = 85.55)
         totalOutstandingINR: totalOutstanding * 85.55,
         totalOverdueINR: totalOverdue * 85.55,
         withinDueDateINR: withinDueDate * 85.55,
-        invoices: result.rows
+        invoices: formattedInvoices
       });
     } finally {
       client.release();

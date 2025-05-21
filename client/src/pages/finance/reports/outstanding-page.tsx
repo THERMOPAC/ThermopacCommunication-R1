@@ -101,56 +101,21 @@ export default function OutstandingReportPage() {
       const endDate = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '';
       const currencyParam = selectedCurrency !== 'all' ? `&currency=${selectedCurrency}` : '';
       
-      // If date range includes May 2025, return example data
-      const isMay2025Included = dateRange.from && dateRange.to && 
-        dateRange.from <= new Date(2025, 4, 31) && // May 31, 2025
-        dateRange.to >= new Date(2025, 4, 1);      // May 1, 2025
-      
-      if (isMay2025Included) {
-        // Sample data that matches the expected structure for the frontend
-        return {
-          reportDate: new Date().toISOString(),
-          totalOutstanding: 681723,
-          totalOverdue: 241298,
-          withinDueDate: 440425,
-          totalOutstandingINR: 681723 * 85.55,
-          totalOverdueINR: 241298 * 85.55,
-          withinDueDateINR: 440425 * 85.55,
-          invoices: [
-            {
-              id: 1,
-              invoiceNumber: "INV-2025-001",
-              customerName: "Acme Corporation",
-              issueDate: "2025-05-01",
-              dueDate: "2025-05-31",
-              amount: 150000,
-              balanceDue: 150000,
-              daysOverdue: 0
-            },
-            {
-              id: 2,
-              invoiceNumber: "INV-2025-002",
-              customerName: "Globex Industries",
-              issueDate: "2025-05-05",
-              dueDate: "2025-05-20",
-              amount: 241298,
-              balanceDue: 241298,
-              daysOverdue: 1
-            },
-            {
-              id: 3,
-              invoiceNumber: "INV-2025-003",
-              customerName: "Wayne Enterprises",
-              issueDate: "2025-05-10",
-              dueDate: "2025-06-10",
-              amount: 290425,
-              balanceDue: 290425,
-              daysOverdue: 0
-            }
-          ]
-        };
-      } else {
-        // If date range doesn't include May 2025, return empty data
+      // Fetch data from the real API
+      try {
+        const response = await fetch(`/api/finance/reports/outstanding?startDate=${startDate}&endDate=${endDate}${currencyParam}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch outstanding report');
+        }
+        
+        const responseData = await response.json();
+        console.log('Fetched outstanding report data:', responseData);
+        return responseData;
+      } catch (error) {
+        console.error('Error fetching outstanding report:', error);
+        
+        // Return empty data structure on error
         return {
           reportDate: new Date().toISOString(),
           totalOutstanding: 0,
@@ -182,48 +147,7 @@ export default function OutstandingReportPage() {
     );
   }
   
-  // Force sample data to be used during development
-  const sampleData = {
-    reportDate: new Date().toISOString(),
-    totalOutstanding: 681723,
-    totalOverdue: 241298,
-    withinDueDate: 440425,
-    totalOutstandingINR: 681723 * 85.55,
-    totalOverdueINR: 241298 * 85.55,
-    withinDueDateINR: 440425 * 85.55,
-    invoices: [
-      {
-        id: 1,
-        invoiceNumber: "INV-2025-001",
-        customerName: "Acme Corporation",
-        issueDate: "2025-05-01",
-        dueDate: "2025-05-31",
-        amount: 150000,
-        balanceDue: 150000,
-        daysOverdue: 0
-      },
-      {
-        id: 2,
-        invoiceNumber: "INV-2025-002",
-        customerName: "Globex Industries",
-        issueDate: "2025-05-05",
-        dueDate: "2025-05-20",
-        amount: 241298,
-        balanceDue: 241298,
-        daysOverdue: 1
-      },
-      {
-        id: 3,
-        invoiceNumber: "INV-2025-003",
-        customerName: "Wayne Enterprises",
-        issueDate: "2025-05-10",
-        dueDate: "2025-06-10",
-        amount: 290425,
-        balanceDue: 290425,
-        daysOverdue: 0
-      }
-    ]
-  };
+  // This space is intentionally left empty as we're now using real data from the backend
   
   return (
     <Layout>
@@ -329,7 +253,7 @@ export default function OutstandingReportPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {sampleData ? (
+            {data ? (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   <Card>
@@ -339,16 +263,16 @@ export default function OutstandingReportPage() {
                     <CardContent>
                       {selectedCurrency === 'USD' || selectedCurrency === 'all' ? (
                         <p className="text-2xl font-bold text-right">
-                          {formatUSD(sampleData.totalOutstanding || 0)}
+                          {formatUSD(data.totalOutstanding || 0)}
                         </p>
                       ) : (
                         <p className="text-2xl font-bold text-right">
-                          {formatRupees(sampleData.totalOutstanding || 0)}
+                          {formatRupees(data.totalOutstanding || 0)}
                         </p>
                       )}
                       {selectedCurrency === 'all' && (
                         <p className="text-sm text-muted-foreground text-right mt-1">
-                          ~ {formatRupees(sampleData.totalOutstandingINR || sampleData.totalOutstanding * 85.55 || 0, true)}
+                          ~ {formatRupees(data.totalOutstandingINR || data.totalOutstanding * 85.55 || 0, true)}
                         </p>
                       )}
                     </CardContent>
@@ -361,16 +285,16 @@ export default function OutstandingReportPage() {
                     <CardContent>
                       {selectedCurrency === 'USD' || selectedCurrency === 'all' ? (
                         <p className="text-2xl font-bold text-right">
-                          {formatUSD(sampleData.totalOverdue || 0)}
+                          {formatUSD(data.totalOverdue || 0)}
                         </p>
                       ) : (
                         <p className="text-2xl font-bold text-right">
-                          {formatRupees(sampleData.totalOverdue || 0)}
+                          {formatRupees(data.totalOverdue || 0)}
                         </p>
                       )}
                       {selectedCurrency === 'all' && (
                         <p className="text-sm text-muted-foreground text-right mt-1">
-                          ~ {formatRupees(sampleData.totalOverdueINR || sampleData.totalOverdue * 85.55 || 0, true)}
+                          ~ {formatRupees(data.totalOverdueINR || data.totalOverdue * 85.55 || 0, true)}
                         </p>
                       )}
                     </CardContent>
@@ -383,16 +307,16 @@ export default function OutstandingReportPage() {
                     <CardContent>
                       {selectedCurrency === 'USD' || selectedCurrency === 'all' ? (
                         <p className="text-2xl font-bold text-right">
-                          {formatUSD(sampleData.withinDueDate || 0)}
+                          {formatUSD(data.withinDueDate || 0)}
                         </p>
                       ) : (
                         <p className="text-2xl font-bold text-right">
-                          {formatRupees(sampleData.withinDueDate || 0)}
+                          {formatRupees(data.withinDueDate || 0)}
                         </p>
                       )}
                       {selectedCurrency === 'all' && (
                         <p className="text-sm text-muted-foreground text-right mt-1">
-                          ~ {formatRupees(sampleData.withinDueDateINR || sampleData.withinDueDate * 85.55 || 0, true)}
+                          ~ {formatRupees(data.withinDueDateINR || data.withinDueDate * 85.55 || 0, true)}
                         </p>
                       )}
                     </CardContent>
@@ -412,13 +336,13 @@ export default function OutstandingReportPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sampleData.invoices && sampleData.invoices.length > 0 ? (
-                      sampleData.invoices.map((invoice: any, index: number) => (
+                    {data.invoices && data.invoices.length > 0 ? (
+                      data.invoices.map((invoice: any, index: number) => (
                         <TableRow key={index} className={invoice.daysOverdue > 0 ? 'bg-red-50' : ''}>
                           <TableCell>{invoice.invoiceNumber}</TableCell>
                           <TableCell>{invoice.customerName}</TableCell>
-                          <TableCell>{formatDate(new Date(invoice.issueDate), 'MMM d, yyyy')}</TableCell>
-                          <TableCell>{formatDate(new Date(invoice.dueDate), 'MMM d, yyyy')}</TableCell>
+                          <TableCell>{format(new Date(invoice.issueDate), 'MMM d, yyyy')}</TableCell>
+                          <TableCell>{format(new Date(invoice.dueDate), 'MMM d, yyyy')}</TableCell>
                           <TableCell>
                             {selectedCurrency === 'USD' || selectedCurrency === 'all' 
                               ? formatUSD(invoice.amount || 0)
