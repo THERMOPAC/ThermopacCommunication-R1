@@ -178,7 +178,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // OLD REFERENCE GENERATION CODE - KEPT FOR DOCUMENTATION BUT NO LONGER USED
-  /*app.get("/api/finance/generate-reference-old", async (req, res) => {
+  /* 
+  app.get("/api/finance/generate-reference-old", async (req, res) => {
     try {
       let year, month, day;
       
@@ -262,6 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  */
   
   // GCS Storage Diagnostics Route - only accessible by Superusers
   app.get("/api/gcs-permissions-check", async (req, res) => {

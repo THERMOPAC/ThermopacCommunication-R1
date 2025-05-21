@@ -49,7 +49,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
-import { formatRupees, getIndianFinancialYear, getNextPaymentReferenceNumber } from "@/lib/utils";
+import { formatRupees, getIndianFinancialYear } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 // Define payment data structure types
@@ -248,22 +248,13 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   
   // We no longer need the generateReferenceNumber function since we're using Payment ID instead
   
-  // We've disabled automatic reference number generation since it's causing errors
-  // Instead, users will use the "Use Default Number" button or enter the number manually
+  // We've completely removed reference number generation since we're using Payment IDs
+  // No need to set a placeholder or default value for referenceNumber
   useEffect(() => {
     // Only for create mode, not edit mode
     if (!isEditMode) {
-      // Set a placeholder reference number pattern to guide the user
-      const today = new Date();
-      const month = today.getMonth();
-      const year = today.getFullYear();
-      const startYear = month >= 3 ? year : year - 1;
-      const endYear = startYear + 1;
-      const startYearStr = startYear.toString().substring(2);
-      const endYearStr = endYear.toString().substring(2);
-      const financialYear = `${startYearStr}${endYearStr}`;
-      
-      form.setValue('referenceNumber', `PAY-${financialYear}-XXX`);
+      // Clear any reference number value to indicate we're using Payment IDs
+      form.setValue('referenceNumber', '');
     }
   }, [isEditMode, form]);
   
@@ -719,31 +710,6 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Payment' : 'Record New Payment'}</h1>
         <div className="flex gap-2">
-          {!isEditMode && (
-            <Button 
-              variant="default"
-              onClick={() => {
-                // Generate reference number directly
-                const today = new Date();
-                const month = today.getMonth();
-                const year = today.getFullYear();
-                const startYear = month >= 3 ? year : year - 1;
-                const endYear = startYear + 1;
-                const startYearStr = startYear.toString().substring(2);
-                const endYearStr = endYear.toString().substring(2);
-                const financialYear = `${startYearStr}${endYearStr}`;
-                
-                // Based on server logs, we know the next number is 015
-                form.setValue('referenceNumber', `PAY-${financialYear}-015`);
-                toast({
-                  title: "Reference Number Set",
-                  description: "Payment reference number has been updated.",
-                });
-              }}
-            >
-              Generate Reference Number
-            </Button>
-          )}
           <Button variant="outline" onClick={() => navigate('/finance/payments')}>
             Cancel
           </Button>
