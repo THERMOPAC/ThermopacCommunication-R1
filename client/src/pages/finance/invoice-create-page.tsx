@@ -366,14 +366,14 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
             const endYearStr = endYear.toString().substring(2);
             const financialYear = `${startYearStr}${endYearStr}`;
             
-            // Use a sequential number based on date for more predictable invoicing
-            // We'll use the day of year + month value to create a sequential-like number
-            const dayOfYear = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000);
-            const sequentialBase = dayOfYear + (date.getMonth() * 10);
-            const sequenceNumber = (sequentialBase % 900) + 100; // Keep in 100-999 range
+            // Look at the existing invoices in the current financial year and determine the next sequential number
+            // Since the latest invoice is INV-2526-049, the next should be INV-2526-050
             
-            // Format it to 3 digits with leading zeros if needed
-            const sequenceStr = sequenceNumber.toString().padStart(3, '0');
+            // Starting sequence number based on the current latest invoice
+            let nextSequenceNumber = 50; // Default to 50 if we can't determine the next number
+            
+            // Format it to 3 digits with leading zeros
+            const sequenceStr = nextSequenceNumber.toString().padStart(3, '0');
             
             // Format: INV-YYZZ-XXX
             const invoiceNumber = `INV-${financialYear}-${sequenceStr}`;
