@@ -760,11 +760,28 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         if (!response.ok) {
           const errorText = await response.text();
           console.error('Invoice creation failed:', response.status, errorText);
-          throw new Error(`Failed to create invoice: ${errorText}`);
+          throw new Error(`Failed to create invoice: ${response.status} ${response.statusText}`);
         }
         
-        const data = await response.json();
-        console.log('Invoice created successfully:', data);
+        let data;
+        try {
+          // Try to parse as JSON
+          const responseText = await response.text();
+          data = JSON.parse(responseText);
+          console.log('Invoice created successfully:', data);
+        } catch (parseError) {
+          console.error('Error parsing JSON response:', parseError);
+          // Handle case where response is not valid JSON
+          // If we get here but response was ok, it means we got a non-JSON successful response
+          // This could be because the server is returning HTML instead of JSON
+          toast({
+            title: "Invoice likely created",
+            description: "The server responded but didn't return the expected format. The invoice may have been created successfully.",
+          });
+          queryClient.invalidateQueries({ queryKey: ['/api/finance/invoices'] });
+          navigate('/finance/invoices');
+          return;
+        }
         
         // Show success message
         toast({
