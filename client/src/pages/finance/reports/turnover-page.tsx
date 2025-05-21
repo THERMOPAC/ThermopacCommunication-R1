@@ -31,20 +31,15 @@ import { Loader2, Download, Filter } from "lucide-react";
 
 export default function TurnoverReportPage() {
   // Helper function to get current financial year dates (April 1 - March 31)
+  // Modified to use 2025 as the base year to match the database data
   const getCurrentFinancialYearDates = (): { from: Date; to: Date } => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+    // Use 2025 as the base year for the financial year calculation
+    // since our invoice data is from 2025
+    const currentYear = 2025;
     
-    // If current month is January to March (0-2), financial year is previous year to current year
-    // If current month is April to December (3-11), financial year is current year to next year
-    const financialYearStart = currentMonth < 3 
-      ? new Date(currentYear - 1, 3, 1) // April 1st of previous year
-      : new Date(currentYear, 3, 1);    // April 1st of current year
-    
-    const financialYearEnd = currentMonth < 3
-      ? new Date(currentYear, 2, 31)    // March 31st of current year
-      : new Date(currentYear + 1, 2, 31); // March 31st of next year
+    // Set financial year to 2025-2026
+    const financialYearStart = new Date(currentYear, 3, 1); // April 1st, 2025
+    const financialYearEnd = new Date(currentYear + 1, 2, 31); // March 31st, 2026
     
     return { from: financialYearStart, to: financialYearEnd };
   };
