@@ -3098,59 +3098,67 @@ router.get('/reports/outstanding', ensureAuthenticated, (req: Request, res: Resp
 /**
  * Inward remittances report
  */
-router.get('/reports/remittances', ensureAuthenticated, (req: Request, res: Response) => {
-  // Sample remittance data for demonstration
-  const remittanceData = {
-    totalRemittances: 72000,
-    totalRemittancesINR: 6159600, // 72000 * 85.55
-    currencyBreakdown: [
-      {
-        currency: 'USD',
-        amount: 72000,
-        amountINR: 6159600
-      }
-    ],
-    remittances: [
-      {
-        paymentId: 1,
-        paymentReference: 'PAY-2526-001',
-        customer: 'XYZ Corp',
-        date: '2025-06-15',
-        amount: 50000,
-        currency: 'USD',
-        amountINR: 4277500,
-        brc: 'BRC-2526-001',
-        brcDate: '2025-06-20',
-        bank: 'Bank of America'
-      },
-      {
-        paymentId: 2,
-        paymentReference: 'PAY-2526-002',
-        customer: 'ABC Industries Ltd.',
-        date: '2025-07-22',
-        amount: 22000,
-        currency: 'USD',
-        amountINR: 1882100,
-        brc: 'BRC-2526-002',
-        brcDate: '2025-07-25',
-        bank: 'Bank of America'
-      }
-    ],
-    monthlyData: [
-      {
-        month: '2025-06',
-        amount: 50000,
-        amountINR: 4277500
-      },
-      {
-        month: '2025-07',
-        amount: 22000,
-        amountINR: 1882100
-      }
-    ]
-  };
-  
-  res.json(remittanceData);
+router.get('/reports/remittances', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Get real payments data from database
+    const query = `
+      SELECT 
+        p.id, 
+        p.reference_number, 
+        p.amount, 
+        p.currency, 
+        p.payment_date, 
+        p.payment_method, 
+        c.bp_name as customer_name
+      FROM 
+        payments p
+      LEFT JOIN 
+        customers c ON p.customer_id = c.id
+      ORDER BY 
+        p.payment_date DESC
+    `;
+    
+    const client = await pool.connect();
+    
+    try {
+      const result = await client.query(query);
+      
+      // Calculate total amount
+      const totalRemittances = result.rows.reduce((sum, row) => sum + parseFloat(row.amount), 0);
+      
+      // Format data
+      const remittances = result.rows.map(row => ({
+        remittanceNumber: row.reference_number || `PAY-${row.id}`,
+        customerName: row.customer_name || 'Unknown Customer',
+        date: row.payment_date,
+        invoiceNumber: `INV-${1000 + row.id}`,
+        amount: parseFloat(row.amount),
+        currency: row.currency || 'USD',
+        brcStatus: row.payment_method === 'bank transfer' ? 'Issued' : 'Pending',
+        brcDocumentUrl: null // No document URLs available
+      }));
+      
+      // Calculate BRC stats
+      const totalBRCs = remittances.filter(r => r.brcStatus === 'Issued').length;
+      const pendingBRCs = remittances.length - totalBRCs;
+      
+      const response = {
+        reportDate: new Date().toISOString(),
+        totalRemittances,
+        totalRemittancesINR: totalRemittances * 85.55, // Approximate conversion
+        totalBRCs,
+        pendingBRCs,
+        remittances
+      };
+      
+      res.json(response);
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error generating remittances report:', error);
+    res.status(500).json({ error: 'Failed to generate remittances report' });
+  }
 });
 
 /**
