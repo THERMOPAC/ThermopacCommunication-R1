@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import Layout from "@/components/layout";
 
 import {
   Card,
@@ -50,7 +51,7 @@ type Invoice = {
   customerName: string;
 };
 
-export default function BasicAllocationPage() {
+export default function BasicAllocationPageContent() {
   // State management
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -209,7 +210,7 @@ export default function BasicAllocationPage() {
   };
 
   return (
-    <div className="py-6 px-4 md:px-6 max-w-full">
+    <div className="py-6 px-4 md:px-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Basic Payment Allocation</h1>
         <p className="text-muted-foreground">
