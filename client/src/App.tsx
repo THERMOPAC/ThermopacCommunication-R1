@@ -44,7 +44,7 @@ import BrcPage from "@/pages/finance/brc-page";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
-import ReconciliationReportPage from "@/pages/finance/reports/reconciliation-page.simple";
+import ReconciliationReportPage from "@/pages/finance/reports/reconciliation-page";
 import PaymentAllocationPage from "@/pages/finance/payment-allocation-page-new";
 import BasicAllocationPage from "@/pages/finance/basic-allocation-page-new";
 import BatchAdvanceAllocationPage from "@/pages/finance/batch-advance-allocation-page-fixed";
