@@ -224,7 +224,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         };
       }) : [],
   } : {
-    referenceNumber: `PAY-${getIndianFinancialYear(new Date())}-001`,
+    referenceNumber: '', // No longer providing a default as we're using Payment ID instead
     paymentDate: new Date(),
     sapPaymentNo: '',
     paymentType: 'Product',
