@@ -397,9 +397,29 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
             const endYearStr = endYear.toString().substring(2);
             const financialYear = `${startYearStr}${endYearStr}`;
             
-            // Use 052 as the next number after 051 if we couldn't get it from the server
-            const sequenceStr = '052';
+            // Get the latest invoice number for the current financial year to determine next in sequence
+            try {
+              // Use the current latest known invoice number
+              const latestInvoice = await fetch(`/api/finance/latest-invoice?financialYear=${financialYear}`);
+              if (latestInvoice.ok) {
+                const data = await latestInvoice.json();
+                if (data.latestInvoiceNumber) {
+                  // Extract the sequence number from the latest invoice
+                  const match = data.latestInvoiceNumber.match(/INV-(\d{4})-(\d{2,3})/);
+                  if (match && match[2]) {
+                    const sequenceNumber = parseInt(match[2], 10) + 1;
+                    const sequenceStr = sequenceNumber.toString().padStart(3, '0');
+                    form.setValue('invoiceNumber', `INV-${financialYear}-${sequenceStr}`);
+                    return;
+                  }
+                }
+              }
+            } catch (fetchError) {
+              console.error('Error fetching latest invoice:', fetchError);
+            }
             
+            // If all else fails, use a safe starting value (052 after 051)
+            const sequenceStr = '052';
             form.setValue('invoiceNumber', `INV-${financialYear}-${sequenceStr}`);
           } finally {
             setIsGeneratingInvoiceNumber(false);

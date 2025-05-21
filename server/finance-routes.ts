@@ -2129,6 +2129,56 @@ router.post('/payments/:id/allocate', ensureAuthenticated, async (req: Request, 
 });
 
 /**
+ * Endpoint to get latest invoice number by financial year
+ */
+router.get('/latest-invoice', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const financialYear = req.query.financialYear as string;
+    
+    if (!financialYear || financialYear.length !== 4) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid financial year format. Expected YYZZ format (e.g., 2526)' 
+      });
+    }
+    
+    try {
+      const query = `
+        SELECT invoice_number 
+        FROM invoices 
+        WHERE invoice_number LIKE $1 
+        ORDER BY created_at DESC, invoice_number DESC
+        LIMIT 1
+      `;
+      
+      console.log(`Querying for latest invoice with pattern: INV-${financialYear}-%`);
+      const result = await pool.query(query, [`INV-${financialYear}-%`]);
+      
+      if (result.rows.length > 0) {
+        console.log(`Latest invoice found for ${financialYear}: ${result.rows[0].invoice_number}`);
+        return res.json({ latestInvoiceNumber: result.rows[0].invoice_number });
+      } else {
+        // No invoices found for this financial year
+        console.log(`No invoices found for financial year ${financialYear}`);
+        return res.json({ latestInvoiceNumber: null });
+      }
+    } catch (dbError) {
+      console.error('Database error getting latest invoice:', dbError);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Database error occurred while getting latest invoice'
+      });
+    }
+  } catch (error) {
+    console.error('Error in latest invoice endpoint:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Server error occurred'
+    });
+  }
+});
+
+/**
  * Test endpoint to generate next invoice number
  * This endpoint is used by the frontend to generate the next invoice number
  * Format: INV-YYZZ-XXX where YY is the last 2 digits of the start year,
@@ -2170,7 +2220,8 @@ router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res
       // If we found existing invoices, extract the highest sequence number
       if (result.rows.length > 0) {
         console.log('Latest invoice found:', result.rows[0].invoice_number);
-        const match = result.rows[0].invoice_number.match(/INV-(\d{4})-(\d{3})/);
+        // Updated regex pattern to handle both 3-digit and 2-digit sequence numbers
+        const match = result.rows[0].invoice_number.match(/INV-(\d{4})-(\d{2,3})/);
         if (match && match[2]) {
           const dbSequenceNumber = parseInt(match[2], 10);
           maxSequenceNumber = Math.max(maxSequenceNumber, dbSequenceNumber);
@@ -2192,6 +2243,25 @@ router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res
       
       // Log the generated invoice number for debugging
       console.log(`Generated new invoice number: ${nextInvoiceNumber} (based on max: ${maxSequenceNumber})`);
+      
+      // Add additional database check to ensure uniqueness
+      try {
+        const checkDuplicateQuery = `SELECT COUNT(*) FROM invoices WHERE invoice_number = $1`;
+        const duplicateCheck = await pool.query(checkDuplicateQuery, [nextInvoiceNumber]);
+        
+        if (duplicateCheck.rows[0].count > 0) {
+          console.log(`Warning: Generated invoice number ${nextInvoiceNumber} already exists, incrementing...`);
+          // If duplicate found, increment and try again
+          const adjustedNumber = nextSequenceNumber + 1;
+          const adjustedStr = adjustedNumber.toString().padStart(3, '0');
+          const adjustedInvoiceNumber = `INV-${financialYear}-${adjustedStr}`;
+          console.log(`Adjusted to new invoice number: ${adjustedInvoiceNumber}`);
+          return res.json({ nextInvoiceNumber: adjustedInvoiceNumber });
+        }
+      } catch (err) {
+        console.log("Error checking for duplicate invoice numbers:", err);
+        // Continue with original number if check fails
+      }
       
       return res.json({ nextInvoiceNumber });
     } catch (dbError) {
