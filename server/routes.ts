@@ -38,6 +38,7 @@ import { paymentAllocationApi } from "./payment-allocation-api";
 import { simplePaymentAllocationApi } from "./simple-payment-allocation-api";
 import { newAllocationApi } from "./new-allocation-api";
 import { simplifiedAllocationApi } from "./simplified-allocation-api";
+import { ultraSimpleAllocationApi } from "./ultra-simple-allocation";
 import { default as simplePaymentRoutes } from "./simple-payment-routes";
 import { default as financeWriteOffsRouter } from "./finance-write-offs";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
@@ -1733,6 +1734,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register simplified allocation API (most reliable version)
   app.use('/api/finance/simplified-allocations', simplifiedAllocationApi);
   console.log('Simplified allocation API registered at /api/finance/simplified-allocations');
+  
+  // Register ultra-simple allocation API (absolute minimum implementation)
+  app.use('/api/finance/ultra-simple', ultraSimpleAllocationApi);
+  console.log('Ultra-simple allocation API registered at /api/finance/ultra-simple');
   
   app.use('/api/finance/write-offs', financeWriteOffsRouter);
   console.log('Write-off routes registered at /api/finance/write-offs');
