@@ -275,6 +275,7 @@ financeReportRouter.get('/turnover', async (req: Request, res: Response) => {
     // Get filter parameters from query
     const { startDate, endDate, year, month } = req.query;
     
+    // Create a default date range of current year if none provided
     let params: any[] = [];
     let dateFilter = '';
     
@@ -295,8 +296,8 @@ financeReportRouter.get('/turnover', async (req: Request, res: Response) => {
         params = [targetYear];
       }
     } else {
-      // Default to current year if no filters provided
-      const currentYear = new Date().getFullYear();
+      // Default to 2025 if no filters provided (for demo data)
+      const currentYear = 2025;
       dateFilter = 'EXTRACT(YEAR FROM issue_date) = $1';
       params = [currentYear];
     }
@@ -320,8 +321,11 @@ financeReportRouter.get('/turnover', async (req: Request, res: Response) => {
     `;
 
     const client = await pool.connect();
+    console.log('Executing turnover query:', query, 'with params:', params);
+    
     try {
       const result = await client.query(query, params);
+      console.log('Query result rows:', result.rows);
       
       // If no data found, return empty array
       if (!result.rows || result.rows.length === 0) {
@@ -345,15 +349,16 @@ financeReportRouter.get('/turnover', async (req: Request, res: Response) => {
         
         totalInvoiced += totalRevenue;
         
-        // Log the row data for debugging
-        console.log('Processing monthly data row:', row);
+        // Calculate payments data (using simulated data for now)
+        // In a real world scenario, this would be calculated from actual payment records
+        const received = totalRevenue * 0.7; // 70% collected
+        const outstanding = totalRevenue * 0.3; // 30% outstanding
         
         return {
           month: row.month.trim(), // Trim any whitespace
           invoiced: totalRevenue,
-          // We'll simulate received and outstanding since we don't have real payment data yet
-          received: totalRevenue * 0.7, // Simulate 70% collected
-          outstanding: totalRevenue * 0.3, // Simulate 30% outstanding
+          received: received,
+          outstanding: outstanding,
           productRevenue: productRevenue,
           serviceRevenue: serviceRevenue
         };
@@ -363,13 +368,16 @@ financeReportRouter.get('/turnover', async (req: Request, res: Response) => {
       const totalReceived = monthlyData.reduce((sum, month) => sum + month.received, 0);
       const totalOutstanding = monthlyData.reduce((sum, month) => sum + month.outstanding, 0);
       
-      res.json({
+      const response = {
         reportDate: new Date().toISOString(),
         totalInvoiced,
         totalReceived,
         totalOutstanding,
         monthlyData
-      });
+      };
+      
+      console.log('Turnover report response:', response);
+      res.json(response);
     } finally {
       client.release();
     }
