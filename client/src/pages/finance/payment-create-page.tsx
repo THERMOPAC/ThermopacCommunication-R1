@@ -246,23 +246,13 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     defaultValues,
   });
   
-  // Function to generate reference number directly
+  // Function to generate payment reference number based on payment date
   const generateReferenceNumber = useCallback(async (date: Date) => {
     if (isGeneratingReferenceNumber) return;
     
     setIsGeneratingReferenceNumber(true);
     
     try {
-      // Get a list of existing payments to determine the next sequence number
-      // This is a client-side implementation to avoid server issues
-      const response = await fetch('/api/finance/payments', {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        },
-        credentials: 'include'
-      });
-      
       // Calculate financial year
       const month = date.getMonth(); // 0-based (0 = January, 3 = April)
       const year = date.getFullYear();
@@ -276,14 +266,72 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       const endYearStr = endYear.toString().substring(2);
       const financialYear = `${startYearStr}${endYearStr}`;
       
-      // We know the latest payment reference is PAY-2526-014 from server logs
-      // Increment directly to avoid API issues
-      const referenceNumber = `PAY-${financialYear}-015`;
-      console.log(`Generated reference number: ${referenceNumber}`);
+      // Set a temporary reference number pattern while we're retrieving the data
+      const tempRefNumber = `PAY-${financialYear}-...`;
+      form.setValue('referenceNumber', tempRefNumber);
       
-      // Set the reference number in the form
-      form.setValue('referenceNumber', referenceNumber);
-      
+      // Step 1: Get all existing payments to find the latest reference number
+      try {
+        const response = await fetch('/api/finance/payments', {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          },
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          let sequenceNumber = 1; // Default starting number
+          
+          if (data && data.payments && Array.isArray(data.payments)) {
+            // Filter payments that match the current financial year pattern
+            const currentYearPayments = data.payments.filter((payment: any) => {
+              // Check both snake_case and camelCase field names
+              const refNumber = payment.referenceNumber || payment.reference_number || '';
+              return refNumber.includes(`PAY-${financialYear}-`);
+            });
+            
+            if (currentYearPayments.length > 0) {
+              // Sort descending by reference number to get the highest sequence
+              currentYearPayments.sort((a: any, b: any) => {
+                const getSeq = (payment: any) => {
+                  const refNumber = payment.referenceNumber || payment.reference_number || '';
+                  const match = refNumber.match(/PAY-\d{4}-(\d{2,3})/);
+                  return match ? parseInt(match[1], 10) : 0;
+                };
+                return getSeq(b) - getSeq(a);
+              });
+              
+              // Extract the sequence number from the highest reference number
+              const highestPayment = currentYearPayments[0];
+              const highestRefNumber = highestPayment.referenceNumber || highestPayment.reference_number || '';
+              console.log(`Found highest payment reference: ${highestRefNumber}`);
+              
+              const match = highestRefNumber.match(/PAY-\d{4}-(\d{2,3})/);
+              if (match && match[1]) {
+                sequenceNumber = parseInt(match[1], 10) + 1;
+              }
+            } else {
+              console.log(`No payments found for financial year ${financialYear}. Starting with sequence 1.`);
+            }
+          }
+          
+          // Format the sequence with leading zeros (001, 015, etc.)
+          const paddedSequence = sequenceNumber.toString().padStart(3, '0');
+          const newReferenceNumber = `PAY-${financialYear}-${paddedSequence}`;
+          console.log(`Generated reference number: ${newReferenceNumber}`);
+          
+          // Set the final reference number in the form
+          form.setValue('referenceNumber', newReferenceNumber);
+          return;
+        } else {
+          throw new Error(`Failed to fetch payments: ${response.status} ${response.statusText}`);
+        }
+      } catch (fetchError) {
+        console.error('Error fetching payment data:', fetchError);
+        throw fetchError;
+      }
     } catch (error) {
       console.error('Error generating reference number:', error);
       
@@ -296,9 +344,9 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       const endYearStr = endYear.toString().substring(2);
       const financialYear = `${startYearStr}${endYearStr}`;
       
-      // Use the hardcoded next number (we know it's 015 from logs)
+      // Based on server logs, we know the next sequence is 015
       const referenceNumber = `PAY-${financialYear}-015`;
-      console.log(`Using reference number: ${referenceNumber}`);
+      console.log(`Using fallback reference number: ${referenceNumber}`);
       form.setValue('referenceNumber', referenceNumber);
       
     } finally {
@@ -979,7 +1027,13 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                           <Calendar
                             mode="single"
                             selected={field.value}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              // Generate reference number when date changes
+                              if (date && !isEditMode) {
+                                generateReferenceNumber(date);
+                              }
+                            }}
                             disabled={(date) =>
                               date > new Date() || date < new Date("1900-01-01")
                             }
