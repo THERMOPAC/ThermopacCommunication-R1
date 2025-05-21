@@ -251,53 +251,57 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     try {
       setIsGeneratingReferenceNumber(true);
       
-      // Generate a financial year format like "2526" for 2025-2026
-      const financialYear = getIndianFinancialYear(date);
-      const prefix = `PAY-${financialYear}-`;
+      // Format the date for the API request
+      const formattedDate = format(date, "yyyy-MM-dd");
+      console.log(`Generating reference number for date: ${formattedDate}`);
       
-      // Fetch all existing payments to find the highest sequence number
-      const response = await fetch('/api/finance/payments');
+      // Use our new dedicated endpoint for generating reference numbers
+      const response = await fetch(`/api/finance/generate-payment-reference?date=${formattedDate}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include' // Include auth cookies
+      });
+      
+      // Check if we got a proper JSON response
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Expected JSON response but got ${contentType}`);
+      }
+      
       if (response.ok) {
-        const payments = await response.json();
+        const data = await response.json();
         
-        // Find the highest sequence number with the current financial year prefix
-        let maxSequence = 0;
-        
-        if (Array.isArray(payments)) {
-          payments.forEach((payment: any) => {
-            if (payment.referenceNumber && payment.referenceNumber.startsWith(prefix)) {
-              try {
-                const sequence = parseInt(payment.referenceNumber.substring(prefix.length), 10);
-                if (!isNaN(sequence) && sequence > maxSequence) {
-                  maxSequence = sequence;
-                }
-              } catch (err) {
-                console.warn('Error parsing reference number:', payment.referenceNumber);
-              }
-            }
-          });
+        if (data && data.referenceNumber) {
+          console.log(`Generated reference number from server: ${data.referenceNumber}`);
+          form.setValue('referenceNumber', data.referenceNumber);
+        } else {
+          throw new Error('Server response missing reference number');
         }
-        
-        // Increment to the next sequence number
-        const sequenceNumber = String(maxSequence + 1).padStart(3, '0');
-        const referenceNumber = `${prefix}${sequenceNumber}`;
-        
-        console.log('Generated reference number:', referenceNumber);
-        form.setValue('referenceNumber', referenceNumber);
       } else {
-        // Fallback if API call fails
-        throw new Error('Failed to fetch payments data');
+        // If server returned an error, parse the error response
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate reference number');
       }
     } catch (error) {
       console.error('Failed to generate payment reference number:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate reference number. Using fallback value.",
+        variant: "destructive",
+      });
       
       // Use a fallback approach
       const financialYear = getIndianFinancialYear(date);
-      form.setValue('referenceNumber', `PAY-${financialYear}-001`);
+      const fallbackNumber = `PAY-${financialYear}-001`;
+      console.log(`Using fallback reference number: ${fallbackNumber}`);
+      form.setValue('referenceNumber', fallbackNumber);
     } finally {
       setIsGeneratingReferenceNumber(false);
     }
-  }, [form, setIsGeneratingReferenceNumber]);
+  }, [form, setIsGeneratingReferenceNumber, toast]);
   
   // Generate reference number on component mount for new payments
   useEffect(() => {

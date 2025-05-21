@@ -435,4 +435,78 @@ router.get('/payments/:id/direct-fields', ensureAuthenticated, async (req: Reque
   }
 });
 
+/**
+ * Generate payment reference number based on date
+ */
+router.get('/generate-payment-reference', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Set proper content type header
+    res.setHeader('Content-Type', 'application/json');
+    
+    // Get date from query parameter or use current date
+    const date = req.query.date ? new Date(req.query.date as string) : new Date();
+    
+    // Calculate financial year based on Indian calendar (April to March)
+    const startYear = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1;
+    const endYear = startYear + 1;
+    
+    // Format as YY-ZZ (e.g., 25-26)
+    const startYearStr = startYear.toString().substring(2);
+    const endYearStr = endYear.toString().substring(2);
+    const financialYear = `${startYearStr}${endYearStr}`;
+    
+    // Query database for highest existing payment reference number with this prefix
+    try {
+      const query = `
+        SELECT reference_number 
+        FROM payments 
+        WHERE reference_number LIKE $1 
+        ORDER BY reference_number DESC
+        LIMIT 1
+      `;
+      
+      console.log(`Generating payment reference number for financial year ${financialYear}`);
+      const result = await pool.query(query, [`PAY-${financialYear}-%`]);
+      
+      let nextSequenceNumber = 1; // Start from 1 if no existing payments
+      
+      if (result.rows.length > 0) {
+        console.log(`Found latest payment reference: ${result.rows[0].reference_number}`);
+        
+        // Extract sequence number from reference number (PAY-YYZZ-XXX)
+        const match = result.rows[0].reference_number.match(/PAY-\d{4}-(\d{3})/);
+        if (match && match[1]) {
+          const currentSequence = parseInt(match[1], 10);
+          nextSequenceNumber = currentSequence + 1;
+          console.log(`Current sequence: ${currentSequence}, next: ${nextSequenceNumber}`);
+        }
+      } else {
+        console.log(`No existing payments found for financial year ${financialYear}`);
+      }
+      
+      // Format with leading zeros (3 digits)
+      const sequenceStr = nextSequenceNumber.toString().padStart(3, '0');
+      const referenceNumber = `PAY-${financialYear}-${sequenceStr}`;
+      
+      console.log(`Generated payment reference number: ${referenceNumber}`);
+      return res.json({ referenceNumber });
+      
+    } catch (dbError) {
+      console.error('Database error generating payment reference number:', dbError);
+      
+      // Fallback to basic reference number if database fails
+      const sequenceStr = '001';
+      const referenceNumber = `PAY-${financialYear}-${sequenceStr}`;
+      
+      console.log(`Using fallback payment reference number: ${referenceNumber}`);
+      return res.json({ referenceNumber });
+    }
+  } catch (error) {
+    console.error('Error generating payment reference number:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate reference number. Please try again or enter manually.'
+    });
+  }
+});
+
 export default router;
