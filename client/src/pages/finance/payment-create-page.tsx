@@ -941,10 +941,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                             selected={field.value}
                             onSelect={(date) => {
                               field.onChange(date);
-                              // Generate reference number when date changes
-                              if (date && !isEditMode) {
-                                generateReferenceNumber(date);
-                              }
+                              // No longer need to generate reference numbers as we're using Payment ID instead
                             }}
                             disabled={(date) =>
                               date > new Date() || date < new Date("1900-01-01")
