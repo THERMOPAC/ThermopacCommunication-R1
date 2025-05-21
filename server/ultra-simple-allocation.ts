@@ -34,15 +34,15 @@ ultraSimpleAllocationApi.post('/allocate', ensureAuthenticated, async (req: Requ
       
       const allocationId = insertResult.rows[0]?.id;
       
-      // 2. Update invoice paid amount
+      // 2. Update invoice outstanding amount
       await client.query(
-        'UPDATE invoices SET paid_amount = COALESCE(paid_amount, 0) + $1, outstanding_amount = total_amount - (COALESCE(paid_amount, 0) + $1) WHERE id = $2',
+        'UPDATE invoices SET outstanding_amount = total_amount - $1 WHERE id = $2',
         [amount, invoiceId]
       );
       
-      // 3. Update payment allocated amount
+      // 3. Update payment allocated and unallocated amount
       await client.query(
-        'UPDATE payments SET allocated_amount = COALESCE(allocated_amount, 0) + $1, remaining_amount = amount - (COALESCE(allocated_amount, 0) + $1) WHERE id = $2',
+        'UPDATE payments SET allocated_amount = COALESCE(allocated_amount, 0) + $1, unallocated_amount = amount - (COALESCE(allocated_amount, 0) + $1) WHERE id = $2',
         [amount, paymentId]
       );
       
