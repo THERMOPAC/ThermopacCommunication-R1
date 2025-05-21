@@ -505,8 +505,8 @@ export default function PaymentAllocationPage() {
                     </TableHeader>
                     <TableBody>
                       {payments
-                        .filter(payment => payment.remaining > 0)
-                        .map(payment => (
+                        .filter((payment: Payment) => payment.remainingAmount > 0)
+                        .map((payment: Payment) => (
                           <TableRow 
                             key={payment.id}
                             className={selectedPayment?.id === payment.id ? "bg-muted/50" : ""}
@@ -517,7 +517,7 @@ export default function PaymentAllocationPage() {
                                 name="selectedPayment"
                                 checked={selectedPayment?.id === payment.id}
                                 onChange={() => {
-                                  setSelectedPayment(payment.raw);
+                                  setSelectedPayment(payment);
                                   form.setValue('paymentId', payment.id);
                                 }}
                                 className="h-4 w-4 rounded-full border-gray-300 text-primary focus:ring-primary"
@@ -531,8 +531,8 @@ export default function PaymentAllocationPage() {
                             </TableCell>
                             <TableCell>{payment.customerName}</TableCell>
                             <TableCell>{format(new Date(payment.paymentDate), 'dd/MM/yyyy')}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(payment.total)}</TableCell>
-                            <TableCell className="text-right font-medium">{formatCurrency(payment.remaining)}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(payment.amount)}</TableCell>
+                            <TableCell className="text-right font-medium">{formatCurrency(payment.remainingAmount)}</TableCell>
                             <TableCell>
                               <Badge 
                                 variant={
