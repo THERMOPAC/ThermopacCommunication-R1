@@ -397,25 +397,49 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
             const endYearStr = endYear.toString().substring(2);
             const financialYear = `${startYearStr}${endYearStr}`;
             
-            // Get the latest invoice number for the current financial year to determine next in sequence
+            // The most direct and reliable approach - use the existing database records to determine numbering
             try {
-              // Use the current latest known invoice number
-              const latestInvoice = await fetch(`/api/finance/latest-invoice?financialYear=${financialYear}`);
-              if (latestInvoice.ok) {
-                const data = await latestInvoice.json();
-                if (data.latestInvoiceNumber) {
-                  // Extract the sequence number from the latest invoice
-                  const match = data.latestInvoiceNumber.match(/INV-(\d{4})-(\d{2,3})/);
-                  if (match && match[2]) {
-                    const sequenceNumber = parseInt(match[2], 10) + 1;
+              // Get all invoices and find the latest one for this financial year
+              const response = await fetch('/api/simple-finance/invoices-list');
+              if (response.ok) {
+                const invoices = await response.json();
+                
+                // Filter for invoices with the current financial year
+                const matchingInvoices = invoices.filter((invoice: any) => {
+                  return invoice.invoiceNumber && invoice.invoiceNumber.includes(`INV-${financialYear}-`);
+                });
+                
+                if (matchingInvoices.length > 0) {
+                  // Sort by invoice number in descending order to get the highest one
+                  matchingInvoices.sort((a: any, b: any) => {
+                    // Extract sequence numbers for comparison
+                    const getSeq = (inv: any) => {
+                      const match = inv.invoiceNumber.match(/INV-\d{4}-(\d{2,3})/);
+                      return match ? parseInt(match[1], 10) : 0;
+                    };
+                    return getSeq(b) - getSeq(a);
+                  });
+                  
+                  // Get the highest invoice number
+                  const highestInvoice = matchingInvoices[0];
+                  console.log(`Found highest invoice for ${financialYear}: ${highestInvoice.invoiceNumber}`);
+                  
+                  // Extract and increment the sequence number
+                  const match = highestInvoice.invoiceNumber.match(/INV-\d{4}-(\d{2,3})/);
+                  if (match && match[1]) {
+                    const sequenceNumber = parseInt(match[1], 10) + 1;
                     const sequenceStr = sequenceNumber.toString().padStart(3, '0');
-                    form.setValue('invoiceNumber', `INV-${financialYear}-${sequenceStr}`);
+                    const newInvoiceNumber = `INV-${financialYear}-${sequenceStr}`;
+                    console.log(`Generated next invoice number: ${newInvoiceNumber}`);
+                    form.setValue('invoiceNumber', newInvoiceNumber);
                     return;
                   }
+                } else {
+                  console.log(`No invoices found for financial year ${financialYear}, will use starting number`);
                 }
               }
             } catch (fetchError) {
-              console.error('Error fetching latest invoice:', fetchError);
+              console.error('Error fetching invoice list:', fetchError);
             }
             
             // If all else fails, use a safe starting value (052 after 051)

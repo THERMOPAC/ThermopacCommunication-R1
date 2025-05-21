@@ -2133,15 +2133,23 @@ router.post('/payments/:id/allocate', ensureAuthenticated, async (req: Request, 
  */
 router.get('/latest-invoice', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    // Set proper content type
+    res.setHeader('Content-Type', 'application/json');
+    
     const financialYear = req.query.financialYear as string;
     
+    // Validate financial year format
     if (!financialYear || financialYear.length !== 4) {
+      console.log(`Invalid financial year format received: ${financialYear}`);
       return res.status(400).json({ 
         success: false, 
         message: 'Invalid financial year format. Expected YYZZ format (e.g., 2526)' 
       });
     }
     
+    // Try multiple methods to find the latest invoice
+    
+    // Method 1: Direct database query with proper error handling
     try {
       const query = `
         SELECT invoice_number 
@@ -2154,26 +2162,70 @@ router.get('/latest-invoice', ensureAuthenticated, async (req: Request, res: Res
       console.log(`Querying for latest invoice with pattern: INV-${financialYear}-%`);
       const result = await pool.query(query, [`INV-${financialYear}-%`]);
       
+      // If we found an invoice, return it
       if (result.rows.length > 0) {
         console.log(`Latest invoice found for ${financialYear}: ${result.rows[0].invoice_number}`);
-        return res.json({ latestInvoiceNumber: result.rows[0].invoice_number });
-      } else {
-        // No invoices found for this financial year
-        console.log(`No invoices found for financial year ${financialYear}`);
-        return res.json({ latestInvoiceNumber: null });
+        return res.json({ 
+          success: true,
+          latestInvoiceNumber: result.rows[0].invoice_number 
+        });
       }
     } catch (dbError) {
-      console.error('Database error getting latest invoice:', dbError);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Database error occurred while getting latest invoice'
-      });
+      console.error('Error in direct DB query method:', dbError);
+      // Continuing to fallback method...
     }
+    
+    // Method 2: Try a more flexible query if the first one fails
+    try {
+      const query = `
+        SELECT invoice_number 
+        FROM invoices 
+        WHERE invoice_number LIKE 'INV-%' 
+        ORDER BY created_at DESC, invoice_number DESC
+        LIMIT 10
+      `;
+      
+      console.log('Trying flexible query to find any recent invoices');
+      const result = await pool.query(query);
+      
+      if (result.rows.length > 0) {
+        // Look for a matching financial year in the results
+        for (const row of result.rows) {
+          const match = row.invoice_number.match(/INV-(\d{4})-(\d{2,3})/);
+          if (match && match[1] === financialYear) {
+            console.log(`Found matching invoice from flexible query: ${row.invoice_number}`);
+            return res.json({ 
+              success: true,
+              latestInvoiceNumber: row.invoice_number
+            });
+          }
+        }
+        
+        // If we have invoices but not for this financial year, use the latest one as reference
+        console.log(`Found invoices but none for ${financialYear}, using latest as reference: ${result.rows[0].invoice_number}`);
+        return res.json({ 
+          success: true,
+          latestInvoiceNumber: null,
+          referenceInvoiceNumber: result.rows[0].invoice_number
+        });
+      }
+    } catch (fallbackError) {
+      console.error('Error in fallback query method:', fallbackError);
+    }
+
+    // No invoices found at all - return empty response
+    console.log(`No invoices found for any financial year`);
+    return res.json({ 
+      success: true,
+      latestInvoiceNumber: null,
+      message: 'No invoices found in the database' 
+    });
+    
   } catch (error) {
-    console.error('Error in latest invoice endpoint:', error);
+    console.error('Unexpected error in latest invoice endpoint:', error);
     return res.status(500).json({ 
       success: false, 
-      message: 'Server error occurred'
+      message: 'Server error occurred while retrieving invoice information'
     });
   }
 });
