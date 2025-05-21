@@ -133,30 +133,20 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
   
   // Get invoice if in edit mode
   const { data: invoiceData, isLoading: isLoadingInvoice } = useQuery({
-    queryKey: [`/api/simple-finance/invoices-list`],
+    queryKey: [`/api/simple-finance/invoices/${invoiceId}`],
     enabled: !!isEditMode && !!invoiceId,
     queryFn: async ({queryKey}) => {
-      console.log('Fetching invoices list to find invoice with ID:', invoiceId);
+      console.log('Fetching invoice with ID:', invoiceId);
       try {
-        // Use a different endpoint that we know works (the invoice list endpoint)
-        const response = await fetch(`/api/simple-finance/invoices-list`);
+        // Direct fetch to get the complete invoice data including notes
+        const response = await fetch(`/api/simple-finance/invoices/${invoiceId}`);
         if (!response.ok) {
           console.error('Server returned error:', response.status, response.statusText);
-          throw new Error('Failed to fetch invoices list');
+          throw new Error('Failed to fetch invoice details');
         }
         
-        const invoicesList = await response.json();
-        console.log('Retrieved invoices list with count:', invoicesList.length);
-        
-        // Find the specific invoice we need
-        const invoice = invoicesList.find((inv: any) => inv.id === parseInt(invoiceId || '0'));
-        
-        if (!invoice) {
-          console.error('Invoice not found in the list');
-          throw new Error('Invoice not found');
-        }
-        
-        console.log('Found invoice in list:', invoice);
+        const invoice = await response.json();
+        console.log('Original invoice data from database:', invoice);
         
         // Get invoice items
         let invoiceItems = [];
@@ -190,9 +180,6 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         }
         
         // Format the data to match expected structure
-        // Get SAP Invoice Number and Notes directly from the database for more reliable data
-        console.log('Original invoice data from database:', invoice);
-        
         const formattedData = {
           invoice: {
             id: invoice.id,
