@@ -69,7 +69,9 @@ const WriteOffManagementPage = () => {
       const status = activeTab === 'all' ? undefined : activeTab === 'pending' ? 'Pending' : activeTab === 'approved' ? 'Approved' : 'Rejected';
       const response = await fetch(`/api/finance/write-offs${status ? `?status=${status}` : ''}`);
       if (!response.ok) throw new Error('Failed to fetch write-offs');
-      return response.json();
+      const data = await response.json();
+      console.log("Write-offs data from API:", data);
+      return data;
     }
   });
 
