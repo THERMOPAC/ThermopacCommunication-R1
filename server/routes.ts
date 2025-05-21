@@ -160,11 +160,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up module permissions routes
   app.use(modulePermissionRoutes);
   
-  // Direct payment reference number generation route - fixing the path issue
+  // Payment reference endpoint replaced with Payment ID approach
   app.get("/api/finance/generate-payment-reference", async (req, res) => {
     try {
-      // Get date parameters from query
-      let year, month, day;
+      // Instead of generating a reference number, we're now using the database-generated ID
+      return res.json({ 
+        referenceNumber: "",
+        message: "Payment ID will be assigned automatically"
+      });
       
       if (req.query.year && req.query.month && req.query.day) {
         // If individual date components are provided, use them
