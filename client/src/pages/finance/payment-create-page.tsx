@@ -280,7 +280,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         
         console.log(`Sending payment date to server: Year: ${year}, Month: ${month + 1}, Day: ${day}`);
         
-        const response = await fetch(`/api/finance/generate-payment-reference?${queryParams.toString()}`, {
+        const response = await fetch(`/api/payment-reference/generate-reference?${queryParams.toString()}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json'

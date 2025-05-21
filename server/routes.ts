@@ -32,6 +32,7 @@ import { setupSalesMarketingRoutes } from "./sales-marketing-routes";
 // Temporarily disable main finance routes due to syntax errors
 // import { default as financeRoutes } from "./finance-routes";
 import { default as financeRoutes } from "./finance-routes-fixed";
+import paymentReferenceRoutes from "./test-route/payment-reference";
 import { default as simpleFinanceRoutes } from "./simple-finance-routes";
 import { default as directInvoiceRoutes } from "./direct-invoice-routes";
 import { financeReportRouter } from "./finance-report-routes";
@@ -148,6 +149,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up direct invoice creation route for improved reliability
   app.use('/api/finance', directInvoiceRoutes);
+  
+  // Set up new payment reference number generation route
+  app.use('/api/payment-reference', paymentReferenceRoutes);
+  console.log('Payment reference generation route registered at /api/payment-reference');
   
   // Set up template management routes
   registerTemplateManagementRoutes(app);
