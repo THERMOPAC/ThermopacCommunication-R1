@@ -126,14 +126,20 @@ router.post('/', ensureAuthenticated, async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     
-    // Check if invoice exists
-    const [invoice] = await db.select()
-      .from(invoices)
-      .where(eq(invoices.id, invoiceId));
+    // Check if invoice exists and get customer information
+    const [result] = await db.select({
+      invoice: invoices,
+      customer: customers
+    })
+    .from(invoices)
+    .leftJoin(customers, eq(invoices.customerId, customers.id))
+    .where(eq(invoices.id, invoiceId));
     
-    if (!invoice) {
+    if (!result || !result.invoice) {
       return res.status(404).json({ error: 'Invoice not found' });
     }
+
+    const invoice = result.invoice;
     
     // For now, assume the outstanding amount is the total amount
     // In a real implementation, we'd calculate this from payments
@@ -165,11 +171,11 @@ router.post('/', ensureAuthenticated, async (req, res) => {
       .returning();
     
     // Format the response with invoice details
-    const result = {
+    const responseData = {
       id: writeOff.id,
       invoiceId: writeOff.invoiceId,
       invoiceNumber: invoice.invoiceNumber,
-      customerName: 'Customer ' + invoice.customerId, // We should join with customers table in a real implementation
+      customerName: result.customer?.bp_name || 'Unknown Customer',
       amount: writeOff.amount,
       originalInvoiceAmount: parseFloat(invoice.totalAmount),
       reason: writeOff.reason,
@@ -183,7 +189,7 @@ router.post('/', ensureAuthenticated, async (req, res) => {
       currency: invoice.currency
     };
     
-    res.status(201).json(result);
+    res.status(201).json(responseData);
   } catch (error) {
     console.error('Error creating write-off:', error);
     res.status(500).json({ error: 'Failed to create write-off' });
