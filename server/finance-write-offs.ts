@@ -35,28 +35,38 @@ router.get('/', ensureAuthenticated, async (req, res) => {
     }
     
     // Map the join results to a clean response object
-    const formattedResults = results.map(row => ({
-      id: row.writeOff.id,
-      invoiceId: row.writeOff.invoiceId,
-      invoiceNumber: row.invoice?.invoiceNumber || 'Unknown',
-      customerName: row.customer?.bp_name || 'Unknown Customer',
-      amount: row.writeOff.amount,
-      originalInvoiceAmount: row.invoice?.totalAmount || '0',
-      reason: row.writeOff.reason,
-      notes: row.writeOff.notes,
-      dateCreated: row.writeOff.dateCreated,
-      createdBy: {
-        id: row.writeOff.createdBy,
-        name: row.user?.username || 'Unknown'
-      },
-      status: row.writeOff.status,
-      approvedBy: row.writeOff.approvedBy ? {
-        id: row.writeOff.approvedBy,
-        name: 'Approver' // We should join with users table for approver in a real implementation
-      } : null,
-      approvalDate: row.writeOff.approvalDate,
-      currency: row.invoice?.currency || 'INR'
-    }));
+    // Log the first row of results to see what we're working with
+    console.log("Customer data from first write-off:", results[0]?.customer);
+    
+    const formattedResults = results.map(row => {
+      // Log customer data for debugging
+      if (row.customer) {
+        console.log(`Write-off ID: ${row.writeOff.id}, Customer ID: ${row.customer.id}, BP Name: ${row.customer.bp_name}`);
+      }
+      
+      return {
+        id: row.writeOff.id,
+        invoiceId: row.writeOff.invoiceId,
+        invoiceNumber: row.invoice?.invoiceNumber || 'Unknown',
+        customerName: row.customer?.bp_name || 'Unknown Customer',
+        amount: row.writeOff.amount,
+        originalInvoiceAmount: row.invoice?.totalAmount || '0',
+        reason: row.writeOff.reason,
+        notes: row.writeOff.notes,
+        dateCreated: row.writeOff.dateCreated,
+        createdBy: {
+          id: row.writeOff.createdBy,
+          name: row.user?.username || 'Unknown'
+        },
+        status: row.writeOff.status,
+        approvedBy: row.writeOff.approvedBy ? {
+          id: row.writeOff.approvedBy,
+          name: 'Approver' // We should join with users table for approver in a real implementation
+        } : null,
+        approvalDate: row.writeOff.approvalDate,
+        currency: row.invoice?.currency || 'INR'
+      };
+    });
     
     res.status(200).json(formattedResults);
   } catch (error) {
