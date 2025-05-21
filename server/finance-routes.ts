@@ -2134,8 +2134,11 @@ router.post('/payments/:id/allocate', ensureAuthenticated, async (req: Request, 
  * Format: INV-YYZZ-XXX where YY is the last 2 digits of the start year,
  * ZZ is the last 2 digits of the end year, and XXX is a sequence number
  */
-router.get('/test/invoice-number', async (req: Request, res: Response) => {
+router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    // Set correct headers for JSON response
+    res.setHeader('Content-Type', 'application/json');
+    
     const date = req.query.date ? new Date(req.query.date as string) : new Date();
     
     // Get the financial year

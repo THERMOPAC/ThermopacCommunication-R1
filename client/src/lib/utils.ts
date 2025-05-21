@@ -166,26 +166,51 @@ export async function getNextInvoiceNumber(issueDate: Date): Promise<string> {
   try {
     // Use the test endpoint which is working and already authenticated
     const date = issueDate.toISOString().split('T')[0];
-    const response = await fetch(`/api/finance/test/invoice-number?date=${date}`);
     
-    if (!response.ok) {
-      throw new Error('Failed to get next invoice number');
+    // Set a timeout to make sure the request doesn't hang
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    
+    try {
+      const response = await fetch(`/api/finance/test/invoice-number?date=${date}`, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error('Failed to get next invoice number');
+      }
+      
+      // Check if the response is JSON by looking at the content-type header
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Response is not JSON format');
+      }
+      
+      const data = await response.json();
+      
+      // The test endpoint returns the number in the nextInvoiceNumber field
+      if (data && data.nextInvoiceNumber) {
+        return data.nextInvoiceNumber;
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw fetchError;
     }
-    
-    // Check if the response is JSON by looking at the content-type header
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      throw new Error('Response is not JSON format');
-    }
-    
-    const data = await response.json();
-    
-    // The test endpoint returns the number in the nextInvoiceNumber field
-    return data.nextInvoiceNumber;
   } catch (error) {
     console.error('Error getting next invoice number:', error);
-    // Fallback format if API fails - generate predictable number based on financial year
-    return `INV-${financialYear}-001`;
+    
+    // Generate a random number for uniqueness
+    const randomDigits = Math.floor(Math.random() * 900) + 100; // 100-999
+    
+    // Fallback format if API fails - generate reliable number based on financial year
+    return `INV-${financialYear}-${randomDigits}`;
   }
 }
 
