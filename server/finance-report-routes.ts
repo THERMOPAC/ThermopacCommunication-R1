@@ -409,6 +409,28 @@ financeReportRouter.get('/outstanding', async (req: Request, res: Response) => {
         currencyFilter = `AND i.currency = '${currency}'`;
       }
       
+      // First, let's directly verify the data in our tables
+      const checkInvoicesQuery = `SELECT * FROM invoices LIMIT 5`;
+      const checkCustomersQuery = `SELECT * FROM customers LIMIT 5`;
+      
+      console.log('Checking invoices data...');
+      const invoicesCheck = await client.query(checkInvoicesQuery);
+      console.log('Sample invoices:', JSON.stringify(invoicesCheck.rows));
+      
+      console.log('Checking customers data...');
+      const customersCheck = await client.query(checkCustomersQuery);
+      console.log('Sample customers:', JSON.stringify(customersCheck.rows));
+      
+      // Check if we have invoices with outstanding amounts
+      const countQuery = `
+        SELECT COUNT(*) 
+        FROM invoices 
+        WHERE outstanding_amount > 0
+      `;
+      
+      const countResult = await client.query(countQuery);
+      console.log('Outstanding invoices count:', countResult.rows[0].count);
+      
       // Get invoice-level outstanding data
       const query = `
         SELECT 
@@ -439,6 +461,12 @@ financeReportRouter.get('/outstanding', async (req: Request, res: Response) => {
       console.log('Running outstanding invoices query:', query);
       const result = await client.query(query);
       console.log('Found', result.rows.length, 'outstanding invoices');
+      
+      if (result.rows.length > 0) {
+        console.log('First invoice data:', JSON.stringify(result.rows[0]));
+      } else {
+        console.log('No outstanding invoices found in the database.');
+      }
       
       // Calculate total outstanding amount
       const totalOutstanding = result.rows.reduce((sum, row) => sum + parseFloat(row.balanceDue), 0);

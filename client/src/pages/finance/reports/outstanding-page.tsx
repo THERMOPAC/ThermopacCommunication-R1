@@ -111,6 +111,17 @@ export default function OutstandingReportPage() {
         
         const responseData = await response.json();
         console.log('Fetched outstanding report data:', responseData);
+
+        // Make sure our data structure is complete to avoid rendering errors
+        if (!responseData.invoices) {
+          responseData.invoices = [];
+        }
+        
+        // Log any issues with data
+        if (responseData.invoices.length === 0) {
+          console.log('No invoices returned from the API');
+        }
+        
         return responseData;
       } catch (error) {
         console.error('Error fetching outstanding report:', error);
