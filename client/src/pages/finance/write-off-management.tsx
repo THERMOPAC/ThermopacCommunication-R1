@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import Layout from '@/components/layout';
 import { canManage } from '@shared/roles';
 
 // UI Components
