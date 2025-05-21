@@ -118,32 +118,22 @@ const WriteOffManagementPage = () => {
             ) : (
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <TabsList>
-                    <TabsTrigger 
-                      value="pending" 
-                      onClick={() => setActiveTab("pending")}
-                      className={activeTab === "pending" ? "bg-primary text-primary-foreground" : ""}
-                    >
-                      <Clock className="h-4 w-4 mr-2" />
-                      Pending ({pendingCount})
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="approved" 
-                      onClick={() => setActiveTab("approved")}
-                      className={activeTab === "approved" ? "bg-primary text-primary-foreground" : ""}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Approved ({approvedCount})
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="rejected" 
-                      onClick={() => setActiveTab("rejected")}
-                      className={activeTab === "rejected" ? "bg-primary text-primary-foreground" : ""}
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Rejected ({rejectedCount})
-                    </TabsTrigger>
-                  </TabsList>
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList>
+                      <TabsTrigger value="pending">
+                        <Clock className="h-4 w-4 mr-2" />
+                        Pending ({pendingCount})
+                      </TabsTrigger>
+                      <TabsTrigger value="approved">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Approved ({approvedCount})
+                      </TabsTrigger>
+                      <TabsTrigger value="rejected">
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Rejected ({rejectedCount})
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
                   
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
