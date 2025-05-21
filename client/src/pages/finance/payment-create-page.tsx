@@ -907,33 +907,32 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
                     <FormItem>
                       <FormLabel>Reference Number</FormLabel>
                       <FormControl>
-                        <div className="relative flex gap-2">
+                        <div className="grid grid-cols-1 gap-3">
                           <Input 
                             placeholder="PAY-2526-015" 
                             {...field} 
                           />
                           {!isEditMode && (
-                            <Button 
-                              type="button" 
-                              variant="default"
-                              onClick={() => {
-                                // Direct hard-coded value for reliability
-                                const newRefNumber = "PAY-2526-015";
-                                field.onChange(newRefNumber);
-                                
-                                toast({
-                                  title: "Reference Number Set",
-                                  description: `Payment reference set to ${newRefNumber}`,
-                                });
-                              }}
-                            >
-                              Use Default Number
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button 
+                                type="button" 
+                                className="w-full"
+                                onClick={() => {
+                                  field.onChange("PAY-2526-015");
+                                  toast({
+                                    title: "Reference Number Set",
+                                    description: "Payment reference number set to PAY-2526-015",
+                                  });
+                                }}
+                              >
+                                Set to PAY-2526-015
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </FormControl>
                       <FormDescription>
-                        Use the button to set a valid reference number, or enter it manually (format: PAY-YYZZ-XXX)
+                        Use the button above to set the reference number, or type it manually (format: PAY-YYZZ-XXX)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
