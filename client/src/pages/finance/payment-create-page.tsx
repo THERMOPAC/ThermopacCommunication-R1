@@ -295,8 +295,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         const customerId = String(payment.customerId || payment.customer_id || '');
         
         // Prepare form values handling both naming formats
+        // Removed referenceNumber as we're using database ID instead
         const formValues = {
-          referenceNumber: payment.referenceNumber || payment.reference_number || '',
           irmNo: payment.irmNo || '',
           paymentDate: paymentDate,
           sapPaymentNo: sapPaymentNo,
@@ -577,30 +577,14 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     }
   };
   
-  // Add invoice to selected list
+  // Invoice allocation functionality removed - now handled in Basic Allocation tab
+  // Keeping this function as a stub in case it's referenced elsewhere
   const handleAddInvoice = () => {
-    if (!form.getValues().customerId) {
-      toast({
-        title: "Customer required",
-        description: "Please select a customer first",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Check remaining amount
-    const remainingAmount = getRemainingAmount();
-    if (remainingAmount <= 0) {
-      toast({
-        title: "Cannot add more invoices",
-        description: "The payment amount has been fully allocated",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Show invoice selection section
-    setShowInvoiceSection(true);
+    toast({
+      title: "Invoice allocation moved",
+      description: "Invoice allocation is now handled in the Basic Allocation tab",
+      variant: "default",
+    });
   };
   
   // Helper to find specific invoice by ID
