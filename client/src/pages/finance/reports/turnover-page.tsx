@@ -30,14 +30,12 @@ import { formatRupees, formatUSD, formatDate } from "@/lib/utils";
 import { Loader2, Download, Filter } from "lucide-react";
 
 export default function TurnoverReportPage() {
-  // Helper function to get current financial year dates (April 1 - March 31)
-  // Modified to use 2025 as the base year to match the database data
+  // Helper function to get current financial year dates (April 1 - March 31) using Indian Financial Year
   const getCurrentFinancialYearDates = (): { from: Date; to: Date } => {
-    // Use 2025 as the base year for the financial year calculation
-    // since our invoice data is from 2025
+    // For this sample data, we're matching the database which has 2025 dates
     const currentYear = 2025;
     
-    // Set financial year to 2025-2026
+    // Indian Financial Year is from April 1 to March 31
     const financialYearStart = new Date(currentYear, 3, 1); // April 1st, 2025
     const financialYearEnd = new Date(currentYear + 1, 2, 31); // March 31st, 2026
     
