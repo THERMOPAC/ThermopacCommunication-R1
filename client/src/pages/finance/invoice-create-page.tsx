@@ -771,13 +771,57 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           console.log('Invoice created successfully:', data);
         } catch (parseError) {
           console.error('Error parsing JSON response:', parseError);
-          // Handle case where response is not valid JSON
-          // If we get here but response was ok, it means we got a non-JSON successful response
-          // This could be because the server is returning HTML instead of JSON
-          toast({
-            title: "Invoice likely created",
-            description: "The server responded but didn't return the expected format. The invoice may have been created successfully.",
-          });
+          
+          // Log additional debugging info
+          console.log('Invoice submission was successful (status 200) but response was not valid JSON');
+          console.log('Response received:', responseText);
+          
+          // Make a second request to validate if the invoice was actually created
+          try {
+            // Wait a moment to allow database operations to complete
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Check if invoice exists
+            const checkResponse = await fetch('/api/simple-finance/invoices-list', {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include'
+            });
+            
+            if (checkResponse.ok) {
+              const invoiceList = await checkResponse.json();
+              console.log('Retrieved invoice list:', invoiceList);
+              const createdInvoice = invoiceList.find(
+                (inv: any) => inv.invoiceNumber === values.invoiceNumber
+              );
+              
+              if (createdInvoice) {
+                toast({
+                  title: "Invoice created successfully",
+                  description: `Invoice ${values.invoiceNumber} has been created in the system.`,
+                });
+              } else {
+                toast({
+                  title: "Invoice likely created",
+                  description: "The server responded successfully, but we couldn't verify the invoice was created.",
+                });
+              }
+            } else {
+              toast({
+                title: "Invoice likely created",
+                description: "The server responded but we couldn't verify if the invoice was created.",
+              });
+            }
+          } catch (verifyError) {
+            console.error('Error verifying invoice creation:', verifyError);
+            toast({
+              title: "Invoice likely created",
+              description: "The server responded but didn't return the expected format. The invoice may have been created successfully.",
+            });
+          }
+          
           queryClient.invalidateQueries({ queryKey: ['/api/finance/invoices'] });
           navigate('/finance/invoices');
           return;
