@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { writeOffs } from '@shared/schema-finance-write-offs';
-import { invoices, users } from '@shared/schema';
+import { invoices, users, customers } from '@shared/schema';
 import { db } from './db';
 import { eq, and, gt } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
@@ -17,11 +17,13 @@ router.get('/', ensureAuthenticated, async (req, res) => {
     const qb = db.select({
       writeOff: writeOffs,
       invoice: invoices,
-      user: users
+      user: users,
+      customer: customers
     })
     .from(writeOffs)
     .leftJoin(invoices, eq(writeOffs.invoiceId, invoices.id))
-    .leftJoin(users, eq(writeOffs.createdBy, users.id));
+    .leftJoin(users, eq(writeOffs.createdBy, users.id))
+    .leftJoin(customers, eq(invoices.customerId, customers.id));
     
     // Apply status filter if provided
     let results;
@@ -37,7 +39,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
       id: row.writeOff.id,
       invoiceId: row.writeOff.invoiceId,
       invoiceNumber: row.invoice?.invoiceNumber || 'Unknown',
-      customerName: 'Customer ' + (row.invoice?.customerId || 'Unknown'),
+      customerName: row.customer?.name || 'Unknown Customer',
       amount: row.writeOff.amount,
       originalInvoiceAmount: row.invoice?.totalAmount || '0',
       reason: row.writeOff.reason,
