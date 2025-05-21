@@ -354,15 +354,24 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
     }
   }, [form, isGeneratingReferenceNumber, setIsGeneratingReferenceNumber]);
   
-  // Generate reference number on component mount for new payments
+  // We've disabled automatic reference number generation since it's causing errors
+  // Instead, users will use the "Use Default Number" button or enter the number manually
   useEffect(() => {
     // Only for create mode, not edit mode
     if (!isEditMode) {
-      // Call the function directly to generate reference number
-      // Using current date as default
-      generateReferenceNumber(new Date());
+      // Set a placeholder reference number pattern to guide the user
+      const today = new Date();
+      const month = today.getMonth();
+      const year = today.getFullYear();
+      const startYear = month >= 3 ? year : year - 1;
+      const endYear = startYear + 1;
+      const startYearStr = startYear.toString().substring(2);
+      const endYearStr = endYear.toString().substring(2);
+      const financialYear = `${startYearStr}${endYearStr}`;
+      
+      form.setValue('referenceNumber', `PAY-${financialYear}-XXX`);
     }
-  }, [isEditMode, generateReferenceNumber]);
+  }, [isEditMode, form]);
   
   // Update form when payment data is loaded
   useEffect(() => {
