@@ -88,16 +88,15 @@ simplePaymentAllocationApi.post('/allocate-payment', ensureAuthenticated, async 
       // Insert allocation record
       const allocationQuery = `
         INSERT INTO payment_allocations 
-        (payment_id, invoice_id, amount_applied, created_at, notes) 
-        VALUES ($1, $2, $3, NOW(), $4)
+        (payment_id, invoice_id, amount_applied, created_at) 
+        VALUES ($1, $2, $3, NOW())
         RETURNING id
       `;
       
       await client.query(allocationQuery, [
         paymentId, 
         allocation.invoiceId, 
-        allocation.allocationAmount,
-        comment || null
+        allocation.allocationAmount
       ]);
       
       // Update invoice paid and outstanding amounts
