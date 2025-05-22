@@ -393,7 +393,7 @@ function NewBasicAllocationContent() {
                       </div>
                       <div className="text-right">
                         <p className="font-medium">
-                          {invoice.currency} {invoice.outstandingAmount.toLocaleString()}
+                          {invoice.currency} {(invoice.outstandingAmount || 0).toLocaleString()}
                         </p>
                         <Badge variant="outline" className="text-xs">
                           {invoice.invoiceType}
