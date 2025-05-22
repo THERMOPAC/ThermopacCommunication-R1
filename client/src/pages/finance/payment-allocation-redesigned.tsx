@@ -89,7 +89,15 @@ export default function PaymentAllocationRedesigned() {
       if (!response.ok) {
         throw new Error('Failed to allocate payment');
       }
-      return response.json();
+      
+      // Handle different response types
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      } else {
+        // If not JSON, just return success status
+        return { success: true };
+      }
     },
     onSuccess: () => {
       toast({
