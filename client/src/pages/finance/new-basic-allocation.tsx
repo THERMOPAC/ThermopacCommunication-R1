@@ -127,8 +127,19 @@ function NewBasicAllocationContent() {
 
   // Filter invoices based on selected payment type (Product/Service matching)
   const filteredInvoices = selectedPayment 
-    ? invoices.filter((i: OutstandingInvoice) => i.invoiceType === selectedPayment.paymentType)
+    ? invoices.filter((i: OutstandingInvoice) => {
+        console.log(`Filtering invoice ${i.invoiceNumber} (type: ${i.invoiceType}) against payment type: ${selectedPayment.paymentType}`);
+        return i.invoiceType === selectedPayment.paymentType;
+      })
     : invoices;
+
+  // Debug logging
+  if (selectedPayment) {
+    console.log(`Selected payment ID: ${selectedPayment.id}, type: ${selectedPayment.paymentType}, customer: ${selectedPayment.customerName}`);
+    console.log(`Total invoices available: ${invoices.length}`);
+    console.log(`Filtered invoices for matching: ${filteredInvoices.length}`);
+    console.log('Available invoices:', invoices.map(i => `${i.invoiceNumber} (${i.invoiceType})`));
+  }
 
   // Allocation mutation
   const allocationMutation = useMutation({
