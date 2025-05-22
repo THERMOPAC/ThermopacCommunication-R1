@@ -47,7 +47,7 @@ import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
 import ReconciliationReportPage from "@/pages/finance/reports/reconciliation-page";
-import PaymentAllocationPage from "@/pages/finance/basic-allocation-page-new";
+import PaymentAllocationPage from "@/pages/finance/payment-allocation-redesigned";
 import BatchAdvanceAllocationPage from "@/pages/finance/batch-advance-allocation-page-fixed";
 import InvoiceAgingDashboard from "@/pages/finance/reports/invoice-aging-dashboard";
 import WriteOffManagementPage from "@/pages/finance/write-off-management";
