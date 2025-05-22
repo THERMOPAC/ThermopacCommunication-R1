@@ -167,7 +167,7 @@ export class BatchAllocationService {
               invoiceId: invoice.id,
               invoiceNumber: invoice.invoice_number,
               paymentId: advance.id,
-              paymentReference: advance.reference_number,
+              paymentReference: advance.irm_no,
               type: 'Product', 
               amountAllocated: allocationAmount,
               allocationDate: new Date().toISOString().split('T')[0]
@@ -258,7 +258,7 @@ export class BatchAllocationService {
               invoiceId: invoice.id,
               invoiceNumber: invoice.invoice_number,
               paymentId: advance.id,
-              paymentReference: advance.reference_number,
+              paymentReference: advance.irm_no,
               type: 'Service',
               amountAllocated: allocationAmount,
               allocationDate: new Date().toISOString().split('T')[0]

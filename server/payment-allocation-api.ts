@@ -24,7 +24,7 @@ paymentAllocationApi.get('/invoices/:invoiceId/allocations', ensureAuthenticated
         pa.invoice_id,
         pa.amount_allocated,
         pa.created_at as allocation_date,
-        p.reference_number as payment_reference,
+        p.irm_no as payment_reference,
         p.payment_date,
         p.payment_method,
         p.payment_type,
