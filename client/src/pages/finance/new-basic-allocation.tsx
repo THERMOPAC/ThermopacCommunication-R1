@@ -85,7 +85,7 @@ function NewBasicAllocationContent() {
   useEffect(() => {
     if (selectedPayment && selectedInvoice) {
       const paymentAmount = selectedPayment.unallocatedAmount;
-      const invoiceAmount = selectedInvoice.outstandingAmount || 0;
+      const invoiceAmount = Number(selectedInvoice.outstanding_amount || selectedInvoice.totalAmount || 0);
       
       // Use the smaller of the two amounts
       const autoAmount = Math.min(paymentAmount, invoiceAmount);
@@ -221,7 +221,8 @@ function NewBasicAllocationContent() {
       return;
     }
 
-    if (amount > selectedInvoice.outstandingAmount) {
+    const invoiceOutstanding = Number(selectedInvoice.outstanding_amount || selectedInvoice.totalAmount || 0);
+    if (amount > invoiceOutstanding) {
       toast({
         title: "Error",
         description: "Allocation amount cannot exceed outstanding invoice amount",
@@ -238,7 +239,7 @@ function NewBasicAllocationContent() {
   };
 
   const maxAllocation = selectedPayment && selectedInvoice 
-    ? Math.min(selectedPayment.unallocatedAmount, selectedInvoice.outstandingAmount)
+    ? Math.min(selectedPayment.unallocatedAmount, Number(selectedInvoice.outstanding_amount || selectedInvoice.totalAmount || 0))
     : 0;
 
   if (paymentsLoading || invoicesLoading) {
