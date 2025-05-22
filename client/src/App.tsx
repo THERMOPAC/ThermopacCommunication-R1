@@ -152,8 +152,9 @@ function Router() {
       <ProtectedRoute path="/finance/invoices/:id" component={() => <InvoiceDetailPage />} />
       <ProtectedRoute path="/finance/payments" component={PaymentsPage} />
       <ProtectedRoute path="/finance/payments/new" component={() => <NewPaymentCreatePage />} />
-      <ProtectedRoute path="/finance/payments/:id/edit" component={() => <PaymentCreatePage isEditMode={true} />} />
+      <ProtectedRoute path="/finance/payments/:id/edit-old" component={() => <PaymentCreatePage isEditMode={true} />} />
       <ProtectedRoute path="/finance/payments/:id/edit-new" component={() => <EditPaymentPage />} />
+      <ProtectedRoute path="/finance/payments/:id/edit" component={() => <EditPaymentPage />} />
       <ProtectedRoute path="/finance/reports/reconciliation" component={ReconciliationReportPage} />
       <ProtectedRoute path="/finance/payment-allocation" component={PaymentAllocationPage} />
       <ProtectedRoute path="/finance/basic-allocation" component={BasicAllocationPage} />
