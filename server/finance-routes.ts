@@ -1174,6 +1174,42 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     };
     
     // Insert the payment into the database with explicit auto-increment ID
+    // Check if the payments table exists first
+    try {
+      await pool.query('SELECT COUNT(*) FROM payments LIMIT 1');
+      console.log('Payments table exists and is accessible');
+    } catch (tableError) {
+      console.error('Error accessing payments table:', tableError);
+      // Create the table if it doesn't exist
+      try {
+        const createTableQuery = `
+          CREATE TABLE IF NOT EXISTS payments (
+            id SERIAL PRIMARY KEY,
+            reference_number VARCHAR(255),
+            irm_no VARCHAR(255),
+            payment_date DATE,
+            sap_payment_no VARCHAR(255),
+            payment_type VARCHAR(50),
+            amount DECIMAL(15,2),
+            currency VARCHAR(10),
+            payment_method VARCHAR(50),
+            notes TEXT,
+            is_advance_payment BOOLEAN DEFAULT false,
+            allocated_amount DECIMAL(15,2) DEFAULT 0.00,
+            unallocated_amount DECIMAL(15,2) DEFAULT 0.00,
+            customer_id INTEGER,
+            created_by INTEGER,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          )
+        `;
+        await pool.query(createTableQuery);
+        console.log('Successfully created payments table');
+      } catch (createError) {
+        console.error('Failed to create payments table:', createError);
+      }
+    }
+
     const insertPaymentQuery = `
       INSERT INTO payments (
         reference_number, irm_no, payment_date, sap_payment_no, payment_type, amount, currency, payment_method, 
