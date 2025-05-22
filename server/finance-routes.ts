@@ -931,13 +931,15 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
         issue_date, 
         due_date, 
         total_amount, 
+        paid_amount,
+        outstanding_amount,
         currency, 
         status,
         sap_invoice_no,
         invoice_type,
         notes,
         created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING id, invoice_number as "invoiceNumber", created_at as "createdAt", updated_at as "updatedAt"
     `;
     
@@ -948,6 +950,8 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       issueDate.toISOString().split('T')[0], // Format as YYYY-MM-DD for SQL
       dueDate.toISOString().split('T')[0], // Format as YYYY-MM-DD for SQL
       totalAmount,
+      0, // paid_amount = 0 (no payments yet)
+      totalAmount, // outstanding_amount = total_amount (full amount outstanding)
       invoice.currency || 'USD',
       'Pending',
       invoice.sapInvoiceNo || null,
