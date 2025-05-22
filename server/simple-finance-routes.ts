@@ -45,6 +45,7 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
           ...invoice,
           issueDate: invoice.issueDate ? new Date(invoice.issueDate).toISOString().split('T')[0] : null,
           dueDate: invoice.dueDate ? new Date(invoice.dueDate).toISOString().split('T')[0] : null,
+          outstandingAmount: invoice.outstandingAmount, // Explicitly preserve outstanding amount
           customerName: `Customer ${invoice.customerId}` // Default placeholder
         }));
         
