@@ -154,16 +154,22 @@ function NewBasicAllocationContent() {
       invoiceId: number;
       amount: number;
     }) => {
-      const response = await fetch('/api/finance/basic-allocate', {
+      // Use the working finance routes endpoint instead
+      const response = await fetch('/api/finance/allocations/allocate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          payment_id: data.paymentId,
+          invoice_id: data.invoiceId,
+          amount_applied: data.amount
+        }),
       });
       
       if (!response.ok) {
-        throw new Error('Failed to allocate payment');
+        const errorText = await response.text();
+        throw new Error(`Failed to allocate payment: ${errorText}`);
       }
       
       return response.json();
