@@ -45,6 +45,7 @@ import { default as simplePaymentRoutes } from "./simple-payment-routes";
 import { default as financeWriteOffsRouter } from "./finance-write-offs";
 import { default as cleanPaymentRoutes } from "./clean-payment-routes";
 import { default as basicAllocationApi } from "./basic-allocation-api";
+import { setupDedicatedPaymentCreation } from "./dedicated-payment-creation";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
 import calibrationTestRoutes from "./testapi/calibration-test-routes";
 import { registerTemplateManagementRoutes } from "./template-management/register-routes";
@@ -142,6 +143,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up clean payment routes for the new Basic Payment Allocation page
   app.use('/api/finance', cleanPaymentRoutes);
+  
+  // Set up clean payment routes with dedicated path to avoid conflicts
+  app.use('/api/clean-payments', cleanPaymentRoutes);
   
   // Set up simple payment routes for payment creation
   app.use('/api/finance', simplePaymentRoutes);
