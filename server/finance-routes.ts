@@ -2820,7 +2820,7 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
     try {
       console.log('Fetching unallocated payments...');
       
-      // Simple query without parameters to avoid NaN errors
+      // Simple query to get unallocated advance payments
       const query = `
         SELECT 
           p.id, 
@@ -2847,12 +2847,13 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
         JOIN 
           customers c ON p.customer_id = c.id
         WHERE 
-          p.unallocated_amount > 0
+          p.is_advance_payment = true
+          AND p.unallocated_amount > 0
         ORDER BY 
           p.payment_date DESC
       `;
       
-      // Execute the query
+      // Execute the query without parameters
       const result = await pool.query(query);
       const advances = result.rows;
       
