@@ -1112,6 +1112,74 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
 /**
  * Create a new payment with database ID as identifier
  */
+// Simple payment creation endpoint
+router.post('/payments/simple-create', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    // Extract payment data from request
+    const paymentData = req.body.payment || req.body;
+    const userId = (req.user as any)?.id || 1;
+
+    // Format payment date
+    let paymentDate = new Date();
+    if (paymentData.paymentDate) {
+      paymentDate = new Date(paymentData.paymentDate);
+    }
+    const formattedDate = paymentDate.toISOString().split('T')[0];
+
+    // Insert payment directly with minimal processing
+    const result = await pool.query(`
+      INSERT INTO payments (
+        reference_number, irm_no, payment_date, sap_payment_no, payment_type, 
+        amount, currency, payment_method, notes, is_advance_payment, 
+        allocated_amount, unallocated_amount, customer_id, created_by
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+      ) RETURNING *
+    `, [
+      'TMP-PAYMENT', // Will update this after insertion
+      paymentData.irmNo || null,
+      formattedDate,
+      paymentData.sapPaymentNo || null,
+      paymentData.paymentType || 'Product',
+      parseFloat(paymentData.amount),
+      paymentData.currency || 'USD',
+      paymentData.paymentMethod || 'bank transfer',
+      paymentData.notes || null,
+      paymentData.isAdvancePayment === false ? false : true, // Default to true if not provided
+      0.00, // Start with zero allocated
+      parseFloat(paymentData.amount), // All amount starts as unallocated
+      parseInt(paymentData.customerId) || null,
+      userId
+    ]);
+
+    if (!result.rows || result.rows.length === 0) {
+      return res.status(500).json({ error: 'Failed to create payment record' });
+    }
+
+    // Get the newly created payment
+    const newPayment = result.rows[0];
+    
+    // Update reference number to use payment ID
+    const refNumber = `PAY-2526-${newPayment.id}`;
+    await pool.query('UPDATE payments SET reference_number = $1 WHERE id = $2', [refNumber, newPayment.id]);
+    
+    // Return success with payment details
+    return res.status(201).json({
+      success: true,
+      id: newPayment.id,
+      referenceNumber: refNumber,
+      message: `Payment successfully created with ID: ${newPayment.id}`
+    });
+  } catch (error) {
+    console.error('Error in simple payment creation:', error);
+    return res.status(500).json({ 
+      error: 'Failed to create payment',
+      details: error.message
+    });
+  }
+});
+
+// Original payment creation endpoint (maintaining for compatibility)
 router.post('/payments', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Extract data from the request

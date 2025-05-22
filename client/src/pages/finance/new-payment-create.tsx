@@ -73,25 +73,23 @@ export default function NewPaymentCreatePage() {
   const createPayment = useMutation({
     mutationFn: async (values: PaymentFormValues) => {
       try {
+        // Simplified payment data format for our new endpoint
         const paymentData = {
-          payment: {
-            irmNo: values.irmNo || null,
-            paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
-            sapPaymentNo: values.sapPaymentNo || null,
-            paymentType: values.paymentType,
-            amount: String(values.amount),
-            currency: values.currency,
-            paymentMethod: values.paymentMethod,
-            notes: values.notes || null,
-            isAdvancePayment: values.isAdvancePayment,
-            customerId: values.customerId
-          },
-          invoiceLinks: []
+          irmNo: values.irmNo || null,
+          paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
+          sapPaymentNo: values.sapPaymentNo || null,
+          paymentType: values.paymentType,
+          amount: String(values.amount),
+          currency: values.currency,
+          paymentMethod: values.paymentMethod,
+          notes: values.notes || null,
+          isAdvancePayment: values.isAdvancePayment,
+          customerId: values.customerId
         };
 
         console.log('Sending payment data:', JSON.stringify(paymentData));
 
-        const response = await fetch('/api/finance/payments', {
+        const response = await fetch('/api/finance/payments/simple-create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(paymentData)
