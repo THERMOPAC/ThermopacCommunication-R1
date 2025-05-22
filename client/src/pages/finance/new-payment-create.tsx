@@ -76,6 +76,7 @@ export default function NewPaymentCreatePage() {
         // Simplified payment data format for our new endpoint
         const paymentData = {
           irmNo: values.irmNo || null,
+          irm_no: values.irmNo || null, // Adding the database column name format
           paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
           sapPaymentNo: values.sapPaymentNo || null,
           paymentType: values.paymentType,
