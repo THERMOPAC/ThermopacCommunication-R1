@@ -204,7 +204,7 @@ export default function EditPaymentPage() {
 
       console.log('Updating payment with data:', updateData);
 
-      return apiRequest('PUT', `/api/finance/payments/${paymentId}`, updateData);
+      return apiRequest('POST', `/api/finance/payments/update/${paymentId}`, updateData.payment);
     },
     onSuccess: () => {
       toast({
