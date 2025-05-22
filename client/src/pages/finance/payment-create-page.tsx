@@ -204,14 +204,14 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   
   // Set up form values based on whether we're creating or editing
   const initialFormValues: PaymentFormValues = isEditMode && paymentData && paymentData.payment ? {
-    // Use snake_case format from API response
+    // Handle field name mapping from backend (snake_case) to frontend (camelCase)
     paymentDate: new Date(paymentData.payment.payment_date || new Date()),
-    irmNo: paymentData.payment.irm_no || '',
-    sapPaymentNo: paymentData.payment.sap_payment_no || '',
+    irmNo: paymentData.payment.irmNo || paymentData.payment.irm_no || '',
+    sapPaymentNo: paymentData.payment.sap_payment_no || paymentData.payment.sapPaymentNo || '',
     paymentType: (paymentData.payment.payment_type as "Product" | "Service") || 'Product',
     amount: String(paymentData.payment.amount || ''),
     currency: paymentData.payment.currency || 'USD',
-    paymentMethod: paymentData.payment.payment_method || 'bank transfer',
+    paymentMethod: paymentData.payment.payment_method || paymentData.payment.paymentMethod || 'bank transfer',
     notes: paymentData.payment.notes || '',
     isAdvancePayment: Boolean(paymentData.payment.is_advance_payment || false),
     customerId: String(paymentData.payment.customer_id || ''),
