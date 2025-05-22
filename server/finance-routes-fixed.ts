@@ -65,7 +65,7 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
     const recentPaymentsQuery = `
       SELECT 
         p.id,
-        p.reference_number as "referenceNumber",
+        p.irm_no as "referenceNumber",
         p.customer_id as "customerId", 
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",
@@ -157,7 +157,7 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
           p.payment_type AS "paymentType",
           p.payment_method AS "paymentMethod",
           p.sap_payment_no AS "sapPaymentNo",
-          p.reference_number AS reference,
+          p.irm_no AS reference,
           p.currency,
           p.amount,
           p.is_advance_payment AS "isAdvancePayment",
@@ -244,7 +244,7 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
           p.irm_no AS "paymentNumber",
           p.payment_type AS "paymentType",
           p.payment_method AS "paymentMethod",
-          p.reference_number AS reference,
+          p.irm_no AS reference,
           p.currency,
           p.amount,
           p.is_advance_payment AS "isAdvancePayment",
@@ -295,7 +295,7 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
       const body = req.body;
       
       // Extract payment data - check both naming formats with fallbacks to existing data
-      const reference_number = body.referenceNumber || body.reference || '';
+      const irm_no = body.referenceNumber || body.reference || '';
       const irm_no = body.irmNo || body.irm_no || body.paymentNumber || '';
       const payment_date = body.paymentDate || body.payment_date || new Date().toISOString().split('T')[0];
       
@@ -320,7 +320,7 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
       const customer_id = body.customerId || body.customer_id || null;
       
       console.log('Extracted payment data for update:', {
-        reference_number, irm_no, payment_date, sap_payment_no, 
+        irm_no, irm_no, payment_date, sap_payment_no, 
         payment_type, amount, currency, payment_method, notes,
         is_advance_payment, customer_id
       });
@@ -346,7 +346,7 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
       const updatePaymentQuery = `
         UPDATE payments 
         SET 
-          reference_number = $1,
+          irm_no = $1,
           irm_no = $2,
           payment_date = $3,
           sap_payment_no = $4,
@@ -363,7 +363,7 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
       `;
       
       const paymentResult = await client.query(updatePaymentQuery, [
-        reference_number || existingPayment.reference_number,
+        irm_no || existingPayment.irm_no,
         irm_no || existingPayment.irm_no,
         payment_date || existingPayment.payment_date,
         sap_payment_no || existingPayment.sap_payment_no,
@@ -455,13 +455,13 @@ router.get('/test/payment-reference', ensureAuthenticated, (req: Request, res: R
   
   // Get the latest payment reference number for this financial year
   pool.query(
-    'SELECT reference_number FROM payments WHERE reference_number LIKE $1 ORDER BY reference_number DESC LIMIT 1',
+    'SELECT irm_no FROM payments WHERE irm_no LIKE $1 ORDER BY irm_no DESC LIMIT 1',
     [`PAY-${financialYear}-%`]
   ).then(result => {
     let nextSequence = 1;
     
     if (result.rows.length > 0) {
-      const latestRef = result.rows[0].reference_number;
+      const latestRef = result.rows[0].irm_no;
       console.log(`Found latest payment reference: ${latestRef}`);
       
       // Extract sequence number from PAY-YYZZ-XXX format
@@ -507,13 +507,13 @@ router.get('/generate-payment-reference', ensureAuthenticated, (req: Request, re
   
   // Get the latest payment reference number for this financial year
   pool.query(
-    'SELECT reference_number FROM payments WHERE reference_number LIKE $1 ORDER BY reference_number DESC LIMIT 1',
+    'SELECT irm_no FROM payments WHERE irm_no LIKE $1 ORDER BY irm_no DESC LIMIT 1',
     [`PAY-${financialYear}-%`]
   ).then(result => {
     let nextSequence = 1;
     
     if (result.rows.length > 0) {
-      const latestRef = result.rows[0].reference_number;
+      const latestRef = result.rows[0].irm_no;
       console.log(`Found latest payment reference: ${latestRef}`);
       
       // Extract sequence number from PAY-YYZZ-XXX format
