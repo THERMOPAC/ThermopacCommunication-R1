@@ -454,84 +454,31 @@ function NewBasicAllocationContent() {
               Allocate payment to invoice
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Payment and Invoice Details Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Payment Details */}
-              <div className="space-y-3">
-                <label className="text-sm font-semibold text-primary">Payment Details</label>
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Payment Reference:</span>
-                    <span className="font-semibold">{selectedPayment.paymentReference}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Customer:</span>
-                    <span className="text-sm">{selectedPayment.customerName}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Payment Date:</span>
-                    <span className="text-sm">{new Date(selectedPayment.paymentDate).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Payment Type:</span>
-                    <Badge variant="outline">{selectedPayment.paymentType}</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Payment Method:</span>
-                    <span className="text-sm">{selectedPayment.paymentMethod}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Total Amount:</span>
-                    <span className="font-semibold text-lg">{selectedPayment.currency} {parseFloat(selectedPayment.amount).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Already Allocated:</span>
-                    <span className="text-red-600 font-medium">{selectedPayment.currency} {parseFloat(selectedPayment.allocatedAmount || '0').toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center border-t pt-2">
-                    <span className="text-sm font-semibold">Available to Allocate:</span>
-                    <span className="font-bold text-green-600 text-lg">{selectedPayment.currency} {parseFloat(selectedPayment.unallocatedAmount).toLocaleString()}</span>
-                  </div>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Selected Payment</label>
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="font-medium">{selectedPayment.paymentReference}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedPayment.customerName}
+                  </p>
+                  <p className="text-sm">
+                    Available: {selectedPayment.currency} {selectedPayment.unallocatedAmount.toLocaleString()}
+                  </p>
                 </div>
               </div>
               
-              {/* Invoice Details */}
-              <div className="space-y-3">
-                <label className="text-sm font-semibold text-primary">Invoice Details</label>
-                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Invoice Number:</span>
-                    <span className="font-semibold">{selectedInvoice.invoiceNumber}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Customer:</span>
-                    <span className="text-sm">{selectedInvoice.customerName}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Invoice Date:</span>
-                    <span className="text-sm">{new Date(selectedInvoice.invoiceDate).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Due Date:</span>
-                    <span className="text-sm">{new Date(selectedInvoice.dueDate).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Invoice Type:</span>
-                    <Badge variant="outline">{selectedInvoice.invoiceType}</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Total Amount:</span>
-                    <span className="font-semibold text-lg">{selectedInvoice.currency} {parseFloat(selectedInvoice.totalAmount || '0').toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Already Paid:</span>
-                    <span className="text-green-600 font-medium">{selectedInvoice.currency} {parseFloat(selectedInvoice.paid_amount || '0').toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center border-t pt-2">
-                    <span className="text-sm font-semibold">Outstanding Amount:</span>
-                    <span className="font-bold text-red-600 text-lg">{selectedInvoice.currency} {parseFloat(selectedInvoice.outstanding_amount || '0').toLocaleString()}</span>
-                  </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Selected Invoice</label>
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="font-medium">{selectedInvoice.invoiceNumber}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedInvoice.customerName}
+                  </p>
+                  <p className="text-sm">
+                    Outstanding: {selectedInvoice.currency} {(selectedInvoice.outstanding_amount || 0).toLocaleString()}
+                  </p>
                 </div>
               </div>
             </div>
