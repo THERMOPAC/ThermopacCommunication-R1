@@ -2766,24 +2766,6 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
 /**
  * Apply available advance payments to an existing invoice
  */
-      WHERE 
-        i.outstanding_amount > 0
-    `;
-    
-    // Add filters if provided
-    const params = [];
-    if (customerId) {
-      params.push(customerId);
-      query += ` AND i.customer_id = $${params.length}`;
-    }
-    
-    if (invoiceType) {
-      params.push(invoiceType);
-      query += ` AND i.invoice_type = $${params.length}`;
-    }
-    
-    // Add order by clause
-    query += ` ORDER BY i.issue_date ASC`;
     
     console.log('Querying for outstanding invoices with filters:', { customerId, invoiceType });
     const result = await pool.query(query, params);
@@ -2863,59 +2845,6 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
       totalUnallocatedAmount: "0.00",
       count: 0
     });
-  }
-});
-        c.bp_name as "customerName",
-        p.payment_date as "paymentDate",
-        p.amount,
-        p.allocated_amount as "allocatedAmount",
-        p.unallocated_amount as "unallocatedAmount",
-        p.payment_method as "paymentMethod",
-        p.payment_type as "paymentType",
-        p.currency,
-        p.notes,
-        p.is_advance_payment as "isAdvancePayment",
-        CASE WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
-             WHEN p.unallocated_amount > 0 THEN 'Partially Allocated'
-             ELSE 'Fully Allocated' END as "allocationStatus",
-        p.created_by as "createdBy",
-        p.created_at as "createdAt",
-        p.updated_at as "updatedAt"
-      FROM 
-        payments p
-      JOIN 
-        customers c ON p.customer_id = c.id
-      WHERE 
-        p.is_advance_payment = true
-        AND p.unallocated_amount > 0
-    `;
-    
-    // Add order by clause
-    query += ` ORDER BY p.payment_date DESC`;
-    
-    // Use parameterized query for safety
-    let params = [];
-    if (paymentType) {
-      query = query.replace('WHERE p.is_advance_payment = true', 'WHERE p.is_advance_payment = true AND p.payment_type = $1');
-      params.push(paymentType);
-    }
-    
-    const result = await pool.query(query, params);
-    const advances = result.rows;
-    
-    // Calculate total unallocated amount
-    const totalUnallocatedAmount = advances.reduce((sum, payment) => 
-      sum + parseFloat(payment.unallocatedAmount), 0).toFixed(2);
-    
-    res.json({
-      advances: advances,
-      totalUnallocatedAmount: totalUnallocatedAmount,
-      count: advances.length
-    });
-  } catch (error) {
-    console.error('Error getting unallocated advances:', error);
-    // Return empty response structure instead of error for better UI handling
-    res.json(emptyResponse);
   }
 });
 

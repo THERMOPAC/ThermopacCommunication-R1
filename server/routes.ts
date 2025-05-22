@@ -43,6 +43,7 @@ import { simplifiedAllocationApi } from "./simplified-allocation-api";
 import { ultraSimpleAllocationApi } from "./ultra-simple-allocation";
 import { default as simplePaymentRoutes } from "./simple-payment-routes";
 import { default as financeWriteOffsRouter } from "./finance-write-offs";
+import { default as cleanPaymentRoutes } from "./clean-payment-routes";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
 import calibrationTestRoutes from "./testapi/calibration-test-routes";
 import { registerTemplateManagementRoutes } from "./template-management/register-routes";
