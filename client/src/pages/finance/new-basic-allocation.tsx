@@ -125,6 +125,11 @@ function NewBasicAllocationContent() {
     ? allInvoices
     : allInvoices.filter((i: OutstandingInvoice) => i.customerName === selectedCustomer);
 
+  // Filter invoices based on selected payment type (Product/Service matching)
+  const filteredInvoices = selectedPayment 
+    ? invoices.filter((i: OutstandingInvoice) => i.invoiceType === selectedPayment.paymentType)
+    : invoices;
+
   // Allocation mutation
   const allocationMutation = useMutation({
     mutationFn: async (data: {
@@ -273,13 +278,14 @@ function NewBasicAllocationContent() {
             )}
           </div>
           <div className="mt-2 text-sm text-muted-foreground">
-            Showing {payments.length} payments and {invoices.length} invoices
+            Showing {payments.length} payments and {filteredInvoices.length} invoices
             {selectedCustomer !== "all" && ` for ${selectedCustomer}`}
+            {selectedPayment && ` (${selectedPayment.paymentType} type only)`}
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
         {/* Unallocated Payments */}
         <Card>
           <CardHeader>
@@ -336,17 +342,23 @@ function NewBasicAllocationContent() {
           <CardHeader>
             <CardTitle>Outstanding Invoices</CardTitle>
             <CardDescription>
-              Select an invoice to allocate to ({invoices.length} available)
+              {selectedPayment 
+                ? `Select an invoice to allocate to (${filteredInvoices.length} ${selectedPayment.paymentType} type invoices available)`
+                : "Select a payment above first to see matching invoices"
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {invoices.length === 0 ? (
+            {filteredInvoices.length === 0 ? (
               <p className="text-muted-foreground text-center py-4">
-                No outstanding invoices found
+                {selectedPayment 
+                  ? `No ${selectedPayment.paymentType} type invoices found`
+                  : "No outstanding invoices found"
+                }
               </p>
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {invoices.map((invoice: OutstandingInvoice) => (
+                {filteredInvoices.map((invoice: OutstandingInvoice) => (
                   <div
                     key={invoice.id}
                     className={`p-3 border rounded-lg cursor-pointer transition-colors ${
