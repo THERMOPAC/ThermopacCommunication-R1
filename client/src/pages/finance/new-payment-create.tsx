@@ -72,34 +72,54 @@ export default function NewPaymentCreatePage() {
   // Create payment mutation
   const createPayment = useMutation({
     mutationFn: async (values: PaymentFormValues) => {
-      const paymentData = {
-        payment: {
-          irmNo: values.irmNo || null,
-          paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
-          sapPaymentNo: values.sapPaymentNo || null,
-          paymentType: values.paymentType,
-          amount: String(values.amount),
-          currency: values.currency,
-          paymentMethod: values.paymentMethod,
-          notes: values.notes || null,
-          isAdvancePayment: values.isAdvancePayment,
-          customerId: values.customerId
-        },
-        invoiceLinks: []
-      };
+      try {
+        const paymentData = {
+          payment: {
+            irmNo: values.irmNo || null,
+            paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
+            sapPaymentNo: values.sapPaymentNo || null,
+            paymentType: values.paymentType,
+            amount: String(values.amount),
+            currency: values.currency,
+            paymentMethod: values.paymentMethod,
+            notes: values.notes || null,
+            isAdvancePayment: values.isAdvancePayment,
+            customerId: values.customerId
+          },
+          invoiceLinks: []
+        };
 
-      const response = await fetch('/api/finance/payments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(paymentData)
-      });
+        console.log('Sending payment data:', JSON.stringify(paymentData));
 
-      if (!response.ok) {
-        throw new Error('Failed to create payment');
+        const response = await fetch('/api/finance/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(paymentData)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Payment creation failed:', errorText);
+          throw new Error('Failed to create payment: ' + errorText);
+        }
+
+        const responseText = await response.text();
+        if (!responseText) {
+          console.error('Empty response received');
+          throw new Error('Server returned an empty response');
+        }
+
+        try {
+          const result = JSON.parse(responseText);
+          return result;
+        } catch (parseError) {
+          console.error('Failed to parse response as JSON:', responseText);
+          throw new Error('Invalid response format');
+        }
+      } catch (error) {
+        console.error('Payment creation error:', error);
+        throw error;
       }
-
-      const result = await response.json();
-      return result;
     },
     onSuccess: (data) => {
       toast({
