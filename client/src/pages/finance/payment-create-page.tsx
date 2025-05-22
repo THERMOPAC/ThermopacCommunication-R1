@@ -427,55 +427,30 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
           
           // Try to parse as JSON
           try {
-            const data = JSON.parse(responseText);
-            console.log('Parsed payment response:', data);
+            const responseData = JSON.parse(responseText);
+            console.log('Parsed payment response:', responseData);
             
             // Verify we have a real ID, not "system-generated"
-            if (data.id && data.id !== 'system-generated') {
-              return data;
+            if (responseData.id && responseData.id !== 'system-generated') {
+              return responseData;
             } else {
-              console.error('Payment created but received invalid ID:', data.id);
-              // Make a follow-up request to get the latest payment
-              const latestPayment = await fetch('/api/finance/payments?limit=1');
-              const latestData = await latestPayment.json();
-              if (latestData.payments && latestData.payments.length > 0) {
-                return {
-                  success: true,
-                  id: latestData.payments[0].id,
-                  message: 'Payment created successfully'
-                };
-              }
-              // If we still can't get a valid ID, return what we have
-              return data;
+              console.error('Payment created but received invalid ID:', responseData.id);
+              
+              // Return a success message but tell user to check the payments list
+              return {
+                success: true,
+                message: 'Payment created successfully! Please check the payments list to view it.'
+              };
             }
           } catch (jsonError) {
             console.error('JSON parse error:', jsonError);
             
-            // Try to get the latest payment as a fallback
-            try {
-              const latestResponse = await fetch('/api/finance/payments?limit=1');
-              const latestData = await latestResponse.json();
-              
-              if (latestData && latestData.payments && latestData.payments.length > 0) {
-                const latestPayment = latestData.payments[0];
-                console.log("Found latest payment:", latestPayment);
-                
-                return {
-                  success: true,
-                  id: latestPayment.id,
-                  referenceNumber: latestPayment.referenceNumber || `PAY-${latestPayment.id}`,
-                  message: `Payment created successfully with ID: ${latestPayment.id}`
-                };
-              }
-            } catch (fallbackError) {
-              console.error("Error retrieving latest payment:", fallbackError);
-            }
+            // Don't try to use the latest payment as fallback - it might be an old payment
+            console.error('Payment response parsing failed');
             
-            // If all else fails, just show a generic success message
-            return { 
-              success: true, 
-              id: 'new',
-              message: 'Payment created successfully! Check the payments list for details.'
+            return {
+              success: true,
+              message: 'Payment may have been created, but we couldn\'t get the payment ID. Please check the payments list to confirm.'
             };
           }
         } catch (textError) {
