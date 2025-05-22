@@ -130,7 +130,7 @@ export default function PaymentsPage() {
       // Customer filtering - handle both customerId and customer_id
       const customerIdField = payment.customerId || payment.customer_id;
       const matchesCustomer = customerFilter === 'all' || 
-        (customerIdField && customerIdField.toString() === customerFilter);
+        (customerIdField && String(customerIdField) === customerFilter);
       
       // Date range filtering
       let matchesDateRange = true;
@@ -176,11 +176,28 @@ export default function PaymentsPage() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search by reference number..."
+                  placeholder="Search by payment ID or reference..."
                   className="pl-8"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
+              </div>
+              
+              {/* Customer filter dropdown */}
+              <div className="w-full sm:w-64">
+                <Select value={customerFilter} onValueChange={setCustomerFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Customers</SelectItem>
+                    {customersData && customersData.map((customer: any) => (
+                      <SelectItem key={customer.id} value={String(customer.id)}>
+                        {customer.bpName || customer.company_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="w-full sm:w-72">
