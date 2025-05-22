@@ -7,7 +7,7 @@ const router = Router();
 /**
  * Create a new payment - simplified version
  */
-router.post('/payments/create-simple', ensureAuthenticated, async (req: Request, res: Response) => {
+router.post('/create-simple-payment', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     console.log('Creating new payment (simple version):', req.body);
     
