@@ -373,20 +373,16 @@ function NewBasicAllocationContent() {
                     }`}
                     onClick={() => setSelectedInvoice(invoice)}
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium">{invoice.invoiceNumber}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {invoice.customerName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Due: {new Date(invoice.dueDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">
-                          {invoice.currency} {(invoice.outstandingAmount || 0).toLocaleString()}
-                        </p>
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-4 flex-1 text-sm">
+                        <span className="font-medium">Invoice: {invoice.invoiceNumber}</span>
+                        <span className="text-muted-foreground">|</span>
+                        <span className="truncate max-w-[200px]">{invoice.customerName}</span>
+                        <span className="text-muted-foreground">|</span>
+                        <span>Due: {new Date(invoice.dueDate).toLocaleDateString()}</span>
+                        <span className="text-muted-foreground">|</span>
+                        <span className="font-medium">{invoice.currency} {(invoice.outstandingAmount || 0).toLocaleString()}</span>
+                        <span className="text-muted-foreground">|</span>
                         <Badge variant="outline" className="text-xs">
                           {invoice.invoiceType}
                         </Badge>
