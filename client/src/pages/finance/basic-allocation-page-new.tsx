@@ -71,12 +71,15 @@ function BasicAllocationPageContent() {
       if (!response.ok) {
         throw new Error('Failed to fetch unallocated payments');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('Raw unallocated advances API response:', data);
+      return data;
     }
   });
   
-  // Extract the payments array from the response
-  const paymentsData = paymentsResponse?.advances || [];
+  // Extract the payments array from the response - try multiple possible structures
+  const paymentsData = paymentsResponse?.advances || paymentsResponse?.payments || paymentsResponse || [];
+  console.log('Processed payments data:', paymentsData);
 
   // Fetch outstanding invoices
   const { data: invoicesResponse, isLoading: invoicesLoading } = useQuery({
