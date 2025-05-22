@@ -157,8 +157,8 @@ function Router() {
       <ProtectedRoute path="/finance/payments/:id/edit" component={() => <EditPaymentPage />} />
       <ProtectedRoute path="/finance/reports/reconciliation" component={ReconciliationReportPage} />
       <ProtectedRoute path="/finance/payment-allocation" component={PaymentAllocationPage} />
-      <ProtectedRoute path="/finance/basic-allocation" component={BasicAllocationPage} />
-      <ProtectedRoute path="/finance/new-basic-allocation" component={NewBasicAllocation} />
+      <ProtectedRoute path="/finance/basic-allocation" component={PaymentAllocationPage} />
+      <ProtectedRoute path="/finance/new-basic-allocation" component={PaymentAllocationPage} />
       <ProtectedRoute path="/finance/batch-advance-allocation" component={BatchAdvanceAllocationPage} />
       <ProtectedRoute path="/finance/payments/:id" component={() => <PaymentDetailPage />} />
       <ProtectedRoute path="/finance/brc" component={BrcPage} />
