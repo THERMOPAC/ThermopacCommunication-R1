@@ -41,6 +41,7 @@ import PaymentsPage from "@/pages/finance/payments-page";
 import PaymentDetailPage from "@/pages/finance/payment-detail-page-fixed";
 import PaymentCreatePage from "@/pages/finance/payment-create-page";
 import NewPaymentCreatePage from "@/pages/finance/new-payment-create";
+import EditPaymentPage from "@/pages/finance/edit-payment-page";
 import BrcPage from "@/pages/finance/brc-page";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
@@ -152,6 +153,7 @@ function Router() {
       <ProtectedRoute path="/finance/payments" component={PaymentsPage} />
       <ProtectedRoute path="/finance/payments/new" component={() => <NewPaymentCreatePage />} />
       <ProtectedRoute path="/finance/payments/:id/edit" component={() => <PaymentCreatePage isEditMode={true} />} />
+      <ProtectedRoute path="/finance/payments/:id/edit-new" component={() => <EditPaymentPage />} />
       <ProtectedRoute path="/finance/reports/reconciliation" component={ReconciliationReportPage} />
       <ProtectedRoute path="/finance/payment-allocation" component={PaymentAllocationPage} />
       <ProtectedRoute path="/finance/basic-allocation" component={BasicAllocationPage} />
