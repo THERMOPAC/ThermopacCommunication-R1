@@ -90,7 +90,7 @@ export default function NewPaymentCreatePage() {
 
         console.log('Sending payment data:', JSON.stringify(paymentData));
 
-        const response = await fetch('/api/create-new-payment', {
+        const response = await fetch('/api/payment-creation-dedicated', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(paymentData)

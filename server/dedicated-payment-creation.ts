@@ -11,8 +11,9 @@ const ensureAuthenticated = (req: any, res: any, next: any) => {
 };
 
 export function setupDedicatedPaymentCreation(app: Express) {
-  app.post('/api/create-new-payment', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/payment-creation-dedicated', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      console.log('=== DEDICATED PAYMENT ENDPOINT HIT ===');
       console.log('Creating new payment with data:', req.body);
       
       const {
