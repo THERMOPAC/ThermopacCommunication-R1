@@ -143,6 +143,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up clean payment routes for the new Basic Payment Allocation page
   app.use('/api/finance', cleanPaymentRoutes);
   
+  // Set up simple payment routes for payment creation
+  app.use('/api/finance', simplePaymentRoutes);
+  
   // Set up basic allocation API for the new Basic Payment Allocation page
   app.use('/api/finance', basicAllocationApi);
   
