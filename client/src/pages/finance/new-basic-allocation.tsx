@@ -322,6 +322,10 @@ function NewBasicAllocationContent() {
                         <span className="text-muted-foreground">|</span>
                         <span className="font-medium">{payment.currency} {payment.unallocatedAmount.toLocaleString()}</span>
                         <span className="text-muted-foreground">|</span>
+                        <Badge variant="outline" className="text-xs">
+                          {payment.paymentType}
+                        </Badge>
+                        <span className="text-muted-foreground">|</span>
                         <Badge variant="secondary" className="text-xs">
                           {payment.paymentMethod}
                         </Badge>
