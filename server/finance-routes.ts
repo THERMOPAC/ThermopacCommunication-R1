@@ -1226,23 +1226,21 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     let newPayment = paymentResult.rows[0];
     console.log(`Created payment with ID: ${newPayment.id}`);
     
-    // Always update the reference_number to be the payment ID for new payments
-    if (!payment.reference_number) {
-      const updateRefQuery = `
-        UPDATE payments 
-        SET reference_number = $1 
-        WHERE id = $2
-        RETURNING *
-      `;
-      const updateResult = await pool.query(updateRefQuery, [
-        String(newPayment.id),
-        newPayment.id
-      ]);
+    // Always update the reference_number to be the payment ID
+    const updateRefQuery = `
+      UPDATE payments 
+      SET reference_number = $1 
+      WHERE id = $2
+      RETURNING *
+    `;
+    const updateResult = await pool.query(updateRefQuery, [
+      String(newPayment.id),
+      newPayment.id
+    ]);
     
-      if (updateResult.rows && updateResult.rows.length > 0) {
-        newPayment = updateResult.rows[0];
-        console.log(`Updated payment reference to ID: ${newPayment.id}`);
-      }
+    if (updateResult.rows && updateResult.rows.length > 0) {
+      newPayment = updateResult.rows[0];
+      console.log(`Updated payment reference to ID: ${newPayment.id}`);
     }
     
     // If there are invoice links, create them as well
