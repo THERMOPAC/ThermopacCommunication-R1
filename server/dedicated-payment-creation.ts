@@ -1,7 +1,10 @@
 import type { Express, Request, Response } from "express";
 import { db } from "./db";
-import { payments } from "@shared/schema";
+import { neon } from "@neondatabase/serverless";
 import { sql } from "drizzle-orm";
+
+// Direct database connection for payment creation
+const pool = neon(process.env.DATABASE_URL!);
 // Authentication middleware - basic version
 const ensureAuthenticated = (req: any, res: any, next: any) => {
   if (req.user) {
@@ -44,9 +47,8 @@ export function setupDedicatedPaymentCreation(app: Express) {
       const financialYear = `${startYear.toString().slice(-2)}${endYear.toString().slice(-2)}`;
       
       // Get next sequence number using direct SQL query to avoid ORM column issues
-      const existingPaymentsQuery = await pool.query('SELECT payment_date FROM payments');
-      const existingPayments = existingPaymentsQuery.rows;
-      const currentYearPayments = existingPayments.filter(p => {
+      const existingPaymentsQuery = await pool('SELECT payment_date FROM payments');
+      const currentYearPayments = existingPaymentsQuery.filter((p: any) => {
         const paymentYear = new Date(p.payment_date).getFullYear();
         const paymentMonth = new Date(p.payment_date).getMonth();
         const paymentStartYear = paymentMonth < 3 ? paymentYear - 1 : paymentYear;

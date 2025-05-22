@@ -46,6 +46,7 @@ import { default as financeWriteOffsRouter } from "./finance-write-offs";
 import { default as cleanPaymentRoutes } from "./clean-payment-routes";
 import { default as basicAllocationApi } from "./basic-allocation-api";
 import { setupDedicatedPaymentCreation } from "./dedicated-payment-creation";
+import { setupCleanPaymentCreation } from "./clean-payment-creation";
 import { registerFileUploadTestRoutes } from "./test/file-upload-test";
 import calibrationTestRoutes from "./testapi/calibration-test-routes";
 import { registerTemplateManagementRoutes } from "./template-management/register-routes";
@@ -149,6 +150,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up dedicated payment creation route to bypass routing conflicts
   setupDedicatedPaymentCreation(app);
+  
+  // Set up clean payment creation route (final fix)
+  setupCleanPaymentCreation(app);
   
   // Set up simple payment routes for payment creation
   app.use('/api/finance', simplePaymentRoutes);
