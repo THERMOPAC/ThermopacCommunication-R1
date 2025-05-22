@@ -451,7 +451,7 @@ function NewBasicAllocationContent() {
           <CardHeader>
             <CardTitle>Allocate Payment</CardTitle>
             <CardDescription>
-              Allocate payment to invoice
+              Allocate from {selectedPayment.paymentReference} to {selectedInvoice.invoiceNumber}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -477,11 +477,11 @@ function NewBasicAllocationContent() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Total Amount:</span>
-                    <span className="font-medium">{selectedPayment.currency} {parseFloat(selectedPayment.amount).toLocaleString()}</span>
+                    <span className="font-medium">{selectedPayment.currency} {parseFloat(selectedPayment.amount.toString()).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between border-t pt-2">
                     <span className="text-sm font-medium text-green-700">Available to Allocate:</span>
-                    <span className="font-bold text-green-700">{selectedPayment.currency} {selectedPayment.unallocatedAmount.toLocaleString()}</span>
+                    <span className="font-bold text-green-700">{selectedPayment.currency} {parseFloat(selectedPayment.unallocatedAmount.toString()).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -507,11 +507,11 @@ function NewBasicAllocationContent() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Total Amount:</span>
-                    <span className="font-medium">{selectedInvoice.currency} {parseFloat(selectedInvoice.totalAmount || '0').toLocaleString()}</span>
+                    <span className="font-medium">{selectedInvoice.currency} {parseFloat((selectedInvoice.totalAmount || 0).toString()).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between border-t pt-2">
                     <span className="text-sm font-medium text-red-700">Outstanding Amount:</span>
-                    <span className="font-bold text-red-700">{selectedInvoice.currency} {(selectedInvoice.outstanding_amount || 0).toLocaleString()}</span>
+                    <span className="font-bold text-red-700">{selectedInvoice.currency} {parseFloat((selectedInvoice.outstanding_amount || 0).toString()).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
