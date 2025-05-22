@@ -64,9 +64,12 @@ export default function PaymentsPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Query for payments
-  const { data, isLoading, error } = useQuery<{ payments: any[] }>({
+  const { data, isLoading, error, refetch } = useQuery<{ payments: any[] }>({
     queryKey: ['/api/finance/payments'],
-    retry: 1
+    retry: 1,
+    refetchOnWindowFocus: true,
+    refetchInterval: 5000, // Refetch every 5 seconds to ensure we have the latest data
+    staleTime: 1000 // Consider data stale after 1 second
   });
   
   // Query for customers list
@@ -152,12 +155,18 @@ export default function PaymentsPage() {
       <div className="container mx-auto py-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Payments</h1>
-          <Button asChild>
-            <Link href="/finance/payments/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Record New Payment
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => refetch()} title="Refresh payment list">
+              <span className="rotate-90 inline-block mr-2">↻</span>
+              Refresh
+            </Button>
+            <Button asChild>
+              <Link href="/finance/payments/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Record New Payment
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <Card className="mb-6">
