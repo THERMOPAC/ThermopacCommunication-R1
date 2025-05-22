@@ -1243,6 +1243,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
         newPayment = updateResult.rows[0];
         console.log(`Updated payment reference to ID: ${newPayment.id}`);
       }
+    }
     
     // If there are invoice links, create them as well
     let allocations = [];
