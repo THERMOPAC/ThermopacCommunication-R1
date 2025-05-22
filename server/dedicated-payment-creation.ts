@@ -56,20 +56,20 @@ export function setupDedicatedPaymentCreation(app: Express) {
       const referenceNumber = `PAY-${financialYear}-${sequenceNumber}`;
 
       const paymentData = {
-        irmNo: irmNo || null,
-        paymentDate: paymentDate,
-        sapPaymentNo: sapPaymentNo,
-        paymentType: paymentType,
+        irm_no: irmNo || null,
+        payment_date: paymentDate,
+        sap_payment_no: sapPaymentNo,
+        payment_type: paymentType,
         amount: parseFloat(amount),
         currency: currency,
-        paymentMethod: paymentMethod,
-        referenceNumber: referenceNumber,
+        payment_method: paymentMethod,
+        reference_number: referenceNumber,
         notes: notes,
-        isAdvancePayment: isAdvancePayment,
-        customerId: parseInt(customerId),
-        allocatedAmount: 0,
-        unallocatedAmount: parseFloat(amount),
-        createdBy: userId
+        is_advance_payment: isAdvancePayment,
+        customer_id: parseInt(customerId),
+        allocated_amount: 0,
+        unallocated_amount: parseFloat(amount),
+        created_by: userId
       };
 
       console.log('Payment data to create:', paymentData);
