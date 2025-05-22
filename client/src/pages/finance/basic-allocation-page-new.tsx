@@ -314,7 +314,7 @@ function BasicAllocationPageContent() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      invoicesData?.map((invoice: Invoice) => (
+                      invoicesData?.filter(invoice => parseFloat(invoice.outstandingAmount) > 0).map((invoice: Invoice) => (
                         <TableRow key={invoice.id} className={selectedInvoice?.id === invoice.id ? 'bg-muted/50' : ''}>
                           <TableCell>{invoice.invoiceNumber}</TableCell>
                           <TableCell>{invoice.customerName}</TableCell>
