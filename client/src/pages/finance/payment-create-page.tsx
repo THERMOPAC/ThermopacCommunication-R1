@@ -436,10 +436,11 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
           const data = await response.clone().json();
           return data;
         } catch {
-          // If we can't parse JSON, the payment was still created successfully
-          // based on server logs, but we need a real ID, so try again
-          console.error('Could not parse payment response as JSON, redirecting to list view');
-          return { success: true, id: 'system-generated' };
+          // If we can't parse JSON, try to retrieve info from headers or location header
+          console.error('Could not parse payment response as JSON');
+          // Instead of using a fake ID, let's check list page to get the real ID
+          window.location.href = '/finance/payments';
+          return { success: true };
         }
       } catch (error) {
         console.error('Error in payment creation:', error);

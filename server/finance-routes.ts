@@ -501,7 +501,7 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
     
     // Format payments to ensure reference numbers are always displayed
     const formattedPayments = payments.map(payment => {
-      // If payment has no reference number, use payment ID with PAY prefix
+      // If payment has no reference number or if it equals the ID, format it properly
       if (!payment.referenceNumber || payment.referenceNumber === String(payment.id)) {
         payment.referenceNumber = `PAY-${payment.id}`;
       }
@@ -1316,11 +1316,36 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     console.log(`Payment created successfully with ID: ${newPayment.id}`);
     console.log(`Full payment record:`, JSON.stringify(newPayment));
 
+    // Ensure we're returning a real numeric ID, not a string like "system-generated"
+    if (!newPayment.id || isNaN(Number(newPayment.id))) {
+      console.error("Critical error: Payment created but returned invalid ID:", newPayment.id);
+      // Attempt to retrieve the payment record using other identifiers
+      try {
+        // Try to retrieve the most recently created payment for this customer
+        const retrieveQuery = `
+          SELECT * FROM payments 
+          WHERE customer_id = $1 
+          ORDER BY created_at DESC 
+          LIMIT 1
+        `;
+        const retrieveResult = await pool.query(retrieveQuery, [payment.customerId]);
+        if (retrieveResult.rows && retrieveResult.rows.length > 0) {
+          newPayment = retrieveResult.rows[0];
+          console.log("Successfully retrieved payment with backup method:", newPayment.id);
+        }
+      } catch (retrieveError) {
+        console.error("Failed to retrieve payment with backup method:", retrieveError);
+      }
+    }
+    
+    // Double-check ID is valid before returning
+    const paymentId = newPayment.id ? Number(newPayment.id) : null;
+    
     // Return a simple success response with just the ID to avoid parsing issues
     const formattedPayment = {
       success: true,
-      id: newPayment.id,
-      message: `Payment successfully created with ID: ${newPayment.id}`
+      id: paymentId,
+      message: `Payment successfully created with ID: ${paymentId}`
     };
     
     res.status(201).json(formattedPayment);
