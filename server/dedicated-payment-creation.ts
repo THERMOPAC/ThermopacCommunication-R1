@@ -78,9 +78,9 @@ export function setupDedicatedPaymentCreation(app: Express) {
       const insertQuery = `
         INSERT INTO payments (
           irm_no, payment_date, sap_payment_no, payment_type, amount, currency, 
-          payment_method, irm_no, notes, is_advance_payment, 
+          payment_method, notes, is_advance_payment, 
           customer_id, allocated_amount, unallocated_amount, created_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *
       `;
       
       const values = [
@@ -91,7 +91,6 @@ export function setupDedicatedPaymentCreation(app: Express) {
         paymentData.amount,
         paymentData.currency,
         paymentData.payment_method,
-        paymentData.irm_no,
         paymentData.notes,
         paymentData.is_advance_payment,
         paymentData.customer_id,
