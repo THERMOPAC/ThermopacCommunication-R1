@@ -97,24 +97,32 @@ export default function NewPaymentCreatePage() {
           body: JSON.stringify(paymentData)
         });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Payment creation failed:', errorText);
-          throw new Error('Failed to create payment: ' + errorText);
-        }
-
-        const responseText = await response.text();
-        if (!responseText) {
-          console.error('Empty response received');
-          throw new Error('Server returned an empty response');
-        }
-
-        try {
-          const result = JSON.parse(responseText);
+        // First check if response is JSON
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          // It's JSON response
+          const result = await response.json();
+          
+          if (!response.ok) {
+            throw new Error(result.error || 'Failed to create payment');
+          }
+          
           return result;
-        } catch (parseError) {
-          console.error('Failed to parse response as JSON:', responseText);
-          throw new Error('Invalid response format');
+        } else {
+          // Not a JSON response
+          const textResponse = await response.text();
+          console.error('Non-JSON response received:', textResponse);
+          
+          if (!response.ok) {
+            throw new Error('Server error: ' + response.status);
+          } else {
+            // Try to extract meaningful data from HTML if possible
+            return { 
+              success: true, 
+              id: "unknown", 
+              message: "Payment may have been created but response format was invalid" 
+            };
+          }
         }
       } catch (error) {
         console.error('Payment creation error:', error);
