@@ -499,10 +499,20 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
     const result = await pool.query(query);
     const payments = result.rows;
     
-    // Log the number of payments being returned from the database
-    console.log(`Retrieved ${payments.length} payments from database`);
+    // Format payments to ensure reference numbers are always displayed
+    const formattedPayments = payments.map(payment => {
+      // If payment has no reference number, use payment ID with PAY prefix
+      if (!payment.referenceNumber || payment.referenceNumber === String(payment.id)) {
+        payment.referenceNumber = `PAY-${payment.id}`;
+      }
+      return payment;
+    });
     
-    res.json(payments);
+    // Log the number of payments being returned from the database
+    console.log(`Retrieved ${formattedPayments.length} payments from database`);
+    
+    // Return payments in a format the client expects
+    res.json({ payments: formattedPayments });
   } catch (error) {
     console.error('Error getting payments:', error);
     res.status(500).json({ error: 'Failed to get payments' });
