@@ -295,8 +295,7 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
       const body = req.body;
       
       // Extract payment data - check both naming formats with fallbacks to existing data
-      const irm_no = body.referenceNumber || body.reference || '';
-      const irm_no = body.irmNo || body.irm_no || body.paymentNumber || '';
+      const irm_no = body.referenceNumber || body.reference || body.irmNo || body.irm_no || body.paymentNumber || '';
       const payment_date = body.paymentDate || body.payment_date || new Date().toISOString().split('T')[0];
       
       // Special handling for SAP Payment No which is known to have issues
