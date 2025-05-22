@@ -85,7 +85,7 @@ const invoiceFormSchema = z.object({
   }),
   currency: z.string().default("INR"),
   sapInvoiceNo: z.string().min(1, "SAP Invoice No is required"),
-  invoiceType: z.enum(["Product", "Service"]).default("Product"),
+  invoiceType: z.enum(["Product", "Service"]),
   notes: z.string().optional(),
   items: z.array(
     z.object({
