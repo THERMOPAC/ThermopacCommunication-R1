@@ -61,7 +61,7 @@ router.post('/invoices/direct', async (req: Request, res: Response) => {
         'Pending',
         invoice.notes || null,
         req.user?.id || 1,
-        invoice.sapInvoiceNo || null,
+        invoice.sapInvoiceNo && invoice.sapInvoiceNo !== '' ? invoice.sapInvoiceNo : null,
         invoice.invoiceType || 'Product'
       ];
       
