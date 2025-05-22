@@ -175,7 +175,7 @@ simplePaymentAllocationApi.get('/payment-allocations/:paymentId', ensureAuthenti
         pa.id,
         pa.payment_id as "paymentId",
         pa.invoice_id as "invoiceId",
-        p.reference_number as "paymentReference",
+        p.irm_no as "paymentReference",
         i.invoice_number as "invoiceNumber",
         pa.created_at as "allocationDate",
         pa.amount_applied as "amount"
@@ -219,7 +219,7 @@ simplePaymentAllocationApi.get('/payment-allocations', ensureAuthenticated, asyn
         pa.id,
         pa.payment_id as "paymentId",
         pa.invoice_id as "invoiceId",
-        p.reference_number as "paymentReference",
+        p.irm_no as "paymentReference",
         i.invoice_number as "invoiceNumber",
         pa.created_at as "allocationDate",
         pa.amount_applied as "amount"

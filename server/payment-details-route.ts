@@ -20,7 +20,7 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
     const paymentQuery = `
       SELECT 
         p.id,
-        p.reference_number as "referenceNumber",
+        p.irm_no as "referenceNumber",
         p.customer_id as "customerId",
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",

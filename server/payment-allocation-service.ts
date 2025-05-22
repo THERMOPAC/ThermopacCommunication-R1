@@ -306,7 +306,7 @@ export class PaymentAllocationService {
         pa.invoice_id, 
         pa.amount_allocated, 
         pa.allocation_date,
-        p.reference_number as payment_reference,
+        p.irm_no as payment_reference,
         p.payment_date,
         p.customer_id
       FROM payment_allocations pa
