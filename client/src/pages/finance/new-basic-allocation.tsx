@@ -21,6 +21,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Types
 interface UnallocatedPayment {
@@ -69,6 +76,7 @@ function NewBasicAllocationContent() {
   const [selectedPayment, setSelectedPayment] = useState<UnallocatedPayment | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<OutstandingInvoice | null>(null);
   const [allocationAmount, setAllocationAmount] = useState<string>("");
+  const [selectedCustomer, setSelectedCustomer] = useState<string>("all");
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -98,8 +106,24 @@ function NewBasicAllocationContent() {
   });
 
   // Process data
-  const payments = paymentsData?.advances || [];
-  const invoices = invoicesData?.invoices || [];
+  const allPayments = paymentsData?.advances || [];
+  const allInvoices = invoicesData?.invoices || [];
+
+  // Get unique customers from both payments and invoices
+  const allCustomers = new Set([
+    ...allPayments.map((p: UnallocatedPayment) => p.customerName),
+    ...allInvoices.map((i: OutstandingInvoice) => i.customerName)
+  ]);
+  const uniqueCustomers = Array.from(allCustomers).sort();
+
+  // Filter data based on selected customer
+  const payments = selectedCustomer === "all" 
+    ? allPayments 
+    : allPayments.filter((p: UnallocatedPayment) => p.customerName === selectedCustomer);
+    
+  const invoices = selectedCustomer === "all"
+    ? allInvoices
+    : allInvoices.filter((i: OutstandingInvoice) => i.customerName === selectedCustomer);
 
   // Allocation mutation
   const allocationMutation = useMutation({
@@ -214,6 +238,47 @@ function NewBasicAllocationContent() {
 
   return (
     <div className="space-y-6">
+      {/* Customer Filter */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filter by Customer</CardTitle>
+          <CardDescription>
+            Select a customer to filter payments and invoices, or view all
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium min-w-[100px]">Customer:</label>
+            <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+              <SelectTrigger className="w-[300px]">
+                <SelectValue placeholder="Select customer to filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Customers</SelectItem>
+                {uniqueCustomers.map((customer) => (
+                  <SelectItem key={customer} value={customer}>
+                    {customer}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedCustomer !== "all" && (
+              <Button 
+                variant="outline" 
+                onClick={() => setSelectedCustomer("all")}
+                size="sm"
+              >
+                Clear Filter
+              </Button>
+            )}
+          </div>
+          <div className="mt-2 text-sm text-muted-foreground">
+            Showing {payments.length} payments and {invoices.length} invoices
+            {selectedCustomer !== "all" && ` for ${selectedCustomer}`}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Unallocated Payments */}
         <Card>
