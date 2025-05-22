@@ -721,7 +721,7 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   const isLoading = isLoadingInvoices || isLoadingCustomers || isLoadingPayment || 
                     createPayment.isPending || updatePayment.isPending;
   
-  if (isLoading && !form.getValues().referenceNumber) {
+  if (isLoading) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">
