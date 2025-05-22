@@ -1,0 +1,392 @@
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { format } from 'date-fns';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
+import { Helmet } from 'react-helmet';
+
+import Layout from '@/components/layout';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+
+// Form schema
+const paymentSchema = z.object({
+  paymentDate: z.date({
+    required_error: "Payment date is required.",
+  }),
+  amount: z.string().min(1, "Amount is required").refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
+    message: "Amount must be a positive number",
+  }),
+  currency: z.string().min(1, "Currency is required"),
+  paymentMethod: z.string().min(1, "Payment method is required"),
+  paymentType: z.enum(['Product', 'Service'], {
+    required_error: "Payment type is required",
+  }),
+  customerId: z.string().min(1, "Customer is required"),
+  isAdvancePayment: z.boolean().default(false),
+  irmNo: z.string().optional(),
+  sapPaymentNo: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+type PaymentFormValues = z.infer<typeof paymentSchema>;
+
+export default function NewPaymentCreatePage() {
+  const [location, navigate] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch customers
+  const { data: customers, isLoading: isLoadingCustomers } = useQuery({
+    queryKey: ['/api/customers'],
+  });
+
+  const form = useForm<PaymentFormValues>({
+    resolver: zodResolver(paymentSchema),
+    defaultValues: {
+      paymentDate: new Date(),
+      amount: '',
+      currency: 'USD',
+      paymentMethod: 'bank transfer',
+      paymentType: 'Product',
+      customerId: '',
+      isAdvancePayment: true,
+      irmNo: '',
+      sapPaymentNo: '',
+      notes: '',
+    },
+  });
+
+  // Create payment mutation
+  const createPayment = useMutation({
+    mutationFn: async (values: PaymentFormValues) => {
+      const paymentData = {
+        payment: {
+          irmNo: values.irmNo || null,
+          paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
+          sapPaymentNo: values.sapPaymentNo || null,
+          paymentType: values.paymentType,
+          amount: String(values.amount),
+          currency: values.currency,
+          paymentMethod: values.paymentMethod,
+          notes: values.notes || null,
+          isAdvancePayment: values.isAdvancePayment,
+          customerId: values.customerId
+        },
+        invoiceLinks: []
+      };
+
+      const response = await fetch('/api/finance/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create payment');
+      }
+
+      const result = await response.json();
+      return result;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success",
+        description: `Payment created successfully! Payment ID: ${data.id}`,
+      });
+      
+      // Invalidate payments cache
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/payments'] });
+      
+      // Navigate back to payments list
+      navigate('/finance/payments');
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create payment. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (values: PaymentFormValues) => {
+    createPayment.mutate(values);
+  };
+
+  const isLoading = isLoadingCustomers || createPayment.isPending;
+
+  return (
+    <Layout>
+      <Helmet>
+        <title>Create New Payment | Thermopac</title>
+      </Helmet>
+      
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Create New Payment</h1>
+        <Button variant="outline" onClick={() => navigate('/finance/payments')}>
+          Back to Payments
+        </Button>
+      </div>
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Information</CardTitle>
+              <CardDescription>
+                Enter the payment details. The Payment ID will be automatically generated.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="paymentDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Payment Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) =>
+                              date > new Date() || date < new Date("1900-01-01")
+                            }
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Amount</FormLabel>
+                      <FormControl>
+                        <Input placeholder="0.00" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Currency</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select currency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="GBP">GBP</SelectItem>
+                          <SelectItem value="INR">INR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="paymentMethod"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Method</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select payment method" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="bank transfer">Bank Transfer</SelectItem>
+                          <SelectItem value="wire transfer">Wire Transfer</SelectItem>
+                          <SelectItem value="check">Check</SelectItem>
+                          <SelectItem value="cash">Cash</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="paymentType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select payment type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Product">Product</SelectItem>
+                          <SelectItem value="Service">Service</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="customerId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select customer" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {customers && Array.isArray(customers) ? customers.map((customer: any) => (
+                            <SelectItem key={customer.id} value={String(customer.id)}>
+                              {customer.company_name}
+                            </SelectItem>
+                          )) : null}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="irmNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>IRM No. (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter IRM number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="sapPaymentNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SAP Payment No. (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter SAP payment number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="isAdvancePayment"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        This is an advance payment
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Enter any additional notes about this payment"
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end space-x-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate('/finance/payments')}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Payment
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </Layout>
+  );
+}
