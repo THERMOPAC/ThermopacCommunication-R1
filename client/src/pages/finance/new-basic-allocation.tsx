@@ -468,7 +468,7 @@ function NewBasicAllocationContent() {
                     {selectedInvoice.customerName}
                   </p>
                   <p className="text-sm">
-                    Outstanding: {selectedInvoice.currency} {(selectedInvoice.outstandingAmount || 0).toLocaleString()}
+                    Outstanding: {selectedInvoice.currency} {(selectedInvoice.outstanding_amount || 0).toLocaleString()}
                   </p>
                 </div>
               </div>
