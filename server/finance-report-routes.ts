@@ -562,15 +562,21 @@ financeReportRouter.get('/remittances', async (req: Request, res: Response) => {
         SELECT 
           p.id as payment_id,
           p.reference_number as payment_ref,
-          c.bp_name as customer_name,
+          c.bpName as customer_name,
           p.amount,
           p.currency,
           p.payment_date as remittance_date,
-          COALESCE(p.payment_method, 'Pending') as brc_status
+          COALESCE(p.payment_method, 'Pending') as brc_status,
+          i.invoice_number,
+          pa.amount_applied
         FROM 
           payments p
         LEFT JOIN 
           customers c ON p.customer_id = c.id
+        LEFT JOIN 
+          payment_allocations pa ON p.id = pa.payment_id
+        LEFT JOIN 
+          invoices i ON pa.invoice_id = i.id
         WHERE 
           1=1
           ${dateFilter}
@@ -600,7 +606,7 @@ financeReportRouter.get('/remittances', async (req: Request, res: Response) => {
         currency: row.currency || 'USD',
         date: row.remittance_date,
         brcStatus: row.brc_status === 'bank transfer' ? 'Issued' : (row.brc_status === 'wire transfer' ? 'Processing' : 'Pending'),
-        invoiceNumber: `INV-${1000 + row.payment_id}`
+        invoiceNumber: row.invoice_number || `INV-${1000 + row.payment_id}`
       }));
       
       // Calculate BRC statuses based on payment method
