@@ -2806,79 +2806,59 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
 });
 
 /**
- * Get unallocated advance payments with actual database queries
+ * Get unallocated advance payments - clean implementation
  */
 router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Default empty response for error cases
-    const emptyResponse = {
-      advances: [],
-      totalUnallocatedAmount: "0.00",
-      count: 0
-    };
+    console.log('Fetching unallocated advance payments...');
     
-    try {
-      console.log('Fetching unallocated payments...');
-      
-      // Simple query to get unallocated advance payments
-      const query = `
-        SELECT 
-          p.id, 
-          p.irm_no as "paymentReference",
-          p.customer_id as "customerId",
-          c.bp_name as "customerName",
-          p.payment_date as "paymentDate",
-          p.amount,
-          p.allocated_amount as "allocatedAmount",
-          p.unallocated_amount as "unallocatedAmount",
-          p.payment_method as "paymentMethod",
-          p.payment_type as "paymentType",
-          p.currency,
-          p.notes,
-          p.is_advance_payment as "isAdvancePayment",
-          CASE WHEN p.unallocated_amount = p.amount THEN 'Unallocated'
-               WHEN p.unallocated_amount > 0 THEN 'Partially Allocated'
-               ELSE 'Fully Allocated' END as "allocationStatus",
-          p.created_by as "createdBy",
-          p.created_at as "createdAt",
-          p.updated_at as "updatedAt"
-        FROM 
-          payments p
-        JOIN 
-          customers c ON p.customer_id = c.id
-        WHERE 
-          p.is_advance_payment = true
-          AND p.unallocated_amount > 0
-        ORDER BY 
-          p.payment_date DESC
-      `;
-      
-      // Execute the query without parameters
-      const result = await pool.query(query);
-      const advances = result.rows;
-      
-      console.log(`Found ${advances.length} unallocated payments`);
-      
-      // Calculate total unallocated amount
-      let totalUnallocated = 0;
-      for (const payment of advances) {
-        if (payment.unallocatedAmount && !isNaN(parseFloat(payment.unallocatedAmount))) {
-          totalUnallocated += parseFloat(payment.unallocatedAmount);
-        }
-      }
-      
-      return res.json({
-        advances: advances,
-        totalUnallocatedAmount: totalUnallocated.toFixed(2),
-        count: advances.length
-      });
-    } catch (dbError) {
-      console.error('Database error getting unallocated advances:', dbError);
-      return res.json(emptyResponse);
-    }
+    const query = `
+      SELECT 
+        p.id, 
+        p.irm_no as "paymentReference",
+        p.customer_id as "customerId",
+        c.bp_name as "customerName",
+        p.payment_date as "paymentDate",
+        p.amount,
+        p.allocated_amount as "allocatedAmount",
+        p.unallocated_amount as "unallocatedAmount",
+        p.payment_method as "paymentMethod",
+        p.payment_type as "paymentType",
+        p.currency,
+        p.notes,
+        p.is_advance_payment as "isAdvancePayment"
+      FROM 
+        payments p
+      JOIN 
+        customers c ON p.customer_id = c.id
+      WHERE 
+        p.is_advance_payment = true
+        AND p.unallocated_amount > 0
+      ORDER BY 
+        p.payment_date DESC
+    `;
+    
+    const result = await pool.query(query);
+    const advances = result.rows;
+    
+    console.log(`Found ${advances.length} unallocated advance payments`);
+    
+    // Calculate total unallocated amount
+    const totalUnallocated = advances.reduce((sum, payment) => {
+      const amount = parseFloat(payment.unallocatedAmount) || 0;
+      return sum + amount;
+    }, 0);
+    
+    res.json({
+      advances: advances,
+      totalUnallocatedAmount: totalUnallocated.toFixed(2),
+      count: advances.length
+    });
+    
   } catch (error) {
     console.error('Error getting unallocated advances:', error);
-    return res.json({
+    res.status(500).json({
+      error: 'Failed to fetch unallocated advances',
       advances: [],
       totalUnallocatedAmount: "0.00",
       count: 0
