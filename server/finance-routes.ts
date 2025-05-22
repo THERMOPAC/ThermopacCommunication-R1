@@ -1549,9 +1549,12 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       customerId: payment.customerId
     });
     
-    // Ensure SAP Payment No and Payment Type are properly processed from all possible variations
+    // Ensure all fields are properly processed from all possible variations
     const sapPaymentNo = payment.sapPaymentNo || payment.sap_payment_no || null;
     const paymentType = payment.paymentType || payment.payment_type || 'Product';
+    const irmNo = payment.irmNo || payment.irm_no || null;
+    
+    console.log('IRM NO value for update:', irmNo);
     
     // First, retrieve current payment data to check allocated amount
     const currentPaymentQuery = `
@@ -1651,7 +1654,7 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
     // Execute direct SQL command for maximum reliability
     const directUpdateQuery = `
       UPDATE payments SET 
-        irm_no = ${payment.irmNo ? `'${payment.irmNo}'` : 'NULL'},
+        irm_no = ${irmNo ? `'${irmNo}'` : 'NULL'},
         payment_date = '${paymentDate.toISOString().split('T')[0]}',
         sap_payment_no = ${sapPaymentNo ? `'${sapPaymentNo}'` : 'NULL'},
         payment_type = '${paymentType}',
