@@ -83,9 +83,18 @@ function NewBasicAllocationContent() {
 
   // Auto-calculate allocation amount when both payment and invoice are selected
   useEffect(() => {
+    console.log('Selection changed:', { 
+      hasPayment: !!selectedPayment, 
+      hasInvoice: !!selectedInvoice,
+      paymentId: selectedPayment?.id,
+      invoiceId: selectedInvoice?.id 
+    });
+    
     if (selectedPayment && selectedInvoice) {
       const paymentAmount = selectedPayment.unallocatedAmount;
       const invoiceAmount = Number(selectedInvoice.outstanding_amount || selectedInvoice.totalAmount || 0);
+      
+      console.log('Both selected - showing allocation card', { paymentAmount, invoiceAmount });
       
       // Use the smaller of the two amounts
       const autoAmount = Math.min(paymentAmount, invoiceAmount);
