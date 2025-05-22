@@ -84,7 +84,6 @@ interface PaymentData {
 
 // Payment form schema
 const paymentFormSchema = z.object({
-  // Removed referenceNumber field as we're using database ID instead
   irmNo: z.string().optional(),
   paymentDate: z.date({
     required_error: "Payment date is required",
@@ -206,8 +205,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   // Set up form values based on whether we're creating or editing
   const initialFormValues: PaymentFormValues = isEditMode && paymentData && paymentData.payment ? {
     // Use snake_case format from API response
-    referenceNumber: paymentData.payment.reference_number || '',
     paymentDate: new Date(paymentData.payment.payment_date || new Date()),
+    irmNo: paymentData.payment.irm_no || '',
     sapPaymentNo: paymentData.payment.sap_payment_no || '',
     paymentType: (paymentData.payment.payment_type as "Product" | "Service") || 'Product',
     amount: String(paymentData.payment.amount || ''),
@@ -224,8 +223,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         };
       }) : [],
   } : {
-    referenceNumber: '', // No longer providing a default as we're using Payment ID instead
     paymentDate: new Date(),
+    irmNo: '',
     sapPaymentNo: '',
     paymentType: 'Product',
     amount: '',
@@ -248,15 +247,8 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   
   // We no longer need the generateReferenceNumber function since we're using Payment ID instead
   
-  // We've completely removed reference number generation since we're using Payment IDs
-  // No need to set a placeholder or default value for referenceNumber
-  useEffect(() => {
-    // Only for create mode, not edit mode
-    if (!isEditMode) {
-      // Clear any reference number value to indicate we're using Payment IDs
-      form.setValue('referenceNumber', '');
-    }
-  }, [isEditMode, form]);
+  // No useEffect needed anymore for reference number as we're using Payment IDs
+  // The reference number field has been completely removed from the form
   
   // Update form when payment data is loaded
   useEffect(() => {

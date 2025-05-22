@@ -1155,7 +1155,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     
     // Create a clean payment record for the database
     const payment = {
-      reference_number: paymentData.referenceNumber === 'PAY-TEST-01' ? null : paymentData.referenceNumber, // Don't use test reference numbers
+      reference_number: null, // Initially set to null, will be updated with ID after creation
       irm_no: paymentData.irmNo || null,
       payment_date: formattedDate, // Use the properly formatted date
       sap_payment_no: paymentData.sapPaymentNo || null,
@@ -1226,23 +1226,21 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     let newPayment = paymentResult.rows[0];
     console.log(`Created payment with ID: ${newPayment.id}`);
     
-    // Set the reference_number to be the payment ID if it's not already set
-    if (!newPayment.reference_number) {
-      const updateRefQuery = `
-        UPDATE payments 
-        SET reference_number = $1 
-        WHERE id = $2
-        RETURNING *
-      `;
-      const updateResult = await pool.query(updateRefQuery, [
-        String(newPayment.id),
-        newPayment.id
-      ]);
-      
-      if (updateResult.rows && updateResult.rows.length > 0) {
-        newPayment = updateResult.rows[0];
-        console.log(`Updated payment reference to ID: ${newPayment.id}`);
-      }
+    // Always set the reference_number to be the payment ID
+    const updateRefQuery = `
+      UPDATE payments 
+      SET reference_number = $1 
+      WHERE id = $2
+      RETURNING *
+    `;
+    const updateResult = await pool.query(updateRefQuery, [
+      String(newPayment.id),
+      newPayment.id
+    ]);
+    
+    if (updateResult.rows && updateResult.rows.length > 0) {
+      newPayment = updateResult.rows[0];
+      console.log(`Updated payment reference to ID: ${newPayment.id}`);
     }
     
     // If there are invoice links, create them as well
