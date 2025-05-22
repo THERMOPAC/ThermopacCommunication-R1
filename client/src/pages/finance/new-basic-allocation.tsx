@@ -154,19 +154,31 @@ function NewBasicAllocationContent() {
       invoiceId: number;
       amount: number;
     }) => {
-      // Simulate successful allocation to demonstrate the interface
-      console.log('Processing allocation:', data);
+      console.log('Processing real allocation:', data);
       
-      // Add realistic processing delay
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const response = await fetch('/api/finance/simple-payment-allocation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentId: data.paymentId,
+          allocations: [{
+            invoiceId: data.invoiceId,
+            allocationAmount: data.amount
+          }]
+        }),
+      });
       
-      // Show successful result
-      return {
-        success: true,
-        message: 'Allocation processed successfully',
-        allocationId: Date.now(),
-        data
-      };
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to allocate payment: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Allocation result:', result);
+      
+      return result;
     },
     onSuccess: () => {
       toast({
