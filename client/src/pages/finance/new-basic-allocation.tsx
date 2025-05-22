@@ -154,7 +154,7 @@ function NewBasicAllocationContent() {
       invoiceId: number;
       amount: number;
     }) => {
-      const response = await fetch('/api/finance/simple-payments/allocate', {
+      const response = await fetch('/api/finance/allocate-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
