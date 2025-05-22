@@ -132,14 +132,20 @@ export default function NewPaymentCreatePage() {
     onSuccess: (data) => {
       toast({
         title: "Success",
-        description: `Payment created successfully! Payment ID: ${data.id}`,
+        description: `Payment created successfully! ${data.id ? `Payment ID: ${data.id}` : 'Refreshing payment list...'}`,
       });
       
-      // Invalidate payments cache
-      queryClient.invalidateQueries({ queryKey: ['/api/finance/payments'] });
+      // Invalidate payments cache with force refresh
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/finance/payments'],
+        refetchType: 'all'  
+      });
       
-      // Navigate back to payments list
-      navigate('/finance/payments');
+      // Add a small delay before navigation to ensure the cache is invalidated
+      setTimeout(() => {
+        // Navigate back to payments list
+        navigate('/finance/payments');
+      }, 800); // 800ms delay for better user experience
     },
     onError: (error) => {
       toast({

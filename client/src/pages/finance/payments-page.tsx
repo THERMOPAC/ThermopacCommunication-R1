@@ -143,8 +143,8 @@ export default function PaymentsPage() {
       
       return matchesSearch && matchesMethod && matchesCustomer && matchesDateRange;
     })
-    // Sort by payment ID in ascending order
-    .sort((a: any, b: any) => Number(a.id) - Number(b.id));
+    // Sort by payment ID in descending order to show newest payments first
+    .sort((a: any, b: any) => Number(b.id) - Number(a.id));
 
   return (
     <Layout>
