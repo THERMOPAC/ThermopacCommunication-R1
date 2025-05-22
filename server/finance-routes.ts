@@ -1198,6 +1198,24 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       is_advance_payment: payment.is_advance_payment
     });
     
+    // Debug the incoming payment values
+    console.log('Payment values to be inserted:', {
+      reference_number: payment.reference_number,
+      irm_no: payment.irm_no,
+      payment_date: payment.payment_date,
+      sap_payment_no: payment.sap_payment_no,
+      payment_type: payment.payment_type,
+      amount: payment.amount,
+      currency: payment.currency,
+      payment_method: payment.payment_method,
+      notes: payment.notes,
+      is_advance_payment: payment.is_advance_payment,
+      allocated_amount: payment.allocated_amount,
+      unallocated_amount: payment.unallocated_amount,
+      customer_id: payment.customer_id,
+      created_by: payment.created_by
+    });
+    
     const paymentValues = [
       payment.reference_number,
       payment.irm_no,
@@ -1367,9 +1385,13 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       paymentDate: newPayment.payment_date,
       amount: newPayment.amount,
       currency: newPayment.currency,
-      message: `Payment successfully created with ID: ${paymentId}`
+      message: `Payment successfully created with ID: ${paymentId}`,
+      // Include full payment for debugging
+      payment: newPayment
     };
     
+    // Set content type explicitly to ensure it's recognized as JSON
+    res.setHeader('Content-Type', 'application/json');
     res.status(201).json(formattedPayment);
   } catch (error) {
     console.error('Error creating payment:', error);
