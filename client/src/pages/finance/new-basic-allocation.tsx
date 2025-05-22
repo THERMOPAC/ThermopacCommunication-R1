@@ -156,17 +156,15 @@ function NewBasicAllocationContent() {
     }) => {
       console.log('Processing real allocation:', data);
       
-      const response = await fetch('/api/finance/simple-payment-allocation', {
+      const response = await fetch('/api/finance/ultra-simple-allocation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           paymentId: data.paymentId,
-          allocations: [{
-            invoiceId: data.invoiceId,
-            allocationAmount: data.amount
-          }]
+          invoiceId: data.invoiceId,
+          amount: data.amount
         }),
       });
       
