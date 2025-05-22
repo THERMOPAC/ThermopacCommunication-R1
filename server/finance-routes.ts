@@ -500,11 +500,11 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
     const result = await pool.query(query);
     const payments = result.rows;
     
-    // Format payments to ensure reference numbers are always displayed
+    // Format payments to ensure payment numbers are always displayed
     const formattedPayments = payments.map(payment => {
-      // If payment has no reference number or if it equals the ID, format it properly
-      if (!payment.referenceNumber || payment.referenceNumber === String(payment.id)) {
-        payment.referenceNumber = `PAY-${payment.id}`;
+      // Use payment number from irm_no, fallback to formatted ID if not available
+      if (!payment.paymentNumber) {
+        payment.paymentNumber = `PAY-${payment.id}`;
       }
       return payment;
     });
