@@ -147,6 +147,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up clean payment routes with dedicated path to avoid conflicts
   app.use('/api/clean-payments', cleanPaymentRoutes);
   
+  // Set up dedicated payment creation route to bypass routing conflicts
+  setupDedicatedPaymentCreation(app);
+  
   // Set up simple payment routes for payment creation
   app.use('/api/finance', simplePaymentRoutes);
   

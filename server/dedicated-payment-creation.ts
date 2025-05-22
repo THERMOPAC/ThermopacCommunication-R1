@@ -1,6 +1,14 @@
 import type { Express, Request, Response } from "express";
-import { storage } from "./storage";
-import { ensureAuthenticated } from "./auth";
+import { db } from "./db";
+import { payments } from "@shared/schema";
+// Authentication middleware - basic version
+const ensureAuthenticated = (req: any, res: any, next: any) => {
+  if (req.user) {
+    next();
+  } else {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+};
 
 export function setupDedicatedPaymentCreation(app: Express) {
   app.post('/api/create-new-payment', ensureAuthenticated, async (req: Request, res: Response) => {
@@ -33,8 +41,8 @@ export function setupDedicatedPaymentCreation(app: Express) {
       const endYear = startYear + 1;
       const financialYear = `${startYear.toString().slice(-2)}${endYear.toString().slice(-2)}`;
       
-      // Get next sequence number
-      const existingPayments = await storage.getPayments();
+      // Get next sequence number using direct DB query
+      const existingPayments = await db.select().from(payments);
       const currentYearPayments = existingPayments.filter(p => {
         const paymentYear = new Date(p.payment_date).getFullYear();
         const paymentMonth = new Date(p.payment_date).getMonth();
@@ -65,8 +73,9 @@ export function setupDedicatedPaymentCreation(app: Express) {
 
       console.log('Payment data to create:', paymentData);
 
-      const newPayment = await storage.createPayment(paymentData);
-      console.log('Created payment:', newPayment);
+      // Direct database insertion to bypass routing issues
+      const newPayment = await db.insert(payments).values(paymentData).returning();
+      console.log('Created payment:', newPayment[0]);
 
       return res.json({
         success: true,
