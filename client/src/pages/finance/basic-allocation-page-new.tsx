@@ -286,7 +286,7 @@ function BasicAllocationPageContent() {
             <CardHeader>
               <CardTitle>Select Invoice</CardTitle>
               <CardDescription>
-                Choose an invoice to allocate payment {selectedPayment.paymentReference} ({selectedPayment.remainingAmount.toFixed(2)} {selectedPayment.currency} available)
+                Choose an invoice to allocate payment {selectedPayment.paymentReference} ({parseFloat(selectedPayment.unallocatedAmount).toFixed(2)} {selectedPayment.currency} available)
               </CardDescription>
             </CardHeader>
             <CardContent>
