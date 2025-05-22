@@ -662,12 +662,13 @@ router.delete('/allocations/:id', ensureAuthenticated, async (req: Request, res:
 router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const paymentId = parseInt(req.params.id);
-    console.log(`Fetching payment details for payment ID: ${paymentId}`);
+    console.log(`[DEBUG] Fetching payment details for payment ID: ${paymentId}`);
     
     // Set headers to prevent caching and force fresh data
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
+    res.setHeader('ETag', `payment-${paymentId}-${Date.now()}`);
     
     if (isNaN(paymentId)) {
       return res.status(400).json({ error: 'Invalid payment ID' });
@@ -681,6 +682,7 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
         p.customer_id as "customerId",
         c.bp_name as "customerName",
         p.irm_no as "irmNo",
+        p.irm_no as "paymentNumber",
         p.payment_date as "paymentDate",
         p.sap_payment_no as "sapPaymentNo",
         p.payment_type as "paymentType",
