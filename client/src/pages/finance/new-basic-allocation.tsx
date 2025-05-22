@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout";
@@ -80,6 +80,20 @@ function NewBasicAllocationContent() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Auto-calculate allocation amount when both payment and invoice are selected
+  useEffect(() => {
+    if (selectedPayment && selectedInvoice) {
+      const paymentAmount = selectedPayment.unallocatedAmount;
+      const invoiceAmount = selectedInvoice.outstandingAmount || 0;
+      
+      // Use the smaller of the two amounts
+      const autoAmount = Math.min(paymentAmount, invoiceAmount);
+      setAllocationAmount(autoAmount.toString());
+    } else {
+      setAllocationAmount("");
+    }
+  }, [selectedPayment, selectedInvoice]);
 
   // Fetch unallocated payments
   const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
