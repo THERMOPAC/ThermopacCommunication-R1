@@ -162,7 +162,7 @@ export default function EditPaymentPage() {
 
       // Extract all field values with proper fallbacks
       const formValues: EditPaymentFormValues = {
-        irmNo: payment.irmNo || payment.irm_no || '',
+        irmNo: payment.irmNo || payment.irm_no || payment.paymentNumber || '',
         paymentDate: paymentDate,
         sapPaymentNo: payment.sapPaymentNo || payment.sap_payment_no || '',
         paymentType: (payment.paymentType || payment.payment_type || 'Product') as "Product" | "Service",
