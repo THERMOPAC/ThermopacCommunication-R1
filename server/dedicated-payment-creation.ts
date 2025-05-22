@@ -86,9 +86,11 @@ export function setupDedicatedPaymentCreation(app: Express) {
 
     } catch (error) {
       console.error('Error creating payment:', error);
+      console.error('Payment data that failed:', req.body);
       return res.status(500).json({
         success: false,
-        error: 'Failed to create payment'
+        error: 'Failed to create payment',
+        details: error.message || 'Unknown error'
       });
     }
   });
