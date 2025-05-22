@@ -664,6 +664,11 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
     const paymentId = parseInt(req.params.id);
     console.log(`Fetching payment details for payment ID: ${paymentId}`);
     
+    // Set headers to prevent caching and force fresh data
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     if (isNaN(paymentId)) {
       return res.status(400).json({ error: 'Invalid payment ID' });
     }
