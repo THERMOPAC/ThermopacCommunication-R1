@@ -127,8 +127,8 @@ function BasicAllocationPageContent() {
     // Default allocation amount to the smaller of remaining payment or outstanding invoice
     if (selectedPayment) {
       const suggestedAmount = Math.min(
-        selectedPayment.remainingAmount, 
-        invoice.outstandingAmount
+        parseFloat(selectedPayment.unallocatedAmount), 
+        parseFloat(invoice.outstandingAmount)
       );
       setAllocationAmount(parseFloat(suggestedAmount.toFixed(2)));
     }
