@@ -455,6 +455,7 @@ function NewBasicAllocationContent() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {console.log('Rendering allocation card:', { selectedPayment, selectedInvoice })}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-blue-600">Selected Payment Details</label>
