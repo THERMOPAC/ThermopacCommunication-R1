@@ -507,4 +507,67 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
   }
 });
 
+// Payment allocation endpoint
+router.post('/allocate-payment', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { paymentId, invoiceId, amount } = req.body;
+    
+    console.log('Processing payment allocation:', { paymentId, invoiceId, amount });
+    
+    if (!paymentId || !invoiceId || !amount) {
+      return res.status(400).json({ error: 'Missing required fields: paymentId, invoiceId, amount' });
+    }
+    
+    // Execute the allocation with proper transaction handling
+    const allocationQuery = `
+      BEGIN;
+      
+      -- Update invoice with payment allocation
+      UPDATE invoices 
+      SET 
+        paid_amount = COALESCE(paid_amount, 0) + $1,
+        outstanding_amount = total_amount::numeric - (COALESCE(paid_amount, 0) + $1),
+        status = CASE
+          WHEN (total_amount::numeric - (COALESCE(paid_amount, 0) + $1)) <= 0 THEN 'Paid'
+          WHEN (COALESCE(paid_amount, 0) + $1) > 0 THEN 'Partially Paid'
+          ELSE status
+        END,
+        updated_at = NOW()
+      WHERE id = $2;
+      
+      -- Update payment allocated amount
+      UPDATE payments 
+      SET 
+        allocated_amount = COALESCE(allocated_amount, 0) + $1,
+        updated_at = NOW()
+      WHERE id = $3;
+      
+      -- Insert payment-invoice link
+      INSERT INTO payment_invoice_links (payment_id, invoice_id, amount_applied, created_at, updated_at)
+      VALUES ($3, $2, $1, NOW(), NOW());
+      
+      COMMIT;
+    `;
+    
+    await pool.query(allocationQuery, [amount, invoiceId, paymentId]);
+    
+    console.log('Payment allocation completed successfully');
+    
+    res.json({ 
+      success: true, 
+      message: 'Payment allocated successfully',
+      paymentId,
+      invoiceId,
+      amount 
+    });
+    
+  } catch (error) {
+    console.error('Error in payment allocation:', error);
+    res.status(500).json({ 
+      error: 'Failed to allocate payment',
+      details: error.message 
+    });
+  }
+});
+
 export default router;
