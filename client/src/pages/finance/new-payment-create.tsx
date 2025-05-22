@@ -150,8 +150,93 @@ export default function NewPaymentCreatePage() {
                 Enter the payment details. The Payment ID will be automatically generated.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="space-y-6">
+              {/* Row 1: Payment ID, Currency, SAP Payment No, Payment Type */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <FormLabel>Payment ID</FormLabel>
+                  <div className="px-3 py-2 border rounded-md bg-muted text-muted-foreground text-sm">
+                    Will be assigned after saving
+                  </div>
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Currency</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="USD" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="GBP">GBP</SelectItem>
+                          <SelectItem value="INR">INR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="sapPaymentNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SAP Payment No</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter SAP payment number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="paymentType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Product" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Product">Product</SelectItem>
+                          <SelectItem value="Service">Service</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Row 2: IRM NO, Payment Date, Payment Method, Payment Amount */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <FormField
+                  control={form.control}
+                  name="irmNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>IRM NO</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter IRM number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="paymentDate"
@@ -169,9 +254,9 @@ export default function NewPaymentCreatePage() {
                               )}
                             >
                               {field.value ? (
-                                format(field.value, "PPP")
+                                format(field.value, "MMM do, yyyy")
                               ) : (
-                                <span>Pick a date</span>
+                                <span>May 22nd, 2025</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
@@ -196,44 +281,6 @@ export default function NewPaymentCreatePage() {
 
                 <FormField
                   control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Amount</FormLabel>
-                      <FormControl>
-                        <Input placeholder="0.00" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Currency</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="USD">USD</SelectItem>
-                          <SelectItem value="EUR">EUR</SelectItem>
-                          <SelectItem value="GBP">GBP</SelectItem>
-                          <SelectItem value="INR">INR</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name="paymentMethod"
                   render={({ field }) => (
                     <FormItem>
@@ -241,7 +288,7 @@ export default function NewPaymentCreatePage() {
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select payment method" />
+                            <SelectValue placeholder="Bank Transfer" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -258,26 +305,21 @@ export default function NewPaymentCreatePage() {
 
                 <FormField
                   control={form.control}
-                  name="paymentType"
+                  name="amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Payment Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select payment type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Product">Product</SelectItem>
-                          <SelectItem value="Service">Service</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Payment Amount</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter amount" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+              </div>
 
+              {/* Row 3: Customer */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="customerId"
@@ -293,7 +335,7 @@ export default function NewPaymentCreatePage() {
                         <SelectContent>
                           {customers && Array.isArray(customers) ? customers.map((customer: any) => (
                             <SelectItem key={customer.id} value={String(customer.id)}>
-                              {customer.company_name}
+                              {customer.bpName || customer.company_name}
                             </SelectItem>
                           )) : null}
                         </SelectContent>
@@ -302,66 +344,20 @@ export default function NewPaymentCreatePage() {
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="irmNo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>IRM No. (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter IRM number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="sapPaymentNo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>SAP Payment No. (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter SAP payment number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
-              <FormField
-                control={form.control}
-                name="isAdvancePayment"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        This is an advance payment
-                      </FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-
+              {/* Notes */}
               <FormField
                 control={form.control}
                 name="notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Notes (Optional)</FormLabel>
+                    <FormLabel>Notes</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="Enter any additional notes about this payment"
                         className="resize-none"
+                        rows={3}
                         {...field}
                       />
                     </FormControl>
