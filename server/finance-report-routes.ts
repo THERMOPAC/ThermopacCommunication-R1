@@ -117,7 +117,7 @@ financeReportRouter.get('/reconciliation', async (req: Request, res: Response) =
       const recentAllocationsQuery = `
         SELECT
           pa.id,
-          p.reference_number as payment_ref,
+          p.irm_no as payment_ref,
           i.invoice_number,
           pa.amount_applied as allocated_amount,
           pa.created_at,
@@ -561,7 +561,7 @@ financeReportRouter.get('/remittances', async (req: Request, res: Response) => {
       const query = `
         SELECT 
           p.id as payment_id,
-          p.reference_number as payment_ref,
+          p.irm_no as payment_ref,
           c.bpName as customer_name,
           p.amount,
           p.currency,
