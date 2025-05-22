@@ -135,17 +135,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);
   
-  // Set up finance module routes
+  // Set up finance module routes (main handler - should be first)
   app.use('/api/finance', financeRoutes);
-  
-  // Set up payment allocation API
-  app.use('/api/finance', paymentAllocationApi);
   
   // Set up simplified finance routes (no database connection required)
   app.use('/api/simple-finance', simpleFinanceRoutes);
   
+  // Set up payment allocation API (secondary)
+  app.use('/api/finance/allocations', paymentAllocationApi);
+  
   // Set up simple payment allocation routes (with error handling)
-  app.use('/api/finance', simplePaymentRoutes);
+  app.use('/api/finance/simple-payments', simplePaymentRoutes);
   
   // Set up direct invoice creation route for improved reliability
   app.use('/api/finance', directInvoiceRoutes);
