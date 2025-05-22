@@ -304,15 +304,14 @@ function NewBasicAllocationContent() {
                 {payments.map((payment: UnallocatedPayment) => (
                   <div
                     key={payment.id}
-                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                    className={`p-3 border rounded-lg transition-colors ${
                       selectedPayment?.id === payment.id
                         ? 'border-primary bg-primary/10'
                         : 'hover:bg-muted/50'
                     }`}
-                    onClick={() => setSelectedPayment(payment)}
                   >
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium">{payment.paymentReference}</p>
                         <p className="text-sm text-muted-foreground">
                           {payment.customerName}
@@ -325,9 +324,18 @@ function NewBasicAllocationContent() {
                         <p className="font-medium">
                           {payment.currency} {payment.unallocatedAmount.toLocaleString()}
                         </p>
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs mb-2">
                           {payment.paymentMethod}
                         </Badge>
+                        <div>
+                          <Button
+                            size="sm"
+                            variant={selectedPayment?.id === payment.id ? "default" : "outline"}
+                            onClick={() => setSelectedPayment(payment)}
+                          >
+                            {selectedPayment?.id === payment.id ? "Selected" : "Select"}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
