@@ -43,8 +43,9 @@ export function setupDedicatedPaymentCreation(app: Express) {
       const endYear = startYear + 1;
       const financialYear = `${startYear.toString().slice(-2)}${endYear.toString().slice(-2)}`;
       
-      // Get next sequence number using direct DB query
-      const existingPayments = await db.select().from(payments);
+      // Get next sequence number using direct SQL query to avoid ORM column issues
+      const existingPaymentsQuery = await pool.query('SELECT payment_date FROM payments');
+      const existingPayments = existingPaymentsQuery.rows;
       const currentYearPayments = existingPayments.filter(p => {
         const paymentYear = new Date(p.payment_date).getFullYear();
         const paymentMonth = new Date(p.payment_date).getMonth();
