@@ -151,6 +151,17 @@ router.put('/invoices/direct/:id', async (req: Request, res: Response) => {
       // Begin transaction
       await client.query('BEGIN');
       
+      // First get the current invoice to preserve status and payment fields
+      const currentInvoiceQuery = `SELECT status, paid_amount, outstanding_amount FROM invoices WHERE id = $1`;
+      const currentInvoiceResult = await client.query(currentInvoiceQuery, [invoiceId]);
+      
+      if (currentInvoiceResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      
+      const currentInvoice = currentInvoiceResult.rows[0];
+      
       // Update invoice
       const updateInvoiceQuery = `
         UPDATE invoices SET
@@ -177,7 +188,7 @@ router.put('/invoices/direct/:id', async (req: Request, res: Response) => {
         invoice.dueDate,
         invoice.totalAmount,
         invoice.currency || 'USD',
-        invoice.status || 'Pending',
+        currentInvoice.status, // Preserve original status
         invoice.notes || null,
         invoice.sapInvoiceNo || null,
         invoice.invoiceType || 'Product',
