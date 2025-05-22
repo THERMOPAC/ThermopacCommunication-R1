@@ -430,17 +430,50 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
           throw new Error('Failed to create payment. Please try again.');
         }
         
-        // Return the response data or at minimum a success indicator
-        // Convert to JSON if possible, otherwise return a simple success object
+        // Parse the response with proper error handling
         try {
-          const data = await response.clone().json();
-          return data;
-        } catch {
-          // If we can't parse JSON, try to retrieve info from headers or location header
-          console.error('Could not parse payment response as JSON');
-          // Instead of using a fake ID, let's check list page to get the real ID
-          window.location.href = '/finance/payments';
-          return { success: true };
+          const responseText = await response.text();
+          console.log('Raw server response:', responseText);
+          
+          // Try to parse as JSON
+          try {
+            const data = JSON.parse(responseText);
+            console.log('Parsed payment response:', data);
+            
+            // Verify we have a real ID, not "system-generated"
+            if (data.id && data.id !== 'system-generated') {
+              return data;
+            } else {
+              console.error('Payment created but received invalid ID:', data.id);
+              // Make a follow-up request to get the latest payment
+              const latestPayment = await fetch('/api/finance/payments?limit=1');
+              const latestData = await latestPayment.json();
+              if (latestData.payments && latestData.payments.length > 0) {
+                return {
+                  success: true,
+                  id: latestData.payments[0].id,
+                  message: 'Payment created successfully'
+                };
+              }
+              // If we still can't get a valid ID, return what we have
+              return data;
+            }
+          } catch (jsonError) {
+            console.error('JSON parse error:', jsonError);
+            // Fall back to a redirect
+            return { 
+              success: true, 
+              id: 'processing',
+              message: 'Payment created but ID not immediately available.'
+            };
+          }
+        } catch (textError) {
+          console.error('Error reading response text:', textError);
+          return { 
+            success: true, 
+            id: 'processing', 
+            message: 'Payment submitted successfully.'
+          };
         }
       } catch (error) {
         console.error('Error in payment creation:', error);
@@ -456,16 +489,20 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       // Show success message with the payment ID
       toast({
         title: "Payment successfully created",
-        description: `The payment has been recorded with ID: ${paymentId}`,
+        description: data.message || `Payment recorded with ID: ${paymentId}`,
+        duration: 5000
       });
       
-      // Navigate back to payments list
-      navigate('/finance/payments');
-      
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({
-        queryKey: ['/api/finance/payments'],
-      });
+      // Add a small delay before navigating to ensure database updates are visible
+      setTimeout(() => {
+        // Navigate back to payments list
+        navigate('/finance/payments');
+        
+        // Invalidate queries to refresh data
+        queryClient.invalidateQueries({
+          queryKey: ['/api/finance/payments'],
+        });
+      }, 1000);
     },
     onError: (error: Error) => {
       console.error('Payment creation error:', error);
