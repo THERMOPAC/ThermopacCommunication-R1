@@ -81,23 +81,18 @@ function NewBasicAllocationContent() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Auto-calculate allocation amount when both payment and invoice are selected
+  // Auto-calculate allocation amount based on the specified logic
   useEffect(() => {
-    console.log('Selection changed:', { 
-      hasPayment: !!selectedPayment, 
-      hasInvoice: !!selectedInvoice,
-      paymentId: selectedPayment?.id,
-      invoiceId: selectedInvoice?.id 
-    });
-    
     if (selectedPayment && selectedInvoice) {
-      const paymentAmount = selectedPayment.unallocatedAmount;
-      const invoiceAmount = Number(selectedInvoice.outstanding_amount || selectedInvoice.totalAmount || 0);
+      const paymentUnallocated = parseFloat(selectedPayment.unallocatedAmount.toString());
+      const invoiceOutstanding = parseFloat(selectedInvoice.outstanding_amount.toString());
       
-      console.log('Both selected - showing allocation card', { paymentAmount, invoiceAmount });
+      // Logic: If payment unallocated > invoice outstanding, use invoice outstanding
+      // Otherwise use payment unallocated amount
+      const autoAmount = paymentUnallocated > invoiceOutstanding 
+        ? invoiceOutstanding 
+        : paymentUnallocated;
       
-      // Use the smaller of the two amounts
-      const autoAmount = Math.min(paymentAmount, invoiceAmount);
       setAllocationAmount(autoAmount.toString());
     } else {
       setAllocationAmount("");
@@ -455,48 +450,59 @@ function NewBasicAllocationContent() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Payment Information */}
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <h4 className="font-semibold text-blue-800 mb-3">Payment Information</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Reference:</span>
-                  <span className="font-medium">{selectedPayment.paymentReference}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Customer:</span>
-                  <span className="text-sm">{selectedPayment.customerName}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Type:</span>
-                  <span className="text-sm">{selectedPayment.paymentType}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Available Amount:</span>
-                  <span className="font-bold text-green-600">{selectedPayment.currency} {selectedPayment.unallocatedAmount}</span>
+            {/* Payment and Invoice Information Side by Side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Payment Information */}
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h4 className="font-semibold text-blue-800 mb-3">Selected Payment</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Reference:</span>
+                    <span className="font-medium">{selectedPayment.paymentReference}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Customer:</span>
+                    <span className="text-sm">{selectedPayment.customerName}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Type:</span>
+                    <span className="text-sm">{selectedPayment.paymentType}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Currency:</span>
+                    <span className="text-sm">{selectedPayment.currency}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t pt-2">
+                    <span className="text-sm font-medium text-blue-700">Unallocated Amount:</span>
+                    <span className="font-bold text-blue-700">{selectedPayment.currency} {selectedPayment.unallocatedAmount}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Invoice Information */}
-            <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-              <h4 className="font-semibold text-orange-800 mb-3">Invoice Information</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Invoice Number:</span>
-                  <span className="font-medium">{selectedInvoice.invoiceNumber}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Customer:</span>
-                  <span className="text-sm">{selectedInvoice.customerName}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Type:</span>
-                  <span className="text-sm">{selectedInvoice.invoiceType}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Outstanding Amount:</span>
-                  <span className="font-bold text-red-600">{selectedInvoice.currency} {selectedInvoice.outstanding_amount}</span>
+              {/* Invoice Information */}
+              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                <h4 className="font-semibold text-orange-800 mb-3">Selected Invoice</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Invoice Number:</span>
+                    <span className="font-medium">{selectedInvoice.invoiceNumber}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Customer:</span>
+                    <span className="text-sm">{selectedInvoice.customerName}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Type:</span>
+                    <span className="text-sm">{selectedInvoice.invoiceType}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Currency:</span>
+                    <span className="text-sm">{selectedInvoice.currency}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t pt-2">
+                    <span className="text-sm font-medium text-orange-700">Outstanding Amount:</span>
+                    <span className="font-bold text-orange-700">{selectedInvoice.currency} {selectedInvoice.outstanding_amount}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -510,7 +516,7 @@ function NewBasicAllocationContent() {
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
-                    placeholder="Enter allocation amount"
+                    placeholder="Auto-calculated allocation amount"
                     value={allocationAmount}
                     onChange={(e) => setAllocationAmount(e.target.value)}
                     className="flex-1"
@@ -524,11 +530,11 @@ function NewBasicAllocationContent() {
                     size="sm"
                     onClick={() => setAllocationAmount(maxAllocation.toString())}
                   >
-                    Max ({maxAllocation.toFixed(2)})
+                    Max
                   </Button>
                 </div>
                 <div className="text-sm text-gray-600">
-                  Maximum allocation: {selectedPayment.currency} {maxAllocation.toFixed(2)}
+                  Auto-calculated based on available amounts: {selectedPayment.currency} {allocationAmount}
                 </div>
               </div>
             </div>
