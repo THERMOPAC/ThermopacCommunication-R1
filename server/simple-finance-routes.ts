@@ -134,6 +134,8 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       issueDate: new Date(invoice.issue_date || invoice.issueDate),
       dueDate: new Date(invoice.due_date || invoice.dueDate),
       totalAmount: totalAmount,
+      paidAmount: 0, // Initialize with 0 (no payments yet)
+      outstandingAmount: totalAmount, // Initialize with full amount outstanding
       currency: invoice.currency || 'USD',
       status: 'Pending',
       notes: invoice.notes || null,
