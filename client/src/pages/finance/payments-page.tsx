@@ -106,16 +106,28 @@ export default function PaymentsPage() {
   // Filter the payments based on search term, payment method, and customer
   const filteredPayments = payments
     .filter((payment: any) => {
+      // Debug log to see what fields are available
+      console.log("Payment data for filtering:", payment);
+      
+      // Check for referenceNumber field (actual DB field is reference_number)
+      const referenceNumber = payment.referenceNumber || payment.reference_number || `PAY-${payment.id}`;
+      
+      // Improved search matching with more field possibilities
       const matchesSearch = searchTerm === '' || 
-        (payment.reference && payment.reference.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (payment.paymentNumber && payment.paymentNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+        (referenceNumber && referenceNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (payment.paymentNumber && payment.paymentNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (payment.irmNo && payment.irmNo.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (payment.sapPaymentNo && payment.sapPaymentNo.toString().toLowerCase().includes(searchTerm.toLowerCase()));
       
+      // Payment method matching, handle case differences and format variations
+      const paymentMethod = payment.paymentMethod || '';
       const matchesMethod = methodFilter === 'all' || 
-        (payment.paymentMethod && payment.paymentMethod.toLowerCase() === methodFilter.toLowerCase());
+        paymentMethod.toLowerCase() === methodFilter.toLowerCase();
       
-      // Customer filtering
+      // Customer filtering - handle both customerId and customer_id
+      const customerIdField = payment.customerId || payment.customer_id;
       const matchesCustomer = customerFilter === 'all' || 
-        (payment.customerId && payment.customerId.toString() === customerFilter);
+        (customerIdField && customerIdField.toString() === customerFilter);
       
       // Date range filtering
       let matchesDateRange = true;
@@ -293,7 +305,7 @@ export default function PaymentsPage() {
                     </td>
                     <td className="px-4 py-3 text-left text-sm">
                       <Link href={`/finance/payments/${payment.id}`} className="text-primary hover:underline">
-                        {payment.paymentNumber || payment.reference || `PAY-${payment.id}`}
+                        {payment.referenceNumber || payment.reference_number || `PAY-${payment.id}`}
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-left text-sm">{formatDate(new Date(payment.paymentDate))}</td>
