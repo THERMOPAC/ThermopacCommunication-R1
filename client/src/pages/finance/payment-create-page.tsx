@@ -282,22 +282,34 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
         // Extract values accounting for field name changes
         const sapPaymentNo = payment.sapPaymentNo || payment.sap_payment_no || payment.sapInvoiceNo || payment.sap_invoice_no || '';
         const paymentType = payment.paymentType || payment.payment_type || payment.invoiceType || payment.invoice_type || 'Product';
+        const irmNo = payment.irmNo || payment.irm_no || '';
+        const notes = payment.notes || '';
+        const paymentMethod = payment.paymentMethod || payment.payment_method || 'bank transfer';
         
+        console.log('Extracted field values:',
+          'IRM NO:', irmNo,
+          'Notes:', notes,
+          'Payment Method:', paymentMethod
+        );
+
         // Handle customer ID from either naming format
         const customerId = String(payment.customerId || payment.customer_id || '');
         
-        // Prepare form values handling both naming formats
+        // Log the raw payment data to debug field names
+        console.log('Raw payment data for debugging:', payment);
+        
+        // Prepare form values handling both naming formats with explicit checks for IRM NO
         // Removed referenceNumber as we're using database ID instead
         const formValues = {
-          irmNo: payment.irmNo || '',
+          irmNo: irmNo,  // Use the extracted field value
           paymentDate: paymentDate,
           sapPaymentNo: sapPaymentNo,
           paymentType: paymentType as ("Product" | "Service"),
           amount: String(payment.amount || ''),
           unallocatedAmount: String(payment.unallocatedAmount || payment.unallocated_amount || '0'),
           currency: payment.currency || 'USD',
-          paymentMethod: payment.paymentMethod || payment.payment_method || 'bank transfer',
-          notes: payment.notes || '',
+          paymentMethod: paymentMethod,  // Use the extracted field value
+          notes: notes,  // Use the extracted field value
           isAdvancePayment: isAdvancePayment,
           customerId: customerId,
           invoiceLinks: paymentData.invoiceLinks && paymentData.invoiceLinks.length > 0 ? 
