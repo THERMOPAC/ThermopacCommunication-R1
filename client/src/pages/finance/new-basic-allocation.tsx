@@ -503,6 +503,36 @@ function NewBasicAllocationContent() {
 
             <Separator />
 
+            {/* Allocation Amount Section */}
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <h4 className="font-semibold text-green-800 mb-3">Allocation Amount</h4>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Enter allocation amount"
+                    value={allocationAmount}
+                    onChange={(e) => setAllocationAmount(e.target.value)}
+                    className="flex-1"
+                    min="0"
+                    max={maxAllocation}
+                    step="0.01"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAllocationAmount(maxAllocation.toString())}
+                  >
+                    Max ({maxAllocation.toFixed(2)})
+                  </Button>
+                </div>
+                <div className="text-sm text-gray-600">
+                  Maximum allocation: {selectedPayment.currency} {maxAllocation.toFixed(2)}
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Allocation Amount</label>
