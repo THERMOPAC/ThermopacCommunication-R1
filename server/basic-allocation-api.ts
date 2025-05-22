@@ -15,7 +15,9 @@ const router = express.Router();
 /**
  * Simple allocation endpoint for the Basic Payment Allocation page
  */
-router.post('/allocate-payment', ensureAuthenticated, async (req: Request, res: Response) => {
+router.post('/basic-allocate', async (req: Request, res: Response) => {
+  // Set JSON response headers explicitly
+  res.setHeader('Content-Type', 'application/json');
   const client = await pool.connect();
   
   try {
