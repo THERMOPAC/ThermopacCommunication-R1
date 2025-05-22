@@ -312,7 +312,12 @@ function NewBasicAllocationContent() {
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <p className="font-medium">{payment.paymentReference}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium">{payment.paymentReference}</p>
+                          <Badge variant="outline" className="text-xs">
+                            ID: {payment.id}
+                          </Badge>
+                        </div>
                         <p className="text-sm text-muted-foreground">
                           {payment.customerName}
                         </p>
