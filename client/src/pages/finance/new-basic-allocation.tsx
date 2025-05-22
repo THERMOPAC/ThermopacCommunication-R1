@@ -154,17 +154,45 @@ function NewBasicAllocationContent() {
       invoiceId: number;
       amount: number;
     }) => {
-      console.log('Processing real allocation:', data);
+      console.log('Processing direct database allocation:', data);
       
-      const response = await fetch('/api/finance/ultra-simple-allocation', {
+      // Use SQL execution endpoint which should work with proper authentication
+      const response = await fetch('/api/execute-sql', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          paymentId: data.paymentId,
-          invoiceId: data.invoiceId,
-          amount: data.amount
+          query: `
+            BEGIN;
+            
+            -- Update invoice with payment allocation
+            UPDATE invoices 
+            SET 
+              paid_amount = COALESCE(paid_amount, 0) + $1,
+              outstanding_amount = total_amount - (COALESCE(paid_amount, 0) + $1),
+              status = CASE
+                WHEN (total_amount - (COALESCE(paid_amount, 0) + $1)) <= 0 THEN 'Paid'
+                WHEN (COALESCE(paid_amount, 0) + $1) > 0 THEN 'Partially Paid'
+                ELSE status
+              END,
+              updated_at = NOW()
+            WHERE id = $2;
+            
+            -- Update payment allocated amount
+            UPDATE payments 
+            SET 
+              allocated_amount = COALESCE(allocated_amount, 0) + $1,
+              updated_at = NOW()
+            WHERE id = $3;
+            
+            -- Insert payment-invoice link
+            INSERT INTO payment_invoice_links (payment_id, invoice_id, amount_applied, created_at, updated_at)
+            VALUES ($3, $2, $1, NOW(), NOW());
+            
+            COMMIT;
+          `,
+          params: [data.amount, data.invoiceId, data.paymentId]
         }),
       });
       
