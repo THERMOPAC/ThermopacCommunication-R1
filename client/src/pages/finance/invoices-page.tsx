@@ -77,6 +77,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [customerFilter, setCustomerFilter] = useState('all');
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -85,15 +86,21 @@ export default function InvoicesPage() {
     queryKey: ['/api/simple-finance/invoices-list'],
     retry: 2
   });
+
+
   
   // Extract invoices from the response or use empty array if no data
   const invoices = Array.isArray(data) ? data : [];
   
-  // Filter the invoices based on search term and status
+  // Filter the invoices based on search term, status, and customer
   const filteredInvoices = invoices.filter((invoice: any) => {
     // Search term filter
     const matchesSearch = searchTerm === '' || 
       invoice.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Customer filter
+    const matchesCustomer = customerFilter === 'all' || 
+      (invoice.customerName && invoice.customerName === customerFilter);
     
     // Status filter to match exact values from the database (case-sensitive)
     let matchesStatus = false;
@@ -123,8 +130,15 @@ export default function InvoicesPage() {
       matchesDateRange = matchesDateRange && new Date(invoice.issueDate) <= dateRange.to;
     }
     
-    return matchesSearch && matchesStatus && matchesDateRange;
+    return matchesSearch && matchesCustomer && matchesStatus && matchesDateRange;
   }) || [];
+
+  // Extract unique customer names for the dropdown
+  const uniqueCustomers = Array.from(new Set(
+    invoices
+      .map((invoice: any) => invoice.customerName)
+      .filter(Boolean)
+  )).sort();
 
   // Loading state
   if (isLoading) {
@@ -200,7 +214,27 @@ export default function InvoicesPage() {
             </div>
 
             {isFilterOpen && (
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Customer</label>
+                  <Select 
+                    value={customerFilter} 
+                    onValueChange={setCustomerFilter}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Customers" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Customers</SelectItem>
+                      {uniqueCustomers.map((customer: string) => (
+                        <SelectItem key={customer} value={customer}>
+                          {customer}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
                 <div>
                   <label className="text-sm font-medium mb-1 block">Status</label>
                   <Select 
