@@ -65,9 +65,9 @@ function BasicAllocationPageContent() {
 
   // Fetch unallocated payments
   const { data: paymentsResponse, isLoading: paymentsLoading } = useQuery({
-    queryKey: ['/api/finance/unallocated-advances'],
+    queryKey: ['/api/finance/payments/unallocated-advances'],
     queryFn: async () => {
-      const response = await fetch('/api/finance/unallocated-advances');
+      const response = await fetch('/api/finance/payments/unallocated-advances');
       if (!response.ok) {
         throw new Error('Failed to fetch unallocated payments');
       }
