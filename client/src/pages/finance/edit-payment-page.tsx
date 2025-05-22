@@ -187,16 +187,19 @@ export default function EditPaymentPage() {
       if (!paymentId) throw new Error('Payment ID is required');
 
       const updateData = {
-        irmNo: values.irmNo || null,
-        paymentDate: values.paymentDate.toISOString(),
-        sapPaymentNo: values.sapPaymentNo || null,
-        paymentType: values.paymentType,
-        amount: parseFloat(values.amount),
-        currency: values.currency,
-        paymentMethod: values.paymentMethod,
-        notes: values.notes || null,
-        isAdvancePayment: values.isAdvancePayment,
-        customerId: values.customerId ? parseInt(values.customerId, 10) : null,
+        payment: {
+          irmNo: values.irmNo || null,
+          paymentDate: values.paymentDate.toISOString(),
+          sapPaymentNo: values.sapPaymentNo || null,
+          paymentType: values.paymentType,
+          amount: parseFloat(values.amount),
+          currency: values.currency,
+          paymentMethod: values.paymentMethod,
+          notes: values.notes || null,
+          isAdvancePayment: values.isAdvancePayment,
+          customerId: values.customerId ? parseInt(values.customerId, 10) : null,
+        },
+        invoiceLinks: []
       };
 
       console.log('Updating payment with data:', updateData);
