@@ -711,13 +711,22 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
     const rawPayment = paymentResult.rows[0];
     console.log(`Found payment in database: ${rawPayment.referenceNumber}`);
     
+    // Debug log to see what's in the raw payment data
+    console.log('Raw payment data from database:', {
+      id: rawPayment.id,
+      irmNo: rawPayment.irmNo,
+      irm_no: rawPayment.irm_no,
+      notes: rawPayment.notes,
+      paymentMethod: rawPayment.paymentMethod
+    });
+
     // Format the payment with all required fields to ensure consistent structure
     const payment = {
       id: rawPayment.id,
       referenceNumber: rawPayment.referenceNumber,
       customerId: rawPayment.customerId,
       customerName: rawPayment.customerName,
-      irmNo: rawPayment.irmNo || '',
+      irmNo: rawPayment.irmNo || rawPayment.irm_no || '',  // Handle both camelCase and snake_case
       paymentDate: rawPayment.paymentDate,
       sapPaymentNo: rawPayment.sapPaymentNo,
       paymentType: rawPayment.paymentType,
@@ -733,6 +742,13 @@ router.get('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       createdAt: rawPayment.createdAt,
       updatedAt: rawPayment.updatedAt
     };
+    
+    console.log('Formatted payment data being sent to frontend:', {
+      id: payment.id,
+      irmNo: payment.irmNo,
+      notes: payment.notes,
+      paymentMethod: payment.paymentMethod
+    });
     
     // Get any invoice allocation links
     let allocations = [];
