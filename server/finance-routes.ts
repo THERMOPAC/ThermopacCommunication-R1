@@ -1291,25 +1291,26 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       }
     }
     
-    // Update the payment to use its ID as the reference number if none was provided
-    if (newPayment.reference_number === null) {
-      // Use the ID as the reference number
-      const updateRefQuery = `
-        UPDATE payments 
-        SET reference_number = $1
-        WHERE id = $2
-        RETURNING *
-      `;
-      
-      const updatedPaymentResult = await pool.query(updateRefQuery, [
-        newPayment.id.toString(), // Use the ID as the reference number
-        newPayment.id
-      ]);
-      
-      if (updatedPaymentResult.rows && updatedPaymentResult.rows.length > 0) {
-        newPayment = updatedPaymentResult.rows[0];
-        console.log(`Updated payment with ID ${newPayment.id} to use ID as reference_number`);
-      }
+    // Update the payment to use a properly formatted reference number
+    // Format: PAY-{ID}
+    const formattedRefNumber = `PAY-${newPayment.id}`;
+    const updateRefQuery = `
+      UPDATE payments 
+      SET reference_number = $1
+      WHERE id = $2
+      RETURNING *
+    `;
+    
+    const updatedPaymentResult = await pool.query(updateRefQuery, [
+      formattedRefNumber, // Use a properly formatted reference number
+      newPayment.id
+    ]);
+    
+    if (updatedPaymentResult.rows && updatedPaymentResult.rows.length > 0) {
+      newPayment = updatedPaymentResult.rows[0];
+      console.log(`Updated payment with ID ${newPayment.id} to use reference_number: ${formattedRefNumber}`);
+    } else {
+      console.error(`Failed to update reference number for payment ID ${newPayment.id}`);
     }
     
     // Display more detailed logging for troubleshooting
@@ -1341,10 +1342,14 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     // Double-check ID is valid before returning
     const paymentId = newPayment.id ? Number(newPayment.id) : null;
     
-    // Return a simple success response with just the ID to avoid parsing issues
+    // Return a detailed success response with the formatted data
     const formattedPayment = {
       success: true,
       id: paymentId,
+      referenceNumber: formattedRefNumber,
+      paymentDate: newPayment.payment_date,
+      amount: newPayment.amount,
+      currency: newPayment.currency,
       message: `Payment successfully created with ID: ${paymentId}`
     };
     
