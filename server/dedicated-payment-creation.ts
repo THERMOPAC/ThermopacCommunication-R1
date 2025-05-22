@@ -75,20 +75,30 @@ export function setupDedicatedPaymentCreation(app: Express) {
 
       console.log('Payment data to create:', paymentData);
 
-      // Direct SQL insertion to bypass Drizzle schema mapping issues
-      const newPayment = await db.execute(sql`
+      // Use execute_sql_tool compatible method
+      const result = await db.execute(sql`
         INSERT INTO payments (
           irm_no, payment_date, sap_payment_no, payment_type, amount, currency, 
           payment_method, reference_number, notes, is_advance_payment, 
           customer_id, allocated_amount, unallocated_amount, created_by
         ) VALUES (
-          ${paymentData.irm_no}, ${paymentData.payment_date}, ${paymentData.sap_payment_no}, 
-          ${paymentData.payment_type}, ${paymentData.amount}, ${paymentData.currency}, 
-          ${paymentData.payment_method}, ${paymentData.reference_number}, ${paymentData.notes}, 
-          ${paymentData.is_advance_payment}, ${paymentData.customer_id}, ${paymentData.allocated_amount}, 
-          ${paymentData.unallocated_amount}, ${paymentData.created_by}
+          ${paymentData.irm_no}, 
+          ${paymentData.payment_date}, 
+          ${paymentData.sap_payment_no}, 
+          ${paymentData.payment_type}, 
+          ${paymentData.amount}, 
+          ${paymentData.currency}, 
+          ${paymentData.payment_method}, 
+          ${paymentData.reference_number}, 
+          ${paymentData.notes}, 
+          ${paymentData.is_advance_payment}, 
+          ${paymentData.customer_id}, 
+          ${paymentData.allocated_amount}, 
+          ${paymentData.unallocated_amount}, 
+          ${paymentData.created_by}
         ) RETURNING *
       `);
+      const newPayment = result.rows;
       console.log('Created payment:', newPayment[0]);
 
       return res.json({
