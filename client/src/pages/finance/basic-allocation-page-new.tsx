@@ -260,8 +260,8 @@ function BasicAllocationPageContent() {
                         <TableCell>{payment.paymentReference}</TableCell>
                         <TableCell>{payment.customerName}</TableCell>
                         <TableCell>{payment.paymentType}</TableCell>
-                        <TableCell className="text-right">{payment.amount.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{payment.remainingAmount.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{parseFloat(payment.amount).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{parseFloat(payment.unallocatedAmount).toFixed(2)}</TableCell>
                         <TableCell>
                           <Button 
                             size="sm" 
