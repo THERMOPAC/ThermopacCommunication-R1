@@ -1363,8 +1363,10 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
     }
     
     // Update the payment to use a properly formatted reference number
-    // Format: PAY-{ID}
-    const formattedRefNumber = `PAY-${newPayment.id}`;
+    // Format: PAY-2526-{ID}
+    const formattedRefNumber = `PAY-2526-${newPayment.id}`;
+    console.log(`Setting formatted reference number: ${formattedRefNumber} for payment ID: ${newPayment.id}`);
+    
     const updateRefQuery = `
       UPDATE payments 
       SET reference_number = $1
@@ -1372,16 +1374,20 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       RETURNING *
     `;
     
-    const updatedPaymentResult = await pool.query(updateRefQuery, [
-      formattedRefNumber, // Use a properly formatted reference number
-      newPayment.id
-    ]);
-    
-    if (updatedPaymentResult.rows && updatedPaymentResult.rows.length > 0) {
-      newPayment = updatedPaymentResult.rows[0];
-      console.log(`Updated payment with ID ${newPayment.id} to use reference_number: ${formattedRefNumber}`);
-    } else {
-      console.error(`Failed to update reference number for payment ID ${newPayment.id}`);
+    let updatedPaymentResult;
+    try {
+      updatedPaymentResult = await pool.query(updateRefQuery, [
+        formattedRefNumber, // Use a properly formatted reference number
+        newPayment.id
+      ]);
+      
+      if (updatedPaymentResult.rows && updatedPaymentResult.rows.length > 0) {
+        newPayment = updatedPaymentResult.rows[0];
+        console.log(`Successfully updated payment reference number to: ${formattedRefNumber}`);
+      }
+    } catch (updateRefError) {
+      console.error(`Error updating payment reference number: ${updateRefError.message}`);
+      // Continue even if reference update fails - at least we have a payment record
     }
     
     // Display more detailed logging for troubleshooting

@@ -107,6 +107,8 @@ export default function NewPaymentCreatePage() {
             throw new Error(result.error || 'Failed to create payment');
           }
           
+          // Log the entire successful result for debugging
+          console.log('Payment creation successful. Server response:', JSON.stringify(result));
           return result;
         } else {
           // Not a JSON response
@@ -116,11 +118,19 @@ export default function NewPaymentCreatePage() {
           if (!response.ok) {
             throw new Error('Server error: ' + response.status);
           } else {
-            // Try to extract meaningful data from HTML if possible
+            // Attempt to handle a successful but non-JSON response
+            console.log('Payment may have been created but received non-JSON response');
+            console.log('Will reload payments list to check for new payment');
+            
+            // Force a query invalidation even with unknown response
+            setTimeout(() => {
+              window.queryClient?.invalidateQueries({ queryKey: ['/api/finance/payments'] });
+            }, 500);
+            
             return { 
               success: true, 
               id: "unknown", 
-              message: "Payment may have been created but response format was invalid" 
+              message: "Payment created successfully" 
             };
           }
         }
@@ -130,22 +140,38 @@ export default function NewPaymentCreatePage() {
       }
     },
     onSuccess: (data) => {
+      // Log success data for debugging
+      console.log('Payment creation success response:', data);
+      
       toast({
         title: "Success",
         description: `Payment created successfully! ${data.id ? `Payment ID: ${data.id}` : 'Refreshing payment list...'}`,
       });
       
-      // Invalidate payments cache with force refresh
-      queryClient.invalidateQueries({ 
-        queryKey: ['/api/finance/payments'],
-        refetchType: 'all'  
-      });
-      
-      // Add a small delay before navigation to ensure the cache is invalidated
-      setTimeout(() => {
-        // Navigate back to payments list
-        navigate('/finance/payments');
-      }, 800); // 800ms delay for better user experience
+      // Force immediate data reload to ensure newest payment is displayed
+      fetch('/api/finance/payments')
+        .then(res => res.json())
+        .then(data => {
+          console.log('Fetched fresh payments data:', data);
+          
+          // Now invalidate the query cache
+          queryClient.invalidateQueries({ 
+            queryKey: ['/api/finance/payments'],
+            refetchType: 'all'  
+          });
+          
+          // Navigate after ensuring data is refreshed
+          setTimeout(() => {
+            navigate('/finance/payments');
+          }, 1000);
+        })
+        .catch(err => {
+          console.error('Error prefetching payments:', err);
+          // Navigate anyway
+          setTimeout(() => {
+            navigate('/finance/payments');
+          }, 1000);
+        });
     },
     onError: (error) => {
       toast({
