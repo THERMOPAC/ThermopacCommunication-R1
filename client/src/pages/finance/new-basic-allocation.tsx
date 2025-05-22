@@ -310,38 +310,30 @@ function NewBasicAllocationContent() {
                         : 'hover:bg-muted/50'
                     }`}
                   >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium">{payment.paymentReference}</p>
-                          <Badge variant="outline" className="text-xs">
-                            ID: {payment.id}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {payment.customerName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(payment.paymentDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">
-                          {payment.currency} {payment.unallocatedAmount.toLocaleString()}
-                        </p>
-                        <Badge variant="secondary" className="text-xs mb-2">
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-4 flex-1 text-sm">
+                        <span className="font-medium">IRM: {payment.paymentReference}</span>
+                        <span className="text-muted-foreground">|</span>
+                        <span className="font-medium">ID: {payment.id}</span>
+                        <span className="text-muted-foreground">|</span>
+                        <span className="truncate max-w-[200px]">{payment.customerName}</span>
+                        <span className="text-muted-foreground">|</span>
+                        <span>{new Date(payment.paymentDate).toLocaleDateString()}</span>
+                        <span className="text-muted-foreground">|</span>
+                        <span className="font-medium">{payment.currency} {payment.unallocatedAmount.toLocaleString()}</span>
+                        <span className="text-muted-foreground">|</span>
+                        <Badge variant="secondary" className="text-xs">
                           {payment.paymentMethod}
                         </Badge>
-                        <div>
-                          <Button
-                            size="sm"
-                            variant={selectedPayment?.id === payment.id ? "default" : "outline"}
-                            onClick={() => setSelectedPayment(payment)}
-                          >
-                            {selectedPayment?.id === payment.id ? "Selected" : "Select"}
-                          </Button>
-                        </div>
                       </div>
+                      <Button
+                        size="sm"
+                        variant={selectedPayment?.id === payment.id ? "default" : "outline"}
+                        onClick={() => setSelectedPayment(payment)}
+                        className="ml-4"
+                      >
+                        {selectedPayment?.id === payment.id ? "Selected" : "Select"}
+                      </Button>
                     </div>
                   </div>
                 ))}
