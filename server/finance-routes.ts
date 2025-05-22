@@ -471,7 +471,7 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
     const query = `
       SELECT 
         p.id,
-        p.reference_number as "referenceNumber",
+        p.irm_no as "paymentNumber",
         p.customer_id as "customerId",
         c.bp_name as "customerName",
         p.payment_date as "paymentDate",
@@ -479,6 +479,7 @@ router.get('/payments', ensureAuthenticated, async (req: Request, res: Response)
         p.allocated_amount as "allocatedAmount",
         p.unallocated_amount as "unallocatedAmount",
         p.payment_method as "paymentMethod",
+        p.payment_type as "paymentType",
         p.currency,
         p.notes,
         p.is_advance_payment as "isAdvancePayment",
