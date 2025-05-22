@@ -1173,7 +1173,7 @@ router.post('/payments', ensureAuthenticated, async (req: Request, res: Response
       updated_at: new Date().toISOString()
     };
     
-    // Insert the payment into the database
+    // Insert the payment into the database with explicit auto-increment ID
     const insertPaymentQuery = `
       INSERT INTO payments (
         reference_number, irm_no, payment_date, sap_payment_no, payment_type, amount, currency, payment_method, 
