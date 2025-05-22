@@ -387,11 +387,9 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
   const createPayment = useMutation({
     mutationFn: async (values: PaymentFormValues) => {
       // Transform values for API
-      // Note: We're no longer sending the reference number as it will be replaced by ID
+      // We're no longer using reference numbers - payment ID is used instead
       const apiData = {
         payment: {
-          // Only include referenceNumber when explicitly provided (not needed for create)
-          ...(values.referenceNumber ? { referenceNumber: values.referenceNumber } : {}),
           irmNo: values.irmNo || null,
           paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
           sapPaymentNo: values.sapPaymentNo || null,
@@ -533,11 +531,9 @@ export default function PaymentCreatePage({ isEditMode = false }: { isEditMode?:
       console.log('Updating payment with values:', values);
       
       // Transform values for API with explicit fields for debugging
-      // Note: We're no longer sending the reference number as it will be replaced by ID
+      // We're using payment ID from the URL in edit mode
       const apiData = {
         payment: {
-          // Only include referenceNumber when explicitly provided (likely in edit mode)
-          ...(values.referenceNumber ? { referenceNumber: values.referenceNumber } : {}),
           irmNo: values.irmNo || null,
           paymentDate: format(values.paymentDate, 'yyyy-MM-dd'),
           sapPaymentNo: values.sapPaymentNo || null,
