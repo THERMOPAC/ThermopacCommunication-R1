@@ -455,7 +455,14 @@ function NewBasicAllocationContent() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {console.log('Rendering allocation card:', { selectedPayment, selectedInvoice })}
+            <div className="p-4 bg-gray-100 rounded">
+              <p className="text-sm"><strong>Debug Test:</strong></p>
+              <p className="text-sm">Payment: {selectedPayment?.paymentReference || 'Not found'}</p>
+              <p className="text-sm">Invoice: {selectedInvoice?.invoiceNumber || 'Not found'}</p>
+              <p className="text-sm">Payment Amount: {selectedPayment?.amount || 'No amount'}</p>
+              <p className="text-sm">Invoice Outstanding: {selectedInvoice?.outstanding_amount || 'No outstanding'}</p>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-blue-600">Selected Payment Details</label>
@@ -469,20 +476,8 @@ function NewBasicAllocationContent() {
                     <span className="text-sm">{selectedPayment.customerName}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Payment Date:</span>
-                    <span className="text-sm">{new Date(selectedPayment.paymentDate).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Payment Type:</span>
-                    <Badge variant="outline">{selectedPayment.paymentType}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Total Amount:</span>
-                    <span className="font-medium">{selectedPayment.currency} {parseFloat(selectedPayment.amount.toString()).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="text-sm font-medium text-green-700">Available to Allocate:</span>
-                    <span className="font-bold text-green-700">{selectedPayment.currency} {parseFloat(selectedPayment.unallocatedAmount.toString()).toLocaleString()}</span>
+                    <span className="text-sm text-gray-600">Available Amount:</span>
+                    <span className="font-bold text-green-700">{selectedPayment.currency} {selectedPayment.unallocatedAmount}</span>
                   </div>
                 </div>
               </div>
@@ -499,20 +494,8 @@ function NewBasicAllocationContent() {
                     <span className="text-sm">{selectedInvoice.customerName}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Due Date:</span>
-                    <span className="text-sm">{new Date(selectedInvoice.dueDate).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Invoice Type:</span>
-                    <Badge variant="outline">{selectedInvoice.invoiceType}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Total Amount:</span>
-                    <span className="font-medium">{selectedInvoice.currency} {parseFloat((selectedInvoice.totalAmount || 0).toString()).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="text-sm font-medium text-red-700">Outstanding Amount:</span>
-                    <span className="font-bold text-red-700">{selectedInvoice.currency} {parseFloat((selectedInvoice.outstanding_amount || 0).toString()).toLocaleString()}</span>
+                    <span className="text-sm text-gray-600">Outstanding Amount:</span>
+                    <span className="font-bold text-red-700">{selectedInvoice.currency} {selectedInvoice.outstanding_amount}</span>
                   </div>
                 </div>
               </div>
