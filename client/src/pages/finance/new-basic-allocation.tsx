@@ -93,11 +93,11 @@ function NewBasicAllocationContent() {
     }
   });
 
-  // Fetch outstanding invoices
+  // Fetch outstanding invoices using the working API
   const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
-    queryKey: ['/api/finance/outstanding-invoices'],
+    queryKey: ['/api/simple-finance/invoices-list'],
     queryFn: async () => {
-      const response = await fetch('/api/finance/outstanding-invoices');
+      const response = await fetch('/api/simple-finance/invoices-list');
       if (!response.ok) {
         throw new Error('Failed to fetch invoices');
       }
@@ -107,7 +107,7 @@ function NewBasicAllocationContent() {
 
   // Process data
   const allPayments = paymentsData?.advances || [];
-  const allInvoices = invoicesData?.invoices || [];
+  const allInvoices = Array.isArray(invoicesData) ? invoicesData : [];
 
   // Get unique customers from both payments and invoices
   const allCustomers = new Set([
@@ -127,19 +127,8 @@ function NewBasicAllocationContent() {
 
   // Filter invoices based on selected payment type (Product/Service matching)
   const filteredInvoices = selectedPayment 
-    ? invoices.filter((i: OutstandingInvoice) => {
-        console.log(`Filtering invoice ${i.invoiceNumber} (type: ${i.invoiceType}) against payment type: ${selectedPayment.paymentType}`);
-        return i.invoiceType === selectedPayment.paymentType;
-      })
+    ? invoices.filter((i: OutstandingInvoice) => i.invoiceType === selectedPayment.paymentType)
     : invoices;
-
-  // Debug logging
-  if (selectedPayment) {
-    console.log(`Selected payment ID: ${selectedPayment.id}, type: ${selectedPayment.paymentType}, customer: ${selectedPayment.customerName}`);
-    console.log(`Total invoices available: ${invoices.length}`);
-    console.log(`Filtered invoices for matching: ${filteredInvoices.length}`);
-    console.log('Available invoices:', invoices.map(i => `${i.invoiceNumber} (${i.invoiceType})`));
-  }
 
   // Allocation mutation
   const allocationMutation = useMutation({
@@ -311,7 +300,7 @@ function NewBasicAllocationContent() {
                 No unallocated payments found
               </p>
             ) : (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
                 {payments.map((payment: UnallocatedPayment) => (
                   <div
                     key={payment.id}
