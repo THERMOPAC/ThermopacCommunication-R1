@@ -139,6 +139,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up finance module routes (main handler - should be first)
   app.use('/api/finance', financeRoutes);
   
+  // Set up clean payment routes for the new Basic Payment Allocation page
+  app.use('/api/finance', cleanPaymentRoutes);
+  
   // Set up simplified finance routes (no database connection required)
   app.use('/api/simple-finance', simpleFinanceRoutes);
   

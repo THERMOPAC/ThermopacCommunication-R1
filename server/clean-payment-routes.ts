@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db.js';
+import { sql } from 'drizzle-orm';
 
 const router = Router();
 
@@ -18,7 +19,7 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
   try {
     console.log('Fetching unallocated advance payments...');
     
-    const query = `
+    const result = await db.execute(sql`
       SELECT 
         p.id, 
         p.irm_no as "paymentReference",
@@ -42,15 +43,13 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
         AND p.unallocated_amount > 0
       ORDER BY 
         p.payment_date DESC
-    `;
-    
-    const result = await pool.query(query);
+    `);
     const advances = result.rows;
     
     console.log(`Found ${advances.length} unallocated advance payments`);
     
     // Calculate total unallocated amount
-    const totalUnallocated = advances.reduce((sum, payment) => {
+    const totalUnallocated = advances.reduce((sum: number, payment: any) => {
       const amount = parseFloat(payment.unallocatedAmount) || 0;
       return sum + amount;
     }, 0);
