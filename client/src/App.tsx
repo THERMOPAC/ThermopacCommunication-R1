@@ -49,6 +49,7 @@ import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
 import ReconciliationReportPage from "@/pages/finance/reports/reconciliation-page";
 import PaymentAllocationPage from "@/pages/finance/payment-allocation-page-new";
 import BasicAllocationPage from "@/pages/finance/basic-allocation-page-new";
+import NewBasicAllocation from "@/pages/finance/new-basic-allocation";
 import BatchAdvanceAllocationPage from "@/pages/finance/batch-advance-allocation-page-fixed";
 import InvoiceAgingDashboard from "@/pages/finance/reports/invoice-aging-dashboard";
 import WriteOffManagementPage from "@/pages/finance/write-off-management";
@@ -158,6 +159,7 @@ function Router() {
       <ProtectedRoute path="/finance/reports/reconciliation" component={ReconciliationReportPage} />
       <ProtectedRoute path="/finance/payment-allocation" component={PaymentAllocationPage} />
       <ProtectedRoute path="/finance/basic-allocation" component={BasicAllocationPage} />
+      <ProtectedRoute path="/finance/new-basic-allocation" component={NewBasicAllocation} />
       <ProtectedRoute path="/finance/batch-advance-allocation" component={BatchAdvanceAllocationPage} />
       <ProtectedRoute path="/finance/payments/:id" component={() => <PaymentDetailPage />} />
       <ProtectedRoute path="/finance/brc" component={BrcPage} />
