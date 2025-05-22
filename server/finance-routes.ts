@@ -3547,4 +3547,112 @@ router.post('/write-offs/:id/reject', ensureAuthenticated, async (req: Request, 
   }
 });
 
+/**
+ * Create a new payment - simple endpoint that returns JSON
+ */
+router.post('/payments/create-new', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    console.log('Creating new payment (simple version):', req.body);
+    
+    const { 
+      paymentDate, 
+      sapPaymentNo,
+      paymentType,
+      amount, 
+      currency = 'USD', 
+      paymentMethod, 
+      notes,
+      isAdvancePayment = true,
+      customerId,
+      irmNo
+    } = req.body;
+    
+    // Validate required fields
+    if (!amount || !paymentDate || !customerId) {
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        details: 'Amount, payment date, and customer ID are required'
+      });
+    }
+    
+    // Basic parameter cleanup
+    const cleanAmount = parseFloat(amount);
+    const payDate = new Date(paymentDate);
+    const customer = parseInt(customerId);
+    
+    if (isNaN(cleanAmount) || cleanAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount value' });
+    }
+    
+    if (isNaN(customer)) {
+      return res.status(400).json({ error: 'Invalid customer ID' });
+    }
+    
+    // Insert the payment record
+    const insertQuery = `
+      INSERT INTO payments (
+        payment_date, 
+        amount, 
+        currency, 
+        payment_method, 
+        notes,
+        is_advance_payment,
+        customer_id,
+        created_by,
+        created_at,
+        updated_at,
+        unallocated_amount,
+        allocated_amount,
+        payment_type,
+        irm_no,
+        sap_payment_no
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      RETURNING *
+    `;
+    
+    const now = new Date();
+    const createdBy = (req.user as any)?.id || 1;
+    
+    const result = await pool.query(insertQuery, [
+      payDate,
+      cleanAmount,
+      currency,
+      paymentMethod,
+      notes,
+      isAdvancePayment,
+      customer,
+      createdBy,
+      now,
+      now,
+      cleanAmount, // Initially, unallocated amount equals the total amount
+      0, // Initially, allocated amount is zero
+      paymentType,
+      irmNo,
+      sapPaymentNo
+    ]);
+    
+    // Get the newly created payment
+    const newPayment = result.rows[0];
+    
+    // Update reference number to use payment ID
+    const refNumber = `PAY-2526-${String(newPayment.id).padStart(3, '0')}`;
+    await pool.query('UPDATE payments SET reference_number = $1 WHERE id = $2', [refNumber, newPayment.id]);
+    
+    // Return success with payment details
+    return res.status(201).json({
+      success: true,
+      message: 'Payment created successfully',
+      paymentId: newPayment.id,
+      referenceNumber: refNumber
+    });
+    
+  } catch (error) {
+    console.error('Error creating payment:', error);
+    return res.status(500).json({ 
+      error: 'Failed to create payment',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
