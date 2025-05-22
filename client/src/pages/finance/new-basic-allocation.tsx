@@ -123,6 +123,9 @@ function NewBasicAllocationContent() {
   const allPayments = paymentsData?.advances || [];
   const allInvoices = Array.isArray(invoicesData) ? invoicesData : [];
 
+  // Debug log to see what data we're getting
+  console.log('Invoices data:', allInvoices.slice(0, 3));
+
   // Get unique customers from both payments and invoices
   const allCustomers = new Set([
     ...allPayments.map((p: UnallocatedPayment) => p.customerName),
@@ -399,7 +402,7 @@ function NewBasicAllocationContent() {
                         <span className="text-muted-foreground">|</span>
                         <span>Due: {new Date(invoice.dueDate).toLocaleDateString()}</span>
                         <span className="text-muted-foreground">|</span>
-                        <span className="font-medium">{invoice.currency} {(invoice.outstandingAmount || 0).toLocaleString()}</span>
+                        <span className="font-medium">{invoice.currency} {Number(invoice.outstandingAmount || 0).toLocaleString()}</span>
                         <span className="text-muted-foreground">|</span>
                         <Badge variant="outline" className="text-xs">
                           {invoice.invoiceType}
