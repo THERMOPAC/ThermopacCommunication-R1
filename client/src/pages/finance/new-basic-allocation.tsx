@@ -454,49 +454,49 @@ function NewBasicAllocationContent() {
               Allocate from {selectedPayment.paymentReference} to {selectedInvoice.invoiceNumber}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-gray-100 rounded">
-              <p className="text-sm"><strong>Debug Test:</strong></p>
-              <p className="text-sm">Payment: {selectedPayment?.paymentReference || 'Not found'}</p>
-              <p className="text-sm">Invoice: {selectedInvoice?.invoiceNumber || 'Not found'}</p>
-              <p className="text-sm">Payment Amount: {selectedPayment?.amount || 'No amount'}</p>
-              <p className="text-sm">Invoice Outstanding: {selectedInvoice?.outstanding_amount || 'No outstanding'}</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent className="space-y-6">
+            {/* Payment Information */}
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <h4 className="font-semibold text-blue-800 mb-3">Payment Information</h4>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-blue-600">Selected Payment Details</label>
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Payment Reference:</span>
-                    <span className="font-semibold">{selectedPayment.paymentReference}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Customer:</span>
-                    <span className="text-sm">{selectedPayment.customerName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Available Amount:</span>
-                    <span className="font-bold text-green-700">{selectedPayment.currency} {selectedPayment.unallocatedAmount}</span>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Reference:</span>
+                  <span className="font-medium">{selectedPayment.paymentReference}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Customer:</span>
+                  <span className="text-sm">{selectedPayment.customerName}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Type:</span>
+                  <span className="text-sm">{selectedPayment.paymentType}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Available Amount:</span>
+                  <span className="font-bold text-green-600">{selectedPayment.currency} {selectedPayment.unallocatedAmount}</span>
                 </div>
               </div>
-              
+            </div>
+
+            {/* Invoice Information */}
+            <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+              <h4 className="font-semibold text-orange-800 mb-3">Invoice Information</h4>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-orange-600">Selected Invoice Details</label>
-                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Invoice Number:</span>
-                    <span className="font-semibold">{selectedInvoice.invoiceNumber}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Customer:</span>
-                    <span className="text-sm">{selectedInvoice.customerName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Outstanding Amount:</span>
-                    <span className="font-bold text-red-700">{selectedInvoice.currency} {selectedInvoice.outstanding_amount}</span>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Invoice Number:</span>
+                  <span className="font-medium">{selectedInvoice.invoiceNumber}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Customer:</span>
+                  <span className="text-sm">{selectedInvoice.customerName}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Type:</span>
+                  <span className="text-sm">{selectedInvoice.invoiceType}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Outstanding Amount:</span>
+                  <span className="font-bold text-red-600">{selectedInvoice.currency} {selectedInvoice.outstanding_amount}</span>
                 </div>
               </div>
             </div>
