@@ -60,7 +60,7 @@ export default function NewPaymentCreatePage() {
       amount: '',
       currency: 'USD',
       paymentMethod: 'bank transfer',
-      paymentType: 'Product',
+      paymentType: '',
       customerId: '',
       isAdvancePayment: true,
       irmNo: '',
