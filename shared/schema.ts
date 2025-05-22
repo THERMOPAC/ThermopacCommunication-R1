@@ -3072,7 +3072,10 @@ export const invoiceItems = pgTable('invoice_items', {
 // Payments table
 export const payments = pgTable('payments', {
   id: serial('id').primaryKey(),
+  irmNo: varchar('irm_no', { length: 100 }),
   paymentDate: date('payment_date').notNull(),
+  sapPaymentNo: varchar('sap_payment_no', { length: 100 }),
+  paymentType: varchar('payment_type', { length: 20 }),
   amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
   currency: varchar('currency', { length: 3 }).notNull().default('INR'),
   paymentMethod: varchar('payment_method', { length: 50 }).notNull(),
@@ -3081,7 +3084,7 @@ export const payments = pgTable('payments', {
   proofDocumentPath: varchar('proof_document_path', { length: 255 }),
   isAdvancePayment: boolean('is_advance_payment').default(false),
   unallocatedAmount: decimal('unallocated_amount', { precision: 15, scale: 2 }),
-  allocationStatus: varchar('allocation_status', { length: 20 }).default('Unallocated'),
+  allocatedAmount: decimal('allocated_amount', { precision: 15, scale: 2 }).default('0'),
   customerId: integer('customer_id'),
   createdBy: integer('created_by').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
