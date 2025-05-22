@@ -23,6 +23,7 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
           issue_date AS "issueDate",
           due_date AS "dueDate",
           total_amount AS "totalAmount",
+          outstanding_amount AS "outstandingAmount",
           currency,
           status,
           sap_invoice_no AS "sapInvoiceNo", 
