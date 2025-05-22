@@ -51,7 +51,7 @@ interface OutstandingInvoice {
   issueDate: string;
   dueDate: string;
   totalAmount: number;
-  outstandingAmount: number;
+  outstanding_amount: number;
   currency: string;
   invoiceType: string;
 }
@@ -402,7 +402,7 @@ function NewBasicAllocationContent() {
                         <span className="text-muted-foreground">|</span>
                         <span>Due: {new Date(invoice.dueDate).toLocaleDateString()}</span>
                         <span className="text-muted-foreground">|</span>
-                        <span className="font-medium">{invoice.currency} {Number(invoice.outstandingAmount || 0).toLocaleString()}</span>
+                        <span className="font-medium">{invoice.currency} {Number(invoice.outstanding_amount || invoice.totalAmount || 0).toLocaleString()}</span>
                         <span className="text-muted-foreground">|</span>
                         <Badge variant="outline" className="text-xs">
                           {invoice.invoiceType}
