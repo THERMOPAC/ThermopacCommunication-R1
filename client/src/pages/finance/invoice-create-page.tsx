@@ -808,9 +808,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         
         console.log('Sending invoice data to server:', JSON.stringify(apiData, null, 2));
         
-        // Try simple-finance endpoint first, which respects our client-side invoice number
-        console.log('Trying simplified invoice creation endpoint with invoice number:', values.invoiceNumber);
-        const response = await fetch('/api/simple-finance/invoices', {
+        // Use our fixed direct endpoint that properly handles invoiceType and outstanding_amount
+        console.log('Using fixed direct invoice creation endpoint with invoice number:', values.invoiceNumber);
+        const response = await fetch('/api/finance/invoices/direct', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
