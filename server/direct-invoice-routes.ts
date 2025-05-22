@@ -43,8 +43,8 @@ router.post('/invoices/direct', async (req: Request, res: Response) => {
       const insertInvoiceQuery = `
         INSERT INTO invoices (
           invoice_number, customer_id, project_id, issue_date, due_date, 
-          total_amount, currency, status, notes, created_by, sap_invoice_no, invoice_type
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
+          total_amount, outstanding_amount, paid_amount, currency, status, notes, created_by, sap_invoice_no, invoice_type
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
         RETURNING *
       `;
       
@@ -55,6 +55,8 @@ router.post('/invoices/direct', async (req: Request, res: Response) => {
         invoice.issueDate,
         invoice.dueDate,
         totalAmount,
+        totalAmount, // outstanding_amount = total_amount initially
+        0, // paid_amount = 0 initially
         invoice.currency || 'USD',
         'Pending',
         invoice.notes || null,
