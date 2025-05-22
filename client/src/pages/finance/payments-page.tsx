@@ -312,7 +312,6 @@ export default function PaymentsPage() {
             <thead>
               <tr className="bg-muted/50">
                 <th className="px-4 py-3 text-left text-sm font-medium">Payment ID</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Reference Number</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Payment Date</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Customer Name</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Payment Method</th>
@@ -330,9 +329,6 @@ export default function PaymentsPage() {
                       <Link href={`/finance/payments/${payment.id}`} className="text-primary hover:underline">
                         {payment.id}
                       </Link>
-                    </td>
-                    <td className="px-4 py-3 text-left text-sm">
-                      {payment.reference_number || "N/A"}
                     </td>
                     <td className="px-4 py-3 text-left text-sm">{formatDate(new Date(payment.paymentDate))}</td>
                     <td className="px-4 py-3 text-left text-sm">{payment.customerName || "N/A"}</td>
