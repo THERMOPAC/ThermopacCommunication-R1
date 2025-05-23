@@ -167,6 +167,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up simplified finance routes (no database connection required)
   app.use('/api/simple-finance', simpleFinanceRoutes);
   
+  // Mount simple finance routes at /api/finance as well for write-off approvals
+  app.use('/api/finance', simpleFinanceRoutes);
+  
   // Set up payment allocation API (secondary)
   app.use('/api/finance/allocations', paymentAllocationApi);
   
