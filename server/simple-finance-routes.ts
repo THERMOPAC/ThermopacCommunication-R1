@@ -600,10 +600,56 @@ router.post('/allocate-payment', ensureAuthenticated, async (req: Request, res: 
   }
 });
 
-// Write-off approval endpoint with clear debugging
+// BRAND NEW APPROVAL ENDPOINT - COMPLETELY UNIQUE PATH
+router.post('/writeoff-approve-action/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    console.log(`🚀 NEW APPROVAL ENDPOINT HIT! 🚀`);
+    const { id } = req.params;
+    const approverId = req.user?.id;
+
+    console.log(`✅ Approving write-off ${id} by user ${approverId}`);
+
+    const updateQuery = `
+      UPDATE finance_write_offs 
+      SET status = 'Approved', 
+          approved_by = $1, 
+          approval_date = NOW(), 
+          updated_at = NOW()
+      WHERE id = $2 AND status = 'Pending'
+      RETURNING *
+    `;
+
+    console.log(`📝 Executing approval query for write-off ${id}`);
+    const result = await pool.query(updateQuery, [approverId, id]);
+
+    if (result.rows.length === 0) {
+      console.log(`❌ Write-off ${id} not found or already processed`);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Write-off not found or already processed' 
+      });
+    }
+
+    console.log(`✅ Write-off ${id} approved successfully!`);
+    res.json({ 
+      success: true, 
+      message: 'Write-off approved successfully',
+      writeOff: result.rows[0] 
+    });
+  } catch (error: any) {
+    console.error('❌ Error approving write-off:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to approve write-off',
+      message: error.message 
+    });
+  }
+});
+
+// Keep the old endpoint for compatibility but with debugging
 router.post('/write-offs/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    console.log(`🚀 APPROVAL ENDPOINT HIT IN SIMPLE-FINANCE-ROUTES! 🚀`);
+    console.log(`🚀 OLD APPROVAL ENDPOINT HIT IN SIMPLE-FINANCE-ROUTES! 🚀`);
     const { id } = req.params;
     const approverId = req.user?.id;
 

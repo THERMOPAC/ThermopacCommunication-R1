@@ -273,7 +273,7 @@ const WriteOffManagementPage = () => {
     try {
       console.log(`Attempting to approve write-off ${writeOffId}`);
       
-      const response = await fetch(`/api/finance/write-offs/${writeOffId}/approve`, {
+      const response = await fetch(`/api/finance/writeoff-approve-action/${writeOffId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
