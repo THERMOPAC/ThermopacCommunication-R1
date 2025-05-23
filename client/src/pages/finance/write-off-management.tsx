@@ -271,12 +271,23 @@ const WriteOffManagementPage = () => {
   // Approve write-off function
   const approveWriteOff = async (writeOffId: number) => {
     try {
+      console.log(`Attempting to approve write-off ${writeOffId}`);
+      
       const response = await fetch(`/api/finance/write-offs/${writeOffId}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
       
-      if (!response.ok) throw new Error('Failed to approve write-off');
+      console.log('Approval response:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Approval failed:', errorData);
+        throw new Error('Failed to approve write-off');
+      }
+      
+      const result = await response.json();
+      console.log('Approval successful:', result);
       
       toast({
         title: "Success",
@@ -284,6 +295,7 @@ const WriteOffManagementPage = () => {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/finance/write-offs'] });
     } catch (error) {
+      console.error('Approve write-off error:', error);
       toast({
         title: "Error",
         description: "Failed to approve write-off",
