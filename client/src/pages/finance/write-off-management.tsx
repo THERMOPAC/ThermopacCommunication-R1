@@ -85,6 +85,11 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
         (invoice.customerId || invoice.customer_id)?.toString() === selectedCustomer)
     : outstandingInvoices;
 
+  // Debug logging to see what's happening
+  console.log('Outstanding invoices:', outstandingInvoices);
+  console.log('Selected customer:', selectedCustomer);
+  console.log('Filtered invoices:', filteredInvoices);
+
   // Create write-off mutation
   const createWriteOffMutation = useMutation({
     mutationFn: async (writeOffData: any) => {
