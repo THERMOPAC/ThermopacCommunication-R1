@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import Layout from '@/components/layout';
+import { Helmet } from 'react-helmet';
 
 interface Payment {
   id: number;
@@ -183,10 +185,14 @@ export default function PaymentAllocationRedesigned() {
     : [];
 
   return (
-    <div className="ml-64 p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Payment Allocation</h1>
-      </div>
+    <Layout>
+      <Helmet>
+        <title>Payment Allocation | THERMOPAC Finance</title>
+      </Helmet>
+      <div className="container py-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Payment Allocation</h1>
+        </div>
 
       {/* Customer Selection */}
       <Card>
