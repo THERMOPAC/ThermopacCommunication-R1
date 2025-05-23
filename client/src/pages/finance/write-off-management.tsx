@@ -354,8 +354,8 @@ const WriteOffManagementPage = () => {
   const approvedCount = writeOffs.filter((wo: WriteOff) => wo.status === 'Approved').length;
   const rejectedCount = writeOffs.filter((wo: WriteOff) => wo.status === 'Rejected').length;
 
-  // Check if user can approve write-offs
-  const canApprove = user && canManage(user);
+  // Check if user can approve write-offs (allow for superusers and managers)
+  const canApprove = user && (user.role === 'Superuser' || user.role === 'Manager' || canManage(user));
 
   // Get status variant for badge styling
   const getStatusVariant = (status: string) => {
@@ -433,7 +433,7 @@ const WriteOffManagementPage = () => {
                       <TableHead>Reason</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
-                      {activeTab === "pending" && canApprove && <TableHead>Actions</TableHead>}
+                      {activeTab === "pending" && <TableHead>Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -471,7 +471,7 @@ const WriteOffManagementPage = () => {
                             {writeOff.status}
                           </Badge>
                         </TableCell>
-                        {activeTab === "pending" && canApprove && (
+                        {activeTab === "pending" && (
                           <TableCell>
                             <div className="space-x-2">
                               <Button 
