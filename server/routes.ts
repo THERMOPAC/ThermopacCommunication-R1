@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth, ensureAuthenticated } from "./auth";
+import { setupAuth } from "./auth";
+import { ensureAuthenticated } from "./auth-middleware";
 import { storage } from "./storage";
 import { insertTaskSchema, insertUserSchema, insertRecurringPatternSchema, insertRecurringTaskSchema } from "@shared/schema";
 import { canManage, roleHierarchy } from "@shared/roles";

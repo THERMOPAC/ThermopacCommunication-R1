@@ -39,6 +39,23 @@ router.post('/approve-writeoff/:id', ensureAuthenticated, async (req: Request, r
         message: 'Write-off not found or already processed' 
       });
     }
+
+    // Update the related invoice to reflect the write-off
+    const writeOff = result.rows[0];
+    const invoiceUpdateQuery = `
+      UPDATE invoices 
+      SET write_off_amount = COALESCE(write_off_amount, 0) + $1,
+          outstanding_amount = total_amount - COALESCE(paid_amount, 0) - (COALESCE(write_off_amount, 0) + $1),
+          status = CASE 
+            WHEN (total_amount - COALESCE(paid_amount, 0) - (COALESCE(write_off_amount, 0) + $1)) <= 0 THEN 'Paid'
+            WHEN COALESCE(paid_amount, 0) > 0 OR (COALESCE(write_off_amount, 0) + $1) > 0 THEN 'Partially Paid'
+            ELSE status 
+          END
+      WHERE id = $2
+    `;
+    
+    console.log(`📝 Updating invoice ${writeOff.invoice_id} to reflect write-off amount ${writeOff.amount}`);
+    await pool.query(invoiceUpdateQuery, [writeOff.amount, writeOff.invoice_id]);
     
     console.log(`✅ WORKING SUCCESS! Write-off ${req.params.id} approved successfully!`);
     return res.status(200).json({ 
