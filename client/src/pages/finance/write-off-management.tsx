@@ -68,18 +68,15 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
   
   const customersWithOutstanding = customersData.customers || [];
 
-  // Fetch outstanding invoices for write-off - only when customer is selected
+  // Fetch outstanding invoices for write-off - load all invoices, then filter by customer
   const { data: outstandingInvoices = [], isLoading: loadingInvoices } = useQuery({
-    queryKey: ['/api/finance/outstanding-invoices', selectedCustomer],
+    queryKey: ['/api/finance/outstanding-invoices'],
     queryFn: async () => {
-      if (!selectedCustomer) return [];
-      
-      const response = await fetch(`/api/finance/outstanding-invoices?customerId=${selectedCustomer}`);
+      const response = await fetch('/api/finance/outstanding-invoices');
       if (!response.ok) throw new Error('Failed to fetch outstanding invoices');
       const data = await response.json();
       return data.invoices || [];
-    },
-    enabled: !!selectedCustomer // Only run query when customer is selected
+    }
   });
 
   // Filter invoices based on selected customer
