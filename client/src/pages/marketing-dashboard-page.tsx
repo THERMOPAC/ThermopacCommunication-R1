@@ -704,7 +704,7 @@ export default function MarketingDashboardPage() {
                       <div className="w-full">
                         <div className="flex items-center justify-end">
                           <DollarSign className="h-6 w-6 mr-1" />
-                          <span className="text-right">USD ${expectedRevenueStats ? (expectedRevenueStats.totalUSD || 0).toLocaleString() : '0'}</span>
+                          <span className="text-right">USD {expectedRevenueStats ? (expectedRevenueStats.totalUSD || 0).toLocaleString() : '0'}</span>
                         </div>
                         <div className="text-base text-green-600 font-normal text-right">
                           ~INR ₹{expectedRevenueStats ? formatINRInCrores(expectedRevenueStats.totalINR) : '0'} Cr
