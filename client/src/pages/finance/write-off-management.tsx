@@ -68,11 +68,23 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
       console.log('Making customer API call...');
       const response = await fetch('/api/finance/customers-with-outstanding');
       console.log('Customer API response status:', response.status);
+      
+      // Log the raw response text to see what we're actually getting
+      const responseText = await response.text();
+      console.log('Raw response text:', responseText);
+      
       if (!response.ok) throw new Error('Failed to fetch customers');
-      const data = await response.json();
-      console.log('Customers data from API:', data);
-      console.log('Customers array:', data.customers);
-      return data.customers || [];
+      
+      try {
+        const data = JSON.parse(responseText);
+        console.log('Parsed JSON data:', data);
+        console.log('Customers array:', data.customers);
+        return data.customers || [];
+      } catch (error) {
+        console.error('JSON parsing error:', error);
+        console.error('Response was:', responseText);
+        return [];
+      }
     }
   });
 
