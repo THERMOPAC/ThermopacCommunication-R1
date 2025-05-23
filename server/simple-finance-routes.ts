@@ -600,4 +600,92 @@ router.post('/allocate-payment', ensureAuthenticated, async (req: Request, res: 
   }
 });
 
+// Write-off approval endpoint
+router.post('/write-offs/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const approverId = req.user?.id;
+
+    console.log(`Approving write-off ${id} by user ${approverId}`);
+
+    const updateQuery = `
+      UPDATE finance_write_offs 
+      SET status = 'Approved', 
+          approved_by = $1, 
+          approval_date = NOW(), 
+          updated_at = NOW()
+      WHERE id = $2 AND status = 'Pending'
+      RETURNING *
+    `;
+
+    const result = await pool.query(updateQuery, [approverId, id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Write-off not found or already processed' 
+      });
+    }
+
+    console.log(`Write-off ${id} approved successfully`);
+    res.json({ 
+      success: true, 
+      message: 'Write-off approved successfully',
+      writeOff: result.rows[0] 
+    });
+  } catch (error: any) {
+    console.error('Error approving write-off:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to approve write-off',
+      message: error.message 
+    });
+  }
+});
+
+// Write-off rejection endpoint
+router.post('/write-offs/:id/reject', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const approverId = req.user?.id;
+    const { reason } = req.body;
+
+    console.log(`Rejecting write-off ${id} by user ${approverId}`);
+
+    const updateQuery = `
+      UPDATE finance_write_offs 
+      SET status = 'Rejected', 
+          approved_by = $1, 
+          approval_date = NOW(), 
+          rejection_reason = $2,
+          updated_at = NOW()
+      WHERE id = $3 AND status = 'Pending'
+      RETURNING *
+    `;
+
+    const result = await pool.query(updateQuery, [approverId, reason, id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Write-off not found or already processed' 
+      });
+    }
+
+    console.log(`Write-off ${id} rejected successfully`);
+    res.json({ 
+      success: true, 
+      message: 'Write-off rejected successfully',
+      writeOff: result.rows[0] 
+    });
+  } catch (error: any) {
+    console.error('Error rejecting write-off:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to reject write-off',
+      message: error.message 
+    });
+  }
+});
+
 export default router;
