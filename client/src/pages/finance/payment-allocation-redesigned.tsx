@@ -194,27 +194,27 @@ export default function PaymentAllocationRedesigned() {
           <h1 className="text-3xl font-bold">Payment Allocation</h1>
         </div>
 
-      {/* Customer Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Customer</CardTitle>
-          <CardDescription>Choose a customer to view their payments and invoices</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a customer" />
-            </SelectTrigger>
-            <SelectContent>
-              {uniqueCustomers.map((customer) => (
-                <SelectItem key={customer.id} value={customer.id.toString()}>
-                  {customer.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+        {/* Customer Selection */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Customer</CardTitle>
+            <CardDescription>Choose a customer to view their payments and invoices</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a customer" />
+              </SelectTrigger>
+              <SelectContent>
+                {uniqueCustomers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id.toString()}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
 
       {selectedCustomerId && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -401,6 +401,7 @@ export default function PaymentAllocationRedesigned() {
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+    </Layout>
   );
 }
