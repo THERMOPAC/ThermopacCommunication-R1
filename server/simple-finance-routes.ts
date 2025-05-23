@@ -600,13 +600,14 @@ router.post('/allocate-payment', ensureAuthenticated, async (req: Request, res: 
   }
 });
 
-// Write-off approval endpoint
+// Write-off approval endpoint with clear debugging
 router.post('/write-offs/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    console.log(`🚀 APPROVAL ENDPOINT HIT IN SIMPLE-FINANCE-ROUTES! 🚀`);
     const { id } = req.params;
     const approverId = req.user?.id;
 
-    console.log(`Approving write-off ${id} by user ${approverId}`);
+    console.log(`✅ Approving write-off ${id} by user ${approverId}`);
 
     const updateQuery = `
       UPDATE finance_write_offs 
@@ -618,23 +619,25 @@ router.post('/write-offs/:id/approve', ensureAuthenticated, async (req: Request,
       RETURNING *
     `;
 
+    console.log(`📝 Executing approval query for write-off ${id}`);
     const result = await pool.query(updateQuery, [approverId, id]);
 
     if (result.rows.length === 0) {
+      console.log(`❌ Write-off ${id} not found or already processed`);
       return res.status(404).json({ 
         success: false, 
         message: 'Write-off not found or already processed' 
       });
     }
 
-    console.log(`Write-off ${id} approved successfully`);
+    console.log(`✅ Write-off ${id} approved successfully!`);
     res.json({ 
       success: true, 
       message: 'Write-off approved successfully',
       writeOff: result.rows[0] 
     });
   } catch (error: any) {
-    console.error('Error approving write-off:', error);
+    console.error('❌ Error approving write-off:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to approve write-off',
