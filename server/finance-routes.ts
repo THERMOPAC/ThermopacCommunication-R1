@@ -2800,11 +2800,11 @@ router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Reque
     const query = `
       SELECT DISTINCT
         c.id,
-        c.name
+        c.bp_name as name
       FROM customers c
       INNER JOIN invoices i ON c.id = i.customer_id
       WHERE i.outstanding_amount > 0
-      ORDER BY c.name ASC
+      ORDER BY c.bp_name ASC
     `;
     
     const result = await pool.query(query);
