@@ -56,6 +56,7 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
   const queryClient = useQueryClient();
   const [selectedInvoice, setSelectedInvoice] = useState('');
   const [writeOffAmount, setWriteOffAmount] = useState('');
+  const [postingDate, setPostingDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
 
@@ -100,7 +101,7 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedInvoice || !writeOffAmount || !reason) {
+    if (!selectedInvoice || !writeOffAmount || !reason || !postingDate) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -115,7 +116,8 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
       amount: parseFloat(writeOffAmount),
       reason,
       description,
-      currency: invoice?.currency || 'USD'
+      currency: invoice?.currency || 'USD',
+      postingDate
     });
   };
 
@@ -163,6 +165,22 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
               Outstanding: {selectedInvoiceData.currency} {selectedInvoiceData.outstandingAmount}
             </p>
           )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="postingDate">Posting Date *</Label>
+          <Input
+            id="postingDate"
+            type="date"
+            value={postingDate}
+            onChange={(e) => setPostingDate(e.target.value)}
+          />
+        </div>
+
+        <div>
+          {/* Empty div for spacing to keep the layout consistent */}
         </div>
       </div>
 

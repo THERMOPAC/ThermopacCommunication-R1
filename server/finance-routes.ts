@@ -3699,7 +3699,7 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
  */
 router.post('/write-offs', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { invoiceId, amount, reason, description, currency } = req.body;
+    const { invoiceId, amount, reason, description, currency, postingDate } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -3750,9 +3750,10 @@ router.post('/write-offs', ensureAuthenticated, async (req: Request, res: Respon
         currency,
         status,
         created_by,
+        date_created,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
       RETURNING *
     `;
     
@@ -3763,7 +3764,8 @@ router.post('/write-offs', ensureAuthenticated, async (req: Request, res: Respon
       description || null,
       currency || invoice.currency,
       'Pending', // Default status is pending approval
-      userId
+      userId,
+      postingDate || new Date().toISOString().split('T')[0] // Use posting date or default to today
     ];
     
     const result = await pool.query(insertQuery, values);
