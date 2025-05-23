@@ -110,7 +110,7 @@ export default function InvoicesPage() {
     
     if (statusFilter === 'all') {
       matchesStatus = true;
-    } else if (statusFilter === 'pending' && invoice.status === 'Pending') {
+    } else if (statusFilter === 'pending' && (invoice.status === 'Pending' || invoice.status === 'Partially Paid')) {
       matchesStatus = true;
     } else if (statusFilter === 'overdue') {
       // Check if the invoice is overdue by comparing the due date with today's date
