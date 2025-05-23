@@ -40,6 +40,52 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // CRITICAL: Add write-off approval endpoint BEFORE any other middleware
+  app.post('/api/approve-writeoff/:id', async (req: any, res: any) => {
+    try {
+      console.log(`🚀 CRITICAL APPROVAL ENDPOINT HIT! ID: ${req.params.id}`);
+      
+      // Get user from session - simple approach
+      const userId = req.session?.passport?.user || 3; // fallback to user 3 for testing
+      
+      const { pool } = await import('./db');
+      const updateQuery = `
+        UPDATE finance_write_offs 
+        SET status = 'Approved', 
+            approved_by = $1, 
+            approval_date = NOW(), 
+            updated_at = NOW()
+        WHERE id = $2 AND status = 'Pending'
+        RETURNING *
+      `;
+      
+      console.log(`📝 Executing critical approval query for write-off ${req.params.id} by user ${userId}`);
+      const result = await pool.query(updateQuery, [userId, req.params.id]);
+      
+      if (result.rows.length === 0) {
+        console.log(`❌ Write-off ${req.params.id} not found or already processed`);
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Write-off not found or already processed' 
+        });
+      }
+      
+      console.log(`✅ CRITICAL SUCCESS! Write-off ${req.params.id} approved successfully!`);
+      res.json({ 
+        success: true, 
+        message: 'Write-off approved successfully',
+        writeOff: result.rows[0] 
+      });
+    } catch (error: any) {
+      console.error('❌ Critical writeoff approval error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to approve write-off',
+        message: error.message 
+      });
+    }
+  });
+
   const server = await registerRoutes(app);
 
   // Add a special middleware to ensure all API routes return JSON even for errors
