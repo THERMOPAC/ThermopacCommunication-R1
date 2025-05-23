@@ -49,6 +49,7 @@ const WriteOffManagementPage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("pending");
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   // Format currency values
   const formatCurrency = (amount: number | string, currency: string) => {
@@ -137,7 +138,7 @@ const WriteOffManagementPage = () => {
                     </TabsList>
                   </Tabs>
                   
-                  <Button>
+                  <Button onClick={() => setShowCreateForm(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     Create Write-off
                   </Button>
