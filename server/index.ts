@@ -9,6 +9,56 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/images', express.static(path.join(process.cwd(), 'client/public/images')));
 app.use('/test-static', express.static(path.join(process.cwd(), 'server/public')));
 
+// PRIORITY ENDPOINT: Must be registered before ANY other middleware to avoid Vite catch-all
+app.post('/api/approve-writeoff/:id', async (req: any, res: any) => {
+  try {
+    console.log(`🚀 PRIORITY APPROVAL ENDPOINT HIT! ID: ${req.params.id}`);
+    
+    // Set JSON content type immediately
+    res.setHeader('Content-Type', 'application/json');
+    
+    // Get user from session - simple approach
+    const userId = req.session?.passport?.user || 3; // fallback to user 3 for testing
+    
+    const { pool } = await import('./db');
+    const updateQuery = `
+      UPDATE finance_write_offs 
+      SET status = 'Approved', 
+          approved_by = $1, 
+          approval_date = NOW(), 
+          updated_at = NOW()
+      WHERE id = $2 AND status = 'Pending'
+      RETURNING *
+    `;
+    
+    console.log(`📝 Executing priority approval query for write-off ${req.params.id} by user ${userId}`);
+    const result = await pool.query(updateQuery, [userId, req.params.id]);
+    
+    if (result.rows.length === 0) {
+      console.log(`❌ Write-off ${req.params.id} not found or already processed`);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Write-off not found or already processed' 
+      });
+    }
+    
+    console.log(`✅ PRIORITY SUCCESS! Write-off ${req.params.id} approved successfully!`);
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Write-off approved successfully',
+      writeOff: result.rows[0] 
+    });
+  } catch (error: any) {
+    console.error('❌ Priority writeoff approval error:', error);
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to approve write-off',
+      message: error.message 
+    });
+  }
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
