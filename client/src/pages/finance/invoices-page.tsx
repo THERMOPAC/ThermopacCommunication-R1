@@ -116,7 +116,7 @@ export default function InvoicesPage() {
       // Check if the invoice is overdue by comparing the due date with today's date
       const dueDate = new Date(invoice.dueDate);
       const today = new Date();
-      matchesStatus = dueDate < today && invoice.status === 'Pending';
+      matchesStatus = dueDate < today && (invoice.status === 'Pending' || invoice.status === 'Partially Paid');
     } else if (statusFilter === 'paid' && invoice.status === 'Paid') {
       matchesStatus = true;
     }
