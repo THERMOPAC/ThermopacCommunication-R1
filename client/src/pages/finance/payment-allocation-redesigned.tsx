@@ -183,7 +183,7 @@ export default function PaymentAllocationRedesigned() {
     : [];
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="ml-64 p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Payment Allocation</h1>
       </div>
