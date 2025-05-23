@@ -81,7 +81,7 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
 
   // Since invoice data doesn't contain customer relationship, show all invoices
   // Customer selection is optional for user reference only
-  const filteredInvoices = outstandingInvoices;
+  const filteredInvoices = Array.isArray(outstandingInvoices) ? outstandingInvoices : [];
 
   // Create write-off mutation
   const createWriteOffMutation = useMutation({
@@ -262,9 +262,59 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
 
 const WriteOffManagementPage = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("pending");
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
   const [showCreateForm, setShowCreateForm] = useState(false);
+
+  // Approve write-off function
+  const approveWriteOff = async (writeOffId: number) => {
+    try {
+      const response = await fetch(`/api/finance/write-offs/${writeOffId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      if (!response.ok) throw new Error('Failed to approve write-off');
+      
+      toast({
+        title: "Success",
+        description: "Write-off approved successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/write-offs'] });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to approve write-off",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Reject write-off function
+  const rejectWriteOff = async (writeOffId: number) => {
+    try {
+      const response = await fetch(`/api/finance/write-offs/${writeOffId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      if (!response.ok) throw new Error('Failed to reject write-off');
+      
+      toast({
+        title: "Success",
+        description: "Write-off rejected successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/write-offs'] });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reject write-off",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Format currency values
   const formatCurrency = (amount: number | string, currency: string) => {
@@ -423,12 +473,24 @@ const WriteOffManagementPage = () => {
                         </TableCell>
                         {activeTab === "pending" && canApprove && (
                           <TableCell>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                            >
-                              Review
-                            </Button>
+                            <div className="space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="text-green-600 hover:bg-green-50"
+                                onClick={() => approveWriteOff(writeOff.id)}
+                              >
+                                Approve
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="text-red-600 hover:bg-red-50"
+                                onClick={() => rejectWriteOff(writeOff.id)}
+                              >
+                                Reject
+                              </Button>
+                            </div>
                           </TableCell>
                         )}
                       </TableRow>
