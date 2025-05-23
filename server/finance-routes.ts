@@ -2793,6 +2793,33 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
 });
 
 /**
+ * Get customers with outstanding invoices
+ */
+router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const query = `
+      SELECT DISTINCT
+        c.id,
+        c.name
+      FROM customers c
+      INNER JOIN invoices i ON c.id = i.customer_id
+      WHERE i.outstanding_amount > 0
+      ORDER BY c.name ASC
+    `;
+    
+    const result = await pool.query(query);
+    const customers = result.rows;
+    
+    res.json({
+      customers: customers
+    });
+  } catch (error) {
+    console.error('Error fetching customers with outstanding invoices:', error);
+    res.status(500).json({ error: 'Failed to fetch customers' });
+  }
+});
+
+/**
  * Get unallocated advance payments - clean implementation
  */
 router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Request, res: Response) => {

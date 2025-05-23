@@ -54,11 +54,23 @@ type WriteOff = {
 const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedCustomer, setSelectedCustomer] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState('');
   const [writeOffAmount, setWriteOffAmount] = useState('');
   const [postingDate, setPostingDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
+
+  // Fetch customers with outstanding invoices
+  const { data: customersWithOutstanding = [] } = useQuery({
+    queryKey: ['/api/finance/customers-with-outstanding'],
+    queryFn: async () => {
+      const response = await fetch('/api/finance/customers-with-outstanding');
+      if (!response.ok) throw new Error('Failed to fetch customers');
+      const data = await response.json();
+      return data.customers || [];
+    }
+  });
 
   // Fetch outstanding invoices for write-off
   const { data: outstandingInvoices = [], isLoading: loadingInvoices } = useQuery({
@@ -70,6 +82,11 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
       return data.invoices || [];
     }
   });
+
+  // Filter invoices based on selected customer
+  const filteredInvoices = selectedCustomer 
+    ? outstandingInvoices.filter((invoice: any) => invoice.customerId?.toString() === selectedCustomer)
+    : outstandingInvoices;
 
   // Create write-off mutation
   const createWriteOffMutation = useMutation({
@@ -110,7 +127,7 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
       return;
     }
 
-    const invoice = outstandingInvoices.find((inv: any) => inv.id.toString() === selectedInvoice);
+    const invoice = filteredInvoices.find((inv: any) => inv.id.toString() === selectedInvoice);
     createWriteOffMutation.mutate({
       invoiceId: parseInt(selectedInvoice),
       amount: parseFloat(writeOffAmount),
@@ -121,17 +138,38 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
     });
   };
 
-  const selectedInvoiceData = outstandingInvoices.find((inv: any) => inv.id.toString() === selectedInvoice);
+  const selectedInvoiceData = filteredInvoices.find((inv: any) => inv.id.toString() === selectedInvoice);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
+          <Label htmlFor="customer">Filter by Customer (Optional)</Label>
+          <Select value={selectedCustomer} onValueChange={(value) => {
+            setSelectedCustomer(value);
+            setSelectedInvoice(''); // Reset invoice selection
+            setWriteOffAmount(''); // Reset amount
+          }}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Customers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Customers</SelectItem>
+              {customersWithOutstanding.map((customer: any) => (
+                <SelectItem key={customer.id} value={customer.id.toString()}>
+                  {customer.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
           <Label htmlFor="invoice">Select Invoice *</Label>
           <Select value={selectedInvoice} onValueChange={(value) => {
             setSelectedInvoice(value);
             // Auto-populate write-off amount with full outstanding amount
-            const invoice = outstandingInvoices.find((inv: any) => inv.id.toString() === value);
+            const invoice = filteredInvoices.find((inv: any) => inv.id.toString() === value);
             if (invoice) {
               setWriteOffAmount(invoice.outstandingAmount.toString());
             }
@@ -140,13 +178,16 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
               <SelectValue placeholder="Choose invoice to write off" />
             </SelectTrigger>
             <SelectContent>
-              {outstandingInvoices.map((invoice: any) => (
+              {filteredInvoices.map((invoice: any) => (
                 <SelectItem key={invoice.id} value={invoice.id.toString()}>
                   {invoice.invoiceNumber} - {invoice.customerName} ({invoice.currency} {invoice.outstandingAmount})
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {selectedCustomer && filteredInvoices.length === 0 && (
+            <p className="text-sm text-gray-500 mt-1">No outstanding invoices for selected customer</p>
+          )}
         </div>
 
         <div>
