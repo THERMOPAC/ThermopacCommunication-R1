@@ -3656,4 +3656,152 @@ router.post('/payments/create-new', ensureAuthenticated, async (req: Request, re
   }
 });
 
+/**
+ * Get outstanding invoices for write-off selection
+ */
+router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const query = `
+      SELECT 
+        i.id,
+        i.invoice_number as "invoiceNumber",
+        c.name as "customerName",
+        i.total_amount as "totalAmount",
+        COALESCE(i.outstanding_amount, i.total_amount) as "outstandingAmount",
+        i.currency,
+        i.status,
+        i.due_date as "dueDate"
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      WHERE 
+        i.status IN ('Pending', 'Partially Paid') 
+        AND COALESCE(i.outstanding_amount, i.total_amount) > 0
+      ORDER BY i.due_date ASC, i.created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      invoices: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching outstanding invoices:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch outstanding invoices',
+      details: error.message 
+    });
+  }
+});
+
+/**
+ * Create a new write-off
+ */
+router.post('/write-offs', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { invoiceId, amount, reason, description, currency } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    if (!invoiceId || !amount || !reason) {
+      return res.status(400).json({ error: 'Missing required fields: invoiceId, amount, reason' });
+    }
+
+    // Validate the invoice exists and has outstanding amount
+    const invoiceQuery = `
+      SELECT 
+        i.id,
+        i.invoice_number as "invoiceNumber",
+        c.name as "customerName",
+        i.total_amount as "totalAmount",
+        COALESCE(i.outstanding_amount, i.total_amount) as "outstandingAmount",
+        i.currency
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      WHERE i.id = $1
+    `;
+    
+    const invoiceResult = await pool.query(invoiceQuery, [invoiceId]);
+    
+    if (invoiceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    
+    const invoice = invoiceResult.rows[0];
+    const writeOffAmount = parseFloat(amount);
+    const outstandingAmount = parseFloat(invoice.outstandingAmount);
+    
+    if (writeOffAmount > outstandingAmount) {
+      return res.status(400).json({ 
+        error: `Write-off amount (${writeOffAmount}) cannot exceed outstanding amount (${outstandingAmount})` 
+      });
+    }
+
+    // Create the write-off record
+    const insertQuery = `
+      INSERT INTO financial_writeoffs (
+        invoice_id,
+        amount,
+        reason,
+        notes,
+        currency,
+        status,
+        created_by,
+        created_at,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+      RETURNING *
+    `;
+    
+    const values = [
+      invoiceId,
+      writeOffAmount,
+      reason,
+      description || null,
+      currency || invoice.currency,
+      'Pending', // Default status is pending approval
+      userId
+    ];
+    
+    const result = await pool.query(insertQuery, values);
+    const writeOff = result.rows[0];
+    
+    // Format the response
+    const formattedWriteOff = {
+      id: writeOff.id,
+      invoiceId: writeOff.invoice_id,
+      invoiceNumber: invoice.invoiceNumber,
+      customerName: invoice.customerName,
+      amount: writeOff.amount,
+      originalInvoiceAmount: invoice.totalAmount,
+      reason: writeOff.reason,
+      notes: writeOff.notes,
+      currency: writeOff.currency,
+      status: writeOff.status,
+      createdBy: {
+        id: userId,
+        name: req.user?.username || 'Unknown'
+      },
+      dateCreated: writeOff.created_at,
+      approvedBy: null,
+      approvalDate: null
+    };
+    
+    res.status(201).json({
+      success: true,
+      message: 'Write-off created successfully and submitted for approval',
+      writeOff: formattedWriteOff
+    });
+  } catch (error) {
+    console.error('Error creating write-off:', error);
+    res.status(500).json({ 
+      error: 'Failed to create write-off',
+      details: error.message 
+    });
+  }
+});
+
 export default router;

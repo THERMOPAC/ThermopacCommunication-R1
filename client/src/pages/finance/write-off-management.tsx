@@ -274,29 +274,43 @@ const WriteOffManagementPage = () => {
               </div>
             ) : (
               <div>
-                <div className="flex justify-between items-center mb-4">
-                  <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList>
-                      <TabsTrigger value="pending">
-                        <Clock className="h-4 w-4 mr-2" />
-                        Pending ({pendingCount})
-                      </TabsTrigger>
-                      <TabsTrigger value="approved">
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Approved ({approvedCount})
-                      </TabsTrigger>
-                      <TabsTrigger value="rejected">
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Rejected ({rejectedCount})
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                  
-                  <Button onClick={() => setShowCreateForm(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Write-off
-                  </Button>
-                </div>
+                {!showCreateForm ? (
+                  <>
+                    <div className="flex justify-between items-center mb-4">
+                      <Tabs value={activeTab} onValueChange={setActiveTab}>
+                        <TabsList>
+                          <TabsTrigger value="pending">
+                            <Clock className="h-4 w-4 mr-2" />
+                            Pending ({pendingCount})
+                          </TabsTrigger>
+                          <TabsTrigger value="approved">
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Approved ({approvedCount})
+                          </TabsTrigger>
+                          <TabsTrigger value="rejected">
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Rejected ({rejectedCount})
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                      
+                      <Button onClick={() => setShowCreateForm(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Write-off
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold">Create New Write-off</h3>
+                      <Button variant="outline" onClick={() => setShowCreateForm(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                    <WriteOffForm onCancel={() => setShowCreateForm(false)} />
+                  </div>
+                )}
                 
                 <Table>
                   <TableHeader>
