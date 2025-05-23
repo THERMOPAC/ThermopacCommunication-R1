@@ -341,6 +341,8 @@ export default function InvoicesPage() {
                     <td className="px-4 py-3 text-left text-sm">{formatDate(invoice.issueDate)}</td>
                     <td className="px-4 py-3 text-left text-sm">{formatDate(invoice.dueDate)}</td>
                     <td className="px-4 py-3 text-right text-sm font-medium">{formatCurrency(invoice.totalAmount, invoice.currency)}</td>
+                    <td className="px-4 py-3 text-right text-sm font-medium text-green-600">{formatCurrency(invoice.paidAmount || 0, invoice.currency)}</td>
+                    <td className="px-4 py-3 text-right text-sm font-medium text-orange-600">{formatCurrency(invoice.outstanding_amount || invoice.totalAmount, invoice.currency)}</td>
                     <td className="px-4 py-3 text-center">
                       <StatusBadge status={invoice.status} />
                     </td>
