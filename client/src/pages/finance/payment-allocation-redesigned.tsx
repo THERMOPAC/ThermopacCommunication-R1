@@ -69,7 +69,13 @@ export default function PaymentAllocationRedesigned() {
       }
 
       const paymentUnallocated = parseFloat(selectedPayment.unallocatedAmount);
-      const invoiceOutstanding = parseFloat(selectedInvoice.outstanding_amount);
+      const invoiceOutstanding = parseFloat(selectedInvoice.outstanding_amount || selectedInvoice.outstandingAmount || '0');
+      
+      console.log('Auto-calculation debug:', {
+        paymentUnallocated,
+        invoiceOutstanding,
+        invoiceData: selectedInvoice
+      });
 
       // Apply the specified logic: if payment unallocated > invoice outstanding, use invoice outstanding
       // If payment unallocated <= invoice outstanding, use payment unallocated
@@ -77,6 +83,7 @@ export default function PaymentAllocationRedesigned() {
         ? invoiceOutstanding 
         : paymentUnallocated;
 
+      console.log('Calculated amount:', calculatedAmount);
       setAllocateAmount(calculatedAmount.toFixed(2));
     } else {
       setAllocateAmount('');
