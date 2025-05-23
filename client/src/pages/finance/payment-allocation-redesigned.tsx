@@ -33,6 +33,7 @@ interface Invoice {
   invoiceDate: string;
   totalAmount: string;
   outstanding_amount: string;
+  outstandingAmount: number;
   invoiceType: string;
   currency: string;
   status: string;
@@ -288,7 +289,7 @@ export default function PaymentAllocationRedesigned() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-red-600">
-                            {invoice.currency} {invoice.outstanding_amount}
+                            {invoice.currency} {invoice.outstandingAmount || invoice.outstanding_amount}
                           </p>
                           <p className="text-sm text-gray-600">Outstanding</p>
                         </div>
