@@ -2797,6 +2797,7 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
  */
 router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    console.log('Fetching customers with outstanding invoices...');
     const query = `
       SELECT DISTINCT
         c.id,
@@ -2809,6 +2810,8 @@ router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Reque
     
     const result = await pool.query(query);
     const customers = result.rows;
+    
+    console.log('Found customers with outstanding invoices:', customers);
     
     res.json({
       customers: customers
