@@ -81,7 +81,8 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
 
   // Filter invoices based on selected customer
   const filteredInvoices = selectedCustomer && selectedCustomer !== 'all'
-    ? outstandingInvoices.filter((invoice: any) => invoice.customerId?.toString() === selectedCustomer)
+    ? outstandingInvoices.filter((invoice: any) => 
+        (invoice.customerId || invoice.customer_id)?.toString() === selectedCustomer)
     : outstandingInvoices;
 
   // Create write-off mutation
