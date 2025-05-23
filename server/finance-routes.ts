@@ -3533,11 +3533,8 @@ router.post('/write-offs/:id/approve', ensureAuthenticated, async (req: Request,
     // Import the write-off service
     // Using writeOffService imported at the top of the file
     
-    // Approve the write-off
-    const result = await writeOffService.approveWriteOff(parseInt(id), req.user?.id || 1);
-    
-    // Return the result
-    res.json(result);
+    // Approve the write-off - this handles the response internally
+    return await writeOffService.approveWriteOff(req, res);
   } catch (error: any) {
     console.error(`Error approving write-off ${req.params.id}:`, error);
     res.status(500).json({ 
@@ -3558,11 +3555,8 @@ router.post('/write-offs/:id/reject', ensureAuthenticated, async (req: Request, 
     // Import the write-off service
     // Using writeOffService imported at the top of the file
     
-    // Reject the write-off
-    const result = await writeOffService.rejectWriteOff(parseInt(id), req.user?.id || 1, reason);
-    
-    // Return the result
-    res.json(result);
+    // Reject the write-off - this handles the response internally
+    return await writeOffService.rejectWriteOff(req, res);
   } catch (error: any) {
     console.error(`Error rejecting write-off ${req.params.id}:`, error);
     res.status(500).json({ 
