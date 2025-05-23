@@ -19,21 +19,26 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Allocation amount must be greater than 0' });
     }
 
-    // Use the storage connection that's already working
-    const { storage } = await import('./storage');
+    // Import the database connection
+    const { db } = await import('./storage');
+    
+    console.log(`Processing allocation: Payment ${paymentId} → Invoice ${invoiceId}, Amount: ${allocationAmount}`);
     
     // Update payment amounts
-    await storage.db.execute(sql`
+    const paymentUpdateResult = await db.execute(sql`
       UPDATE payments
       SET 
         allocated_amount = COALESCE(allocated_amount, 0) + ${allocationAmount},
-        unallocated_amount = COALESCE(unallocated_amount, 0) - ${allocationAmount},
+        unallocated_amount = COALESCE(unallocated_amount, amount) - ${allocationAmount},
         updated_at = NOW()
       WHERE id = ${paymentId}
+      RETURNING id, allocated_amount, unallocated_amount
     `);
     
+    console.log('Payment updated:', paymentUpdateResult.rows[0]);
+    
     // Update invoice amounts and status
-    await storage.db.execute(sql`
+    const invoiceUpdateResult = await db.execute(sql`
       UPDATE invoices
       SET 
         paid_amount = COALESCE(paid_amount, 0) + ${allocationAmount},
@@ -45,7 +50,10 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
         END,
         updated_at = NOW()
       WHERE id = ${invoiceId}
+      RETURNING id, paid_amount, outstanding_amount, status
     `);
+    
+    console.log('Invoice updated:', invoiceUpdateResult.rows[0]);
     
     // Return success response
     res.json({
