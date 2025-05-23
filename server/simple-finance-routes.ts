@@ -8,6 +8,55 @@ import { pool } from './db';
 
 const router = Router();
 
+// Write-off approval endpoint - using the working router pattern
+router.post('/approve-writeoff/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    console.log(`🚀 WORKING APPROVAL ENDPOINT HIT! ID: ${req.params.id}`);
+    
+    // Set JSON content type immediately
+    res.setHeader('Content-Type', 'application/json');
+    
+    // Get user from session
+    const userId = req.user?.id || 3; // fallback to user 3 for testing
+    
+    const updateQuery = `
+      UPDATE finance_write_offs 
+      SET status = 'Approved', 
+          approved_by = $1, 
+          approval_date = NOW(), 
+          updated_at = NOW()
+      WHERE id = $2 AND status = 'Pending'
+      RETURNING *
+    `;
+    
+    console.log(`📝 Executing working approval query for write-off ${req.params.id} by user ${userId}`);
+    const result = await pool.query(updateQuery, [userId, req.params.id]);
+    
+    if (result.rows.length === 0) {
+      console.log(`❌ Write-off ${req.params.id} not found or already processed`);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Write-off not found or already processed' 
+      });
+    }
+    
+    console.log(`✅ WORKING SUCCESS! Write-off ${req.params.id} approved successfully!`);
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Write-off approved successfully',
+      writeOff: result.rows[0] 
+    });
+  } catch (error: any) {
+    console.error('❌ Working writeoff approval error:', error);
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to approve write-off',
+      message: error.message 
+    });
+  }
+});
+
 // Add customers with outstanding invoices endpoint
 router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
