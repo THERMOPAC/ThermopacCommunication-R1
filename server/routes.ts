@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./auth";
+import { setupAuth, ensureAuthenticated } from "./auth";
 import { storage } from "./storage";
 import { insertTaskSchema, insertUserSchema, insertRecurringPatternSchema, insertRecurringTaskSchema } from "@shared/schema";
 import { canManage, roleHierarchy } from "@shared/roles";
@@ -140,9 +140,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);
   
+  // Debug middleware to log all incoming requests
+  app.use('/api/finance/write-offs', (req: any, res: any, next: any) => {
+    console.log(`🔍 Request intercepted: ${req.method} ${req.originalUrl}`);
+    console.log(`🔍 Route path: ${req.route?.path || 'no route'}`);
+    console.log(`🔍 Headers: ${JSON.stringify(req.headers, null, 2)}`);
+    next();
+  });
+
   // Set up direct approval endpoints to bypass routing conflicts
   app.post('/api/finance/write-offs/:id/approve', ensureAuthenticated, async (req: any, res: any) => {
     try {
+      console.log(`🚀 DIRECT APPROVAL ENDPOINT HIT!`);
       const { id } = req.params;
       const approverId = req.user?.id;
       
