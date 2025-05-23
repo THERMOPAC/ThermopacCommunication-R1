@@ -286,8 +286,18 @@ const WriteOffManagementPage = () => {
         throw new Error('Failed to approve write-off');
       }
       
-      const result = await response.json();
-      console.log('Approval successful:', result);
+      const responseText = await response.text();
+      console.log('Raw response text:', responseText);
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+        console.log('Approval successful:', result);
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', parseError);
+        console.log('Response was:', responseText);
+        throw new Error('Invalid response from server');
+      }
       
       toast({
         title: "Success",
