@@ -126,7 +126,14 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="invoice">Select Invoice *</Label>
-          <Select value={selectedInvoice} onValueChange={setSelectedInvoice}>
+          <Select value={selectedInvoice} onValueChange={(value) => {
+            setSelectedInvoice(value);
+            // Auto-populate write-off amount with full outstanding amount
+            const invoice = outstandingInvoices.find((inv: any) => inv.id.toString() === value);
+            if (invoice) {
+              setWriteOffAmount(invoice.outstandingAmount.toString());
+            }
+          }}>
             <SelectTrigger>
               <SelectValue placeholder="Choose invoice to write off" />
             </SelectTrigger>
