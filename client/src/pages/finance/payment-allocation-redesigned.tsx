@@ -84,7 +84,9 @@ export default function PaymentAllocationRedesigned() {
         : paymentUnallocated;
 
       console.log('Calculated amount:', calculatedAmount);
-      setAllocateAmount(calculatedAmount.toFixed(2));
+      const finalAmount = calculatedAmount.toFixed(2);
+      console.log('Setting allocation amount to:', finalAmount);
+      setAllocateAmount(finalAmount);
     } else {
       setAllocateAmount('');
     }
