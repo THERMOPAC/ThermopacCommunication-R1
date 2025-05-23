@@ -8,6 +8,33 @@ import { pool } from './db';
 
 const router = Router();
 
+// Add customers with outstanding invoices endpoint
+router.get('/customers-with-outstanding', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    console.log('=== CUSTOMERS WITH OUTSTANDING ENDPOINT HIT ===');
+    
+    const query = `
+      SELECT DISTINCT
+        c.id,
+        c.bp_name as name
+      FROM customers c
+      INNER JOIN invoices i ON c.id = i.customer_id
+      WHERE i.outstanding_amount > 0
+      ORDER BY c.bp_name ASC
+    `;
+    
+    const result = await pool.query(query);
+    console.log('Found customers with outstanding invoices:', result.rows);
+    
+    res.json({
+      customers: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching customers with outstanding invoices:', error);
+    res.status(500).json({ error: 'Failed to fetch customers' });
+  }
+});
+
 // Add a route for getting invoice list using direct database access
 router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Response) => {
   try {

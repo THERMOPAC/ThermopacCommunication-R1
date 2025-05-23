@@ -62,9 +62,11 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
   const [description, setDescription] = useState('');
 
   // Fetch customers with outstanding invoices
-  const { data: customersWithOutstanding = [] } = useQuery({
-    queryKey: ['/api/finance/customers-with-outstanding'],
+  const { data: customersData = { customers: [] } } = useQuery({
+    queryKey: ['/api/simple-finance/customers-with-outstanding'],
   });
+  
+  const customersWithOutstanding = customersData.customers || [];
 
   // Fetch outstanding invoices for write-off - only when customer is selected
   const { data: outstandingInvoices = [], isLoading: loadingInvoices } = useQuery({
