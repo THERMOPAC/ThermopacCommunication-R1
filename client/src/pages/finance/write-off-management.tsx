@@ -84,7 +84,7 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
   });
 
   // Filter invoices based on selected customer
-  const filteredInvoices = selectedCustomer 
+  const filteredInvoices = selectedCustomer && selectedCustomer !== 'all'
     ? outstandingInvoices.filter((invoice: any) => invoice.customerId?.toString() === selectedCustomer)
     : outstandingInvoices;
 
@@ -154,7 +154,7 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
               <SelectValue placeholder="All Customers" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Customers</SelectItem>
+              <SelectItem value="all">All Customers</SelectItem>
               {customersWithOutstanding.map((customer: any) => (
                 <SelectItem key={customer.id} value={customer.id.toString()}>
                   {customer.name}
@@ -185,7 +185,7 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
               ))}
             </SelectContent>
           </Select>
-          {selectedCustomer && filteredInvoices.length === 0 && (
+          {selectedCustomer && selectedCustomer !== 'all' && filteredInvoices.length === 0 && (
             <p className="text-sm text-gray-500 mt-1">No outstanding invoices for selected customer</p>
           )}
         </div>
