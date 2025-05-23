@@ -48,6 +48,11 @@ export default function PaymentAllocationRedesigned() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch customers with outstanding invoices
+  const { data: customersData = { customers: [] } } = useQuery({
+    queryKey: ['/api/simple-finance/customers-with-outstanding'],
+  });
+
   // Fetch unallocated payments
   const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
     queryKey: ['/api/finance/unallocated-advances'],
@@ -167,13 +172,8 @@ export default function PaymentAllocationRedesigned() {
     });
   };
 
-  // Get unique customers from payments
-  const uniqueCustomers = payments.reduce((acc: Array<{id: number, name: string}>, payment) => {
-    if (!acc.find(c => c.id === payment.customerId)) {
-      acc.push({ id: payment.customerId, name: payment.customerName });
-    }
-    return acc;
-  }, []);
+  // Get customers from the API (same as write-off management)
+  const customersWithOutstanding = customersData.customers || [];
 
   // Filter payments by selected customer
   const filteredPayments = selectedCustomerId 
@@ -207,7 +207,7 @@ export default function PaymentAllocationRedesigned() {
                 <SelectValue placeholder="Select a customer" />
               </SelectTrigger>
               <SelectContent>
-                {uniqueCustomers.map((customer) => (
+                {customersWithOutstanding.map((customer: any) => (
                   <SelectItem key={customer.id} value={customer.id.toString()}>
                     {customer.name}
                   </SelectItem>
