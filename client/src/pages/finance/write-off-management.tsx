@@ -79,16 +79,9 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
     }
   });
 
-  // Filter invoices based on selected customer
-  const filteredInvoices = selectedCustomer && selectedCustomer !== 'all'
-    ? outstandingInvoices.filter((invoice: any) => 
-        (invoice.customerId || invoice.customer_id)?.toString() === selectedCustomer)
-    : outstandingInvoices;
-
-  // Debug logging to see what's happening
-  console.log('Outstanding invoices:', outstandingInvoices);
-  console.log('Selected customer:', selectedCustomer);
-  console.log('Filtered invoices:', filteredInvoices);
+  // Since invoice data doesn't contain customer relationship, show all invoices
+  // Customer selection is optional for user reference only
+  const filteredInvoices = outstandingInvoices;
 
   // Create write-off mutation
   const createWriteOffMutation = useMutation({
