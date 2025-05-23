@@ -322,6 +322,8 @@ export default function InvoicesPage() {
                 <th className="px-4 py-3 text-left text-sm font-medium">Issue Date</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Due Date</th>
                 <th className="px-4 py-3 text-right text-sm font-medium">Amount</th>
+                <th className="px-4 py-3 text-right text-sm font-medium">Paid</th>
+                <th className="px-4 py-3 text-right text-sm font-medium">Outstanding</th>
                 <th className="px-4 py-3 text-center text-sm font-medium">Status</th>
                 <th className="px-4 py-3 text-center text-sm font-medium">Actions</th>
               </tr>
