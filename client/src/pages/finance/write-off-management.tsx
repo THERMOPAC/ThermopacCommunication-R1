@@ -65,10 +65,13 @@ const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
   const { data: customersWithOutstanding = [] } = useQuery({
     queryKey: ['/api/finance/customers-with-outstanding'],
     queryFn: async () => {
+      console.log('Making customer API call...');
       const response = await fetch('/api/finance/customers-with-outstanding');
+      console.log('Customer API response status:', response.status);
       if (!response.ok) throw new Error('Failed to fetch customers');
       const data = await response.json();
-      console.log('Customers data from API:', data.customers);
+      console.log('Customers data from API:', data);
+      console.log('Customers array:', data.customers);
       return data.customers || [];
     }
   });
