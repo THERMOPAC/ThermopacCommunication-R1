@@ -62,10 +62,17 @@ export default function PaymentAllocationRedesigned() {
   // Auto-calculate allocation amount when both payment and invoice are selected
   useEffect(() => {
     if (selectedPayment && selectedInvoice) {
+      // Check currency match first
+      if (selectedPayment.currency !== selectedInvoice.currency) {
+        setAllocateAmount('');
+        return;
+      }
+
       const paymentUnallocated = parseFloat(selectedPayment.unallocatedAmount);
       const invoiceOutstanding = parseFloat(selectedInvoice.outstanding_amount);
 
-      // Apply the specified logic
+      // Apply the specified logic: if payment unallocated > invoice outstanding, use invoice outstanding
+      // If payment unallocated <= invoice outstanding, use payment unallocated
       const calculatedAmount = paymentUnallocated > invoiceOutstanding 
         ? invoiceOutstanding 
         : paymentUnallocated;
@@ -328,32 +335,45 @@ export default function PaymentAllocationRedesigned() {
               </div>
             </div>
 
-            {/* Allocation Amount */}
-            <div className="bg-green-50 p-4 rounded border mb-4">
-              <h4 className="font-bold text-green-800 mb-3">Allocation Amount</h4>
-              <div className="flex gap-2 items-center">
-                <Input
-                  type="number"
-                  value={allocateAmount}
-                  onChange={(e) => setAllocateAmount(e.target.value)}
-                  placeholder="Auto-calculated amount"
-                  className="flex-1"
-                  step="0.01"
-                />
-                <span className="text-sm text-gray-600">{selectedPayment.currency}</span>
-              </div>
-              <div className="text-sm text-gray-600 mt-2">
-                <p className="font-semibold text-green-700">Auto-calculation Logic:</p>
-                <p>• Payment Unallocated: {selectedPayment.currency} {selectedPayment.unallocatedAmount}</p>
-                <p>• Invoice Outstanding: {selectedInvoice.currency} {selectedInvoice.outstanding_amount}</p>
-                <p className="mt-1 font-medium">
-                  {parseFloat(selectedPayment.unallocatedAmount) > parseFloat(selectedInvoice.outstanding_amount) 
-                    ? `Using Invoice Outstanding Amount (${selectedInvoice.currency} ${selectedInvoice.outstanding_amount})`
-                    : `Using Payment Unallocated Amount (${selectedPayment.currency} ${selectedPayment.unallocatedAmount})`
-                  }
+            {/* Currency Mismatch Warning */}
+            {selectedPayment.currency !== selectedInvoice.currency && (
+              <div className="bg-red-50 p-4 rounded border mb-4 border-red-200">
+                <h4 className="font-bold text-red-800 mb-2">⚠️ Currency Mismatch</h4>
+                <p className="text-red-700">
+                  Payment currency ({selectedPayment.currency}) does not match invoice currency ({selectedInvoice.currency}). 
+                  Please select a payment and invoice with matching currencies.
                 </p>
               </div>
-            </div>
+            )}
+
+            {/* Allocation Amount */}
+            {selectedPayment.currency === selectedInvoice.currency && (
+              <div className="bg-green-50 p-4 rounded border mb-4">
+                <h4 className="font-bold text-green-800 mb-3">Allocation Amount</h4>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="number"
+                    value={allocateAmount}
+                    onChange={(e) => setAllocateAmount(e.target.value)}
+                    placeholder="Auto-calculated amount"
+                    className="flex-1"
+                    step="0.01"
+                  />
+                  <span className="text-sm text-gray-600">{selectedPayment.currency}</span>
+                </div>
+                <div className="text-sm text-gray-600 mt-2">
+                  <p className="font-semibold text-green-700">Auto-calculation Logic:</p>
+                  <p>• Payment Unallocated: {selectedPayment.currency} {selectedPayment.unallocatedAmount}</p>
+                  <p>• Invoice Outstanding: {selectedInvoice.currency} {selectedInvoice.outstanding_amount}</p>
+                  <p className="mt-1 font-medium">
+                    {parseFloat(selectedPayment.unallocatedAmount) > parseFloat(selectedInvoice.outstanding_amount) 
+                      ? `Using Invoice Outstanding Amount (${selectedInvoice.currency} ${selectedInvoice.outstanding_amount})`
+                      : `Using Payment Unallocated Amount (${selectedPayment.currency} ${selectedPayment.unallocatedAmount})`
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Allocate Button */}
             <Button 
