@@ -140,7 +140,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);
   
-  // Set up finance module routes (main handler - should be first)
+  // Set up simple finance routes FIRST for write-off approvals
+  app.use('/api/finance', simpleFinanceRoutes);
+  
+  // Set up finance module routes (main handler)
   app.use('/api/finance', financeRoutes);
   
   // Set up the correct allocation endpoint that the redesigned page expects
