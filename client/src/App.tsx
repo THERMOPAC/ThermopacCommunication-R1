@@ -167,6 +167,7 @@ function Router() {
       <ProtectedRoute path="/finance/reports/remittances" component={RemittancesReportPage} />
       <ProtectedRoute path="/finance/reports/invoice-aging" component={InvoiceAgingDashboard} />
       <ProtectedRoute path="/finance/write-offs" component={() => <WriteOffManagementPage />} />
+      <ProtectedRoute path="/finance/write-off-management" component={() => <WriteOffManagementPage />} />
       
       <ProtectedRoute path="/projects" component={ProjectsPage} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />
