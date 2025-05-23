@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
 import Layout from '@/components/layout';
 import { canManage } from '@shared/roles';
@@ -11,6 +11,11 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 
 // Icons
 import { 
@@ -43,6 +48,155 @@ type WriteOff = {
   } | null;
   approvalDate: string | null;
   currency: string;
+};
+
+// Write-off creation form component
+const WriteOffForm = ({ onCancel }: { onCancel: () => void }) => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedInvoice, setSelectedInvoice] = useState('');
+  const [writeOffAmount, setWriteOffAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [description, setDescription] = useState('');
+
+  // Fetch outstanding invoices for write-off
+  const { data: outstandingInvoices = [], isLoading: loadingInvoices } = useQuery({
+    queryKey: ['/api/finance/outstanding-invoices'],
+    queryFn: async () => {
+      const response = await fetch('/api/finance/outstanding-invoices');
+      if (!response.ok) throw new Error('Failed to fetch outstanding invoices');
+      const data = await response.json();
+      return data.invoices || [];
+    }
+  });
+
+  // Create write-off mutation
+  const createWriteOffMutation = useMutation({
+    mutationFn: async (writeOffData: any) => {
+      const response = await fetch('/api/finance/write-offs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(writeOffData)
+      });
+      if (!response.ok) throw new Error('Failed to create write-off');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Write-off Created",
+        description: "Write-off has been submitted for approval.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/write-offs'] });
+      onCancel();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create write-off",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInvoice || !writeOffAmount || !reason) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const invoice = outstandingInvoices.find((inv: any) => inv.id.toString() === selectedInvoice);
+    createWriteOffMutation.mutate({
+      invoiceId: parseInt(selectedInvoice),
+      amount: parseFloat(writeOffAmount),
+      reason,
+      description,
+      currency: invoice?.currency || 'USD'
+    });
+  };
+
+  const selectedInvoiceData = outstandingInvoices.find((inv: any) => inv.id.toString() === selectedInvoice);
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="invoice">Select Invoice *</Label>
+          <Select value={selectedInvoice} onValueChange={setSelectedInvoice}>
+            <SelectTrigger>
+              <SelectValue placeholder="Choose invoice to write off" />
+            </SelectTrigger>
+            <SelectContent>
+              {outstandingInvoices.map((invoice: any) => (
+                <SelectItem key={invoice.id} value={invoice.id.toString()}>
+                  {invoice.invoiceNumber} - {invoice.customerName} ({invoice.currency} {invoice.outstandingAmount})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="amount">Write-off Amount *</Label>
+          <Input
+            id="amount"
+            type="number"
+            step="0.01"
+            value={writeOffAmount}
+            onChange={(e) => setWriteOffAmount(e.target.value)}
+            placeholder={selectedInvoiceData ? `Max: ${selectedInvoiceData.outstandingAmount}` : "0.00"}
+            max={selectedInvoiceData?.outstandingAmount}
+          />
+          {selectedInvoiceData && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Outstanding: {selectedInvoiceData.currency} {selectedInvoiceData.outstandingAmount}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="reason">Reason *</Label>
+        <Select value={reason} onValueChange={setReason}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select reason for write-off" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="uncollectible">Uncollectible Debt</SelectItem>
+            <SelectItem value="customer_dispute">Customer Dispute</SelectItem>
+            <SelectItem value="bankruptcy">Customer Bankruptcy</SelectItem>
+            <SelectItem value="small_balance">Small Balance Write-off</SelectItem>
+            <SelectItem value="settlement">Settlement Agreement</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="description">Additional Notes</Label>
+        <Textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Provide additional context for this write-off..."
+          rows={3}
+        />
+      </div>
+
+      <div className="flex gap-2 pt-4">
+        <Button type="submit" disabled={createWriteOffMutation.isPending}>
+          {createWriteOffMutation.isPending ? "Creating..." : "Submit Write-off"}
+        </Button>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
 };
 
 const WriteOffManagementPage = () => {
