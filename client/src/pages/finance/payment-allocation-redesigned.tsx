@@ -342,9 +342,17 @@ export default function PaymentAllocationRedesigned() {
                 />
                 <span className="text-sm text-gray-600">{selectedPayment.currency}</span>
               </div>
-              <p className="text-sm text-gray-600 mt-2">
-                Auto-calculated based on available amounts
-              </p>
+              <div className="text-sm text-gray-600 mt-2">
+                <p className="font-semibold text-green-700">Auto-calculation Logic:</p>
+                <p>• Payment Unallocated: {selectedPayment.currency} {selectedPayment.unallocatedAmount}</p>
+                <p>• Invoice Outstanding: {selectedInvoice.currency} {selectedInvoice.outstanding_amount}</p>
+                <p className="mt-1 font-medium">
+                  {parseFloat(selectedPayment.unallocatedAmount) > parseFloat(selectedInvoice.outstanding_amount) 
+                    ? `Using Invoice Outstanding Amount (${selectedInvoice.currency} ${selectedInvoice.outstanding_amount})`
+                    : `Using Payment Unallocated Amount (${selectedPayment.currency} ${selectedPayment.unallocatedAmount})`
+                  }
+                </p>
+              </div>
             </div>
 
             {/* Allocate Button */}
