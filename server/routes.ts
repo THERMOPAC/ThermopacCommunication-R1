@@ -140,6 +140,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);
   
+  // Set up direct approval endpoints to bypass routing conflicts
+  app.post('/api/finance/write-offs/:id/approve', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const approverId = req.user?.id;
+      
+      console.log(`Direct approval: write-off ${id} by user ${approverId}`);
+      
+      const { pool } = await import('./db');
+      const updateQuery = `
+        UPDATE finance_write_offs 
+        SET status = 'Approved', 
+            approved_by = $1, 
+            approval_date = NOW(), 
+            updated_at = NOW()
+        WHERE id = $2 AND status = 'Pending'
+        RETURNING *
+      `;
+      
+      const result = await pool.query(updateQuery, [approverId, id]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Write-off not found or already processed' 
+        });
+      }
+      
+      console.log(`Direct approval: write-off ${id} approved successfully`);
+      res.json({ 
+        success: true, 
+        message: 'Write-off approved successfully',
+        writeOff: result.rows[0] 
+      });
+    } catch (error: any) {
+      console.error('Direct approval error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to approve write-off',
+        message: error.message 
+      });
+    }
+  });
+
   // Set up simple finance routes FIRST for write-off approvals
   app.use('/api/finance', simpleFinanceRoutes);
   
