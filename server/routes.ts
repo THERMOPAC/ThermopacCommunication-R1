@@ -240,11 +240,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Set up simple finance routes FIRST for write-off approvals
-  app.use('/api/finance', simpleFinanceRoutes);
-  
-  // Set up finance module routes (main handler)
+  // Set up finance module routes (main handler) FIRST for dashboard with date filtering
   app.use('/api/finance', financeRoutes);
+  
+  // Set up simple finance routes for write-off approvals (but not dashboard)
+  app.use('/api/finance', simpleFinanceRoutes);
   
   // Set up the correct allocation endpoint that the redesigned page expects
   app.use('/api/finance', simpleAllocationEndpoint);
