@@ -14,14 +14,18 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
   try {
     // Get date range parameters from query string for financial year filtering
     const { from, to } = req.query;
+    console.log('Finance dashboard API called with date params:', { from, to });
     
     // Build WHERE clause for date filtering if dates are provided
     let dateFilter = '';
-    let queryParams = [];
+    let queryParams: any[] = [];
     
     if (from && to) {
       dateFilter = 'WHERE issue_date >= $1 AND issue_date <= $2';
       queryParams = [from, to];
+      console.log('Using date filter:', dateFilter, 'with params:', queryParams);
+    } else {
+      console.log('No date filtering - fetching all invoices');
     }
     
     // Get invoices from database with optional date filtering

@@ -455,6 +455,7 @@ export default function MarketingDashboardPage() {
     queryFn: async () => {
       const from = formatDateForApi(dateRange.from);
       const to = formatDateForApi(dateRange.to);
+      console.log('Finance API call - Date range:', { from, to, preset: selectedPreset });
       const response = await fetch(`/api/finance/dashboard?from=${from}&to=${to}`);
       if (!response.ok) {
         throw new Error('Failed to fetch finance data');
