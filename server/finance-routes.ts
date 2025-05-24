@@ -3054,93 +3054,103 @@ router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Re
 // Financial reports
 
 /**
- * Turnover report
+ * Turnover report with Indian Financial Year filtering
  */
-router.get('/reports/turnover', ensureAuthenticated, (req: Request, res: Response) => {
+router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  
   try {
     const { startDate, endDate, currency } = req.query;
     
-    // Sample turnover data
-    const invoicesResult = [
-      {
-        id: 1,
-        invoiceNumber: "INV-2526-001",
-        issueDate: "2025-05-01",
-        amount: "125000.00",
-        currency: "USD",
-        status: "Paid"
-      },
-      {
-        id: 2,
-        invoiceNumber: "INV-2526-002",
-        issueDate: "2025-06-01",
-        amount: "100000.00",
-        currency: "USD",
-        status: "Paid"
-      },
-      {
-        id: 3,
-        invoiceNumber: "INV-2526-003",
-        issueDate: "2025-07-01",
-        amount: "150000.00",
-        currency: "USD",
-        status: "Unpaid"
-      },
-      {
-        id: 4,
-        invoiceNumber: "INV-2526-004",
-        issueDate: "2025-07-15",
-        amount: "125000.00",
-        currency: "USD",
-        status: "Unpaid"
-      },
-      {
-        id: 5,
-        invoiceNumber: "INV-2526-005",
-        issueDate: "2025-08-01",
-        amount: "125000.00",
-        currency: "USD",
-        status: "Unpaid"
-      }
-    ];
+    console.log('🎯 TURNOVER REPORT API with dates:', { startDate, endDate, currency });
     
-    // Generate monthly summary
-    const monthlyData = [
-      {
-        month: "2025-05",
-        count: 1,
-        amount: 125000,
-        amountINR: 10693750
-      },
-      {
-        month: "2025-06",
-        count: 1,
-        amount: 100000,
-        amountINR: 8555000
-      },
-      {
-        month: "2025-07",
-        count: 2,
-        amount: 275000,
-        amountINR: 23526250
-      },
-      {
-        month: "2025-08",
-        count: 1,
-        amount: 125000,
-        amountINR: 10693750
-      }
-    ];
+    // Build WHERE clause for date filtering
+    let whereClause = 'WHERE 1=1';
+    const queryParams: any[] = [];
     
-    res.json({
-      totalInvoiced: 625000,
-      totalInvoicedINR: 53468750,
-      invoices: invoicesResult,
+    if (startDate && endDate) {
+      console.log('✅ APPLYING DATE FILTER for turnover report:', { startDate, endDate });
+      whereClause += ' AND issue_date >= $1 AND issue_date <= $2';
+      queryParams.push(startDate, endDate);
+    } else {
+      console.log('❌ NO DATE FILTERING for turnover report - fetching all invoices');
+    }
+    
+    // Add currency filter if specified
+    let currencyParamIndex = queryParams.length + 1;
+    if (currency && currency !== 'all') {
+      whereClause += ` AND currency = $${currencyParamIndex}`;
+      queryParams.push(currency);
+    }
+    
+    // Query for aggregate invoice data
+    const aggregateQuery = `
+      SELECT 
+        COUNT(*) as "totalCount",
+        COALESCE(SUM(total_amount), 0) as "totalInvoiced",
+        COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as "totalReceived",
+        COALESCE(SUM(outstanding_amount), 0) as "totalOutstanding"
+      FROM invoices 
+      ${whereClause}
+    `;
+    
+    console.log('🔍 EXECUTING TURNOVER AGGREGATE QUERY:', aggregateQuery);
+    console.log('📋 QUERY PARAMS:', queryParams);
+    
+    const aggregateResult = await client.query(aggregateQuery, queryParams);
+    const aggregates = aggregateResult.rows[0];
+    
+    // Query for monthly breakdown
+    const monthlyQuery = `
+      SELECT 
+        TO_CHAR(issue_date, 'Month') as month,
+        EXTRACT(MONTH FROM issue_date)::int as month_num,
+        EXTRACT(YEAR FROM issue_date)::int as year,
+        COUNT(*) as count,
+        COALESCE(SUM(total_amount), 0) as invoiced,
+        COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as received,
+        COALESCE(SUM(outstanding_amount), 0) as outstanding,
+        COALESCE(SUM(CASE WHEN invoice_type = 'Product' THEN total_amount ELSE 0 END), 0) as product_revenue,
+        COALESCE(SUM(CASE WHEN invoice_type = 'Service' THEN total_amount ELSE 0 END), 0) as service_revenue
+      FROM invoices 
+      ${whereClause}
+      GROUP BY EXTRACT(YEAR FROM issue_date), EXTRACT(MONTH FROM issue_date), TO_CHAR(issue_date, 'Month')
+      ORDER BY year, month_num
+    `;
+    
+    const monthlyResult = await client.query(monthlyQuery, queryParams);
+    
+    // Format monthly data
+    const monthlyData = monthlyResult.rows.map(row => ({
+      month: row.month.trim(),
+      year: row.year,
+      count: parseInt(row.count),
+      invoiced: parseFloat(row.invoiced),
+      received: parseFloat(row.received),
+      outstanding: parseFloat(row.outstanding),
+      productRevenue: parseFloat(row.product_revenue),
+      serviceRevenue: parseFloat(row.service_revenue)
+    }));
+    
+    const response = {
+      reportDate: new Date().toISOString(),
+      totalInvoiced: parseFloat(aggregates.totalInvoiced),
+      totalReceived: parseFloat(aggregates.totalReceived),
+      totalOutstanding: parseFloat(aggregates.totalOutstanding),
+      totalInvoicedINR: parseFloat(aggregates.totalInvoiced) * 85.413325, // Convert to INR
+      totalReceivedINR: parseFloat(aggregates.totalReceived) * 85.413325,
+      totalOutstandingINR: parseFloat(aggregates.totalOutstanding) * 85.413325,
       monthlyData
-    });
+    };
+    
+    console.log('📤 TURNOVER REPORT RESPONSE:', response);
+    res.json(response);
+    
   } catch (error) {
     console.error('Error generating turnover report:', error);
     res.status(500).json({ error: 'Failed to generate turnover report' });
+  } finally {
+    client.release();
   }
 });
 

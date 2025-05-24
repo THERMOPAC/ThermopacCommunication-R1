@@ -34,14 +34,44 @@ import { Loader2, Download, Filter } from "lucide-react";
 export default function TurnoverReportPage() {
   // Helper function to get current financial year dates (April 1 - March 31) using Indian Financial Year
   const getCurrentFinancialYearDates = (): DateRange => {
-    // This is 2025 data in the database
-    const currentYear = 2025;
+    const today = new Date();
+    const currentMonth = today.getMonth(); // 0-based (0 = January)
+    const currentYear = today.getFullYear();
     
-    // Financial year range covering May 2025 data
-    const financialYearStart = new Date(currentYear, 3, 1); // April 1st, 2025 
-    const financialYearEnd = new Date(currentYear, 5, 30); // June 30th, 2025
+    // Indian Financial Year: April 1 to March 31
+    // If current month is Jan-Mar (0-2), we're in the FY that started previous year
+    // If current month is Apr-Dec (3-11), we're in the FY that started this year
+    let financialYearStart: Date;
+    let financialYearEnd: Date;
+    
+    if (currentMonth >= 3) { // April onwards (month 3 = April)
+      financialYearStart = new Date(currentYear, 3, 1); // April 1st current year
+      financialYearEnd = new Date(currentYear + 1, 2, 31); // March 31st next year
+    } else { // January to March
+      financialYearStart = new Date(currentYear - 1, 3, 1); // April 1st previous year
+      financialYearEnd = new Date(currentYear, 2, 31); // March 31st current year
+    }
+    
+    console.log('Financial Year calculation:', {
+      today: today.toDateString(),
+      currentMonth,
+      currentYear,
+      financialYearStart: financialYearStart.toDateString(),
+      financialYearEnd: financialYearEnd.toDateString()
+    });
     
     return { from: financialYearStart, to: financialYearEnd };
+  };
+  
+  // Helper function to get previous financial year dates
+  const getPreviousFinancialYearDates = (): DateRange => {
+    const current = getCurrentFinancialYearDates();
+    if (current.from && current.to) {
+      const prevStart = new Date(current.from.getFullYear() - 1, current.from.getMonth(), current.from.getDate());
+      const prevEnd = new Date(current.to.getFullYear() - 1, current.to.getMonth(), current.to.getDate());
+      return { from: prevStart, to: prevEnd };
+    }
+    return { from: undefined, to: undefined };
   };
   
   // Initialize with current financial year
@@ -54,23 +84,14 @@ export default function TurnoverReportPage() {
   
   const financialYearPresets = [
     { 
-      label: 'Current FY', 
+      label: 'Current FY (2025-26)', 
       value: 'current',
       dateRange: getCurrentFinancialYearDates()
     },
     { 
-      label: 'Previous FY', 
+      label: 'Previous FY (2024-25)', 
       value: 'previous',
-      dateRange: (() => {
-        const currentRange = getCurrentFinancialYearDates();
-        if (currentRange.from && currentRange.to) {
-          return { 
-            from: new Date(currentRange.from.getFullYear() - 1, currentRange.from.getMonth(), currentRange.from.getDate()),
-            to: new Date(currentRange.to.getFullYear() - 1, currentRange.to.getMonth(), currentRange.to.getDate())
-          };
-        }
-        return { from: undefined, to: undefined };
-      })()
+      dateRange: getPreviousFinancialYearDates()
     },
     { 
       label: 'Last 3 Months', 
@@ -97,44 +118,27 @@ export default function TurnoverReportPage() {
       const startDate = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '';
       const endDate = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '';
       
-      // If date range includes May 2025, return the actual data we know exists
-      const isMay2025Included = dateRange.from && dateRange.to && 
-        dateRange.from <= new Date(2025, 4, 31) && // May 31, 2025
-        dateRange.to >= new Date(2025, 4, 1);      // May 1, 2025
-        
-      if (isMay2025Included) {
-        return {
-          reportDate: new Date().toISOString(),
-          totalInvoiced: 2272410,
-          totalReceived: 1590687,
-          totalOutstanding: 681723,
-          totalInvoicedINR: 2272410 * 85.55,   // Conversion to INR
-          totalReceivedINR: 1590687 * 85.55,   // Conversion to INR
-          totalOutstandingINR: 681723 * 85.55, // Conversion to INR
-          monthlyData: [
-            {
-              month: "May",
-              invoiced: 2272410,
-              received: 1590687,
-              outstanding: 681723,
-              productRevenue: 599200,
-              serviceRevenue: 1673210
-            }
-          ]
-        };
-      } else {
-        // If date range doesn't include May 2025, return empty data
-        return {
-          reportDate: new Date().toISOString(),
-          totalInvoiced: 0,
-          totalReceived: 0,
-          totalOutstanding: 0,
-          totalInvoicedINR: 0,
-          totalReceivedINR: 0,
-          totalOutstandingINR: 0,
-          monthlyData: []
-        };
+      console.log('Turnover Report API call - Date range:', {
+        from: startDate,
+        to: endDate,
+        dateRangeFrom: dateRange.from?.toDateString(),
+        dateRangeTo: dateRange.to?.toDateString()
+      });
+      
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      if (selectedCurrency !== 'all') params.append('currency', selectedCurrency);
+      
+      const response = await fetch(`/api/finance/reports/turnover?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch turnover report');
       }
+      
+      const data = await response.json();
+      console.log('Turnover report data received:', data);
+      return data;
     },
     enabled: true
   });
