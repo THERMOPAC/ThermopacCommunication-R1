@@ -75,8 +75,8 @@ export default function MarketingDashboardPage() {
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
     
-    // If current month is January to March (0-2), financial year is previous year to current year
-    // If current month is April to December (3-11), financial year is current year to next year
+    // If current month is January to March (0-2), we're in the FY that started previous year
+    // If current month is April to December (3-11), we're in the FY that started this year
     const financialYearStart = currentMonth < 3 
       ? new Date(currentYear - 1, 3, 1) // April 1st of previous year
       : new Date(currentYear, 3, 1);    // April 1st of current year
@@ -84,6 +84,14 @@ export default function MarketingDashboardPage() {
     const financialYearEnd = currentMonth < 3
       ? new Date(currentYear, 2, 31)    // March 31st of current year
       : new Date(currentYear + 1, 2, 31); // March 31st of next year
+    
+    console.log('Financial Year calculation:', {
+      today: today.toDateString(),
+      currentMonth,
+      currentYear,
+      financialYearStart: financialYearStart.toDateString(),
+      financialYearEnd: financialYearEnd.toDateString()
+    });
     
     return { from: financialYearStart, to: financialYearEnd };
   };
