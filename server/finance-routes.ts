@@ -45,8 +45,13 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
       ${dateFilter}
     `;
     
+    console.log('Executing invoice query:', invoicesQuery);
+    console.log('With parameters:', queryParams);
+    
     const invoiceStatsResult = await pool.query(invoicesQuery, queryParams);
     const invoiceStats = invoiceStatsResult.rows[0];
+    
+    console.log('Invoice stats result:', invoiceStats);
     
     // Get payment stats
     const paymentsQuery = `
