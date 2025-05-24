@@ -240,7 +240,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Set up finance module routes (main handler) FIRST for dashboard with date filtering
+
+  
+  // Set up finance module routes (main handler)
   app.use('/api/finance', financeRoutes);
   
   // Set up simple finance routes for write-off approvals (but not dashboard)
