@@ -242,6 +242,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   
+  // Add dedicated marketing dashboard finance endpoint with date filtering
+  app.get('/api/finance/dashboard', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      const { from, to } = req.query;
+      console.log('🎯 MARKETING DASHBOARD Finance API with dates:', { from, to });
+      
+      const { pool } = await import('./db');
+      
+      // Apply date filtering if both dates are provided
+      let dateFilter = '';
+      let queryParams: any[] = [];
+      
+      if (from && to) {
+        dateFilter = 'WHERE issue_date >= $1 AND issue_date <= $2';
+        queryParams = [from, to];
+        console.log('✅ APPLYING DATE FILTER:', dateFilter, 'params:', queryParams);
+      } else {
+        console.log('❌ NO DATE FILTERING - fetching all invoices');
+      }
+      
+      // Get invoices with date filtering
+      const invoicesQuery = `
+        SELECT 
+          COUNT(*) as "totalCount",
+          COALESCE(SUM(total_amount), 0) as "totalAmount",
+          COUNT(CASE WHEN status = 'Paid' THEN 1 END) as "paidCount",
+          COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as "paidAmount",
+          COUNT(CASE WHEN status != 'Paid' THEN 1 END) as "unpaidCount",
+          COALESCE(SUM(CASE WHEN status != 'Paid' THEN total_amount ELSE 0 END), 0) as "unpaidAmount",
+          COALESCE(SUM(CASE WHEN status != 'Paid' THEN outstanding_amount ELSE 0 END), 0) as "outstandingAmount",
+          COUNT(CASE WHEN due_date < CURRENT_DATE AND status != 'Paid' THEN 1 END) as "overdueCount",
+          COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE AND status != 'Paid' THEN outstanding_amount ELSE 0 END), 0) as "overdueAmount"
+        FROM invoices 
+        ${dateFilter}
+      `;
+      
+      console.log('🔍 EXECUTING QUERY:', invoicesQuery.replace(/\s+/g, ' ').trim());
+      const invoicesResult = await pool.query(invoicesQuery, queryParams);
+      const stats = invoicesResult.rows[0];
+      
+      console.log('📊 QUERY RESULT:', stats);
+      
+      // Get recent invoices with same filter
+      const recentQuery = `
+        SELECT id, invoice_number as "invoiceNumber", client_name as "clientName", 
+               issue_date as "issueDate", due_date as "dueDate", 
+               total_amount as amount, status
+        FROM invoices 
+        ${dateFilter}
+        ORDER BY issue_date DESC 
+        LIMIT 5
+      `;
+      
+      const recentResult = await pool.query(recentQuery, queryParams);
+      
+      // Get payments data
+      const paymentsQuery = `
+        SELECT 
+          COUNT(*) as "totalCount",
+          COALESCE(SUM(amount), 0) as "totalAmount"
+        FROM payments
+      `;
+      
+      const paymentsResult = await pool.query(paymentsQuery);
+      const paymentStats = paymentsResult.rows[0];
+      
+      const latestPaymentsQuery = `
+        SELECT id, reference_number as "referenceNumber", customer_id as "customerId",
+               payment_date as "paymentDate", amount, payment_method as "paymentMethod",
+               currency, 'Partially Allocated' as "allocationStatus"
+        FROM payments 
+        ORDER BY payment_date DESC 
+        LIMIT 5
+      `;
+      
+      const latestPaymentsResult = await pool.query(latestPaymentsQuery);
+      
+      const response = {
+        totalInvoices: {
+          count: Number(stats.totalCount) || 0,
+          amount: stats.totalAmount || '0.00'
+        },
+        paidInvoices: {
+          count: Number(stats.paidCount) || 0,
+          amount: stats.paidAmount || '0'
+        },
+        unpaidInvoices: {
+          count: Number(stats.unpaidCount) || 0,
+          amount: stats.unpaidAmount || '0.00'
+        },
+        overdueInvoices: {
+          count: Number(stats.overdueCount) || 0,
+          amount: stats.overdueAmount || '0'
+        },
+        totalOutstanding: {
+          count: Number(stats.unpaidCount) || 0,
+          amount: stats.outstandingAmount || '0'
+        },
+        totalOverdue: {
+          count: Number(stats.overdueCount) || 0,
+          amount: stats.overdueAmount || '0'
+        },
+        totalPayments: {
+          count: Number(paymentStats.totalCount) || 0,
+          amount: paymentStats.totalAmount || '0'
+        },
+        recentInvoices: recentResult.rows || [],
+        latestPayments: latestPaymentsResult.rows || []
+      };
+      
+      console.log('📤 SENDING RESPONSE:', JSON.stringify(response, null, 2));
+      res.json(response);
+      
+    } catch (error: any) {
+      console.error('❌ ERROR in marketing dashboard finance endpoint:', error);
+      res.status(500).json({ error: 'Failed to fetch dashboard data' });
+    }
+  });
+  
   // Set up finance module routes (main handler)
   app.use('/api/finance', financeRoutes);
   
