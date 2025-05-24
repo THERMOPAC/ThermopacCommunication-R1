@@ -165,7 +165,7 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
           due_date AS "dueDate",
           total_amount AS "totalAmount",
           COALESCE(paid_amount, 0) AS "paidAmount",
-          COALESCE(outstanding_amount, total_amount) AS outstanding_amount,
+          COALESCE(outstanding_amount, total_amount) AS "outstandingAmount",
           currency,
           status,
           sap_invoice_no AS "sapInvoiceNo", 
@@ -188,8 +188,8 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
           ...invoice,
           issueDate: invoice.issueDate ? new Date(invoice.issueDate).toISOString().split('T')[0] : null,
           dueDate: invoice.dueDate ? new Date(invoice.dueDate).toISOString().split('T')[0] : null,
-          outstanding_amount: invoice.outstanding_amount, // Explicitly preserve outstanding amount
-          customerName: `Customer ${invoice.customerId}` // Default placeholder
+          outstandingAmount: invoice.outstandingAmount, // Explicitly preserve outstanding amount
+          customerName: null // Will be filled by customer lookup
         }));
         
         // Try to get customer names if possible
