@@ -2743,6 +2743,8 @@ router.get('/outstanding-invoices', ensureAuthenticated, async (req: Request, re
       const result = await pool.query(query, params);
       const invoices = result.rows;
       
+      console.log('Outstanding invoices query result:', JSON.stringify(invoices, null, 2));
+      
       // Calculate total outstanding amount
       const totalOutstanding = invoices.reduce(
         (sum, invoice) => sum + parseFloat(invoice.outstandingAmount), 0
