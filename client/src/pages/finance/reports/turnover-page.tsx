@@ -131,7 +131,7 @@ export default function TurnoverReportPage() {
       if (endDate) params.append('endDate', endDate);
       if (selectedCurrency !== 'all') params.append('currency', selectedCurrency);
       
-      const response = await fetch(`/api/finance/reports/turnover?${params.toString()}`);
+      const response = await fetch(`/api/finance/reports/turnover-working?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch turnover report');
       }

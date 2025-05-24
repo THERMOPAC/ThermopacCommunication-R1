@@ -3051,6 +3051,78 @@ router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Re
   }
 });
 
+// Working Turnover Report Endpoint
+router.get('/reports/turnover-working', ensureAuthenticated, async (req: Request, res: Response) => {
+  console.log('💥 WORKING TURNOVER ENDPOINT ACCESSED!');
+  console.log('💥 Query params:', req.query);
+  
+  try {
+    const { startDate, endDate, currency } = req.query;
+    
+    const client = await pool.connect();
+    
+    try {
+      // Build query conditions
+      let whereConditions = [];
+      let queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      if (startDate && endDate) {
+        whereConditions.push(`issue_date >= $${paramIndex} AND issue_date <= $${paramIndex + 1}`);
+        queryParams.push(startDate, endDate);
+        paramIndex += 2;
+        console.log('💥 APPLYING DATE FILTER:', { startDate, endDate });
+      }
+      
+      if (currency && currency !== 'all') {
+        whereConditions.push(`currency = $${paramIndex}`);
+        queryParams.push(currency);
+        paramIndex++;
+      }
+      
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      const query = `
+        SELECT 
+          COUNT(*) as count,
+          COALESCE(SUM(total_amount), 0) as total_invoiced,
+          COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as total_received,
+          COALESCE(SUM(outstanding_amount), 0) as total_outstanding
+        FROM invoices ${whereClause}
+      `;
+      
+      console.log('💥 EXECUTING QUERY:', query);
+      console.log('💥 WITH PARAMS:', queryParams);
+      
+      const result = await client.query(query, queryParams);
+      const data = result.rows[0];
+      
+      console.log('💥 DATABASE RESULT:', data);
+      
+      const response = {
+        reportDate: new Date().toISOString(),
+        totalInvoiced: parseFloat(data.total_invoiced) || 0,
+        totalReceived: parseFloat(data.total_received) || 0,
+        totalOutstanding: parseFloat(data.total_outstanding) || 0,
+        totalInvoicedINR: (parseFloat(data.total_invoiced) || 0) * 85.413325,
+        totalReceivedINR: (parseFloat(data.total_received) || 0) * 85.413325,
+        totalOutstandingINR: (parseFloat(data.total_outstanding) || 0) * 85.413325,
+        monthlyData: []
+      };
+      
+      console.log('💥 SENDING RESPONSE:', response);
+      res.json(response);
+      
+    } finally {
+      client.release();
+    }
+    
+  } catch (error) {
+    console.error('💥 ERROR:', error);
+    res.status(500).json({ error: 'Failed to generate turnover report' });
+  }
+});
+
 // Financial reports
 
 /**
