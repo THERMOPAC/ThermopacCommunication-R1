@@ -12,7 +12,19 @@ const router = Router();
  */
 router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Get invoices from database
+    // Get date range parameters from query string for financial year filtering
+    const { from, to } = req.query;
+    
+    // Build WHERE clause for date filtering if dates are provided
+    let dateFilter = '';
+    let queryParams = [];
+    
+    if (from && to) {
+      dateFilter = 'WHERE issue_date >= $1 AND issue_date <= $2';
+      queryParams = [from, to];
+    }
+    
+    // Get invoices from database with optional date filtering
     const invoicesQuery = `
       SELECT 
         COUNT(*) as "totalCount",
@@ -26,9 +38,10 @@ router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response
         COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE AND status != 'Paid' THEN outstanding_amount ELSE 0 END), 0) as "overdueAmount"
       FROM 
         invoices
+      ${dateFilter}
     `;
     
-    const invoiceStatsResult = await pool.query(invoicesQuery);
+    const invoiceStatsResult = await pool.query(invoicesQuery, queryParams);
     const invoiceStats = invoiceStatsResult.rows[0];
     
     // Get payment stats
