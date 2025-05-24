@@ -140,7 +140,13 @@ export default function MarketingDashboardPage() {
   
   // Format date for API queries
   const formatDateForApi = (date) => {
-    return date.toISOString().split('T')[0];
+    if (!date) return null;
+    // Ensure we get the correct date format (YYYY-MM-DD)
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const formatted = `${year}-${month}-${day}`;
+    return formatted;
   };
   
   // Get queryClient for manual refetching
@@ -459,16 +465,24 @@ export default function MarketingDashboardPage() {
 
   // Fetch finance data for total turnover calculation
   const { data: financeData, isLoading: isLoadingFinance } = useQuery({
-    queryKey: ['/api/finance/dashboard', dateRange],
+    queryKey: ['/api/finance/dashboard', formatDateForApi(dateRange.from), formatDateForApi(dateRange.to), selectedPreset],
     queryFn: async () => {
       const from = formatDateForApi(dateRange.from);
       const to = formatDateForApi(dateRange.to);
-      console.log('Finance API call - Date range:', { from, to, preset: selectedPreset });
+      console.log('Finance API call - Date range:', { 
+        from, 
+        to, 
+        preset: selectedPreset,
+        dateRangeFrom: dateRange.from?.toDateString(),
+        dateRangeTo: dateRange.to?.toDateString()
+      });
       const response = await fetch(`/api/finance/dashboard?from=${from}&to=${to}`);
       if (!response.ok) {
         throw new Error('Failed to fetch finance data');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('Finance data received:', data);
+      return data;
     },
     refetchOnWindowFocus: false
   });
