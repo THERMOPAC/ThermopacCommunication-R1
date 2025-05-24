@@ -3063,6 +3063,7 @@ router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: R
     const { startDate, endDate, currency } = req.query;
     
     console.log('🎯 TURNOVER REPORT API with dates:', { startDate, endDate, currency });
+    console.log('🔧 TURNOVER REPORT - Raw query params:', req.query);
     
     // Build WHERE clause for date filtering
     let whereClause = 'WHERE 1=1';
@@ -3145,8 +3146,8 @@ router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: R
       monthlyData
     };
     
-    console.log('📤 TURNOVER REPORT RESPONSE:', response);
-    res.json(response);
+    console.log('📤 TURNOVER REPORT RESPONSE:', JSON.stringify(response, null, 2));
+    return res.json(response);
     
   } catch (error) {
     console.error('Error generating turnover report:', error);
