@@ -63,7 +63,6 @@ export default function PaymentAllocationRedesigned() {
     queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId],
     enabled: !!selectedCustomerId,
     staleTime: 0,
-    cacheTime: 0,
   });
 
   const payments: Payment[] = (paymentsData as any)?.advances || [];
@@ -286,7 +285,7 @@ export default function PaymentAllocationRedesigned() {
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium">{invoice.invoiceNumber}</p>
-                          <p className="text-sm text-gray-600">Date: {invoice.invoiceDate}</p>
+                          <p className="text-sm text-gray-600">Date: {invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString() : 'N/A'}</p>
                           <p className="text-sm text-gray-600">Type: {invoice.invoiceType}</p>
                         </div>
                         <div className="text-right">
