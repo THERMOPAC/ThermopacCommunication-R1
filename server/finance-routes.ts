@@ -8,13 +8,13 @@ import { batchAllocationService } from './batch-allocation-service';
 const router = Router();
 
 /**
- * Get overall financial dashboard data
+ * Get overall financial dashboard data with proper financial year filtering
  */
 router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     // Get date range parameters from query string for financial year filtering
     const { from, to } = req.query;
-    console.log('Finance dashboard API called with date params:', { from, to });
+    console.log('🎯 Finance dashboard API called with date params:', { from, to });
     
     // Build WHERE clause for date filtering if dates are provided
     let dateFilter = '';
