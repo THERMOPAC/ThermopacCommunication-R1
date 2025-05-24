@@ -3057,103 +3057,76 @@ router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Re
  * Turnover report with Indian Financial Year filtering
  */
 router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: Response) => {
-  const client = await pool.connect();
-  
   try {
     const { startDate, endDate, currency } = req.query;
     
-    console.log('🎯 TURNOVER REPORT API with dates:', { startDate, endDate, currency });
-    console.log('🔧 TURNOVER REPORT - Raw query params:', req.query);
+    console.log('🎯 TURNOVER REPORT with parameters:', { startDate, endDate, currency });
     
-    // Build WHERE clause for date filtering
-    let whereClause = 'WHERE 1=1';
-    const queryParams: any[] = [];
+    // Get database connection
+    const client = await pool.connect();
     
-    if (startDate && endDate) {
-      console.log('✅ APPLYING DATE FILTER for turnover report:', { startDate, endDate });
-      whereClause += ' AND issue_date >= $1 AND issue_date <= $2';
-      queryParams.push(startDate, endDate);
-    } else {
-      console.log('❌ NO DATE FILTERING for turnover report - fetching all invoices');
+    try {
+      // Build query with date filtering
+      let whereConditions = [];
+      let queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      if (startDate && endDate) {
+        whereConditions.push(`issue_date >= $${paramIndex} AND issue_date <= $${paramIndex + 1}`);
+        queryParams.push(startDate, endDate);
+        paramIndex += 2;
+        console.log('✅ APPLYING DATE FILTER:', { startDate, endDate });
+      }
+      
+      if (currency && currency !== 'all') {
+        whereConditions.push(`currency = $${paramIndex}`);
+        queryParams.push(currency);
+        paramIndex++;
+        console.log('✅ APPLYING CURRENCY FILTER:', currency);
+      }
+      
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      // Execute aggregate query
+      const aggregateQuery = `
+        SELECT 
+          COUNT(*) as count,
+          COALESCE(SUM(total_amount), 0) as total_invoiced,
+          COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as total_received,
+          COALESCE(SUM(outstanding_amount), 0) as total_outstanding
+        FROM invoices ${whereClause}
+      `;
+      
+      console.log('📋 EXECUTING QUERY:', aggregateQuery);
+      console.log('📋 WITH PARAMS:', queryParams);
+      
+      const result = await client.query(aggregateQuery, queryParams);
+      const data = result.rows[0];
+      
+      console.log('📊 DATABASE RESULT:', data);
+      
+      // Format response
+      const response = {
+        reportDate: new Date().toISOString(),
+        totalInvoiced: parseFloat(data.total_invoiced) || 0,
+        totalReceived: parseFloat(data.total_received) || 0,
+        totalOutstanding: parseFloat(data.total_outstanding) || 0,
+        totalInvoicedINR: (parseFloat(data.total_invoiced) || 0) * 85.413325,
+        totalReceivedINR: (parseFloat(data.total_received) || 0) * 85.413325,
+        totalOutstandingINR: (parseFloat(data.total_outstanding) || 0) * 85.413325,
+        monthlyData: []
+      };
+      
+      console.log('📤 SENDING RESPONSE:', response);
+      res.json(response);
+      
+    } finally {
+      client.release();
     }
-    
-    // Add currency filter if specified
-    let currencyParamIndex = queryParams.length + 1;
-    if (currency && currency !== 'all') {
-      whereClause += ` AND currency = $${currencyParamIndex}`;
-      queryParams.push(currency);
-    }
-    
-    // Query for aggregate invoice data
-    const aggregateQuery = `
-      SELECT 
-        COUNT(*) as "totalCount",
-        COALESCE(SUM(total_amount), 0) as "totalInvoiced",
-        COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as "totalReceived",
-        COALESCE(SUM(outstanding_amount), 0) as "totalOutstanding"
-      FROM invoices 
-      ${whereClause}
-    `;
-    
-    console.log('🔍 EXECUTING TURNOVER AGGREGATE QUERY:', aggregateQuery);
-    console.log('📋 QUERY PARAMS:', queryParams);
-    
-    const aggregateResult = await client.query(aggregateQuery, queryParams);
-    const aggregates = aggregateResult.rows[0];
-    
-    console.log('📊 TURNOVER AGGREGATE RESULT:', aggregates);
-    
-    // Query for monthly breakdown
-    const monthlyQuery = `
-      SELECT 
-        TO_CHAR(issue_date, 'Month') as month,
-        EXTRACT(MONTH FROM issue_date)::int as month_num,
-        EXTRACT(YEAR FROM issue_date)::int as year,
-        COUNT(*) as count,
-        COALESCE(SUM(total_amount), 0) as invoiced,
-        COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as received,
-        COALESCE(SUM(outstanding_amount), 0) as outstanding,
-        COALESCE(SUM(CASE WHEN invoice_type = 'Product' THEN total_amount ELSE 0 END), 0) as product_revenue,
-        COALESCE(SUM(CASE WHEN invoice_type = 'Service' THEN total_amount ELSE 0 END), 0) as service_revenue
-      FROM invoices 
-      ${whereClause}
-      GROUP BY EXTRACT(YEAR FROM issue_date), EXTRACT(MONTH FROM issue_date), TO_CHAR(issue_date, 'Month')
-      ORDER BY year, month_num
-    `;
-    
-    const monthlyResult = await client.query(monthlyQuery, queryParams);
-    
-    // Format monthly data
-    const monthlyData = monthlyResult.rows.map(row => ({
-      month: row.month.trim(),
-      year: row.year,
-      count: parseInt(row.count),
-      invoiced: parseFloat(row.invoiced),
-      received: parseFloat(row.received),
-      outstanding: parseFloat(row.outstanding),
-      productRevenue: parseFloat(row.product_revenue),
-      serviceRevenue: parseFloat(row.service_revenue)
-    }));
-    
-    const response = {
-      reportDate: new Date().toISOString(),
-      totalInvoiced: parseFloat(aggregates.totalInvoiced),
-      totalReceived: parseFloat(aggregates.totalReceived),
-      totalOutstanding: parseFloat(aggregates.totalOutstanding),
-      totalInvoicedINR: parseFloat(aggregates.totalInvoiced) * 85.413325, // Convert to INR
-      totalReceivedINR: parseFloat(aggregates.totalReceived) * 85.413325,
-      totalOutstandingINR: parseFloat(aggregates.totalOutstanding) * 85.413325,
-      monthlyData
-    };
-    
-    console.log('📤 TURNOVER REPORT RESPONSE:', JSON.stringify(response, null, 2));
-    return res.json(response);
     
   } catch (error) {
-    console.error('Error generating turnover report:', error);
+    console.error('❌ TURNOVER REPORT ERROR:', error);
     res.status(500).json({ error: 'Failed to generate turnover report' });
-  } finally {
-    client.release();
   }
 });
 
