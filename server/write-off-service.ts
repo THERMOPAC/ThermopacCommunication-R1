@@ -329,7 +329,7 @@ export const rejectWriteOff = async (req: Request, res: Response) => {
     console.log(`Rejecting write-off ${id} by user ${approverId}`);
 
     const updateQuery = `
-      UPDATE finance_write_offs 
+      UPDATE write_offs 
       SET status = 'Rejected', 
           approved_by = $1, 
           approval_date = NOW(), 

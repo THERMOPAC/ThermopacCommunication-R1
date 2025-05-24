@@ -828,7 +828,7 @@ router.post('/write-offs/:id/reject', ensureAuthenticated, async (req: Request, 
     console.log(`Rejecting write-off ${id} by user ${approverId}`);
 
     const updateQuery = `
-      UPDATE finance_write_offs 
+      UPDATE write_offs 
       SET status = 'Rejected', 
           approved_by = $1, 
           approval_date = NOW(), 
