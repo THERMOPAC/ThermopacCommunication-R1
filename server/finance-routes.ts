@@ -2650,9 +2650,8 @@ router.get('/test/invoice-number', ensureAuthenticated, async (req: Request, res
     } catch (dbError) {
       console.error("Database error when getting invoice number:", dbError);
       
-      // Fallback to the next invoice in sequence (INV-2526-052) if the database query fails
-      // This ensures we continue from the known latest invoice number
-      const sequenceStr = '052'; // Continue after INV-2526-051 which is the latest invoice
+      // Fallback: start from 001 if no invoices exist or if database query fails
+      const sequenceStr = '001'; // Start fresh from 001
       const nextInvoiceNumber = `INV-${financialYear}-${sequenceStr}`;
       
       console.log(`Using fallback invoice number: ${nextInvoiceNumber} due to DB error`);

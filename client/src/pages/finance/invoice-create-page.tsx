@@ -442,8 +442,8 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
               console.error('Error fetching invoice list:', fetchError);
             }
             
-            // If all else fails, use a safe starting value (052 after 051)
-            const sequenceStr = '052';
+            // If all else fails, start fresh from 001
+            const sequenceStr = '001';
             form.setValue('invoiceNumber', `INV-${financialYear}-${sequenceStr}`);
           } finally {
             setIsGeneratingInvoiceNumber(false);
