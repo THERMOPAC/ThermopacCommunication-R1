@@ -151,7 +151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { pool } = await import('./db');
       const updateQuery = `
-        UPDATE finance_write_offs 
+        UPDATE write_offs 
         SET status = 'Approved', 
             approved_by = $1, 
             approval_date = NOW(), 
@@ -206,7 +206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { pool } = await import('./db');
       const updateQuery = `
-        UPDATE finance_write_offs 
+        UPDATE write_offs 
         SET status = 'Approved', 
             approved_by = $1, 
             approval_date = NOW(), 

@@ -285,7 +285,7 @@ export const approveWriteOff = async (req: Request, res: Response) => {
     console.log(`Approving write-off ${id} by user ${approverId}`);
 
     const updateQuery = `
-      UPDATE finance_write_offs 
+      UPDATE write_offs 
       SET status = 'Approved', 
           approved_by = $1, 
           approval_date = NOW(), 

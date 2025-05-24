@@ -20,7 +20,7 @@ router.post('/approve-writeoff/:id', ensureAuthenticated, async (req: Request, r
     const userId = req.user?.id || 3; // fallback to user 3 for testing
     
     const updateQuery = `
-      UPDATE finance_write_offs 
+      UPDATE write_offs 
       SET status = 'Approved', 
           approved_by = $1, 
           approval_date = NOW(), 
@@ -736,7 +736,7 @@ router.post('/writeoff-approve-action/:id', ensureAuthenticated, async (req: Req
     console.log(`✅ Approving write-off ${id} by user ${approverId}`);
 
     const updateQuery = `
-      UPDATE finance_write_offs 
+      UPDATE write_offs 
       SET status = 'Approved', 
           approved_by = $1, 
           approval_date = NOW(), 
@@ -782,7 +782,7 @@ router.post('/write-offs/:id/approve', ensureAuthenticated, async (req: Request,
     console.log(`✅ Approving write-off ${id} by user ${approverId}`);
 
     const updateQuery = `
-      UPDATE finance_write_offs 
+      UPDATE write_offs 
       SET status = 'Approved', 
           approved_by = $1, 
           approval_date = NOW(), 

@@ -22,7 +22,7 @@ app.post('/api/approve-writeoff/:id', async (req: any, res: any) => {
     
     const { pool } = await import('./db');
     const updateQuery = `
-      UPDATE finance_write_offs 
+      UPDATE write_offs 
       SET status = 'Approved', 
           approved_by = $1, 
           approval_date = NOW(), 
@@ -100,7 +100,7 @@ app.use((req, res, next) => {
       
       const { pool } = await import('./db');
       const updateQuery = `
-        UPDATE finance_write_offs 
+        UPDATE write_offs 
         SET status = 'Approved', 
             approved_by = $1, 
             approval_date = NOW(), 
