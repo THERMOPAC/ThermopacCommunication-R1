@@ -60,7 +60,7 @@ export default function PaymentAllocationRedesigned() {
 
   // Fetch outstanding invoices
   const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
-    queryKey: ['/api/finance/outstanding-invoices'],
+    queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId, Date.now()],
     enabled: !!selectedCustomerId,
   });
 
@@ -338,7 +338,7 @@ export default function PaymentAllocationRedesigned() {
                 <div className="space-y-2">
                   <p><strong>Invoice ID:</strong> {selectedInvoice.id}</p>
                   <p><strong>Invoice Number:</strong> {selectedInvoice.invoiceNumber}</p>
-                  <p><strong>Date:</strong> {selectedInvoice.invoiceDate}</p>
+                  <p><strong>Date:</strong> {selectedInvoice.invoiceDate ? new Date(selectedInvoice.invoiceDate).toLocaleDateString() : 'N/A'}</p>
                   <p><strong>Customer:</strong> {selectedInvoice.customerName}</p>
                   <p><strong>Type:</strong> {selectedInvoice.invoiceType}</p>
                   <p><strong>Total Amount:</strong> {selectedInvoice.currency} {selectedInvoice.totalAmount}</p>
