@@ -683,11 +683,12 @@ router.post('/allocate-payment', ensureAuthenticated, async (req: Request, res: 
         WHERE id = $2
       `, [amount, invoiceId]);
       
-      // Update payment allocated amount
+      // Update payment allocated and unallocated amounts
       await client.query(`
         UPDATE payments 
         SET 
           allocated_amount = COALESCE(allocated_amount, 0) + $1,
+          unallocated_amount = COALESCE(unallocated_amount, amount) - $1,
           updated_at = NOW()
         WHERE id = $2
       `, [amount, paymentId]);
