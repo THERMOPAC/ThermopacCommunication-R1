@@ -268,115 +268,70 @@ function formatCurrency(amount: number) {
 }
 
 /**
- * Get turnover report
+ * Get turnover report with Indian Financial Year filtering
  */
 financeReportRouter.get('/turnover', async (req: Request, res: Response) => {
+  console.log('🔥 FINANCE-REPORT TURNOVER ENDPOINT HIT!');
+  console.log('🔥 Request query:', req.query);
   try {
-    // Get filter parameters from query
-    const { startDate, endDate, year, month } = req.query;
+    const { startDate, endDate, currency } = req.query;
     
-    // Create a default date range of current year if none provided
-    let params: any[] = [];
-    let dateFilter = '';
+    console.log('🎯 PROCESSING TURNOVER with params:', { startDate, endDate, currency });
     
-    // Handle different filter scenarios
+    // Build query conditions
+    let whereConditions = [];
+    let queryParams: any[] = [];
+    let paramIndex = 1;
+    
     if (startDate && endDate) {
-      // If date range is provided, use it
-      dateFilter = 'issue_date BETWEEN $1 AND $2';
-      params = [startDate, endDate];
-    } else if (year) {
-      // Backward compatibility for year/month filtering
-      const targetYear = parseInt(year as string);
-      
-      if (month) {
-        dateFilter = 'EXTRACT(YEAR FROM issue_date) = $1 AND EXTRACT(MONTH FROM issue_date) = $2';
-        params = [targetYear, parseInt(month as string)];
-      } else {
-        dateFilter = 'EXTRACT(YEAR FROM issue_date) = $1';
-        params = [targetYear];
-      }
-    } else {
-      // Default to 2025 if no filters provided (for demo data)
-      const currentYear = 2025;
-      dateFilter = 'EXTRACT(YEAR FROM issue_date) = $1';
-      params = [currentYear];
+      whereConditions.push(`issue_date >= $${paramIndex} AND issue_date <= $${paramIndex + 1}`);
+      queryParams.push(startDate, endDate);
+      paramIndex += 2;
+      console.log('✅ APPLYING DATE FILTER:', { startDate, endDate });
     }
     
-    // Build query for monthly revenue data
-    const query = `
+    if (currency && currency !== 'all') {
+      whereConditions.push(`currency = $${paramIndex}`);
+      queryParams.push(currency);
+      paramIndex++;
+      console.log('✅ APPLYING CURRENCY FILTER:', currency);
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    
+    // Execute aggregate query for turnover summary
+    const aggregateQuery = `
       SELECT 
-        TO_CHAR(issue_date, 'Month') as month,
-        EXTRACT(MONTH FROM issue_date)::int as month_num,
-        SUM(CASE WHEN invoice_type = 'Product' THEN total_amount ELSE 0 END) as product_revenue,
-        SUM(CASE WHEN invoice_type = 'Service' THEN total_amount ELSE 0 END) as service_revenue,
-        SUM(total_amount) as total_revenue
-      FROM 
-        invoices
-      WHERE 
-        ${dateFilter}
-      GROUP BY 
-        month, month_num
-      ORDER BY 
-        month_num ASC
+        COUNT(*) as count,
+        COALESCE(SUM(total_amount), 0) as total_invoiced,
+        COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as total_received,
+        COALESCE(SUM(outstanding_amount), 0) as total_outstanding
+      FROM invoices ${whereClause}
     `;
 
     const client = await pool.connect();
-    console.log('Executing turnover query:', query, 'with params:', params);
+    console.log('📋 EXECUTING TURNOVER QUERY:', aggregateQuery);
+    console.log('📋 WITH PARAMS:', queryParams);
     
     try {
-      const result = await client.query(query, params);
-      console.log('Query result rows:', result.rows);
+      const result = await client.query(aggregateQuery, queryParams);
+      const data = result.rows[0];
       
-      // If no data found, return empty array
-      if (!result.rows || result.rows.length === 0) {
-        return res.json({
-          reportDate: new Date().toISOString(),
-          totalInvoiced: 0,
-          totalReceived: 0,
-          totalOutstanding: 0,
-          monthlyData: []
-        });
-      }
+      console.log('📊 TURNOVER DATABASE RESULT:', data);
       
-      // Calculate totals
-      let totalInvoiced = 0;
-      
-      // Format the data for response
-      const monthlyData = result.rows.map(row => {
-        const totalRevenue = parseFloat(row.total_revenue) || 0;
-        const productRevenue = parseFloat(row.product_revenue) || 0;
-        const serviceRevenue = parseFloat(row.service_revenue) || 0;
-        
-        totalInvoiced += totalRevenue;
-        
-        // Calculate payments data (using simulated data for now)
-        // In a real world scenario, this would be calculated from actual payment records
-        const received = totalRevenue * 0.7; // 70% collected
-        const outstanding = totalRevenue * 0.3; // 30% outstanding
-        
-        return {
-          month: row.month.trim(), // Trim any whitespace
-          invoiced: totalRevenue,
-          received: received,
-          outstanding: outstanding,
-          productRevenue: productRevenue,
-          serviceRevenue: serviceRevenue
-        };
-      });
-      
-      // Calculate aggregate values
-      const totalReceived = monthlyData.reduce((sum, month) => sum + month.received, 0);
-      const totalOutstanding = monthlyData.reduce((sum, month) => sum + month.outstanding, 0);
-      
+      // Format response with authentic database data
       const response = {
         reportDate: new Date().toISOString(),
-        totalInvoiced,
-        totalReceived,
-        totalOutstanding,
-        monthlyData
+        totalInvoiced: parseFloat(data.total_invoiced) || 0,
+        totalReceived: parseFloat(data.total_received) || 0,
+        totalOutstanding: parseFloat(data.total_outstanding) || 0,
+        totalInvoicedINR: (parseFloat(data.total_invoiced) || 0) * 85.413325,
+        totalReceivedINR: (parseFloat(data.total_received) || 0) * 85.413325,
+        totalOutstandingINR: (parseFloat(data.total_outstanding) || 0) * 85.413325,
+        monthlyData: []
       };
       
-      console.log('Turnover report response:', response);
+      console.log('📤 SENDING TURNOVER RESPONSE:', response);
       res.json(response);
     } finally {
       client.release();
