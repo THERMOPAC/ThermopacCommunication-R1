@@ -350,7 +350,18 @@ const WriteOffManagementPage = () => {
     return date.toLocaleDateString();
   };
 
-  // Fetch write-offs with optional status filter
+  // Fetch ALL write-offs for counting
+  const { data: allWriteOffs = [], isLoading: loadingAll } = useQuery({
+    queryKey: ['/api/finance/write-offs-all'],
+    queryFn: async () => {
+      const response = await fetch('/api/finance/write-offs');
+      if (!response.ok) throw new Error('Failed to fetch all write-offs');
+      const data = await response.json();
+      return data;
+    }
+  });
+
+  // Fetch write-offs with status filter for current tab
   const { data: writeOffs = [], isLoading } = useQuery({
     queryKey: ['/api/finance/write-offs', activeTab],
     queryFn: async () => {
@@ -371,10 +382,10 @@ const WriteOffManagementPage = () => {
     }));
   };
 
-  // Count by status for badges
-  const pendingCount = writeOffs.filter((wo: WriteOff) => wo.status === 'Pending').length;
-  const approvedCount = writeOffs.filter((wo: WriteOff) => wo.status === 'Approved').length;
-  const rejectedCount = writeOffs.filter((wo: WriteOff) => wo.status === 'Rejected').length;
+  // Count by status for badges using ALL write-offs
+  const pendingCount = allWriteOffs.filter((wo: WriteOff) => wo.status === 'Pending').length;
+  const approvedCount = allWriteOffs.filter((wo: WriteOff) => wo.status === 'Approved').length;
+  const rejectedCount = allWriteOffs.filter((wo: WriteOff) => wo.status === 'Rejected').length;
 
   // Check if user can approve write-offs (allow for superusers and managers)
   const canApprove = user && (user.role === 'Superuser' || user.role === 'Manager' || canManage(user));
