@@ -60,8 +60,10 @@ export default function PaymentAllocationRedesigned() {
 
   // Fetch outstanding invoices
   const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
-    queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId, Date.now()],
+    queryKey: ['/api/finance/outstanding-invoices', selectedCustomerId],
     enabled: !!selectedCustomerId,
+    staleTime: 0,
+    cacheTime: 0,
   });
 
   const payments: Payment[] = (paymentsData as any)?.advances || [];
