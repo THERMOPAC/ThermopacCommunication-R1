@@ -344,7 +344,7 @@ export default function PaymentAllocationRedesigned() {
                   <p><strong>Total Amount:</strong> {selectedInvoice.currency} {selectedInvoice.totalAmount}</p>
                   <p><strong>Outstanding Amount:</strong> 
                     <span className="font-bold text-orange-700 ml-2">
-                      {selectedInvoice.currency} {selectedInvoice.outstanding_amount}
+                      {selectedInvoice.currency} {selectedInvoice.outstandingAmount}
                     </span>
                   </p>
                 </div>
