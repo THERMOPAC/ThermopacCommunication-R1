@@ -287,7 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get recent invoices with same filter
       const recentQuery = `
         SELECT id, invoice_number as "invoiceNumber", 
-               (SELECT company_name FROM customers WHERE id = invoices.customer_id) as "clientName",
+               (SELECT bp_name FROM customers WHERE id = invoices.customer_id) as "clientName",
                issue_date as "issueDate", due_date as "dueDate", 
                total_amount as amount, status
         FROM invoices 
