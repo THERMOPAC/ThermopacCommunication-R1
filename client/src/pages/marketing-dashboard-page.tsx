@@ -476,7 +476,14 @@ export default function MarketingDashboardPage() {
         dateRangeFrom: dateRange.from?.toDateString(),
         dateRangeTo: dateRange.to?.toDateString()
       });
-      const response = await fetch(`/api/finance/dashboard?from=${from}&to=${to}`);
+      // Add cache-busting parameter to ensure fresh API calls
+      const timestamp = Date.now();
+      const response = await fetch(`/api/finance/dashboard?from=${from}&to=${to}&_t=${timestamp}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch finance data');
       }
@@ -484,7 +491,9 @@ export default function MarketingDashboardPage() {
       console.log('Finance data received:', data);
       return data;
     },
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    staleTime: 0,
+    cacheTime: 0
   });
 
   // Calculate total turnover combining:
