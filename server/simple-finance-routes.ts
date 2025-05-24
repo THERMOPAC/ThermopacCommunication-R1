@@ -662,38 +662,49 @@ router.post('/allocate-payment', ensureAuthenticated, async (req: Request, res: 
       return res.status(400).json({ error: 'Missing required fields: paymentId, invoiceId, amount' });
     }
     
-    // Execute the allocation with proper transaction handling
-    const allocationQuery = `
-      BEGIN;
-      
-      -- Update invoice with payment allocation
-      UPDATE invoices 
-      SET 
-        paid_amount = COALESCE(paid_amount, 0) + $1,
-        outstanding_amount = total_amount::numeric - (COALESCE(paid_amount, 0) + $1),
-        status = CASE
-          WHEN (total_amount::numeric - (COALESCE(paid_amount, 0) + $1)) <= 0 THEN 'Paid'
-          WHEN (COALESCE(paid_amount, 0) + $1) > 0 THEN 'Partially Paid'
-          ELSE status
-        END,
-        updated_at = NOW()
-      WHERE id = $2;
-      
-      -- Update payment allocated amount
-      UPDATE payments 
-      SET 
-        allocated_amount = COALESCE(allocated_amount, 0) + $1,
-        updated_at = NOW()
-      WHERE id = $3;
-      
-      -- Insert payment-invoice link
-      INSERT INTO payment_invoice_links (payment_id, invoice_id, amount_applied, created_at, updated_at)
-      VALUES ($3, $2, $1, NOW(), NOW());
-      
-      COMMIT;
-    `;
+    // Execute allocation using separate queries in a transaction
+    const client = await pool.connect();
     
-    await pool.query(allocationQuery, [amount, invoiceId, paymentId]);
+    try {
+      await client.query('BEGIN');
+      
+      // Update invoice with payment allocation
+      await client.query(`
+        UPDATE invoices 
+        SET 
+          paid_amount = COALESCE(paid_amount, 0) + $1,
+          outstanding_amount = total_amount::numeric - (COALESCE(paid_amount, 0) + $1),
+          status = CASE
+            WHEN (total_amount::numeric - (COALESCE(paid_amount, 0) + $1)) <= 0 THEN 'Paid'
+            WHEN (COALESCE(paid_amount, 0) + $1) > 0 THEN 'Partially Paid'
+            ELSE status
+          END,
+          updated_at = NOW()
+        WHERE id = $2
+      `, [amount, invoiceId]);
+      
+      // Update payment allocated amount
+      await client.query(`
+        UPDATE payments 
+        SET 
+          allocated_amount = COALESCE(allocated_amount, 0) + $1,
+          updated_at = NOW()
+        WHERE id = $2
+      `, [amount, paymentId]);
+      
+      // Insert payment-invoice link
+      await client.query(`
+        INSERT INTO payment_invoice_links (payment_id, invoice_id, amount_applied, created_at, updated_at)
+        VALUES ($1, $2, $3, NOW(), NOW())
+      `, [paymentId, invoiceId, amount]);
+      
+      await client.query('COMMIT');
+      client.release();
+    } catch (error) {
+      await client.query('ROLLBACK');
+      client.release();
+      throw error;
+    }
     
     console.log('Payment allocation completed successfully');
     
