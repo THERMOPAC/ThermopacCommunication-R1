@@ -310,7 +310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const paymentStats = paymentsResult.rows[0];
       
       const latestPaymentsQuery = `
-        SELECT id, reference_number as "referenceNumber", customer_id as "customerId",
+        SELECT id, sap_payment_no as "referenceNumber", customer_id as "customerId",
                payment_date as "paymentDate", amount, payment_method as "paymentMethod",
                currency, 'Partially Allocated' as "allocationStatus"
         FROM payments 
