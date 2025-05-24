@@ -3100,6 +3100,8 @@ router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: R
     const aggregateResult = await client.query(aggregateQuery, queryParams);
     const aggregates = aggregateResult.rows[0];
     
+    console.log('📊 TURNOVER AGGREGATE RESULT:', aggregates);
+    
     // Query for monthly breakdown
     const monthlyQuery = `
       SELECT 
