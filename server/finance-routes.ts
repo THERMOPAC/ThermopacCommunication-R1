@@ -3057,6 +3057,10 @@ router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Re
  * Turnover report with Indian Financial Year filtering
  */
 router.get('/reports/turnover', ensureAuthenticated, async (req: Request, res: Response) => {
+  console.log('🔥 TURNOVER ENDPOINT HIT!');
+  console.log('🔥 Request query:', req.query);
+  console.log('🔥 Request headers:', req.headers);
+  
   try {
     const { startDate, endDate, currency } = req.query;
     
