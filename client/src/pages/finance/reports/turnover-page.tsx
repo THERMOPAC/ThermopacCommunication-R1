@@ -138,6 +138,8 @@ export default function TurnoverReportPage() {
       
       const data = await response.json();
       console.log('Turnover report data received:', data);
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       return data;
     },
     enabled: true
