@@ -301,8 +301,8 @@ export default function InvoiceDetailPage({ download = false, print = false }: I
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-muted-foreground">Balance Due</dt>
-                  <dd className={`text-base font-medium ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {formatRupees(balanceDue)}
+                  <dd className={`text-base font-medium ${(invoice?.outstandingAmount || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {formatRupees(invoice?.outstandingAmount || 0)}
                   </dd>
                 </div>
               </dl>
