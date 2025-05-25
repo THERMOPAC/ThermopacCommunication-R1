@@ -388,7 +388,7 @@ export default function InvoiceDetailPage({ download = false, print = false }: I
               invoiceId={invoice.id}
               customerId={invoice.customerId}
               invoiceType={invoice.invoiceType || 'Product'}
-              outstandingAmount={balanceDue}
+              outstandingAmount={invoice?.outstandingAmount || 0}
               currency={invoice.currency || 'USD'}
               onAllocationComplete={() => {
                 // Refetch invoice data and allocations when complete
