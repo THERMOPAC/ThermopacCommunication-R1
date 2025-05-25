@@ -397,7 +397,7 @@ export default function InvoiceDetailPage({ download = false, print = false }: I
             />
             
             {/* Show existing payment allocations */}
-            <PaymentAllocations 
+            <PaymentAllocationsFixed 
               invoiceId={invoice.id} 
               invoiceAmount={parseFloat(invoice.totalAmount)} 
               currency={invoice.currency || 'USD'} 
