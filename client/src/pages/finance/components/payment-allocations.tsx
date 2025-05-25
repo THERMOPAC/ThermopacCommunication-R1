@@ -12,16 +12,40 @@ interface PaymentAllocationsProps {
 }
 
 export default function PaymentAllocations({ invoiceId, invoiceAmount, currency = 'USD' }: PaymentAllocationsProps) {
-  // Fetch payment allocations for this invoice
-  const {
-    data: allocations,
-    isLoading,
-    error,
-    refetch
-  } = useQuery({
-    queryKey: [`/api/finance/invoices/${invoiceId}/allocations`],
-    enabled: !!invoiceId
-  });
+  // Direct fetch to bypass potential React Query routing issues
+  const [allocations, setAllocations] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<any>(null);
+
+  const fetchAllocations = async () => {
+    if (!invoiceId) return;
+    
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/finance/invoices/${invoiceId}/allocations`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setAllocations(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching allocations:', err);
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refetch = fetchAllocations;
   
   // Calculate total from allocations - handle both old and new API response formats
   const allocationsData = allocations?.allocations || allocations || [];
@@ -31,14 +55,16 @@ export default function PaymentAllocations({ invoiceId, invoiceAmount, currency 
     
   const balanceDue = invoiceAmount - totalPaid;
   
-  // Effect to refetch allocations periodically (every 5 seconds)
+  // Effect to fetch allocations when component loads and periodically
   useEffect(() => {
+    fetchAllocations();
+    
     const interval = setInterval(() => {
-      refetch();
+      fetchAllocations();
     }, 5000);
     
     return () => clearInterval(interval);
-  }, [refetch]);
+  }, [invoiceId]);
 
   return (
     <Card className="mb-6">
