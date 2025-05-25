@@ -22,19 +22,35 @@ export default function PaymentAllocations({ invoiceId, invoiceAmount, currency 
     
     try {
       setIsLoading(true);
+      console.log(`Fetching allocations for invoice ${invoiceId}...`);
+      
       const response = await fetch(`/api/finance/invoices/${invoiceId}/allocations`, {
+        method: 'GET',
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
         }
       });
+      
+      console.log(`Response status: ${response.status}, Content-Type: ${response.headers.get('content-type')}`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      const data = await response.json();
+      const text = await response.text();
+      console.log('Raw response text:', text.substring(0, 200));
+      
+      // Check if response is HTML (error page) instead of JSON
+      if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+        console.error('Received HTML instead of JSON - likely a routing issue');
+        throw new Error('Server returned HTML instead of JSON');
+      }
+      
+      const data = text ? JSON.parse(text) : null;
+      console.log('Parsed allocation data:', data);
       setAllocations(data);
       setError(null);
     } catch (err) {
