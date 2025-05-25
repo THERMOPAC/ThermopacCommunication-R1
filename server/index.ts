@@ -59,6 +59,70 @@ app.post('/api/approve-writeoff/:id', async (req: any, res: any) => {
   }
 });
 
+// Add missing write-offs by invoice endpoint that frontend needs
+app.get('/api/finance/write-offs/invoice/:invoiceId', async (req: any, res: any) => {
+  try {
+    const { invoiceId } = req.params;
+    const { pool } = await import('./db');
+    
+    const query = `
+      SELECT 
+        wo.id,
+        wo.invoice_id as "invoiceId",
+        i.invoice_number as "invoiceNumber",
+        c.bp_name as "customerName",
+        wo.amount,
+        i.total_amount as "originalInvoiceAmount",
+        wo.reason,
+        wo.notes,
+        wo.date_created as "dateCreated",
+        wo.created_by,
+        u.username as "createdByName",
+        wo.status,
+        wo.approved_by,
+        wo.approval_date as "approvalDate",
+        i.currency
+      FROM write_offs wo
+      LEFT JOIN invoices i ON wo.invoice_id = i.id
+      LEFT JOIN customers c ON i.customer_id = c.id
+      LEFT JOIN users u ON wo.created_by = u.id
+      WHERE wo.invoice_id = $1
+      ORDER BY wo.date_created DESC
+    `;
+    
+    const result = await pool.query(query, [parseInt(invoiceId)]);
+    
+    const formattedResults = result.rows.map((row: any) => ({
+      id: row.id,
+      invoiceId: row.invoiceId,
+      invoiceNumber: row.invoiceNumber || 'Unknown',
+      customerName: row.customerName || 'Unknown Customer',
+      amount: row.amount,
+      originalInvoiceAmount: row.originalInvoiceAmount || '0',
+      reason: row.reason,
+      notes: row.notes,
+      dateCreated: row.dateCreated,
+      createdBy: {
+        id: row.created_by,
+        name: row.createdByName || 'Unknown'
+      },
+      status: row.status,
+      approvedBy: row.approved_by ? {
+        id: row.approved_by,
+        name: 'Approver'
+      } : null,
+      approvalDate: row.approvalDate,
+      currency: row.currency || 'USD'
+    }));
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).json(formattedResults);
+  } catch (error) {
+    console.error('Error fetching write-offs for invoice:', error);
+    res.status(500).json({ error: 'Failed to fetch write-offs for invoice' });
+  }
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
