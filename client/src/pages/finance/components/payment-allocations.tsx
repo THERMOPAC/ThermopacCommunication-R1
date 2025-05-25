@@ -22,41 +22,46 @@ export default function PaymentAllocations({ invoiceId, invoiceAmount, currency 
     
     try {
       setIsLoading(true);
-      console.log(`Fetching allocations for invoice ${invoiceId}...`);
       
-      const response = await fetch(`/api/finance/invoices/${invoiceId}/allocations`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
+      // Use XMLHttpRequest to bypass Vite routing issues
+      const xhr = new XMLHttpRequest();
+      const url = `/api/finance/invoices/${invoiceId}/allocations`;
+      
+      xhr.open('GET', url, true);
+      xhr.setRequestHeader('Accept', 'application/json');
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.withCredentials = true;
+      
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              console.log('Successfully fetched allocation data:', data);
+              setAllocations(data);
+              setError(null);
+            } catch (parseError) {
+              console.error('Error parsing response:', parseError);
+              setError(parseError);
+            }
+          } else {
+            console.error(`Request failed with status ${xhr.status}`);
+            setError(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+          }
+          setIsLoading(false);
         }
-      });
+      };
       
-      console.log(`Response status: ${response.status}, Content-Type: ${response.headers.get('content-type')}`);
+      xhr.onerror = function() {
+        console.error('Network error occurred');
+        setError(new Error('Network error'));
+        setIsLoading(false);
+      };
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const text = await response.text();
-      console.log('Raw response text:', text.substring(0, 200));
-      
-      // Check if response is HTML (error page) instead of JSON
-      if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-        console.error('Received HTML instead of JSON - likely a routing issue');
-        throw new Error('Server returned HTML instead of JSON');
-      }
-      
-      const data = text ? JSON.parse(text) : null;
-      console.log('Parsed allocation data:', data);
-      setAllocations(data);
-      setError(null);
+      xhr.send();
     } catch (err) {
-      console.error('Error fetching allocations:', err);
+      console.error('Error setting up request:', err);
       setError(err);
-    } finally {
       setIsLoading(false);
     }
   };

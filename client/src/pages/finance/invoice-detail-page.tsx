@@ -21,7 +21,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
-import PaymentAllocations from "./components/payment-allocations";
+import PaymentAllocationsFixed from "./components/payment-allocations-fixed";
 import AdvancePaymentAllocator from "./components/advance-payment-allocator";
 import {
   Select,
