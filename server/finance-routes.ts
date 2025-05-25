@@ -3051,74 +3051,68 @@ router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Re
   }
 });
 
-// Working Turnover Report Endpoint
-router.get('/reports/turnover-working', ensureAuthenticated, async (req: Request, res: Response) => {
-  console.log('💥 WORKING TURNOVER ENDPOINT ACCESSED!');
-  console.log('💥 Query params:', req.query);
-  
+// Direct Turnover Report Endpoint (using same pattern as working dashboard)
+router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
   try {
     const { startDate, endDate, currency } = req.query;
     
-    const client = await pool.connect();
+    console.log('🎯 DIRECT TURNOVER with dates:', { startDate, endDate, currency });
     
-    try {
-      // Build query conditions
-      let whereConditions = [];
-      let queryParams: any[] = [];
-      let paramIndex = 1;
-      
-      if (startDate && endDate) {
-        whereConditions.push(`issue_date >= $${paramIndex} AND issue_date <= $${paramIndex + 1}`);
-        queryParams.push(startDate, endDate);
-        paramIndex += 2;
-        console.log('💥 APPLYING DATE FILTER:', { startDate, endDate });
-      }
-      
-      if (currency && currency !== 'all') {
-        whereConditions.push(`currency = $${paramIndex}`);
-        queryParams.push(currency);
-        paramIndex++;
-      }
-      
-      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-      
-      const query = `
-        SELECT 
-          COUNT(*) as count,
-          COALESCE(SUM(total_amount), 0) as total_invoiced,
-          COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as total_received,
-          COALESCE(SUM(outstanding_amount), 0) as total_outstanding
-        FROM invoices ${whereClause}
-      `;
-      
-      console.log('💥 EXECUTING QUERY:', query);
-      console.log('💥 WITH PARAMS:', queryParams);
-      
-      const result = await client.query(query, queryParams);
-      const data = result.rows[0];
-      
-      console.log('💥 DATABASE RESULT:', data);
-      
-      const response = {
-        reportDate: new Date().toISOString(),
-        totalInvoiced: parseFloat(data.total_invoiced) || 0,
-        totalReceived: parseFloat(data.total_received) || 0,
-        totalOutstanding: parseFloat(data.total_outstanding) || 0,
-        totalInvoicedINR: (parseFloat(data.total_invoiced) || 0) * 85.413325,
-        totalReceivedINR: (parseFloat(data.total_received) || 0) * 85.413325,
-        totalOutstandingINR: (parseFloat(data.total_outstanding) || 0) * 85.413325,
-        monthlyData: []
-      };
-      
-      console.log('💥 SENDING RESPONSE:', response);
-      res.json(response);
-      
-    } finally {
-      client.release();
+    // Build query conditions like the working finance dashboard
+    let whereConditions = ['1=1'];
+    let queryParams: any[] = [];
+    let paramIndex = 1;
+    
+    if (startDate && endDate) {
+      whereConditions.push(`issue_date >= $${paramIndex} AND issue_date <= $${paramIndex + 1}`);
+      queryParams.push(startDate, endDate);
+      paramIndex += 2;
+      console.log('✅ APPLYING DATE FILTER:', { startDate, endDate });
     }
     
+    if (currency && currency !== 'all') {
+      whereConditions.push(`currency = $${paramIndex}`);
+      queryParams.push(currency);
+      paramIndex++;
+    }
+    
+    const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+    
+    // Use the exact same query pattern that works in finance dashboard
+    const query = `
+      SELECT 
+        COUNT(*) as "totalCount",
+        COALESCE(SUM(total_amount), 0) as "totalInvoiced",
+        COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as "totalReceived",
+        COALESCE(SUM(outstanding_amount), 0) as "totalOutstanding"
+      FROM invoices ${whereClause}
+    `;
+    
+    console.log('🔍 EXECUTING DIRECT QUERY:', query);
+    console.log('📋 WITH PARAMS:', queryParams);
+    
+    const result = await pool.query(query, queryParams);
+    const data = result.rows[0];
+    
+    console.log('📊 DIRECT RESULT:', data);
+    
+    // Format response to match expected frontend structure
+    const response = {
+      reportDate: new Date().toISOString(),
+      totalInvoiced: parseFloat(data.totalInvoiced) || 0,
+      totalReceived: parseFloat(data.totalReceived) || 0,
+      totalOutstanding: parseFloat(data.totalOutstanding) || 0,
+      totalInvoicedINR: (parseFloat(data.totalInvoiced) || 0) * 85.413325,
+      totalReceivedINR: (parseFloat(data.totalReceived) || 0) * 85.413325,
+      totalOutstandingINR: (parseFloat(data.totalOutstanding) || 0) * 85.413325,
+      monthlyData: []
+    };
+    
+    console.log('📤 SENDING DIRECT RESPONSE:', response);
+    res.json(response);
+    
   } catch (error) {
-    console.error('💥 ERROR:', error);
+    console.error('❌ DIRECT TURNOVER ERROR:', error);
     res.status(500).json({ error: 'Failed to generate turnover report' });
   }
 });

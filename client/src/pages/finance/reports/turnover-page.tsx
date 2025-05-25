@@ -131,15 +131,16 @@ export default function TurnoverReportPage() {
       if (endDate) params.append('endDate', endDate);
       if (selectedCurrency !== 'all') params.append('currency', selectedCurrency);
       
-      const response = await fetch(`/api/finance/reports/turnover-working?${params.toString()}`);
+      const response = await fetch(`/api/finance/reports/turnover-direct?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch turnover report');
       }
       
       const data = await response.json();
-      console.log('Turnover report data received:', data);
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('💥 FRONTEND - Turnover report data received:', data);
+      console.log('💥 FRONTEND - Response status:', response.status);
+      console.log('💥 FRONTEND - Response type:', typeof data);
+      console.log('💥 FRONTEND - Data keys:', Object.keys(data || {}));
       return data;
     },
     enabled: true
