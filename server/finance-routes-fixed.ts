@@ -726,10 +726,10 @@ router.get('/invoices/:id/allocations', ensureAuthenticated, async (req: Request
         pil.amount_applied,
         pil.created_at,
         p.id as payment_id,
-        p.payment_number,
+        p.irm_no,
         p.payment_date,
         p.payment_method,
-        p.reference,
+        p.sap_payment_no,
         p.currency,
         c.bp_name as customer_name
       FROM payment_invoice_links pil
@@ -749,10 +749,10 @@ router.get('/invoices/:id/allocations', ensureAuthenticated, async (req: Request
         allocationDate: row.created_at,
         payment: {
           id: row.payment_id,
-          paymentNumber: row.payment_number,
+          irmNo: row.irm_no,
           paymentDate: row.payment_date,
           paymentMethod: row.payment_method,
-          reference: row.reference,
+          sapPaymentNo: row.sap_payment_no,
           currency: row.currency,
           customerName: row.customer_name
         }
