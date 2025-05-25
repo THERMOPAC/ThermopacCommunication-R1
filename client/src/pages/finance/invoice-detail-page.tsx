@@ -227,8 +227,12 @@ export default function InvoiceDetailPage({ download = false, print = false }: I
     );
   }
   
-  const invoice = data?.invoice;
+  const invoice = data?.invoice || data;
   const items = data?.items || [];
+  
+  // Debug logging to see what data we're receiving
+  console.log('Raw API response:', data);
+  console.log('Invoice data:', invoice);
   
   // We're now using our dedicated PaymentAllocations component instead of calculating these here
   
