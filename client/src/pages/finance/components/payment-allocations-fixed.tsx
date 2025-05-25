@@ -70,7 +70,8 @@ export default function PaymentAllocationsFixed({ invoiceId, invoiceAmount, curr
     );
   }
 
-  if (error) {
+  // Only show error if both APIs fail and there's no data available
+  if (error && (!allocations && !writeOffs)) {
     return (
       <Card className="mb-6">
         <CardHeader>
