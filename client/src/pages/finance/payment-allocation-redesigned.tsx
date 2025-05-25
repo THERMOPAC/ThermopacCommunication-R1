@@ -65,8 +65,23 @@ export default function PaymentAllocationRedesigned() {
     staleTime: 0,
   });
 
+  // Fetch existing payment-invoice links to filter out duplicates
+  const { data: linksData } = useQuery({
+    queryKey: ['/api/finance/payment-invoice-links'],
+  });
+
   const payments: Payment[] = (paymentsData as any)?.advances || [];
-  const invoices: Invoice[] = (invoicesData as any)?.invoices || [];
+  const allInvoices: Invoice[] = (invoicesData as any)?.invoices || [];
+  const existingLinks = (linksData as any)?.links || [];
+
+  // Filter out invoices that are already linked to the selected payment
+  const invoices = selectedPayment 
+    ? allInvoices.filter(invoice => 
+        !existingLinks.some((link: any) => 
+          link.payment_id === selectedPayment.id && link.invoice_id === invoice.id
+        )
+      )
+    : allInvoices;
 
   // Auto-calculate allocation amount when both payment and invoice are selected
   useEffect(() => {

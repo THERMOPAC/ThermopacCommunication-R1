@@ -637,4 +637,29 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
   }
 });
 
+// Get existing payment-invoice allocations to prevent duplicate selections
+router.get('/payment-invoice-links', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const query = `
+      SELECT payment_id, invoice_id, amount, created_at
+      FROM payment_invoice_links
+      ORDER BY created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      links: result.rows
+    });
+    
+  } catch (error) {
+    console.error('Error fetching payment-invoice links:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch payment-invoice links' 
+    });
+  }
+});
+
 export default router;
