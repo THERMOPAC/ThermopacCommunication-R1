@@ -641,7 +641,7 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
 router.get('/payment-invoice-links', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const query = `
-      SELECT payment_id, invoice_id, amount, created_at
+      SELECT payment_id, invoice_id, amount_applied, created_at
       FROM payment_invoice_links
       ORDER BY created_at DESC
     `;
@@ -658,6 +658,60 @@ router.get('/payment-invoice-links', ensureAuthenticated, async (req: Request, r
     res.status(500).json({ 
       success: false, 
       error: 'Failed to fetch payment-invoice links' 
+    });
+  }
+});
+
+// Enhanced payment details with allocation breakdown
+router.get('/payments/:id/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const paymentId = parseInt(req.params.id);
+    
+    const query = `
+      SELECT 
+        pil.amount_applied,
+        pil.created_at,
+        i.id as invoice_id,
+        i.invoice_number,
+        i.total_amount as invoice_total,
+        i.status as invoice_status,
+        i.issue_date,
+        i.due_date,
+        i.currency,
+        c.bp_name as customer_name
+      FROM payment_invoice_links pil
+      JOIN invoices i ON pil.invoice_id = i.id
+      LEFT JOIN customers c ON i.customer_id = c.id
+      WHERE pil.payment_id = $1
+      ORDER BY pil.created_at DESC
+    `;
+    
+    const result = await pool.query(query, [paymentId]);
+    
+    res.json({
+      success: true,
+      paymentId: paymentId,
+      allocations: result.rows.map(row => ({
+        amountApplied: parseFloat(row.amount_applied),
+        allocationDate: row.created_at,
+        invoice: {
+          id: row.invoice_id,
+          invoiceNumber: row.invoice_number,
+          totalAmount: parseFloat(row.invoice_total),
+          status: row.invoice_status,
+          issueDate: row.issue_date,
+          dueDate: row.due_date,
+          currency: row.currency,
+          customerName: row.customer_name
+        }
+      }))
+    });
+    
+  } catch (error) {
+    console.error('Error fetching payment allocations:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch payment allocations' 
     });
   }
 });
