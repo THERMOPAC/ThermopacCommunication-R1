@@ -125,6 +125,16 @@ simplifiedAllocationApi.post('/allocate-single', ensureAuthenticated, async (req
     await client.query('ROLLBACK');
     
     console.error('Error in simple allocation:', error);
+    
+    // Check if it's a duplicate allocation error
+    if (error instanceof Error && error.message.includes('payment_invoice_links_payment_id_invoice_id_key')) {
+      return res.status(400).json({
+        success: false,
+        message: 'This payment has already been allocated to this invoice. Please select a different payment or invoice.',
+        type: 'duplicate_allocation'
+      });
+    }
+    
     return res.status(500).json({
       success: false,
       message: 'Error allocating payment',
