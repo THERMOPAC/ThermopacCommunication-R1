@@ -23,9 +23,10 @@ export default function PaymentAllocations({ invoiceId, invoiceAmount, currency 
     enabled: !!invoiceId
   });
   
-  // Calculate total from allocations
-  const totalPaid = Array.isArray(allocations) 
-    ? allocations.reduce((sum: number, allocation: any) => sum + parseFloat(allocation.allocatedAmount), 0)
+  // Calculate total from allocations - handle both old and new API response formats
+  const allocationsData = allocations?.allocations || allocations || [];
+  const totalPaid = Array.isArray(allocationsData) 
+    ? allocationsData.reduce((sum: number, allocation: any) => sum + parseFloat(allocation.amountApplied || allocation.allocatedAmount || 0), 0)
     : 0;
     
   const balanceDue = invoiceAmount - totalPaid;
@@ -60,7 +61,7 @@ export default function PaymentAllocations({ invoiceId, invoiceAmount, currency 
           <div className="p-4 text-center text-red-500">
             Error loading payment allocations. Please try again later.
           </div>
-        ) : allocations && Array.isArray(allocations) && allocations.length > 0 ? (
+        ) : allocationsData && Array.isArray(allocationsData) && allocationsData.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -74,29 +75,26 @@ export default function PaymentAllocations({ invoiceId, invoiceAmount, currency 
                 </tr>
               </thead>
               <tbody>
-                {allocations.map((allocation: any, index: number) => (
+                {allocationsData.map((allocation: any, index: number) => (
                   <tr key={index} className="border-b hover:bg-muted/20">
                     <td className="px-4 py-3 text-sm">
-                      <a href={`/finance/payments/${allocation.paymentId}`} className="text-primary hover:underline font-medium">
-                        {allocation.paymentReference}
+                      <a href={`/finance/payments/${allocation.payment?.id}`} className="text-primary hover:underline font-medium">
+                        {allocation.payment?.irmNo || allocation.payment?.sapPaymentNo || 'Payment Reference'}
                       </a>
                       <div className="text-xs text-muted-foreground">
-                        {allocation.sapPaymentNo && <div>SAP: {allocation.sapPaymentNo}</div>}
-                        {allocation.irmNo && <div>IRM: {allocation.irmNo}</div>}
+                        {allocation.payment?.sapPaymentNo && <div>SAP: {allocation.payment.sapPaymentNo}</div>}
+                        {allocation.payment?.irmNo && <div>IRM: {allocation.payment.irmNo}</div>}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm">{formatDate(allocation.paymentDate)}</td>
-                    <td className="px-4 py-3 text-sm">{allocation.paymentMethod}</td>
+                    <td className="px-4 py-3 text-sm">{new Date(allocation.payment?.paymentDate || allocation.allocationDate).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-sm">{allocation.payment?.paymentMethod || 'N/A'}</td>
                     <td className="px-4 py-3 text-sm">
-                      <Badge variant={allocation.paymentType === "Product" ? "default" : "secondary"}>
-                        {allocation.paymentType}
+                      <Badge variant="default">
+                        {allocation.payment?.currency || currency}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-sm text-right">
-                      {currency} {parseFloat(allocation.paymentTotal).toFixed(2)}
-                    </td>
                     <td className="px-4 py-3 text-sm text-right font-medium text-green-600">
-                      {currency} {parseFloat(allocation.allocatedAmount).toFixed(2)}
+                      {currency} {parseFloat(allocation.amountApplied || allocation.allocatedAmount || 0).toFixed(2)}
                     </td>
                   </tr>
                 ))}
