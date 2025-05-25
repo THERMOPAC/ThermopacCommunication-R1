@@ -43,8 +43,9 @@ export default function PaymentAllocationsFixed({ invoiceId, invoiceAmount, curr
     ? allocationsData.reduce((sum: number, allocation: any) => sum + parseFloat(allocation.amountApplied || allocation.allocatedAmount || 0), 0)
     : 0;
 
-  // Calculate total from write-offs (only approved ones)
+  // Calculate total from write-offs (only approved ones) - debug the data structure
   const writeOffsData = writeOffs || [];
+  console.log('Write-offs data from API:', writeOffsData);
   const totalWrittenOff = Array.isArray(writeOffsData) 
     ? writeOffsData
         .filter((writeOff: any) => writeOff.status === 'Approved')
