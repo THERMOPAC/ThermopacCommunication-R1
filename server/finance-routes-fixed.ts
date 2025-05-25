@@ -716,4 +716,56 @@ router.get('/payments/:id/allocations', ensureAuthenticated, async (req: Request
   }
 });
 
+// Enhanced invoice allocation details endpoint
+router.get('/invoices/:id/allocations', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = parseInt(req.params.id);
+    
+    const query = `
+      SELECT 
+        pil.amount_applied,
+        pil.created_at,
+        p.id as payment_id,
+        p.payment_number,
+        p.payment_date,
+        p.payment_method,
+        p.reference,
+        p.currency,
+        c.bp_name as customer_name
+      FROM payment_invoice_links pil
+      JOIN payments p ON pil.payment_id = p.id
+      LEFT JOIN customers c ON p.customer_id = c.id
+      WHERE pil.invoice_id = $1
+      ORDER BY pil.created_at DESC
+    `;
+    
+    const result = await pool.query(query, [invoiceId]);
+    
+    res.json({
+      success: true,
+      invoiceId: invoiceId,
+      allocations: result.rows.map(row => ({
+        amountApplied: parseFloat(row.amount_applied),
+        allocationDate: row.created_at,
+        payment: {
+          id: row.payment_id,
+          paymentNumber: row.payment_number,
+          paymentDate: row.payment_date,
+          paymentMethod: row.payment_method,
+          reference: row.reference,
+          currency: row.currency,
+          customerName: row.customer_name
+        }
+      }))
+    });
+    
+  } catch (error) {
+    console.error('Error fetching invoice allocations:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch invoice allocations' 
+    });
+  }
+});
+
 export default router;
