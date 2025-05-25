@@ -582,6 +582,31 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
     
     console.log('📊 DIRECT RESULT:', data);
     
+    // Get monthly breakdown data
+    const monthlyQuery = `
+      SELECT 
+        EXTRACT(YEAR FROM issue_date) as year,
+        EXTRACT(MONTH FROM issue_date) as month,
+        TO_CHAR(issue_date, 'Month YYYY') as month_label,
+        COALESCE(SUM(total_amount), 0) as monthly_invoiced,
+        COALESCE(SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END), 0) as monthly_received,
+        COALESCE(SUM(outstanding_amount), 0) as monthly_outstanding,
+        CASE 
+          WHEN SUM(total_amount) > 0 
+          THEN ROUND((SUM(CASE WHEN status = 'Paid' THEN total_amount ELSE 0 END) * 100.0 / SUM(total_amount)), 2)
+          ELSE 0 
+        END as percent_collected
+      FROM invoices ${whereClause}
+      GROUP BY EXTRACT(YEAR FROM issue_date), EXTRACT(MONTH FROM issue_date), TO_CHAR(issue_date, 'Month YYYY')
+      ORDER BY year, month
+    `;
+    
+    console.log('📅 MONTHLY QUERY:', monthlyQuery);
+    const monthlyResult = await pool.query(monthlyQuery, queryParams);
+    const monthlyData = monthlyResult.rows;
+    
+    console.log('📅 MONTHLY DATA:', monthlyData);
+    
     // Format response for frontend
     const response = {
       reportDate: new Date().toISOString(),
@@ -591,7 +616,16 @@ router.get('/reports/turnover-direct', async (req: Request, res: Response) => {
       totalInvoicedINR: (parseFloat(data.totalInvoiced) || 0) * 85.413325,
       totalReceivedINR: (parseFloat(data.totalReceived) || 0) * 85.413325,
       totalOutstandingINR: (parseFloat(data.totalOutstanding) || 0) * 85.413325,
-      monthlyData: []
+      monthlyData: monthlyData.map(row => ({
+        month: row.month_label.trim(),
+        invoicedAmount: parseFloat(row.monthly_invoiced) || 0,
+        receivedAmount: parseFloat(row.monthly_received) || 0,
+        outstanding: parseFloat(row.monthly_outstanding) || 0,
+        percentCollected: parseFloat(row.percent_collected) || 0,
+        invoicedAmountINR: (parseFloat(row.monthly_invoiced) || 0) * 85.413325,
+        receivedAmountINR: (parseFloat(row.monthly_received) || 0) * 85.413325,
+        outstandingINR: (parseFloat(row.monthly_outstanding) || 0) * 85.413325
+      }))
     };
     
     console.log('📤 SENDING DIRECT RESPONSE:', response);

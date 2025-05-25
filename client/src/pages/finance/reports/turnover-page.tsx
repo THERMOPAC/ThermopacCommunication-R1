@@ -352,14 +352,27 @@ export default function TurnoverReportPage() {
                     {data && data.monthlyData && data.monthlyData.length > 0 ? (
                       data.monthlyData.map((month: any, index: number) => (
                         <TableRow key={index}>
-                          <TableCell>{month.month}</TableCell>
-                          <TableCell>{formatUSD(month.invoiced)}</TableCell>
-                          <TableCell>{formatUSD(month.received)}</TableCell>
-                          <TableCell>{formatUSD(month.outstanding)}</TableCell>
+                          <TableCell className="font-medium">{month.month}</TableCell>
+                          <TableCell>
+                            {selectedCurrency === 'USD' || selectedCurrency === 'all' ? 
+                              formatUSD(month.invoicedAmount) : 
+                              formatRupees(month.invoicedAmountINR || month.invoicedAmount * 85.55)
+                            }
+                          </TableCell>
+                          <TableCell>
+                            {selectedCurrency === 'USD' || selectedCurrency === 'all' ? 
+                              formatUSD(month.receivedAmount) : 
+                              formatRupees(month.receivedAmountINR || month.receivedAmount * 85.55)
+                            }
+                          </TableCell>
+                          <TableCell>
+                            {selectedCurrency === 'USD' || selectedCurrency === 'all' ? 
+                              formatUSD(month.outstanding) : 
+                              formatRupees(month.outstandingINR || month.outstanding * 85.55)
+                            }
+                          </TableCell>
                           <TableCell className="text-right">
-                            {month.invoiced > 0 
-                              ? `${Math.round((month.received / month.invoiced) * 100)}%` 
-                              : '0%'}
+                            <span className="font-semibold">{month.percentCollected}%</span>
                           </TableCell>
                         </TableRow>
                       ))
