@@ -197,8 +197,20 @@ export default function PaymentAllocationRedesigned() {
     : [];
 
   // Filter invoices by payment type matching
+  // Filter invoices that match payment type and aren't already allocated to this payment
   const filteredInvoices = selectedPayment 
-    ? invoices.filter(i => i.invoiceType === selectedPayment.paymentType)
+    ? invoices.filter(i => {
+        // Check payment type match
+        if (i.invoiceType !== selectedPayment.paymentType) return false;
+        
+        // Check if this payment-invoice combination already exists
+        const existingAllocation = existingLinks.find(
+          (link: any) => link.payment_id === selectedPayment.id && link.invoice_id === i.id
+        );
+        
+        // Only show if no existing allocation
+        return !existingAllocation;
+      })
     : [];
 
   return (
