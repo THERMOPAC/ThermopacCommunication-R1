@@ -116,17 +116,18 @@ simplePaymentAllocationApi.post('/allocate-payment', ensureAuthenticated, async 
       await client.query(updateInvoiceQuery, [allocation.allocationAmount, allocation.invoiceId]);
     }
     
-    // Update payment allocated and remaining amounts
+    // Update payment allocated and unallocated amounts correctly
     const updatePaymentQuery = `
       UPDATE payments 
       SET 
         allocated_amount = COALESCE(allocated_amount, 0) + $1,
-        remaining_amount = amount - (COALESCE(allocated_amount, 0) + $1),
+        unallocated_amount = amount - (COALESCE(allocated_amount, 0) + $1),
         status = CASE
           WHEN (amount - (COALESCE(allocated_amount, 0) + $1)) <= 0 THEN 'Fully Allocated'
           WHEN (COALESCE(allocated_amount, 0) + $1) > 0 THEN 'Partially Allocated'
           ELSE status
-        END
+        END,
+        updated_at = NOW()
       WHERE id = $2
     `;
     
