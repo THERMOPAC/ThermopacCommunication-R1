@@ -40,7 +40,8 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
         customers c ON p.customer_id = c.id
       WHERE 
         p.is_advance_payment = true
-        AND p.unallocated_amount > 0
+        AND p.unallocated_amount > 0.01
+        AND p.allocated_amount < p.amount
       ORDER BY 
         p.payment_date DESC
     `);

@@ -2867,7 +2867,8 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
         customers c ON p.customer_id = c.id
       WHERE 
         p.is_advance_payment = true
-        AND p.unallocated_amount > 0
+        AND p.unallocated_amount > 0.01
+        AND p.allocated_amount < p.amount
       ORDER BY 
         p.payment_date DESC
     `;
@@ -2877,16 +2878,26 @@ router.get('/payments/unallocated-advances', ensureAuthenticated, async (req: Re
     
     console.log(`Found ${advances.length} unallocated advance payments`);
     
+    // Filter out any payments that are fully allocated (double-check)
+    const filteredAdvances = advances.filter(payment => {
+      const unallocated = parseFloat(payment.unallocatedAmount) || 0;
+      const allocated = parseFloat(payment.allocatedAmount) || 0;
+      const total = parseFloat(payment.amount) || 0;
+      return unallocated > 0.01 && allocated < total;
+    });
+    
+    console.log(`After filtering: ${filteredAdvances.length} truly unallocated advance payments`);
+    
     // Calculate total unallocated amount
-    const totalUnallocated = advances.reduce((sum, payment) => {
+    const totalUnallocated = filteredAdvances.reduce((sum, payment) => {
       const amount = parseFloat(payment.unallocatedAmount) || 0;
       return sum + amount;
     }, 0);
     
     res.json({
-      advances: advances,
+      advances: filteredAdvances,
       totalUnallocatedAmount: totalUnallocated.toFixed(2),
-      count: advances.length
+      count: filteredAdvances.length
     });
     
   } catch (error) {
