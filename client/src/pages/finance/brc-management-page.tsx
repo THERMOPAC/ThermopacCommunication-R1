@@ -278,7 +278,7 @@ export default function BrcManagementPage() {
                 <Select 
                   value={selectedInvoiceId} 
                   onValueChange={setSelectedInvoiceId}
-                  disabled={!selectedCustomerId}
+
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select invoice..." />
