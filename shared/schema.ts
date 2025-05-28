@@ -3149,7 +3149,8 @@ export const invoicesRelations = relations(invoices, ({ one, many }) => ({
     references: [users.id]
   }),
   items: many(invoiceItems),
-  paymentLinks: many(paymentInvoiceLinks)
+  paymentLinks: many(paymentInvoiceLinks),
+  bankRealizationCertificates: many(bankRealizationCertificates)
 }));
 
 // Relations for invoice items
@@ -3187,6 +3188,10 @@ export const bankRealizationCertificatesRelations = relations(bankRealizationCer
   payment: one(payments, {
     fields: [bankRealizationCertificates.relatedPaymentId],
     references: [payments.id]
+  }),
+  invoice: one(invoices, {
+    fields: [bankRealizationCertificates.relatedInvoiceId],
+    references: [invoices.id]
   }),
   creator: one(users, {
     fields: [bankRealizationCertificates.createdBy],
