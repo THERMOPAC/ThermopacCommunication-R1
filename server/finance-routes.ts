@@ -2310,7 +2310,7 @@ router.post('/payments/:id/allocate', ensureAuthenticated, async (req: Request, 
     
     // Step 1: Get payment details and verify it exists and has sufficient unallocated amount
     const paymentQuery = `
-      SELECT id, irm_no, payment_type, unallocated_amount
+      SELECT id, irm_no, payment_type, amount, allocated_amount, unallocated_amount
       FROM payments
       WHERE id = $1
     `;
@@ -2328,12 +2328,68 @@ router.post('/payments/:id/allocate', ensureAuthenticated, async (req: Request, 
       0
     );
     
-    if (totalAllocationAmount > parseFloat(payment.unallocated_amount)) {
+    // COMPREHENSIVE OVER-ALLOCATION VALIDATION
+    const paymentTotal = parseFloat(payment.amount);
+    const currentAllocated = parseFloat(payment.allocated_amount || 0);
+    const currentUnallocated = parseFloat(payment.unallocated_amount || paymentTotal);
+    
+    // Check 1: Basic unallocated amount check
+    if (totalAllocationAmount > currentUnallocated) {
       await client.query('ROLLBACK');
       return res.status(400).json({ 
         error: 'Total allocation amount exceeds the payment\'s available amount',
         requested: totalAllocationAmount,
-        available: parseFloat(payment.unallocated_amount)
+        available: currentUnallocated,
+        paymentId: paymentId
+      });
+    }
+    
+    // Check 2: Verify total allocations won't exceed payment amount
+    const newTotalAllocated = currentAllocated + totalAllocationAmount;
+    if (newTotalAllocated > paymentTotal) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ 
+        error: 'New allocation would cause over-allocation',
+        paymentTotal: paymentTotal,
+        currentAllocated: currentAllocated,
+        requestedAllocation: totalAllocationAmount,
+        wouldResultIn: newTotalAllocated,
+        excess: newTotalAllocated - paymentTotal,
+        paymentId: paymentId
+      });
+    }
+    
+    // Check 3: Verify existing allocations match database constraints
+    const existingAllocationsQuery = `
+      SELECT COALESCE(SUM(amount_applied), 0) as total_existing
+      FROM payment_invoice_links 
+      WHERE payment_id = $1
+    `;
+    
+    const existingResult = await client.query(existingAllocationsQuery, [paymentId]);
+    const existingTotal = parseFloat(existingResult.rows[0].total_existing || 0);
+    
+    if (existingTotal !== currentAllocated) {
+      console.warn(`Payment ${paymentId} allocation mismatch detected:`, {
+        databaseAllocated: currentAllocated,
+        linksTotal: existingTotal,
+        difference: Math.abs(currentAllocated - existingTotal)
+      });
+    }
+    
+    // Check 4: Final validation - prevent over-allocation like Payment ID 5
+    const finalTotal = existingTotal + totalAllocationAmount;
+    if (finalTotal > paymentTotal) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ 
+        error: 'Allocation rejected: Would exceed payment amount (preventing over-allocation)',
+        paymentAmount: paymentTotal,
+        existingAllocations: existingTotal,
+        newAllocation: totalAllocationAmount,
+        wouldTotal: finalTotal,
+        overage: finalTotal - paymentTotal,
+        paymentId: paymentId,
+        validationNote: 'This validation prevents issues like Payment ID 5 over-allocation'
       });
     }
     
