@@ -3949,4 +3949,62 @@ router.post('/write-offs', ensureAuthenticated, async (req: Request, res: Respon
   }
 });
 
+/**
+ * Create a new BRC
+ */
+router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { invoiceId, brcNumber, brcDate, bankName, amountRealized, currency, notes } = req.body;
+    
+    // Create BRC record using storage
+    const newBrc = await storage.createBankRealizationCertificate({
+      relatedInvoiceId: parseInt(invoiceId),
+      brcNumber,
+      brcDate,
+      bankName,
+      amountRealized: parseFloat(amountRealized),
+      currency,
+      notes,
+      createdBy: req.user.id
+    });
+    
+    res.status(201).json(newBrc);
+  } catch (error: any) {
+    console.error('Error creating BRC:', error);
+    res.status(500).json({ 
+      error: 'Failed to create BRC',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Update an existing BRC
+ */
+router.put('/brc/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { invoiceId, brcNumber, brcDate, bankName, amountRealized, currency, notes } = req.body;
+    
+    // Update BRC record using storage
+    const updatedBrc = await storage.updateBankRealizationCertificate(parseInt(id), {
+      relatedInvoiceId: parseInt(invoiceId),
+      brcNumber,
+      brcDate,
+      bankName,
+      amountRealized: parseFloat(amountRealized),
+      currency,
+      notes
+    });
+    
+    res.json(updatedBrc);
+  } catch (error: any) {
+    console.error('Error updating BRC:', error);
+    res.status(500).json({ 
+      error: 'Failed to update BRC',
+      message: error.message
+    });
+  }
+});
+
 export default router;
