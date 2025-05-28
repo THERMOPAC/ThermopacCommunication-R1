@@ -267,7 +267,7 @@ export default function BrcManagementPage() {
                     <SelectItem value="all">All Customers</SelectItem>
                     {customers?.map((customer: any) => (
                       <SelectItem key={customer.id} value={customer.id.toString()}>
-                        {customer.companyName}
+                        {customer.companyName || customer.bpName}
                       </SelectItem>
                     ))}
                   </SelectContent>
