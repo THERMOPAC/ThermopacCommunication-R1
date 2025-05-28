@@ -43,6 +43,7 @@ import PaymentCreatePage from "@/pages/finance/payment-create-page";
 import NewPaymentCreatePage from "@/pages/finance/new-payment-create";
 import EditPaymentPage from "@/pages/finance/edit-payment-page";
 import BrcPage from "@/pages/finance/brc-page";
+import BrcManagementPage from "@/pages/finance/brc-management-page";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
@@ -162,6 +163,7 @@ function Router() {
       <ProtectedRoute path="/finance/batch-advance-allocation" component={BatchAdvanceAllocationPage} />
       <ProtectedRoute path="/finance/payments/:id" component={() => <PaymentDetailPage />} />
       <ProtectedRoute path="/finance/brc" component={BrcPage} />
+      <ProtectedRoute path="/finance/brc-management" component={BrcManagementPage} />
       <ProtectedRoute path="/finance/reports/turnover" component={TurnoverReportPage} />
       <ProtectedRoute path="/finance/reports/outstanding" component={OutstandingReportPage} />
       <ProtectedRoute path="/finance/reports/remittances" component={RemittancesReportPage} />

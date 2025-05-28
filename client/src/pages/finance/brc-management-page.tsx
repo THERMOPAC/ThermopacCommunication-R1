@@ -1,0 +1,586 @@
+import React, { useState, useMemo } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Helmet } from 'react-helmet';
+import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { FileText, Download, Plus, Loader2, AlertCircle, Search, Upload, Calendar, Building2 } from 'lucide-react';
+import Layout from '@/components/layout';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { formatRupees } from '@/lib/utils';
+
+interface BrcFormData {
+  invoiceId: number;
+  brcNumber: string;
+  brcDate: string;
+  bankName: string;
+  amountRealized: number;
+  currency: string;
+  notes: string;
+  file?: File;
+}
+
+export default function BrcManagementPage() {
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('pending');
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingBrc, setEditingBrc] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState<BrcFormData>({
+    invoiceId: 0,
+    brcNumber: '',
+    brcDate: format(new Date(), 'yyyy-MM-dd'),
+    bankName: '',
+    amountRealized: 0,
+    currency: 'USD',
+    notes: ''
+  });
+
+  // Fetch customers
+  const { data: customers, isLoading: isLoadingCustomers } = useQuery({
+    queryKey: ['/api/customers'],
+    enabled: true
+  });
+
+  // Fetch invoices filtered by customer
+  const { data: invoices, isLoading: isLoadingInvoices } = useQuery({
+    queryKey: ['/api/finance/invoices', { customerId: selectedCustomerId }],
+    enabled: !!selectedCustomerId
+  });
+
+  // Fetch BRC records
+  const { data: brcRecords, isLoading: isLoadingBrcs } = useQuery({
+    queryKey: ['/api/finance/brc'],
+    enabled: true
+  });
+
+  // Filter invoices based on selections and tab
+  const filteredData = useMemo(() => {
+    if (!invoices) return { pending: [], received: [] };
+
+    let filtered = invoices;
+    
+    // Filter by selected invoice if specified
+    if (selectedInvoiceId) {
+      filtered = filtered.filter((inv: any) => inv.id.toString() === selectedInvoiceId);
+    }
+
+    // Only show export invoices
+    filtered = filtered.filter((inv: any) => inv.isExport);
+
+    const pending = filtered.filter((invoice: any) => {
+      const hasBrc = brcRecords?.some((brc: any) => brc.invoiceId === invoice.id);
+      return !hasBrc;
+    });
+
+    const received = brcRecords?.filter((brc: any) => {
+      if (selectedCustomerId && brc.invoice?.customerId.toString() !== selectedCustomerId) return false;
+      if (selectedInvoiceId && brc.invoiceId.toString() !== selectedInvoiceId) return false;
+      return true;
+    }) || [];
+
+    return { pending, received };
+  }, [invoices, brcRecords, selectedCustomerId, selectedInvoiceId]);
+
+  // Create/Update BRC mutation
+  const brcMutation = useMutation({
+    mutationFn: async (data: BrcFormData) => {
+      const formDataToSend = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formDataToSend.append(key, value.toString());
+        }
+      });
+
+      if (editingBrc) {
+        return apiRequest(`/api/finance/brc/${editingBrc.id}`, {
+          method: 'PUT',
+          body: formDataToSend,
+        });
+      } else {
+        return apiRequest('/api/finance/brc', {
+          method: 'POST',
+          body: formDataToSend,
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/brc'] });
+      setDialogOpen(false);
+      setEditingBrc(null);
+      resetForm();
+      toast({
+        title: 'Success',
+        description: `BRC ${editingBrc ? 'updated' : 'created'} successfully`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || `Failed to ${editingBrc ? 'update' : 'create'} BRC`,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      invoiceId: 0,
+      brcNumber: '',
+      brcDate: format(new Date(), 'yyyy-MM-dd'),
+      bankName: '',
+      amountRealized: 0,
+      currency: 'USD',
+      notes: ''
+    });
+  };
+
+  const handleAddNew = () => {
+    resetForm();
+    setEditingBrc(null);
+    setDialogOpen(true);
+  };
+
+  const handleEditBrc = (brc: any) => {
+    setEditingBrc(brc);
+    setFormData({
+      invoiceId: brc.invoiceId,
+      brcNumber: brc.brcNumber,
+      brcDate: brc.brcDate ? format(new Date(brc.brcDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+      bankName: brc.bankName || '',
+      amountRealized: brc.amountRealized || 0,
+      currency: brc.currency || 'USD',
+      notes: brc.notes || ''
+    });
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = () => {
+    if (!formData.invoiceId || !formData.brcNumber || !formData.bankName) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    brcMutation.mutate(formData);
+    setIsSubmitting(false);
+  };
+
+  const filteredInvoices = useMemo(() => {
+    if (!invoices || !selectedCustomerId) return [];
+    return invoices.filter((inv: any) => 
+      inv.customerId?.toString() === selectedCustomerId && inv.isExport
+    );
+  }, [invoices, selectedCustomerId]);
+
+  return (
+    <Layout>
+      <Helmet>
+        <title>BRC Management - Finance</title>
+      </Helmet>
+
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">BRC Management</h1>
+            <p className="text-muted-foreground">
+              Manage Bank Realization Certificates for export transactions
+            </p>
+          </div>
+          <Button onClick={handleAddNew} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            New BRC
+          </Button>
+        </div>
+
+        {/* Filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Filters
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="customer">Customer</Label>
+                <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select customer..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Customers</SelectItem>
+                    {customers?.map((customer: any) => (
+                      <SelectItem key={customer.id} value={customer.id.toString()}>
+                        {customer.companyName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="invoice">Invoice</Label>
+                <Select 
+                  value={selectedInvoiceId} 
+                  onValueChange={setSelectedInvoiceId}
+                  disabled={!selectedCustomerId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select invoice..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Invoices</SelectItem>
+                    {filteredInvoices?.map((invoice: any) => (
+                      <SelectItem key={invoice.id} value={invoice.id.toString()}>
+                        {invoice.invoiceNumber} - {formatRupees(parseFloat(invoice.totalAmount || 0))} {invoice.currency}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="pending" className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              BRC Pending ({filteredData.pending.length})
+            </TabsTrigger>
+            <TabsTrigger value="received" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              BRC Received ({filteredData.received.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pending" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Export Invoices Pending BRC</CardTitle>
+                <CardDescription>
+                  Export invoices that have not yet received Bank Realization Certificates
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingInvoices ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <span className="ml-2">Loading invoices...</span>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Invoice Number</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Destination</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredData.pending.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                            No pending BRC invoices found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredData.pending.map((invoice: any) => (
+                          <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
+                            <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                            <TableCell>{invoice.customer?.companyName}</TableCell>
+                            <TableCell>{format(new Date(invoice.invoiceDate), 'dd/MM/yyyy')}</TableCell>
+                            <TableCell>{formatRupees(parseFloat(invoice.totalAmount || 0))} {invoice.currency}</TableCell>
+                            <TableCell>{invoice.destinationCountry}</TableCell>
+                            <TableCell>
+                              <Button 
+                                size="sm" 
+                                onClick={() => {
+                                  setFormData(prev => ({ 
+                                    ...prev, 
+                                    invoiceId: invoice.id,
+                                    amountRealized: parseFloat(invoice.totalAmount || 0),
+                                    currency: invoice.currency || 'USD'
+                                  }));
+                                  setEditingBrc(null);
+                                  setDialogOpen(true);
+                                }}
+                              >
+                                Add BRC
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="received" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>BRC Records Received</CardTitle>
+                <CardDescription>
+                  Bank Realization Certificates that have been received and recorded
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingBrcs ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <span className="ml-2">Loading BRC records...</span>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>BRC Number</TableHead>
+                        <TableHead>Invoice</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>BRC Date</TableHead>
+                        <TableHead>Bank Name</TableHead>
+                        <TableHead>Amount Realized</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredData.received.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center text-muted-foreground">
+                            No BRC records found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredData.received.map((brc: any) => (
+                          <TableRow 
+                            key={brc.id} 
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleEditBrc(brc)}
+                          >
+                            <TableCell className="font-medium">{brc.brcNumber}</TableCell>
+                            <TableCell>{brc.invoice?.invoiceNumber}</TableCell>
+                            <TableCell>{brc.invoice?.customer?.companyName}</TableCell>
+                            <TableCell>
+                              {brc.brcDate ? format(new Date(brc.brcDate), 'dd/MM/yyyy') : '-'}
+                            </TableCell>
+                            <TableCell>{brc.bankName}</TableCell>
+                            <TableCell>
+                              {formatRupees(brc.amountRealized || 0)} {brc.currency}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="default">Received</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button size="sm" variant="outline">
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                                {brc.filePath && (
+                                  <Button size="sm" variant="outline">
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Add/Edit BRC Dialog */}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                {editingBrc ? 'Edit BRC' : 'Add New BRC'}
+              </DialogTitle>
+              <DialogDescription>
+                {editingBrc 
+                  ? 'Update the Bank Realization Certificate details'
+                  : 'Add a new Bank Realization Certificate for the export transaction'
+                }
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="invoiceSelect">Invoice *</Label>
+                  <Select 
+                    value={formData.invoiceId.toString()} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, invoiceId: parseInt(value) }))}
+                    disabled={!!editingBrc}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select invoice..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredInvoices?.map((invoice: any) => (
+                        <SelectItem key={invoice.id} value={invoice.id.toString()}>
+                          {invoice.invoiceNumber} - {invoice.customer?.companyName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="brcNumber">BRC Number *</Label>
+                  <Input
+                    id="brcNumber"
+                    value={formData.brcNumber}
+                    onChange={(e) => setFormData(prev => ({ ...prev, brcNumber: e.target.value }))}
+                    placeholder="Enter BRC number"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="brcDate">BRC Date</Label>
+                  <Input
+                    id="brcDate"
+                    type="date"
+                    value={formData.brcDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, brcDate: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bankName">Bank Name *</Label>
+                  <Input
+                    id="bankName"
+                    value={formData.bankName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bankName: e.target.value }))}
+                    placeholder="Enter bank name"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="amountRealized">Amount Realized</Label>
+                  <Input
+                    id="amountRealized"
+                    type="number"
+                    step="0.01"
+                    value={formData.amountRealized}
+                    onChange={(e) => setFormData(prev => ({ ...prev, amountRealized: parseFloat(e.target.value) || 0 }))}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="currency">Currency</Label>
+                  <Select 
+                    value={formData.currency} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="GBP">GBP</SelectItem>
+                      <SelectItem value="INR">INR</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="file">BRC Document</Label>
+                <Input
+                  id="file"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setFormData(prev => ({ ...prev, file: e.target.files?.[0] }))}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Additional notes..."
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingBrc ? 'Update' : 'Save'} BRC
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </Layout>
+  );
+}
