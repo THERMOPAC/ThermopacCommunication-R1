@@ -771,7 +771,17 @@ router.get('/invoices/:id/allocations', ensureAuthenticated, async (req: Request
  */
 router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
+    console.log('BRC creation request:', req.body);
     const { invoiceId, brcNumber, brcDate, bankName, amountRealized, currency, notes } = req.body;
+    
+    // Validate required fields
+    if (!invoiceId || !brcNumber || !brcDate || !bankName) {
+      console.log('Missing required fields:', { invoiceId, brcNumber, brcDate, bankName });
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        required: ['invoiceId', 'brcNumber', 'brcDate', 'bankName']
+      });
+    }
     
     // Insert directly into database
     const result = await pool.query(`
@@ -784,16 +794,21 @@ router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => 
       brcNumber,
       brcDate,
       bankName,
-      parseFloat(amountRealized),
-      currency,
-      notes,
+      parseFloat(amountRealized || 0),
+      currency || 'USD',
+      notes || '',
       req.user?.id || 1
     ]);
     
-    res.status(201).json(result.rows[0]);
+    console.log('BRC created successfully:', result.rows[0]);
+    res.status(201).json({ 
+      success: true,
+      brc: result.rows[0]
+    });
   } catch (error: any) {
     console.error('Error creating BRC:', error);
     res.status(500).json({ 
+      success: false,
       error: 'Failed to create BRC',
       message: error.message
     });
