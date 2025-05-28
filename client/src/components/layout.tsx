@@ -168,6 +168,12 @@ export default function Layout({ children }: LayoutProps) {
         { icon: Receipt, label: "Invoices", href: "/finance/invoices" },
         { icon: CreditCard, label: "Payments", href: "/finance/payments" },
         { icon: DollarSign, label: "Payment Allocation", href: "/finance/payment-allocation" },
+        { icon: BarChart4, label: "Financial Reconciliation", href: "/finance/reports/reconciliation" },
+        { icon: TrendingUp, label: "Turnover Report", href: "/finance/reports/turnover" },
+        { icon: PieChart, label: "Outstanding Report", href: "/finance/reports/outstanding" },
+        { icon: BarChart4, label: "Invoice Aging Dashboard", href: "/finance/reports/invoice-aging" },
+        { icon: FileCheck, label: "Write-off Management", href: "/finance/write-offs" },
+        { icon: CreditCard, label: "Inward Remittances", href: "/finance/reports/remittances" },
         { icon: DollarSign, label: "Basic Allocation", href: "/finance/basic-allocation" },
         { icon: DollarSign, label: "BRC", href: "/finance/brc" }
       ]
