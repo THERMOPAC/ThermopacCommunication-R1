@@ -1685,14 +1685,14 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       paymentId
     ];
     
-    // Detailed logging of the SQL update operation
-    console.log('---------- PAYMENT UPDATE OPERATION ----------');
-    console.log('Payment ID:', paymentId);
-    console.log('Payment values to update:', {
+    // Execute the payment update with proper error handling
+    console.log('Executing payment update for ID:', paymentId);
+    console.log('Update values:', {
+      irmNo,
       referenceNumber: payment.referenceNumber,
-      paymentDate: paymentDate,
-      sapPaymentNo: sapPaymentNo,
-      paymentType: paymentType,
+      paymentDate: paymentDate.toISOString().split('T')[0],
+      sapPaymentNo,
+      paymentType,
       amount: payment.amount,
       currency: payment.currency,
       paymentMethod: payment.paymentMethod,
@@ -1703,8 +1703,6 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       unallocatedAmount: newUnallocatedAmount
     });
     
-    // Execute the parameterized query for safe and reliable updates
-    console.log('Executing payment update with values:', paymentValues);
     const paymentResult = await pool.query(updatePaymentQuery, paymentValues);
     console.log('Payment update result:', paymentResult?.rows?.[0]);
     
