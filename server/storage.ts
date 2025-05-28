@@ -3390,13 +3390,13 @@ export class DatabaseStorage implements IStorage {
     return brc as BankRealizationCertificate | undefined;
   }
   
-  async getBankRealizationCertificatesForPayment(paymentId: number): Promise<BankRealizationCertificate[]> {
-    console.log(`Getting BRCs for payment ${paymentId}`);
+  async getBankRealizationCertificatesForInvoice(invoiceId: number): Promise<BankRealizationCertificate[]> {
+    console.log(`Getting BRCs for invoice ${invoiceId}`);
     
     const brcs = await db
       .select()
       .from(bankRealizationCertificatesTable)
-      .where(eq(bankRealizationCertificatesTable.paymentId, paymentId));
+      .where(eq(bankRealizationCertificatesTable.relatedInvoiceId, invoiceId));
     
     return brcs as BankRealizationCertificate[];
   }

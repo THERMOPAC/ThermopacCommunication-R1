@@ -3125,7 +3125,6 @@ export const bankRealizationCertificates = pgTable('bank_realization_certificate
   bankName: varchar('bank_name', { length: 100 }).notNull(),
   amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
   currency: varchar('currency', { length: 3 }).notNull(),
-  relatedPaymentId: integer('related_payment_id').references(() => payments.id, { onDelete: 'set null' }),
   relatedInvoiceId: integer('related_invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
   documentPath: varchar('document_path', { length: 255 }),
   notes: text('notes'),
@@ -3185,10 +3184,6 @@ export const paymentInvoiceLinksRelations = relations(paymentInvoiceLinks, ({ on
 
 // Relations for bank realization certificates
 export const bankRealizationCertificatesRelations = relations(bankRealizationCertificates, ({ one }) => ({
-  payment: one(payments, {
-    fields: [bankRealizationCertificates.relatedPaymentId],
-    references: [payments.id]
-  }),
   invoice: one(invoices, {
     fields: [bankRealizationCertificates.relatedInvoiceId],
     references: [invoices.id]
