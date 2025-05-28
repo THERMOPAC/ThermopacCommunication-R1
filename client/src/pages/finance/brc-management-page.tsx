@@ -44,7 +44,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Plus, Loader2, AlertCircle, Search, Upload, Calendar, Building2 } from 'lucide-react';
+import { FileText, Download, Plus, Loader2, AlertCircle, Search, Upload, Calendar, Building2, CheckCircle } from 'lucide-react';
 import Layout from '@/components/layout';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { formatRupees } from '@/lib/utils';
@@ -84,10 +84,10 @@ export default function BrcManagementPage() {
     enabled: true
   });
 
-  // Fetch invoices filtered by customer
+  // Fetch all invoices
   const { data: invoices, isLoading: isLoadingInvoices } = useQuery({
-    queryKey: ['/api/finance/invoices', { customerId: selectedCustomerId === 'all' ? '' : selectedCustomerId }],
-    enabled: !!selectedCustomerId
+    queryKey: ['/api/finance/invoices'],
+    enabled: true
   });
 
   // Fetch BRC records
@@ -98,19 +98,27 @@ export default function BrcManagementPage() {
 
   // Filter invoices based on selections and tab
   const filteredData = useMemo(() => {
-    if (!invoices) return { pending: [], received: [] };
+    if (!invoices) return { pending: [], received: [], notRequired: [] };
 
     let filtered = invoices;
     
+    // Filter by customer if specified
+    if (selectedCustomerId && selectedCustomerId !== 'all') {
+      filtered = filtered.filter((inv: any) => inv.customerId.toString() === selectedCustomerId);
+    }
+
     // Filter by selected invoice if specified
     if (selectedInvoiceId && selectedInvoiceId !== 'all') {
       filtered = filtered.filter((inv: any) => inv.id.toString() === selectedInvoiceId);
     }
 
-    // Only show export invoices
-    filtered = filtered.filter((inv: any) => inv.isExport);
+    // Export invoices (need BRC)
+    const exportInvoices = filtered.filter((inv: any) => inv.isExport);
+    
+    // Non-export invoices (don't need BRC)
+    const notRequired = filtered.filter((inv: any) => !inv.isExport);
 
-    const pending = filtered.filter((invoice: any) => {
+    const pending = exportInvoices.filter((invoice: any) => {
       const hasBrc = brcRecords?.some((brc: any) => brc.invoiceId === invoice.id);
       return !hasBrc;
     });
@@ -121,7 +129,7 @@ export default function BrcManagementPage() {
       return true;
     }) || [];
 
-    return { pending, received };
+    return { pending, received, notRequired };
   }, [invoices, brcRecords, selectedCustomerId, selectedInvoiceId]);
 
   // Create/Update BRC mutation
@@ -300,6 +308,10 @@ export default function BrcManagementPage() {
               <FileText className="h-4 w-4" />
               BRC Received ({filteredData.received.length})
             </TabsTrigger>
+            <TabsTrigger value="not-required" className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              BRC Not Required ({filteredData.notRequired.length})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending" className="space-y-4">
@@ -436,6 +448,67 @@ export default function BrcManagementPage() {
                                   </Button>
                                 )}
                               </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="not-required" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Invoices Not Requiring BRC</CardTitle>
+                <CardDescription>
+                  Domestic invoices that do not require Bank Realization Certificates
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingInvoices ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Invoice Number</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredData.notRequired.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                            No domestic invoices found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredData.notRequired.map((invoice: any) => (
+                          <TableRow key={invoice.id}>
+                            <TableCell className="font-medium">
+                              {invoice.invoiceNumber}
+                            </TableCell>
+                            <TableCell>
+                              {invoice.customer?.companyName || 'Unknown Customer'}
+                            </TableCell>
+                            <TableCell>
+                              {format(new Date(invoice.issueDate), 'MMM dd, yyyy')}
+                            </TableCell>
+                            <TableCell>
+                              {formatRupees(parseFloat(invoice.totalAmount || 0))} {invoice.currency}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">
+                                Domestic
+                              </Badge>
                             </TableCell>
                           </TableRow>
                         ))
