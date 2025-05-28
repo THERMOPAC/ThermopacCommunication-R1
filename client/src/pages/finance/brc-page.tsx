@@ -37,7 +37,7 @@ import Layout from '@/components/layout';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { formatRupees } from '@/lib/utils';
 
-export default function BrcPage() {
+export default function BrcPageFixed() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -53,396 +53,261 @@ export default function BrcPage() {
     setDialogOpen(true);
   };
 
-  // Generate a BRC number based on payment reference
-  const generateBrcNumber = (paymentRef: string) => {
-    // Extract the financial year part from payment reference (PAY-2526-001 => BRC-2526-001)
-    if (paymentRef && paymentRef.includes('-')) {
-      const parts = paymentRef.split('-');
-      if (parts.length === 3) {
-        return `BRC-${parts[1]}-${parts[2]}`;
-      }
-    }
-    
-    // Fallback: use current financial year
-    const financialYear = getIndianFinancialYear(new Date());
-    return `BRC-${financialYear}-001`;
-  };
-
-  const handleInvoiceSelect = (invoice: any) => {
-    setSelectedInvoice(invoice);
-    setFormValues({
-      invoiceId: invoice.id.toString(),
-      brcNumber: generateBrcNumber(invoice.invoiceNumber),
-      issueDate: format(new Date(), 'yyyy-MM-dd'),
-      amount: invoice.totalAmount,
-      currency: invoice.currency,
-      bankName: '',
-      remarks: ''
-    });
-    setDialogOpen(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    try {
-      await apiRequest('POST', '/api/finance/brc', formValues);
-      queryClient.invalidateQueries({ queryKey: ['/api/finance/brc'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/finance/payments/foreign-without-brc'] });
-      toast({
-        title: 'Success',
-        description: 'Bank Realization Certificate has been recorded',
-      });
-      setDialogOpen(false);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to record BRC',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormValues((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormValues((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // Filter export invoices by search query
-  const filteredInvoices = Array.isArray(exportInvoices)
-    ? exportInvoices.filter((invoice: any) =>
-        invoice.invoiceNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        invoice.customer?.companyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        invoice.amount?.toString().includes(searchQuery)
-      )
-    : [];
-
-  // Filter BRCs by search query
-  const filteredBrcs = Array.isArray(brcs)
-    ? brcs.filter((brc: any) =>
-        brc.brcNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        brc.payment?.customer?.companyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        brc.amount?.toString().includes(searchQuery)
-      )
-    : [];
-
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <span className="ml-2">Loading...</span>
-        </div>
-      </Layout>
-    );
-  }
-
-  // Ignore errors for foreign payments endpoint and continue rendering the page
-  // with empty data instead of showing an error
-
   return (
     <Layout>
       <Helmet>
-        <title>Bank Realization Certificate | Thermopac</title>
+        <title>Bank Realization Certificates (BRC) - Thermopac</title>
       </Helmet>
 
-      <div className="container mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Bank Realization Certificates</h1>
-          
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input 
-                type="search" 
-                placeholder="Search..." 
-                className="pl-8 w-64"
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Bank Realization Certificates</h1>
+            <p className="text-muted-foreground mt-2">
+              Track and manage BRCs for export transactions and foreign currency receipts
+            </p>
+          </div>
+          <Button onClick={handleCreateBrc}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add New BRC
+          </Button>
+        </div>
+
+        {/* How to Use BRC System */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              How to Use the BRC System
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold mb-2">What is a BRC?</h3>
+                <p className="text-sm text-muted-foreground">
+                  A Bank Realization Certificate confirms that export proceeds have been received 
+                  in foreign currency. It's required for export transactions to comply with 
+                  FEMA regulations in India.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">When to Create a BRC?</h3>
+                <p className="text-sm text-muted-foreground">
+                  Create a BRC when you receive payment confirmation from your bank for 
+                  export invoices. This links the certificate to the specific export transaction.
+                </p>
+              </div>
+            </div>
+            
+            <div className="border-l-4 border-blue-500 pl-4 bg-blue-50 p-3 rounded">
+              <h4 className="font-semibold text-blue-900">Step-by-Step Process:</h4>
+              <ol className="list-decimal list-inside text-sm text-blue-800 mt-2 space-y-1">
+                <li>Create export invoices and mark them as requiring BRC</li>
+                <li>When payment is received, your bank issues a BRC document</li>
+                <li>Click "Add New BRC" to upload the certificate</li>
+                <li>Link the BRC to the corresponding export invoice</li>
+                <li>Track BRC status for compliance reporting</li>
+              </ol>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Search and Filter */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Search BRCs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by BRC number, bank name, or amount..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                className="max-w-sm"
               />
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="grid grid-cols-1 gap-6">
-          {/* Pending foreign payments */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Foreign Currency Payments Pending BRC</CardTitle>
-              <CardDescription>
-                Payments received in foreign currencies for which Bank Realization Certificate is pending
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {filteredPayments.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">
-                  {searchQuery
-                    ? "No matching foreign currency payments found"
-                    : "No pending foreign currency payments found"}
-                </div>
-              ) : (
-                <div className="overflow-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Reference No.</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Currency</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredPayments.map((payment: any) => (
-                        <TableRow key={payment.id}>
-                          <TableCell className="font-medium">{payment.referenceNumber}</TableCell>
-                          <TableCell>{format(new Date(payment.paymentDate), 'dd MMM yyyy')}</TableCell>
-                          <TableCell>{payment.customer?.companyName}</TableCell>
-                          <TableCell className="text-right">
-                            {new Intl.NumberFormat('en-US', {
-                              style: 'currency',
-                              currency: payment.currency || 'USD',
-                            }).format(parseFloat(payment.amount))}
-                          </TableCell>
-                          <TableCell>{payment.currency}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">BRC Pending</Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handlePaymentSelect(payment)}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Add BRC
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* BRC Records */}
+        <Card>
+          <CardHeader>
+            <CardTitle>BRC Records</CardTitle>
+            <CardDescription>
+              All Bank Realization Certificates for export transactions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoadingBrcs ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-8 w-8 mx-auto animate-spin mb-4" />
+                Loading BRC records...
+              </div>
+            ) : !brcs || brcs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">No BRC records found</p>
+                <p className="text-sm">Create your first BRC when you receive export payments</p>
+                <Button className="mt-4" onClick={handleCreateBrc}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create First BRC
+                </Button>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>BRC Number</TableHead>
+                    <TableHead>Issue Date</TableHead>
+                    <TableHead>Bank Name</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Currency</TableHead>
+                    <TableHead>Related Invoice</TableHead>
+                    <TableHead>Document</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {brcs?.map((brc: any) => (
+                    <TableRow key={brc.id}>
+                      <TableCell className="font-medium">{brc.certificateNumber}</TableCell>
+                      <TableCell>{new Date(brc.issueDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{brc.bankName}</TableCell>
+                      <TableCell>{formatRupees(parseFloat(brc.amount))}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{brc.currency}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {brc.relatedInvoiceId ? (
+                          <Badge variant="secondary">Invoice #{brc.relatedInvoiceId}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {brc.documentPath ? (
+                          <Badge variant="default" className="bg-green-100 text-green-800">
+                            <FileText className="h-3 w-3 mr-1" />
+                            Available
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive">
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Missing
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button variant="ghost" size="sm">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            Edit
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
 
-          {/* Existing BRCs */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Existing Bank Realization Certificates</CardTitle>
-              <CardDescription>
-                All recorded Bank Realization Certificates for foreign currency receipts
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingBrcs ? (
-                <div className="flex justify-center py-10">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : filteredBrcs.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">
-                  {searchQuery
-                    ? "No matching Bank Realization Certificates found"
-                    : "No Bank Realization Certificates recorded yet"}
-                </div>
-              ) : (
-                <div className="overflow-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>BRC Number</TableHead>
-                        <TableHead>Issue Date</TableHead>
-                        <TableHead>Payment Ref</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Currency</TableHead>
-                        <TableHead>Bank</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredBrcs.map((brc: any) => (
-                        <TableRow key={brc.id}>
-                          <TableCell className="font-medium">{brc.brcNumber}</TableCell>
-                          <TableCell>{format(new Date(brc.issueDate), 'dd MMM yyyy')}</TableCell>
-                          <TableCell>{brc.payment?.referenceNumber}</TableCell>
-                          <TableCell>{brc.payment?.customer?.companyName}</TableCell>
-                          <TableCell className="text-right">
-                            {new Intl.NumberFormat('en-US', {
-                              style: 'currency',
-                              currency: brc.currency || 'USD',
-                            }).format(parseFloat(brc.amount))}
-                          </TableCell>
-                          <TableCell>{brc.currency}</TableCell>
-                          <TableCell>{brc.bankName}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              title="Download BRC"
-                              disabled={true} // Enable when download functionality is ready
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Add BRC Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create Bank Realization Certificate</DialogTitle>
-            <DialogDescription>
-              Record BRC details for the selected foreign currency payment
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4 py-2">
-              {selectedPayment && (
-                <div className="bg-muted p-3 rounded-md text-sm mb-4">
-                  <div className="flex justify-between mb-1">
-                    <span className="font-medium">Payment Reference:</span>
-                    <span>{selectedPayment.referenceNumber}</span>
-                  </div>
-                  <div className="flex justify-between mb-1">
-                    <span className="font-medium">Customer:</span>
-                    <span>{selectedPayment.customer?.companyName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Amount:</span>
-                    <span>
-                      {new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: selectedPayment.currency || 'USD',
-                      }).format(parseFloat(selectedPayment.amount))}
-                    </span>
-                  </div>
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="brcNumber">BRC Number</Label>
+        {/* Create BRC Dialog */}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Create New BRC</DialogTitle>
+              <DialogDescription>
+                Add a Bank Realization Certificate for an export transaction
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="brcNumber">BRC Certificate Number</Label>
                 <Input
                   id="brcNumber"
-                  name="brcNumber"
-                  value={formValues.brcNumber}
-                  onChange={handleInputChange}
-                  required
+                  placeholder="Enter BRC number from bank"
                 />
               </div>
               
-              <div className="space-y-2">
+              <div>
+                <Label htmlFor="bankName">Bank Name</Label>
+                <Input
+                  id="bankName"
+                  placeholder="Name of issuing bank"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="amount">Amount</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="currency">Currency</Label>
+                  <Input
+                    id="currency"
+                    placeholder="USD"
+                  />
+                </div>
+              </div>
+              
+              <div>
                 <Label htmlFor="issueDate">Issue Date</Label>
                 <Input
                   id="issueDate"
-                  name="issueDate"
                   type="date"
-                  value={formValues.issueDate}
-                  onChange={handleInputChange}
-                  required
+                  defaultValue={format(new Date(), 'yyyy-MM-dd')}
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount</Label>
-                <Input
-                  id="amount"
-                  name="amount"
-                  type="number"
-                  step="0.01"
-                  value={formValues.amount}
-                  onChange={handleInputChange}
-                  required
-                />
+              <div>
+                <Label htmlFor="document">Upload BRC Document</Label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                  <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
+                  <p className="text-xs text-gray-500">PDF, JPG, PNG (max 10MB)</p>
+                </div>
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Select 
-                  name="currency" 
-                  value={formValues.currency} 
-                  onValueChange={(value) => handleSelectChange('currency', value)}
-                  disabled
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">US Dollar ($)</SelectItem>
-                    <SelectItem value="EUR">Euro (€)</SelectItem>
-                    <SelectItem value="GBP">British Pound (£)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="bankName">Issuing Bank</Label>
-                <Input
-                  id="bankName"
-                  name="bankName"
-                  value={formValues.bankName}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="remarks">Remarks</Label>
+              <div>
+                <Label htmlFor="notes">Notes (Optional)</Label>
                 <Textarea
-                  id="remarks"
-                  name="remarks"
-                  value={formValues.remarks}
-                  onChange={handleInputChange}
+                  id="notes"
+                  placeholder="Additional notes about this BRC"
                   rows={3}
                 />
               </div>
             </div>
-            
-            <DialogFooter className="mt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-                disabled={isSubmitting}
-              >
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
                   </>
                 ) : (
-                  'Save BRC'
+                  'Create BRC'
                 )}
               </Button>
             </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      </div>
     </Layout>
   );
 }
