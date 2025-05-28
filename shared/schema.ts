@@ -3052,6 +3052,14 @@ export const invoices = pgTable('invoices', {
   currency: varchar('currency', { length: 3 }).notNull().default('INR'),
   status: varchar('status', { length: 20 }).notNull().default('Pending'),
   notes: text('notes'),
+  // Export tracking fields
+  isExport: boolean('is_export').default(false),
+  exportDestinationCountry: varchar('export_destination_country', { length: 100 }),
+  exportPort: varchar('export_port', { length: 100 }),
+  shippingBillNumber: varchar('shipping_bill_number', { length: 100 }),
+  shippingBillDate: date('shipping_bill_date'),
+  brcRequired: boolean('brc_required').default(false),
+  brcReceived: boolean('brc_received').default(false),
   createdBy: integer('created_by').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow()
@@ -3118,6 +3126,7 @@ export const bankRealizationCertificates = pgTable('bank_realization_certificate
   amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
   currency: varchar('currency', { length: 3 }).notNull(),
   relatedPaymentId: integer('related_payment_id').references(() => payments.id, { onDelete: 'set null' }),
+  relatedInvoiceId: integer('related_invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
   documentPath: varchar('document_path', { length: 255 }),
   notes: text('notes'),
   createdBy: integer('created_by').notNull(),
