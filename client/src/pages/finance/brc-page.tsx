@@ -28,60 +28,30 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Plus, Loader2, AlertCircle, Search } from 'lucide-react';
+import { FileText, Download, Plus, Loader2, AlertCircle, Search, Upload } from 'lucide-react';
 import Layout from '@/components/layout';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { getIndianFinancialYear, formatRupees } from '@/lib/utils';
-
-// BRC form schema
-interface BrcFormValues {
-  invoiceId: string;
-  brcNumber: string;
-  issueDate: string;
-  amount: string;
-  currency: string;
-  bankName: string;
-  remarks: string;
-}
+import { formatRupees } from '@/lib/utils';
 
 export default function BrcPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [formValues, setFormValues] = useState<BrcFormValues>({
-    invoiceId: '',
-    brcNumber: '',
-    issueDate: format(new Date(), 'yyyy-MM-dd'),
-    amount: '',
-    currency: '',
-    bankName: '',
-    remarks: ''
-  });
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Fetch export invoices that require BRC but haven't received one yet
-  const { data: exportInvoices, isLoading } = useQuery({
-    queryKey: ['/api/finance/invoices/export-without-brc'],
-    enabled: true
-  });
 
   // Fetch all BRCs
   const { data: brcs, isLoading: isLoadingBrcs } = useQuery({
     queryKey: ['/api/finance/brc'],
     enabled: true
   });
+
+  const handleCreateBrc = () => {
+    setDialogOpen(true);
+  };
 
   // Generate a BRC number based on payment reference
   const generateBrcNumber = (paymentRef: string) => {
@@ -98,14 +68,14 @@ export default function BrcPage() {
     return `BRC-${financialYear}-001`;
   };
 
-  const handlePaymentSelect = (payment: any) => {
-    setSelectedPayment(payment);
+  const handleInvoiceSelect = (invoice: any) => {
+    setSelectedInvoice(invoice);
     setFormValues({
-      paymentId: payment.id.toString(),
-      brcNumber: generateBrcNumber(payment.referenceNumber),
+      invoiceId: invoice.id.toString(),
+      brcNumber: generateBrcNumber(invoice.invoiceNumber),
       issueDate: format(new Date(), 'yyyy-MM-dd'),
-      amount: payment.amount,
-      currency: payment.currency,
+      amount: invoice.totalAmount,
+      currency: invoice.currency,
       bankName: '',
       remarks: ''
     });
@@ -147,12 +117,12 @@ export default function BrcPage() {
     setFormValues((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Filter payments by search query
-  const filteredPayments = Array.isArray(payments)
-    ? payments.filter((payment: any) =>
-        payment.referenceNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        payment.customer?.companyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        payment.amount?.toString().includes(searchQuery)
+  // Filter export invoices by search query
+  const filteredInvoices = Array.isArray(exportInvoices)
+    ? exportInvoices.filter((invoice: any) =>
+        invoice.invoiceNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        invoice.customer?.companyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        invoice.amount?.toString().includes(searchQuery)
       )
     : [];
 
