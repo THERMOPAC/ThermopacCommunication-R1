@@ -22,11 +22,14 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
 
     console.log(`Processing allocation: Payment ${paymentId} → Invoice ${invoiceId}, Amount: ${allocationAmount}`);
     
-    // First, check current payment state to prevent over-allocation
+    // Get current allocated amount from payment_invoice_links (single source of truth)
+    const currentAllocations = await storage.db.execute(
+      sql`SELECT COALESCE(SUM(amount_applied), 0) as total_allocated 
+          FROM payment_invoice_links WHERE payment_id = ${paymentId}`
+    );
+    
     const currentPayment = await storage.db.execute(
-      sql`SELECT amount, COALESCE(allocated_amount, 0) as allocated_amount, 
-          COALESCE(unallocated_amount, amount) as unallocated_amount 
-          FROM payments WHERE id = ${paymentId}`
+      sql`SELECT amount FROM payments WHERE id = ${paymentId}`
     );
     
     if (currentPayment.rows.length === 0) {
@@ -34,7 +37,11 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
     }
     
     const payment = currentPayment.rows[0] as any;
-    const availableAmount = Number(payment.unallocated_amount);
+    const totalAmount = Number(payment.amount);
+    const currentlyAllocated = Number(currentAllocations.rows[0].total_allocated);
+    const availableAmount = totalAmount - currentlyAllocated;
+    
+    console.log(`Payment ${paymentId} state: Total: ${totalAmount}, Allocated: ${currentlyAllocated}, Available: ${availableAmount}`);
     
     if (allocationAmount > availableAmount) {
       return res.status(400).json({ 
@@ -51,23 +58,29 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
     // Update payment amounts based on payment_invoice_links table (single source of truth)
     console.log(`Updating payment ${paymentId} amounts after allocation of ${allocationAmount}`);
     
-    const updateResult = await storage.db.execute(
-      sql`UPDATE payments SET 
-        allocated_amount = (
-          SELECT COALESCE(SUM(amount_applied), 0) 
-          FROM payment_invoice_links 
-          WHERE payment_id = ${paymentId}
-        ),
-        unallocated_amount = amount - (
-          SELECT COALESCE(SUM(amount_applied), 0) 
-          FROM payment_invoice_links 
-          WHERE payment_id = ${paymentId}
-        ),
-        updated_at = NOW()
-        WHERE id = ${paymentId}`
-    );
-    
-    console.log(`Payment ${paymentId} update result:`, updateResult);
+    try {
+      const updateResult = await storage.db.execute(
+        sql`UPDATE payments SET 
+          allocated_amount = (
+            SELECT COALESCE(SUM(amount_applied), 0) 
+            FROM payment_invoice_links 
+            WHERE payment_id = ${paymentId}
+          ),
+          unallocated_amount = amount - (
+            SELECT COALESCE(SUM(amount_applied), 0) 
+            FROM payment_invoice_links 
+            WHERE payment_id = ${paymentId}
+          ),
+          updated_at = NOW()
+          WHERE id = ${paymentId}`
+      );
+      
+      console.log(`Payment ${paymentId} update result:`, updateResult);
+      console.log(`Payment ${paymentId} amounts updated successfully`);
+    } catch (error) {
+      console.error(`Failed to update payment ${paymentId} amounts:`, error);
+      throw error;
+    }
     
     // Update invoice amounts
     await storage.db.execute(
