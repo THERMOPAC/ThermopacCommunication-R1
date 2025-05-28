@@ -287,7 +287,7 @@ export default function FinanceDashboardPage() {
                       </Link>
                     </Button>
                     <Button variant="outline" className="w-full justify-start" asChild>
-                      <Link href="/finance/brc">
+                      <Link href="/finance/brc-management">
                         <IndianRupee className="mr-2 h-4 w-4" />
                         BRC Management
                       </Link>
