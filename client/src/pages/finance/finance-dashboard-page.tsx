@@ -405,6 +405,181 @@ export default function FinanceDashboardPage() {
               </table>
             </div>
           </TabsContent>
+
+          <TabsContent value="reports" className="mt-6">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Financial Reports</h2>
+              </div>
+              
+              <Tabs defaultValue="reconciliation" className="w-full">
+                <TabsList className="grid w-full grid-cols-6">
+                  <TabsTrigger value="reconciliation">Reconciliation</TabsTrigger>
+                  <TabsTrigger value="turnover">Turnover</TabsTrigger>
+                  <TabsTrigger value="outstanding">Outstanding</TabsTrigger>
+                  <TabsTrigger value="aging">Invoice Aging</TabsTrigger>
+                  <TabsTrigger value="writeoffs">Write-offs</TabsTrigger>
+                  <TabsTrigger value="remittances">Remittances</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="reconciliation" className="mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5" />
+                        Financial Reconciliation
+                      </CardTitle>
+                      <CardDescription>
+                        Reconcile financial transactions and identify discrepancies
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Compare and reconcile financial records across different systems to ensure accuracy and consistency.
+                        </p>
+                        <Button asChild>
+                          <Link href="/finance/reports/reconciliation">
+                            View Reconciliation Report
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="turnover" className="mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5" />
+                        Turnover Report
+                      </CardTitle>
+                      <CardDescription>
+                        Analyze business turnover and revenue trends
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Track and analyze business turnover across different periods and categories.
+                        </p>
+                        <Button asChild>
+                          <Link href="/finance/reports/turnover">
+                            View Turnover Report
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="outstanding" className="mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <TrendingDown className="h-5 w-5" />
+                        Outstanding Report
+                      </CardTitle>
+                      <CardDescription>
+                        Monitor outstanding invoices and payments
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Track outstanding invoices, overdue payments, and aging receivables.
+                        </p>
+                        <Button asChild>
+                          <Link href="/finance/reports/outstanding">
+                            View Outstanding Report
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="aging" className="mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5" />
+                        Invoice Aging Dashboard
+                      </CardTitle>
+                      <CardDescription>
+                        Analyze invoice aging and payment patterns
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Detailed analysis of invoice aging with visual dashboards and metrics.
+                        </p>
+                        <Button asChild>
+                          <Link href="/finance/reports/invoice-aging">
+                            View Aging Dashboard
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="writeoffs" className="mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Write-off Management
+                      </CardTitle>
+                      <CardDescription>
+                        Manage and track financial write-offs
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Create, approve, and track write-offs for uncollectible amounts and bad debts.
+                        </p>
+                        <Button asChild>
+                          <Link href="/finance/write-offs">
+                            Manage Write-offs
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="remittances" className="mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <DollarSign className="h-5 w-5" />
+                        Inward Remittances
+                      </CardTitle>
+                      <CardDescription>
+                        Track and manage inward remittances
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Monitor and process inward remittances from customers and other sources.
+                        </p>
+                        <Button asChild>
+                          <Link href="/finance/reports/remittances">
+                            View Remittances
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
     </Layout>
