@@ -22,14 +22,42 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
 
     console.log(`Processing allocation: Payment ${paymentId} → Invoice ${invoiceId}, Amount: ${allocationAmount}`);
     
-    // Execute the database updates using raw SQL
+    // First, check current payment state to prevent over-allocation
+    const currentPayment = await storage.db.execute(
+      sql`SELECT amount, COALESCE(allocated_amount, 0) as allocated_amount, 
+          COALESCE(unallocated_amount, amount) as unallocated_amount 
+          FROM payments WHERE id = ${paymentId}`
+    );
+    
+    if (currentPayment.rows.length === 0) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    
+    const payment = currentPayment.rows[0] as any;
+    const availableAmount = Number(payment.unallocated_amount);
+    
+    if (allocationAmount > availableAmount) {
+      return res.status(400).json({ 
+        error: `Allocation amount (${allocationAmount}) exceeds available payment amount (${availableAmount})` 
+      });
+    }
+    
+    // Insert allocation record first
+    await storage.db.execute(
+      sql`INSERT INTO payment_invoice_links (payment_id, invoice_id, amount_applied, created_at)
+          VALUES (${paymentId}, ${invoiceId}, ${allocationAmount}, NOW())`
+    );
+    
+    // Update payment amounts correctly
     await storage.db.execute(
       sql`UPDATE payments SET 
         allocated_amount = COALESCE(allocated_amount, 0) + ${allocationAmount},
-        unallocated_amount = COALESCE(unallocated_amount, amount) - ${allocationAmount}
+        unallocated_amount = amount - (COALESCE(allocated_amount, 0) + ${allocationAmount}),
+        updated_at = NOW()
         WHERE id = ${paymentId}`
     );
     
+    // Update invoice amounts
     await storage.db.execute(
       sql`UPDATE invoices SET 
         paid_amount = COALESCE(paid_amount, 0) + ${allocationAmount},
@@ -38,7 +66,8 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
           WHEN (total_amount - (COALESCE(paid_amount, 0) + ${allocationAmount})) <= 0 THEN 'Paid'
           WHEN (COALESCE(paid_amount, 0) + ${allocationAmount}) > 0 THEN 'Partially Paid'
           ELSE status 
-        END
+        END,
+        updated_at = NOW()
         WHERE id = ${invoiceId}`
     );
     
