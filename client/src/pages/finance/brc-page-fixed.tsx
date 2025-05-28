@@ -31,6 +31,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Download, Plus, Loader2, AlertCircle, Search, Upload } from 'lucide-react';
 import Layout from '@/components/layout';
@@ -42,10 +49,17 @@ export default function BrcPageFixed() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
 
   // Fetch all BRCs
   const { data: brcs, isLoading: isLoadingBrcs } = useQuery({
     queryKey: ['/api/finance/brc'],
+    enabled: true
+  });
+
+  // Fetch export invoices that need BRC
+  const { data: exportInvoices, isLoading: isLoadingInvoices } = useQuery({
+    queryKey: ['/api/finance/invoices', { isExport: true, brcRequired: true, brcReceived: false }],
     enabled: true
   });
 
@@ -228,6 +242,27 @@ export default function BrcPageFixed() {
             </DialogHeader>
             
             <div className="space-y-4">
+              <div>
+                <Label htmlFor="invoiceSelect">Select Export Invoice</Label>
+                <Select value={selectedInvoiceId} onValueChange={setSelectedInvoiceId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose the export invoice for this BRC" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {exportInvoices?.map((invoice: any) => (
+                      <SelectItem key={invoice.id} value={invoice.id.toString()}>
+                        {invoice.invoiceNumber} - {invoice.customer?.companyName} - {formatRupees(parseFloat(invoice.totalAmount))} {invoice.currency}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!exportInvoices?.length && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    No export invoices requiring BRC found. Create export invoices first.
+                  </p>
+                )}
+              </div>
+
               <div>
                 <Label htmlFor="brcNumber">BRC Certificate Number</Label>
                 <Input
