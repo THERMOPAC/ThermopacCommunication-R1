@@ -3956,19 +3956,24 @@ router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => 
   try {
     const { invoiceId, brcNumber, brcDate, bankName, amountRealized, currency, notes } = req.body;
     
-    // Create BRC record using storage
-    const newBrc = await storage.createBankRealizationCertificate({
-      relatedInvoiceId: parseInt(invoiceId),
+    // Insert directly into database
+    const result = await pool.query(`
+      INSERT INTO bank_realization_certificates 
+      (related_invoice_id, brc_number, brc_date, bank_name, amount_realized, currency, notes, created_by, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+      RETURNING *
+    `, [
+      parseInt(invoiceId),
       brcNumber,
       brcDate,
       bankName,
-      amountRealized: parseFloat(amountRealized),
+      parseFloat(amountRealized),
       currency,
       notes,
-      createdBy: req.user.id
-    });
+      req.user?.id || 1
+    ]);
     
-    res.status(201).json(newBrc);
+    res.status(201).json(result.rows[0]);
   } catch (error: any) {
     console.error('Error creating BRC:', error);
     res.status(500).json({ 
@@ -3986,18 +3991,29 @@ router.put('/brc/:id', ensureAuthenticated, async (req: Request, res: Response) 
     const { id } = req.params;
     const { invoiceId, brcNumber, brcDate, bankName, amountRealized, currency, notes } = req.body;
     
-    // Update BRC record using storage
-    const updatedBrc = await storage.updateBankRealizationCertificate(parseInt(id), {
-      relatedInvoiceId: parseInt(invoiceId),
+    // Update directly in database
+    const result = await pool.query(`
+      UPDATE bank_realization_certificates 
+      SET related_invoice_id = $1, brc_number = $2, brc_date = $3, bank_name = $4, 
+          amount_realized = $5, currency = $6, notes = $7, updated_at = NOW()
+      WHERE id = $8
+      RETURNING *
+    `, [
+      parseInt(invoiceId),
       brcNumber,
       brcDate,
       bankName,
-      amountRealized: parseFloat(amountRealized),
+      parseFloat(amountRealized),
       currency,
-      notes
-    });
+      notes,
+      parseInt(id)
+    ]);
     
-    res.json(updatedBrc);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'BRC not found' });
+    }
+    
+    res.json(result.rows[0]);
   } catch (error: any) {
     console.error('Error updating BRC:', error);
     res.status(500).json({ 

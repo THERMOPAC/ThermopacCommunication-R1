@@ -135,23 +135,34 @@ export default function BrcManagementPage() {
   // Create/Update BRC mutation
   const brcMutation = useMutation({
     mutationFn: async (data: BrcFormData) => {
-      const formDataToSend = new FormData();
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          formDataToSend.append(key, value.toString());
-        }
-      });
-
       if (editingBrc) {
-        return apiRequest(`/api/finance/brc/${editingBrc.id}`, {
+        const response = await fetch(`/api/finance/brc/${editingBrc.id}`, {
           method: 'PUT',
-          body: formDataToSend,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
         });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update BRC');
+        }
+        
+        return response.json();
       } else {
-        return apiRequest('/api/finance/brc', {
+        const response = await fetch('/api/finance/brc', {
           method: 'POST',
-          body: formDataToSend,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
         });
+        
+        if (!response.ok) {
+          throw new Error('Failed to create BRC');
+        }
+        
+        return response.json();
       }
     },
     onSuccess: () => {
