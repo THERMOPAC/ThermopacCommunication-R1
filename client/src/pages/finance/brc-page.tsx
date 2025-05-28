@@ -59,7 +59,7 @@ export default function BrcPageFixed() {
 
   // Fetch export invoices that need BRC
   const { data: exportInvoices, isLoading: isLoadingInvoices } = useQuery({
-    queryKey: ['/api/finance/invoices', { isExport: true, brcRequired: true, brcReceived: false }],
+    queryKey: ['/api/finance/invoices?isExport=true'],
     enabled: true
   });
 
@@ -249,16 +249,26 @@ export default function BrcPageFixed() {
                     <SelectValue placeholder="Choose the export invoice for this BRC" />
                   </SelectTrigger>
                   <SelectContent>
-                    {exportInvoices?.map((invoice: any) => (
+                    {exportInvoices?.filter((invoice: any) => invoice.isExport)?.map((invoice: any) => (
                       <SelectItem key={invoice.id} value={invoice.id.toString()}>
-                        {invoice.invoiceNumber} - {invoice.customer?.companyName} - {formatRupees(parseFloat(invoice.totalAmount))} {invoice.currency}
+                        {invoice.invoiceNumber} - {invoice.customer?.companyName || 'Customer'} - {formatRupees(parseFloat(invoice.totalAmount || invoice.amount || 0))} {invoice.currency || 'USD'}
                       </SelectItem>
                     ))}
+                    {exportInvoices?.length > 0 && !exportInvoices?.some((inv: any) => inv.isExport) && (
+                      <SelectItem value="no-export" disabled>
+                        No export invoices found (mark invoices as export transactions)
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
-                {!exportInvoices?.length && (
+                {!exportInvoices?.length && !isLoadingInvoices && (
                   <p className="text-sm text-muted-foreground mt-1">
-                    No export invoices requiring BRC found. Create export invoices first.
+                    No export invoices found. Create export invoices first and mark them as requiring BRC.
+                  </p>
+                )}
+                {isLoadingInvoices && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Loading export invoices...
                   </p>
                 )}
               </div>
