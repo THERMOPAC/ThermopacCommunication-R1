@@ -567,7 +567,9 @@ export default function BrcManagementPage() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="invoiceSelect">Invoice *</Label>
+                  <Label htmlFor="invoiceSelect">
+                    {formData.invoiceId ? `Invoice ID: ${formData.invoiceId}` : 'Invoice *'}
+                  </Label>
                   {formData.invoiceId ? (
                     // Show invoice as read-only when pre-selected
                     <div className="px-3 py-2 border rounded-md bg-muted/50 text-sm">
