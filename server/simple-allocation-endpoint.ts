@@ -49,7 +49,9 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
     );
     
     // Update payment amounts based on payment_invoice_links table (single source of truth)
-    await storage.db.execute(
+    console.log(`Updating payment ${paymentId} amounts after allocation of ${allocationAmount}`);
+    
+    const updateResult = await storage.db.execute(
       sql`UPDATE payments SET 
         allocated_amount = (
           SELECT COALESCE(SUM(amount_applied), 0) 
@@ -64,6 +66,8 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
         updated_at = NOW()
         WHERE id = ${paymentId}`
     );
+    
+    console.log(`Payment ${paymentId} update result:`, updateResult);
     
     // Update invoice amounts
     await storage.db.execute(
