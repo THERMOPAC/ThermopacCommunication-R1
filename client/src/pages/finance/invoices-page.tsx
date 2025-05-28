@@ -86,7 +86,7 @@ export default function InvoicesPage() {
     queryKey: ['/api/simple-finance/invoices-list'],
     retry: 2,
     staleTime: 0, // Always fetch fresh data
-    cacheTime: 0  // Don't cache the data
+    gcTime: 0  // Don't cache the data (React Query v5 uses gcTime instead of cacheTime)
   });
 
 
