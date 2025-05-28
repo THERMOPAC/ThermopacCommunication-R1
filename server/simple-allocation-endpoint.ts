@@ -48,11 +48,19 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
           VALUES (${paymentId}, ${invoiceId}, ${allocationAmount}, NOW())`
     );
     
-    // Update payment amounts using incremental logic
+    // Update payment amounts based on payment_invoice_links table (single source of truth)
     await storage.db.execute(
       sql`UPDATE payments SET 
-        allocated_amount = COALESCE(allocated_amount, 0) + ${allocationAmount},
-        unallocated_amount = COALESCE(unallocated_amount, amount) - ${allocationAmount},
+        allocated_amount = (
+          SELECT COALESCE(SUM(amount_applied), 0) 
+          FROM payment_invoice_links 
+          WHERE payment_id = ${paymentId}
+        ),
+        unallocated_amount = amount - (
+          SELECT COALESCE(SUM(amount_applied), 0) 
+          FROM payment_invoice_links 
+          WHERE payment_id = ${paymentId}
+        ),
         updated_at = NOW()
         WHERE id = ${paymentId}`
     );
@@ -90,6 +98,32 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
       error: 'Failed to allocate payment',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
+  }
+});
+
+// Reconcile payment amounts based on payment_invoice_links table
+router.post('/reconcile-payments', async (req: Request, res: Response) => {
+  try {
+    // Update all payments to match their allocation records
+    await storage.db.execute(
+      sql`UPDATE payments SET 
+        allocated_amount = (
+          SELECT COALESCE(SUM(amount_applied), 0) 
+          FROM payment_invoice_links 
+          WHERE payment_id = payments.id
+        ),
+        unallocated_amount = amount - (
+          SELECT COALESCE(SUM(amount_applied), 0) 
+          FROM payment_invoice_links 
+          WHERE payment_id = payments.id
+        ),
+        updated_at = NOW()`
+    );
+    
+    res.json({ success: true, message: 'All payments reconciled successfully' });
+  } catch (error) {
+    console.error('Error reconciling payments:', error);
+    res.status(500).json({ error: 'Failed to reconcile payments' });
   }
 });
 
