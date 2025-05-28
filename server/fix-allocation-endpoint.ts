@@ -1,10 +1,9 @@
-import { Router } from 'express';
-import { storage } from './storage';
-import type { Request, Response } from 'express';
+import express, { Request, Response } from 'express';
+import { sql } from 'drizzle-orm';
 
-const router = Router();
+const router = express.Router();
 
-// This is the endpoint that the redesigned payment allocation page expects
+// Fixed allocation endpoint that properly updates payment amounts
 router.post('/allocate-payment', async (req: Request, res: Response) => {
   try {
     const { paymentId, invoiceId, amount } = req.body;
@@ -18,140 +17,102 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
     if (allocationAmount <= 0) {
       return res.status(400).json({ error: 'Allocation amount must be greater than 0' });
     }
+
+    console.log(`🔥 FIXED ALLOCATION: Payment ${paymentId} → Invoice ${invoiceId}, Amount: ${allocationAmount}`);
     
-    // Start transaction
-    await client.query('BEGIN');
+    // Import storage here to avoid circular dependency
+    const { storage } = await import('./storage');
     
-    // Step 1: Get payment details
-    const paymentQuery = `
-      SELECT id, irm_no, unallocated_amount, allocated_amount 
-      FROM payments 
-      WHERE id = $1
-    `;
-    const paymentResult = await client.query(paymentQuery, [paymentId]);
+    // Get current allocated amount from payment_invoice_links (single source of truth)
+    const currentAllocations = await storage.db.execute(
+      sql`SELECT COALESCE(SUM(amount_applied), 0) as total_allocated 
+          FROM payment_invoice_links WHERE payment_id = ${paymentId}`
+    );
     
-    if (paymentResult.rows.length === 0) {
-      await client.query('ROLLBACK');
+    const currentPayment = await storage.db.execute(
+      sql`SELECT amount FROM payments WHERE id = ${paymentId}`
+    );
+    
+    if (currentPayment.rows.length === 0) {
       return res.status(404).json({ error: 'Payment not found' });
     }
     
-    const payment = paymentResult.rows[0];
-    const currentUnallocated = parseFloat(payment.unallocated_amount || 0);
+    const payment = currentPayment.rows[0] as any;
+    const totalAmount = Number(payment.amount);
+    const currentlyAllocated = Number(currentAllocations.rows[0].total_allocated);
+    const availableAmount = totalAmount - currentlyAllocated;
     
-    if (currentUnallocated < allocationAmount) {
-      await client.query('ROLLBACK');
+    console.log(`🔥 Payment ${paymentId} state: Total: ${totalAmount}, Allocated: ${currentlyAllocated}, Available: ${availableAmount}`);
+    
+    if (allocationAmount > availableAmount) {
       return res.status(400).json({ 
-        error: `Insufficient unallocated amount. Available: ${currentUnallocated}, Requested: ${allocationAmount}` 
+        error: `Allocation amount (${allocationAmount}) exceeds available payment amount (${availableAmount})` 
       });
     }
     
-    // Step 2: Get invoice details
-    const invoiceQuery = `
-      SELECT id, invoice_number, total_amount, paid_amount, outstanding_amount 
-      FROM invoices 
-      WHERE id = $1
-    `;
-    const invoiceResult = await client.query(invoiceQuery, [invoiceId]);
+    // Insert allocation record first
+    console.log(`🔥 Creating allocation record...`);
+    await storage.db.execute(
+      sql`INSERT INTO payment_invoice_links (payment_id, invoice_id, amount_applied, created_at)
+          VALUES (${paymentId}, ${invoiceId}, ${allocationAmount}, NOW())`
+    );
     
-    if (invoiceResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Invoice not found' });
-    }
+    // Update payment amounts based on payment_invoice_links table (single source of truth)
+    console.log(`🔥 Updating payment ${paymentId} amounts...`);
     
-    const invoice = invoiceResult.rows[0];
-    const currentOutstanding = parseFloat(invoice.outstanding_amount || invoice.total_amount || 0);
-    
-    if (currentOutstanding < allocationAmount) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ 
-        error: `Allocation amount exceeds outstanding amount. Outstanding: ${currentOutstanding}, Requested: ${allocationAmount}` 
-      });
-    }
-    
-    // Step 3: Update payment amounts
-    const updatePaymentQuery = `
-      UPDATE payments
-      SET 
-        allocated_amount = COALESCE(allocated_amount, 0) + $1,
-        unallocated_amount = COALESCE(unallocated_amount, 0) - $1,
+    const updateResult = await storage.db.execute(
+      sql`UPDATE payments SET 
+        allocated_amount = (
+          SELECT COALESCE(SUM(amount_applied), 0) 
+          FROM payment_invoice_links 
+          WHERE payment_id = ${paymentId}
+        ),
+        unallocated_amount = amount - (
+          SELECT COALESCE(SUM(amount_applied), 0) 
+          FROM payment_invoice_links 
+          WHERE payment_id = ${paymentId}
+        ),
         updated_at = NOW()
-      WHERE id = $2
-      RETURNING allocated_amount, unallocated_amount
-    `;
+        WHERE id = ${paymentId}`
+    );
     
-    const updatedPayment = await client.query(updatePaymentQuery, [
-      allocationAmount, 
-      paymentId
-    ]);
+    console.log(`🔥 Payment ${paymentId} update result:`, updateResult);
     
-    // Step 4: Update invoice amounts and status
-    const updateInvoiceQuery = `
-      UPDATE invoices
-      SET 
-        paid_amount = COALESCE(paid_amount, 0) + $1,
-        outstanding_amount = total_amount - (COALESCE(paid_amount, 0) + $1),
+    // Update invoice amounts
+    console.log(`🔥 Updating invoice ${invoiceId} amounts...`);
+    await storage.db.execute(
+      sql`UPDATE invoices SET 
+        paid_amount = COALESCE(paid_amount, 0) + ${allocationAmount},
+        outstanding_amount = total_amount - (COALESCE(paid_amount, 0) + ${allocationAmount}),
         status = CASE 
-          WHEN (total_amount - (COALESCE(paid_amount, 0) + $1)) <= 0 THEN 'Paid'
-          WHEN (COALESCE(paid_amount, 0) + $1) > 0 THEN 'Partially Paid'
+          WHEN (total_amount - (COALESCE(paid_amount, 0) + ${allocationAmount})) <= 0 THEN 'Paid'
+          WHEN (COALESCE(paid_amount, 0) + ${allocationAmount}) > 0 THEN 'Partially Paid'
           ELSE status 
         END,
         updated_at = NOW()
-      WHERE id = $2
-      RETURNING paid_amount, outstanding_amount, status
-    `;
+        WHERE id = ${invoiceId}`
+    );
     
-    const updatedInvoice = await client.query(updateInvoiceQuery, [
-      allocationAmount, 
-      invoiceId
-    ]);
+    console.log(`🔥 ✅ Successfully allocated ${allocationAmount} from payment ${paymentId} to invoice ${invoiceId}`);
     
-    // Step 5: Create allocation record (optional - for audit trail)
-    const insertAllocationQuery = `
-      INSERT INTO payment_allocations (payment_id, invoice_id, amount, created_at)
-      VALUES ($1, $2, $3, NOW())
-    `;
-    
-    try {
-      await client.query(insertAllocationQuery, [paymentId, invoiceId, allocationAmount]);
-    } catch (error) {
-      // If allocation table doesn't exist, continue without creating record
-      console.log('Payment allocations table not found, skipping allocation record');
-    }
-    
-    // Commit transaction
-    await client.query('COMMIT');
-    
-    // Return success response
-    const response = {
+    res.json({
       success: true,
       message: 'Payment allocated successfully',
-      allocation: {
+      data: {
         paymentId,
         invoiceId,
-        amount: allocationAmount,
-        payment: {
-          allocatedAmount: updatedPayment.rows[0].allocated_amount,
-          unallocatedAmount: updatedPayment.rows[0].unallocated_amount
-        },
-        invoice: {
-          paidAmount: updatedInvoice.rows[0].paid_amount,
-          outstandingAmount: updatedInvoice.rows[0].outstanding_amount,
-          status: updatedInvoice.rows[0].status
-        }
+        allocationAmount,
+        timestamp: new Date().toISOString()
       }
-    };
-    
-    res.json(response);
+    });
     
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error allocating payment:', error);
-    res.status(500).json({ 
+    console.error('🔥 ❌ Allocation error:', error);
+    res.status(500).json({
+      success: false,
       error: 'Failed to allocate payment',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error'
     });
-  } finally {
-    client.release();
   }
 });
 

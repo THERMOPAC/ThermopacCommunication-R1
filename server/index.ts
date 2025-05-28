@@ -59,6 +59,11 @@ app.post('/api/approve-writeoff/:id', async (req: any, res: any) => {
   }
 });
 
+// Add fixed allocation endpoint that properly updates payment amounts
+const fixedAllocationRouter = await import('./fix-allocation-endpoint');
+app.use('/api/finance', fixedAllocationRouter.default);
+console.log('🔥 Fixed allocation endpoint registered at /api/finance/allocate-payment');
+
 // Add missing write-offs by invoice endpoint that frontend needs
 app.get('/api/finance/write-offs/invoice/:invoiceId', async (req: any, res: any) => {
   try {
