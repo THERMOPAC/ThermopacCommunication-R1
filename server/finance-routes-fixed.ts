@@ -346,23 +346,21 @@ router.post('/payments/update/:id', ensureAuthenticated, async (req: Request, re
         UPDATE payments 
         SET 
           irm_no = $1,
-          irm_no = $2,
-          payment_date = $3,
-          sap_payment_no = $4,
-          payment_type = $5,
-          amount = $6,
-          currency = $7,
-          payment_method = $8,
-          notes = $9,
-          is_advance_payment = $10,
-          customer_id = $11,
+          payment_date = $2,
+          sap_payment_no = $3,
+          payment_type = $4,
+          amount = $5,
+          currency = $6,
+          payment_method = $7,
+          notes = $8,
+          is_advance_payment = $9,
+          customer_id = $10,
           updated_at = NOW()
-        WHERE id = $12
+        WHERE id = $11
         RETURNING *;
       `;
       
       const paymentResult = await client.query(updatePaymentQuery, [
-        irm_no || existingPayment.irm_no,
         irm_no || existingPayment.irm_no,
         payment_date || existingPayment.payment_date,
         sap_payment_no || existingPayment.sap_payment_no,
