@@ -46,7 +46,7 @@ import { getIndianFinancialYear, formatRupees } from '@/lib/utils';
 
 // BRC form schema
 interface BrcFormValues {
-  paymentId: string;
+  invoiceId: string;
   brcNumber: string;
   issueDate: string;
   amount: string;
@@ -59,9 +59,9 @@ export default function BrcPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [formValues, setFormValues] = useState<BrcFormValues>({
-    paymentId: '',
+    invoiceId: '',
     brcNumber: '',
     issueDate: format(new Date(), 'yyyy-MM-dd'),
     amount: '',
@@ -71,9 +71,9 @@ export default function BrcPage() {
   });
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch foreign currency payments without BRC
-  const { data: payments, isLoading } = useQuery({
-    queryKey: ['/api/finance/payments/foreign-without-brc'],
+  // Fetch export invoices that require BRC but haven't received one yet
+  const { data: exportInvoices, isLoading } = useQuery({
+    queryKey: ['/api/finance/invoices/export-without-brc'],
     enabled: true
   });
 
