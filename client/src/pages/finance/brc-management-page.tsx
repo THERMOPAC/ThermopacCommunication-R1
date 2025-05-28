@@ -539,12 +539,46 @@ export default function BrcManagementPage() {
             </DialogHeader>
 
             <div className="space-y-4">
+              {/* Selected Invoice Information */}
+              {formData.invoiceId && (
+                <div className="p-4 bg-muted/50 rounded-lg border">
+                  <h4 className="font-medium mb-2">Selected Invoice Details</h4>
+                  {(() => {
+                    const selectedInvoice = filteredInvoices?.find((inv: any) => inv.id === formData.invoiceId);
+                    return selectedInvoice ? (
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Invoice Number:</span> {selectedInvoice.invoiceNumber}
+                        </div>
+                        <div>
+                          <span className="font-medium">Customer:</span> {selectedInvoice.customer?.companyName || selectedInvoice.customer?.bpName}
+                        </div>
+                        <div>
+                          <span className="font-medium">Amount:</span> {formatRupees(parseFloat(selectedInvoice.totalAmount || 0))} {selectedInvoice.currency}
+                        </div>
+                        <div>
+                          <span className="font-medium">Date:</span> {selectedInvoice.invoiceDate ? format(new Date(selectedInvoice.invoiceDate), 'dd/MM/yyyy') : '-'}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="invoiceSelect">Invoice *</Label>
                   <Select 
                     value={formData.invoiceId.toString()} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, invoiceId: parseInt(value) }))}
+                    onValueChange={(value) => {
+                      const selectedInvoice = filteredInvoices?.find((inv: any) => inv.id === parseInt(value));
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        invoiceId: parseInt(value),
+                        amountRealized: selectedInvoice ? parseFloat(selectedInvoice.totalAmount || 0) : 0,
+                        currency: selectedInvoice?.currency || 'USD'
+                      }));
+                    }}
                     disabled={!!editingBrc}
                   >
                     <SelectTrigger>
@@ -553,7 +587,7 @@ export default function BrcManagementPage() {
                     <SelectContent>
                       {filteredInvoices?.map((invoice: any) => (
                         <SelectItem key={invoice.id} value={invoice.id.toString()}>
-                          {invoice.invoiceNumber} - {invoice.customer?.companyName}
+                          {invoice.invoiceNumber} - {invoice.customer?.companyName || invoice.customer?.bpName}
                         </SelectItem>
                       ))}
                     </SelectContent>
