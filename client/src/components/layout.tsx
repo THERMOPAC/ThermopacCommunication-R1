@@ -174,7 +174,6 @@ export default function Layout({ children }: LayoutProps) {
         { icon: BarChart4, label: "Invoice Aging Dashboard", href: "/finance/reports/invoice-aging" },
         { icon: FileCheck, label: "Write-off Management", href: "/finance/write-offs" },
         { icon: CreditCard, label: "Inward Remittances", href: "/finance/reports/remittances" },
-        { icon: DollarSign, label: "Basic Allocation", href: "/finance/basic-allocation" },
         { icon: DollarSign, label: "BRC", href: "/finance/brc" }
       ]
     }] : []),
