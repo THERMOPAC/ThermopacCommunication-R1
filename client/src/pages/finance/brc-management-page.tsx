@@ -568,30 +568,42 @@ export default function BrcManagementPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="invoiceSelect">Invoice *</Label>
-                  <Select 
-                    value={formData.invoiceId.toString()} 
-                    onValueChange={(value) => {
-                      const selectedInvoice = filteredInvoices?.find((inv: any) => inv.id === parseInt(value));
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        invoiceId: parseInt(value),
-                        amountRealized: selectedInvoice ? parseFloat(selectedInvoice.totalAmount || 0) : 0,
-                        currency: selectedInvoice?.currency || 'USD'
-                      }));
-                    }}
-                    disabled={!!editingBrc}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select invoice..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredInvoices?.map((invoice: any) => (
-                        <SelectItem key={invoice.id} value={invoice.id.toString()}>
-                          {invoice.invoiceNumber} - {invoice.customer?.companyName || invoice.customer?.bpName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {formData.invoiceId ? (
+                    // Show invoice as read-only when pre-selected
+                    <div className="px-3 py-2 border rounded-md bg-muted/50 text-sm">
+                      {(() => {
+                        const selectedInvoice = filteredInvoices?.find((inv: any) => inv.id === formData.invoiceId);
+                        return selectedInvoice ? 
+                          `${selectedInvoice.invoiceNumber} - ${selectedInvoice.customer?.companyName || selectedInvoice.customer?.bpName}` 
+                          : 'Invoice not found';
+                      })()}
+                    </div>
+                  ) : (
+                    // Show dropdown only when no invoice is pre-selected
+                    <Select 
+                      value={formData.invoiceId.toString()} 
+                      onValueChange={(value) => {
+                        const selectedInvoice = filteredInvoices?.find((inv: any) => inv.id === parseInt(value));
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          invoiceId: parseInt(value),
+                          amountRealized: selectedInvoice ? parseFloat(selectedInvoice.totalAmount || 0) : 0,
+                          currency: selectedInvoice?.currency || 'USD'
+                        }));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select invoice..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredInvoices?.map((invoice: any) => (
+                          <SelectItem key={invoice.id} value={invoice.id.toString()}>
+                            {invoice.invoiceNumber} - {invoice.customer?.companyName || invoice.customer?.bpName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="brcNumber">BRC Number *</Label>
