@@ -86,7 +86,7 @@ export default function BrcManagementPage() {
 
   // Fetch invoices filtered by customer
   const { data: invoices, isLoading: isLoadingInvoices } = useQuery({
-    queryKey: ['/api/finance/invoices', { customerId: selectedCustomerId }],
+    queryKey: ['/api/finance/invoices', { customerId: selectedCustomerId === 'all' ? '' : selectedCustomerId }],
     enabled: !!selectedCustomerId
   });
 
@@ -103,7 +103,7 @@ export default function BrcManagementPage() {
     let filtered = invoices;
     
     // Filter by selected invoice if specified
-    if (selectedInvoiceId) {
+    if (selectedInvoiceId && selectedInvoiceId !== 'all') {
       filtered = filtered.filter((inv: any) => inv.id.toString() === selectedInvoiceId);
     }
 
@@ -116,8 +116,8 @@ export default function BrcManagementPage() {
     });
 
     const received = brcRecords?.filter((brc: any) => {
-      if (selectedCustomerId && brc.invoice?.customerId.toString() !== selectedCustomerId) return false;
-      if (selectedInvoiceId && brc.invoiceId.toString() !== selectedInvoiceId) return false;
+      if (selectedCustomerId && selectedCustomerId !== 'all' && brc.invoice?.customerId.toString() !== selectedCustomerId) return false;
+      if (selectedInvoiceId && selectedInvoiceId !== 'all' && brc.invoiceId.toString() !== selectedInvoiceId) return false;
       return true;
     }) || [];
 
@@ -256,7 +256,7 @@ export default function BrcManagementPage() {
                     <SelectValue placeholder="Select customer..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Customers</SelectItem>
+                    <SelectItem value="all">All Customers</SelectItem>
                     {customers?.map((customer: any) => (
                       <SelectItem key={customer.id} value={customer.id.toString()}>
                         {customer.companyName}
@@ -276,7 +276,7 @@ export default function BrcManagementPage() {
                     <SelectValue placeholder="Select invoice..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Invoices</SelectItem>
+                    <SelectItem value="all">All Invoices</SelectItem>
                     {filteredInvoices?.map((invoice: any) => (
                       <SelectItem key={invoice.id} value={invoice.id.toString()}>
                         {invoice.invoiceNumber} - {formatRupees(parseFloat(invoice.totalAmount || 0))} {invoice.currency}
