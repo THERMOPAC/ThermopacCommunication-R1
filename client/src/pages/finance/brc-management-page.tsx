@@ -352,7 +352,9 @@ export default function BrcManagementPage() {
                           <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
                             <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                             <TableCell>{invoice.customer?.companyName}</TableCell>
-                            <TableCell>{format(new Date(invoice.invoiceDate), 'dd/MM/yyyy')}</TableCell>
+                            <TableCell>
+                              {invoice.invoiceDate ? format(new Date(invoice.invoiceDate), 'dd/MM/yyyy') : '-'}
+                            </TableCell>
                             <TableCell>{formatRupees(parseFloat(invoice.totalAmount || 0))} {invoice.currency}</TableCell>
                             <TableCell>{invoice.destinationCountry}</TableCell>
                             <TableCell>
