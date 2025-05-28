@@ -544,7 +544,7 @@ export default function BrcManagementPage() {
                 <div className="p-4 bg-muted/50 rounded-lg border">
                   <h4 className="font-medium mb-2">Selected Invoice Details</h4>
                   {(() => {
-                    const selectedInvoice = filteredInvoices?.find((inv: any) => inv.id === formData.invoiceId);
+                    const selectedInvoice = invoices?.find((inv: any) => inv.id === formData.invoiceId);
                     return selectedInvoice ? (
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
@@ -572,7 +572,7 @@ export default function BrcManagementPage() {
                     // Show invoice as read-only when pre-selected
                     <div className="px-3 py-2 border rounded-md bg-muted/50 text-sm">
                       {(() => {
-                        const selectedInvoice = filteredInvoices?.find((inv: any) => inv.id === formData.invoiceId);
+                        const selectedInvoice = invoices?.find((inv: any) => inv.id === formData.invoiceId);
                         return selectedInvoice ? 
                           `${selectedInvoice.invoiceNumber} - ${selectedInvoice.customer?.companyName || selectedInvoice.customer?.bpName}` 
                           : 'Invoice not found';
