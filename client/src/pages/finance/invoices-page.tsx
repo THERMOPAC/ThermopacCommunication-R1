@@ -81,10 +81,12 @@ export default function InvoicesPage() {
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  // Query for invoices using direct database connection
+  // Query for invoices using direct database connection with proper cache invalidation
   const { data, isLoading, error } = useQuery({
     queryKey: ['/api/simple-finance/invoices-list'],
-    retry: 2
+    retry: 2,
+    staleTime: 0, // Always fetch fresh data
+    cacheTime: 0  // Don't cache the data
   });
 
 
