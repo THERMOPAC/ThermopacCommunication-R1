@@ -1650,24 +1650,26 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
     // Update payment in database with updated unallocated amount
     const updatePaymentQuery = `
       UPDATE payments SET
-        reference_number = $1,
-        payment_date = $2,
-        sap_payment_no = $3,
-        payment_type = $4,
-        amount = $5,
-        currency = $6,
-        payment_method = $7,
-        notes = $8,
-        is_advance_payment = $9,
-        customer_id = $10,
-        allocated_amount = $11,
-        unallocated_amount = $12,
+        irm_no = $1,
+        reference_number = $2,
+        payment_date = $3,
+        sap_payment_no = $4,
+        payment_type = $5,
+        amount = $6,
+        currency = $7,
+        payment_method = $8,
+        notes = $9,
+        is_advance_payment = $10,
+        customer_id = $11,
+        allocated_amount = $12,
+        unallocated_amount = $13,
         updated_at = NOW()
-      WHERE id = $13
+      WHERE id = $14
       RETURNING *
     `;
     
     const paymentValues = [
+      irmNo,
       payment.referenceNumber,
       paymentDate.toISOString().split('T')[0], // Format as YYYY-MM-DD for SQL
       sapPaymentNo, // Use our normalized variable instead of direct property access
@@ -1701,30 +1703,9 @@ router.put('/payments/:id', ensureAuthenticated, async (req: Request, res: Respo
       unallocatedAmount: newUnallocatedAmount
     });
     
-    // Execute direct SQL command for maximum reliability
-    const directUpdateQuery = `
-      UPDATE payments SET 
-        irm_no = ${irmNo ? `'${irmNo}'` : 'NULL'},
-        payment_date = '${paymentDate.toISOString().split('T')[0]}',
-        sap_payment_no = ${sapPaymentNo ? `'${sapPaymentNo}'` : 'NULL'},
-        payment_type = '${paymentType}',
-        payment_method = '${payment.paymentMethod || 'bank transfer'}',
-        notes = ${payment.notes ? `'${payment.notes}'` : 'NULL'}
-      WHERE id = ${paymentId}
-      RETURNING *
-    `;
-    
-    console.log('Direct SQL query to execute:', directUpdateQuery);
-    
-    // Execute both - the parameterized query for safety and direct query for debugging
-    const paramQueryText = {
-      text: updatePaymentQuery,
-      values: paymentValues
-    };
-    console.log('Parameterized SQL query:', JSON.stringify(paramQueryText));
-    
-    // Use the direct query for more reliable updates
-    const paymentResult = await pool.query(directUpdateQuery);
+    // Execute the parameterized query for safe and reliable updates
+    console.log('Executing payment update with values:', paymentValues);
+    const paymentResult = await pool.query(updatePaymentQuery, paymentValues);
     console.log('Payment update result:', paymentResult?.rows?.[0]);
     
     if (!paymentResult || !paymentResult.rows || paymentResult.rows.length === 0) {
