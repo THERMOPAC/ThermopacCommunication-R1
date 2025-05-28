@@ -48,11 +48,21 @@ router.post('/allocate-payment', async (req: Request, res: Response) => {
           VALUES (${paymentId}, ${invoiceId}, ${allocationAmount}, NOW())`
     );
     
-    // Update payment amounts correctly
+    // Calculate new allocation totals by summing all allocations for this payment
+    const allocationSumResult = await storage.db.execute(
+      sql`SELECT COALESCE(SUM(amount_applied), 0) as total_allocated 
+          FROM payment_invoice_links 
+          WHERE payment_id = ${paymentId}`
+    );
+    
+    const totalAllocated = Number(allocationSumResult.rows[0]?.total_allocated || 0) + allocationAmount;
+    const newUnallocated = Number(payment.amount) - totalAllocated;
+    
+    // Update payment amounts with correct totals
     await storage.db.execute(
       sql`UPDATE payments SET 
-        allocated_amount = COALESCE(allocated_amount, 0) + ${allocationAmount},
-        unallocated_amount = amount - (COALESCE(allocated_amount, 0) + ${allocationAmount}),
+        allocated_amount = ${totalAllocated},
+        unallocated_amount = ${newUnallocated},
         updated_at = NOW()
         WHERE id = ${paymentId}`
     );
