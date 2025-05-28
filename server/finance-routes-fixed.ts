@@ -783,10 +783,10 @@ router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => 
       });
     }
     
-    // Insert directly into database
+    // Insert directly into database with correct column names
     const result = await pool.query(`
       INSERT INTO bank_realization_certificates 
-      (related_invoice_id, brc_number, brc_date, bank_name, amount_realized, currency, notes, created_by, created_at, updated_at)
+      (related_invoice_id, certificate_number, issue_date, bank_name, amount, currency, notes, created_by, created_at, updated_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
       RETURNING *
     `, [
@@ -823,11 +823,11 @@ router.put('/brc/:id', ensureAuthenticated, async (req: Request, res: Response) 
     const { id } = req.params;
     const { invoiceId, brcNumber, brcDate, bankName, amountRealized, currency, notes } = req.body;
     
-    // Update directly in database
+    // Update directly in database with correct column names
     const result = await pool.query(`
       UPDATE bank_realization_certificates 
-      SET related_invoice_id = $1, brc_number = $2, brc_date = $3, bank_name = $4, 
-          amount_realized = $5, currency = $6, notes = $7, updated_at = NOW()
+      SET related_invoice_id = $1, certificate_number = $2, issue_date = $3, bank_name = $4, 
+          amount = $5, currency = $6, notes = $7, updated_at = NOW()
       WHERE id = $8
       RETURNING *
     `, [
