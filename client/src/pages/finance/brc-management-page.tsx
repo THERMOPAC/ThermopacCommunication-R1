@@ -119,13 +119,13 @@ export default function BrcManagementPage() {
     const notRequired = filtered.filter((inv: any) => inv.isExport === false);
 
     const pending = exportInvoices.filter((invoice: any) => {
-      const hasBrc = brcRecords?.some((brc: any) => brc.relatedInvoiceId === invoice.id);
+      const hasBrc = brcRecords?.some((brc: any) => brc.related_invoice_id === invoice.id);
       return !hasBrc;
     });
 
     const received = brcRecords?.filter((brc: any) => {
       if (selectedCustomerId && selectedCustomerId !== 'all' && brc.invoice?.customerId.toString() !== selectedCustomerId) return false;
-      if (selectedInvoiceId && selectedInvoiceId !== 'all' && brc.relatedInvoiceId.toString() !== selectedInvoiceId) return false;
+      if (selectedInvoiceId && selectedInvoiceId !== 'all' && brc.related_invoice_id.toString() !== selectedInvoiceId) return false;
       return true;
     }) || [];
 
