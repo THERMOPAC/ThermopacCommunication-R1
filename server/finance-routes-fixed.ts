@@ -5,6 +5,34 @@ import { pool } from './db';
 const router = Router();
 
 /**
+ * Get all BRCs from database
+ */
+router.get('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        brc.*,
+        i.invoice_number,
+        i.total_amount as invoice_amount,
+        i.customer_id,
+        c.bp_name as customer_name
+      FROM bank_realization_certificates brc
+      LEFT JOIN invoices i ON brc.related_invoice_id = i.id
+      LEFT JOIN customers c ON i.customer_id = c.id
+      ORDER BY brc.created_at DESC
+    `);
+    
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error('Error fetching BRCs:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch BRCs',
+      message: error.message
+    });
+  }
+});
+
+/**
  * Get overall financial dashboard data
  */
 router.get('/dashboard', ensureAuthenticated, async (req: Request, res: Response) => {
