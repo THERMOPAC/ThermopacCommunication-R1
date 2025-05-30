@@ -459,7 +459,7 @@ export default function BrcManagementPage() {
                             <TableCell>
                               {invoice.issueDate ? format(new Date(invoice.issueDate), 'dd/MM/yyyy') : '-'}
                             </TableCell>
-                            <TableCell>{formatRupees(parseFloat(invoice.totalAmount || 0))} {invoice.currency}</TableCell>
+                            <TableCell>{parseFloat(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {invoice.currency}</TableCell>
                             <TableCell>
                               <div className="flex gap-2">
                                 <Button 
@@ -546,7 +546,7 @@ export default function BrcManagementPage() {
                             </TableCell>
                             <TableCell>{brc.bank_name}</TableCell>
                             <TableCell>
-                              {formatRupees(brc.amount || 0)} {brc.currency}
+                              {(brc.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {brc.currency}
                             </TableCell>
                             <TableCell>
                               <Badge variant="default">Received</Badge>
@@ -633,7 +633,7 @@ export default function BrcManagementPage() {
                               {invoice.issueDate ? format(new Date(invoice.issueDate), 'MMM dd, yyyy') : '-'}
                             </TableCell>
                             <TableCell>
-                              {formatRupees(parseFloat(invoice.totalAmount || 0))} {invoice.currency}
+                              {parseFloat(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {invoice.currency}
                             </TableCell>
                             <TableCell>
                               <Badge variant="secondary">
