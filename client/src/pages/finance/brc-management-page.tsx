@@ -86,7 +86,7 @@ export default function BrcManagementPage() {
 
   // Fetch all invoices
   const { data: invoices, isLoading: isLoadingInvoices } = useQuery({
-    queryKey: ['/api/finance/invoices'],
+    queryKey: ['/api/simple-finance/invoices-list'],
     enabled: true
   });
 
