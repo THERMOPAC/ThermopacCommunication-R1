@@ -170,6 +170,9 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
           status,
           sap_invoice_no AS "sapInvoiceNo", 
           invoice_type AS "invoiceType",
+          shipping_bill_number AS "shippingBillNumber",
+          is_export AS "isExport",
+          brc_required AS "brcRequired",
           created_at AS "createdAt",
           updated_at AS "updatedAt"
         FROM invoices 
