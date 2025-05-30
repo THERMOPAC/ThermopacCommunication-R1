@@ -3429,52 +3429,21 @@ router.get('/reports/remittances', ensureAuthenticated, async (req: Request, res
       console.log("Payments data from DB:", result.rows.length, "rows found");
       console.log("Sample payment data:", result.rows[0]);
       
-      if (result.rows.length === 0) {
-        // If no results returned, let's create some sample data so the UI shows something
-        result.rows = [
-          {
-            id: 4,
-            reference_number: 'PAY-2526-004',
-            amount: '200000.00',
-            currency: 'USD',
-            payment_date: '2025-05-01',
-            payment_method: 'check',
-            customer_name: 'AVISTA OIL DEUTSCHLAND GMBH'
-          },
-          {
-            id: 5,
-            reference_number: 'PAY-2526-005',
-            amount: '250000.00',
-            currency: 'USD',
-            payment_date: '2025-05-08',
-            payment_method: 'wire transfer',
-            customer_name: 'WPC LIMITED'
-          },
-          {
-            id: 6,
-            reference_number: 'PAY-2526-006',
-            amount: '145000.00',
-            currency: 'USD',
-            payment_date: '2025-05-11',
-            payment_method: 'bank transfer',
-            customer_name: 'SARL SIPLA LUBRIFIANT'
-          }
-        ];
-      }
+      console.log("Raw data from database:", result.rows);
       
       // Calculate total amount
       const totalRemittances = result.rows.reduce((sum, row) => sum + parseFloat(row.amount), 0);
       
-      // Format data
+      // Format data with real information
       const remittances = result.rows.map(row => ({
-        remittanceNumber: row.reference_number || `PAY-${row.id}`,
+        remittanceNumber: row.reference_number || row.irm_no || `PAY-${row.id}`,
         customerName: row.customer_name || 'Unknown Customer',
         date: row.payment_date,
-        invoiceNumber: `INV-${1000 + parseInt(row.id)}`,
+        invoiceNumber: row.irm_no || `PAY-${row.id}`,
         amount: parseFloat(row.amount),
         currency: row.currency || 'USD',
         brcStatus: row.payment_method === 'bank transfer' ? 'Issued' : 'Pending',
-        brcDocumentUrl: null // No document URLs available
+        brcDocumentUrl: null
       }));
       
       // Calculate BRC stats
@@ -3497,6 +3466,158 @@ router.get('/reports/remittances', ensureAuthenticated, async (req: Request, res
   } catch (error) {
     console.error('Error generating remittances report:', error);
     res.status(500).json({ error: 'Failed to generate remittances report' });
+  }
+});
+
+/**
+ * Invoice aging analysis
+ */
+router.get('/reports/invoice-aging', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    console.log('Invoice aging API called with params:', req.query);
+    
+    const { startDate, endDate, currency } = req.query;
+    
+    // Build the WHERE clause for filtering
+    let whereClause = '';
+    const queryParams = [];
+    let paramIndex = 1;
+    
+    if (startDate && endDate) {
+      whereClause = `WHERE i.issue_date BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
+      queryParams.push(startDate, endDate);
+      paramIndex += 2;
+    }
+    
+    if (currency && currency !== 'all') {
+      whereClause += whereClause ? ` AND i.currency = $${paramIndex}` : `WHERE i.currency = $${paramIndex}`;
+      queryParams.push(currency);
+    }
+    
+    // Get invoice aging data
+    const query = `
+      SELECT 
+        i.id,
+        i.invoice_number,
+        i.customer_id,
+        c.bp_name as customer_name,
+        i.issue_date,
+        i.due_date,
+        i.total_amount,
+        i.outstanding_amount,
+        i.currency,
+        i.status,
+        CASE 
+          WHEN i.outstanding_amount <= 0 THEN 0
+          ELSE CURRENT_DATE - i.due_date
+        END as days_overdue
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      ${whereClause}
+      ORDER BY i.issue_date DESC
+    `;
+    
+    const client = await pool.connect();
+    
+    try {
+      const result = await client.query(query, queryParams);
+      console.log("Invoice aging data from DB:", result.rows.length, "invoices found");
+      
+      // Calculate aging buckets
+      const agingBuckets = {
+        'Current': { count: 0, amount: 0, percentage: 0 },
+        '1-30 days': { count: 0, amount: 0, percentage: 0 },
+        '31-60 days': { count: 0, amount: 0, percentage: 0 },
+        '61-90 days': { count: 0, amount: 0, percentage: 0 },
+        '91+ days': { count: 0, amount: 0, percentage: 0 }
+      };
+      
+      const customerSummaries = {};
+      let totalOutstanding = 0;
+      
+      // Process each invoice
+      const invoices = result.rows.map(row => {
+        const daysOverdue = parseInt(row.days_overdue) || 0;
+        const outstandingAmount = parseFloat(row.outstanding_amount) || 0;
+        
+        // Determine aging bucket
+        let agingBucket = 'Current';
+        if (daysOverdue > 90) {
+          agingBucket = '91+ days';
+        } else if (daysOverdue > 60) {
+          agingBucket = '61-90 days';
+        } else if (daysOverdue > 30) {
+          agingBucket = '31-60 days';
+        } else if (daysOverdue > 0) {
+          agingBucket = '1-30 days';
+        }
+        
+        // Update aging buckets
+        if (outstandingAmount > 0) {
+          agingBuckets[agingBucket].count++;
+          agingBuckets[agingBucket].amount += outstandingAmount;
+          totalOutstanding += outstandingAmount;
+          
+          // Update customer summary
+          const customerId = row.customer_id;
+          if (!customerSummaries[customerId]) {
+            customerSummaries[customerId] = {
+              customerId,
+              customerName: row.customer_name,
+              totalOutstanding: 0,
+              agingBuckets: {
+                'Current': 0,
+                '1-30 days': 0,
+                '31-60 days': 0,
+                '61-90 days': 0,
+                '91+ days': 0
+              }
+            };
+          }
+          
+          customerSummaries[customerId].totalOutstanding += outstandingAmount;
+          customerSummaries[customerId].agingBuckets[agingBucket] += outstandingAmount;
+        }
+        
+        return {
+          id: row.id,
+          invoiceNumber: row.invoice_number,
+          customerId: row.customer_id,
+          customerName: row.customer_name,
+          issueDate: row.issue_date,
+          dueDate: row.due_date,
+          amount: parseFloat(row.total_amount),
+          outstandingAmount,
+          currencyCode: row.currency,
+          daysOverdue,
+          agingBucket
+        };
+      });
+      
+      // Calculate percentages for aging buckets
+      Object.keys(agingBuckets).forEach(bucket => {
+        if (totalOutstanding > 0) {
+          agingBuckets[bucket].percentage = (agingBuckets[bucket].amount / totalOutstanding * 100);
+        }
+      });
+      
+      const response = {
+        totalOutstanding,
+        currencyCode: currency || 'USD',
+        agingBuckets,
+        customerSummaries: Object.values(customerSummaries),
+        invoices: invoices.filter(inv => inv.outstandingAmount > 0),
+        paymentTrends: [] // Could be calculated from payment history if needed
+      };
+      
+      res.json(response);
+      
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error generating invoice aging report:', error);
+    res.status(500).json({ error: 'Failed to generate invoice aging report' });
   }
 });
 
