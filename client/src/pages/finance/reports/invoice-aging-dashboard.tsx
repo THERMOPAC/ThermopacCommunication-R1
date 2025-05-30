@@ -360,9 +360,18 @@ export default function InvoiceAgingDashboard() {
         throw new Error(`Failed to fetch invoice aging data: ${response.status}`);
       }
       
-      const jsonData = await response.json();
-      console.log('Invoice aging raw response:', jsonData);
-      return jsonData;
+      const responseText = await response.text();
+      console.log('Invoice aging raw response text:', responseText);
+      
+      try {
+        const jsonData = JSON.parse(responseText);
+        console.log('Invoice aging parsed JSON:', jsonData);
+        return jsonData;
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', parseError);
+        console.error('Response text was:', responseText);
+        throw new Error('Invalid JSON response from server');
+      }
     },
     enabled: !!dateRange.from && !!dateRange.to,
     retry: 1
