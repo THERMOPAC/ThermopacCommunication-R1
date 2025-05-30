@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 import { ensureAuthenticated } from './auth-middleware';
 import { pool } from './db';
+import { storage } from './storage';
 
 const router = Router();
 
@@ -1078,35 +1079,32 @@ router.get('/reports/invoice-aging', ensureAuthenticated, async (req: Request, r
       paramIndex++;
     }
     
-    const client = await storage.pool.connect();
+    // Query to get invoice data with outstanding amounts
+    const invoicesQuery = `
+      SELECT 
+        i.id,
+        i.invoice_number,
+        i.customer_id,
+        c.company_name as customer_name,
+        i.issue_date,
+        i.due_date,
+        i.total_amount,
+        i.currency,
+        COALESCE(SUM(pa.allocated_amount), 0) as paid_amount
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      LEFT JOIN payment_allocations pa ON i.id = pa.invoice_id
+      ${whereClause}
+      GROUP BY i.id, i.invoice_number, i.customer_id, c.company_name, 
+               i.issue_date, i.due_date, i.total_amount, i.currency
+      ORDER BY i.issue_date DESC
+    `;
     
-    try {
-      // Query to get invoice data with outstanding amounts
-      const invoicesQuery = `
-        SELECT 
-          i.id,
-          i.invoice_number,
-          i.customer_id,
-          c.company_name as customer_name,
-          i.issue_date,
-          i.due_date,
-          i.total_amount,
-          i.currency,
-          COALESCE(SUM(pa.allocated_amount), 0) as paid_amount
-        FROM invoices i
-        LEFT JOIN customers c ON i.customer_id = c.id
-        LEFT JOIN payment_allocations pa ON i.id = pa.invoice_id
-        ${whereClause}
-        GROUP BY i.id, i.invoice_number, i.customer_id, c.company_name, 
-                 i.issue_date, i.due_date, i.total_amount, i.currency
-        ORDER BY i.issue_date DESC
-      `;
-      
-      console.log('Executing invoice aging query:', invoicesQuery);
-      console.log('Query params:', queryParams);
-      
-      const invoicesResult = await client.query(invoicesQuery, queryParams);
-      const invoices = invoicesResult.rows;
+    console.log('Executing invoice aging query:', invoicesQuery);
+    console.log('Query params:', queryParams);
+    
+    const invoicesResult = await pool.query(invoicesQuery, queryParams);
+    const invoices = invoicesResult.rows;
       
       console.log(`Found ${invoices.length} invoices for aging analysis`);
       
@@ -1206,13 +1204,9 @@ router.get('/reports/invoice-aging', ensureAuthenticated, async (req: Request, r
         ]
       };
       
-      console.log("Invoice aging response:", JSON.stringify(response, null, 2));
-      
-      res.json(response);
-      
-    } finally {
-      client.release();
-    }
+    console.log("Invoice aging response:", JSON.stringify(response, null, 2));
+    
+    res.json(response);
   } catch (error) {
     console.error('Error generating invoice aging report:', error);
     res.status(500).json({ error: 'Failed to generate invoice aging report' });
