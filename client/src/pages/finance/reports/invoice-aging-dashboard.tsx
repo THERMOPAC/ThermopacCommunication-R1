@@ -673,16 +673,22 @@ export default function InvoiceAgingDashboard() {
                 {data.paymentTrends[data.paymentTrends.length - 1].avgDaysToPayment} days
               </div>
               <div className="flex items-center mt-1">
-                {data.paymentTrends[data.paymentTrends.length - 1].avgDaysToPayment < 
-                 data.paymentTrends[data.paymentTrends.length - 2].avgDaysToPayment ? (
-                  <div className="flex items-center text-green-600 text-xs">
-                    <ArrowUpDown className="h-3 w-3 mr-1 rotate-180" />
-                    Improving
-                  </div>
+                {data.paymentTrends.length > 1 ? (
+                  data.paymentTrends[data.paymentTrends.length - 1].avgDaysToPayment < 
+                  data.paymentTrends[data.paymentTrends.length - 2].avgDaysToPayment ? (
+                    <div className="flex items-center text-green-600 text-xs">
+                      <ArrowUpDown className="h-3 w-3 mr-1 rotate-180" />
+                      Improving
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-red-600 text-xs">
+                      <ArrowUpDown className="h-3 w-3 mr-1" />
+                      Worsening
+                    </div>
+                  )
                 ) : (
-                  <div className="flex items-center text-red-600 text-xs">
-                    <ArrowUpDown className="h-3 w-3 mr-1" />
-                    Worsening
+                  <div className="text-xs text-gray-500">
+                    Current period
                   </div>
                 )}
               </div>
