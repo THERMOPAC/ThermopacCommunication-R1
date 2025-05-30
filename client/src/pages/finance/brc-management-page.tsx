@@ -44,7 +44,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Plus, Loader2, AlertCircle, Search, Upload, Calendar, Building2, CheckCircle } from 'lucide-react';
+import { FileText, Download, Plus, Loader2, AlertCircle, Search, Upload, Calendar, Building2, CheckCircle, Edit, Eye } from 'lucide-react';
 import Layout from '@/components/layout';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { formatRupees } from '@/lib/utils';
@@ -281,15 +281,29 @@ export default function BrcManagementPage() {
   const handleEditBrc = (brc: any) => {
     setEditingBrc(brc);
     setFormData({
-      invoiceId: brc.invoiceId,
-      brcNumber: brc.brcNumber,
-      brcDate: brc.brcDate ? format(new Date(brc.brcDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-      bankName: brc.bankName || '',
-      amountRealized: brc.amountRealized || 0,
+      invoiceId: brc.related_invoice_id || brc.invoiceId,
+      brcNumber: brc.certificate_number || brc.brcNumber,
+      brcDate: brc.issue_date ? format(new Date(brc.issue_date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+      bankName: brc.bank_name || brc.bankName || '',
+      amountRealized: parseFloat(brc.amount || brc.amountRealized || 0),
       currency: brc.currency || 'USD',
       notes: brc.notes || ''
     });
     setDialogOpen(true);
+  };
+
+  const handleViewDocument = (brc: any) => {
+    if (brc.document_path) {
+      const bucketName = 'thermopac_storage';
+      const documentUrl = `https://storage.cloud.google.com/${bucketName}/${brc.document_path}`;
+      window.open(documentUrl, '_blank');
+    } else {
+      toast({
+        title: "No Document",
+        description: "No document has been uploaded for this BRC.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSubmit = () => {
@@ -535,12 +549,28 @@ export default function BrcManagementPage() {
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                                <Button size="sm" variant="outline">
-                                  <FileText className="h-4 w-4" />
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditBrc(brc);
+                                  }}
+                                  title="Edit BRC"
+                                >
+                                  <Edit className="h-4 w-4" />
                                 </Button>
-                                {brc.filePath && (
-                                  <Button size="sm" variant="outline">
-                                    <Download className="h-4 w-4" />
+                                {brc.document_path && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewDocument(brc);
+                                    }}
+                                    title="View Document"
+                                  >
+                                    <Eye className="h-4 w-4" />
                                   </Button>
                                 )}
                               </div>
