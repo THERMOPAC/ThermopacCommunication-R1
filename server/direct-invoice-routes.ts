@@ -44,8 +44,8 @@ router.post('/invoices/direct', async (req: Request, res: Response) => {
         INSERT INTO invoices (
           invoice_number, customer_id, project_id, issue_date, due_date, 
           total_amount, outstanding_amount, paid_amount, currency, status, notes, created_by, sap_invoice_no, invoice_type,
-          is_export, brc_required
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
+          is_export, brc_required, shipping_bill_number
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
         RETURNING *
       `;
       
@@ -65,7 +65,8 @@ router.post('/invoices/direct', async (req: Request, res: Response) => {
         invoice.sapInvoiceNo && invoice.sapInvoiceNo !== '' ? invoice.sapInvoiceNo : null,
         invoice.invoiceType || 'Product',
         invoice.isExport || false,
-        invoice.brcRequired !== undefined ? invoice.brcRequired : true // Default to true
+        invoice.brcRequired !== undefined ? invoice.brcRequired : true, // Default to true
+        invoice.shippingBillNumber || null
       ];
       
       // Execute invoice insertion

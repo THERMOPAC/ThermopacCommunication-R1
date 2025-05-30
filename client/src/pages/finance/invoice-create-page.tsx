@@ -86,6 +86,7 @@ const invoiceFormSchema = z.object({
   currency: z.string().default("INR"),
   sapInvoiceNo: z.string().min(1, "SAP Invoice No is required"),
   invoiceType: z.enum(["Product", "Service"]),
+  shippingBillNumber: z.string().optional(),
   notes: z.string().optional(),
   // Export and BRC fields
   isExport: z.boolean().default(false),
@@ -230,6 +231,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
       invoiceType: isEditMode && invoiceData?.invoice && invoiceData.invoice.invoiceType
         ? invoiceData.invoice.invoiceType
         : 'Product',
+      shippingBillNumber: isEditMode && invoiceData?.invoice ? invoiceData.invoice.shippingBillNumber || '' : '',
       notes: isEditMode && invoiceData?.invoice ? invoiceData.invoice.notes || '' : '',
       // Export and BRC fields with defaults
       isExport: isEditMode && invoiceData?.invoice ? invoiceData.invoice.isExport || false : false,
@@ -1016,40 +1018,60 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   )}
                 />
                 
-                <FormField
-                  control={form.control}
-                  name="invoiceType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Invoice Type</FormLabel>
-                      {isEditMode ? (
-                        <FormControl>
-                          <Input
+                {/* Invoice Type and Shipping Bill No inline fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="invoiceType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Invoice Type</FormLabel>
+                        {isEditMode ? (
+                          <FormControl>
+                            <Input
+                              value={field.value}
+                              readOnly
+                              className="bg-muted cursor-not-allowed"
+                            />
+                          </FormControl>
+                        ) : (
+                          <Select 
+                            onValueChange={field.onChange} 
                             value={field.value}
-                            readOnly
-                            className="bg-muted cursor-not-allowed"
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Product">Product</SelectItem>
+                              <SelectItem value="Service">Service</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="shippingBillNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Shipping Bill No</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Enter shipping bill number" 
+                            {...field}
                           />
                         </FormControl>
-                      ) : (
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Product">Product</SelectItem>
-                            <SelectItem value="Service">Service</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 
                 <FormField
                   control={form.control}
