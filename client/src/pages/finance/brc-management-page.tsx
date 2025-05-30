@@ -98,7 +98,13 @@ export default function BrcManagementPage() {
 
   // Filter invoices based on selections and tab
   const filteredData = useMemo(() => {
-    if (!invoices) return { pending: [], received: [], notRequired: [] };
+    if (!invoices || !Array.isArray(invoices)) {
+      console.log('No invoices data or not an array:', invoices);
+      return { pending: [], received: [], notRequired: [] };
+    }
+
+    console.log('Total invoices received:', invoices.length);
+    console.log('First invoice for BRC filtering:', invoices[0]);
 
     let filtered = invoices;
     
@@ -113,7 +119,13 @@ export default function BrcManagementPage() {
     }
 
     // Filter based on BRC requirement rather than export status
-    const brcRequiredInvoices = filtered.filter((inv: any) => inv.brcRequired === true);
+    const brcRequiredInvoices = filtered.filter((inv: any) => {
+      const required = inv.brcRequired === true;
+      console.log(`Invoice ${inv.invoiceNumber}: brcRequired=${inv.brcRequired}, filtered=${required}`);
+      return required;
+    });
+    
+    console.log('BRC Required invoices count:', brcRequiredInvoices.length);
     
     // Invoices that don't require BRC
     const notRequired = filtered.filter((inv: any) => inv.brcRequired === false);
@@ -122,6 +134,8 @@ export default function BrcManagementPage() {
       const hasBrc = brcRecords?.some((brc: any) => brc.related_invoice_id === invoice.id);
       return !hasBrc;
     });
+    
+    console.log('BRC Pending invoices count:', pending.length);
 
     const received = brcRecords?.filter((brc: any) => {
       if (selectedCustomerId && selectedCustomerId !== 'all' && brc.invoice?.customerId.toString() !== selectedCustomerId) return false;
