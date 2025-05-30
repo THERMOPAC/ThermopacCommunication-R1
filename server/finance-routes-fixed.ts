@@ -1005,7 +1005,7 @@ router.post('/upload/gcs', ensureAuthenticated, async (req: Request, res: Respon
         const bucket = storage.bucket(bucketName);
         
         // Create the file path in GCS
-        const gcsFileName = `thermopac_storage/${filePath}`;
+        const gcsFileName = filePath;
         const file = bucket.file(gcsFileName);
         
         // Upload the file

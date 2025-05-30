@@ -145,8 +145,8 @@ export default function BrcManagementPage() {
           const issueDate = new Date(invoice.issueDate);
           const financialYear = issueDate.getMonth() >= 3 ? issueDate.getFullYear() : issueDate.getFullYear() - 1;
           
-          // Create the GCS path: thermopac_storage/Account/{FY}/{Invoice Number}.pdf
-          const gcsPath = `Account/${financialYear}/${invoice.invoiceNumber}.pdf`;
+          // Create the GCS path: Accounts/{FY}/{Invoice Number}.pdf
+          const gcsPath = `Accounts/${financialYear}/${invoice.invoiceNumber}.pdf`;
           
           // Upload file to GCS
           const formData = new FormData();
