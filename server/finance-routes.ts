@@ -3379,7 +3379,28 @@ router.get('/reports/outstanding', ensureAuthenticated, (req: Request, res: Resp
  */
 router.get('/reports/remittances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    // Get real payments data from database
+    console.log('Remittances API called with params:', req.query);
+    
+    // Get date range and currency filters from query params
+    const { startDate, endDate, currency } = req.query;
+    
+    // Build the WHERE clause for date filtering
+    let whereClause = '';
+    const queryParams = [];
+    let paramIndex = 1;
+    
+    if (startDate && endDate) {
+      whereClause = `WHERE p.payment_date BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
+      queryParams.push(startDate, endDate);
+      paramIndex += 2;
+    }
+    
+    if (currency && currency !== 'all') {
+      whereClause += whereClause ? ` AND p.currency = $${paramIndex}` : `WHERE p.currency = $${paramIndex}`;
+      queryParams.push(currency);
+    }
+    
+    // Get real payments data from database with filtering
     const query = `
       SELECT 
         p.id, 
@@ -3393,14 +3414,18 @@ router.get('/reports/remittances', ensureAuthenticated, async (req: Request, res
         payments p
       LEFT JOIN 
         customers c ON p.customer_id = c.id
+      ${whereClause}
       ORDER BY 
         p.payment_date DESC
     `;
     
+    console.log('Executing query:', query);
+    console.log('With parameters:', queryParams);
+    
     const client = await pool.connect();
     
     try {
-      const result = await client.query(query);
+      const result = await client.query(query, queryParams);
       console.log("Payments data from DB:", result.rows.length, "rows found");
       console.log("Sample payment data:", result.rows[0]);
       
