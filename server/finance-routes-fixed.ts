@@ -969,11 +969,12 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
  */
 router.post('/upload/gcs', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const multer = require('multer');
-    const { Storage } = require('@google-cloud/storage');
+    // Import multer and GCS Storage dynamically
+    const multer = await import('multer');
+    const { Storage } = await import('@google-cloud/storage');
     
     // Configure multer for memory storage
-    const upload = multer({ storage: multer.memoryStorage() });
+    const upload = multer.default({ storage: multer.default.memoryStorage() });
     
     // Handle the file upload
     upload.single('file')(req, res, async (err: any) => {
