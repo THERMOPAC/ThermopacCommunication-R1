@@ -179,8 +179,11 @@ router.put('/invoices/direct/:id', async (req: Request, res: Response) => {
           status = $8,
           notes = $9,
           sap_invoice_no = $10,
-          invoice_type = $11
-        WHERE id = $12
+          invoice_type = $11,
+          shipping_bill_number = $12,
+          is_export = $13,
+          brc_required = $14
+        WHERE id = $15
         RETURNING *
       `;
       
@@ -196,6 +199,9 @@ router.put('/invoices/direct/:id', async (req: Request, res: Response) => {
         invoice.notes || null,
         invoice.sapInvoiceNo || null,
         invoice.invoiceType || 'Product',
+        invoice.shippingBillNumber || null,
+        invoice.isExport || false,
+        invoice.brcRequired !== undefined ? invoice.brcRequired : true,
         invoiceId
       ];
       
