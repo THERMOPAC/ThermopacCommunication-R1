@@ -281,6 +281,9 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       currency: invoice.currency || 'USD',
       status: 'Pending',
       notes: invoice.notes || null,
+      shippingBillNumber: invoice.shippingBillNumber || null,
+      isExport: invoice.isExport || false,
+      brcRequired: invoice.brcRequired !== undefined ? invoice.brcRequired : true,
       createdBy: req.user?.id || 1
     };
     
