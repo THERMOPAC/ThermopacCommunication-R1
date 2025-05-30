@@ -969,7 +969,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <FormField
                   control={form.control}
                   name="invoiceNumber"
@@ -1027,60 +1027,58 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   )}
                 />
                 
-                {/* Invoice Type and Shipping Bill No inline fields */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="invoiceType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Invoice Type</FormLabel>
-                        {isEditMode ? (
-                          <FormControl>
-                            <Input
-                              value={field.value}
-                              readOnly
-                              className="bg-muted cursor-not-allowed"
-                            />
-                          </FormControl>
-                        ) : (
-                          <Select 
-                            onValueChange={field.onChange} 
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Product">Product</SelectItem>
-                              <SelectItem value="Service">Service</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="shippingBillNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Shipping Bill No</FormLabel>
+                <FormField
+                  control={form.control}
+                  name="invoiceType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Invoice Type</FormLabel>
+                      {isEditMode ? (
                         <FormControl>
-                          <Input 
-                            placeholder="Enter shipping bill number" 
-                            {...field}
+                          <Input
+                            value={field.value}
+                            readOnly
+                            className="bg-muted cursor-not-allowed"
                           />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                      ) : (
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Product">Product</SelectItem>
+                            <SelectItem value="Service">Service</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="shippingBillNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Shipping Bill No</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter shipping bill number" 
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
                 
                 <FormField
                   control={form.control}
