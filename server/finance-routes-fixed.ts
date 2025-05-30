@@ -1090,7 +1090,7 @@ router.get('/reports/invoice-aging', ensureAuthenticated, async (req: Request, r
         i.due_date,
         i.total_amount,
         i.currency,
-        COALESCE(SUM(pa.allocated_amount), 0) as paid_amount
+        COALESCE(SUM(pa.amount_applied), 0) as paid_amount
       FROM invoices i
       LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN payment_allocations pa ON i.id = pa.invoice_id
