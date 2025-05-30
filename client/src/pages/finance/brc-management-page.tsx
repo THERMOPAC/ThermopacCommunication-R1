@@ -184,6 +184,43 @@ export default function BrcManagementPage() {
     },
   });
 
+  // Mark invoice as domestic (BRC not required) mutation
+  const markDomesticMutation = useMutation({
+    mutationFn: async (invoiceId: number) => {
+      const response = await fetch(`/api/finance/invoices/${invoiceId}/mark-domestic`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to mark invoice as domestic');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Invoice Updated",
+        description: "Invoice has been marked as domestic (BRC not required).",
+      });
+      refetchBrcs();
+      refetchCustomers();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update invoice status.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleMarkAsDomestic = (invoiceId: number) => {
+    markDomesticMutation.mutate(invoiceId);
+  };
+
   const resetForm = () => {
     setFormData({
       invoiceId: 0,
@@ -369,21 +406,30 @@ export default function BrcManagementPage() {
                             <TableCell>{formatRupees(parseFloat(invoice.totalAmount || 0))} {invoice.currency}</TableCell>
                             <TableCell>{invoice.destinationCountry}</TableCell>
                             <TableCell>
-                              <Button 
-                                size="sm" 
-                                onClick={() => {
-                                  setFormData(prev => ({ 
-                                    ...prev, 
-                                    invoiceId: invoice.id,
-                                    amountRealized: parseFloat(invoice.totalAmount || 0),
-                                    currency: invoice.currency || 'USD'
-                                  }));
-                                  setEditingBrc(null);
-                                  setDialogOpen(true);
-                                }}
-                              >
-                                Add BRC
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setFormData(prev => ({ 
+                                      ...prev, 
+                                      invoiceId: invoice.id,
+                                      amountRealized: parseFloat(invoice.totalAmount || 0),
+                                      currency: invoice.currency || 'USD'
+                                    }));
+                                    setEditingBrc(null);
+                                    setDialogOpen(true);
+                                  }}
+                                >
+                                  Add BRC
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleMarkAsDomestic(invoice.id)}
+                                >
+                                  Mark as Domestic
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))

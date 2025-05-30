@@ -883,4 +883,37 @@ router.put('/brc/:id', ensureAuthenticated, async (req: Request, res: Response) 
   }
 });
 
+/**
+ * Mark invoice as domestic (BRC not required)
+ */
+router.put('/invoices/:id/mark-domestic', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = parseInt(req.params.id);
+    
+    const result = await pool.query(`
+      UPDATE invoices 
+      SET is_export = false, updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `, [invoiceId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    
+    res.json({ 
+      success: true,
+      message: 'Invoice marked as domestic (BRC not required)',
+      invoice: result.rows[0]
+    });
+  } catch (error: any) {
+    console.error('Error marking invoice as domestic:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to update invoice status',
+      message: error.message
+    });
+  }
+});
+
 export default router;
