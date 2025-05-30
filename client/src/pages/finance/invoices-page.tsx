@@ -320,6 +320,7 @@ export default function InvoicesPage() {
             <thead>
               <tr className="bg-muted/50">
                 <th className="px-4 py-3 text-left text-sm font-medium">Invoice #</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">SAP Invoice No</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Client</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Issue Date</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Due Date</th>
@@ -339,6 +340,7 @@ export default function InvoicesPage() {
                         {invoice.invoiceNumber}
                       </Link>
                     </td>
+                    <td className="px-4 py-3 text-left text-sm">{invoice.sapInvoiceNo || '-'}</td>
                     <td className="px-4 py-3 text-left text-sm">{invoice.customerName}</td>
                     <td className="px-4 py-3 text-left text-sm">{formatDate(invoice.issueDate)}</td>
                     <td className="px-4 py-3 text-left text-sm">{formatDate(invoice.dueDate)}</td>
@@ -394,7 +396,7 @@ export default function InvoicesPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
                     No invoices found. Create your first invoice to get started.
                   </td>
                 </tr>
