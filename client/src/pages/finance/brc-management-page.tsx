@@ -205,8 +205,8 @@ export default function BrcManagementPage() {
         title: "Invoice Updated",
         description: "Invoice has been marked as domestic (BRC not required).",
       });
-      refetchBrcs();
-      refetchCustomers();
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/finance/brc'] });
     },
     onError: (error: any) => {
       toast({
