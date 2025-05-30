@@ -437,15 +437,15 @@ export default function BrcManagementPage() {
                             className="cursor-pointer hover:bg-muted/50"
                             onClick={() => handleEditBrc(brc)}
                           >
-                            <TableCell className="font-medium">{brc.brcNumber}</TableCell>
-                            <TableCell>{brc.invoice?.invoiceNumber}</TableCell>
-                            <TableCell>{brc.invoice?.customer?.companyName}</TableCell>
+                            <TableCell className="font-medium">{brc.certificate_number}</TableCell>
+                            <TableCell>{brc.invoice_number}</TableCell>
+                            <TableCell>{brc.customer_name}</TableCell>
                             <TableCell>
-                              {brc.brcDate ? format(new Date(brc.brcDate), 'dd/MM/yyyy') : '-'}
+                              {brc.issue_date ? format(new Date(brc.issue_date), 'dd/MM/yyyy') : '-'}
                             </TableCell>
-                            <TableCell>{brc.bankName}</TableCell>
+                            <TableCell>{brc.bank_name}</TableCell>
                             <TableCell>
-                              {formatRupees(brc.amountRealized || 0)} {brc.currency}
+                              {formatRupees(brc.amount || 0)} {brc.currency}
                             </TableCell>
                             <TableCell>
                               <Badge variant="default">Received</Badge>
