@@ -350,15 +350,22 @@ export default function InvoiceAgingDashboard() {
       const endDate = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '';
       
       const url = `/api/finance/reports/invoice-aging?startDate=${startDate}&endDate=${endDate}&currency=USD`;
+      console.log('Fetching invoice aging from:', url);
+      
       const response = await fetch(url);
+      console.log('Invoice aging response status:', response.status);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch invoice aging data');
+        console.error('Invoice aging response not ok:', response.status, response.statusText);
+        throw new Error(`Failed to fetch invoice aging data: ${response.status}`);
       }
       
-      return response.json();
+      const jsonData = await response.json();
+      console.log('Invoice aging raw response:', jsonData);
+      return jsonData;
     },
-    enabled: !!dateRange.from && !!dateRange.to
+    enabled: !!dateRange.from && !!dateRange.to,
+    retry: 1
   });
 
   // Format currency
