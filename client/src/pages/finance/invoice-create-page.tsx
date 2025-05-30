@@ -1079,11 +1079,11 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                   )}
                 />
               </div>
-                
-                <FormField
-                  control={form.control}
-                  name="customerId"
-                  render={({ field }) => (
+              
+              <FormField
+                control={form.control}
+                name="customerId"
+                render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer</FormLabel>
                       {isEditMode ? (
@@ -1270,7 +1270,6 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                     </FormItem>
                   )}
                 />
-              </div>
             </CardContent>
           </Card>
           
