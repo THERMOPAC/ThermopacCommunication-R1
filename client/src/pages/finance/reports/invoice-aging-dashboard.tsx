@@ -337,18 +337,28 @@ export default function InvoiceAgingDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined
+    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    to: new Date()
   });
   const [selectedTab, setSelectedTab] = useState('overview');
 
-  // In a real application, this would fetch data from the API
+  // Fetch real invoice aging data from the API
   const { data, isLoading, error } = useQuery<InvoiceAgingSummary>({
     queryKey: ['/api/finance/reports/invoice-aging', dateRange.from, dateRange.to],
     queryFn: async () => {
-      // This would be an API call in production
-      return sampleAgingData;
-    }
+      const startDate = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '';
+      const endDate = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '';
+      
+      const url = `/api/finance/reports/invoice-aging?startDate=${startDate}&endDate=${endDate}&currency=USD`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch invoice aging data');
+      }
+      
+      return response.json();
+    },
+    enabled: !!dateRange.from && !!dateRange.to
   });
 
   // Format currency
