@@ -1021,7 +1021,7 @@ router.post('/upload/gcs', ensureAuthenticated, async (req: Request, res: Respon
           stream.end(req.file.buffer);
         });
         
-        console.log(`File uploaded successfully to: ${gcsFileName}`);
+        console.log(`File uploaded successfully to: ${bucketName}/${gcsFileName}`);
         
         res.json({
           success: true,
