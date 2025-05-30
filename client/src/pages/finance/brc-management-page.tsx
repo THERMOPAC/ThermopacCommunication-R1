@@ -154,7 +154,7 @@ export default function BrcManagementPage() {
           formData.append('fileName', `${invoice.invoiceNumber}.pdf`);
           formData.append('filePath', gcsPath);
           
-          const uploadResponse = await fetch('/api/upload/gcs', {
+          const uploadResponse = await fetch('/api/finance/upload/gcs', {
             method: 'POST',
             body: formData,
           });
