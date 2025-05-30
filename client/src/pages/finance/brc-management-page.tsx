@@ -554,10 +554,10 @@ export default function BrcManagementPage() {
                               {invoice.invoiceNumber}
                             </TableCell>
                             <TableCell>
-                              {invoice.customer?.companyName || 'Unknown Customer'}
+                              {invoice.customerName}
                             </TableCell>
                             <TableCell>
-                              {format(new Date(invoice.issueDate), 'MMM dd, yyyy')}
+                              {invoice.issueDate ? format(new Date(invoice.issueDate), 'MMM dd, yyyy') : '-'}
                             </TableCell>
                             <TableCell>
                               {formatRupees(parseFloat(invoice.totalAmount || 0))} {invoice.currency}
