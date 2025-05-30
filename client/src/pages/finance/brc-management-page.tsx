@@ -384,14 +384,13 @@ export default function BrcManagementPage() {
                         <TableHead>Customer</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Amount</TableHead>
-                        <TableHead>Destination</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredData.pending.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          <TableCell colSpan={5} className="text-center text-muted-foreground">
                             No pending BRC invoices found
                           </TableCell>
                         </TableRow>
@@ -399,12 +398,11 @@ export default function BrcManagementPage() {
                         filteredData.pending.map((invoice: any) => (
                           <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
                             <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                            <TableCell>{invoice.customer?.companyName}</TableCell>
+                            <TableCell>{invoice.customerName}</TableCell>
                             <TableCell>
-                              {invoice.invoiceDate ? format(new Date(invoice.invoiceDate), 'dd/MM/yyyy') : '-'}
+                              {invoice.issueDate ? format(new Date(invoice.issueDate), 'dd/MM/yyyy') : '-'}
                             </TableCell>
                             <TableCell>{formatRupees(parseFloat(invoice.totalAmount || 0))} {invoice.currency}</TableCell>
-                            <TableCell>{invoice.destinationCountry}</TableCell>
                             <TableCell>
                               <div className="flex gap-2">
                                 <Button 

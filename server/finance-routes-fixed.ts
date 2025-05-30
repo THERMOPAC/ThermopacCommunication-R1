@@ -916,4 +916,50 @@ router.put('/invoices/:id/mark-domestic', ensureAuthenticated, async (req: Reque
   }
 });
 
+/**
+ * Get all invoices with customer information
+ */
+router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const query = `
+      SELECT 
+        i.id,
+        i.invoice_number as "invoiceNumber",
+        i.customer_id as "customerId",
+        i.project_id as "projectId",
+        i.issue_date as "issueDate",
+        i.due_date as "dueDate",
+        i.total_amount as "totalAmount",
+        i.currency,
+        i.status,
+        i.is_export as "isExport",
+        i.notes,
+        i.created_at as "createdAt",
+        i.updated_at as "updatedAt",
+        c.bp_name as "customerName",
+        c.bp_code as "customerCode"
+      FROM invoices i
+      LEFT JOIN customers c ON i.customer_id = c.id
+      ORDER BY i.issue_date DESC
+    `;
+    
+    const result = await pool.query(query);
+    console.log('Found invoices in database:', result.rows.length);
+    
+    const invoices = result.rows.map(inv => ({
+      ...inv,
+      issueDate: inv.issueDate ? new Date(inv.issueDate).toISOString().split('T')[0] : null,
+      dueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : null
+    }));
+    
+    res.json(invoices);
+  } catch (error: any) {
+    console.error('Error fetching invoices:', error);
+    res.status(500).json({
+      error: 'Failed to fetch invoices',
+      message: error.message
+    });
+  }
+});
+
 export default router;
