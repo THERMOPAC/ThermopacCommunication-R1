@@ -135,13 +135,52 @@ export default function BrcManagementPage() {
   // Create/Update BRC mutation
   const brcMutation = useMutation({
     mutationFn: async (data: BrcFormData) => {
+      // If there's a file, upload it first and get the path
+      let documentPath = null;
+      if (data.file) {
+        // Find the invoice to get the invoice number and issue date
+        const invoice = invoices?.find((inv: any) => inv.id === data.invoiceId);
+        if (invoice) {
+          // Calculate financial year from issue date
+          const issueDate = new Date(invoice.issueDate);
+          const financialYear = issueDate.getMonth() >= 3 ? issueDate.getFullYear() : issueDate.getFullYear() - 1;
+          
+          // Create the GCS path: thermopac_storage/Account/{FY}/{Invoice Number}.pdf
+          const gcsPath = `Account/${financialYear}/${invoice.invoiceNumber}.pdf`;
+          
+          // Upload file to GCS
+          const formData = new FormData();
+          formData.append('file', data.file);
+          formData.append('fileName', `${invoice.invoiceNumber}.pdf`);
+          formData.append('filePath', gcsPath);
+          
+          const uploadResponse = await fetch('/api/upload/gcs', {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (!uploadResponse.ok) {
+            throw new Error('Failed to upload BRC document');
+          }
+          
+          const uploadResult = await uploadResponse.json();
+          documentPath = uploadResult.filePath;
+        }
+      }
+
+      const submitData = {
+        ...data,
+        documentPath,
+        file: undefined // Remove file from the data sent to BRC endpoint
+      };
+
       if (editingBrc) {
         const response = await fetch(`/api/finance/brc/${editingBrc.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(data),
+          body: JSON.stringify(submitData),
         });
         
         if (!response.ok) {
@@ -155,7 +194,7 @@ export default function BrcManagementPage() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(data),
+          body: JSON.stringify(submitData),
         });
         
         if (!response.ok) {

@@ -800,7 +800,7 @@ router.get('/invoices/:id/allocations', ensureAuthenticated, async (req: Request
 router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     console.log('BRC creation request:', req.body);
-    const { invoiceId, brcNumber, brcDate, bankName, amountRealized, currency, notes } = req.body;
+    const { invoiceId, brcNumber, brcDate, bankName, amountRealized, currency, notes, documentPath } = req.body;
     
     // Validate required fields
     if (!invoiceId || !brcNumber || !brcDate || !bankName) {
@@ -811,11 +811,11 @@ router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => 
       });
     }
     
-    // Insert directly into database with correct column names
+    // Insert directly into database with correct column names including document_path
     const result = await pool.query(`
       INSERT INTO bank_realization_certificates 
-      (related_invoice_id, certificate_number, issue_date, bank_name, amount, currency, notes, created_by, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+      (related_invoice_id, certificate_number, issue_date, bank_name, amount, currency, notes, document_path, created_by, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
       RETURNING *
     `, [
       parseInt(invoiceId),
@@ -825,6 +825,7 @@ router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => 
       parseFloat(amountRealized || 0),
       currency || 'USD',
       notes || '',
+      documentPath || null,
       req.user?.id || 1
     ]);
     
@@ -849,14 +850,14 @@ router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => 
 router.put('/brc/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { invoiceId, brcNumber, brcDate, bankName, amountRealized, currency, notes } = req.body;
+    const { invoiceId, brcNumber, brcDate, bankName, amountRealized, currency, notes, documentPath } = req.body;
     
-    // Update directly in database with correct column names
+    // Update directly in database with correct column names including document_path
     const result = await pool.query(`
       UPDATE bank_realization_certificates 
       SET related_invoice_id = $1, certificate_number = $2, issue_date = $3, bank_name = $4, 
-          amount = $5, currency = $6, notes = $7, updated_at = NOW()
-      WHERE id = $8
+          amount = $5, currency = $6, notes = $7, document_path = $8, updated_at = NOW()
+      WHERE id = $9
       RETURNING *
     `, [
       parseInt(invoiceId),
@@ -866,6 +867,7 @@ router.put('/brc/:id', ensureAuthenticated, async (req: Request, res: Response) 
       parseFloat(amountRealized),
       currency,
       notes,
+      documentPath || null,
       parseInt(id)
     ]);
     
@@ -957,6 +959,89 @@ router.get('/invoices', ensureAuthenticated, async (req: Request, res: Response)
     console.error('Error fetching invoices:', error);
     res.status(500).json({
       error: 'Failed to fetch invoices',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Upload BRC document to GCS
+ */
+router.post('/upload/gcs', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const multer = require('multer');
+    const { Storage } = require('@google-cloud/storage');
+    
+    // Configure multer for memory storage
+    const upload = multer({ storage: multer.memoryStorage() });
+    
+    // Handle the file upload
+    upload.single('file')(req, res, async (err: any) => {
+      if (err) {
+        console.error('Multer error:', err);
+        return res.status(400).json({ error: 'File upload error' });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+      
+      const { fileName, filePath } = req.body;
+      
+      if (!fileName || !filePath) {
+        return res.status(400).json({ error: 'Missing fileName or filePath' });
+      }
+      
+      try {
+        // Initialize GCS client
+        const credentials = JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS || '{}');
+        const storage = new Storage({
+          credentials,
+          projectId: credentials.project_id
+        });
+        
+        const bucketName = process.env.GCS_BUCKET_NAME || 'thermopac_storage';
+        const bucket = storage.bucket(bucketName);
+        
+        // Create the file path in GCS
+        const gcsFileName = `thermopac_storage/${filePath}`;
+        const file = bucket.file(gcsFileName);
+        
+        // Upload the file
+        const stream = file.createWriteStream({
+          metadata: {
+            contentType: req.file.mimetype,
+          },
+        });
+        
+        await new Promise((resolve, reject) => {
+          stream.on('error', reject);
+          stream.on('finish', resolve);
+          stream.end(req.file.buffer);
+        });
+        
+        console.log(`File uploaded successfully to: ${gcsFileName}`);
+        
+        res.json({
+          success: true,
+          filePath: gcsFileName,
+          fileName: fileName,
+          message: 'File uploaded successfully'
+        });
+        
+      } catch (gcsError: any) {
+        console.error('GCS upload error:', gcsError);
+        res.status(500).json({
+          error: 'Failed to upload to GCS',
+          message: gcsError.message
+        });
+      }
+    });
+    
+  } catch (error: any) {
+    console.error('Upload endpoint error:', error);
+    res.status(500).json({
+      error: 'Upload failed',
       message: error.message
     });
   }
