@@ -1085,7 +1085,7 @@ router.get('/reports/invoice-aging', ensureAuthenticated, async (req: Request, r
         i.id,
         i.invoice_number,
         i.customer_id,
-        c.company_name as customer_name,
+        c.bp_name as customer_name,
         i.issue_date,
         i.due_date,
         i.total_amount,
@@ -1095,7 +1095,7 @@ router.get('/reports/invoice-aging', ensureAuthenticated, async (req: Request, r
       LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN payment_allocations pa ON i.id = pa.invoice_id
       ${whereClause}
-      GROUP BY i.id, i.invoice_number, i.customer_id, c.company_name, 
+      GROUP BY i.id, i.invoice_number, i.customer_id, c.bp_name, 
                i.issue_date, i.due_date, i.total_amount, i.currency
       ORDER BY i.issue_date DESC
     `;
