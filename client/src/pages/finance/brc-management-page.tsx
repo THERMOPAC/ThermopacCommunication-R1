@@ -112,13 +112,13 @@ export default function BrcManagementPage() {
       filtered = filtered.filter((inv: any) => inv.id.toString() === selectedInvoiceId);
     }
 
-    // Since all invoices are export by default (as confirmed in database), treat all as export unless explicitly marked as domestic
-    const exportInvoices = filtered.filter((inv: any) => inv.isExport !== false);
+    // Filter based on BRC requirement rather than export status
+    const brcRequiredInvoices = filtered.filter((inv: any) => inv.brcRequired === true);
     
-    // Non-export invoices (domestic only - explicitly marked as false)
-    const notRequired = filtered.filter((inv: any) => inv.isExport === false);
+    // Invoices that don't require BRC
+    const notRequired = filtered.filter((inv: any) => inv.brcRequired === false);
 
-    const pending = exportInvoices.filter((invoice: any) => {
+    const pending = brcRequiredInvoices.filter((invoice: any) => {
       const hasBrc = brcRecords?.some((brc: any) => brc.related_invoice_id === invoice.id);
       return !hasBrc;
     });
