@@ -1209,11 +1209,19 @@ export default function InvoiceAgingDashboard() {
                     <div>
                       <h4 className="font-medium">Payment Trend Analysis</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Average days to payment has
-                        {data.paymentTrends[data.paymentTrends.length - 1].avgDaysToPayment < 
-                         data.paymentTrends[data.paymentTrends.length - 2].avgDaysToPayment
-                         ? " improved"
-                         : " worsened"} compared to last month. The current average is {data.paymentTrends[data.paymentTrends.length - 1].avgDaysToPayment} days.
+                        {data.paymentTrends.length > 1 ? (
+                          <>
+                            Average days to payment has
+                            {data.paymentTrends[data.paymentTrends.length - 1].avgDaysToPayment < 
+                             data.paymentTrends[data.paymentTrends.length - 2].avgDaysToPayment
+                             ? " improved"
+                             : " worsened"} compared to last month. The current average is {data.paymentTrends[data.paymentTrends.length - 1].avgDaysToPayment} days.
+                          </>
+                        ) : (
+                          <>
+                            Current average payment time is {data.paymentTrends[data.paymentTrends.length - 1].avgDaysToPayment} days based on {data.paymentTrends[data.paymentTrends.length - 1].invoiceCount} invoices.
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>
