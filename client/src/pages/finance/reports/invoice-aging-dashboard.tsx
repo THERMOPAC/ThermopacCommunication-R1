@@ -845,7 +845,7 @@ export default function InvoiceAgingDashboard() {
                         // Determine the highest priority aging bucket for this customer
                         const buckets = ['91+ days', '61-90 days', '31-60 days', '1-30 days', 'Current'];
                         const highestPriorityBucket = buckets.find(bucket => 
-                          customer.agingBuckets[bucket] > 0
+                          customer.agingBreakdown[bucket] > 0
                         ) || 'Current';
                         const priority = getPriorityLevel(highestPriorityBucket);
                         
