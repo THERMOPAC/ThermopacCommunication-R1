@@ -786,8 +786,11 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
             currency: values.currency,
             sapInvoiceNo: values.sapInvoiceNo || null,
             invoiceType: values.invoiceType,
+            shippingBillNumber: values.shippingBillNumber || null,
             status: 'Pending',
             notes: values.notes || null,
+            isExport: values.isExport || false,
+            brcRequired: values.brcRequired || true,
           },
           items: values.items.map(item => ({
             description: item.description,
