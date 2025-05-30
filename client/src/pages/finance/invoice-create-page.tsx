@@ -87,6 +87,9 @@ const invoiceFormSchema = z.object({
   sapInvoiceNo: z.string().min(1, "SAP Invoice No is required"),
   invoiceType: z.enum(["Product", "Service"]),
   notes: z.string().optional(),
+  // Export and BRC fields
+  isExport: z.boolean().default(false),
+  brcRequired: z.boolean().default(true),
   items: z.array(
     z.object({
       description: z.string().min(1, "Description is required"),
@@ -228,6 +231,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
         ? invoiceData.invoice.invoiceType
         : 'Product',
       notes: isEditMode && invoiceData?.invoice ? invoiceData.invoice.notes || '' : '',
+      // Export and BRC fields with defaults
+      isExport: isEditMode && invoiceData?.invoice ? invoiceData.invoice.isExport || false : false,
+      brcRequired: isEditMode && invoiceData?.invoice ? invoiceData.invoice.brcRequired || false : true,
       items: isEditMode && invoiceData?.items && invoiceData.items.length > 0
         ? invoiceData.items.map((item: any) => ({
             description: item.description || '',
