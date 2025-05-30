@@ -677,7 +677,7 @@ export default function BrcManagementPage() {
                   ) : (
                     // Show dropdown only when no invoice is pre-selected
                     <Select 
-                      value={formData.invoiceId.toString()} 
+                      value={formData.invoiceId ? formData.invoiceId.toString() : ''} 
                       onValueChange={(value) => {
                         const selectedInvoice = filteredInvoices?.find((inv: any) => inv.id === parseInt(value));
                         setFormData(prev => ({ 
