@@ -3383,7 +3383,7 @@ router.get('/reports/remittances', ensureAuthenticated, async (req: Request, res
     const query = `
       SELECT 
         p.id, 
-        p.reference_number, 
+        p.irm_no as reference_number, 
         p.amount, 
         p.currency, 
         p.payment_date, 
