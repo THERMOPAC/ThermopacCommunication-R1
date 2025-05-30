@@ -474,7 +474,8 @@ export default function InvoiceAgingDashboard() {
     );
   }
 
-  if (error || !data) {
+  if (error) {
+    console.error('Invoice aging error:', error);
     return (
       <Layout>
         <div className="container mx-auto p-6">
@@ -489,6 +490,23 @@ export default function InvoiceAgingDashboard() {
       </Layout>
     );
   }
+
+  if (!data) {
+    return (
+      <Layout>
+        <div className="container mx-auto p-6">
+          <div className="flex items-center justify-center h-screen">
+            <div className="flex flex-col items-center gap-2">
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+              <p>Loading aging report...</p>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  console.log('Invoice aging data received:', data);
 
   return (
     <Layout>
