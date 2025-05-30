@@ -862,11 +862,11 @@ export default function InvoiceAgingDashboard() {
                             <TableCell className="font-medium">
                               {formatCurrency(customer.totalOutstanding, data.currencyCode)}
                             </TableCell>
-                            <TableCell>{formatCurrency(customer.agingBuckets['Current'] || 0, data.currencyCode)}</TableCell>
-                            <TableCell>{formatCurrency(customer.agingBuckets['1-30 days'] || 0, data.currencyCode)}</TableCell>
-                            <TableCell>{formatCurrency(customer.agingBuckets['31-60 days'] || 0, data.currencyCode)}</TableCell>
-                            <TableCell>{formatCurrency(customer.agingBuckets['61-90 days'] || 0, data.currencyCode)}</TableCell>
-                            <TableCell>{formatCurrency(customer.agingBuckets['91+ days'] || 0, data.currencyCode)}</TableCell>
+                            <TableCell>{formatCurrency(customer.agingBreakdown['Current'] || 0, data.currencyCode)}</TableCell>
+                            <TableCell>{formatCurrency(customer.agingBreakdown['1-30 days'] || 0, data.currencyCode)}</TableCell>
+                            <TableCell>{formatCurrency(customer.agingBreakdown['31-60 days'] || 0, data.currencyCode)}</TableCell>
+                            <TableCell>{formatCurrency(customer.agingBreakdown['61-90 days'] || 0, data.currencyCode)}</TableCell>
+                            <TableCell>{formatCurrency(customer.agingBreakdown['91+ days'] || 0, data.currencyCode)}</TableCell>
                             <TableCell>
                               <Badge className={cn({
                                 "bg-green-100 text-green-800": priority === 'Low',
@@ -915,7 +915,7 @@ export default function InvoiceAgingDashboard() {
                         // Determine the highest priority aging bucket for this customer
                         const buckets = ['91+ days', '61-90 days', '31-60 days', '1-30 days', 'Current'];
                         const highestPriorityBucket = buckets.find(bucket => 
-                          customer.agingBuckets[bucket] > 0
+                          customer.agingBreakdown[bucket] > 0
                         ) || 'Current';
                         const priority = getPriorityLevel(highestPriorityBucket);
                         
@@ -941,11 +941,11 @@ export default function InvoiceAgingDashboard() {
                             <TableCell className="font-medium">
                               {formatCurrency(customer.totalOutstanding, data.currencyCode)}
                             </TableCell>
-                            <TableCell>{formatCurrency(customer.agingBuckets['Current'] || 0, data.currencyCode)}</TableCell>
-                            <TableCell>{formatCurrency(customer.agingBuckets['1-30 days'] || 0, data.currencyCode)}</TableCell>
-                            <TableCell>{formatCurrency(customer.agingBuckets['31-60 days'] || 0, data.currencyCode)}</TableCell>
-                            <TableCell>{formatCurrency(customer.agingBuckets['61-90 days'] || 0, data.currencyCode)}</TableCell>
-                            <TableCell>{formatCurrency(customer.agingBuckets['91+ days'] || 0, data.currencyCode)}</TableCell>
+                            <TableCell>{formatCurrency(customer.agingBreakdown['Current'] || 0, data.currencyCode)}</TableCell>
+                            <TableCell>{formatCurrency(customer.agingBreakdown['1-30 days'] || 0, data.currencyCode)}</TableCell>
+                            <TableCell>{formatCurrency(customer.agingBreakdown['31-60 days'] || 0, data.currencyCode)}</TableCell>
+                            <TableCell>{formatCurrency(customer.agingBreakdown['61-90 days'] || 0, data.currencyCode)}</TableCell>
+                            <TableCell>{formatCurrency(customer.agingBreakdown['91+ days'] || 0, data.currencyCode)}</TableCell>
                             <TableCell>
                               <Badge className={cn({
                                 "bg-green-100 text-green-800": priority === 'Low',
