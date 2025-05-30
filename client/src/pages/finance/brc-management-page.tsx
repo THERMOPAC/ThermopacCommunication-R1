@@ -436,6 +436,7 @@ export default function BrcManagementPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Invoice Number</TableHead>
+                        <TableHead>SAP Invoice No</TableHead>
                         <TableHead>Customer</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Amount</TableHead>
@@ -445,7 +446,7 @@ export default function BrcManagementPage() {
                     <TableBody>
                       {filteredData.pending.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          <TableCell colSpan={6} className="text-center text-muted-foreground">
                             No pending BRC invoices found
                           </TableCell>
                         </TableRow>
@@ -453,6 +454,7 @@ export default function BrcManagementPage() {
                         filteredData.pending.map((invoice: any) => (
                           <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50">
                             <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                            <TableCell className="text-muted-foreground">{invoice.sapInvoiceNo || '-'}</TableCell>
                             <TableCell>{invoice.customerName}</TableCell>
                             <TableCell>
                               {invoice.issueDate ? format(new Date(invoice.issueDate), 'dd/MM/yyyy') : '-'}
