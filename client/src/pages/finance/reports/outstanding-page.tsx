@@ -77,9 +77,15 @@ export default function OutstandingReportPage() {
       value: 'previous',
       dateRange: (() => {
         const { from, to } = getCurrentFinancialYearDates();
+        const prevFrom = new Date(from.getFullYear() - 1, from.getMonth(), from.getDate());
+        const prevTo = new Date(to.getFullYear() - 1, to.getMonth(), to.getDate());
+        console.log('Previous FY Debug:', {
+          prevFrom: prevFrom.toDateString(),
+          prevTo: prevTo.toDateString()
+        });
         return { 
-          from: new Date(from.getFullYear() - 1, from.getMonth(), from.getDate()),
-          to: new Date(to.getFullYear() - 1, to.getMonth(), to.getDate())
+          from: prevFrom,
+          to: prevTo
         };
       })()
     },
@@ -108,6 +114,14 @@ export default function OutstandingReportPage() {
       const startDate = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '';
       const endDate = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : '';
       const currencyParam = selectedCurrency !== 'all' ? `&currency=${selectedCurrency}` : '';
+      
+      console.log('API Request Date Range:', {
+        selectedPreset,
+        startDate,
+        endDate,
+        dateRangeFrom: dateRange.from?.toDateString(),
+        dateRangeTo: dateRange.to?.toDateString()
+      });
       
       // Fetch data from the real API
       try {
