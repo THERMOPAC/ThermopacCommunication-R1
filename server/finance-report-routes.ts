@@ -587,3 +587,164 @@ financeReportRouter.get('/remittances', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to generate remittances report' });
   }
 });
+
+/**
+ * Get invoice aging analysis
+ */
+financeReportRouter.get('/invoice-aging', async (req: Request, res: Response) => {
+  try {
+    const { startDate, endDate, currency } = req.query;
+    
+    const client = await pool.connect();
+    try {
+      // Build date filter conditions
+      let dateFilter = '';
+      if (startDate && endDate) {
+        dateFilter = `AND i.issue_date BETWEEN '${startDate}' AND '${endDate}'`;
+      }
+      
+      // Add currency filter if specified
+      let currencyFilter = '';
+      if (currency && currency !== 'all') {
+        currencyFilter = `AND i.currency = '${currency}'`;
+      }
+      
+      // Get invoice aging data
+      const query = `
+        SELECT 
+          i.id,
+          i.invoice_number,
+          c.bp_name as customer_name,
+          i.issue_date,
+          i.due_date,
+          i.total_amount,
+          i.outstanding_amount,
+          i.currency,
+          i.status,
+          CASE 
+            WHEN i.outstanding_amount <= 0 THEN 0
+            ELSE CURRENT_DATE - i.due_date
+          END as days_overdue
+        FROM 
+          invoices i
+        JOIN 
+          customers c ON i.customer_id = c.id
+        WHERE 
+          i.outstanding_amount > 0
+          ${dateFilter}
+          ${currencyFilter}
+        ORDER BY 
+          i.due_date ASC
+      `;
+      
+      console.log('Running invoice aging query:', query);
+      const result = await client.query(query);
+      console.log('Found', result.rows.length, 'invoices for aging analysis');
+      
+      // Initialize aging buckets
+      const agingBuckets = {
+        'Current': { count: 0, amount: 0, percentage: 0 },
+        '1-30 days': { count: 0, amount: 0, percentage: 0 },
+        '31-60 days': { count: 0, amount: 0, percentage: 0 },
+        '61-90 days': { count: 0, amount: 0, percentage: 0 },
+        '91+ days': { count: 0, amount: 0, percentage: 0 }
+      };
+      
+      const customerSummaries = {};
+      let totalOutstanding = 0;
+      
+      // Process each invoice for aging analysis
+      const processedInvoices = result.rows.map(row => {
+        const outstandingAmount = parseFloat(row.outstanding_amount);
+        const daysOverdue = parseInt(row.days_overdue);
+        
+        totalOutstanding += outstandingAmount;
+        
+        // Determine aging bucket
+        let agingBucket;
+        if (daysOverdue <= 0) {
+          agingBucket = 'Current';
+        } else if (daysOverdue <= 30) {
+          agingBucket = '1-30 days';
+        } else if (daysOverdue <= 60) {
+          agingBucket = '31-60 days';
+        } else if (daysOverdue <= 90) {
+          agingBucket = '61-90 days';
+        } else {
+          agingBucket = '91+ days';
+        }
+        
+        // Update aging buckets
+        agingBuckets[agingBucket].count += 1;
+        agingBuckets[agingBucket].amount += outstandingAmount;
+        
+        // Update customer summaries
+        if (!customerSummaries[row.customer_name]) {
+          customerSummaries[row.customer_name] = {
+            customerName: row.customer_name,
+            totalOutstanding: 0,
+            agingBuckets: {
+              'Current': 0,
+              '1-30 days': 0,
+              '31-60 days': 0,
+              '61-90 days': 0,
+              '91+ days': 0
+            }
+          };
+        }
+        
+        customerSummaries[row.customer_name].totalOutstanding += outstandingAmount;
+        customerSummaries[row.customer_name].agingBuckets[agingBucket] += outstandingAmount;
+        
+        return {
+          id: row.id,
+          invoiceNumber: row.invoice_number,
+          customerName: row.customer_name,
+          issueDate: row.issue_date,
+          dueDate: row.due_date,
+          amount: parseFloat(row.total_amount),
+          outstandingAmount,
+          currency: row.currency,
+          status: row.status,
+          daysOverdue,
+          agingBucket
+        };
+      });
+      
+      // Calculate percentages for aging buckets
+      Object.keys(agingBuckets).forEach(bucket => {
+        if (totalOutstanding > 0) {
+          agingBuckets[bucket].percentage = (agingBuckets[bucket].amount / totalOutstanding * 100);
+        }
+      });
+      
+      const response = {
+        totalOutstanding,
+        currencyCode: currency || 'USD',
+        agingBuckets,
+        customerSummaries: Object.values(customerSummaries),
+        invoices: processedInvoices,
+        paymentTrends: [
+          {
+            month: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
+            avgDaysToPayment: Math.round(processedInvoices.reduce((sum, inv) => sum + Math.max(0, inv.daysOverdue), 0) / Math.max(1, processedInvoices.length)),
+            invoiceCount: processedInvoices.length
+          }
+        ]
+      };
+      
+      console.log('Invoice aging summary:', {
+        totalOutstanding,
+        invoiceCount: processedInvoices.length,
+        agingDistribution: Object.keys(agingBuckets).map(bucket => `${bucket}: ${agingBuckets[bucket].count} invoices`)
+      });
+      
+      res.json(response);
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error generating invoice aging report:', error);
+    res.status(500).json({ error: 'Failed to generate invoice aging report' });
+  }
+});
