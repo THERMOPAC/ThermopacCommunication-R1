@@ -49,12 +49,12 @@ interface ProjectData {
   id: number;
   name: string;
   description: string;
-  customer: string;
+  clientName: string;
   status: string;
   startDate: string;
-  endDate: string;
-  budgetAmount: number;
-  actualAmount: number;
+  targetEndDate: string;
+  estimatedBudget: string;
+  actualCost: string | null;
   progress: number;
 }
 
@@ -80,12 +80,12 @@ export default function ProjectDashboardPage() {
   // Calculate project statistics
   const projectStats: ProjectStats = {
     totalProjects: projects.length,
-    activeProjects: projects.filter((p: ProjectData) => p.status === 'Active').length,
-    completedProjects: projects.filter((p: ProjectData) => p.status === 'Completed').length,
-    onHoldProjects: projects.filter((p: ProjectData) => p.status === 'On Hold').length,
-    totalValue: projects.reduce((sum: number, p: ProjectData) => sum + (p.budgetAmount || 0), 0),
+    activeProjects: projects.filter((p: ProjectData) => p.status === 'active').length,
+    completedProjects: projects.filter((p: ProjectData) => p.status === 'completed').length,
+    onHoldProjects: projects.filter((p: ProjectData) => p.status === 'on_hold').length,
+    totalValue: projects.reduce((sum: number, p: ProjectData) => sum + (parseFloat(p.estimatedBudget) || 0), 0),
     completionRate: projects.length > 0 ? 
-      (projects.filter((p: ProjectData) => p.status === 'Completed').length / projects.length * 100) : 0
+      (projects.filter((p: ProjectData) => p.status === 'completed').length / projects.length * 100) : 0
   };
 
   // Prepare chart data
@@ -98,8 +98,8 @@ export default function ProjectDashboardPage() {
   const projectProgressData = projects.map((project: ProjectData) => ({
     name: project.name.substring(0, 10) + '...',
     progress: project.progress || 0,
-    budget: project.budgetAmount || 0,
-    actual: project.actualAmount || 0
+    budget: parseFloat(project.estimatedBudget) || 0,
+    actual: parseFloat(project.actualCost || '0') || 0
   }));
 
   const monthlyData = [
@@ -287,14 +287,14 @@ export default function ProjectDashboardPage() {
                       <div className="flex-1">
                         <h3 className="font-medium">{project.name}</h3>
                         <p className="text-sm text-muted-foreground">{project.description}</p>
-                        <p className="text-sm text-muted-foreground">Customer: {project.customer}</p>
+                        <p className="text-sm text-muted-foreground">Customer: {project.clientName}</p>
                       </div>
                       <div className="flex items-center gap-4">
                         <Badge className={getStatusColor(project.status)}>
                           {project.status}
                         </Badge>
                         <div className="text-right">
-                          <div className="font-medium">{formatCurrency(project.budgetAmount || 0)}</div>
+                          <div className="font-medium">{formatCurrency(parseFloat(project.estimatedBudget) || 0)}</div>
                           <div className="text-sm text-muted-foreground">Budget</div>
                         </div>
                       </div>
@@ -363,12 +363,12 @@ export default function ProjectDashboardPage() {
                   <div className="flex-1">
                     <p className="font-medium">{project.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      Status: {project.status} • Customer: {project.customer}
+                      Status: {project.status} • Customer: {project.clientName}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <div className="text-sm font-medium">{formatCurrency(project.budgetAmount || 0)}</div>
+                      <div className="text-sm font-medium">{formatCurrency(parseFloat(project.estimatedBudget) || 0)}</div>
                       <div className="text-xs text-muted-foreground">
                         {project.startDate && new Date(project.startDate).toLocaleDateString()}
                       </div>
