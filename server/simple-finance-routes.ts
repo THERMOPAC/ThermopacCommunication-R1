@@ -596,9 +596,12 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
         currency = $7,
         sap_invoice_no = $8,
         invoice_type = $9,
-        notes = $10,
+        shipping_bill_number = $10,
+        is_export = $11,
+        brc_required = $12,
+        notes = $13,
         updated_at = NOW()
-      WHERE id = $11
+      WHERE id = $14
       RETURNING *
     `;
     
@@ -612,6 +615,9 @@ router.put('/invoices/:id', ensureAuthenticated, async (req: Request, res: Respo
       invoice.currency || 'USD',
       invoice.sapInvoiceNo || null,
       invoice.invoiceType || 'Product',
+      invoice.shippingBillNumber || null,
+      invoice.isExport || false,
+      invoice.brcRequired !== undefined ? invoice.brcRequired : true,
       invoice.notes || null,
       invoiceId
     ];
