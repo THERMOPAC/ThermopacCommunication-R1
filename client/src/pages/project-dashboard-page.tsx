@@ -62,7 +62,7 @@ interface ChartData {
 }
 
 export default function ProjectDashboardPage() {
-  const { data: projects = [], isLoading: projectsLoading } = useQuery({
+  const { data: projects = [], isLoading: projectsLoading } = useQuery<ProjectData[]>({
     queryKey: ["/api/projects"],
   });
 
