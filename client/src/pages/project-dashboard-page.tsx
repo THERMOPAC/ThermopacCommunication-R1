@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -30,7 +31,9 @@ import {
   Users,
   Target,
   Activity,
-  Briefcase
+  Briefcase,
+  Edit,
+  Eye
 } from "lucide-react";
 
 interface ProjectStats {
@@ -363,10 +366,37 @@ export default function ProjectDashboardPage() {
                       Status: {project.status} • Customer: {project.customer}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium">{formatCurrency(project.budgetAmount || 0)}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {project.startDate && new Date(project.startDate).toLocaleDateString()}
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="text-sm font-medium">{formatCurrency(project.budgetAmount || 0)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {project.startDate && new Date(project.startDate).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3"
+                        onClick={() => {
+                          window.location.href = `/projects/${project.id}`;
+                        }}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3"
+                        onClick={() => {
+                          // Navigate to project edit page - for now redirect to project detail page
+                          window.location.href = `/projects/${project.id}`;
+                        }}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
                     </div>
                   </div>
                 </div>
