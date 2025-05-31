@@ -337,7 +337,7 @@ export default function InvoiceAgingDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    from: new Date(2025, 3, 1), // April 1, 2025 to capture your outstanding invoices
     to: new Date()
   });
   const [selectedTab, setSelectedTab] = useState('overview');
