@@ -108,13 +108,20 @@ export function formatUSD(amount: number | string, useCrores: boolean = false): 
  * @returns Formatted currency string with appropriate symbol
  */
 export function formatCurrency(amount: number | string, currency: string = 'INR'): string {
-  if (amount === null || amount === undefined) return '₹0.00';
-  
   // Convert string to number if needed
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   
-  // Handle NaN case
-  if (isNaN(numAmount)) return '₹0.00';
+  // Handle null/undefined/NaN cases with appropriate currency symbol
+  if (amount === null || amount === undefined || isNaN(numAmount)) {
+    switch(currency?.toUpperCase()) {
+      case 'USD':
+        return '$0.00';
+      case 'INR':
+        return '₹0.00';
+      default:
+        return `${currency?.toUpperCase() || 'INR'} 0.00`;
+    }
+  }
   
   // Format based on currency type
   switch(currency?.toUpperCase()) {
