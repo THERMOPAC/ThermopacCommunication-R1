@@ -1067,10 +1067,10 @@ export default function InvoiceAgingDashboard() {
                           <TableCell>{formatDate(invoice.issueDate)}</TableCell>
                           <TableCell>{formatDate(invoice.dueDate)}</TableCell>
                           <TableCell className="text-right">
-                            {formatCurrency(invoice.amount, invoice.currencyCode)}
+                            {formatCurrency(invoice.amount, invoice.currency || data.currencyCode)}
                           </TableCell>
                           <TableCell className="text-right font-semibold">
-                            {formatCurrency(invoice.outstandingAmount, invoice.currencyCode)}
+                            {formatCurrency(invoice.outstandingAmount, invoice.currency || data.currencyCode)}
                           </TableCell>
                           <TableCell>
                             {invoice.daysOverdue > 0 ? (
