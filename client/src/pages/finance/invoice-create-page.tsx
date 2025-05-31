@@ -335,6 +335,9 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
           currency: invoice.currency || 'USD',
           sapInvoiceNo: invoice.sapInvoiceNo || '',
           invoiceType: invoice.invoiceType || 'Product',
+          shippingBillNumber: invoice.shippingBillNumber || '',
+          isExport: invoice.isExport || false,
+          brcRequired: invoice.brcRequired !== undefined ? invoice.brcRequired : true,
           notes: invoice.notes || '',
           items: formItems,
         });
