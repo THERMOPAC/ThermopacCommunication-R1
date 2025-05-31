@@ -312,6 +312,7 @@ export default function PaymentsPage() {
             <thead>
               <tr className="bg-muted/50">
                 <th className="px-4 py-3 text-left text-sm font-medium">Payment ID</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">IRM NO</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Payment Date</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Customer Name</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Payment Method</th>
@@ -330,6 +331,7 @@ export default function PaymentsPage() {
                         {payment.id}
                       </Link>
                     </td>
+                    <td className="px-4 py-3 text-left text-sm">{payment.paymentNumber || payment.reference || '-'}</td>
                     <td className="px-4 py-3 text-left text-sm">{formatDate(new Date(payment.paymentDate))}</td>
                     <td className="px-4 py-3 text-left text-sm">{payment.customerName || "N/A"}</td>
                     <td className="px-4 py-3 text-left text-sm">
@@ -391,7 +393,7 @@ export default function PaymentsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-500">
                     No payments found matching your criteria.
                   </td>
                 </tr>
