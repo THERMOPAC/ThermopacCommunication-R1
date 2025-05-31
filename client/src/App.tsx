@@ -14,6 +14,7 @@ import EmailsPage from "@/pages/emails-page";
 import MessagesPage from "@/pages/messages-page";
 import ProjectsPage from "@/pages/projects-page";
 import ProjectDetailPage from "@/pages/project-detail-page";
+import ProjectDashboardPage from "@/pages/project-dashboard-page";
 import CustomersPage from "@/pages/customers-page";
 import ItemMasterPage from "@/pages/item-master-page";
 import ProductionPlanningPage from "@/pages/production-planning-page";
@@ -171,6 +172,7 @@ function Router() {
       <ProtectedRoute path="/finance/write-offs" component={() => <WriteOffManagementPage />} />
       <ProtectedRoute path="/finance/write-off-management" component={() => <WriteOffManagementPage />} />
       
+      <ProtectedRoute path="/project-dashboard" component={ProjectDashboardPage} />
       <ProtectedRoute path="/projects" component={ProjectsPage} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />
       <ProtectedRoute path="/customers" component={CustomersPage} />

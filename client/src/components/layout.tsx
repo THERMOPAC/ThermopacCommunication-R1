@@ -30,6 +30,7 @@ import {
   FileCheck,
   CalendarClock,
   BarChart4,
+  BarChart3,
   UsersRound,
   Megaphone,
   Receipt,
@@ -184,6 +185,7 @@ export default function Layout({ children }: LayoutProps) {
       isOpen: isProjectMenuOpen,
       toggle: () => setIsProjectMenuOpen(!isProjectMenuOpen),
       children: [
+        { icon: BarChart4, label: "Project Dashboard", href: "/project-dashboard" },
         { icon: Briefcase, label: "Projects", href: "/projects" },
         { icon: Users, label: "Customers", href: "/customers" },
         { icon: TrendingUp, label: "Item Master", href: "/item-master" }
