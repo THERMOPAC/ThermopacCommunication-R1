@@ -47,6 +47,14 @@ export default function OutstandingReportPage() {
       ? new Date(currentYear, 2, 31)    // March 31st of current year
       : new Date(currentYear + 1, 2, 31); // March 31st of next year
     
+    console.log('Financial Year Debug:', {
+      today: today.toDateString(),
+      currentMonth,
+      currentYear,
+      fyStart: financialYearStart.toDateString(),
+      fyEnd: financialYearEnd.toDateString()
+    });
+    
     return { from: financialYearStart, to: financialYearEnd };
   };
   
