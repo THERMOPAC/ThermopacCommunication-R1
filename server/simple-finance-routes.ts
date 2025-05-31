@@ -176,7 +176,7 @@ router.get('/invoices-list', ensureAuthenticated, async (req: Request, res: Resp
           created_at AS "createdAt",
           updated_at AS "updatedAt"
         FROM invoices 
-        ORDER BY created_at DESC
+        ORDER BY invoice_number ASC
         LIMIT 50
       `;
       
