@@ -405,6 +405,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up direct invoice creation route for improved reliability
   app.use('/api/finance', directInvoiceRoutes);
   
+  // Set up finance report routes for outstanding reports with real database data
+  app.use('/api/finance/reports', financeReportRouter);
+  console.log('Finance report routes registered at /api/finance/reports');
+  
   // Set up new payment reference number generation route
   app.use('/api/payment-reference', paymentReferenceRoutes);
   console.log('Payment reference generation route registered at /api/payment-reference');
