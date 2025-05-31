@@ -9,6 +9,7 @@ export const modules = [
   "Sales and Marketing",
   "Finance",
   "Project Management",
+  "Task Management",
   "Procurement Management", 
   "Production Management", 
   "Quality Management",

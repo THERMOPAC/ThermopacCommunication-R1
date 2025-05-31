@@ -9,7 +9,7 @@ import { User, RecurringTask } from "@shared/schema";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function RecurringTasksPage() {
@@ -18,6 +18,13 @@ export default function RecurringTasksPage() {
   const [dueDateFilter, setDueDateFilter] = useState<number>(30); // Default to 30 days
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch user permissions
+  const { data: userPermissions = {} } = useQuery({
+    queryKey: ['/api/my-permissions'],
+    queryFn: getQueryFn({ on401: "throw" }),
+    enabled: !!user,
+  });
 
   // Process recurring patterns mutation
   const processPatternsMutation = useMutation({
@@ -104,12 +111,15 @@ export default function RecurringTasksPage() {
 
   const isLoading = subordinatesLoading || usersLoading || tasksLoading;
 
+  // Check if user has permission to process recurring patterns
+  const canProcessPatterns = userPermissions?.["Task Management"]?.canEdit || user?.role === "Superuser";
+
   return (
     <Layout>
       <div className="container mx-auto py-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Recurring Tasks Management</h1>
-          {user?.role === "Superuser" && (
+          {canProcessPatterns && (
             <Button 
               onClick={() => processPatternsMutation.mutate()}
               disabled={processPatternsMutation.isPending}
