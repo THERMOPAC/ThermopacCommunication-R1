@@ -363,6 +363,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Set up finance report routes FIRST to ensure they take precedence over general finance routes
+  app.use('/api/finance/reports', financeReportRouter);
+  console.log('Finance report routes registered at /api/finance/reports');
+  
   // Set up finance module routes (main handler)
   app.use('/api/finance', financeRoutes);
   
@@ -405,9 +409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up direct invoice creation route for improved reliability
   app.use('/api/finance', directInvoiceRoutes);
   
-  // Set up finance report routes for outstanding reports with real database data
-  app.use('/api/finance/reports', financeReportRouter);
-  console.log('Finance report routes registered at /api/finance/reports');
+
   
   // Set up new payment reference number generation route
   app.use('/api/payment-reference', paymentReferenceRoutes);
