@@ -150,6 +150,8 @@ export default function ShopFloorPage() {
     
     // First filter by status
     let filteredOrders: WorkOrder[] = [];
+    const currentDate = new Date();
+    
     switch (activeTab) {
       case "active":
         filteredOrders = workOrders.filter(wo => wo.status === "in_progress" || wo.status === "planned");
@@ -159,6 +161,15 @@ export default function ShopFloorPage() {
         break;
       case "onhold":
         filteredOrders = workOrders.filter(wo => wo.status === "on_hold");
+        break;
+      case "delayed":
+        // Show work orders that are past their planned end date and not completed
+        filteredOrders = workOrders.filter(wo => {
+          if (wo.status === "completed" || wo.status === "cancelled") return false;
+          if (!wo.plannedEndDate) return false;
+          const plannedEndDate = new Date(wo.plannedEndDate);
+          return plannedEndDate < currentDate;
+        });
         break;
       case "all":
         filteredOrders = workOrders;
@@ -533,6 +544,7 @@ export default function ShopFloorPage() {
           <div className="flex justify-between items-center mb-4">
             <TabsList>
               <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="delayed">Delayed</TabsTrigger>
               <TabsTrigger value="completed">Completed</TabsTrigger>
               <TabsTrigger value="onhold">On Hold</TabsTrigger>
               <TabsTrigger value="all">All Orders</TabsTrigger>
@@ -619,37 +631,56 @@ export default function ShopFloorPage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {getFilteredWorkOrders().map(workOrder => (
-                        <div key={workOrder.id} className="border rounded-lg p-2 hover:bg-muted/50 transition-colors">
-                          {/* Single line work order information - simplified with exact layout matching screenshot */}
-                          <div className="flex items-center">
-                            {/* Work Order Number */}
-                            <div className="font-medium text-sm min-w-[85px]">{workOrder.workOrderNumber}</div>
-                            
-                            {/* Status */}
-                            <Badge className={`text-xs min-w-[60px] text-center ${statusColors[workOrder.status]}`}>
-                              {workOrder.status === "in_progress" ? "In Progress" : 
-                               workOrder.status.charAt(0).toUpperCase() + workOrder.status.slice(1)}
-                            </Badge>
-                            
-                            {/* Title - adjust to take appropriate space */}
-                            <div className="flex-1 truncate font-medium text-sm px-2">{workOrder.title}</div>
-                            
-                            {/* Team, Date, Priority in more compact format */}
-                            <div className="flex items-center mr-2">
-                              <div className="text-xs text-right mr-4">
-                                <span className="text-muted-foreground">Team:</span> {workOrder.productionLine || "Unassigned"}
+                      {getFilteredWorkOrders().map(workOrder => {
+                        // Calculate delay information for delayed tab
+                        const isDelayed = activeTab === "delayed" && workOrder.plannedEndDate;
+                        const daysOverdue = isDelayed && workOrder.plannedEndDate ? Math.ceil((new Date().getTime() - new Date(workOrder.plannedEndDate).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                        
+                        return (
+                          <div key={workOrder.id} className={`border rounded-lg p-2 hover:bg-muted/50 transition-colors ${isDelayed ? 'border-red-200 bg-red-50/30' : ''}`}>
+                            {/* Single line work order information - simplified with exact layout matching screenshot */}
+                            <div className="flex items-center">
+                              {/* Work Order Number with delay indicator */}
+                              <div className="font-medium text-sm min-w-[85px] flex items-center">
+                                {isDelayed && <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>}
+                                {workOrder.workOrderNumber}
                               </div>
                               
-                              <div className="text-xs text-right mr-4">
-                                <span className="text-muted-foreground">Date:</span> {workOrder.plannedStartDate ? 
-                                  format(new Date(workOrder.plannedStartDate), 'dd MMM yyyy') : "Not scheduled"}
-                              </div>
+                              {/* Status */}
+                              <Badge className={`text-xs min-w-[60px] text-center ${statusColors[workOrder.status]}`}>
+                                {workOrder.status === "in_progress" ? "In Progress" : 
+                                 workOrder.status.charAt(0).toUpperCase() + workOrder.status.slice(1)}
+                              </Badge>
                               
-                              <div className="text-xs text-right mr-4">
-                                <span className="text-muted-foreground">Priority:</span> {workOrder.priority || "Medium"}
+                              {/* Title - adjust to take appropriate space */}
+                              <div className="flex-1 truncate font-medium text-sm px-2">{workOrder.title}</div>
+                              
+                              {/* Team, Date, Priority in more compact format */}
+                              <div className="flex items-center mr-2">
+                                <div className="text-xs text-right mr-4">
+                                  <span className="text-muted-foreground">Team:</span> {workOrder.productionLine || "Unassigned"}
+                                </div>
+                                
+                                <div className="text-xs text-right mr-4">
+                                  <span className="text-muted-foreground">
+                                    {activeTab === "delayed" ? "Due:" : "Date:"}
+                                  </span> {activeTab === "delayed" && workOrder.plannedEndDate ? 
+                                    format(new Date(workOrder.plannedEndDate), 'dd MMM yyyy') : 
+                                    (workOrder.plannedStartDate ? format(new Date(workOrder.plannedStartDate), 'dd MMM yyyy') : "Not scheduled")}
+                                </div>
+                                
+                                {activeTab === "delayed" && isDelayed && (
+                                  <div className="text-xs text-right mr-4">
+                                    <span className="text-red-600 font-medium">
+                                      {daysOverdue} day{daysOverdue !== 1 ? 's' : ''} overdue
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                <div className="text-xs text-right mr-4">
+                                  <span className="text-muted-foreground">Priority:</span> {workOrder.priority || "Medium"}
+                                </div>
                               </div>
-                            </div>
                             
                             {/* Edit button */}
                             <Button 
@@ -663,18 +694,19 @@ export default function ShopFloorPage() {
                             >
                               Edit <ChevronRight className="h-3 w-3 ml-1" />
                             </Button>
-                          </div>
-                          
-                          {/* Progress bar in a separate row at the bottom with minimal spacing */}
-                          <div className="mt-1">
-                            <div className="flex justify-between text-xs mb-0.5">
-                              <span>Progress</span>
-                              <span>{getWorkOrderProgress(workOrder.status)}%</span>
                             </div>
-                            <Progress value={getWorkOrderProgress(workOrder.status)} className="h-1.5" />
+                            
+                            {/* Progress bar in a separate row at the bottom with minimal spacing */}
+                            <div className="mt-1">
+                              <div className="flex justify-between text-xs mb-0.5">
+                                <span>Progress</span>
+                                <span>{getWorkOrderProgress(workOrder.status)}%</span>
+                              </div>
+                              <Progress value={getWorkOrderProgress(workOrder.status)} className="h-1.5" />
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>
