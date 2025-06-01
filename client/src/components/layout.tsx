@@ -38,7 +38,8 @@ import {
   CreditCard,
   PieChart,
   DollarSign,
-  Palette
+  Palette,
+  FileText
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -213,7 +214,8 @@ export default function Layout({ children }: LayoutProps) {
       toggle: () => setIsProductionMenuOpen(!isProductionMenuOpen),
       children: [
         { icon: TrendingUp, label: "Production Planning", href: "/production-planning" },
-        { icon: Briefcase, label: "Shop Floor", href: "/shop-floor" }
+        { icon: Briefcase, label: "Shop Floor", href: "/shop-floor" },
+        { icon: FileText, label: "Daily Production Report", href: "/daily-production-report" }
       ]
     }] : []),
     ...(hasViewPermission("Quality Management") ? [{ 

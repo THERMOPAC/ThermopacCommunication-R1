@@ -21,6 +21,7 @@ import ProductionPlanningPage from "@/pages/production-planning-page";
 import WorkOrderDetailPage from "@/pages/work-order-detail-page";
 import WorkOrderEditPage from "@/pages/work-order-edit-page";
 import ShopFloorPage from "@/pages/shop-floor-page";
+import DailyProductionReportPage from "@/pages/daily-production-report-page";
 import InspectionsPage from "@/pages/inspections-page";
 import MaterialIdentificationPage from "@/pages/material-identification-page";
 import MaterialIdentificationListPage from "@/pages/material-identification-list-page";
