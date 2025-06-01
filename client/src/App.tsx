@@ -81,6 +81,7 @@ import ModulePermissionsPage from "@/pages/module-permissions-page";
 import DiagnosticsPage from "@/pages/diagnostics-page";
 import GcsDiagnosticPage from "@/pages/gcs-diagnostic-page";
 import GcsTestPage from "@/pages/gcs-test-page";
+import DesignToolsPage from "@/pages/design-tools-page";
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
@@ -179,6 +180,7 @@ function Router() {
       <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />
       <ProtectedRoute path="/customers" component={CustomersPage} />
       <ProtectedRoute path="/item-master" component={ItemMasterPage} />
+      <ProtectedRoute path="/design-tools" component={DesignToolsPage} />
       <ProtectedRoute path="/procurement-planning" component={ProcurementPlanningPage} />
       <ProtectedRoute path="/procurement-tracking" component={ProcurementTrackingPage} />
       <ProtectedRoute path="/production-planning" component={ProductionPlanningPage} />

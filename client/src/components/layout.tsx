@@ -37,7 +37,8 @@ import {
   IndianRupee,
   CreditCard,
   PieChart,
-  DollarSign
+  DollarSign,
+  Palette
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -189,7 +190,8 @@ export default function Layout({ children }: LayoutProps) {
         { icon: BarChart4, label: "Project Dashboard", href: "/project-dashboard" },
         { icon: Briefcase, label: "Projects", href: "/projects" },
         { icon: Users, label: "Customers", href: "/customers" },
-        { icon: TrendingUp, label: "Item Master", href: "/item-master" }
+        { icon: TrendingUp, label: "Item Master", href: "/item-master" },
+        { icon: Palette, label: "Design Tools", href: "/design-tools" }
       ]
     }] : []),
     ...(hasViewPermission("Procurement Management") ? [{
