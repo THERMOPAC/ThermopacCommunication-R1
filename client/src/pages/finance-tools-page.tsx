@@ -760,6 +760,353 @@ function BreakEvenCalculator() {
   );
 }
 
+// ROI Calculator Component
+function ROICalculator() {
+  const [initialInvestment, setInitialInvestment] = useState("");
+  const [finalValue, setFinalValue] = useState("");
+  const [additionalInvestments, setAdditionalInvestments] = useState("");
+  const [cashFlows, setCashFlows] = useState("");
+  const [timeHorizon, setTimeHorizon] = useState("");
+  const [calculationType, setCalculationType] = useState("basic");
+  const [result, setResult] = useState<{
+    roi: number;
+    totalReturn: number;
+    annualizedReturn: number;
+    totalGain: number;
+    totalInvestment: number;
+    profitabilityIndex: number;
+    paybackPeriod: number;
+    breakdownData: Array<{
+      metric: string;
+      value: number;
+      formatted: string;
+      description: string;
+    }>;
+    performanceData: Array<{
+      year: number;
+      investment: number;
+      returns: number;
+      cumulative: number;
+      roi: number;
+    }>;
+  } | null>(null);
+
+  const calculateROI = () => {
+    const initial = parseFloat(initialInvestment);
+    const final = parseFloat(finalValue);
+    const additional = parseFloat(additionalInvestments) || 0;
+    const cashFlow = parseFloat(cashFlows) || 0;
+    const years = parseFloat(timeHorizon) || 1;
+
+    if (isNaN(initial) || isNaN(final) || initial <= 0 || final < 0 || years <= 0) {
+      return;
+    }
+
+    const totalInvestment = initial + additional;
+    const totalGain = final - totalInvestment + cashFlow;
+    const roi = (totalGain / totalInvestment) * 100;
+    const totalReturn = ((final + cashFlow) / totalInvestment) * 100;
+    const annualizedReturn = (Math.pow((final + cashFlow) / totalInvestment, 1 / years) - 1) * 100;
+    const profitabilityIndex = (final + cashFlow) / totalInvestment;
+    const paybackPeriod = totalInvestment / ((final + cashFlow - totalInvestment) / years);
+
+    // Generate performance data for visualization
+    const performanceData = [];
+    for (let year = 0; year <= years; year++) {
+      const yearlyInvestment = year === 0 ? initial : (year === years ? additional : 0);
+      const yearlyReturns = year === 0 ? 0 : ((final + cashFlow - totalInvestment) / years);
+      const cumulative = (initial + (additional * year / years)) * Math.pow(1 + (annualizedReturn / 100), year);
+      
+      performanceData.push({
+        year,
+        investment: yearlyInvestment,
+        returns: yearlyReturns,
+        cumulative,
+        roi: year === 0 ? 0 : ((cumulative - totalInvestment) / totalInvestment) * 100
+      });
+    }
+
+    const breakdownData = [
+      {
+        metric: "ROI Percentage",
+        value: roi,
+        formatted: `${roi.toFixed(2)}%`,
+        description: "Return on Investment as percentage"
+      },
+      {
+        metric: "Total Return",
+        value: totalReturn,
+        formatted: `${totalReturn.toFixed(2)}%`,
+        description: "Total return including cash flows"
+      },
+      {
+        metric: "Annualized Return",
+        value: annualizedReturn,
+        formatted: `${annualizedReturn.toFixed(2)}%`,
+        description: "Compound annual growth rate"
+      },
+      {
+        metric: "Total Gain",
+        value: totalGain,
+        formatted: formatCurrency(totalGain),
+        description: "Absolute profit/loss amount"
+      },
+      {
+        metric: "Profitability Index",
+        value: profitabilityIndex,
+        formatted: profitabilityIndex.toFixed(3),
+        description: "Value created per unit invested"
+      },
+      {
+        metric: "Payback Period",
+        value: paybackPeriod,
+        formatted: `${paybackPeriod.toFixed(1)} years`,
+        description: "Time to recover initial investment"
+      }
+    ];
+
+    setResult({
+      roi,
+      totalReturn,
+      annualizedReturn,
+      totalGain,
+      totalInvestment,
+      profitabilityIndex,
+      paybackPeriod,
+      breakdownData,
+      performanceData
+    });
+  };
+
+  const resetCalculator = () => {
+    setInitialInvestment("");
+    setFinalValue("");
+    setAdditionalInvestments("");
+    setCashFlows("");
+    setTimeHorizon("");
+    setCalculationType("basic");
+    setResult(null);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const formatPercentage = (value: number) => {
+    return `${value.toFixed(2)}%`;
+  };
+
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat('en-IN').format(Math.round(value));
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="calculationType">Calculation Type</Label>
+            <Select value={calculationType} onValueChange={setCalculationType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="basic">Basic ROI</SelectItem>
+                <SelectItem value="advanced">Advanced with Cash Flows</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="initialInvestment">Initial Investment (₹)</Label>
+            <Input
+              id="initialInvestment"
+              type="number"
+              placeholder="Enter initial investment amount"
+              value={initialInvestment}
+              onChange={(e) => setInitialInvestment(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="finalValue">Final Value (₹)</Label>
+            <Input
+              id="finalValue"
+              type="number"
+              placeholder="Enter current/final value"
+              value={finalValue}
+              onChange={(e) => setFinalValue(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          {calculationType === "advanced" && (
+            <>
+              <div>
+                <Label htmlFor="additionalInvestments">Additional Investments (₹) - Optional</Label>
+                <Input
+                  id="additionalInvestments"
+                  type="number"
+                  placeholder="Enter additional investments"
+                  value={additionalInvestments}
+                  onChange={(e) => setAdditionalInvestments(e.target.value)}
+                  className="text-right"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="cashFlows">Cash Flows Received (₹) - Optional</Label>
+                <Input
+                  id="cashFlows"
+                  type="number"
+                  placeholder="Enter total cash flows received"
+                  value={cashFlows}
+                  onChange={(e) => setCashFlows(e.target.value)}
+                  className="text-right"
+                />
+              </div>
+            </>
+          )}
+
+          <div>
+            <Label htmlFor="timeHorizon">Time Horizon (Years)</Label>
+            <Input
+              id="timeHorizon"
+              type="number"
+              step="0.1"
+              placeholder="Enter investment period"
+              value={timeHorizon}
+              onChange={(e) => setTimeHorizon(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={calculateROI} className="flex-1">
+              Calculate ROI
+            </Button>
+            <Button variant="outline" onClick={resetCalculator}>
+              Reset
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {result && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">ROI</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className={`text-2xl font-bold ${result.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatPercentage(result.roi)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {result.totalGain >= 0 ? 'Profit' : 'Loss'}: {formatCurrency(Math.abs(result.totalGain))}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Annualized Return</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className={`text-2xl font-bold ${result.annualizedReturn >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatPercentage(result.annualizedReturn)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      CAGR over {parseFloat(timeHorizon)} years
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Investment Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Total Investment:</span>
+                      <span className="font-medium">{formatCurrency(result.totalInvestment)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Final Value:</span>
+                      <span className="font-medium">{formatCurrency(parseFloat(finalValue))}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Gain/Loss:</span>
+                      <span className={`font-medium ${result.totalGain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {result.totalGain >= 0 ? '+' : ''}{formatCurrency(result.totalGain)}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Performance Metrics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {result.breakdownData.map((item, index) => (
+                      <div key={index} className="flex justify-between items-center text-xs border-b pb-1">
+                        <div>
+                          <div className="font-medium">{item.metric}</div>
+                          <div className="text-muted-foreground">{item.description}</div>
+                        </div>
+                        <div className="text-right font-medium">
+                          {item.formatted}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {!result && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Enter investment details to calculate ROI and performance metrics</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+        <h3 className="font-semibold mb-2">ROI Calculation Formulas:</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Basic ROI:</strong> (Final Value - Initial Investment) ÷ Initial Investment × 100</p>
+            <p><strong>Annualized Return:</strong> ((Final Value ÷ Initial Investment)^(1/years) - 1) × 100</p>
+          </div>
+          <div>
+            <p><strong>Profitability Index:</strong> Final Value ÷ Initial Investment</p>
+            <p><strong>Payback Period:</strong> Initial Investment ÷ Average Annual Return</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Tax Calculator Component (Advance Tax Calculator for Corporate Taxpayers in India)
 function TaxCalculator() {
   const [annualIncome, setAnnualIncome] = useState("");
@@ -1517,6 +1864,7 @@ export default function FinanceToolsPage() {
   const [isTaxCalculatorOpen, setIsTaxCalculatorOpen] = useState(false);
   const [isProfitMarginCalculatorOpen, setIsProfitMarginCalculatorOpen] = useState(false);
   const [isBreakEvenCalculatorOpen, setIsBreakEvenCalculatorOpen] = useState(false);
+  const [isROICalculatorOpen, setIsROICalculatorOpen] = useState(false);
 
   return (
     <Layout>
@@ -1702,9 +2050,22 @@ export default function FinanceToolsPage() {
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
-                    Open Calculator
-                  </Button>
+                  <Dialog open={isROICalculatorOpen} onOpenChange={setIsROICalculatorOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>ROI Calculator</DialogTitle>
+                        <DialogDescription>
+                          Calculate return on investment, annualized returns, profitability index, and payback periods for your investments
+                        </DialogDescription>
+                      </DialogHeader>
+                      <ROICalculator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
             </div>
