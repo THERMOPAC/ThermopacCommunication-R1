@@ -101,8 +101,8 @@ export default function AfterSalesPage() {
       const data = {
         ...values,
         customer_id: parseInt(values.customer_id),
-        project_id: values.project_id ? parseInt(values.project_id) : null,
-        assigned_to: values.assigned_to ? parseInt(values.assigned_to) : null,
+        project_id: values.project_id && values.project_id !== "none" ? parseInt(values.project_id) : null,
+        assigned_to: values.assigned_to && values.assigned_to !== "none" ? parseInt(values.assigned_to) : null,
       };
       
       const response = await fetch('/api/after-sales/service-requests', {
@@ -402,7 +402,7 @@ export default function AfterSalesPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {customers?.map((customer: any) => (
+                            {Array.isArray(customers) && customers.map((customer: any) => (
                               <SelectItem key={customer.id} value={customer.id.toString()}>
                                 {customer.bpName}
                               </SelectItem>
@@ -427,8 +427,8 @@ export default function AfterSalesPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">No Project</SelectItem>
-                            {projects?.map((project: any) => (
+                            <SelectItem value="none">No Project</SelectItem>
+                            {Array.isArray(projects) && projects.map((project: any) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
                                 {project.name}
                               </SelectItem>
@@ -539,8 +539,8 @@ export default function AfterSalesPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Unassigned</SelectItem>
-                          {users?.map((user: any) => (
+                          <SelectItem value="none">Unassigned</SelectItem>
+                          {Array.isArray(users) && users.map((user: any) => (
                             <SelectItem key={user.id} value={user.id.toString()}>
                               {user.username}
                             </SelectItem>
