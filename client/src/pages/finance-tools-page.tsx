@@ -471,6 +471,295 @@ function ProfitMarginCalculator() {
   );
 }
 
+// Break-even Calculator Component
+function BreakEvenCalculator() {
+  const [fixedCosts, setFixedCosts] = useState("");
+  const [variableCostPerUnit, setVariableCostPerUnit] = useState("");
+  const [sellingPricePerUnit, setSellingPricePerUnit] = useState("");
+  const [targetProfit, setTargetProfit] = useState("");
+  const [result, setResult] = useState<{
+    breakEvenUnits: number;
+    breakEvenRevenue: number;
+    contributionMargin: number;
+    contributionMarginRatio: number;
+    unitsForTargetProfit: number;
+    revenueForTargetProfit: number;
+    safetyMarginUnits: number;
+    safetyMarginRevenue: number;
+    analysisData: Array<{
+      units: number;
+      revenue: number;
+      fixedCosts: number;
+      variableCosts: number;
+      totalCosts: number;
+      profit: number;
+    }>;
+  } | null>(null);
+
+  const calculateBreakEven = () => {
+    const fc = parseFloat(fixedCosts);
+    const vc = parseFloat(variableCostPerUnit);
+    const sp = parseFloat(sellingPricePerUnit);
+    const tp = parseFloat(targetProfit) || 0;
+
+    if (isNaN(fc) || isNaN(vc) || isNaN(sp) || fc < 0 || vc < 0 || sp <= 0) {
+      return;
+    }
+
+    if (sp <= vc) {
+      alert("Selling price must be greater than variable cost per unit");
+      return;
+    }
+
+    const contributionMargin = sp - vc;
+    const contributionMarginRatio = (contributionMargin / sp) * 100;
+    const breakEvenUnits = Math.ceil(fc / contributionMargin);
+    const breakEvenRevenue = breakEvenUnits * sp;
+    const unitsForTargetProfit = tp > 0 ? Math.ceil((fc + tp) / contributionMargin) : breakEvenUnits;
+    const revenueForTargetProfit = unitsForTargetProfit * sp;
+
+    // Generate analysis data for different unit levels
+    const analysisData = [];
+    const maxUnits = Math.max(breakEvenUnits * 2, unitsForTargetProfit * 1.5, 100);
+    const stepSize = Math.max(1, Math.floor(maxUnits / 10));
+
+    for (let units = 0; units <= maxUnits; units += stepSize) {
+      const revenue = units * sp;
+      const variableCosts = units * vc;
+      const totalCosts = fc + variableCosts;
+      const profit = revenue - totalCosts;
+
+      analysisData.push({
+        units,
+        revenue,
+        fixedCosts: fc,
+        variableCosts,
+        totalCosts,
+        profit
+      });
+    }
+
+    // Calculate safety margins (assuming current sales at target profit level)
+    const currentUnits = unitsForTargetProfit;
+    const safetyMarginUnits = Math.max(0, currentUnits - breakEvenUnits);
+    const safetyMarginRevenue = safetyMarginUnits * sp;
+
+    setResult({
+      breakEvenUnits,
+      breakEvenRevenue,
+      contributionMargin,
+      contributionMarginRatio,
+      unitsForTargetProfit,
+      revenueForTargetProfit,
+      safetyMarginUnits,
+      safetyMarginRevenue,
+      analysisData
+    });
+  };
+
+  const resetCalculator = () => {
+    setFixedCosts("");
+    setVariableCostPerUnit("");
+    setSellingPricePerUnit("");
+    setTargetProfit("");
+    setResult(null);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat('en-IN').format(Math.round(value));
+  };
+
+  const formatPercentage = (value: number) => {
+    return `${value.toFixed(2)}%`;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="fixedCosts">Fixed Costs (₹)</Label>
+            <Input
+              id="fixedCosts"
+              type="number"
+              placeholder="Enter fixed costs per period"
+              value={fixedCosts}
+              onChange={(e) => setFixedCosts(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="variableCostPerUnit">Variable Cost per Unit (₹)</Label>
+            <Input
+              id="variableCostPerUnit"
+              type="number"
+              placeholder="Enter variable cost per unit"
+              value={variableCostPerUnit}
+              onChange={(e) => setVariableCostPerUnit(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="sellingPricePerUnit">Selling Price per Unit (₹)</Label>
+            <Input
+              id="sellingPricePerUnit"
+              type="number"
+              placeholder="Enter selling price per unit"
+              value={sellingPricePerUnit}
+              onChange={(e) => setSellingPricePerUnit(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="targetProfit">Target Profit (₹) - Optional</Label>
+            <Input
+              id="targetProfit"
+              type="number"
+              placeholder="Enter desired profit amount"
+              value={targetProfit}
+              onChange={(e) => setTargetProfit(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={calculateBreakEven} className="flex-1">
+              Calculate
+            </Button>
+            <Button variant="outline" onClick={resetCalculator}>
+              Reset
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {result && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Break-even Point</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl font-bold text-blue-600">
+                      {formatNumber(result.breakEvenUnits)} units
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {formatCurrency(result.breakEvenRevenue)} revenue
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Contribution Margin</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl font-bold text-green-600">
+                      {formatCurrency(result.contributionMargin)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {formatPercentage(result.contributionMarginRatio)} ratio
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {parseFloat(targetProfit) > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Target Profit Requirements</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-lg font-bold text-purple-600">
+                      {formatNumber(result.unitsForTargetProfit)} units
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {formatCurrency(result.revenueForTargetProfit)} revenue needed
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Safety Margin</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-lg font-bold text-orange-600">
+                    {formatNumber(result.safetyMarginUnits)} units
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {formatCurrency(result.safetyMarginRevenue)} buffer above break-even
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Cost-Volume-Profit Analysis</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {result.analysisData.slice(0, 8).map((item, index) => (
+                      <div key={index} className="flex justify-between items-center text-xs border-b pb-1">
+                        <span className="font-medium">{formatNumber(item.units)} units</span>
+                        <div className="text-right">
+                          <div>{formatCurrency(item.revenue)}</div>
+                          <div className={`${item.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {item.profit >= 0 ? '+' : ''}{formatCurrency(item.profit)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {!result && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Enter cost and pricing details to calculate break-even point</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+        <h3 className="font-semibold mb-2">Break-even Analysis Formulas:</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Break-even Point (Units):</strong> Fixed Costs ÷ Contribution Margin</p>
+            <p><strong>Contribution Margin:</strong> Selling Price - Variable Cost per Unit</p>
+          </div>
+          <div>
+            <p><strong>Break-even Revenue:</strong> Break-even Units × Selling Price</p>
+            <p><strong>Target Profit Units:</strong> (Fixed Costs + Target Profit) ÷ Contribution Margin</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Tax Calculator Component (Advance Tax Calculator for Corporate Taxpayers in India)
 function TaxCalculator() {
   const [annualIncome, setAnnualIncome] = useState("");
@@ -1227,6 +1516,7 @@ export default function FinanceToolsPage() {
   const [isLoanCalculatorOpen, setIsLoanCalculatorOpen] = useState(false);
   const [isTaxCalculatorOpen, setIsTaxCalculatorOpen] = useState(false);
   const [isProfitMarginCalculatorOpen, setIsProfitMarginCalculatorOpen] = useState(false);
+  const [isBreakEvenCalculatorOpen, setIsBreakEvenCalculatorOpen] = useState(false);
 
   return (
     <Layout>
@@ -1382,9 +1672,22 @@ export default function FinanceToolsPage() {
                   <BarChart3 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
-                    Open Calculator
-                  </Button>
+                  <Dialog open={isBreakEvenCalculatorOpen} onOpenChange={setIsBreakEvenCalculatorOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Break-even Calculator</DialogTitle>
+                        <DialogDescription>
+                          Calculate break-even points, contribution margins, target profit requirements, and perform cost-volume-profit analysis
+                        </DialogDescription>
+                      </DialogHeader>
+                      <BreakEvenCalculator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
