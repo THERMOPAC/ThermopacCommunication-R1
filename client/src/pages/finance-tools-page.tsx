@@ -579,6 +579,7 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
               placeholder="Enter annual income"
               value={annualIncome}
               onChange={(e) => setAnnualIncome(e.target.value)}
+              className="text-right"
             />
           </div>
 
@@ -630,6 +631,7 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
                   placeholder="0"
                   value={paidJune}
                   onChange={(e) => setPaidJune(e.target.value)}
+                  className="text-right"
                 />
               </div>
               <div>
@@ -640,6 +642,7 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
                   placeholder="0"
                   value={paidSeptember}
                   onChange={(e) => setPaidSeptember(e.target.value)}
+                  className="text-right"
                 />
               </div>
               <div>
@@ -650,6 +653,7 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
                   placeholder="0"
                   value={paidDecember}
                   onChange={(e) => setPaidDecember(e.target.value)}
+                  className="text-right"
                 />
               </div>
               <div>
@@ -660,6 +664,7 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
                   placeholder="0"
                   value={paidMarch}
                   onChange={(e) => setPaidMarch(e.target.value)}
+                  className="text-right"
                 />
               </div>
             </div>
