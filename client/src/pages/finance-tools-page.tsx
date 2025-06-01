@@ -8,11 +8,233 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download } from "lucide-react";
 import Layout from "@/components/layout";
 
+// Interest Calculator Component
+function InterestCalculator() {
+  const [principal, setPrincipal] = useState("");
+  const [rate, setRate] = useState("");
+  const [time, setTime] = useState("");
+  const [compoundFrequency, setCompoundFrequency] = useState("1");
+  const [calculationType, setCalculationType] = useState("simple");
+  const [result, setResult] = useState<{
+    interest: number;
+    totalAmount: number;
+    breakdown?: Array<{ year: number; interest: number; balance: number }>;
+  } | null>(null);
+
+  const calculateInterest = () => {
+    const p = parseFloat(principal);
+    const r = parseFloat(rate) / 100;
+    const t = parseFloat(time);
+    const n = parseInt(compoundFrequency);
+
+    if (isNaN(p) || isNaN(r) || isNaN(t) || p <= 0 || r < 0 || t <= 0) {
+      return;
+    }
+
+    if (calculationType === "simple") {
+      const interest = p * r * t;
+      const totalAmount = p + interest;
+      setResult({ interest, totalAmount });
+    } else {
+      // Compound Interest: A = P(1 + r/n)^(nt)
+      const totalAmount = p * Math.pow(1 + r / n, n * t);
+      const interest = totalAmount - p;
+      
+      // Generate year-by-year breakdown
+      const breakdown = [];
+      for (let year = 1; year <= t; year++) {
+        const yearBalance = p * Math.pow(1 + r / n, n * year);
+        const yearInterest = yearBalance - (year === 1 ? p : p * Math.pow(1 + r / n, n * (year - 1)));
+        breakdown.push({
+          year,
+          interest: yearInterest,
+          balance: yearBalance
+        });
+      }
+      
+      setResult({ interest, totalAmount, breakdown });
+    }
+  };
+
+  const resetCalculator = () => {
+    setPrincipal("");
+    setRate("");
+    setTime("");
+    setCompoundFrequency("1");
+    setCalculationType("simple");
+    setResult(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="calculationType">Interest Type</Label>
+            <Select value={calculationType} onValueChange={setCalculationType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="simple">Simple Interest</SelectItem>
+                <SelectItem value="compound">Compound Interest</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="principal">Principal Amount</Label>
+            <Input
+              id="principal"
+              type="number"
+              placeholder="Enter principal amount"
+              value={principal}
+              onChange={(e) => setPrincipal(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="rate">Annual Interest Rate (%)</Label>
+            <Input
+              id="rate"
+              type="number"
+              step="0.01"
+              placeholder="Enter interest rate"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="time">Time Period (Years)</Label>
+            <Input
+              id="time"
+              type="number"
+              step="0.1"
+              placeholder="Enter time in years"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+          </div>
+
+          {calculationType === "compound" && (
+            <div>
+              <Label htmlFor="frequency">Compounding Frequency</Label>
+              <Select value={compoundFrequency} onValueChange={setCompoundFrequency}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Annually</SelectItem>
+                  <SelectItem value="2">Semi-annually</SelectItem>
+                  <SelectItem value="4">Quarterly</SelectItem>
+                  <SelectItem value="12">Monthly</SelectItem>
+                  <SelectItem value="365">Daily</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button onClick={calculateInterest} className="flex-1">
+              Calculate
+            </Button>
+            <Button onClick={resetCalculator} variant="outline">
+              Reset
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {result && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Calculation Results</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Principal Amount</Label>
+                    <p className="text-lg font-semibold">₹{parseFloat(principal).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Interest Rate</Label>
+                    <p className="text-lg font-semibold">{rate}% per annum</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Time Period</Label>
+                    <p className="text-lg font-semibold">{time} years</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Interest Type</Label>
+                    <p className="text-lg font-semibold capitalize">{calculationType}</p>
+                  </div>
+                </div>
+                
+                <div className="border-t pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Total Interest</Label>
+                      <p className="text-xl font-bold text-green-600">₹{result.interest.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm text-muted-foreground">Final Amount</Label>
+                      <p className="text-xl font-bold text-blue-600">₹{result.totalAmount.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {result.breakdown && (
+                  <div className="border-t pt-4">
+                    <Label className="text-sm text-muted-foreground mb-2 block">Year-by-Year Breakdown</Label>
+                    <div className="max-h-40 overflow-y-auto space-y-2">
+                      {result.breakdown.map((year) => (
+                        <div key={year.year} className="flex justify-between items-center text-sm border-b pb-1">
+                          <span>Year {year.year}</span>
+                          <span>Interest: ₹{year.interest.toLocaleString()}</span>
+                          <span>Balance: ₹{year.balance.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          
+          {!result && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <Calculator className="h-12 w-12 mx-auto mb-4" />
+                  <p>Enter values and click Calculate to see results</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FinanceToolsPage() {
   const [activeTab, setActiveTab] = useState("calculators");
+  const [isInterestCalculatorOpen, setIsInterestCalculatorOpen] = useState(false);
 
   return (
     <Layout>
@@ -48,9 +270,22 @@ export default function FinanceToolsPage() {
                   <Calculator className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
-                    Open Calculator
-                  </Button>
+                  <Dialog open={isInterestCalculatorOpen} onOpenChange={setIsInterestCalculatorOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Interest Calculator</DialogTitle>
+                        <DialogDescription>
+                          Calculate simple and compound interest with detailed breakdowns
+                        </DialogDescription>
+                      </DialogHeader>
+                      <InterestCalculator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
