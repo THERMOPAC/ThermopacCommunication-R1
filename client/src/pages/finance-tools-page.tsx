@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -19,7 +19,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database } from "lucide-react";
 import Layout from "@/components/layout";
 
 // Loan Calculator Component
@@ -256,6 +258,8 @@ function TaxCalculator() {
   const [paidSeptember, setPaidSeptember] = useState("");
   const [paidDecember, setPaidDecember] = useState("");
   const [paidMarch, setPaidMarch] = useState("");
+  const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
+  const [notes, setNotes] = useState("");
   const [result, setResult] = useState<{
     totalTax: number;
     instalments: Array<{
@@ -267,6 +271,61 @@ function TaxCalculator() {
       interestApplicable: boolean;
     }>;
   } | null>(null);
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch available financial years
+  const { data: financialYearsData } = useQuery({
+    queryKey: ['/api/advance-tax/financial-years'],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Fetch saved calculations
+  const { data: savedCalculations, isLoading: calculationsLoading } = useQuery({
+    queryKey: ['/api/advance-tax/calculations'],
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  // Save calculation mutation
+  const saveCalculationMutation = useMutation({
+    mutationFn: async (calculationData: any) => {
+      const response = await fetch('/api/advance-tax/calculations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(calculationData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save calculation');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/advance-tax/calculations'] });
+      toast({
+        title: "Calculation Saved",
+        description: "Your advance tax calculation has been saved successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Save Failed",
+        description: "Failed to save calculation. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Set current financial year on load
+  useEffect(() => {
+    if (financialYearsData?.currentFinancialYear && !selectedFinancialYear) {
+      setSelectedFinancialYear(financialYearsData.currentFinancialYear);
+    }
+  }, [financialYearsData, selectedFinancialYear]);
 
   const calculateTax = () => {
     const income = parseFloat(annualIncome);
@@ -330,6 +389,52 @@ function TaxCalculator() {
     setResult({ totalTax, instalments });
   };
 
+  // Helper function to load a saved calculation
+  const loadCalculation = (calculation: any) => {
+    setAnnualIncome(calculation.annualTaxableIncome);
+    setTaxRate(calculation.taxRate);
+    setSurchargeRate(calculation.surchargeRate);
+    setCessRate(calculation.cessRate);
+    setPaidJune(calculation.paidJune || "");
+    setPaidSeptember(calculation.paidSeptember || "");
+    setPaidDecember(calculation.paidDecember || "");
+    setPaidMarch(calculation.paidMarch || "");
+    setSelectedFinancialYear(calculation.financialYear);
+    setNotes(calculation.notes || "");
+    
+    toast({
+      title: "Calculation Loaded",
+      description: `Loaded calculation for FY ${calculation.financialYear}`,
+    });
+  };
+
+  // Helper function to save current calculation
+  const saveCalculation = () => {
+    if (!selectedFinancialYear || !annualIncome) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a financial year and enter annual income",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const calculationData = {
+      financialYear: selectedFinancialYear,
+      annualTaxableIncome: parseFloat(annualIncome),
+      taxRate: parseFloat(taxRate),
+      surchargeRate: parseFloat(surchargeRate),
+      cessRate: parseFloat(cessRate),
+      paidJune: parseFloat(paidJune) || 0,
+      paidSeptember: parseFloat(paidSeptember) || 0,
+      paidDecember: parseFloat(paidDecember) || 0,
+      paidMarch: parseFloat(paidMarch) || 0,
+      notes: notes,
+    };
+
+    saveCalculationMutation.mutate(calculationData);
+  };
+
   const resetCalculator = () => {
     setAnnualIncome("");
     setTaxRate("30");
@@ -339,6 +444,7 @@ function TaxCalculator() {
     setPaidSeptember("");
     setPaidDecember("");
     setPaidMarch("");
+    setNotes("");
     setResult(null);
   };
 
@@ -379,8 +485,92 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
+          {/* Financial Year Selection and Database Controls */}
+          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                Financial Year & Data Management
+              </Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={saveCalculation}
+                  disabled={saveCalculationMutation.isPending}
+                  className="flex items-center gap-1"
+                >
+                  <Save className="h-3 w-3" />
+                  {saveCalculationMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" className="flex items-center gap-1">
+                      <FolderOpen className="h-3 w-3" />
+                      Load
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Load Saved Calculation</DialogTitle>
+                      <DialogDescription>
+                        Select a previously saved calculation to load
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      {calculationsLoading ? (
+                        <p className="text-center text-muted-foreground">Loading saved calculations...</p>
+                      ) : savedCalculations && savedCalculations.length > 0 ? (
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {savedCalculations.map((calc: any) => (
+                            <div 
+                              key={calc.id} 
+                              className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                              onClick={() => loadCalculation(calc)}
+                            >
+                              <div>
+                                <p className="font-medium">FY {calc.financialYear}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Income: ₹{parseFloat(calc.annualTaxableIncome).toLocaleString()}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Updated: {new Date(calc.updatedAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <Button variant="ghost" size="sm">Load</Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-center text-muted-foreground">No saved calculations found</p>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <div>
+                <Label htmlFor="financialYear" className="text-xs">Financial Year</Label>
+                <Select value={selectedFinancialYear} onValueChange={setSelectedFinancialYear}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Financial Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {financialYearsData?.availableFinancialYears?.map((fy: string) => (
+                      <SelectItem key={fy} value={fy}>
+                        FY {fy} {fy === financialYearsData.currentFinancialYear ? "(Current)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
           <div>
-            <Label htmlFor="annualIncome">Annual Taxable Income</Label>
+            <Label htmlFor="annualIncome">Annual Taxable Income (₹)</Label>
             <Input
               id="annualIncome"
               type="number"
@@ -471,6 +661,17 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
                 />
               </div>
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Input
+              id="notes"
+              type="text"
+              placeholder="Add any notes about this calculation"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
           </div>
 
           <div className="flex gap-2">

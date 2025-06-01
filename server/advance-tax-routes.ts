@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { eq, and, desc } from 'drizzle-orm';
 import { db } from './db';
 import { advanceTaxCalculations, advanceTaxPayments, users } from '@shared/schema';
-import { ensureAuthenticated } from './auth';
+import { ensureAuthenticated } from './auth-middleware';
 
 const router = Router();
 

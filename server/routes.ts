@@ -142,6 +142,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);
+  
+  // Set up advance tax calculation routes
+  app.use(advanceTaxRoutes);
 
   // DIRECT WRITE-OFF APPROVAL ENDPOINT - COMPLETELY SEPARATE FROM FINANCE ROUTES
   app.post('/api/approve-writeoff/:id', async (req: any, res: any) => {
