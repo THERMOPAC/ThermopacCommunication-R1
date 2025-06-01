@@ -39,7 +39,7 @@ function ShellThicknessCalculator() {
   const [diameter, setDiameter] = useState("");
   const [allowableStress, setAllowableStress] = useState("");
   const [jointEfficiency, setJointEfficiency] = useState("1.0");
-  const [corrosionAllowance, setCorrosionAllowance] = useState("0.125");
+  const [corrosionAllowance, setCorrosionAllowance] = useState("3.0");
   const [result, setResult] = useState<number | null>(null);
 
   const calculateThickness = () => {
@@ -92,36 +92,37 @@ function ShellThicknessCalculator() {
           </Select>
         </div>
         <div>
-          <Label htmlFor="pressure">Internal Pressure (psi)</Label>
+          <Label htmlFor="pressure">Internal Pressure (MPa)</Label>
           <Input
             id="pressure"
             type="number"
+            step="0.1"
             value={pressure}
             onChange={(e) => setPressure(e.target.value)}
-            placeholder="e.g., 150"
+            placeholder="e.g., 1.0"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="diameter">Inside Diameter (in)</Label>
+          <Label htmlFor="diameter">Inside Diameter (mm)</Label>
           <Input
             id="diameter"
             type="number"
             value={diameter}
             onChange={(e) => setDiameter(e.target.value)}
-            placeholder="e.g., 24"
+            placeholder="e.g., 600"
           />
         </div>
         <div>
-          <Label htmlFor="allowableStress">Allowable Stress (psi)</Label>
+          <Label htmlFor="allowableStress">Allowable Stress (MPa)</Label>
           <Input
             id="allowableStress"
             type="number"
             value={allowableStress}
             onChange={(e) => setAllowableStress(e.target.value)}
-            placeholder="e.g., 20000"
+            placeholder="e.g., 138"
           />
         </div>
       </div>
@@ -141,14 +142,14 @@ function ShellThicknessCalculator() {
           </Select>
         </div>
         <div>
-          <Label htmlFor="corrosionAllowance">Corrosion Allowance (in)</Label>
+          <Label htmlFor="corrosionAllowance">Corrosion Allowance (mm)</Label>
           <Input
             id="corrosionAllowance"
             type="number"
-            step="0.001"
+            step="0.1"
             value={corrosionAllowance}
             onChange={(e) => setCorrosionAllowance(e.target.value)}
-            placeholder="e.g., 0.125"
+            placeholder="e.g., 3.0"
           />
         </div>
       </div>
@@ -162,7 +163,7 @@ function ShellThicknessCalculator() {
         <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
           <h4 className="font-semibold text-green-900">Calculation Result</h4>
           <p className="text-green-800 mt-1">
-            Required Wall Thickness: <span className="font-bold">{result.toFixed(4)} inches</span>
+            Required Wall Thickness: <span className="font-bold">{result.toFixed(2)} mm</span>
           </p>
           <p className="text-sm text-green-700 mt-2">
             Formula used: ASME Section VIII Div. 1 - {shellType} shell
