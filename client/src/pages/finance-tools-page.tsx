@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database } from "lucide-react";
+import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight } from "lucide-react";
 import Layout from "@/components/layout";
 
 // Loan Calculator Component
@@ -1067,6 +1067,358 @@ function NumberConverter() {
           <div>
             <p><strong>Range:</strong> Up to 999,999,999,999 (999 Arab)</p>
             <p><strong>Use Cases:</strong> Check writing, financial documents</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Unit Converter Component
+function UnitConverter() {
+  const [amount, setAmount] = useState("");
+  const [fromUnit, setFromUnit] = useState("");
+  const [toUnit, setToUnit] = useState("");
+  const [category, setCategory] = useState("length");
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Unit conversion definitions
+  const unitCategories = {
+    length: {
+      name: "Length",
+      units: {
+        mm: { name: "Millimeter", factor: 1 },
+        cm: { name: "Centimeter", factor: 10 },
+        m: { name: "Meter", factor: 1000 },
+        km: { name: "Kilometer", factor: 1000000 },
+        inch: { name: "Inch", factor: 25.4 },
+        ft: { name: "Foot", factor: 304.8 },
+        yard: { name: "Yard", factor: 914.4 },
+        mile: { name: "Mile", factor: 1609344 }
+      }
+    },
+    weight: {
+      name: "Weight",
+      units: {
+        mg: { name: "Milligram", factor: 1 },
+        g: { name: "Gram", factor: 1000 },
+        kg: { name: "Kilogram", factor: 1000000 },
+        ton: { name: "Metric Ton", factor: 1000000000 },
+        oz: { name: "Ounce", factor: 28349.5 },
+        lb: { name: "Pound", factor: 453592 },
+        stone: { name: "Stone", factor: 6350293 }
+      }
+    },
+    temperature: {
+      name: "Temperature",
+      units: {
+        celsius: { name: "Celsius (°C)", factor: 1 },
+        fahrenheit: { name: "Fahrenheit (°F)", factor: 1 },
+        kelvin: { name: "Kelvin (K)", factor: 1 }
+      }
+    },
+    volume: {
+      name: "Volume",
+      units: {
+        ml: { name: "Milliliter", factor: 1 },
+        l: { name: "Liter", factor: 1000 },
+        gallon_us: { name: "US Gallon", factor: 3785.41 },
+        gallon_uk: { name: "UK Gallon", factor: 4546.09 },
+        fl_oz_us: { name: "US Fluid Ounce", factor: 29.5735 },
+        fl_oz_uk: { name: "UK Fluid Ounce", factor: 28.4131 },
+        cup: { name: "Cup", factor: 236.588 },
+        pint: { name: "Pint", factor: 473.176 }
+      }
+    },
+    area: {
+      name: "Area",
+      units: {
+        sq_mm: { name: "Square Millimeter", factor: 1 },
+        sq_cm: { name: "Square Centimeter", factor: 100 },
+        sq_m: { name: "Square Meter", factor: 1000000 },
+        sq_km: { name: "Square Kilometer", factor: 1000000000000 },
+        sq_inch: { name: "Square Inch", factor: 645.16 },
+        sq_ft: { name: "Square Foot", factor: 92903 },
+        acre: { name: "Acre", factor: 4046856422 },
+        hectare: { name: "Hectare", factor: 10000000000 }
+      }
+    },
+    pressure: {
+      name: "Pressure",
+      units: {
+        pa: { name: "Pascal", factor: 1 },
+        kpa: { name: "Kilopascal", factor: 1000 },
+        mpa: { name: "Megapascal", factor: 1000000 },
+        bar: { name: "Bar", factor: 100000 },
+        psi: { name: "PSI", factor: 6894.76 },
+        atm: { name: "Atmosphere", factor: 101325 },
+        mmhg: { name: "mmHg", factor: 133.322 }
+      }
+    }
+  };
+
+  const convertTemperature = (value: number, from: string, to: string): number => {
+    let celsius: number;
+    
+    // Convert to Celsius first
+    switch (from) {
+      case 'celsius':
+        celsius = value;
+        break;
+      case 'fahrenheit':
+        celsius = (value - 32) * 5/9;
+        break;
+      case 'kelvin':
+        celsius = value - 273.15;
+        break;
+      default:
+        return value;
+    }
+    
+    // Convert from Celsius to target
+    switch (to) {
+      case 'celsius':
+        return celsius;
+      case 'fahrenheit':
+        return celsius * 9/5 + 32;
+      case 'kelvin':
+        return celsius + 273.15;
+      default:
+        return celsius;
+    }
+  };
+
+  const convertUnit = () => {
+    setError(null);
+    setResult(null);
+    
+    const inputValue = parseFloat(amount);
+    if (isNaN(inputValue)) {
+      setError("Please enter a valid number");
+      return;
+    }
+    
+    if (!fromUnit || !toUnit) {
+      setError("Please select both from and to units");
+      return;
+    }
+    
+    if (fromUnit === toUnit) {
+      setResult(inputValue.toString());
+      return;
+    }
+    
+    const categoryData = unitCategories[category as keyof typeof unitCategories];
+    
+    if (category === 'temperature') {
+      const convertedValue = convertTemperature(inputValue, fromUnit, toUnit);
+      setResult(convertedValue.toFixed(6).replace(/\.?0+$/, ''));
+    } else {
+      const fromFactor = categoryData.units[fromUnit as keyof typeof categoryData.units]?.factor;
+      const toFactor = categoryData.units[toUnit as keyof typeof categoryData.units]?.factor;
+      
+      if (!fromFactor || !toFactor) {
+        setError("Invalid unit selection");
+        return;
+      }
+      
+      // Convert to base unit, then to target unit
+      const baseValue = inputValue * fromFactor;
+      const convertedValue = baseValue / toFactor;
+      setResult(convertedValue.toFixed(6).replace(/\.?0+$/, ''));
+    }
+  };
+
+  const swapUnits = () => {
+    const temp = fromUnit;
+    setFromUnit(toUnit);
+    setToUnit(temp);
+    setResult(null);
+  };
+
+  const resetConverter = () => {
+    setAmount("");
+    setFromUnit("");
+    setToUnit("");
+    setResult(null);
+    setError(null);
+  };
+
+  const formatNumber = (num: string) => {
+    const number = parseFloat(num);
+    if (isNaN(number)) return "";
+    return new Intl.NumberFormat('en-IN').format(number);
+  };
+
+  const currentUnits = unitCategories[category as keyof typeof unitCategories];
+
+  // Set default units when category changes
+  React.useEffect(() => {
+    const units = Object.keys(currentUnits.units);
+    if (units.length >= 2) {
+      setFromUnit(units[0]);
+      setToUnit(units[1]);
+    }
+    setResult(null);
+    setError(null);
+  }, [category]);
+
+  const commonConversions = [
+    { from: "1 meter", to: "3.281 feet", category: "Length" },
+    { from: "1 kilogram", to: "2.205 pounds", category: "Weight" },
+    { from: "100°C", to: "212°F", category: "Temperature" },
+    { from: "1 liter", to: "0.264 US gallon", category: "Volume" }
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="category">Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(unitCategories).map(([key, cat]) => (
+                  <SelectItem key={key} value={key}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="amount">Amount</Label>
+            <Input
+              id="amount"
+              type="number"
+              placeholder="Enter amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="text-right"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Formatted: {amount ? formatNumber(amount) : ""}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="fromUnit">From Unit</Label>
+              <Select value={fromUnit} onValueChange={setFromUnit}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(currentUnits.units).map(([key, unit]) => (
+                    <SelectItem key={key} value={key}>{unit.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="toUnit">To Unit</Label>
+              <Select value={toUnit} onValueChange={setToUnit}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(currentUnits.units).map(([key, unit]) => (
+                    <SelectItem key={key} value={key}>{unit.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={convertUnit} className="flex-1">
+              Convert
+            </Button>
+            <Button variant="outline" onClick={swapUnits}>
+              <ArrowLeftRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Button variant="outline" onClick={resetConverter} className="w-full">
+            Reset
+          </Button>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          {result && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Conversion Result</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-green-800">
+                      {formatNumber(result)}
+                    </p>
+                    <p className="text-sm text-green-600 mt-1">
+                      {currentUnits.units[toUnit as keyof typeof currentUnits.units]?.name}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 text-xs text-muted-foreground">
+                  <p><strong>Input:</strong> {formatNumber(amount)} {currentUnits.units[fromUnit as keyof typeof currentUnits.units]?.name}</p>
+                  <p><strong>Category:</strong> {currentUnits.name}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!result && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <Ruler className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Enter an amount and select units to convert</p>
+                  <p className="text-xs mt-2">Supports multiple unit categories</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Common Conversions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-xs">
+                {commonConversions.map((conversion, index) => (
+                  <div key={index} className="border-b pb-2 last:border-b-0">
+                    <div className="font-medium">{conversion.from} = {conversion.to}</div>
+                    <div className="text-muted-foreground">{conversion.category}</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+        <h3 className="font-semibold mb-2">Unit Converter Features:</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Categories:</strong> Length, Weight, Temperature, Volume, Area, Pressure</p>
+            <p><strong>Precision:</strong> High precision calculations with up to 6 decimal places</p>
+          </div>
+          <div>
+            <p><strong>Units:</strong> Metric, Imperial, and specialized units</p>
+            <p><strong>Use Cases:</strong> Engineering calculations, cooking, construction</p>
           </div>
         </div>
       </div>
@@ -2505,6 +2857,7 @@ export default function FinanceToolsPage() {
   const [isROICalculatorOpen, setIsROICalculatorOpen] = useState(false);
   const [isCurrencyConverterOpen, setIsCurrencyConverterOpen] = useState(false);
   const [isNumberConverterOpen, setIsNumberConverterOpen] = useState(false);
+  const [isUnitConverterOpen, setIsUnitConverterOpen] = useState(false);
 
   return (
     <Layout>
@@ -2782,12 +3135,25 @@ export default function FinanceToolsPage() {
                       Convert measurements and units
                     </CardDescription>
                   </div>
-                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  <Ruler className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
-                    Open Converter
-                  </Button>
+                  <Dialog open={isUnitConverterOpen} onOpenChange={setIsUnitConverterOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Unit Converter</DialogTitle>
+                        <DialogDescription>
+                          Convert between various units including length, weight, temperature, volume, area, and pressure. Perfect for engineering calculations and technical work
+                        </DialogDescription>
+                      </DialogHeader>
+                      <UnitConverter />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
             </div>
