@@ -128,11 +128,9 @@ export async function getUserModulePermissions(userId: number) {
   
   if (!user) return {};
   
-  // Get all available modules
-  const allModules = await db.select().from(roleModulePermissions)
-    .where(eq(roleModulePermissions.role, "General Manager")) // Using this to get a complete list of modules
-    .then(perms => perms.map(p => p.moduleName))
-    .then(modules => Array.from(new Set(modules))) as Module[]; // Get unique modules
+  // Get all available modules from the schema
+  const { modules } = await import('../../shared/schema');
+  const allModules = modules as readonly Module[];
   
   // Combine permissions
   const result: Record<Module, { 
