@@ -4454,6 +4454,1844 @@ function InsulationThicknessCalculator() {
   );
 }
 
+// Electrical Design Calculator Components
+function CableSizeCalculator() {
+  const [current, setCurrent] = useState("");
+  const [distance, setDistance] = useState("");
+  const [voltage, setVoltage] = useState("415");
+  const [material, setMaterial] = useState("copper");
+  const [installationMethod, setInstallationMethod] = useState("conduit");
+  const [result, setResult] = useState<any>(null);
+
+  const calculateCableSize = () => {
+    const I = parseFloat(current);
+    const L = parseFloat(distance);
+    const V = parseFloat(voltage);
+    
+    if (!I || !L || !V) return;
+
+    // Current carrying capacity factors
+    const materialFactor = material === "copper" ? 1.0 : 0.8;
+    const installationFactor = installationMethod === "conduit" ? 0.8 : 
+                              installationMethod === "tray" ? 0.9 : 1.0;
+    
+    // Derating current
+    const deratedCurrent = I / (materialFactor * installationFactor);
+    
+    // Standard cable sizes (mm²) with current ratings
+    const cableSizes = [
+      { size: 1.5, rating: 18 },
+      { size: 2.5, rating: 24 },
+      { size: 4, rating: 32 },
+      { size: 6, rating: 41 },
+      { size: 10, rating: 57 },
+      { size: 16, rating: 76 },
+      { size: 25, rating: 101 },
+      { size: 35, rating: 125 },
+      { size: 50, rating: 151 },
+      { size: 70, rating: 192 },
+      { size: 95, rating: 232 },
+      { size: 120, rating: 269 },
+      { size: 150, rating: 309 },
+      { size: 185, rating: 353 },
+      { size: 240, rating: 415 },
+      { size: 300, rating: 477 }
+    ];
+
+    // Find suitable cable size
+    const suitableCable = cableSizes.find(cable => cable.rating >= deratedCurrent);
+    
+    // Voltage drop calculation (simplified)
+    const resistivity = material === "copper" ? 0.0175 : 0.0283; // ohm.mm²/m
+    const resistance = (resistivity * L * 2) / (suitableCable?.size || 1);
+    const voltageDrop = I * resistance;
+    const voltageDropPercent = (voltageDrop / V) * 100;
+
+    setResult({
+      requiredCurrent: deratedCurrent.toFixed(1),
+      recommendedSize: suitableCable?.size || "Contact engineer",
+      cableRating: suitableCable?.rating || 0,
+      voltageDrop: voltageDrop.toFixed(2),
+      voltageDropPercent: voltageDropPercent.toFixed(2),
+      resistance: resistance.toFixed(4),
+      material: material,
+      installation: installationMethod
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Load Current (A)</Label>
+          <Input
+            type="number"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            placeholder="Enter current in amperes"
+          />
+        </div>
+        <div>
+          <Label>Cable Length (m)</Label>
+          <Input
+            type="number"
+            value={distance}
+            onChange={(e) => setDistance(e.target.value)}
+            placeholder="Enter distance in meters"
+          />
+        </div>
+        <div>
+          <Label>System Voltage (V)</Label>
+          <Select value={voltage} onValueChange={setVoltage}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="230">230V (Single Phase)</SelectItem>
+              <SelectItem value="415">415V (Three Phase)</SelectItem>
+              <SelectItem value="1000">1000V (HV)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Cable Material</Label>
+          <Select value={material} onValueChange={setMaterial}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="copper">Copper</SelectItem>
+              <SelectItem value="aluminum">Aluminum</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Installation Method</Label>
+          <Select value={installationMethod} onValueChange={setInstallationMethod}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="conduit">In Conduit</SelectItem>
+              <SelectItem value="tray">Cable Tray</SelectItem>
+              <SelectItem value="air">Free Air</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculateCableSize} className="w-full">
+        Calculate Cable Size
+      </Button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Cable Sizing Results:</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>Required Current Capacity: {result.requiredCurrent} A</div>
+            <div>Recommended Cable Size: {result.recommendedSize} mm²</div>
+            <div>Cable Rating: {result.cableRating} A</div>
+            <div>Voltage Drop: {result.voltageDrop} V ({result.voltageDropPercent}%)</div>
+            <div>Cable Resistance: {result.resistance} Ω</div>
+            <div>Material: {result.material}</div>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            Note: Results based on IEC 60364 standards. Verify with local codes.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VoltageDropCalculator() {
+  const [current, setCurrent] = useState("");
+  const [length, setLength] = useState("");
+  const [cableSize, setCableSize] = useState("");
+  const [voltage, setVoltage] = useState("415");
+  const [material, setMaterial] = useState("copper");
+  const [powerFactor, setPowerFactor] = useState("0.8");
+  const [result, setResult] = useState<any>(null);
+
+  const calculateVoltageDrop = () => {
+    const I = parseFloat(current);
+    const L = parseFloat(length);
+    const A = parseFloat(cableSize);
+    const V = parseFloat(voltage);
+    const pf = parseFloat(powerFactor);
+    
+    if (!I || !L || !A || !V || !pf) return;
+
+    // Material properties
+    const resistivity = material === "copper" ? 0.0175 : 0.0283; // ohm.mm²/m at 20°C
+    const reactance = 0.08; // ohm/km (typical for LV cables)
+    
+    // Calculate resistance and reactance
+    const R = (resistivity * L) / A; // Single core resistance
+    const X = (reactance * L) / 1000; // Reactance per length
+    
+    // Voltage drop calculations
+    const voltageDropR = I * R * pf; // Resistive drop
+    const voltageDropX = I * X * Math.sqrt(1 - pf * pf); // Reactive drop
+    const totalVoltageDrop = Math.sqrt(Math.pow(voltageDropR, 2) + Math.pow(voltageDropX, 2));
+    
+    // Three-phase adjustment
+    const phaseVoltageDrop = voltage === "415" ? totalVoltageDrop * Math.sqrt(3) : totalVoltageDrop;
+    const voltageDropPercent = (phaseVoltageDrop / V) * 100;
+    
+    // Allowable limits check
+    const allowableLimit = V <= 230 ? 3 : 5; // 3% for lighting, 5% for power
+    const compliance = voltageDropPercent <= allowableLimit;
+
+    setResult({
+      resistance: R.toFixed(4),
+      reactance: X.toFixed(4),
+      resistiveDrop: voltageDropR.toFixed(2),
+      reactiveDropZ: voltageDropX.toFixed(2),
+      totalDrop: phaseVoltageDrop.toFixed(2),
+      dropPercent: voltageDropPercent.toFixed(2),
+      allowableLimit: allowableLimit,
+      compliance: compliance,
+      endVoltage: (V - phaseVoltageDrop).toFixed(1)
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Load Current (A)</Label>
+          <Input
+            type="number"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            placeholder="Enter current"
+          />
+        </div>
+        <div>
+          <Label>Cable Length (m)</Label>
+          <Input
+            type="number"
+            value={length}
+            onChange={(e) => setLength(e.target.value)}
+            placeholder="Enter length"
+          />
+        </div>
+        <div>
+          <Label>Cable Size (mm²)</Label>
+          <Input
+            type="number"
+            value={cableSize}
+            onChange={(e) => setCableSize(e.target.value)}
+            placeholder="Enter cable cross-section"
+          />
+        </div>
+        <div>
+          <Label>System Voltage (V)</Label>
+          <Select value={voltage} onValueChange={setVoltage}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="230">230V</SelectItem>
+              <SelectItem value="415">415V</SelectItem>
+              <SelectItem value="1000">1000V</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Cable Material</Label>
+          <Select value={material} onValueChange={setMaterial}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="copper">Copper</SelectItem>
+              <SelectItem value="aluminum">Aluminum</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Power Factor</Label>
+          <Input
+            type="number"
+            step="0.1"
+            min="0.1"
+            max="1.0"
+            value={powerFactor}
+            onChange={(e) => setPowerFactor(e.target.value)}
+            placeholder="0.8"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateVoltageDrop} className="w-full">
+        Calculate Voltage Drop
+      </Button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Voltage Drop Analysis:</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>Cable Resistance: {result.resistance} Ω</div>
+            <div>Cable Reactance: {result.reactance} Ω</div>
+            <div>Resistive Drop: {result.resistiveDrop} V</div>
+            <div>Reactive Drop: {result.reactiveDropZ} V</div>
+            <div>Total Voltage Drop: {result.totalDrop} V</div>
+            <div>Voltage Drop %: {result.dropPercent}%</div>
+            <div>End Voltage: {result.endVoltage} V</div>
+            <div className={result.compliance ? "text-green-600" : "text-red-600"}>
+              Compliance: {result.compliance ? "PASS" : "FAIL"} 
+              (Limit: {result.allowableLimit}%)
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ShortCircuitCalculator() {
+  const [systemVoltage, setSystemVoltage] = useState("415");
+  const [transformerRating, setTransformerRating] = useState("");
+  const [transformerImpedance, setTransformerImpedance] = useState("6");
+  const [cableSize, setCableSize] = useState("");
+  const [cableLength, setCableLength] = useState("");
+  const [result, setResult] = useState<any>(null);
+
+  const calculateShortCircuit = () => {
+    const V = parseFloat(systemVoltage);
+    const S = parseFloat(transformerRating) * 1000; // Convert to VA
+    const Z = parseFloat(transformerImpedance) / 100; // Convert to decimal
+    const A = parseFloat(cableSize);
+    const L = parseFloat(cableLength);
+    
+    if (!V || !S || !Z || !A || !L) return;
+
+    // Transformer impedance in ohms
+    const Zt = (V * V * Z) / S;
+    
+    // Cable impedance (simplified)
+    const resistivity = 0.0175; // Copper at 20°C
+    const Zc = (resistivity * L) / A;
+    
+    // Total impedance
+    const Ztotal = Math.sqrt(Math.pow(Zt + Zc, 2));
+    
+    // Short circuit current
+    const Isc3phase = V / (Math.sqrt(3) * Ztotal); // 3-phase fault
+    const Isc1phase = V / (2 * Ztotal); // Single phase to earth fault
+    
+    // Peak short circuit current (asymmetrical)
+    const IscPeak = Isc3phase * Math.sqrt(2) * 1.8; // Factor for DC component
+    
+    // Breaking current calculation
+    const IscBreaking = Isc3phase * 1.1; // 10% margin for decay
+
+    setResult({
+      transformerImpedance: Zt.toFixed(4),
+      cableImpedance: Zc.toFixed(4),
+      totalImpedance: Ztotal.toFixed(4),
+      shortCircuit3Phase: Isc3phase.toFixed(0),
+      shortCircuit1Phase: Isc1phase.toFixed(0),
+      peakCurrent: IscPeak.toFixed(0),
+      breakingCurrent: IscBreaking.toFixed(0)
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>System Voltage (V)</Label>
+          <Select value={systemVoltage} onValueChange={setSystemVoltage}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="230">230V</SelectItem>
+              <SelectItem value="415">415V</SelectItem>
+              <SelectItem value="1000">1000V</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Transformer Rating (kVA)</Label>
+          <Input
+            type="number"
+            value={transformerRating}
+            onChange={(e) => setTransformerRating(e.target.value)}
+            placeholder="Enter transformer rating"
+          />
+        </div>
+        <div>
+          <Label>Transformer Impedance (%)</Label>
+          <Input
+            type="number"
+            value={transformerImpedance}
+            onChange={(e) => setTransformerImpedance(e.target.value)}
+            placeholder="Typical: 4-8%"
+          />
+        </div>
+        <div>
+          <Label>Cable Size (mm²)</Label>
+          <Input
+            type="number"
+            value={cableSize}
+            onChange={(e) => setCableSize(e.target.value)}
+            placeholder="Enter cable size"
+          />
+        </div>
+        <div>
+          <Label>Cable Length (m)</Label>
+          <Input
+            type="number"
+            value={cableLength}
+            onChange={(e) => setCableLength(e.target.value)}
+            placeholder="Enter cable length"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateShortCircuit} className="w-full">
+        Calculate Short Circuit Current
+      </Button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Short Circuit Analysis:</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>Transformer Impedance: {result.transformerImpedance} Ω</div>
+            <div>Cable Impedance: {result.cableImpedance} Ω</div>
+            <div>Total Impedance: {result.totalImpedance} Ω</div>
+            <div>3-Phase Fault Current: {result.shortCircuit3Phase} A</div>
+            <div>Single Phase Fault: {result.shortCircuit1Phase} A</div>
+            <div>Peak Current: {result.peakCurrent} A</div>
+            <div>Breaking Current: {result.breakingCurrent} A</div>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            Note: Simplified calculation. Consult electrical engineer for protection coordination.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CircuitBreakerSizing() {
+  const [loadCurrent, setLoadCurrent] = useState("");
+  const [faultCurrent, setFaultCurrent] = useState("");
+  const [voltage, setVoltage] = useState("415");
+  const [loadType, setLoadType] = useState("motor");
+  const [result, setResult] = useState<any>(null);
+
+  const calculateBreakerSize = () => {
+    const Iload = parseFloat(loadCurrent);
+    const Ifault = parseFloat(faultCurrent);
+    const V = parseFloat(voltage);
+    
+    if (!Iload || !Ifault || !V) return;
+
+    // Sizing factors based on load type
+    const sizingFactors = {
+      motor: 1.25, // 125% for motor loads
+      lighting: 1.25, // 125% for continuous loads
+      general: 1.0, // 100% for general loads
+      heating: 1.25 // 125% for heating loads
+    };
+
+    const factor = sizingFactors[loadType as keyof typeof sizingFactors];
+    const minimumRating = Iload * factor;
+
+    // Standard MCB/MCCB ratings
+    const standardRatings = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600];
+    
+    const selectedRating = standardRatings.find(rating => rating >= minimumRating) || "Consult Engineer";
+    
+    // Breaking capacity check
+    const requiredBreakingCapacity = Math.ceil(Ifault / 1000); // kA
+    
+    // Standard breaking capacities
+    const breakingCapacities = [3, 6, 10, 15, 25, 36, 50, 70, 100];
+    const selectedBreakingCapacity = breakingCapacities.find(capacity => capacity >= requiredBreakingCapacity) || "Special";
+
+    // Breaker type recommendation
+    let breakerType = "";
+    if (selectedRating <= 125) {
+      breakerType = "MCB (Miniature Circuit Breaker)";
+    } else if (selectedRating <= 1600) {
+      breakerType = "MCCB (Molded Case Circuit Breaker)";
+    } else {
+      breakerType = "ACB (Air Circuit Breaker)";
+    }
+
+    setResult({
+      minimumRating: minimumRating.toFixed(1),
+      selectedRating: selectedRating,
+      breakingCapacity: selectedBreakingCapacity,
+      breakerType: breakerType,
+      sizingFactor: factor,
+      loadType: loadType
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Load Current (A)</Label>
+          <Input
+            type="number"
+            value={loadCurrent}
+            onChange={(e) => setLoadCurrent(e.target.value)}
+            placeholder="Enter full load current"
+          />
+        </div>
+        <div>
+          <Label>Fault Current (A)</Label>
+          <Input
+            type="number"
+            value={faultCurrent}
+            onChange={(e) => setFaultCurrent(e.target.value)}
+            placeholder="Enter prospective fault current"
+          />
+        </div>
+        <div>
+          <Label>System Voltage (V)</Label>
+          <Select value={voltage} onValueChange={setVoltage}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="230">230V</SelectItem>
+              <SelectItem value="415">415V</SelectItem>
+              <SelectItem value="1000">1000V</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Load Type</Label>
+          <Select value={loadType} onValueChange={setLoadType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="motor">Motor Load</SelectItem>
+              <SelectItem value="lighting">Lighting Load</SelectItem>
+              <SelectItem value="heating">Heating Load</SelectItem>
+              <SelectItem value="general">General Load</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculateBreakerSize} className="w-full">
+        Calculate Breaker Size
+      </Button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Circuit Breaker Selection:</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>Minimum Rating Required: {result.minimumRating} A</div>
+            <div>Selected Rating: {result.selectedRating} A</div>
+            <div>Breaking Capacity: {result.breakingCapacity} kA</div>
+            <div>Breaker Type: {result.breakerType}</div>
+            <div>Sizing Factor: {result.sizingFactor}</div>
+            <div>Load Type: {result.loadType}</div>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            Note: Selection based on IEC 60898/60947 standards. Verify coordination with upstream protection.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MotorStarterSizing() {
+  const [motorPower, setMotorPower] = useState("");
+  const [voltage, setVoltage] = useState("415");
+  const [efficiency, setEfficiency] = useState("0.85");
+  const [powerFactor, setPowerFactor] = useState("0.8");
+  const [startingMethod, setStartingMethod] = useState("dol");
+  const [result, setResult] = useState<any>(null);
+
+  const calculateMotorStarter = () => {
+    const P = parseFloat(motorPower) * 1000; // Convert to watts
+    const V = parseFloat(voltage);
+    const eff = parseFloat(efficiency);
+    const pf = parseFloat(powerFactor);
+    
+    if (!P || !V || !eff || !pf) return;
+
+    // Full load current calculation
+    const Ifl = voltage === "415" ? 
+      P / (Math.sqrt(3) * V * eff * pf) : // 3-phase
+      P / (V * eff * pf); // Single phase
+
+    // Starting current factors
+    const startingFactors = {
+      dol: 6.0, // Direct Online
+      star_delta: 2.0, // Star-Delta
+      soft_start: 3.0, // Soft Starter
+      vfd: 1.5 // Variable Frequency Drive
+    };
+
+    const startingCurrent = Ifl * startingFactors[startingMethod as keyof typeof startingFactors];
+
+    // Contactor sizing (125% of FLC)
+    const contactorRating = Ifl * 1.25;
+    const standardContactorRatings = [9, 12, 18, 25, 32, 40, 50, 65, 80, 95, 110, 150, 185, 225, 265, 330, 400, 500, 630, 800];
+    const selectedContactor = standardContactorRatings.find(rating => rating >= contactorRating) || "Special";
+
+    // Overload relay setting (FLC)
+    const overloadSetting = Ifl;
+
+    // Fuse sizing (depends on starting method)
+    const fuseFactors = {
+      dol: 2.5,
+      star_delta: 1.6,
+      soft_start: 1.8,
+      vfd: 1.5
+    };
+    const fuseRating = Ifl * fuseFactors[startingMethod as keyof typeof fuseFactors];
+    const standardFuseRatings = [2, 4, 6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500];
+    const selectedFuse = standardFuseRatings.find(rating => rating >= fuseRating) || "Special";
+
+    // Cable sizing (125% of FLC minimum)
+    const cableRating = Ifl * 1.25;
+    const standardCableSizes = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95, 120, 150, 185, 240, 300];
+    const cableCurrentRatings = [18, 24, 32, 41, 57, 76, 101, 125, 151, 192, 232, 269, 309, 353, 415, 477];
+    
+    const cableIndex = cableCurrentRatings.findIndex(rating => rating >= cableRating);
+    const selectedCableSize = cableIndex !== -1 ? standardCableSizes[cableIndex] : "Special";
+
+    setResult({
+      fullLoadCurrent: Ifl.toFixed(1),
+      startingCurrent: startingCurrent.toFixed(0),
+      contactorRating: selectedContactor,
+      overloadSetting: overloadSetting.toFixed(1),
+      fuseRating: selectedFuse,
+      cableSize: selectedCableSize,
+      startingMethod: startingMethod
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Motor Power (kW)</Label>
+          <Input
+            type="number"
+            value={motorPower}
+            onChange={(e) => setMotorPower(e.target.value)}
+            placeholder="Enter motor power"
+          />
+        </div>
+        <div>
+          <Label>Voltage (V)</Label>
+          <Select value={voltage} onValueChange={setVoltage}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="230">230V</SelectItem>
+              <SelectItem value="415">415V</SelectItem>
+              <SelectItem value="1000">1000V</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Efficiency</Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0.5"
+            max="1.0"
+            value={efficiency}
+            onChange={(e) => setEfficiency(e.target.value)}
+            placeholder="0.85"
+          />
+        </div>
+        <div>
+          <Label>Power Factor</Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0.5"
+            max="1.0"
+            value={powerFactor}
+            onChange={(e) => setPowerFactor(e.target.value)}
+            placeholder="0.8"
+          />
+        </div>
+        <div>
+          <Label>Starting Method</Label>
+          <Select value={startingMethod} onValueChange={setStartingMethod}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="dol">Direct Online (DOL)</SelectItem>
+              <SelectItem value="star_delta">Star-Delta</SelectItem>
+              <SelectItem value="soft_start">Soft Starter</SelectItem>
+              <SelectItem value="vfd">VFD</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculateMotorStarter} className="w-full">
+        Calculate Motor Starter Components
+      </Button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Motor Starter Selection:</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>Full Load Current: {result.fullLoadCurrent} A</div>
+            <div>Starting Current: {result.startingCurrent} A</div>
+            <div>Contactor Rating: {result.contactorRating} A</div>
+            <div>Overload Setting: {result.overloadSetting} A</div>
+            <div>Fuse Rating: {result.fuseRating} A</div>
+            <div>Cable Size: {result.cableSize} mm²</div>
+            <div>Starting Method: {result.startingMethod}</div>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            Note: Selection based on IEC standards. Verify with manufacturer data sheets.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TransformerSizing() {
+  const [totalLoad, setTotalLoad] = useState("");
+  const [diversityFactor, setDiversityFactor] = useState("0.8");
+  const [powerFactor, setPowerFactor] = useState("0.8");
+  const [growthFactor, setGrowthFactor] = useState("1.2");
+  const [loadType, setLoadType] = useState("mixed");
+  const [result, setResult] = useState<any>(null);
+
+  const calculateTransformerSize = () => {
+    const P = parseFloat(totalLoad);
+    const df = parseFloat(diversityFactor);
+    const pf = parseFloat(powerFactor);
+    const gf = parseFloat(growthFactor);
+    
+    if (!P || !df || !pf || !gf) return;
+
+    // Calculate apparent power requirement
+    const diversifiedLoad = P * df;
+    const apparentPower = diversifiedLoad / pf; // Convert to kVA
+    const futureLoad = apparentPower * gf; // Account for growth
+
+    // Standard transformer ratings
+    const standardRatings = [5, 10, 15, 25, 30, 50, 63, 75, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500];
+    
+    const selectedRating = standardRatings.find(rating => rating >= futureLoad) || "Custom Size Required";
+
+    // Loading calculation
+    const loading = (apparentPower / (selectedRating as number)) * 100;
+
+    // Efficiency and losses estimation
+    const efficiency = selectedRating <= 100 ? 0.95 : selectedRating <= 500 ? 0.97 : 0.98;
+    const noLoadLoss = (selectedRating as number) * 0.003; // Approx 0.3%
+    const loadLoss = (selectedRating as number) * 0.015; // Approx 1.5% at full load
+
+    // Voltage regulation estimation
+    const voltageRegulation = loadType === "motor" ? 3.5 : loadType === "lighting" ? 2.0 : 3.0;
+
+    setResult({
+      diversifiedLoad: diversifiedLoad.toFixed(1),
+      apparentPower: apparentPower.toFixed(1),
+      futureLoad: futureLoad.toFixed(1),
+      selectedRating: selectedRating,
+      loading: loading.toFixed(1),
+      efficiency: (efficiency * 100).toFixed(1),
+      noLoadLoss: noLoadLoss.toFixed(2),
+      loadLoss: loadLoss.toFixed(2),
+      voltageRegulation: voltageRegulation.toFixed(1)
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Total Connected Load (kW)</Label>
+          <Input
+            type="number"
+            value={totalLoad}
+            onChange={(e) => setTotalLoad(e.target.value)}
+            placeholder="Enter total connected load"
+          />
+        </div>
+        <div>
+          <Label>Diversity Factor</Label>
+          <Input
+            type="number"
+            step="0.1"
+            min="0.1"
+            max="1.0"
+            value={diversityFactor}
+            onChange={(e) => setDiversityFactor(e.target.value)}
+            placeholder="0.8"
+          />
+        </div>
+        <div>
+          <Label>Power Factor</Label>
+          <Input
+            type="number"
+            step="0.1"
+            min="0.1"
+            max="1.0"
+            value={powerFactor}
+            onChange={(e) => setPowerFactor(e.target.value)}
+            placeholder="0.8"
+          />
+        </div>
+        <div>
+          <Label>Growth Factor</Label>
+          <Input
+            type="number"
+            step="0.1"
+            min="1.0"
+            max="2.0"
+            value={growthFactor}
+            onChange={(e) => setGrowthFactor(e.target.value)}
+            placeholder="1.2"
+          />
+        </div>
+        <div>
+          <Label>Load Type</Label>
+          <Select value={loadType} onValueChange={setLoadType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="lighting">Lighting</SelectItem>
+              <SelectItem value="motor">Motor</SelectItem>
+              <SelectItem value="mixed">Mixed Load</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculateTransformerSize} className="w-full">
+        Calculate Transformer Size
+      </Button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Transformer Sizing Results:</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>Diversified Load: {result.diversifiedLoad} kW</div>
+            <div>Apparent Power: {result.apparentPower} kVA</div>
+            <div>Future Load: {result.futureLoad} kVA</div>
+            <div>Selected Rating: {result.selectedRating} kVA</div>
+            <div>Current Loading: {result.loading}%</div>
+            <div>Efficiency: {result.efficiency}%</div>
+            <div>No-Load Loss: {result.noLoadLoss} kW</div>
+            <div>Load Loss: {result.loadLoss} kW</div>
+            <div>Voltage Regulation: {result.voltageRegulation}%</div>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            Note: Consider local load growth, redundancy requirements, and utility regulations.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EarthingConductorSizing() {
+  const [faultCurrent, setFaultCurrent] = useState("");
+  const [faultDuration, setFaultDuration] = useState("1.0");
+  const [conductorMaterial, setConductorMaterial] = useState("copper");
+  const [installationType, setInstallationType] = useState("buried");
+  const [result, setResult] = useState<any>(null);
+
+  const calculateEarthingSize = () => {
+    const I = parseFloat(faultCurrent);
+    const t = parseFloat(faultDuration);
+    
+    if (!I || !t) return;
+
+    // Material constants (k factor)
+    const kFactors = {
+      copper: installationType === "buried" ? 143 : 159,
+      aluminum: installationType === "buried" ? 95 : 105,
+      steel: installationType === "buried" ? 52 : 58
+    };
+
+    const k = kFactors[conductorMaterial as keyof typeof kFactors];
+
+    // Calculate minimum cross-sectional area using adiabatic equation
+    // A = (I × √t) / k
+    const minArea = (I * Math.sqrt(t)) / k;
+
+    // Standard conductor sizes
+    const standardSizes = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95, 120, 150, 185, 240, 300, 400, 500, 630];
+    const selectedSize = standardSizes.find(size => size >= minArea) || "Special Size Required";
+
+    // Temperature rise calculation
+    const initialTemp = 20; // °C
+    const finalTemp = conductorMaterial === "copper" ? 250 : 
+                     conductorMaterial === "aluminum" ? 200 : 400;
+    const tempRise = finalTemp - initialTemp;
+
+    // Resistance calculation
+    const resistivity = conductorMaterial === "copper" ? 0.0175 :
+                       conductorMaterial === "aluminum" ? 0.0283 : 0.138;
+    const resistance = resistivity / (selectedSize as number); // per meter
+
+    // Impedance check for earth fault loop
+    const earthLoopImpedance = resistance * 100; // Assuming 100m earth path
+
+    setResult({
+      minArea: minArea.toFixed(2),
+      selectedSize: selectedSize,
+      kFactor: k,
+      tempRise: tempRise,
+      resistance: resistance.toFixed(4),
+      earthLoopImpedance: earthLoopImpedance.toFixed(4),
+      material: conductorMaterial,
+      installation: installationType
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Fault Current (A)</Label>
+          <Input
+            type="number"
+            value={faultCurrent}
+            onChange={(e) => setFaultCurrent(e.target.value)}
+            placeholder="Enter prospective fault current"
+          />
+        </div>
+        <div>
+          <Label>Fault Duration (s)</Label>
+          <Input
+            type="number"
+            step="0.1"
+            value={faultDuration}
+            onChange={(e) => setFaultDuration(e.target.value)}
+            placeholder="1.0"
+          />
+        </div>
+        <div>
+          <Label>Conductor Material</Label>
+          <Select value={conductorMaterial} onValueChange={setConductorMaterial}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="copper">Copper</SelectItem>
+              <SelectItem value="aluminum">Aluminum</SelectItem>
+              <SelectItem value="steel">Steel</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Installation Type</Label>
+          <Select value={installationType} onValueChange={setInstallationType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="buried">Buried in Ground</SelectItem>
+              <SelectItem value="air">In Air</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculateEarthingSize} className="w-full">
+        Calculate Earthing Conductor Size
+      </Button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Earthing Conductor Sizing:</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>Minimum Area Required: {result.minArea} mm²</div>
+            <div>Selected Size: {result.selectedSize} mm²</div>
+            <div>K Factor: {result.kFactor}</div>
+            <div>Temperature Rise: {result.tempRise} °C</div>
+            <div>Resistance: {result.resistance} Ω/m</div>
+            <div>Earth Loop Impedance: {result.earthLoopImpedance} Ω</div>
+            <div>Material: {result.material}</div>
+            <div>Installation: {result.installation}</div>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            Note: Based on IEC 60364 adiabatic equation. Consider soil resistivity and corrosion protection.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PowerFactorCorrection() {
+  const [activePower, setActivePower] = useState("");
+  const [currentPF, setCurrentPF] = useState("");
+  const [targetPF, setTargetPF] = useState("0.95");
+  const [voltage, setVoltage] = useState("415");
+  const [result, setResult] = useState<any>(null);
+
+  const calculatePowerFactor = () => {
+    const P = parseFloat(activePower);
+    const pf1 = parseFloat(currentPF);
+    const pf2 = parseFloat(targetPF);
+    const V = parseFloat(voltage);
+    
+    if (!P || !pf1 || !pf2 || !V) return;
+
+    // Calculate reactive power components
+    const Q1 = P * Math.tan(Math.acos(pf1)); // Existing reactive power
+    const Q2 = P * Math.tan(Math.acos(pf2)); // Target reactive power
+    const QcRequired = Q1 - Q2; // Required capacitive reactive power
+
+    // Calculate apparent power
+    const S1 = P / pf1; // Existing apparent power
+    const S2 = P / pf2; // Target apparent power
+    const savingsKVA = S1 - S2; // kVA savings
+
+    // Calculate capacitor rating
+    const capacitorRating = Math.abs(QcRequired);
+
+    // Calculate current reduction
+    const I1 = S1 * 1000 / (Math.sqrt(3) * V); // Existing current
+    const I2 = S2 * 1000 / (Math.sqrt(3) * V); // Target current
+    const currentReduction = ((I1 - I2) / I1) * 100;
+
+    // Energy savings calculation (approximate)
+    const energySavings = currentReduction; // % reduction in line losses
+
+    // Standard capacitor ratings
+    const standardCapacitorRatings = [5, 7.5, 10, 12.5, 15, 20, 25, 30, 40, 50, 60, 75, 100, 125, 150, 200, 250, 300, 400, 500];
+    const selectedCapacitorRating = standardCapacitorRatings.find(rating => rating >= capacitorRating) || "Custom Rating Required";
+
+    setResult({
+      currentReactivePower: Q1.toFixed(1),
+      targetReactivePower: Q2.toFixed(1),
+      requiredKVAR: capacitorRating.toFixed(1),
+      selectedCapacitorRating: selectedCapacitorRating,
+      currentApparentPower: S1.toFixed(1),
+      targetApparentPower: S2.toFixed(1),
+      kVASavings: savingsKVA.toFixed(1),
+      currentBefore: I1.toFixed(1),
+      currentAfter: I2.toFixed(1),
+      currentReduction: currentReduction.toFixed(1),
+      energySavings: energySavings.toFixed(1)
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Active Power (kW)</Label>
+          <Input
+            type="number"
+            value={activePower}
+            onChange={(e) => setActivePower(e.target.value)}
+            placeholder="Enter total active power"
+          />
+        </div>
+        <div>
+          <Label>Current Power Factor</Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0.1"
+            max="1.0"
+            value={currentPF}
+            onChange={(e) => setCurrentPF(e.target.value)}
+            placeholder="0.75"
+          />
+        </div>
+        <div>
+          <Label>Target Power Factor</Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0.8"
+            max="1.0"
+            value={targetPF}
+            onChange={(e) => setTargetPF(e.target.value)}
+            placeholder="0.95"
+          />
+        </div>
+        <div>
+          <Label>System Voltage (V)</Label>
+          <Select value={voltage} onValueChange={setVoltage}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="230">230V</SelectItem>
+              <SelectItem value="415">415V</SelectItem>
+              <SelectItem value="1000">1000V</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculatePowerFactor} className="w-full">
+        Calculate Power Factor Correction
+      </Button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Power Factor Correction Results:</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>Current Reactive Power: {result.currentReactivePower} kVAR</div>
+            <div>Target Reactive Power: {result.targetReactivePower} kVAR</div>
+            <div>Required Capacitor: {result.requiredKVAR} kVAR</div>
+            <div>Selected Rating: {result.selectedCapacitorRating} kVAR</div>
+            <div>Current Apparent Power: {result.currentApparentPower} kVA</div>
+            <div>Target Apparent Power: {result.targetApparentPower} kVA</div>
+            <div>kVA Savings: {result.kVASavings} kVA</div>
+            <div>Current Before: {result.currentBefore} A</div>
+            <div>Current After: {result.currentAfter} A</div>
+            <div>Current Reduction: {result.currentReduction}%</div>
+            <div>Energy Savings: {result.energySavings}%</div>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            Note: Consider harmonic content and automatic power factor correction systems for variable loads.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EnergyConsumptionCalculator() {
+  const [power, setPower] = useState("");
+  const [hoursPerDay, setHoursPerDay] = useState("");
+  const [daysPerMonth, setDaysPerMonth] = useState("30");
+  const [energyRate, setEnergyRate] = useState("");
+  const [demandRate, setDemandRate] = useState("");
+  const [powerFactor, setPowerFactor] = useState("0.85");
+  const [result, setResult] = useState<any>(null);
+
+  const calculateEnergyCost = () => {
+    const P = parseFloat(power);
+    const hrs = parseFloat(hoursPerDay);
+    const days = parseFloat(daysPerMonth);
+    const rateEnergy = parseFloat(energyRate);
+    const rateDemand = parseFloat(demandRate) || 0;
+    const pf = parseFloat(powerFactor);
+    
+    if (!P || !hrs || !days || !rateEnergy || !pf) return;
+
+    // Energy calculations
+    const dailyEnergy = P * hrs; // kWh per day
+    const monthlyEnergy = dailyEnergy * days; // kWh per month
+    const annualEnergy = monthlyEnergy * 12; // kWh per year
+
+    // Demand calculations
+    const maxDemand = P; // Assuming maximum demand equals power
+    const apparentDemand = P / pf; // kVA demand
+
+    // Cost calculations
+    const monthlyEnergyCost = monthlyEnergy * rateEnergy;
+    const monthlyDemandCost = maxDemand * rateDemand;
+    const totalMonthlyCost = monthlyEnergyCost + monthlyDemandCost;
+    const annualCost = totalMonthlyCost * 12;
+
+    // Carbon footprint (approximate)
+    const carbonFactor = 0.82; // kg CO2 per kWh (varies by region)
+    const monthlyCarbonFootprint = monthlyEnergy * carbonFactor;
+    const annualCarbonFootprint = annualEnergy * carbonFactor;
+
+    // Load factor calculation
+    const loadFactor = (dailyEnergy / (P * 24)) * 100;
+
+    setResult({
+      dailyEnergy: dailyEnergy.toFixed(1),
+      monthlyEnergy: monthlyEnergy.toFixed(0),
+      annualEnergy: annualEnergy.toFixed(0),
+      maxDemand: maxDemand.toFixed(1),
+      apparentDemand: apparentDemand.toFixed(1),
+      monthlyEnergyCost: monthlyEnergyCost.toFixed(2),
+      monthlyDemandCost: monthlyDemandCost.toFixed(2),
+      totalMonthlyCost: totalMonthlyCost.toFixed(2),
+      annualCost: annualCost.toFixed(2),
+      loadFactor: loadFactor.toFixed(1),
+      monthlyCarbonFootprint: monthlyCarbonFootprint.toFixed(0),
+      annualCarbonFootprint: annualCarbonFootprint.toFixed(0)
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Power Consumption (kW)</Label>
+          <Input
+            type="number"
+            value={power}
+            onChange={(e) => setPower(e.target.value)}
+            placeholder="Enter power consumption"
+          />
+        </div>
+        <div>
+          <Label>Operating Hours/Day</Label>
+          <Input
+            type="number"
+            value={hoursPerDay}
+            onChange={(e) => setHoursPerDay(e.target.value)}
+            placeholder="Enter daily operating hours"
+          />
+        </div>
+        <div>
+          <Label>Days Per Month</Label>
+          <Input
+            type="number"
+            value={daysPerMonth}
+            onChange={(e) => setDaysPerMonth(e.target.value)}
+            placeholder="30"
+          />
+        </div>
+        <div>
+          <Label>Energy Rate (per kWh)</Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={energyRate}
+            onChange={(e) => setEnergyRate(e.target.value)}
+            placeholder="Enter cost per kWh"
+          />
+        </div>
+        <div>
+          <Label>Demand Rate (per kW)</Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={demandRate}
+            onChange={(e) => setDemandRate(e.target.value)}
+            placeholder="Enter demand charge (optional)"
+          />
+        </div>
+        <div>
+          <Label>Power Factor</Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0.1"
+            max="1.0"
+            value={powerFactor}
+            onChange={(e) => setPowerFactor(e.target.value)}
+            placeholder="0.85"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateEnergyCost} className="w-full">
+        Calculate Energy Consumption & Cost
+      </Button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Energy Analysis Results:</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>Daily Energy: {result.dailyEnergy} kWh</div>
+            <div>Monthly Energy: {result.monthlyEnergy} kWh</div>
+            <div>Annual Energy: {result.annualEnergy} kWh</div>
+            <div>Max Demand: {result.maxDemand} kW</div>
+            <div>Apparent Demand: {result.apparentDemand} kVA</div>
+            <div>Monthly Energy Cost: ₹{result.monthlyEnergyCost}</div>
+            <div>Monthly Demand Cost: ₹{result.monthlyDemandCost}</div>
+            <div>Total Monthly Cost: ₹{result.totalMonthlyCost}</div>
+            <div>Annual Cost: ₹{result.annualCost}</div>
+            <div>Load Factor: {result.loadFactor}%</div>
+            <div>Monthly CO₂: {result.monthlyCarbonFootprint} kg</div>
+            <div>Annual CO₂: {result.annualCarbonFootprint} kg</div>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            Note: Costs may vary based on utility tariff structure and time-of-use rates.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WireColorCodeReference() {
+  const [standard, setStandard] = useState("iec");
+  
+  const colorCodes = {
+    iec: {
+      title: "IEC Color Codes",
+      codes: [
+        { conductor: "Line 1 (L1)", color: "Brown", voltage: "Phase" },
+        { conductor: "Line 2 (L2)", color: "Black", voltage: "Phase" },
+        { conductor: "Line 3 (L3)", color: "Grey", voltage: "Phase" },
+        { conductor: "Neutral (N)", color: "Blue", voltage: "Neutral" },
+        { conductor: "Protective Earth (PE)", color: "Green/Yellow", voltage: "Earth" },
+        { conductor: "PEN", color: "Blue with Green/Yellow", voltage: "Combined" },
+        { conductor: "DC Positive", color: "Brown/Red", voltage: "DC+" },
+        { conductor: "DC Negative", color: "Black/Blue", voltage: "DC-" }
+      ]
+    },
+    nec: {
+      title: "NEC (US) Color Codes",
+      codes: [
+        { conductor: "Line 1 (L1)", color: "Black", voltage: "Phase" },
+        { conductor: "Line 2 (L2)", color: "Red", voltage: "Phase" },
+        { conductor: "Line 3 (L3)", color: "Blue", voltage: "Phase" },
+        { conductor: "Neutral (N)", color: "White/Grey", voltage: "Neutral" },
+        { conductor: "Ground", color: "Green/Bare", voltage: "Earth" },
+        { conductor: "DC Positive", color: "Red", voltage: "DC+" },
+        { conductor: "DC Negative", color: "Black", voltage: "DC-" }
+      ]
+    },
+    indian: {
+      title: "Indian Standards (IS 732)",
+      codes: [
+        { conductor: "R Phase", color: "Red", voltage: "Phase" },
+        { conductor: "Y Phase", color: "Yellow", voltage: "Phase" },
+        { conductor: "B Phase", color: "Blue", voltage: "Phase" },
+        { conductor: "Neutral (N)", color: "Black", voltage: "Neutral" },
+        { conductor: "Earth", color: "Green", voltage: "Earth" },
+        { conductor: "Control Circuit", color: "Orange", voltage: "Control" }
+      ]
+    }
+  };
+
+  const currentCodes = colorCodes[standard as keyof typeof colorCodes];
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>Select Standard</Label>
+        <Select value={standard} onValueChange={setStandard}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="iec">IEC International</SelectItem>
+            <SelectItem value="nec">NEC (USA)</SelectItem>
+            <SelectItem value="indian">Indian Standards</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="mt-4">
+        <h4 className="font-semibold mb-2">{currentCodes.title}</h4>
+        <div className="space-y-2">
+          {currentCodes.codes.map((code, index) => (
+            <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+              <span className="font-medium">{code.conductor}</span>
+              <span className="text-sm">{code.color}</span>
+              <Badge variant="outline">{code.voltage}</Badge>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
+        <h5 className="font-medium text-yellow-800 mb-1">Safety Notes:</h5>
+        <ul className="text-xs text-yellow-700 space-y-1">
+          <li>• Always verify local electrical codes and standards</li>
+          <li>• Use proper color coding for safety and maintenance</li>
+          <li>• Label conductors clearly in control panels</li>
+          <li>• Consider phase rotation requirements</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function CableTrayFillCalculator() {
+  const [trayWidth, setTrayWidth] = useState("");
+  const [trayHeight, setTrayHeight] = useState("");
+  const [cableData, setCableData] = useState("");
+  const [fillType, setFillType] = useState("power");
+  const [result, setResult] = useState<any>(null);
+
+  const calculateTrayFill = () => {
+    const width = parseFloat(trayWidth);
+    const height = parseFloat(trayHeight);
+    
+    if (!width || !height || !cableData) return;
+
+    // Parse cable data (format: "diameter1,quantity1;diameter2,quantity2")
+    const cables = cableData.split(';').map(entry => {
+      const [diameter, quantity] = entry.split(',').map(val => parseFloat(val.trim()));
+      return { diameter, quantity };
+    }).filter(cable => !isNaN(cable.diameter) && !isNaN(cable.quantity));
+
+    // Calculate total cable cross-sectional area
+    let totalCableArea = 0;
+    cables.forEach(cable => {
+      const cableArea = Math.PI * Math.pow(cable.diameter / 2, 2) * cable.quantity;
+      totalCableArea += cableArea;
+    });
+
+    // Calculate tray area
+    const trayArea = width * height;
+
+    // Fill percentage based on cable type
+    const maxFillPercentages = {
+      power: 40, // 40% for power cables
+      control: 50, // 50% for control cables
+      mixed: 40 // 40% for mixed installation
+    };
+
+    const maxFillPercent = maxFillPercentages[fillType as keyof typeof maxFillPercentages];
+    const maxAllowableArea = (trayArea * maxFillPercent) / 100;
+    const currentFillPercent = (totalCableArea / trayArea) * 100;
+    const availableArea = maxAllowableArea - totalCableArea;
+    const compliance = currentFillPercent <= maxFillPercent;
+
+    // Cable weight estimation (approximate)
+    let totalWeight = 0;
+    cables.forEach(cable => {
+      const weightPerMeter = Math.pow(cable.diameter, 2) * 0.1; // Approximate formula
+      totalWeight += weightPerMeter * cable.quantity;
+    });
+
+    setResult({
+      trayArea: trayArea.toFixed(0),
+      totalCableArea: totalCableArea.toFixed(0),
+      currentFillPercent: currentFillPercent.toFixed(1),
+      maxFillPercent: maxFillPercent,
+      availableArea: availableArea.toFixed(0),
+      compliance: compliance,
+      totalWeight: totalWeight.toFixed(1),
+      cableCount: cables.reduce((sum, cable) => sum + cable.quantity, 0)
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Tray Width (mm)</Label>
+          <Input
+            type="number"
+            value={trayWidth}
+            onChange={(e) => setTrayWidth(e.target.value)}
+            placeholder="Enter tray width"
+          />
+        </div>
+        <div>
+          <Label>Tray Height (mm)</Label>
+          <Input
+            type="number"
+            value={trayHeight}
+            onChange={(e) => setTrayHeight(e.target.value)}
+            placeholder="Enter tray height"
+          />
+        </div>
+        <div>
+          <Label>Cable Type</Label>
+          <Select value={fillType} onValueChange={setFillType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="power">Power Cables</SelectItem>
+              <SelectItem value="control">Control Cables</SelectItem>
+              <SelectItem value="mixed">Mixed Installation</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label>Cable Data</Label>
+        <Input
+          value={cableData}
+          onChange={(e) => setCableData(e.target.value)}
+          placeholder="Format: diameter1,quantity1;diameter2,quantity2 (e.g., 25,3;32,2)"
+        />
+        <div className="text-xs text-gray-600 mt-1">
+          Enter cable outer diameter (mm) and quantity. Separate different cables with semicolon.
+        </div>
+      </div>
+
+      <Button onClick={calculateTrayFill} className="w-full">
+        Calculate Tray Fill
+      </Button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Cable Tray Fill Analysis:</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>Tray Area: {result.trayArea} mm²</div>
+            <div>Cable Area: {result.totalCableArea} mm²</div>
+            <div>Current Fill: {result.currentFillPercent}%</div>
+            <div>Max Allowed: {result.maxFillPercent}%</div>
+            <div>Available Area: {result.availableArea} mm²</div>
+            <div>Total Cables: {result.cableCount}</div>
+            <div>Est. Weight: {result.totalWeight} kg/m</div>
+            <div className={result.compliance ? "text-green-600" : "text-red-600"}>
+              Compliance: {result.compliance ? "PASS" : "FAIL"}
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            Note: Based on standard cable tray fill requirements. Consider heat generation and maintenance access.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LoadBalanceChecker() {
+  const [phaseALoad, setPhaseALoad] = useState("");
+  const [phaseBLoad, setPhaseBLoad] = useState("");
+  const [phaseCLoad, setPhaseCLoad] = useState("");
+  const [voltage, setVoltage] = useState("415");
+  const [result, setResult] = useState<any>(null);
+
+  const calculateLoadBalance = () => {
+    const PA = parseFloat(phaseALoad) || 0;
+    const PB = parseFloat(phaseBLoad) || 0;
+    const PC = parseFloat(phaseCLoad) || 0;
+    const V = parseFloat(voltage);
+    
+    if (!V) return;
+
+    // Calculate phase currents
+    const IA = (PA * 1000) / V; // Convert kW to W, then to A
+    const IB = (PB * 1000) / V;
+    const IC = (PC * 1000) / V;
+
+    // Calculate average current
+    const IAverage = (IA + IB + IC) / 3;
+
+    // Calculate imbalance percentages
+    const imbalanceA = Math.abs(IA - IAverage) / IAverage * 100;
+    const imbalanceB = Math.abs(IB - IAverage) / IAverage * 100;
+    const imbalanceC = Math.abs(IC - IAverage) / IAverage * 100;
+    const maxImbalance = Math.max(imbalanceA, imbalanceB, imbalanceC);
+
+    // Calculate neutral current (vector sum)
+    // Simplified calculation assuming purely resistive loads
+    const neutralCurrent = Math.abs(IA + IB * Math.cos(2 * Math.PI / 3) + IC * Math.cos(4 * Math.PI / 3));
+
+    // Power calculations
+    const totalPower = PA + PB + PC;
+    const averagePowerPerPhase = totalPower / 3;
+
+    // Load balance assessment
+    const isBalanced = maxImbalance <= 5; // 5% threshold
+    const balanceQuality = maxImbalance <= 2 ? "Excellent" :
+                          maxImbalance <= 5 ? "Good" :
+                          maxImbalance <= 10 ? "Fair" : "Poor";
+
+    // Recommendations for load redistribution
+    const recommendations = [];
+    if (imbalanceA > 5) recommendations.push(`Reduce Phase A load by ${(IA - IAverage).toFixed(1)} A`);
+    if (imbalanceB > 5) recommendations.push(`Reduce Phase B load by ${(IB - IAverage).toFixed(1)} A`);
+    if (imbalanceC > 5) recommendations.push(`Reduce Phase C load by ${(IC - IAverage).toFixed(1)} A`);
+
+    setResult({
+      currentA: IA.toFixed(1),
+      currentB: IB.toFixed(1),
+      currentC: IC.toFixed(1),
+      averageCurrent: IAverage.toFixed(1),
+      imbalanceA: imbalanceA.toFixed(1),
+      imbalanceB: imbalanceB.toFixed(1),
+      imbalanceC: imbalanceC.toFixed(1),
+      maxImbalance: maxImbalance.toFixed(1),
+      neutralCurrent: neutralCurrent.toFixed(1),
+      totalPower: totalPower.toFixed(1),
+      isBalanced: isBalanced,
+      balanceQuality: balanceQuality,
+      recommendations: recommendations
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Phase A Load (kW)</Label>
+          <Input
+            type="number"
+            value={phaseALoad}
+            onChange={(e) => setPhaseALoad(e.target.value)}
+            placeholder="Enter phase A load"
+          />
+        </div>
+        <div>
+          <Label>Phase B Load (kW)</Label>
+          <Input
+            type="number"
+            value={phaseBLoad}
+            onChange={(e) => setPhaseBLoad(e.target.value)}
+            placeholder="Enter phase B load"
+          />
+        </div>
+        <div>
+          <Label>Phase C Load (kW)</Label>
+          <Input
+            type="number"
+            value={phaseCLoad}
+            onChange={(e) => setPhaseCLoad(e.target.value)}
+            placeholder="Enter phase C load"
+          />
+        </div>
+        <div>
+          <Label>Line Voltage (V)</Label>
+          <Select value={voltage} onValueChange={setVoltage}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="230">230V</SelectItem>
+              <SelectItem value="415">415V</SelectItem>
+              <SelectItem value="1000">1000V</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculateLoadBalance} className="w-full">
+        Check Load Balance
+      </Button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Load Balance Analysis:</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>Phase A Current: {result.currentA} A</div>
+            <div>Phase B Current: {result.currentB} A</div>
+            <div>Phase C Current: {result.currentC} A</div>
+            <div>Average Current: {result.averageCurrent} A</div>
+            <div>Phase A Imbalance: {result.imbalanceA}%</div>
+            <div>Phase B Imbalance: {result.imbalanceB}%</div>
+            <div>Phase C Imbalance: {result.imbalanceC}%</div>
+            <div>Max Imbalance: {result.maxImbalance}%</div>
+            <div>Neutral Current: {result.neutralCurrent} A</div>
+            <div>Total Power: {result.totalPower} kW</div>
+            <div className={result.isBalanced ? "text-green-600" : "text-red-600"}>
+              Balance Status: {result.isBalanced ? "BALANCED" : "UNBALANCED"}
+            </div>
+            <div>Balance Quality: {result.balanceQuality}</div>
+          </div>
+          {result.recommendations.length > 0 && (
+            <div className="mt-2">
+              <h5 className="font-medium text-sm">Recommendations:</h5>
+              <ul className="text-xs text-gray-600">
+                {result.recommendations.map((rec: string, index: number) => (
+                  <li key={index}>• {rec}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LuxLevelEstimator() {
+  const [roomLength, setRoomLength] = useState("");
+  const [roomWidth, setRoomWidth] = useState("");
+  const [mountingHeight, setMountingHeight] = useState("");
+  const [workingPlane, setWorkingPlane] = useState("0.85");
+  const [roomType, setRoomType] = useState("office");
+  const [luminaireType, setLuminaireType] = useState("led_panel");
+  const [result, setResult] = useState<any>(null);
+
+  const calculateLighting = () => {
+    const length = parseFloat(roomLength);
+    const width = parseFloat(roomWidth);
+    const hm = parseFloat(mountingHeight);
+    const hw = parseFloat(workingPlane);
+    
+    if (!length || !width || !hm || !hw) return;
+
+    // Room area
+    const area = length * width;
+    const effectiveHeight = hm - hw;
+
+    // Room index calculation
+    const roomIndex = (length * width) / ((length + width) * effectiveHeight);
+
+    // Target illuminance levels (lux) for different room types
+    const illuminanceLevels = {
+      office: 500,
+      classroom: 300,
+      workshop: 500,
+      warehouse: 200,
+      meeting_room: 500,
+      corridor: 100,
+      parking: 75,
+      retail: 750
+    };
+
+    const targetLux = illuminanceLevels[roomType as keyof typeof illuminanceLevels];
+
+    // Luminaire data (lumens output and efficacy)
+    const luminaireData = {
+      led_panel: { lumens: 4000, efficacy: 120, name: "LED Panel 40W" },
+      fluorescent: { lumens: 3200, efficacy: 80, name: "T8 Fluorescent 36W" },
+      led_highbay: { lumens: 15000, efficacy: 150, name: "LED High Bay 100W" },
+      incandescent: { lumens: 800, efficacy: 15, name: "Incandescent 60W" }
+    };
+
+    const selectedLuminaire = luminaireData[luminaireType as keyof typeof luminaireData];
+
+    // Utilization factor (simplified, based on room index)
+    const utilizationFactor = roomIndex < 1 ? 0.4 : 
+                             roomIndex < 2 ? 0.5 : 
+                             roomIndex < 3 ? 0.6 : 0.7;
+
+    // Maintenance factor
+    const maintenanceFactor = 0.8;
+
+    // Calculate required lumens
+    const requiredLumens = (targetLux * area) / (utilizationFactor * maintenanceFactor);
+
+    // Number of luminaires required
+    const numberOfLuminaires = Math.ceil(requiredLumens / selectedLuminaire.lumens);
+
+    // Actual lux level achieved
+    const actualLux = (numberOfLuminaires * selectedLuminaire.lumens * utilizationFactor * maintenanceFactor) / area;
+
+    // Power consumption
+    const powerPerLuminaire = selectedLuminaire.lumens / selectedLuminaire.efficacy;
+    const totalPower = numberOfLuminaires * powerPerLuminaire;
+
+    // Luminaire spacing
+    const spacingRatio = 1.2; // Typical for office lighting
+    const maxSpacing = effectiveHeight * spacingRatio;
+    const suggestedSpacing = Math.min(maxSpacing, Math.sqrt(area / numberOfLuminaires));
+
+    setResult({
+      area: area.toFixed(1),
+      roomIndex: roomIndex.toFixed(2),
+      targetLux: targetLux,
+      requiredLumens: requiredLumens.toFixed(0),
+      numberOfLuminaires: numberOfLuminaires,
+      actualLux: actualLux.toFixed(0),
+      totalPower: totalPower.toFixed(0),
+      powerDensity: (totalPower / area).toFixed(1),
+      suggestedSpacing: suggestedSpacing.toFixed(1),
+      luminaireType: selectedLuminaire.name,
+      utilizationFactor: utilizationFactor.toFixed(2),
+      maintenanceFactor: maintenanceFactor.toFixed(2)
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Room Length (m)</Label>
+          <Input
+            type="number"
+            value={roomLength}
+            onChange={(e) => setRoomLength(e.target.value)}
+            placeholder="Enter room length"
+          />
+        </div>
+        <div>
+          <Label>Room Width (m)</Label>
+          <Input
+            type="number"
+            value={roomWidth}
+            onChange={(e) => setRoomWidth(e.target.value)}
+            placeholder="Enter room width"
+          />
+        </div>
+        <div>
+          <Label>Mounting Height (m)</Label>
+          <Input
+            type="number"
+            value={mountingHeight}
+            onChange={(e) => setMountingHeight(e.target.value)}
+            placeholder="Height from floor to luminaire"
+          />
+        </div>
+        <div>
+          <Label>Working Plane Height (m)</Label>
+          <Input
+            type="number"
+            value={workingPlane}
+            onChange={(e) => setWorkingPlane(e.target.value)}
+            placeholder="0.85 (typical desk height)"
+          />
+        </div>
+        <div>
+          <Label>Room Type</Label>
+          <Select value={roomType} onValueChange={setRoomType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="office">Office</SelectItem>
+              <SelectItem value="classroom">Classroom</SelectItem>
+              <SelectItem value="workshop">Workshop</SelectItem>
+              <SelectItem value="warehouse">Warehouse</SelectItem>
+              <SelectItem value="meeting_room">Meeting Room</SelectItem>
+              <SelectItem value="corridor">Corridor</SelectItem>
+              <SelectItem value="parking">Parking</SelectItem>
+              <SelectItem value="retail">Retail</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Luminaire Type</Label>
+          <Select value={luminaireType} onValueChange={setLuminaireType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="led_panel">LED Panel</SelectItem>
+              <SelectItem value="fluorescent">T8 Fluorescent</SelectItem>
+              <SelectItem value="led_highbay">LED High Bay</SelectItem>
+              <SelectItem value="incandescent">Incandescent</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculateLighting} className="w-full">
+        Calculate Lighting Requirements
+      </Button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold mb-2">Lighting Design Results:</h4>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>Room Area: {result.area} m²</div>
+            <div>Room Index: {result.roomIndex}</div>
+            <div>Target Illuminance: {result.targetLux} lux</div>
+            <div>Required Lumens: {result.requiredLumens}</div>
+            <div>Number of Luminaires: {result.numberOfLuminaires}</div>
+            <div>Actual Illuminance: {result.actualLux} lux</div>
+            <div>Total Power: {result.totalPower} W</div>
+            <div>Power Density: {result.powerDensity} W/m²</div>
+            <div>Suggested Spacing: {result.suggestedSpacing} m</div>
+            <div>Luminaire Type: {result.luminaireType}</div>
+            <div>Utilization Factor: {result.utilizationFactor}</div>
+            <div>Maintenance Factor: {result.maintenanceFactor}</div>
+          </div>
+          <div className="mt-2 text-xs text-gray-600">
+            Note: Basic calculation for initial estimation. Detailed photometric analysis recommended for final design.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DesignToolsPage() {
   return (
     <Layout>
@@ -5622,87 +7460,341 @@ export default function DesignToolsPage() {
           <TabsContent value="electrical" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               
+              {/* Cable Size Calculator */}
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
-                    <CardTitle className="text-base">Electrical CAD</CardTitle>
+                    <CardTitle className="text-base">Cable Size Calculator</CardTitle>
                     <CardDescription>
-                      Electrical design software
+                      Determine suitable cable cross-section
                     </CardDescription>
                   </div>
                   <Zap className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <CircuitBoard className="h-4 w-4 mr-2" />
-                      AutoCAD Electrical
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Zap className="h-4 w-4 mr-2" />
-                      EPLAN Electric
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Monitor className="h-4 w-4 mr-2" />
-                      SolidWorks Electrical
-                    </Button>
-                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Cable Size Calculator</DialogTitle>
+                      </DialogHeader>
+                      <CableSizeCalculator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
+              {/* Voltage Drop Calculator */}
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
-                    <CardTitle className="text-base">Panel Design</CardTitle>
+                    <CardTitle className="text-base">Voltage Drop Calculator</CardTitle>
                     <CardDescription>
-                      Control panel layout tools
+                      Calculate voltage drop over cable runs
+                    </CardDescription>
+                  </div>
+                  <TrendingDown className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Voltage Drop Calculator</DialogTitle>
+                      </DialogHeader>
+                      <VoltageDropCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Short Circuit Calculator */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Short Circuit Calculator</CardTitle>
+                    <CardDescription>
+                      Estimate fault current levels
+                    </CardDescription>
+                  </div>
+                  <Zap className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Short Circuit Current Calculator</DialogTitle>
+                      </DialogHeader>
+                      <ShortCircuitCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Circuit Breaker Sizing */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Circuit Breaker Sizing</CardTitle>
+                    <CardDescription>
+                      Select appropriate MCB/MCCB
+                    </CardDescription>
+                  </div>
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Circuit Breaker Sizing Tool</DialogTitle>
+                      </DialogHeader>
+                      <CircuitBreakerSizing />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Motor Starter Sizing */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Motor Starter Sizing</CardTitle>
+                    <CardDescription>
+                      Select contactor, overload & cable
                     </CardDescription>
                   </div>
                   <Settings className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <CircuitBoard className="h-4 w-4 mr-2" />
-                      Panel Layout Pro
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Settings className="h-4 w-4 mr-2" />
-                      MCC Designer
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Grid className="h-4 w-4 mr-2" />
-                      Switchgear Layout
-                    </Button>
-                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Motor Starter Sizing Tool</DialogTitle>
+                      </DialogHeader>
+                      <MotorStarterSizing />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
+              {/* Transformer Sizing */}
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
-                    <CardTitle className="text-base">Load Calculations</CardTitle>
+                    <CardTitle className="text-base">Transformer Sizing</CardTitle>
                     <CardDescription>
-                      Electrical load analysis
+                      Calculate transformer rating
+                    </CardDescription>
+                  </div>
+                  <Square className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Transformer Sizing Calculator</DialogTitle>
+                      </DialogHeader>
+                      <TransformerSizing />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Earthing Conductor Sizing */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Earthing Conductor Sizing</CardTitle>
+                    <CardDescription>
+                      Calculate grounding conductor size
+                    </CardDescription>
+                  </div>
+                  <CornerDownRight className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Earthing/Grounding Conductor Sizing Tool</DialogTitle>
+                      </DialogHeader>
+                      <EarthingConductorSizing />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Power Factor Correction */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Power Factor Correction</CardTitle>
+                    <CardDescription>
+                      Calculate required kVAR capacity
+                    </CardDescription>
+                  </div>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Power Factor Correction Calculator</DialogTitle>
+                      </DialogHeader>
+                      <PowerFactorCorrection />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Energy Consumption Calculator */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Energy Consumption & Cost</CardTitle>
+                    <CardDescription>
+                      Estimate energy usage and costs
                     </CardDescription>
                   </div>
                   <Calculator className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Gauge className="h-4 w-4 mr-2" />
-                      Load Flow Analysis
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Calculator className="h-4 w-4 mr-2" />
-                      Cable Sizing
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Zap className="h-4 w-4 mr-2" />
-                      Short Circuit Study
-                    </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Energy Consumption & Cost Estimator</DialogTitle>
+                      </DialogHeader>
+                      <EnergyConsumptionCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Wire Color Code Reference */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Wire Color Code Reference</CardTitle>
+                    <CardDescription>
+                      Standard wire color coding
+                    </CardDescription>
                   </div>
+                  <Palette className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Reference</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Wire Color Code Reference</DialogTitle>
+                      </DialogHeader>
+                      <WireColorCodeReference />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Cable Tray Fill Calculator */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Cable Tray Fill Calculator</CardTitle>
+                    <CardDescription>
+                      Check cable tray capacity
+                    </CardDescription>
+                  </div>
+                  <Grid className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Cable Tray Fill Calculator</DialogTitle>
+                      </DialogHeader>
+                      <CableTrayFillCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Load Balance Checker */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Load Balance Checker</CardTitle>
+                    <CardDescription>
+                      Analyze 3-phase load balance
+                    </CardDescription>
+                  </div>
+                  <Waves className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Load Balance Checker (3-Phase Systems)</DialogTitle>
+                      </DialogHeader>
+                      <LoadBalanceChecker />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Lux Level Estimator */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Lux Level Estimator</CardTitle>
+                    <CardDescription>
+                      Basic lighting design calculations
+                    </CardDescription>
+                  </div>
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Lux Level Estimator (Basic Lighting Design)</DialogTitle>
+                      </DialogHeader>
+                      <LuxLevelEstimator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
