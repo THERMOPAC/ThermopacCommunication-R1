@@ -9475,7 +9475,7 @@ function ReynoldsNumberCalculator() {
       )}
 
       <div className="text-xs text-muted-foreground">
-        <p><strong>Criteria:</strong> Laminar: Re < 2300, Transitional: 2300-4000, Turbulent: Re > 4000</p>
+        <p><strong>Criteria:</strong> Laminar: Re &lt; 2300, Transitional: 2300-4000, Turbulent: Re &gt; 4000</p>
         <p><strong>Note:</strong> For non-circular pipes, use hydraulic diameter</p>
       </div>
     </div>
