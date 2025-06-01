@@ -8982,35 +8982,6 @@ export default function DesignToolsPage() {
 
             </div>
           </TabsContent>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <div>
-                    <CardTitle className="text-base">Component Library</CardTitle>
-                    <CardDescription>
-                      Standard mechanical components
-                    </CardDescription>
-                  </div>
-                  <Database className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Settings className="h-4 w-4 mr-2" />
-                      Fasteners Library
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Wrench className="h-4 w-4 mr-2" />
-                      Bearing Catalog
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Factory className="h-4 w-4 mr-2" />
-                      Standard Parts
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-            </div>
-          </TabsContent>
 
           {/* Pressure Vessel Design Tab */}
           <TabsContent value="pressure-vessel" className="space-y-6">
