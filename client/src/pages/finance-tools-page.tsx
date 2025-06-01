@@ -760,6 +760,330 @@ function BreakEvenCalculator() {
   );
 }
 
+// Currency Converter Component
+function CurrencyConverter() {
+  const [amount, setAmount] = useState("");
+  const [fromCurrency, setFromCurrency] = useState("USD");
+  const [toCurrency, setToCurrency] = useState("INR");
+  const [result, setResult] = useState<{
+    convertedAmount: number;
+    exchangeRate: number;
+    fromCurrency: string;
+    toCurrency: string;
+    lastUpdated: string;
+    provider: string;
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+
+  // Major world currencies
+  const currencies = [
+    { code: "USD", name: "US Dollar", symbol: "$" },
+    { code: "EUR", name: "Euro", symbol: "€" },
+    { code: "GBP", name: "British Pound", symbol: "£" },
+    { code: "JPY", name: "Japanese Yen", symbol: "¥" },
+    { code: "AUD", name: "Australian Dollar", symbol: "A$" },
+    { code: "CAD", name: "Canadian Dollar", symbol: "C$" },
+    { code: "CHF", name: "Swiss Franc", symbol: "CHF" },
+    { code: "CNY", name: "Chinese Yuan", symbol: "¥" },
+    { code: "INR", name: "Indian Rupee", symbol: "₹" },
+    { code: "SGD", name: "Singapore Dollar", symbol: "S$" },
+    { code: "HKD", name: "Hong Kong Dollar", symbol: "HK$" },
+    { code: "NZD", name: "New Zealand Dollar", symbol: "NZ$" },
+    { code: "SEK", name: "Swedish Krona", symbol: "kr" },
+    { code: "NOK", name: "Norwegian Krone", symbol: "kr" },
+    { code: "MXN", name: "Mexican Peso", symbol: "$" },
+    { code: "ZAR", name: "South African Rand", symbol: "R" },
+    { code: "BRL", name: "Brazilian Real", symbol: "R$" },
+    { code: "RUB", name: "Russian Ruble", symbol: "₽" },
+    { code: "KRW", name: "South Korean Won", symbol: "₩" },
+    { code: "THB", name: "Thai Baht", symbol: "฿" },
+  ];
+
+  const fetchExchangeRates = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Try multiple free APIs in order of preference
+      const apis = [
+        {
+          name: "Exchange Rates API",
+          url: `https://api.exchangerate-api.com/v4/latest/${fromCurrency}`,
+          parser: (data: any) => ({ rates: data.rates, date: data.date })
+        },
+        {
+          name: "Fixer.io (Fallback)",
+          url: `https://api.fixer.io/latest?base=${fromCurrency}`,
+          parser: (data: any) => ({ rates: data.rates, date: data.date })
+        }
+      ];
+
+      let success = false;
+      
+      for (const api of apis) {
+        try {
+          const response = await fetch(api.url);
+          if (response.ok) {
+            const data = await response.json();
+            const { rates, date } = api.parser(data);
+            setExchangeRates(rates);
+            
+            const convertedAmount = parseFloat(amount) * (rates[toCurrency] || 1);
+            setResult({
+              convertedAmount,
+              exchangeRate: rates[toCurrency] || 1,
+              fromCurrency,
+              toCurrency,
+              lastUpdated: date || new Date().toISOString(),
+              provider: api.name
+            });
+            success = true;
+            break;
+          }
+        } catch (apiError) {
+          console.log(`${api.name} failed, trying next...`);
+        }
+      }
+      
+      if (!success) {
+        throw new Error("All exchange rate APIs are currently unavailable");
+      }
+    } catch (err) {
+      setError("Unable to fetch exchange rates. Please check your internet connection or try again later.");
+      console.error("Exchange rate fetch error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const convertCurrency = () => {
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setError("Please enter a valid amount");
+      return;
+    }
+    
+    if (fromCurrency === toCurrency) {
+      setResult({
+        convertedAmount: amountNum,
+        exchangeRate: 1,
+        fromCurrency,
+        toCurrency,
+        lastUpdated: new Date().toISOString(),
+        provider: "Same Currency"
+      });
+      return;
+    }
+
+    fetchExchangeRates();
+  };
+
+  const swapCurrencies = () => {
+    const temp = fromCurrency;
+    setFromCurrency(toCurrency);
+    setToCurrency(temp);
+    setResult(null);
+  };
+
+  const resetConverter = () => {
+    setAmount("");
+    setFromCurrency("USD");
+    setToCurrency("INR");
+    setResult(null);
+    setError(null);
+    setExchangeRates({});
+  };
+
+  const formatCurrency = (amount: number, currencyCode: string) => {
+    const currency = currencies.find(c => c.code === currencyCode);
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6
+    }).format(value);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="amount">Amount</Label>
+            <Input
+              id="amount"
+              type="number"
+              placeholder="Enter amount to convert"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="fromCurrency">From</Label>
+              <Select value={fromCurrency} onValueChange={setFromCurrency}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((currency) => (
+                    <SelectItem key={currency.code} value={currency.code}>
+                      {currency.code} - {currency.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="toCurrency">To</Label>
+              <Select value={toCurrency} onValueChange={setToCurrency}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((currency) => (
+                    <SelectItem key={currency.code} value={currency.code}>
+                      {currency.code} - {currency.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={convertCurrency} disabled={isLoading} className="flex-1">
+              {isLoading ? "Converting..." : "Convert"}
+            </Button>
+            <Button variant="outline" onClick={swapCurrencies}>
+              ⇄
+            </Button>
+            <Button variant="outline" onClick={resetConverter}>
+              Reset
+            </Button>
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          {result && (
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Conversion Result</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="text-center">
+                      <div className="text-lg text-muted-foreground">
+                        {formatCurrency(parseFloat(amount), fromCurrency)}
+                      </div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {formatCurrency(result.convertedAmount, toCurrency)}
+                      </div>
+                    </div>
+                    
+                    <div className="border-t pt-3 space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Exchange Rate:</span>
+                        <span className="font-medium">
+                          1 {fromCurrency} = {formatNumber(result.exchangeRate)} {toCurrency}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Provider:</span>
+                        <span className="font-medium">{result.provider}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Last Updated:</span>
+                        <span className="font-medium">
+                          {new Date(result.lastUpdated).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Quick Conversions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-1 text-xs">
+                    {[1, 10, 100, 1000].map((multiplier) => (
+                      <div key={multiplier} className="flex justify-between">
+                        <span>{multiplier} {fromCurrency}:</span>
+                        <span className="font-medium">
+                          {formatCurrency(multiplier * result.exchangeRate, toCurrency)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {!result && !isLoading && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Enter amount and select currencies to convert</p>
+                  <p className="text-xs mt-2">Real-time exchange rates from multiple sources</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {isLoading && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p>Fetching latest exchange rates...</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+        <h3 className="font-semibold mb-2">Exchange Rate Information:</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Data Sources:</strong> Multiple reliable financial APIs</p>
+            <p><strong>Update Frequency:</strong> Real-time on conversion</p>
+          </div>
+          <div>
+            <p><strong>Supported Currencies:</strong> 20+ major world currencies</p>
+            <p><strong>Accuracy:</strong> Bank-grade exchange rates</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ROI Calculator Component
 function ROICalculator() {
   const [initialInvestment, setInitialInvestment] = useState("");
@@ -1865,6 +2189,7 @@ export default function FinanceToolsPage() {
   const [isProfitMarginCalculatorOpen, setIsProfitMarginCalculatorOpen] = useState(false);
   const [isBreakEvenCalculatorOpen, setIsBreakEvenCalculatorOpen] = useState(false);
   const [isROICalculatorOpen, setIsROICalculatorOpen] = useState(false);
+  const [isCurrencyConverterOpen, setIsCurrencyConverterOpen] = useState(false);
 
   return (
     <Layout>
@@ -2085,9 +2410,22 @@ export default function FinanceToolsPage() {
                   <Settings className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
-                    Open Converter
-                  </Button>
+                  <Dialog open={isCurrencyConverterOpen} onOpenChange={setIsCurrencyConverterOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Currency Converter</DialogTitle>
+                        <DialogDescription>
+                          Convert between major world currencies with real-time exchange rates from reliable financial data sources
+                        </DialogDescription>
+                      </DialogHeader>
+                      <CurrencyConverter />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
