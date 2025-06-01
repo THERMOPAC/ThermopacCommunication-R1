@@ -190,6 +190,7 @@ function Router() {
       {/* Backward compatibility route */}
       <ProtectedRoute path="/production/work-orders/:id" component={WorkOrderDetailPage} />
       <ProtectedRoute path="/shop-floor" component={ShopFloorPage} />
+      <ProtectedRoute path="/daily-production-report" component={DailyProductionReportPage} />
       <ProtectedRoute path="/wps-pqr" component={WpsPqrPage} />
       <ProtectedRoute path="/wpqr" component={WpqrPage} />
       <ProtectedRoute path="/welder-management" component={WelderManagementPage} />
