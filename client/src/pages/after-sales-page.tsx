@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -8,17 +11,136 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2, BarChart3, LineChart, UserCheck, Calendar, FileText, ClipboardCheck } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, BarChart3, LineChart, UserCheck, Calendar, FileText, ClipboardCheck, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import Layout from "@/components/layout";
+
+// Form schema for service request creation
+const serviceRequestSchema = z.object({
+  customer_id: z.string().min(1, "Customer is required"),
+  project_id: z.string().optional(),
+  request_type: z.string().min(1, "Request type is required"),
+  subject: z.string().min(1, "Subject is required"),
+  description: z.string().optional(),
+  priority: z.string().default("Medium"),
+  assigned_to: z.string().optional(),
+});
+
+type ServiceRequestFormValues = z.infer<typeof serviceRequestSchema>;
 
 export default function AfterSalesPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [isCreatingRequest, setIsCreatingRequest] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const { data: dashboardData, isLoading: isDashboardLoading } = useQuery({
     queryKey: ['/api/after-sales/dashboard'],
     enabled: activeTab === "dashboard",
   });
+
+  // Fetch customers for the dropdown
+  const { data: customers } = useQuery({
+    queryKey: ['/api/customers'],
+    enabled: isCreatingRequest,
+  });
+
+  // Fetch projects for the dropdown
+  const { data: projects } = useQuery({
+    queryKey: ['/api/projects'],
+    enabled: isCreatingRequest,
+  });
+
+  // Fetch users for assignment dropdown
+  const { data: users } = useQuery({
+    queryKey: ['/api/users'],
+    enabled: isCreatingRequest,
+  });
+
+  // Form setup
+  const form = useForm<ServiceRequestFormValues>({
+    resolver: zodResolver(serviceRequestSchema),
+    defaultValues: {
+      priority: "Medium",
+      request_type: "",
+      subject: "",
+      description: "",
+    },
+  });
+
+  // Create service request mutation
+  const createServiceRequestMutation = useMutation({
+    mutationFn: async (values: ServiceRequestFormValues) => {
+      const data = {
+        ...values,
+        customer_id: parseInt(values.customer_id),
+        project_id: values.project_id ? parseInt(values.project_id) : null,
+        assigned_to: values.assigned_to ? parseInt(values.assigned_to) : null,
+      };
+      
+      const response = await fetch('/api/after-sales/service-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create service request');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Service request created successfully",
+      });
+      setIsCreatingRequest(false);
+      form.reset();
+      queryClient.invalidateQueries({ queryKey: ['/api/after-sales/dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/after-sales/service-requests'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create service request",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (values: ServiceRequestFormValues) => {
+    createServiceRequestMutation.mutate(values);
+  };
 
   return (
     <Layout>
@@ -27,7 +149,10 @@ export default function AfterSalesPage() {
           <h1 className="text-3xl font-bold tracking-tight">After-Sales Service</h1>
           <div className="flex items-center gap-4">
             <Button variant="outline">Export Data</Button>
-            <Button>New Service Request</Button>
+            <Button onClick={() => setIsCreatingRequest(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Service Request
+            </Button>
           </div>
         </div>
         
@@ -250,6 +375,205 @@ export default function AfterSalesPage() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Service Request Creation Dialog */}
+        <Dialog open={isCreatingRequest} onOpenChange={setIsCreatingRequest}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Create New Service Request</DialogTitle>
+              <DialogDescription>
+                Create a new service request for customer support and maintenance activities.
+              </DialogDescription>
+            </DialogHeader>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="customer_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customer *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select customer" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {customers?.map((customer: any) => (
+                              <SelectItem key={customer.id} value={customer.id.toString()}>
+                                {customer.bpName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="project_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Project (Optional)</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select project" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">No Project</SelectItem>
+                            {projects?.map((project: any) => (
+                              <SelectItem key={project.id} value={project.id.toString()}>
+                                {project.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="request_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Request Type *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Maintenance">Maintenance</SelectItem>
+                            <SelectItem value="Repair">Repair</SelectItem>
+                            <SelectItem value="Installation">Installation</SelectItem>
+                            <SelectItem value="Training">Training</SelectItem>
+                            <SelectItem value="Consultation">Consultation</SelectItem>
+                            <SelectItem value="Inspection">Inspection</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Priority</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Low">Low</SelectItem>
+                            <SelectItem value="Medium">Medium</SelectItem>
+                            <SelectItem value="High">High</SelectItem>
+                            <SelectItem value="Critical">Critical</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="subject"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subject *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter subject" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Enter detailed description"
+                          className="min-h-[100px]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="assigned_to"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assign To (Optional)</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select assignee" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">Unassigned</SelectItem>
+                          {users?.map((user: any) => (
+                            <SelectItem key={user.id} value={user.id.toString()}>
+                              {user.username}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsCreatingRequest(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={createServiceRequestMutation.isPending}
+                  >
+                    {createServiceRequestMutation.isPending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Create Request
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
