@@ -31,6 +31,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 // Shell Thickness Calculator Component
 function ShellThicknessCalculator() {
@@ -304,7 +305,20 @@ export default function DesignToolsPage() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Per ASME Section VIII Div. 1 requirements
                   </p>
-                  <ShellThicknessCalculator />
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Shell Thickness Calculator</DialogTitle>
+                      </DialogHeader>
+                      <ShellThicknessCalculator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
