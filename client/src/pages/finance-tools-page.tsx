@@ -248,6 +248,229 @@ function LoanCalculator() {
   );
 }
 
+// Profit Margin Calculator Component
+function ProfitMarginCalculator() {
+  const [revenue, setRevenue] = useState("");
+  const [costOfGoods, setCostOfGoods] = useState("");
+  const [operatingExpenses, setOperatingExpenses] = useState("");
+  const [calculationType, setCalculationType] = useState("gross");
+  const [result, setResult] = useState<{
+    grossProfit: number;
+    netProfit: number;
+    grossMargin: number;
+    netMargin: number;
+    markup: number;
+    breakdownData: Array<{
+      label: string;
+      amount: number;
+      percentage: number;
+    }>;
+  } | null>(null);
+
+  const calculateProfitMargin = () => {
+    const rev = parseFloat(revenue);
+    const cogs = parseFloat(costOfGoods);
+    const opex = parseFloat(operatingExpenses) || 0;
+
+    if (isNaN(rev) || isNaN(cogs) || rev <= 0 || cogs < 0) {
+      return;
+    }
+
+    const grossProfit = rev - cogs;
+    const netProfit = grossProfit - opex;
+    const grossMargin = (grossProfit / rev) * 100;
+    const netMargin = (netProfit / rev) * 100;
+    const markup = cogs > 0 ? (grossProfit / cogs) * 100 : 0;
+
+    const breakdownData = [
+      { label: "Revenue", amount: rev, percentage: 100 },
+      { label: "Cost of Goods Sold", amount: cogs, percentage: (cogs / rev) * 100 },
+      { label: "Gross Profit", amount: grossProfit, percentage: grossMargin },
+      { label: "Operating Expenses", amount: opex, percentage: (opex / rev) * 100 },
+      { label: "Net Profit", amount: netProfit, percentage: netMargin }
+    ];
+
+    setResult({
+      grossProfit,
+      netProfit,
+      grossMargin,
+      netMargin,
+      markup,
+      breakdownData
+    });
+  };
+
+  const resetCalculator = () => {
+    setRevenue("");
+    setCostOfGoods("");
+    setOperatingExpenses("");
+    setCalculationType("gross");
+    setResult(null);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const formatPercentage = (value: number) => {
+    return `${value.toFixed(2)}%`;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="revenue">Total Revenue (₹)</Label>
+            <Input
+              id="revenue"
+              type="number"
+              placeholder="Enter total revenue"
+              value={revenue}
+              onChange={(e) => setRevenue(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="costOfGoods">Cost of Goods Sold (₹)</Label>
+            <Input
+              id="costOfGoods"
+              type="number"
+              placeholder="Enter cost of goods sold"
+              value={costOfGoods}
+              onChange={(e) => setCostOfGoods(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="operatingExpenses">Operating Expenses (₹) - Optional</Label>
+            <Input
+              id="operatingExpenses"
+              type="number"
+              placeholder="Enter operating expenses"
+              value={operatingExpenses}
+              onChange={(e) => setOperatingExpenses(e.target.value)}
+              className="text-right"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={calculateProfitMargin} className="flex-1">
+              Calculate
+            </Button>
+            <Button variant="outline" onClick={resetCalculator}>
+              Reset
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {result && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Gross Profit</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">
+                      {formatCurrency(result.grossProfit)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {formatPercentage(result.grossMargin)} margin
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className={`text-2xl font-bold ${result.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(result.netProfit)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {formatPercentage(result.netMargin)} margin
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Markup Percentage</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl font-bold text-blue-600">
+                    {formatPercentage(result.markup)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Markup over cost of goods
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Financial Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {result.breakdownData.map((item, index) => (
+                      <div key={index} className="flex justify-between items-center text-sm">
+                        <span>{item.label}</span>
+                        <div className="text-right">
+                          <div className="font-medium">{formatCurrency(item.amount)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatPercentage(item.percentage)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {!result && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Enter revenue and cost details to calculate profit margins</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+        <h3 className="font-semibold mb-2">Key Metrics Explained:</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Gross Margin:</strong> (Revenue - COGS) ÷ Revenue × 100</p>
+            <p><strong>Net Margin:</strong> (Revenue - COGS - Operating Expenses) ÷ Revenue × 100</p>
+          </div>
+          <div>
+            <p><strong>Markup:</strong> (Selling Price - Cost) ÷ Cost × 100</p>
+            <p><strong>Break-even:</strong> Total Costs ÷ Gross Margin</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Tax Calculator Component (Advance Tax Calculator for Corporate Taxpayers in India)
 function TaxCalculator() {
   const [annualIncome, setAnnualIncome] = useState("");
@@ -1003,6 +1226,7 @@ export default function FinanceToolsPage() {
   const [isInterestCalculatorOpen, setIsInterestCalculatorOpen] = useState(false);
   const [isLoanCalculatorOpen, setIsLoanCalculatorOpen] = useState(false);
   const [isTaxCalculatorOpen, setIsTaxCalculatorOpen] = useState(false);
+  const [isProfitMarginCalculatorOpen, setIsProfitMarginCalculatorOpen] = useState(false);
 
   return (
     <Layout>
@@ -1128,9 +1352,22 @@ export default function FinanceToolsPage() {
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
-                    Open Calculator
-                  </Button>
+                  <Dialog open={isProfitMarginCalculatorOpen} onOpenChange={setIsProfitMarginCalculatorOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Profit Margin Calculator</DialogTitle>
+                        <DialogDescription>
+                          Calculate gross profit, net profit, markup percentages, and view detailed financial breakdowns
+                        </DialogDescription>
+                      </DialogHeader>
+                      <ProfitMarginCalculator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
