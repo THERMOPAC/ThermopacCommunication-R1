@@ -37,7 +37,7 @@ import {
 
 export default function TaskDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("my");
   // Removed due date filter as per requirement
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
@@ -56,7 +56,9 @@ export default function TaskDashboard() {
     let filteredTasks = [...tasks];
     
     // Filter by tab
-    if (activeTab === "pending") {
+    if (activeTab === "my") {
+      filteredTasks = filteredTasks.filter(task => task.assigneeId === user?.id);
+    } else if (activeTab === "pending") {
       filteredTasks = filteredTasks.filter(task => task.status === "pending");
     } else if (activeTab === "completed") {
       filteredTasks = filteredTasks.filter(task => task.status === "completed");
@@ -109,6 +111,7 @@ export default function TaskDashboard() {
   const filteredTasks = filterTasks(tasks);
 
   // Count tasks by status
+  const myTasksCount = tasks.filter(task => task.assigneeId === user?.id).length;
   const pendingCount = tasks.filter(task => task.status === "pending").length;
   const completedCount = tasks.filter(task => task.status === "completed").length;
   
@@ -297,8 +300,12 @@ export default function TaskDashboard() {
       </div>
       
       {/* Task filters by status */}
-      <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="my" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="my" className="flex items-center justify-center gap-2">
+            My Tasks
+            <Badge variant="secondary">{myTasksCount}</Badge>
+          </TabsTrigger>
           <TabsTrigger value="all" className="flex items-center justify-center gap-2">
             All Tasks
             <Badge variant="secondary">{tasks.length}</Badge>
