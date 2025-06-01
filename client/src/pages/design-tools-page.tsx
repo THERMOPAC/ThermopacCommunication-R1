@@ -30,6 +30,10 @@ import {
   Square,
   Activity,
   TrendingUp,
+  TrendingDown,
+  Move,
+  Waves,
+  CornerDownRight,
   CheckCircle,
   AlertTriangle,
   Info
