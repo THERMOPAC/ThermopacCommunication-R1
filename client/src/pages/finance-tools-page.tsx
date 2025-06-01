@@ -760,6 +760,320 @@ function BreakEvenCalculator() {
   );
 }
 
+// Number Converter Component
+function NumberConverter() {
+  const [numberInput, setNumberInput] = useState("");
+  const [wordsInput, setWordsInput] = useState("");
+  const [convertedWords, setConvertedWords] = useState("");
+  const [convertedNumber, setConvertedNumber] = useState("");
+  const [conversionType, setConversionType] = useState("numberToWords");
+  const [currency, setCurrency] = useState("INR");
+  const [error, setError] = useState<string | null>(null);
+
+  // Number to words conversion
+  const numberToWords = (num: number): string => {
+    if (num === 0) return "Zero";
+    
+    const ones = [
+      "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+      "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+      "Seventeen", "Eighteen", "Nineteen"
+    ];
+    
+    const tens = [
+      "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"
+    ];
+    
+    const convert = (n: number): string => {
+      if (n === 0) return "";
+      if (n < 20) return ones[n];
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + ones[n % 10] : "");
+      if (n < 1000) return ones[Math.floor(n / 100)] + " Hundred" + (n % 100 !== 0 ? " " + convert(n % 100) : "");
+      if (n < 100000) return convert(Math.floor(n / 1000)) + " Thousand" + (n % 1000 !== 0 ? " " + convert(n % 1000) : "");
+      if (n < 10000000) return convert(Math.floor(n / 100000)) + " Lakh" + (n % 100000 !== 0 ? " " + convert(n % 100000) : "");
+      if (n < 1000000000) return convert(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 !== 0 ? " " + convert(n % 10000000) : "");
+      return convert(Math.floor(n / 1000000000)) + " Arab" + (n % 1000000000 !== 0 ? " " + convert(n % 1000000000) : "");
+    };
+    
+    return convert(num);
+  };
+
+  // Words to number conversion (basic implementation)
+  const wordsToNumber = (words: string): number => {
+    const wordMap: { [key: string]: number } = {
+      "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+      "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+      "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
+      "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20,
+      "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
+      "eighty": 80, "ninety": 90, "hundred": 100, "thousand": 1000,
+      "lakh": 100000, "crore": 10000000, "arab": 1000000000
+    };
+
+    const cleanWords = words.toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/);
+    let result = 0;
+    let current = 0;
+    
+    for (const word of cleanWords) {
+      if (wordMap[word]) {
+        const value = wordMap[word];
+        if (value === 100) {
+          current *= 100;
+        } else if (value >= 1000) {
+          result += current * value;
+          current = 0;
+        } else {
+          current += value;
+        }
+      }
+    }
+    
+    return result + current;
+  };
+
+  const convertNumberToWords = () => {
+    setError(null);
+    const num = parseFloat(numberInput);
+    
+    if (isNaN(num)) {
+      setError("Please enter a valid number");
+      return;
+    }
+    
+    if (num < 0) {
+      setError("Negative numbers are not supported");
+      return;
+    }
+    
+    if (num > 999999999999) {
+      setError("Number too large (maximum 999,999,999,999)");
+      return;
+    }
+    
+    const integerPart = Math.floor(num);
+    const decimalPart = Math.round((num - integerPart) * 100);
+    
+    let result = numberToWords(integerPart);
+    
+    if (currency === "INR") {
+      result += " Rupees";
+      if (decimalPart > 0) {
+        result += " and " + numberToWords(decimalPart) + " Paise";
+      }
+    } else {
+      result += " Dollars";
+      if (decimalPart > 0) {
+        result += " and " + numberToWords(decimalPart) + " Cents";
+      }
+    }
+    
+    result += " Only";
+    setConvertedWords(result);
+  };
+
+  const convertWordsToNumber = () => {
+    setError(null);
+    try {
+      const num = wordsToNumber(wordsInput);
+      if (num === 0 && !wordsInput.toLowerCase().includes("zero")) {
+        setError("Could not parse the words. Please check spelling and format.");
+        return;
+      }
+      setConvertedNumber(num.toLocaleString('en-IN'));
+    } catch (err) {
+      setError("Error converting words to number. Please check the format.");
+    }
+  };
+
+  const resetConverter = () => {
+    setNumberInput("");
+    setWordsInput("");
+    setConvertedWords("");
+    setConvertedNumber("");
+    setError(null);
+  };
+
+  const formatIndianNumber = (num: string) => {
+    const number = parseFloat(num);
+    if (isNaN(number)) return "";
+    return new Intl.NumberFormat('en-IN').format(number);
+  };
+
+  const sampleConversions = [
+    { number: "1234567", words: "Twelve Lakh Thirty Four Thousand Five Hundred Sixty Seven" },
+    { number: "50000", words: "Fifty Thousand" },
+    { number: "100", words: "One Hundred" },
+    { number: "999", words: "Nine Hundred Ninety Nine" }
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="conversionType">Conversion Type</Label>
+            <Select value={conversionType} onValueChange={setConversionType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="numberToWords">Number to Words</SelectItem>
+                <SelectItem value="wordsToNumber">Words to Number</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {conversionType === "numberToWords" && (
+            <>
+              <div>
+                <Label htmlFor="numberInput">Enter Number</Label>
+                <Input
+                  id="numberInput"
+                  type="number"
+                  placeholder="Enter number (e.g., 1234567)"
+                  value={numberInput}
+                  onChange={(e) => setNumberInput(e.target.value)}
+                  className="text-right"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Formatted: {numberInput ? formatIndianNumber(numberInput) : ""}
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="currency">Currency Format</Label>
+                <Select value={currency} onValueChange={setCurrency}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INR">Indian Rupees (INR)</SelectItem>
+                    <SelectItem value="USD">US Dollars (USD)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button onClick={convertNumberToWords} className="w-full">
+                Convert to Words
+              </Button>
+            </>
+          )}
+
+          {conversionType === "wordsToNumber" && (
+            <>
+              <div>
+                <Label htmlFor="wordsInput">Enter Words</Label>
+                <textarea
+                  id="wordsInput"
+                  placeholder="Enter number in words (e.g., One Lakh Twenty Three Thousand Four Hundred Fifty Six)"
+                  value={wordsInput}
+                  onChange={(e) => setWordsInput(e.target.value)}
+                  className="w-full min-h-[100px] p-3 border rounded-md resize-none"
+                />
+              </div>
+
+              <Button onClick={convertWordsToNumber} className="w-full">
+                Convert to Number
+              </Button>
+            </>
+          )}
+
+          <Button variant="outline" onClick={resetConverter} className="w-full">
+            Reset
+          </Button>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          {convertedWords && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Words Result</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm font-medium text-green-800 break-words">
+                    {convertedWords}
+                  </p>
+                </div>
+                <div className="mt-3 text-xs text-muted-foreground">
+                  <p><strong>Input:</strong> {formatIndianNumber(numberInput)}</p>
+                  <p><strong>Currency:</strong> {currency === "INR" ? "Indian Rupees" : "US Dollars"}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {convertedNumber && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Number Result</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-lg font-bold text-blue-800">
+                    {convertedNumber}
+                  </p>
+                </div>
+                <div className="mt-3 text-xs text-muted-foreground">
+                  <p><strong>Input:</strong> {wordsInput}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!convertedWords && !convertedNumber && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Enter a number or words to see the conversion</p>
+                  <p className="text-xs mt-2">Perfect for financial documents and check writing</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Sample Conversions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-xs">
+                {sampleConversions.map((sample, index) => (
+                  <div key={index} className="border-b pb-2 last:border-b-0">
+                    <div className="font-medium">{formatIndianNumber(sample.number)}</div>
+                    <div className="text-muted-foreground">{sample.words}</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+        <h3 className="font-semibold mb-2">Number Conversion Features:</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Indian Number System:</strong> Supports Lakh, Crore, Arab notation</p>
+            <p><strong>Currency Format:</strong> Rupees/Paise and Dollars/Cents</p>
+          </div>
+          <div>
+            <p><strong>Range:</strong> Up to 999,999,999,999 (999 Arab)</p>
+            <p><strong>Use Cases:</strong> Check writing, financial documents</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Currency Converter Component
 function CurrencyConverter() {
   const [amount, setAmount] = useState("");
@@ -2190,6 +2504,7 @@ export default function FinanceToolsPage() {
   const [isBreakEvenCalculatorOpen, setIsBreakEvenCalculatorOpen] = useState(false);
   const [isROICalculatorOpen, setIsROICalculatorOpen] = useState(false);
   const [isCurrencyConverterOpen, setIsCurrencyConverterOpen] = useState(false);
+  const [isNumberConverterOpen, setIsNumberConverterOpen] = useState(false);
 
   return (
     <Layout>
@@ -2440,9 +2755,22 @@ export default function FinanceToolsPage() {
                   <Settings className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
-                    Open Converter
-                  </Button>
+                  <Dialog open={isNumberConverterOpen} onOpenChange={setIsNumberConverterOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Number Converter</DialogTitle>
+                        <DialogDescription>
+                          Convert numbers to words and vice versa. Perfect for financial documents, check writing, and official paperwork with Indian number system support
+                        </DialogDescription>
+                      </DialogHeader>
+                      <NumberConverter />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
