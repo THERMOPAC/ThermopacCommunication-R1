@@ -37,7 +37,11 @@ import {
   CheckCircle,
   AlertTriangle,
   Info,
-  Weight
+  Weight,
+  Scale,
+  Flame,
+  Filter,
+  Beaker
 } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -7805,87 +7809,289 @@ export default function DesignToolsPage() {
           <TabsContent value="analysis" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               
+              {/* Mass & Energy Balance Tool */}
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
-                    <CardTitle className="text-base">Structural Analysis</CardTitle>
+                    <CardTitle className="text-base">Mass & Energy Balance</CardTitle>
                     <CardDescription>
-                      FEA and structural calculations
+                      Component material balance calculations
                     </CardDescription>
                   </div>
-                  <Target className="h-4 w-4 text-muted-foreground" />
+                  <Scale className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Cpu className="h-4 w-4 mr-2" />
-                      ANSYS Structural
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Target className="h-4 w-4 mr-2" />
-                      SAP2000
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Calculator className="h-4 w-4 mr-2" />
-                      STAAD.Pro
-                    </Button>
-                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Mass & Energy Balance Tool</DialogTitle>
+                      </DialogHeader>
+                      <MassEnergyBalanceCalculator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
+              {/* Pressure Drop Analyzer */}
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
-                    <CardTitle className="text-base">Thermal Analysis</CardTitle>
+                    <CardTitle className="text-base">Pressure Drop Analyzer</CardTitle>
                     <CardDescription>
-                      Heat transfer calculations
+                      Piping system pressure drop analysis
                     </CardDescription>
                   </div>
-                  <Gauge className="h-4 w-4 text-muted-foreground" />
+                  <TrendingDown className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Gauge className="h-4 w-4 mr-2" />
-                      ANSYS Fluent
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Calculator className="h-4 w-4 mr-2" />
-                      Heat Exchanger Design
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Cpu className="h-4 w-4 mr-2" />
-                      HTRI
-                    </Button>
-                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Pressure Drop Analyzer</DialogTitle>
+                      </DialogHeader>
+                      <PressureDropAnalyzer />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
+              {/* Pump Sizing & NPSH Calculator */}
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
-                    <CardTitle className="text-base">Process Simulation</CardTitle>
+                    <CardTitle className="text-base">Pump Sizing & NPSH</CardTitle>
                     <CardDescription>
-                      Process flow modeling
+                      Centrifugal pump selection & analysis
                     </CardDescription>
                   </div>
-                  <Workflow className="h-4 w-4 text-muted-foreground" />
+                  <Zap className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Workflow className="h-4 w-4 mr-2" />
-                      Aspen Plus
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Factory className="h-4 w-4 mr-2" />
-                      HYSYS
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Calculator className="h-4 w-4 mr-2" />
-                      Process Calculations
-                    </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Pump Sizing & NPSH Calculator</DialogTitle>
+                      </DialogHeader>
+                      <PumpSizingCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Control Valve Sizing */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Control Valve Sizing (Cv)</CardTitle>
+                    <CardDescription>
+                      Flow coefficient calculation
+                    </CardDescription>
                   </div>
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Control Valve Sizing Tool</DialogTitle>
+                      </DialogHeader>
+                      <ControlValveSizing />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Flare Load Estimator */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Flare Load Estimator</CardTitle>
+                    <CardDescription>
+                      Emergency relief system sizing
+                    </CardDescription>
+                  </div>
+                  <Flame className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Flare Load Estimator</DialogTitle>
+                      </DialogHeader>
+                      <FlareLoadEstimator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Line Sizing Tool */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Line Sizing Tool</CardTitle>
+                    <CardDescription>
+                      Optimal pipe diameter selection
+                    </CardDescription>
+                  </div>
+                  <Ruler className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Line Sizing Tool</DialogTitle>
+                      </DialogHeader>
+                      <LineSizingTool />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Two-Phase Flow Analyzer */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Two-Phase Flow Analyzer</CardTitle>
+                    <CardDescription>
+                      Gas-liquid flow calculations
+                    </CardDescription>
+                  </div>
+                  <Waves className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Two-Phase Flow Analyzer</DialogTitle>
+                      </DialogHeader>
+                      <TwoPhaseFlowAnalyzer />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Separator Design Checker */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Separator Design Checker</CardTitle>
+                    <CardDescription>
+                      Gas-liquid separator sizing
+                    </CardDescription>
+                  </div>
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Separator Design Checker</DialogTitle>
+                      </DialogHeader>
+                      <SeparatorDesignChecker />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Fluid Properties Lookup */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Fluid Properties Lookup</CardTitle>
+                    <CardDescription>
+                      Physical property database
+                    </CardDescription>
+                  </div>
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Fluid Properties Lookup</DialogTitle>
+                      </DialogHeader>
+                      <FluidPropertiesLookup />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Reynolds Number Calculator */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Reynolds Number Calculator</CardTitle>
+                    <CardDescription>
+                      Flow regime determination
+                    </CardDescription>
+                  </div>
+                  <Calculator className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Reynolds Number Calculator</DialogTitle>
+                      </DialogHeader>
+                      <ReynoldsNumberCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Flash Calculation Tool */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Flash Calculation Tool</CardTitle>
+                    <CardDescription>
+                      Vapor-liquid equilibrium
+                    </CardDescription>
+                  </div>
+                  <Beaker className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">Open Calculator</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Flash Calculation Tool</DialogTitle>
+                      </DialogHeader>
+                      <FlashCalculationTool />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
@@ -8061,5 +8267,1344 @@ export default function DesignToolsPage() {
         </Card>
       </div>
     </Layout>
+  );
+}
+
+// Mass & Energy Balance Calculator
+function MassEnergyBalanceCalculator() {
+  const [inputFlow, setInputFlow] = useState("");
+  const [inputComposition, setInputComposition] = useState("");
+  const [outputFlow1, setOutputFlow1] = useState("");
+  const [outputFlow2, setOutputFlow2] = useState("");
+  const [result, setResult] = useState<{ balanced: boolean; deficit: number; excess: number } | null>(null);
+
+  const calculateBalance = () => {
+    const input = parseFloat(inputFlow);
+    const output1 = parseFloat(outputFlow1);
+    const output2 = parseFloat(outputFlow2);
+
+    if (isNaN(input) || isNaN(output1) || isNaN(output2)) {
+      setResult(null);
+      return;
+    }
+
+    const totalOutput = output1 + output2;
+    const difference = input - totalOutput;
+    const balanced = Math.abs(difference) < 0.01;
+
+    setResult({
+      balanced,
+      deficit: difference < 0 ? Math.abs(difference) : 0,
+      excess: difference > 0 ? difference : 0
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="inputFlow">Input Flow (kg/h)</Label>
+          <Input
+            id="inputFlow"
+            value={inputFlow}
+            onChange={(e) => setInputFlow(e.target.value)}
+            placeholder="1000"
+          />
+        </div>
+        <div>
+          <Label htmlFor="inputComposition">Input Composition (%)</Label>
+          <Input
+            id="inputComposition"
+            value={inputComposition}
+            onChange={(e) => setInputComposition(e.target.value)}
+            placeholder="95"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="output1">Output Stream 1 (kg/h)</Label>
+          <Input
+            id="output1"
+            value={outputFlow1}
+            onChange={(e) => setOutputFlow1(e.target.value)}
+            placeholder="600"
+          />
+        </div>
+        <div>
+          <Label htmlFor="output2">Output Stream 2 (kg/h)</Label>
+          <Input
+            id="output2"
+            value={outputFlow2}
+            onChange={(e) => setOutputFlow2(e.target.value)}
+            placeholder="400"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateBalance} className="w-full">
+        Calculate Mass Balance
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Mass Balance Results</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Balance Status:</span>
+              <span className={`font-mono ${result.balanced ? 'text-green-600' : 'text-red-600'}`}>
+                {result.balanced ? '✓ Balanced' : '✗ Unbalanced'}
+              </span>
+            </div>
+            {result.deficit > 0 && (
+              <div className="flex justify-between">
+                <span>Deficit:</span>
+                <span className="font-mono text-red-600">{result.deficit.toFixed(2)} kg/h</span>
+              </div>
+            )}
+            {result.excess > 0 && (
+              <div className="flex justify-between">
+                <span>Excess:</span>
+                <span className="font-mono text-blue-600">{result.excess.toFixed(2)} kg/h</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Note:</strong> Simplified mass balance for demonstration</p>
+        <p>For complex systems, use process simulation software</p>
+      </div>
+    </div>
+  );
+}
+
+// Pressure Drop Analyzer
+function PressureDropAnalyzer() {
+  const [flowRate, setFlowRate] = useState("");
+  const [pipeDiameter, setPipeDiameter] = useState("");
+  const [pipeLength, setPipeLength] = useState("");
+  const [fluidViscosity, setFluidViscosity] = useState("");
+  const [fluidDensity, setFluidDensity] = useState("");
+  const [result, setResult] = useState<{ pressureDrop: number; velocityHead: number; reynolds: number } | null>(null);
+
+  const calculatePressureDrop = () => {
+    const Q = parseFloat(flowRate);
+    const D = parseFloat(pipeDiameter) / 1000; // Convert mm to m
+    const L = parseFloat(pipeLength);
+    const mu = parseFloat(fluidViscosity);
+    const rho = parseFloat(fluidDensity);
+
+    if (isNaN(Q) || isNaN(D) || isNaN(L) || isNaN(mu) || isNaN(rho)) {
+      setResult(null);
+      return;
+    }
+
+    const A = Math.PI * Math.pow(D/2, 2);
+    const v = Q / A / 3600; // m/s
+    const Re = (rho * v * D) / mu;
+    
+    // Simplified friction factor (Blasius equation for smooth pipes)
+    const f = Re > 2300 ? 0.316 * Math.pow(Re, -0.25) : 64 / Re;
+    
+    const pressureDrop = (f * L * rho * Math.pow(v, 2)) / (2 * D) / 1000; // kPa
+    const velocityHead = (rho * Math.pow(v, 2)) / 2000; // kPa
+
+    setResult({
+      pressureDrop,
+      velocityHead,
+      reynolds: Re
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="flowRate">Flow Rate (m³/h)</Label>
+          <Input
+            id="flowRate"
+            value={flowRate}
+            onChange={(e) => setFlowRate(e.target.value)}
+            placeholder="50"
+          />
+        </div>
+        <div>
+          <Label htmlFor="pipeDiameter">Pipe Diameter (mm)</Label>
+          <Input
+            id="pipeDiameter"
+            value={pipeDiameter}
+            onChange={(e) => setPipeDiameter(e.target.value)}
+            placeholder="150"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <Label htmlFor="pipeLength">Pipe Length (m)</Label>
+          <Input
+            id="pipeLength"
+            value={pipeLength}
+            onChange={(e) => setPipeLength(e.target.value)}
+            placeholder="100"
+          />
+        </div>
+        <div>
+          <Label htmlFor="fluidViscosity">Viscosity (Pa·s)</Label>
+          <Input
+            id="fluidViscosity"
+            value={fluidViscosity}
+            onChange={(e) => setFluidViscosity(e.target.value)}
+            placeholder="0.001"
+          />
+        </div>
+        <div>
+          <Label htmlFor="fluidDensity">Density (kg/m³)</Label>
+          <Input
+            id="fluidDensity"
+            value={fluidDensity}
+            onChange={(e) => setFluidDensity(e.target.value)}
+            placeholder="1000"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculatePressureDrop} className="w-full">
+        Calculate Pressure Drop
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Pressure Drop Analysis</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Pressure Drop:</span>
+              <span className="font-mono">{result.pressureDrop.toFixed(2)} kPa</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Velocity Head:</span>
+              <span className="font-mono">{result.velocityHead.toFixed(2)} kPa</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Reynolds Number:</span>
+              <span className="font-mono">{result.reynolds.toFixed(0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Flow Regime:</span>
+              <span className={`font-mono ${result.reynolds > 2300 ? 'text-blue-600' : 'text-green-600'}`}>
+                {result.reynolds > 2300 ? 'Turbulent' : 'Laminar'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Method:</strong> Darcy-Weisbach equation with Blasius friction factor</p>
+        <p><strong>Note:</strong> For accurate results, consider pipe roughness and fittings</p>
+      </div>
+    </div>
+  );
+}
+
+// Pump Sizing Calculator
+function PumpSizingCalculator() {
+  const [flowRate, setFlowRate] = useState("");
+  const [totalHead, setTotalHead] = useState("");
+  const [efficiency, setEfficiency] = useState("75");
+  const [npshAvailable, setNpshAvailable] = useState("");
+  const [result, setResult] = useState<{ power: number; npshRequired: number; specificSpeed: number } | null>(null);
+
+  const calculatePumpSize = () => {
+    const Q = parseFloat(flowRate);
+    const H = parseFloat(totalHead);
+    const eff = parseFloat(efficiency) / 100;
+    const npshA = parseFloat(npshAvailable);
+
+    if (isNaN(Q) || isNaN(H) || isNaN(eff) || isNaN(npshA)) {
+      setResult(null);
+      return;
+    }
+
+    const power = (Q * H * 9.81) / (3600 * eff); // kW
+    const npshRequired = 0.05 * Math.pow(Q / 3.6, 0.67); // Estimated NPSH required
+    const specificSpeed = (Q * Math.sqrt(H)) / Math.pow(H, 0.75);
+
+    setResult({
+      power,
+      npshRequired,
+      specificSpeed
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="flowRate">Flow Rate (m³/h)</Label>
+          <Input
+            id="flowRate"
+            value={flowRate}
+            onChange={(e) => setFlowRate(e.target.value)}
+            placeholder="100"
+          />
+        </div>
+        <div>
+          <Label htmlFor="totalHead">Total Head (m)</Label>
+          <Input
+            id="totalHead"
+            value={totalHead}
+            onChange={(e) => setTotalHead(e.target.value)}
+            placeholder="30"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="efficiency">Pump Efficiency (%)</Label>
+          <Input
+            id="efficiency"
+            value={efficiency}
+            onChange={(e) => setEfficiency(e.target.value)}
+            placeholder="75"
+          />
+        </div>
+        <div>
+          <Label htmlFor="npshAvailable">NPSH Available (m)</Label>
+          <Input
+            id="npshAvailable"
+            value={npshAvailable}
+            onChange={(e) => setNpshAvailable(e.target.value)}
+            placeholder="5"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculatePumpSize} className="w-full">
+        Calculate Pump Requirements
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Pump Sizing Results</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Required Power:</span>
+              <span className="font-mono">{result.power.toFixed(2)} kW</span>
+            </div>
+            <div className="flex justify-between">
+              <span>NPSH Required:</span>
+              <span className="font-mono">{result.npshRequired.toFixed(2)} m</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Specific Speed:</span>
+              <span className="font-mono">{result.specificSpeed.toFixed(1)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>NPSH Margin:</span>
+              <span className={`font-mono ${parseFloat(npshAvailable) > result.npshRequired ? 'text-green-600' : 'text-red-600'}`}>
+                {(parseFloat(npshAvailable) - result.npshRequired).toFixed(2)} m
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Standard:</strong> Centrifugal pump calculations per API 610</p>
+        <p><strong>Note:</strong> Add 10-20% safety margin to calculated power</p>
+      </div>
+    </div>
+  );
+}
+
+// Control Valve Sizing
+function ControlValveSizing() {
+  const [flowRate, setFlowRate] = useState("");
+  const [pressureDrop, setPressureDrop] = useState("");
+  const [fluidDensity, setFluidDensity] = useState("");
+  const [fluidType, setFluidType] = useState("liquid");
+  const [result, setResult] = useState<{ cv: number; kvs: number; valveSize: string } | null>(null);
+
+  const calculateCv = () => {
+    const Q = parseFloat(flowRate);
+    const deltaP = parseFloat(pressureDrop);
+    const rho = parseFloat(fluidDensity);
+
+    if (isNaN(Q) || isNaN(deltaP) || isNaN(rho)) {
+      setResult(null);
+      return;
+    }
+
+    let cv;
+    if (fluidType === "liquid") {
+      cv = Q * Math.sqrt(rho / (1000 * deltaP));
+    } else {
+      // Gas flow (simplified)
+      cv = Q * Math.sqrt(rho / (1.3 * deltaP));
+    }
+
+    const kvs = cv * 0.865; // Convert Cv to Kvs
+    
+    // Estimate valve size based on Cv
+    let valveSize = "DN15";
+    if (cv > 100) valveSize = "DN150";
+    else if (cv > 50) valveSize = "DN100";
+    else if (cv > 25) valveSize = "DN80";
+    else if (cv > 12) valveSize = "DN50";
+    else if (cv > 6) valveSize = "DN40";
+    else if (cv > 3) valveSize = "DN32";
+    else if (cv > 1.5) valveSize = "DN25";
+    else if (cv > 0.8) valveSize = "DN20";
+
+    setResult({
+      cv,
+      kvs,
+      valveSize
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="flowRate">Flow Rate (m³/h)</Label>
+          <Input
+            id="flowRate"
+            value={flowRate}
+            onChange={(e) => setFlowRate(e.target.value)}
+            placeholder="50"
+          />
+        </div>
+        <div>
+          <Label htmlFor="pressureDrop">Pressure Drop (bar)</Label>
+          <Input
+            id="pressureDrop"
+            value={pressureDrop}
+            onChange={(e) => setPressureDrop(e.target.value)}
+            placeholder="2"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fluidDensity">Fluid Density (kg/m³)</Label>
+          <Input
+            id="fluidDensity"
+            value={fluidDensity}
+            onChange={(e) => setFluidDensity(e.target.value)}
+            placeholder="1000"
+          />
+        </div>
+        <div>
+          <Label htmlFor="fluidType">Fluid Type</Label>
+          <Select value={fluidType} onValueChange={setFluidType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="liquid">Liquid</SelectItem>
+              <SelectItem value="gas">Gas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculateCv} className="w-full">
+        Calculate Cv Value
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Control Valve Sizing</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Cv Value:</span>
+              <span className="font-mono">{result.cv.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Kvs Value:</span>
+              <span className="font-mono">{result.kvs.toFixed(2)} m³/h</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Suggested Size:</span>
+              <span className="font-mono font-semibold">{result.valveSize}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Standard:</strong> IEC 60534 flow coefficient calculations</p>
+        <p><strong>Note:</strong> Consider valve authority and turndown ratio for final selection</p>
+      </div>
+    </div>
+  );
+}
+
+// Flare Load Estimator
+function FlareLoadEstimator() {
+  const [scenario, setScenario] = useState("equipment_failure");
+  const [equipmentCapacity, setEquipmentCapacity] = useState("");
+  const [operatingPressure, setOperatingPressure] = useState("");
+  const [temperature, setTemperature] = useState("");
+  const [result, setResult] = useState<{ flareLoad: number; flareSize: string; stackHeight: number } | null>(null);
+
+  const calculateFlareLoad = () => {
+    const capacity = parseFloat(equipmentCapacity);
+    const pressure = parseFloat(operatingPressure);
+    const temp = parseFloat(temperature);
+
+    if (isNaN(capacity) || isNaN(pressure) || isNaN(temp)) {
+      setResult(null);
+      return;
+    }
+
+    let flareLoad = capacity;
+    
+    // Apply scenario factors
+    switch (scenario) {
+      case "equipment_failure":
+        flareLoad = capacity * 1.1;
+        break;
+      case "power_failure":
+        flareLoad = capacity * 0.8;
+        break;
+      case "cooling_failure":
+        flareLoad = capacity * 1.5;
+        break;
+      case "blocked_outlet":
+        flareLoad = capacity * 1.2;
+        break;
+    }
+
+    // Estimate flare tip size (simplified)
+    const flareSize = flareLoad < 1000 ? "DN200" : 
+                     flareLoad < 5000 ? "DN400" : 
+                     flareLoad < 15000 ? "DN600" : "DN800";
+
+    // Estimate stack height (simplified API 521 approach)
+    const stackHeight = Math.max(15, Math.sqrt(flareLoad / 100) * 10);
+
+    setResult({
+      flareLoad,
+      flareSize,
+      stackHeight
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="scenario">Relief Scenario</Label>
+        <Select value={scenario} onValueChange={setScenario}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="equipment_failure">Equipment Failure</SelectItem>
+            <SelectItem value="power_failure">Power Failure</SelectItem>
+            <SelectItem value="cooling_failure">Cooling Water Failure</SelectItem>
+            <SelectItem value="blocked_outlet">Blocked Outlet</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="equipmentCapacity">Equipment Capacity (kg/h)</Label>
+          <Input
+            id="equipmentCapacity"
+            value={equipmentCapacity}
+            onChange={(e) => setEquipmentCapacity(e.target.value)}
+            placeholder="5000"
+          />
+        </div>
+        <div>
+          <Label htmlFor="operatingPressure">Operating Pressure (bar)</Label>
+          <Input
+            id="operatingPressure"
+            value={operatingPressure}
+            onChange={(e) => setOperatingPressure(e.target.value)}
+            placeholder="10"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="temperature">Operating Temperature (°C)</Label>
+        <Input
+          id="temperature"
+          value={temperature}
+          onChange={(e) => setTemperature(e.target.value)}
+          placeholder="150"
+        />
+      </div>
+
+      <Button onClick={calculateFlareLoad} className="w-full">
+        Estimate Flare Load
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Flare System Sizing</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Relief Load:</span>
+              <span className="font-mono">{result.flareLoad.toFixed(0)} kg/h</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Flare Tip Size:</span>
+              <span className="font-mono">{result.flareSize}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Stack Height:</span>
+              <span className="font-mono">{result.stackHeight.toFixed(1)} m</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Standard:</strong> API 521 relief system design</p>
+        <p><strong>Note:</strong> Detailed dispersion modeling required for final design</p>
+      </div>
+    </div>
+  );
+}
+
+// Line Sizing Tool
+function LineSizingTool() {
+  const [flowRate, setFlowRate] = useState("");
+  const [velocity, setVelocity] = useState("");
+  const [fluidType, setFluidType] = useState("liquid");
+  const [serviceType, setServiceType] = useState("normal");
+  const [result, setResult] = useState<{ diameter: number; nominalSize: string; actualVelocity: number } | null>(null);
+
+  const calculateLineSize = () => {
+    const Q = parseFloat(flowRate);
+    const V = parseFloat(velocity);
+
+    if (isNaN(Q) || isNaN(V)) {
+      setResult(null);
+      return;
+    }
+
+    // Calculate required diameter
+    const area = Q / (3600 * V); // m²
+    const diameter = Math.sqrt(4 * area / Math.PI) * 1000; // mm
+
+    // Find nearest standard pipe size
+    const standardSizes = [15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000];
+    const nominalDiameter = standardSizes.find(size => size >= diameter) || standardSizes[standardSizes.length - 1];
+    
+    const nominalSize = `DN${nominalDiameter}`;
+    const actualArea = Math.PI * Math.pow(nominalDiameter / 1000 / 2, 2);
+    const actualVelocity = Q / (3600 * actualArea);
+
+    setResult({
+      diameter,
+      nominalSize,
+      actualVelocity
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="flowRate">Flow Rate (m³/h)</Label>
+          <Input
+            id="flowRate"
+            value={flowRate}
+            onChange={(e) => setFlowRate(e.target.value)}
+            placeholder="100"
+          />
+        </div>
+        <div>
+          <Label htmlFor="velocity">Design Velocity (m/s)</Label>
+          <Input
+            id="velocity"
+            value={velocity}
+            onChange={(e) => setVelocity(e.target.value)}
+            placeholder="2.5"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fluidType">Fluid Type</Label>
+          <Select value={fluidType} onValueChange={setFluidType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="liquid">Liquid</SelectItem>
+              <SelectItem value="gas">Gas</SelectItem>
+              <SelectItem value="steam">Steam</SelectItem>
+              <SelectItem value="two_phase">Two-Phase</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="serviceType">Service Type</Label>
+          <Select value={serviceType} onValueChange={setServiceType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="normal">Normal Service</SelectItem>
+              <SelectItem value="erosive">Erosive Service</SelectItem>
+              <SelectItem value="critical">Critical Service</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculateLineSize} className="w-full">
+        Calculate Line Size
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Line Sizing Results</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Calculated Diameter:</span>
+              <span className="font-mono">{result.diameter.toFixed(1)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Nominal Size:</span>
+              <span className="font-mono font-semibold">{result.nominalSize}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Actual Velocity:</span>
+              <span className="font-mono">{result.actualVelocity.toFixed(2)} m/s</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Guidelines:</strong> Liquids: 1-3 m/s, Gases: 15-30 m/s, Steam: 25-40 m/s</p>
+        <p><strong>Note:</strong> Consider pressure drop and economic velocity for final selection</p>
+      </div>
+    </div>
+  );
+}
+
+// Two-Phase Flow Analyzer
+function TwoPhaseFlowAnalyzer() {
+  const [gasFlowRate, setGasFlowRate] = useState("");
+  const [liquidFlowRate, setLiquidFlowRate] = useState("");
+  const [pipeDiameter, setPipeDiameter] = useState("");
+  const [pressure, setPressure] = useState("");
+  const [result, setResult] = useState<{ flowPattern: string; holdupLiquid: number; pressureDrop: number } | null>(null);
+
+  const analyzeTwoPhaseFlow = () => {
+    const Qg = parseFloat(gasFlowRate);
+    const Ql = parseFloat(liquidFlowRate);
+    const D = parseFloat(pipeDiameter) / 1000;
+    const P = parseFloat(pressure);
+
+    if (isNaN(Qg) || isNaN(Ql) || isNaN(D) || isNaN(P)) {
+      setResult(null);
+      return;
+    }
+
+    const A = Math.PI * Math.pow(D/2, 2);
+    const Vsg = Qg / (3600 * A); // Superficial gas velocity
+    const Vsl = Ql / (3600 * A); // Superficial liquid velocity
+
+    // Flow pattern determination (simplified Baker chart)
+    let flowPattern = "Stratified";
+    if (Vsg > 3 && Vsl < 0.1) flowPattern = "Annular";
+    else if (Vsg > 1 && Vsl > 0.1) flowPattern = "Slug";
+    else if (Vsg < 0.5 && Vsl > 0.5) flowPattern = "Bubble";
+    else if (Vsg > 0.5 && Vsl < 0.3) flowPattern = "Stratified Wavy";
+
+    // Liquid holdup estimation (simplified)
+    const holdupLiquid = Vsl / (Vsg + Vsl) * 100;
+
+    // Pressure drop estimation (simplified)
+    const pressureDrop = (0.02 * Math.pow(Vsg + Vsl, 1.8)) / D * 100; // Pa/m
+
+    setResult({
+      flowPattern,
+      holdupLiquid,
+      pressureDrop
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="gasFlowRate">Gas Flow Rate (m³/h)</Label>
+          <Input
+            id="gasFlowRate"
+            value={gasFlowRate}
+            onChange={(e) => setGasFlowRate(e.target.value)}
+            placeholder="1000"
+          />
+        </div>
+        <div>
+          <Label htmlFor="liquidFlowRate">Liquid Flow Rate (m³/h)</Label>
+          <Input
+            id="liquidFlowRate"
+            value={liquidFlowRate}
+            onChange={(e) => setLiquidFlowRate(e.target.value)}
+            placeholder="50"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="pipeDiameter">Pipe Diameter (mm)</Label>
+          <Input
+            id="pipeDiameter"
+            value={pipeDiameter}
+            onChange={(e) => setPipeDiameter(e.target.value)}
+            placeholder="200"
+          />
+        </div>
+        <div>
+          <Label htmlFor="pressure">Operating Pressure (bar)</Label>
+          <Input
+            id="pressure"
+            value={pressure}
+            onChange={(e) => setPressure(e.target.value)}
+            placeholder="10"
+          />
+        </div>
+      </div>
+
+      <Button onClick={analyzeTwoPhaseFlow} className="w-full">
+        Analyze Two-Phase Flow
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Two-Phase Flow Analysis</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Flow Pattern:</span>
+              <span className="font-mono font-semibold">{result.flowPattern}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Liquid Holdup:</span>
+              <span className="font-mono">{result.holdupLiquid.toFixed(1)} %</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Pressure Drop:</span>
+              <span className="font-mono">{result.pressureDrop.toFixed(2)} Pa/m</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Method:</strong> Simplified Baker chart flow pattern prediction</p>
+        <p><strong>Note:</strong> Use commercial software for detailed two-phase flow analysis</p>
+      </div>
+    </div>
+  );
+}
+
+// Separator Design Checker
+function SeparatorDesignChecker() {
+  const [gasFlowRate, setGasFlowRate] = useState("");
+  const [liquidFlowRate, setLiquidFlowRate] = useState("");
+  const [operatingPressure, setOperatingPressure] = useState("");
+  const [separatorType, setSeparatorType] = useState("horizontal");
+  const [result, setResult] = useState<{ diameter: number; length: number; gasVelocity: number } | null>(null);
+
+  const designSeparator = () => {
+    const Qg = parseFloat(gasFlowRate);
+    const Ql = parseFloat(liquidFlowRate);
+    const P = parseFloat(operatingPressure);
+
+    if (isNaN(Qg) || isNaN(Ql) || isNaN(P)) {
+      setResult(null);
+      return;
+    }
+
+    // Gas velocity criteria (typical 0.15 m/s for droplet settling)
+    const Vg_max = 0.15; // m/s
+    const A_gas = Qg / (3600 * Vg_max); // m²
+    
+    let diameter, length;
+    
+    if (separatorType === "horizontal") {
+      // Horizontal separator: L/D = 3-4
+      diameter = Math.sqrt(4 * A_gas / (Math.PI * 0.5)); // 50% gas space
+      length = diameter * 3.5;
+    } else {
+      // Vertical separator
+      diameter = Math.sqrt(4 * A_gas / Math.PI);
+      length = diameter * 4; // Height
+    }
+
+    const actualGasVelocity = Qg / (3600 * Math.PI * Math.pow(diameter/2, 2));
+
+    setResult({
+      diameter: diameter * 1000, // Convert to mm
+      length: length * 1000, // Convert to mm
+      gasVelocity: actualGasVelocity
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="separatorType">Separator Type</Label>
+        <Select value={separatorType} onValueChange={setSeparatorType}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="horizontal">Horizontal</SelectItem>
+            <SelectItem value="vertical">Vertical</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="gasFlowRate">Gas Flow Rate (m³/h)</Label>
+          <Input
+            id="gasFlowRate"
+            value={gasFlowRate}
+            onChange={(e) => setGasFlowRate(e.target.value)}
+            placeholder="2000"
+          />
+        </div>
+        <div>
+          <Label htmlFor="liquidFlowRate">Liquid Flow Rate (m³/h)</Label>
+          <Input
+            id="liquidFlowRate"
+            value={liquidFlowRate}
+            onChange={(e) => setLiquidFlowRate(e.target.value)}
+            placeholder="100"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="operatingPressure">Operating Pressure (bar)</Label>
+        <Input
+          id="operatingPressure"
+          value={operatingPressure}
+          onChange={(e) => setOperatingPressure(e.target.value)}
+          placeholder="5"
+        />
+      </div>
+
+      <Button onClick={designSeparator} className="w-full">
+        Check Separator Design
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Separator Sizing</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Diameter:</span>
+              <span className="font-mono">{result.diameter.toFixed(0)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>{separatorType === "horizontal" ? "Length:" : "Height:"}</span>
+              <span className="font-mono">{result.length.toFixed(0)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Gas Velocity:</span>
+              <span className="font-mono">{result.gasVelocity.toFixed(3)} m/s</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Design:</strong> Based on Stokes law droplet settling velocity</p>
+        <p><strong>Note:</strong> Add liquid retention time and demister pad sizing</p>
+      </div>
+    </div>
+  );
+}
+
+// Fluid Properties Lookup
+function FluidPropertiesLookup() {
+  const [fluidName, setFluidName] = useState("water");
+  const [temperature, setTemperature] = useState("25");
+  const [pressure, setPressure] = useState("1");
+  const [properties, setProperties] = useState<{ density: number; viscosity: number; vaporPressure: number; heatCapacity: number } | null>(null);
+
+  const lookupProperties = () => {
+    const T = parseFloat(temperature);
+    const P = parseFloat(pressure);
+
+    if (isNaN(T) || isNaN(P)) {
+      setProperties(null);
+      return;
+    }
+
+    // Simplified property database
+    const fluidData: { [key: string]: any } = {
+      water: {
+        density: 1000 * (1 - (T - 4) * (T - 4) / 160000),
+        viscosity: 0.001 * Math.exp(-0.05 * T),
+        vaporPressure: 0.01 * Math.exp(0.07 * T),
+        heatCapacity: 4186
+      },
+      air: {
+        density: 1.225 * (273 / (273 + T)) * (P / 1.013),
+        viscosity: 0.0000181 * Math.pow((273 + T) / 273, 0.7),
+        vaporPressure: P,
+        heatCapacity: 1005
+      },
+      methane: {
+        density: 0.717 * (273 / (273 + T)) * (P / 1.013),
+        viscosity: 0.000011 * Math.pow((273 + T) / 273, 0.8),
+        vaporPressure: P,
+        heatCapacity: 2220
+      }
+    };
+
+    const data = fluidData[fluidName];
+    if (data) {
+      setProperties({
+        density: data.density,
+        viscosity: data.viscosity,
+        vaporPressure: data.vaporPressure,
+        heatCapacity: data.heatCapacity
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="fluidName">Fluid</Label>
+        <Select value={fluidName} onValueChange={setFluidName}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="water">Water</SelectItem>
+            <SelectItem value="air">Air</SelectItem>
+            <SelectItem value="methane">Methane</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="temperature">Temperature (°C)</Label>
+          <Input
+            id="temperature"
+            value={temperature}
+            onChange={(e) => setTemperature(e.target.value)}
+            placeholder="25"
+          />
+        </div>
+        <div>
+          <Label htmlFor="pressure">Pressure (bar)</Label>
+          <Input
+            id="pressure"
+            value={pressure}
+            onChange={(e) => setPressure(e.target.value)}
+            placeholder="1"
+          />
+        </div>
+      </div>
+
+      <Button onClick={lookupProperties} className="w-full">
+        Lookup Properties
+      </Button>
+
+      {properties && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Fluid Properties</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Density:</span>
+              <span className="font-mono">{properties.density.toFixed(2)} kg/m³</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Viscosity:</span>
+              <span className="font-mono">{properties.viscosity.toExponential(2)} Pa·s</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Vapor Pressure:</span>
+              <span className="font-mono">{properties.vaporPressure.toFixed(3)} bar</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Heat Capacity:</span>
+              <span className="font-mono">{properties.heatCapacity.toFixed(0)} J/kg·K</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Source:</strong> Simplified correlations for demonstration</p>
+        <p><strong>Note:</strong> Use NIST database or process simulators for accurate data</p>
+      </div>
+    </div>
+  );
+}
+
+// Reynolds Number Calculator
+function ReynoldsNumberCalculator() {
+  const [velocity, setVelocity] = useState("");
+  const [diameter, setDiameter] = useState("");
+  const [density, setDensity] = useState("");
+  const [viscosity, setViscosity] = useState("");
+  const [result, setResult] = useState<{ reynolds: number; flowRegime: string; frictionFactor: number } | null>(null);
+
+  const calculateReynolds = () => {
+    const V = parseFloat(velocity);
+    const D = parseFloat(diameter) / 1000; // Convert mm to m
+    const rho = parseFloat(density);
+    const mu = parseFloat(viscosity);
+
+    if (isNaN(V) || isNaN(D) || isNaN(rho) || isNaN(mu)) {
+      setResult(null);
+      return;
+    }
+
+    const Re = (rho * V * D) / mu;
+    
+    let flowRegime = "Laminar";
+    if (Re > 4000) flowRegime = "Turbulent";
+    else if (Re > 2300) flowRegime = "Transitional";
+
+    // Friction factor calculation
+    let frictionFactor;
+    if (Re < 2300) {
+      frictionFactor = 64 / Re;
+    } else {
+      frictionFactor = 0.316 * Math.pow(Re, -0.25); // Blasius equation
+    }
+
+    setResult({
+      reynolds: Re,
+      flowRegime,
+      frictionFactor
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="velocity">Velocity (m/s)</Label>
+          <Input
+            id="velocity"
+            value={velocity}
+            onChange={(e) => setVelocity(e.target.value)}
+            placeholder="2.5"
+          />
+        </div>
+        <div>
+          <Label htmlFor="diameter">Diameter (mm)</Label>
+          <Input
+            id="diameter"
+            value={diameter}
+            onChange={(e) => setDiameter(e.target.value)}
+            placeholder="100"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="density">Density (kg/m³)</Label>
+          <Input
+            id="density"
+            value={density}
+            onChange={(e) => setDensity(e.target.value)}
+            placeholder="1000"
+          />
+        </div>
+        <div>
+          <Label htmlFor="viscosity">Viscosity (Pa·s)</Label>
+          <Input
+            id="viscosity"
+            value={viscosity}
+            onChange={(e) => setViscosity(e.target.value)}
+            placeholder="0.001"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateReynolds} className="w-full">
+        Calculate Reynolds Number
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Flow Analysis</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Reynolds Number:</span>
+              <span className="font-mono">{result.reynolds.toFixed(0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Flow Regime:</span>
+              <span className={`font-mono font-semibold ${
+                result.flowRegime === 'Laminar' ? 'text-green-600' :
+                result.flowRegime === 'Turbulent' ? 'text-blue-600' : 'text-orange-600'
+              }`}>
+                {result.flowRegime}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Friction Factor:</span>
+              <span className="font-mono">{result.frictionFactor.toFixed(4)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Criteria:</strong> Laminar: Re < 2300, Transitional: 2300-4000, Turbulent: Re > 4000</p>
+        <p><strong>Note:</strong> For non-circular pipes, use hydraulic diameter</p>
+      </div>
+    </div>
+  );
+}
+
+// Flash Calculation Tool
+function FlashCalculationTool() {
+  const [feedComposition, setFeedComposition] = useState("50");
+  const [temperature, setTemperature] = useState("80");
+  const [pressure, setPressure] = useState("1");
+  const [component, setComponent] = useState("ethanol_water");
+  const [result, setResult] = useState<{ vaporFraction: number; liquidComposition: number; vaporComposition: number } | null>(null);
+
+  const calculateFlash = () => {
+    const z = parseFloat(feedComposition) / 100;
+    const T = parseFloat(temperature);
+    const P = parseFloat(pressure);
+
+    if (isNaN(z) || isNaN(T) || isNaN(P)) {
+      setResult(null);
+      return;
+    }
+
+    // Simplified flash calculation for binary systems
+    let K; // Equilibrium constant
+    
+    if (component === "ethanol_water") {
+      // Simplified K-value for ethanol-water at given T,P
+      K = Math.exp(5 - 2000/T) * (1/P);
+    } else if (component === "benzene_toluene") {
+      K = Math.exp(3 - 1500/T) * (1/P);
+    } else {
+      K = Math.exp(4 - 1800/T) * (1/P);
+    }
+
+    // Rachford-Rice equation solution (simplified)
+    let V = 0.5; // Initial guess for vapor fraction
+    for (let i = 0; i < 10; i++) {
+      const f = z * (K - 1) / (1 + V * (K - 1));
+      const df = -z * Math.pow(K - 1, 2) / Math.pow(1 + V * (K - 1), 2);
+      V = V - f / df;
+      V = Math.max(0, Math.min(1, V));
+    }
+
+    const x = z / (1 + V * (K - 1)); // Liquid composition
+    const y = K * x; // Vapor composition
+
+    setResult({
+      vaporFraction: V * 100,
+      liquidComposition: x * 100,
+      vaporComposition: y * 100
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="component">Component System</Label>
+        <Select value={component} onValueChange={setComponent}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ethanol_water">Ethanol-Water</SelectItem>
+            <SelectItem value="benzene_toluene">Benzene-Toluene</SelectItem>
+            <SelectItem value="methanol_water">Methanol-Water</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <Label htmlFor="feedComposition">Feed Composition (mol%)</Label>
+          <Input
+            id="feedComposition"
+            value={feedComposition}
+            onChange={(e) => setFeedComposition(e.target.value)}
+            placeholder="50"
+          />
+        </div>
+        <div>
+          <Label htmlFor="temperature">Temperature (°C)</Label>
+          <Input
+            id="temperature"
+            value={temperature}
+            onChange={(e) => setTemperature(e.target.value)}
+            placeholder="80"
+          />
+        </div>
+        <div>
+          <Label htmlFor="pressure">Pressure (bar)</Label>
+          <Input
+            id="pressure"
+            value={pressure}
+            onChange={(e) => setPressure(e.target.value)}
+            placeholder="1"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateFlash} className="w-full">
+        Calculate Flash
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Flash Calculation Results</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Vapor Fraction:</span>
+              <span className="font-mono">{result.vaporFraction.toFixed(1)} mol%</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Liquid Composition:</span>
+              <span className="font-mono">{result.liquidComposition.toFixed(1)} mol%</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Vapor Composition:</span>
+              <span className="font-mono">{result.vaporComposition.toFixed(1)} mol%</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Method:</strong> Rachford-Rice equation with simplified K-values</p>
+        <p><strong>Note:</strong> Use rigorous thermodynamic models for actual design</p>
+      </div>
+    </div>
   );
 }
