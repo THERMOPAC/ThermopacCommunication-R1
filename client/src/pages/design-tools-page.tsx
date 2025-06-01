@@ -40,8 +40,9 @@ export default function DesignToolsPage() {
         </div>
 
         <Tabs defaultValue="mechanical" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="mechanical">Mechanical Design</TabsTrigger>
+            <TabsTrigger value="pressure-vessel">Pressure Vessel Design</TabsTrigger>
             <TabsTrigger value="piping">Piping Design</TabsTrigger>
             <TabsTrigger value="electrical">Electrical Design</TabsTrigger>
             <TabsTrigger value="analysis">Analysis Tools</TabsTrigger>
@@ -131,6 +132,137 @@ export default function DesignToolsPage() {
                     <Button variant="outline" className="w-full justify-start text-left" disabled>
                       <Factory className="h-4 w-4 mr-2" />
                       Standard Parts
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+            </div>
+          </TabsContent>
+
+          {/* Pressure Vessel Design Tab */}
+          <TabsContent value="pressure-vessel" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Shell Thickness Calculator</CardTitle>
+                    <CardDescription>
+                      Based on internal pressure, diameter, allowable stress
+                    </CardDescription>
+                  </div>
+                  <Calculator className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Per ASME Section VIII Div. 1 requirements
+                    </p>
+                    <Button variant="outline" className="w-full justify-start text-left" disabled>
+                      <Calculator className="h-4 w-4 mr-2" />
+                      Cylindrical Shell Calculator
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start text-left" disabled>
+                      <Gauge className="h-4 w-4 mr-2" />
+                      Spherical Shell Calculator
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start text-left" disabled>
+                      <Target className="h-4 w-4 mr-2" />
+                      Conical Shell Calculator
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Head Thickness Calculator</CardTitle>
+                    <CardDescription>
+                      For various head configurations
+                    </CardDescription>
+                  </div>
+                  <Gauge className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Standard head types per ASME standards
+                    </p>
+                    <Button variant="outline" className="w-full justify-start text-left" disabled>
+                      <Package className="h-4 w-4 mr-2" />
+                      Ellipsoidal Head
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start text-left" disabled>
+                      <Target className="h-4 w-4 mr-2" />
+                      Hemispherical Head
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start text-left" disabled>
+                      <Gauge className="h-4 w-4 mr-2" />
+                      Torispherical Head
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Nozzle Reinforcement Calculator</CardTitle>
+                    <CardDescription>
+                      Opening reinforcement calculations
+                    </CardDescription>
+                  </div>
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Per ASME Section VIII requirements
+                    </p>
+                    <Button variant="outline" className="w-full justify-start text-left" disabled>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Area Replacement Method
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start text-left" disabled>
+                      <Wrench className="h-4 w-4 mr-2" />
+                      Reinforcement Pad Design
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start text-left" disabled>
+                      <Calculator className="h-4 w-4 mr-2" />
+                      Nozzle Load Analysis
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">External Pressure Calculator</CardTitle>
+                    <CardDescription>
+                      To prevent buckling under vacuum
+                    </CardDescription>
+                  </div>
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Buckling analysis and stiffening ring design
+                    </p>
+                    <Button variant="outline" className="w-full justify-start text-left" disabled>
+                      <Shield className="h-4 w-4 mr-2" />
+                      Cylindrical Shell Buckling
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start text-left" disabled>
+                      <Target className="h-4 w-4 mr-2" />
+                      Spherical Shell Buckling
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start text-left" disabled>
+                      <Factory className="h-4 w-4 mr-2" />
+                      Stiffening Ring Design
                     </Button>
                   </div>
                 </CardContent>
@@ -529,6 +661,15 @@ export default function DesignToolsPage() {
                     <li>• Standard component libraries</li>
                     <li>• Drawing management system</li>
                     <li>• Design validation tools</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm mb-2">Pressure Vessel Design</h4>
+                  <ul className="space-y-1 text-sm text-muted-foreground ml-4">
+                    <li>• Shell thickness calculations per ASME VIII</li>
+                    <li>• Head thickness for all standard types</li>
+                    <li>• Nozzle reinforcement analysis</li>
+                    <li>• External pressure buckling prevention</li>
                   </ul>
                 </div>
                 <div>
