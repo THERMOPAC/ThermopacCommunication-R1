@@ -36,7 +36,8 @@ import {
   CornerDownRight,
   CheckCircle,
   AlertTriangle,
-  Info
+  Info,
+  Weight
 } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
