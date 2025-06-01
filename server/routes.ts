@@ -25,6 +25,7 @@ import { setupEngineeringChangeRoutes } from "./engineering-change-routes";
 import { default as afterSalesRoutes } from "./after-sales-routes";
 import { default as modulePermissionRoutes } from "./module-permission-routes";
 import { default as standaloneRoutes } from "./standalone-routes";
+import { default as advanceTaxRoutes } from "./advance-tax-routes";
 import { hashPassword as updatePasswordHash } from "./update-password";
 import { setupTestWelderRoute } from "./quality/test-welder-route";
 import { setupApiTestRoutes } from "./api-test-route";

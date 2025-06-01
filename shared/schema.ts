@@ -3223,3 +3223,107 @@ export type InsertInvoiceItem = z.infer<typeof insertInvoiceItemSchema>;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type InsertPaymentInvoiceLink = z.infer<typeof insertPaymentInvoiceLinkSchema>;
 export type InsertBankRealizationCertificate = z.infer<typeof insertBankRealizationCertificateSchema>;
+
+// Advance Tax Calculations table for storing corporate taxpayer calculations by financial year
+export const advanceTaxCalculations = pgTable('advance_tax_calculations', {
+  id: serial('id').primaryKey(),
+  
+  // User and financial year tracking
+  userId: integer('user_id').notNull().references(() => users.id),
+  financialYear: text('financial_year').notNull(), // Format: "2025-26", "2026-27"
+  
+  // Tax calculation inputs
+  annualTaxableIncome: decimal('annual_taxable_income', { precision: 15, scale: 2 }).notNull(),
+  taxRate: decimal('tax_rate', { precision: 5, scale: 2 }).notNull(), // e.g., 30.00
+  surchargeRate: decimal('surcharge_rate', { precision: 5, scale: 2 }).notNull(), // e.g., 10.00
+  cessRate: decimal('cess_rate', { precision: 5, scale: 2 }).notNull(), // e.g., 4.00
+  
+  // Calculated tax amounts
+  baseTax: decimal('base_tax', { precision: 15, scale: 2 }).notNull(),
+  surchargeAmount: decimal('surcharge_amount', { precision: 15, scale: 2 }).notNull(),
+  cessAmount: decimal('cess_amount', { precision: 15, scale: 2 }).notNull(),
+  totalTaxLiability: decimal('total_tax_liability', { precision: 15, scale: 2 }).notNull(),
+  
+  // Advance tax payments made
+  paidJune: decimal('paid_june', { precision: 15, scale: 2 }).default('0').notNull(),
+  paidSeptember: decimal('paid_september', { precision: 15, scale: 2 }).default('0').notNull(),
+  paidDecember: decimal('paid_december', { precision: 15, scale: 2 }).default('0').notNull(),
+  paidMarch: decimal('paid_march', { precision: 15, scale: 2 }).default('0').notNull(),
+  
+  // Calculation status and notes
+  status: text('status').notNull().default('active'), // active, completed, archived
+  notes: text('notes'),
+  
+  // Tracking
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  lastPaymentDate: date('last_payment_date'),
+});
+
+// Advance Tax Payment History for tracking quarterly payments
+export const advanceTaxPayments = pgTable('advance_tax_payments', {
+  id: serial('id').primaryKey(),
+  
+  // Link to main calculation
+  calculationId: integer('calculation_id').notNull().references(() => advanceTaxCalculations.id, { onDelete: 'cascade' }),
+  
+  // Payment details
+  quarter: text('quarter').notNull(), // 'Q1-June', 'Q2-September', 'Q3-December', 'Q4-March'
+  dueDate: date('due_date').notNull(),
+  amountDue: decimal('amount_due', { precision: 15, scale: 2 }).notNull(),
+  amountPaid: decimal('amount_paid', { precision: 15, scale: 2 }).default('0').notNull(),
+  paymentDate: date('payment_date'),
+  
+  // Payment method and reference
+  paymentMethod: text('payment_method'), // 'Online Banking', 'Challan', 'Bank Transfer'
+  referenceNumber: text('reference_number'),
+  bankName: text('bank_name'),
+  
+  // Interest calculation for late payments
+  interestApplicable: boolean('interest_applicable').default(false),
+  interestAmount: decimal('interest_amount', { precision: 15, scale: 2 }).default('0'),
+  
+  // Status and notes
+  paymentStatus: text('payment_status').notNull().default('pending'), // pending, partial, paid, overdue
+  notes: text('notes'),
+  
+  // Tracking
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Relations for advance tax tables
+export const advanceTaxCalculationsRelations = relations(advanceTaxCalculations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [advanceTaxCalculations.userId],
+    references: [users.id],
+  }),
+  payments: many(advanceTaxPayments),
+}));
+
+export const advanceTaxPaymentsRelations = relations(advanceTaxPayments, ({ one }) => ({
+  calculation: one(advanceTaxCalculations, {
+    fields: [advanceTaxPayments.calculationId],
+    references: [advanceTaxCalculations.id],
+  }),
+}));
+
+// Insert schemas for advance tax tables
+export const insertAdvanceTaxCalculationSchema = createInsertSchema(advanceTaxCalculations)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    status: z.enum(['active', 'completed', 'archived']).default('active'),
+  });
+
+export const insertAdvanceTaxPaymentSchema = createInsertSchema(advanceTaxPayments)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    quarter: z.enum(['Q1-June', 'Q2-September', 'Q3-December', 'Q4-March']),
+    paymentStatus: z.enum(['pending', 'partial', 'paid', 'overdue']).default('pending'),
+  });
+
+// Export advance tax types
+export type AdvanceTaxCalculation = typeof advanceTaxCalculations.$inferSelect;
+export type InsertAdvanceTaxCalculation = z.infer<typeof insertAdvanceTaxCalculationSchema>;
+export type AdvanceTaxPayment = typeof advanceTaxPayments.$inferSelect;
+export type InsertAdvanceTaxPayment = z.infer<typeof insertAdvanceTaxPaymentSchema>;
