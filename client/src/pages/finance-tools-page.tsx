@@ -3681,6 +3681,22 @@ export default function FinanceToolsPage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Cash Flow Analyzer Dialog */}
+        <Dialog open={isCashFlowAnalyzerOpen} onOpenChange={setIsCashFlowAnalyzerOpen}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Cash Flow Analyzer
+              </DialogTitle>
+              <DialogDescription>
+                Track, analyze, and visualize cash flow patterns with comprehensive metrics
+              </DialogDescription>
+            </DialogHeader>
+            <CashFlowAnalyzer />
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
