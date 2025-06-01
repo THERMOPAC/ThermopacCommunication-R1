@@ -7280,6 +7280,1369 @@ function ConcentrationConverter() {
   );
 }
 
+// Mechanical Design Calculator Components
+function ShaftDesignCalculator() {
+  const [torque, setTorque] = useState("");
+  const [bendingMoment, setBendingMoment] = useState("");
+  const [allowableStress, setAllowableStress] = useState("80"); // MPa for steel
+  const [safetyFactor, setSafetyFactor] = useState("2");
+  const [result, setResult] = useState<{ diameter: number; designStress: number } | null>(null);
+
+  const calculate = () => {
+    const T = parseFloat(torque) * 1000; // Convert kN·m to N·m
+    const M = parseFloat(bendingMoment) * 1000; // Convert kN·m to N·m
+    const σ_allow = parseFloat(allowableStress) * 1e6; // Convert MPa to Pa
+    const SF = parseFloat(safetyFactor);
+
+    if (isNaN(T) || isNaN(M) || isNaN(σ_allow) || isNaN(SF)) {
+      setResult(null);
+      return;
+    }
+
+    // Design stress with safety factor
+    const σ_design = σ_allow / SF;
+
+    // Equivalent moment using ASME code
+    const M_eq = Math.sqrt(M * M + 0.75 * T * T);
+
+    // Minimum diameter from bending equation: σ = 32M/(πd³)
+    const d = Math.pow((32 * M_eq) / (Math.PI * σ_design), 1/3);
+
+    setResult({
+      diameter: d * 1000, // Convert to mm
+      designStress: σ_design / 1e6 // Convert back to MPa
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="torque">Applied Torque (kN·m)</Label>
+          <Input
+            id="torque"
+            value={torque}
+            onChange={(e) => setTorque(e.target.value)}
+            placeholder="10"
+          />
+        </div>
+        <div>
+          <Label htmlFor="bendingMoment">Bending Moment (kN·m)</Label>
+          <Input
+            id="bendingMoment"
+            value={bendingMoment}
+            onChange={(e) => setBendingMoment(e.target.value)}
+            placeholder="5"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="allowableStress">Allowable Stress (MPa)</Label>
+          <Input
+            id="allowableStress"
+            value={allowableStress}
+            onChange={(e) => setAllowableStress(e.target.value)}
+            placeholder="80"
+          />
+        </div>
+        <div>
+          <Label htmlFor="safetyFactor">Safety Factor</Label>
+          <Input
+            id="safetyFactor"
+            value={safetyFactor}
+            onChange={(e) => setSafetyFactor(e.target.value)}
+            placeholder="2"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculate} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Shaft Diameter
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <h4 className="font-semibold mb-2">Design Results</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span>Minimum Diameter:</span>
+              <span className="font-mono">{result.diameter.toFixed(1)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Design Stress:</span>
+              <span className="font-mono">{result.designStress.toFixed(1)} MPa</span>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            <p><strong>Formula:</strong> d = ∛(32M_eq/(πσ_design))</p>
+            <p><strong>Equivalent Moment:</strong> M_eq = √(M² + 0.75T²)</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KeywayCalculator() {
+  const [shaftDiameter, setShaftDiameter] = useState("");
+  const [torque, setTorque] = useState("");
+  const [keyMaterial, setKeyMaterial] = useState("steel");
+  const [result, setResult] = useState<{ width: number; height: number; length: number; shearStress: number; bearingStress: number } | null>(null);
+
+  const materials = {
+    steel: { shearStrength: 200, bearingStrength: 400 }, // MPa
+    aluminum: { shearStrength: 120, bearingStrength: 240 },
+    brass: { shearStrength: 150, bearingStrength: 300 }
+  };
+
+  const calculate = () => {
+    const d = parseFloat(shaftDiameter); // mm
+    const T = parseFloat(torque) * 1000; // Convert kN·m to N·m
+    
+    if (isNaN(d) || isNaN(T)) {
+      setResult(null);
+      return;
+    }
+
+    // Standard key proportions (DIN 6885)
+    let w, h;
+    if (d <= 22) { w = 6; h = 6; }
+    else if (d <= 30) { w = 8; h = 7; }
+    else if (d <= 38) { w = 10; h = 8; }
+    else if (d <= 44) { w = 12; h = 8; }
+    else if (d <= 50) { w = 14; h = 9; }
+    else if (d <= 58) { w = 16; h = 10; }
+    else if (d <= 65) { w = 18; h = 11; }
+    else if (d <= 75) { w = 20; h = 12; }
+    else { w = 22; h = 14; }
+
+    // Force on key
+    const F = (2 * T) / (d / 1000); // N
+
+    // Required length for shear
+    const material = materials[keyMaterial as keyof typeof materials];
+    const τ_allow = material.shearStrength * 1e6; // Pa
+    const σ_bearing_allow = material.bearingStrength * 1e6; // Pa
+
+    const L_shear = F / (w * 1e-3 * τ_allow) * 1000; // mm
+    const L_bearing = F / ((h/2) * 1e-3 * σ_bearing_allow) * 1000; // mm
+    
+    const L = Math.max(L_shear, L_bearing, 1.5 * w); // Minimum 1.5 × width
+
+    // Actual stresses
+    const τ_actual = F / (w * L * 1e-6) / 1e6; // MPa
+    const σ_bearing_actual = F / ((h/2) * L * 1e-6) / 1e6; // MPa
+
+    setResult({
+      width: w,
+      height: h,
+      length: L,
+      shearStress: τ_actual,
+      bearingStress: σ_bearing_actual
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="shaftDiameter">Shaft Diameter (mm)</Label>
+          <Input
+            id="shaftDiameter"
+            value={shaftDiameter}
+            onChange={(e) => setShaftDiameter(e.target.value)}
+            placeholder="50"
+          />
+        </div>
+        <div>
+          <Label htmlFor="torque">Torque (kN·m)</Label>
+          <Input
+            id="torque"
+            value={torque}
+            onChange={(e) => setTorque(e.target.value)}
+            placeholder="2"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="keyMaterial">Key Material</Label>
+        <Select value={keyMaterial} onValueChange={setKeyMaterial}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="steel">Steel (τ=200 MPa, σ=400 MPa)</SelectItem>
+            <SelectItem value="aluminum">Aluminum (τ=120 MPa, σ=240 MPa)</SelectItem>
+            <SelectItem value="brass">Brass (τ=150 MPa, σ=300 MPa)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Button onClick={calculate} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Key Dimensions
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <h4 className="font-semibold mb-2">Key Dimensions (DIN 6885)</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span>Width (w):</span>
+              <span className="font-mono">{result.width} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Height (h):</span>
+              <span className="font-mono">{result.height} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Required Length:</span>
+              <span className="font-mono">{result.length.toFixed(1)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Shear Stress:</span>
+              <span className="font-mono">{result.shearStress.toFixed(1)} MPa</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Bearing Stress:</span>
+              <span className="font-mono">{result.bearingStress.toFixed(1)} MPa</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GearDesignCalculator() {
+  const [inputTorque, setInputTorque] = useState("");
+  const [gearRatio, setGearRatio] = useState("");
+  const [module, setModule] = useState("2");
+  const [pressureAngle, setPressureAngle] = useState("20");
+  const [result, setResult] = useState<{ 
+    pinionTeeth: number; 
+    gearTeeth: number; 
+    centerDistance: number; 
+    outputTorque: number;
+    pinionDiameter: number;
+    gearDiameter: number;
+  } | null>(null);
+
+  const calculate = () => {
+    const T_in = parseFloat(inputTorque); // N·m
+    const ratio = parseFloat(gearRatio);
+    const m = parseFloat(module); // mm
+    const α = parseFloat(pressureAngle); // degrees
+
+    if (isNaN(T_in) || isNaN(ratio) || isNaN(m) || isNaN(α)) {
+      setResult(null);
+      return;
+    }
+
+    // Determine number of teeth (minimum 17 for pinion to avoid undercutting)
+    const z1 = Math.max(17, Math.round(17 * Math.sqrt(ratio) / ratio));
+    const z2 = Math.round(z1 * ratio);
+    
+    // Recalculate actual ratio
+    const actualRatio = z2 / z1;
+    
+    // Calculate diameters
+    const d1 = z1 * m; // Pinion pitch diameter
+    const d2 = z2 * m; // Gear pitch diameter
+    
+    // Center distance
+    const C = (d1 + d2) / 2;
+    
+    // Output torque
+    const T_out = T_in * actualRatio;
+
+    setResult({
+      pinionTeeth: z1,
+      gearTeeth: z2,
+      centerDistance: C,
+      outputTorque: T_out,
+      pinionDiameter: d1,
+      gearDiameter: d2
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="inputTorque">Input Torque (N·m)</Label>
+          <Input
+            id="inputTorque"
+            value={inputTorque}
+            onChange={(e) => setInputTorque(e.target.value)}
+            placeholder="100"
+          />
+        </div>
+        <div>
+          <Label htmlFor="gearRatio">Gear Ratio</Label>
+          <Input
+            id="gearRatio"
+            value={gearRatio}
+            onChange={(e) => setGearRatio(e.target.value)}
+            placeholder="3"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="module">Module (mm)</Label>
+          <Input
+            id="module"
+            value={module}
+            onChange={(e) => setModule(e.target.value)}
+            placeholder="2"
+          />
+        </div>
+        <div>
+          <Label htmlFor="pressureAngle">Pressure Angle (°)</Label>
+          <Input
+            id="pressureAngle"
+            value={pressureAngle}
+            onChange={(e) => setPressureAngle(e.target.value)}
+            placeholder="20"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculate} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Gear Parameters
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <h4 className="font-semibold mb-2">Gear Design Results</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span>Pinion Teeth:</span>
+              <span className="font-mono">{result.pinionTeeth}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Gear Teeth:</span>
+              <span className="font-mono">{result.gearTeeth}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Pinion Diameter:</span>
+              <span className="font-mono">{result.pinionDiameter.toFixed(1)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Gear Diameter:</span>
+              <span className="font-mono">{result.gearDiameter.toFixed(1)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Center Distance:</span>
+              <span className="font-mono">{result.centerDistance.toFixed(1)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Output Torque:</span>
+              <span className="font-mono">{result.outputTorque.toFixed(1)} N·m</span>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            <p><strong>Formulas:</strong> d = m × z, C = (d₁ + d₂)/2</p>
+            <p><strong>Actual Ratio:</strong> {(result.gearTeeth / result.pinionTeeth).toFixed(2)}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BoltTorqueCalculator() {
+  const [threadSize, setThreadSize] = useState("M10");
+  const [threadPitch, setThreadPitch] = useState("1.5");
+  const [frictionCoeff, setFrictionCoeff] = useState("0.15");
+  const [preload, setPreload] = useState("");
+  const [result, setResult] = useState<{ torque: number; clampForce: number; tensileStress: number } | null>(null);
+
+  const standardThreads = {
+    "M6": { pitch: 1.0, diameter: 6, tensileArea: 20.1 },
+    "M8": { pitch: 1.25, diameter: 8, tensileArea: 36.6 },
+    "M10": { pitch: 1.5, diameter: 10, tensileArea: 58.0 },
+    "M12": { pitch: 1.75, diameter: 12, tensileArea: 84.3 },
+    "M16": { pitch: 2.0, diameter: 16, tensileArea: 157 },
+    "M20": { pitch: 2.5, diameter: 20, tensileArea: 245 }
+  };
+
+  const calculate = () => {
+    const thread = standardThreads[threadSize as keyof typeof standardThreads];
+    const μ = parseFloat(frictionCoeff);
+    const F_preload = parseFloat(preload) * 1000; // Convert kN to N
+    const p = parseFloat(threadPitch);
+
+    if (isNaN(μ) || isNaN(F_preload) || isNaN(p)) {
+      setResult(null);
+      return;
+    }
+
+    const d = thread.diameter; // mm
+    const A_tensile = thread.tensileArea; // mm²
+
+    // Torque calculation: T = F × (μd/2 + p/(2π))
+    const T = F_preload * (μ * d / 2000 + p / (2 * Math.PI * 1000)); // N·m
+
+    // Tensile stress in bolt
+    const σ_tensile = F_preload / A_tensile; // MPa
+
+    setResult({
+      torque: T,
+      clampForce: F_preload / 1000, // kN
+      tensileStress: σ_tensile
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="threadSize">Thread Size</Label>
+          <Select value={threadSize} onValueChange={setThreadSize}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="M6">M6 × 1.0</SelectItem>
+              <SelectItem value="M8">M8 × 1.25</SelectItem>
+              <SelectItem value="M10">M10 × 1.5</SelectItem>
+              <SelectItem value="M12">M12 × 1.75</SelectItem>
+              <SelectItem value="M16">M16 × 2.0</SelectItem>
+              <SelectItem value="M20">M20 × 2.5</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="frictionCoeff">Friction Coefficient</Label>
+          <Input
+            id="frictionCoeff"
+            value={frictionCoeff}
+            onChange={(e) => setFrictionCoeff(e.target.value)}
+            placeholder="0.15"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="preload">Desired Preload (kN)</Label>
+        <Input
+          id="preload"
+          value={preload}
+          onChange={(e) => setPreload(e.target.value)}
+          placeholder="10"
+        />
+      </div>
+
+      <Button onClick={calculate} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Required Torque
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <h4 className="font-semibold mb-2">Torque & Preload Results</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span>Required Torque:</span>
+              <span className="font-mono">{result.torque.toFixed(1)} N·m</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Clamp Force:</span>
+              <span className="font-mono">{result.clampForce.toFixed(1)} kN</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Tensile Stress:</span>
+              <span className="font-mono">{result.tensileStress.toFixed(1)} MPa</span>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            <p><strong>Formula:</strong> T = F(μd/2 + p/2π)</p>
+            <p><strong>Note:</strong> For dry threads; use 0.10-0.20 friction coefficient</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BearingLifeCalculator() {
+  const [dynamicLoad, setDynamicLoad] = useState("");
+  const [radialLoad, setRadialLoad] = useState("");
+  const [axialLoad, setAxialLoad] = useState("0");
+  const [speed, setSpeed] = useState("");
+  const [bearingType, setBearingType] = useState("ball");
+  const [result, setResult] = useState<{ L10: number; L10h: number; equivalentLoad: number } | null>(null);
+
+  const calculate = () => {
+    const C = parseFloat(dynamicLoad) * 1000; // Convert kN to N
+    const Fr = parseFloat(radialLoad) * 1000; // Convert kN to N
+    const Fa = parseFloat(axialLoad) * 1000; // Convert kN to N
+    const n = parseFloat(speed); // rpm
+
+    if (isNaN(C) || isNaN(Fr) || isNaN(n)) {
+      setResult(null);
+      return;
+    }
+
+    // Life exponent
+    const p = bearingType === "ball" ? 3 : 10/3; // 3 for ball bearings, 10/3 for roller
+
+    // Equivalent dynamic load (simplified)
+    const X = 1; // Radial factor (simplified)
+    const Y = bearingType === "ball" ? 0.7 : 1.5; // Axial factor
+    const P = Math.max(Fr, X * Fr + Y * Fa);
+
+    // L10 life in millions of revolutions
+    const L10_rev = Math.pow(C / P, p);
+
+    // L10 life in hours
+    const L10_hours = (L10_rev * 1e6) / (n * 60);
+
+    setResult({
+      L10: L10_rev,
+      L10h: L10_hours,
+      equivalentLoad: P / 1000 // Convert back to kN
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="dynamicLoad">Dynamic Load Rating C (kN)</Label>
+          <Input
+            id="dynamicLoad"
+            value={dynamicLoad}
+            onChange={(e) => setDynamicLoad(e.target.value)}
+            placeholder="25"
+          />
+        </div>
+        <div>
+          <Label htmlFor="speed">Speed (rpm)</Label>
+          <Input
+            id="speed"
+            value={speed}
+            onChange={(e) => setSpeed(e.target.value)}
+            placeholder="1000"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="radialLoad">Radial Load (kN)</Label>
+          <Input
+            id="radialLoad"
+            value={radialLoad}
+            onChange={(e) => setRadialLoad(e.target.value)}
+            placeholder="10"
+          />
+        </div>
+        <div>
+          <Label htmlFor="axialLoad">Axial Load (kN)</Label>
+          <Input
+            id="axialLoad"
+            value={axialLoad}
+            onChange={(e) => setAxialLoad(e.target.value)}
+            placeholder="0"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="bearingType">Bearing Type</Label>
+        <Select value={bearingType} onValueChange={setBearingType}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ball">Ball Bearing (p=3)</SelectItem>
+            <SelectItem value="roller">Roller Bearing (p=10/3)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Button onClick={calculate} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Bearing Life
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <h4 className="font-semibold mb-2">Bearing Life Analysis</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span>Equivalent Load:</span>
+              <span className="font-mono">{result.equivalentLoad.toFixed(1)} kN</span>
+            </div>
+            <div className="flex justify-between">
+              <span>L10 Life (million rev):</span>
+              <span className="font-mono">{result.L10.toFixed(1)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>L10 Life (hours):</span>
+              <span className="font-mono">{result.L10h.toFixed(0)} h</span>
+            </div>
+            <div className="flex justify-between">
+              <span>L10 Life (years @ 8760h):</span>
+              <span className="font-mono">{(result.L10h / 8760).toFixed(1)} years</span>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            <p><strong>Formula:</strong> L10 = (C/P)^p</p>
+            <p><strong>Note:</strong> 90% of bearings will exceed this life</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SpringDesignCalculator() {
+  const [wireDiameter, setWireDiameter] = useState("");
+  const [springDiameter, setSpringDiameter] = useState("");
+  const [totalCoils, setTotalCoils] = useState("");
+  const [load, setLoad] = useState("");
+  const [springModulus, setSpringModulus] = useState("80000"); // MPa for steel
+  const [result, setResult] = useState<{ 
+    springRate: number; 
+    deflection: number; 
+    shearStress: number; 
+    activeCoils: number;
+    springIndex: number;
+  } | null>(null);
+
+  const calculate = () => {
+    const d = parseFloat(wireeDiameter); // mm
+    const D = parseFloat(springDiameter); // mm
+    const Nt = parseFloat(totalCoils);
+    const F = parseFloat(load); // N
+    const G = parseFloat(springModulus) * 1e6; // Pa
+
+    if (isNaN(d) || isNaN(D) || isNaN(Nt) || isNaN(F) || isNaN(G)) {
+      setResult(null);
+      return;
+    }
+
+    // Spring calculations
+    const Na = Nt - 2; // Active coils (assuming closed ends)
+    const C = D / d; // Spring index
+    const K = (G * Math.pow(d, 4)) / (8 * Math.pow(D, 3) * Na); // Spring rate N/mm
+    
+    // Deflection
+    const δ = F / K; // mm
+    
+    // Wahl correction factor
+    const Kw = (4 * C - 1) / (4 * C - 4) + 0.615 / C;
+    
+    // Shear stress
+    const τ = Kw * (8 * F * D) / (Math.PI * Math.pow(d, 3)) / 1e6; // MPa
+
+    setResult({
+      springRate: K,
+      deflection: δ,
+      shearStress: τ,
+      activeCoils: Na,
+      springIndex: C
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="wireDiameter">Wire Diameter (mm)</Label>
+          <Input
+            id="wireDiameter"
+            value={wireDiameter}
+            onChange={(e) => setWireDiameter(e.target.value)}
+            placeholder="2"
+          />
+        </div>
+        <div>
+          <Label htmlFor="springDiameter">Mean Spring Diameter (mm)</Label>
+          <Input
+            id="springDiameter"
+            value={springDiameter}
+            onChange={(e) => setSpringDiameter(e.target.value)}
+            placeholder="20"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="totalCoils">Total Coils</Label>
+          <Input
+            id="totalCoils"
+            value={totalCoils}
+            onChange={(e) => setTotalCoils(e.target.value)}
+            placeholder="10"
+          />
+        </div>
+        <div>
+          <Label htmlFor="load">Applied Load (N)</Label>
+          <Input
+            id="load"
+            value={load}
+            onChange={(e) => setLoad(e.target.value)}
+            placeholder="100"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="springModulus">Shear Modulus (MPa)</Label>
+        <Input
+          id="springModulus"
+          value={springModulus}
+          onChange={(e) => setSpringModulus(e.target.value)}
+          placeholder="80000"
+        />
+      </div>
+
+      <Button onClick={calculate} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Spring Properties
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <h4 className="font-semibold mb-2">Spring Design Results</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span>Spring Rate:</span>
+              <span className="font-mono">{result.springRate.toFixed(2)} N/mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Deflection:</span>
+              <span className="font-mono">{result.deflection.toFixed(2)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Shear Stress:</span>
+              <span className="font-mono">{result.shearStress.toFixed(1)} MPa</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Active Coils:</span>
+              <span className="font-mono">{result.activeCoils}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Spring Index:</span>
+              <span className="font-mono">{result.springIndex.toFixed(1)}</span>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            <p><strong>Formula:</strong> K = Gd⁴/(8D³Na)</p>
+            <p><strong>Recommended:</strong> Spring index C = 4-12 for good design</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ToleranceFitCalculator() {
+  const [nominalDiameter, setNominalDiameter] = useState("");
+  const [holeClass, setHoleClass] = useState("H7");
+  const [shaftClass, setShaftClass] = useState("g6");
+  const [result, setResult] = useState<{ 
+    fitType: string;
+    maxClearance: number;
+    minClearance: number;
+    holeTolerances: { upper: number; lower: number };
+    shaftTolerances: { upper: number; lower: number };
+  } | null>(null);
+
+  const toleranceData = {
+    H7: { IT: 25, deviation: 0 }, // Microns for 30-50mm range
+    g6: { IT: 16, deviation: -9 },
+    h6: { IT: 16, deviation: 0 },
+    f7: { IT: 25, deviation: -25 },
+    H8: { IT: 39, deviation: 0 },
+    s6: { IT: 16, deviation: 35 }
+  };
+
+  const calculate = () => {
+    const D = parseFloat(nominalDiameter);
+    
+    if (isNaN(D)) {
+      setResult(null);
+      return;
+    }
+
+    const hole = toleranceData[holeClass as keyof typeof toleranceData];
+    const shaft = toleranceData[shaftClass as keyof typeof toleranceData];
+
+    if (!hole || !shaft) {
+      setResult(null);
+      return;
+    }
+
+    // Calculate tolerances
+    const holeUpper = hole.deviation + hole.IT;
+    const holeLower = hole.deviation;
+    const shaftUpper = shaft.deviation;
+    const shaftLower = shaft.deviation - shaft.IT;
+
+    // Calculate clearances/interferences
+    const maxClearance = holeUpper - shaftLower;
+    const minClearance = holeLower - shaftUpper;
+
+    let fitType = "Clearance Fit";
+    if (minClearance < 0 && maxClearance > 0) fitType = "Transition Fit";
+    else if (maxClearance < 0) fitType = "Interference Fit";
+
+    setResult({
+      fitType,
+      maxClearance,
+      minClearance,
+      holeTolerances: { upper: holeUpper, lower: holeLower },
+      shaftTolerances: { upper: shaftUpper, lower: shaftLower }
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="nominalDiameter">Nominal Diameter (mm)</Label>
+        <Input
+          id="nominalDiameter"
+          value={nominalDiameter}
+          onChange={(e) => setNominalDiameter(e.target.value)}
+          placeholder="40"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="holeClass">Hole Tolerance Class</Label>
+          <Select value={holeClass} onValueChange={setHoleClass}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="H7">H7 (Standard hole)</SelectItem>
+              <SelectItem value="H8">H8 (Loose hole)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="shaftClass">Shaft Tolerance Class</Label>
+          <Select value={shaftClass} onValueChange={setShaftClass}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="g6">g6 (Close running fit)</SelectItem>
+              <SelectItem value="h6">h6 (Sliding fit)</SelectItem>
+              <SelectItem value="f7">f7 (Easy running fit)</SelectItem>
+              <SelectItem value="s6">s6 (Push fit)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculate} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Fit Properties
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <h4 className="font-semibold mb-2">ISO Tolerance & Fit Results</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span>Fit Type:</span>
+              <span className="font-mono font-semibold">{result.fitType}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Max Clearance:</span>
+              <span className="font-mono">{result.maxClearance > 0 ? '+' : ''}{result.maxClearance} μm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Min Clearance:</span>
+              <span className="font-mono">{result.minClearance > 0 ? '+' : ''}{result.minClearance} μm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Hole Tolerance:</span>
+              <span className="font-mono">{result.holeTolerances.upper > 0 ? '+' : ''}{result.holeTolerances.upper}/{result.holeTolerances.lower} μm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Shaft Tolerance:</span>
+              <span className="font-mono">{result.shaftTolerances.upper > 0 ? '+' : ''}{result.shaftTolerances.upper}/{result.shaftTolerances.lower} μm</span>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            <p><strong>Standard:</strong> ISO 286-1 tolerance system</p>
+            <p><strong>Note:</strong> Values approximate for 30-50mm diameter range</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MomentInertiaCalculator() {
+  const [sectionType, setSectionType] = useState("rectangular");
+  const [width, setWidth] = useState("");
+  const [height, setHeight] = useState("");
+  const [diameter, setDiameter] = useState("");
+  const [webThickness, setWebThickness] = useState("");
+  const [flangeThickness, setFlangeThickness] = useState("");
+  const [result, setResult] = useState<{ 
+    area: number; 
+    Ixx: number; 
+    Iyy: number; 
+    Sxx: number; 
+    Syy: number; 
+  } | null>(null);
+
+  const calculate = () => {
+    let A, Ixx, Iyy, Sxx, Syy;
+
+    if (sectionType === "rectangular") {
+      const b = parseFloat(width); // mm
+      const h = parseFloat(height); // mm
+      
+      if (isNaN(b) || isNaN(h)) {
+        setResult(null);
+        return;
+      }
+      
+      A = b * h;
+      Ixx = (b * Math.pow(h, 3)) / 12;
+      Iyy = (h * Math.pow(b, 3)) / 12;
+      Sxx = Ixx / (h / 2);
+      Syy = Iyy / (b / 2);
+      
+    } else if (sectionType === "circular") {
+      const d = parseFloat(diameter); // mm
+      
+      if (isNaN(d)) {
+        setResult(null);
+        return;
+      }
+      
+      A = (Math.PI * Math.pow(d, 2)) / 4;
+      Ixx = (Math.PI * Math.pow(d, 4)) / 64;
+      Iyy = Ixx; // Symmetric
+      Sxx = Ixx / (d / 2);
+      Syy = Sxx;
+      
+    } else if (sectionType === "ibeam") {
+      const b = parseFloat(width); // mm (flange width)
+      const h = parseFloat(height); // mm (total height)
+      const tw = parseFloat(webThickness); // mm
+      const tf = parseFloat(flangeThickness); // mm
+      
+      if (isNaN(b) || isNaN(h) || isNaN(tw) || isNaN(tf)) {
+        setResult(null);
+        return;
+      }
+      
+      // Simplified I-beam calculation
+      A = 2 * b * tf + (h - 2 * tf) * tw;
+      
+      // Moment of inertia about x-axis (strong axis)
+      const I_flange = 2 * ((b * Math.pow(tf, 3)) / 12 + b * tf * Math.pow((h - tf) / 2, 2));
+      const I_web = (tw * Math.pow(h - 2 * tf, 3)) / 12;
+      Ixx = I_flange + I_web;
+      
+      // Moment of inertia about y-axis (weak axis)
+      Iyy = 2 * (tf * Math.pow(b, 3)) / 12 + ((h - 2 * tf) * Math.pow(tw, 3)) / 12;
+      
+      Sxx = Ixx / (h / 2);
+      Syy = Iyy / (b / 2);
+    } else {
+      setResult(null);
+      return;
+    }
+
+    setResult({
+      area: A,
+      Ixx: Ixx,
+      Iyy: Iyy,
+      Sxx: Sxx,
+      Syy: Syy
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="sectionType">Cross-Section Type</Label>
+        <Select value={sectionType} onValueChange={setSectionType}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="rectangular">Rectangular</SelectItem>
+            <SelectItem value="circular">Circular</SelectItem>
+            <SelectItem value="ibeam">I-Beam</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {sectionType === "rectangular" && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="width">Width (mm)</Label>
+            <Input
+              id="width"
+              value={width}
+              onChange={(e) => setWidth(e.target.value)}
+              placeholder="50"
+            />
+          </div>
+          <div>
+            <Label htmlFor="height">Height (mm)</Label>
+            <Input
+              id="height"
+              value={height}
+              onChange={(e) => setHeight(e.target.value)}
+              placeholder="100"
+            />
+          </div>
+        </div>
+      )}
+
+      {sectionType === "circular" && (
+        <div>
+          <Label htmlFor="diameter">Diameter (mm)</Label>
+          <Input
+            id="diameter"
+            value={diameter}
+            onChange={(e) => setDiameter(e.target.value)}
+            placeholder="50"
+          />
+        </div>
+      )}
+
+      {sectionType === "ibeam" && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="width">Flange Width (mm)</Label>
+            <Input
+              id="width"
+              value={width}
+              onChange={(e) => setWidth(e.target.value)}
+              placeholder="100"
+            />
+          </div>
+          <div>
+            <Label htmlFor="height">Total Height (mm)</Label>
+            <Input
+              id="height"
+              value={height}
+              onChange={(e) => setHeight(e.target.value)}
+              placeholder="200"
+            />
+          </div>
+          <div>
+            <Label htmlFor="webThickness">Web Thickness (mm)</Label>
+            <Input
+              id="webThickness"
+              value={webThickness}
+              onChange={(e) => setWebThickness(e.target.value)}
+              placeholder="8"
+            />
+          </div>
+          <div>
+            <Label htmlFor="flangeThickness">Flange Thickness (mm)</Label>
+            <Input
+              id="flangeThickness"
+              value={flangeThickness}
+              onChange={(e) => setFlangeThickness(e.target.value)}
+              placeholder="12"
+            />
+          </div>
+        </div>
+      )}
+
+      <Button onClick={calculate} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Section Properties
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <h4 className="font-semibold mb-2">Section Properties</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span>Area:</span>
+              <span className="font-mono">{result.area.toFixed(1)} mm²</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Ixx (Strong):</span>
+              <span className="font-mono">{(result.Ixx / 1e6).toFixed(2)} cm⁴</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Iyy (Weak):</span>
+              <span className="font-mono">{(result.Iyy / 1e6).toFixed(2)} cm⁴</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Sxx:</span>
+              <span className="font-mono">{(result.Sxx / 1000).toFixed(2)} cm³</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Syy:</span>
+              <span className="font-mono">{(result.Syy / 1000).toFixed(2)} cm³</span>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            <p><strong>Formulas:</strong> Rectangle: I = bh³/12, Circle: I = πd⁴/64</p>
+            <p><strong>Section Modulus:</strong> S = I/c (where c = distance to extreme fiber)</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FactorSafetyCalculator() {
+  const [appliedStress, setAppliedStress] = useState("");
+  const [allowableStress, setAllowableStress] = useState("");
+  const [yieldStrength, setYieldStrength] = useState("");
+  const [ultimateStrength, setUltimateStrength] = useState("");
+  const [result, setResult] = useState<{ 
+    safetyFactorAllowable: number;
+    safetyFactorYield: number;
+    safetyFactorUltimate: number;
+    designMargin: number;
+    status: string;
+  } | null>(null);
+
+  const calculate = () => {
+    const σ_applied = parseFloat(appliedStress); // MPa
+    const σ_allowable = parseFloat(allowableStress); // MPa
+    const σ_yield = parseFloat(yieldStrength); // MPa
+    const σ_ultimate = parseFloat(ultimateStrength); // MPa
+
+    if (isNaN(σ_applied)) {
+      setResult(null);
+      return;
+    }
+
+    const SF_allowable = !isNaN(σ_allowable) ? σ_allowable / σ_applied : null;
+    const SF_yield = !isNaN(σ_yield) ? σ_yield / σ_applied : null;
+    const SF_ultimate = !isNaN(σ_ultimate) ? σ_ultimate / σ_applied : null;
+
+    const designMargin = SF_allowable ? ((SF_allowable - 1) * 100) : 0;
+
+    let status = "Unknown";
+    if (SF_allowable) {
+      if (SF_allowable > 2) status = "Very Safe";
+      else if (SF_allowable > 1.5) status = "Safe";
+      else if (SF_allowable > 1.0) status = "Marginal";
+      else status = "Unsafe";
+    }
+
+    setResult({
+      safetyFactorAllowable: SF_allowable || 0,
+      safetyFactorYield: SF_yield || 0,
+      safetyFactorUltimate: SF_ultimate || 0,
+      designMargin,
+      status
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="appliedStress">Applied Stress (MPa)</Label>
+          <Input
+            id="appliedStress"
+            value={appliedStress}
+            onChange={(e) => setAppliedStress(e.target.value)}
+            placeholder="50"
+          />
+        </div>
+        <div>
+          <Label htmlFor="allowableStress">Allowable Stress (MPa)</Label>
+          <Input
+            id="allowableStress"
+            value={allowableStress}
+            onChange={(e) => setAllowableStress(e.target.value)}
+            placeholder="100"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="yieldStrength">Yield Strength (MPa)</Label>
+          <Input
+            id="yieldStrength"
+            value={yieldStrength}
+            onChange={(e) => setYieldStrength(e.target.value)}
+            placeholder="250"
+          />
+        </div>
+        <div>
+          <Label htmlFor="ultimateStrength">Ultimate Strength (MPa)</Label>
+          <Input
+            id="ultimateStrength"
+            value={ultimateStrength}
+            onChange={(e) => setUltimateStrength(e.target.value)}
+            placeholder="400"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculate} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Safety Factors
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <h4 className="font-semibold mb-2">Safety Factor Analysis</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span>Design Status:</span>
+              <span className={`font-mono font-semibold ${
+                result.status === 'Very Safe' ? 'text-green-600' :
+                result.status === 'Safe' ? 'text-blue-600' :
+                result.status === 'Marginal' ? 'text-yellow-600' :
+                'text-red-600'
+              }`}>{result.status}</span>
+            </div>
+            {result.safetyFactorAllowable > 0 && (
+              <div className="flex justify-between">
+                <span>SF (Allowable):</span>
+                <span className="font-mono">{result.safetyFactorAllowable.toFixed(2)}</span>
+              </div>
+            )}
+            {result.safetyFactorYield > 0 && (
+              <div className="flex justify-between">
+                <span>SF (Yield):</span>
+                <span className="font-mono">{result.safetyFactorYield.toFixed(2)}</span>
+              </div>
+            )}
+            {result.safetyFactorUltimate > 0 && (
+              <div className="flex justify-between">
+                <span>SF (Ultimate):</span>
+                <span className="font-mono">{result.safetyFactorUltimate.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span>Design Margin:</span>
+              <span className="font-mono">{result.designMargin.toFixed(1)}%</span>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            <p><strong>Formula:</strong> SF = σ_allowable / σ_applied</p>
+            <p><strong>Recommended:</strong> SF ≥ 1.5 for static loads, SF ≥ 2.0 for dynamic</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SurfaceFinishChart() {
+  const surfaceFinishes = [
+    { process: "Rough Turning", ra: "12.5 - 25", application: "Non-critical surfaces, clearance fits" },
+    { process: "Fine Turning", ra: "3.2 - 6.3", application: "General machinery, sliding fits" },
+    { process: "Grinding", ra: "0.8 - 1.6", application: "Bearing surfaces, close fits" },
+    { process: "Fine Grinding", ra: "0.2 - 0.4", application: "Precision bearing races, gages" },
+    { process: "Polishing", ra: "0.1 - 0.2", application: "Mirror finish, optical surfaces" },
+    { process: "Lapping", ra: "0.05 - 0.1", application: "Precision gages, valve seats" },
+    { process: "Milling", ra: "1.6 - 6.3", application: "General machining, structural parts" },
+    { process: "Drilling", ra: "1.6 - 3.2", application: "Holes for bolts, pins" },
+    { process: "Reaming", ra: "0.8 - 1.6", application: "Precision holes, bearing fits" },
+    { process: "Broaching", ra: "0.8 - 3.2", application: "Keyways, splines, internal shapes" },
+    { process: "Sand Casting", ra: "12.5 - 25", application: "Rough castings, non-critical" },
+    { process: "Die Casting", ra: "1.6 - 3.2", application: "Precision castings, automotive" },
+    { process: "Forging", ra: "3.2 - 12.5", application: "Structural components, rough shapes" }
+  ];
+
+  const [selectedRa, setSelectedRa] = useState("");
+  const [filteredProcesses, setFilteredProcesses] = useState(surfaceFinishes);
+
+  const filterByRa = () => {
+    const targetRa = parseFloat(selectedRa);
+    if (isNaN(targetRa)) {
+      setFilteredProcesses(surfaceFinishes);
+      return;
+    }
+
+    const filtered = surfaceFinishes.filter(finish => {
+      const [min, max] = finish.ra.split(' - ').map(v => parseFloat(v));
+      return targetRa >= min && targetRa <= max;
+    });
+
+    setFilteredProcesses(filtered);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-4 items-end">
+        <div className="flex-1">
+          <Label htmlFor="raValue">Filter by Ra Value (μm)</Label>
+          <Input
+            id="raValue"
+            value={selectedRa}
+            onChange={(e) => setSelectedRa(e.target.value)}
+            placeholder="Enter Ra value (e.g., 1.6)"
+          />
+        </div>
+        <Button onClick={filterByRa}>
+          <Filter className="h-4 w-4 mr-2" />
+          Filter
+        </Button>
+        <Button variant="outline" onClick={() => {
+          setSelectedRa("");
+          setFilteredProcesses(surfaceFinishes);
+        }}>
+          Reset
+        </Button>
+      </div>
+
+      <div className="border rounded-lg overflow-hidden">
+        <div className="bg-muted px-4 py-2">
+          <h4 className="font-semibold">Surface Finish Chart (Ra Values in μm)</h4>
+        </div>
+        <div className="max-h-96 overflow-y-auto">
+          <table className="w-full">
+            <thead className="bg-muted/50 sticky top-0">
+              <tr>
+                <th className="px-4 py-2 text-left">Manufacturing Process</th>
+                <th className="px-4 py-2 text-left">Ra Range (μm)</th>
+                <th className="px-4 py-2 text-left">Typical Applications</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProcesses.map((finish, index) => (
+                <tr key={index} className="border-t hover:bg-muted/25">
+                  <td className="px-4 py-2 font-medium">{finish.process}</td>
+                  <td className="px-4 py-2 font-mono">{finish.ra}</td>
+                  <td className="px-4 py-2 text-sm">{finish.application}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="text-xs text-muted-foreground space-y-1">
+        <p><strong>Ra (Roughness Average):</strong> Arithmetic mean of surface profile deviations</p>
+        <p><strong>Standards:</strong> ISO 1302, ASME B46.1</p>
+        <p><strong>Note:</strong> Values are typical ranges; actual results depend on tooling, speeds, and feeds</p>
+      </div>
+    </div>
+  );
+}
+
 export default function DesignToolsPage() {
   return (
     <Layout>
@@ -7310,60 +8673,315 @@ export default function DesignToolsPage() {
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
-                    <CardTitle className="text-base">CAD Software</CardTitle>
+                    <CardTitle className="text-base">Shaft Design Calculator</CardTitle>
                     <CardDescription>
-                      Professional 3D CAD applications
+                      Calculate minimum shaft diameter based on loads and stress
                     </CardDescription>
                   </div>
-                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <Wrench className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Monitor className="h-4 w-4 mr-2" />
-                      SolidWorks
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Package className="h-4 w-4 mr-2" />
-                      AutoCAD 3D
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Cpu className="h-4 w-4 mr-2" />
-                      Inventor
-                    </Button>
-                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Torque, bending moment, and allowable stress analysis
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Shaft Design Calculator</DialogTitle>
+                      </DialogHeader>
+                      <ShaftDesignCalculator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
-                    <CardTitle className="text-base">Drawing Tools</CardTitle>
+                    <CardTitle className="text-base">Key and Keyway Sizing Tool</CardTitle>
                     <CardDescription>
-                      2D drafting and documentation
+                      Determine key dimensions and check strength
                     </CardDescription>
                   </div>
-                  <Ruler className="h-4 w-4 text-muted-foreground" />
+                  <Settings className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Grid className="h-4 w-4 mr-2" />
-                      AutoCAD 2D
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <FileText className="h-4 w-4 mr-2" />
-                      DraftSight
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Layers className="h-4 w-4 mr-2" />
-                      Technical Sketching
-                    </Button>
-                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Shear and bearing strength calculations
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Key and Keyway Sizing Tool</DialogTitle>
+                      </DialogHeader>
+                      <KeywayCalculator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
               <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Gear Design Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate gear parameters and output torque
+                    </CardDescription>
+                  </div>
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Module, teeth count, center distance calculations
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Gear Design Calculator</DialogTitle>
+                      </DialogHeader>
+                      <GearDesignCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Bolt Torque & Preload Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate required torque for desired preload
+                    </CardDescription>
+                  </div>
+                  <Wrench className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Thread size and friction coefficient analysis
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Bolt Torque & Preload Calculator</DialogTitle>
+                      </DialogHeader>
+                      <BoltTorqueCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Bearing Life Estimator</CardTitle>
+                    <CardDescription>
+                      Calculate L10 bearing life and load capacity
+                    </CardDescription>
+                  </div>
+                  <CircuitBoard className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Dynamic load and equivalent radial load analysis
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Bearing Life Estimator</DialogTitle>
+                      </DialogHeader>
+                      <BearingLifeCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Spring Design Calculator</CardTitle>
+                    <CardDescription>
+                      Design compression springs with stress analysis
+                    </CardDescription>
+                  </div>
+                  <Waves className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Spring rate, shear stress, and coil calculations
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Spring Design Calculator</DialogTitle>
+                      </DialogHeader>
+                      <SpringDesignCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Tolerance & Fit Calculator</CardTitle>
+                    <CardDescription>
+                      ISO fit recommendations and clearance calculations
+                    </CardDescription>
+                  </div>
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    H7/g6 fits and interference/clearance analysis
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Tolerance & Fit Calculator</DialogTitle>
+                      </DialogHeader>
+                      <ToleranceFitCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Moment of Inertia & Section Modulus</CardTitle>
+                    <CardDescription>
+                      Calculate properties for standard cross-sections
+                    </CardDescription>
+                  </div>
+                  <Square className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Rectangular, circular, and I-beam sections
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Moment of Inertia & Section Modulus Calculator</DialogTitle>
+                      </DialogHeader>
+                      <MomentInertiaCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Factor of Safety Calculator</CardTitle>
+                    <CardDescription>
+                      Compare applied stress to allowable stress
+                    </CardDescription>
+                  </div>
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Safety margin and stress ratio calculations
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Factor of Safety Calculator</DialogTitle>
+                      </DialogHeader>
+                      <FactorSafetyCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Surface Finish Chart</CardTitle>
+                    <CardDescription>
+                      Ra values with manufacturing processes
+                    </CardDescription>
+                  </div>
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Manufacturing processes and applications
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Chart
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Surface Finish Chart</DialogTitle>
+                      </DialogHeader>
+                      <SurfaceFinishChart />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+            </div>
+          </TabsContent>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
                     <CardTitle className="text-base">Component Library</CardTitle>
