@@ -3019,6 +3019,1436 @@ function HydrostaticTestCalculator() {
   );
 }
 
+function PipeThicknessCalculator() {
+  const [pressure, setPressure] = useState("");
+  const [diameter, setDiameter] = useState("");
+  const [allowableStress, setAllowableStress] = useState("");
+  const [weldEfficiency, setWeldEfficiency] = useState("1.0");
+  const [corrosionAllowance, setCorrosionAllowance] = useState("3.0");
+  const [result, setResult] = useState<{ thickness: number; nominalThickness: number; status: string } | null>(null);
+
+  const calculateThickness = () => {
+    const P = parseFloat(pressure);
+    const D = parseFloat(diameter);
+    const S = parseFloat(allowableStress);
+    const E = parseFloat(weldEfficiency);
+    const C = parseFloat(corrosionAllowance);
+
+    if (isNaN(P) || isNaN(D) || isNaN(S) || isNaN(E) || isNaN(C)) {
+      setResult(null);
+      return;
+    }
+
+    // ASME B31.3: t = PD / (2SE + 2yP) + C
+    // Simplified: t = PD / (2SE) + C (for y=0.4, typical for steel)
+    const calculatedThickness = (P * D) / (2 * S * E) + C;
+    
+    // Round up to next standard thickness
+    const standardThicknesses = [3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 32, 36, 40, 45, 50];
+    const nominalThickness = standardThicknesses.find(t => t >= calculatedThickness) || calculatedThickness;
+
+    setResult({
+      thickness: calculatedThickness,
+      nominalThickness,
+      status: "Thickness calculated per ASME B31.3"
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="pressure">Design Pressure (MPa)</Label>
+          <Input
+            id="pressure"
+            type="number"
+            step="0.1"
+            value={pressure}
+            onChange={(e) => setPressure(e.target.value)}
+            placeholder="Enter pressure"
+          />
+        </div>
+        <div>
+          <Label htmlFor="diameter">Outside Diameter (mm)</Label>
+          <Input
+            id="diameter"
+            type="number"
+            value={diameter}
+            onChange={(e) => setDiameter(e.target.value)}
+            placeholder="Enter diameter"
+          />
+        </div>
+        <div>
+          <Label htmlFor="allowableStress">Allowable Stress (MPa)</Label>
+          <Input
+            id="allowableStress"
+            type="number"
+            value={allowableStress}
+            onChange={(e) => setAllowableStress(e.target.value)}
+            placeholder="Enter allowable stress"
+          />
+        </div>
+        <div>
+          <Label htmlFor="weldEfficiency">Weld Efficiency</Label>
+          <Select value={weldEfficiency} onValueChange={setWeldEfficiency}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1.0">1.0 (Seamless)</SelectItem>
+              <SelectItem value="0.85">0.85 (DSAW/ERW)</SelectItem>
+              <SelectItem value="0.80">0.80 (Furnace Butt Weld)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="col-span-2">
+          <Label htmlFor="corrosionAllowance">Corrosion Allowance (mm)</Label>
+          <Input
+            id="corrosionAllowance"
+            type="number"
+            step="0.1"
+            value={corrosionAllowance}
+            onChange={(e) => setCorrosionAllowance(e.target.value)}
+            placeholder="Enter corrosion allowance"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateThickness} className="w-full">
+        Calculate Pipe Thickness
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Results</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Calculated Thickness:</span>
+              <span className="font-mono">{result.thickness.toFixed(2)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Nominal Thickness:</span>
+              <span className="font-mono">{result.nominalThickness.toFixed(1)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Safety Margin:</span>
+              <span className="font-mono">{((result.nominalThickness - result.thickness) / result.thickness * 100).toFixed(1)}%</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span className="text-sm">{result.status}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Formula:</strong> t = PD/(2SE) + C</p>
+        <p><strong>Standards:</strong> ASME B31.3 Process Piping</p>
+      </div>
+    </div>
+  );
+}
+
+function PipeSizeScheduleSelector() {
+  const [nominalSize, setNominalSize] = useState("100");
+  const [schedule, setSchedule] = useState("40");
+  const [result, setResult] = useState<{ od: number; id: number; thickness: number; weight: number } | null>(null);
+
+  const lookupDimensions = () => {
+    // Simplified pipe dimension database (ASME B36.10M)
+    const pipeDimensions: { [key: string]: { [key: string]: { od: number; thickness: number; weight: number } } } = {
+      "50": {
+        "40": { od: 60.3, thickness: 3.91, weight: 5.44 },
+        "80": { od: 60.3, thickness: 5.54, weight: 7.48 },
+        "160": { od: 60.3, thickness: 8.74, weight: 11.3 }
+      },
+      "80": {
+        "40": { od: 88.9, thickness: 5.49, weight: 11.3 },
+        "80": { od: 88.9, thickness: 7.62, weight: 15.3 },
+        "160": { od: 88.9, thickness: 11.1, weight: 22.3 }
+      },
+      "100": {
+        "40": { od: 114.3, thickness: 6.02, weight: 16.1 },
+        "80": { od: 114.3, thickness: 8.56, weight: 22.3 },
+        "160": { od: 114.3, thickness: 13.5, weight: 33.5 }
+      },
+      "150": {
+        "40": { od: 168.3, thickness: 7.11, weight: 28.3 },
+        "80": { od: 168.3, thickness: 10.97, weight: 42.6 },
+        "160": { od: 168.3, thickness: 18.26, weight: 68.6 }
+      }
+    };
+
+    const pipeData = pipeDimensions[nominalSize]?.[schedule];
+    if (pipeData) {
+      const id = pipeData.od - 2 * pipeData.thickness;
+      setResult({
+        od: pipeData.od,
+        id,
+        thickness: pipeData.thickness,
+        weight: pipeData.weight
+      });
+    } else {
+      setResult(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="nominalSize">Nominal Pipe Size (mm)</Label>
+          <Select value={nominalSize} onValueChange={setNominalSize}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="50">50 mm (2")</SelectItem>
+              <SelectItem value="80">80 mm (3")</SelectItem>
+              <SelectItem value="100">100 mm (4")</SelectItem>
+              <SelectItem value="150">150 mm (6")</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="schedule">Pipe Schedule</Label>
+          <Select value={schedule} onValueChange={setSchedule}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="40">Schedule 40</SelectItem>
+              <SelectItem value="80">Schedule 80</SelectItem>
+              <SelectItem value="160">Schedule 160</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={lookupDimensions} className="w-full">
+        Get Pipe Dimensions
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Pipe Dimensions</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Outside Diameter:</span>
+              <span className="font-mono">{result.od.toFixed(1)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Inside Diameter:</span>
+              <span className="font-mono">{result.id.toFixed(1)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Wall Thickness:</span>
+              <span className="font-mono">{result.thickness.toFixed(2)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Weight per meter:</span>
+              <span className="font-mono">{result.weight.toFixed(1)} kg/m</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Standards:</strong> ASME B36.10M and B36.19M</p>
+        <p><strong>Note:</strong> Dimensions are for carbon steel pipes</p>
+      </div>
+    </div>
+  );
+}
+
+function PressureDropCalculator() {
+  const [flowRate, setFlowRate] = useState("");
+  const [pipeID, setPipeID] = useState("");
+  const [pipeLength, setPipeLength] = useState("");
+  const [roughness, setRoughness] = useState("0.045");
+  const [density, setDensity] = useState("1000");
+  const [viscosity, setViscosity] = useState("0.001");
+  const [result, setResult] = useState<{ pressureDrop: number; velocity: number; reynolds: number; frictionFactor: number } | null>(null);
+
+  const calculatePressureDrop = () => {
+    const Q = parseFloat(flowRate) / 3600; // Convert L/hr to m³/s
+    const D = parseFloat(pipeID) / 1000; // Convert mm to m
+    const L = parseFloat(pipeLength);
+    const e = parseFloat(roughness) / 1000; // Convert mm to m
+    const rho = parseFloat(density);
+    const mu = parseFloat(viscosity);
+
+    if (isNaN(Q) || isNaN(D) || isNaN(L) || isNaN(e) || isNaN(rho) || isNaN(mu)) {
+      setResult(null);
+      return;
+    }
+
+    const A = Math.PI * Math.pow(D, 2) / 4;
+    const velocity = Q / A;
+    const reynolds = (rho * velocity * D) / mu;
+    
+    // Simplified friction factor calculation
+    let frictionFactor;
+    if (reynolds < 2300) {
+      frictionFactor = 64 / reynolds; // Laminar flow
+    } else {
+      // Approximate Colebrook-White for turbulent flow
+      const relativeRoughness = e / D;
+      frictionFactor = 0.25 / Math.pow(Math.log10(relativeRoughness / 3.7 + 5.74 / Math.pow(reynolds, 0.9)), 2);
+    }
+    
+    // Darcy-Weisbach equation: ΔP = f * (L/D) * (ρv²/2)
+    const pressureDrop = frictionFactor * (L / D) * (rho * Math.pow(velocity, 2) / 2) / 1000; // Convert to kPa
+
+    setResult({
+      pressureDrop,
+      velocity,
+      reynolds,
+      frictionFactor
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="flowRate">Flow Rate (L/hr)</Label>
+          <Input
+            id="flowRate"
+            type="number"
+            value={flowRate}
+            onChange={(e) => setFlowRate(e.target.value)}
+            placeholder="Enter flow rate"
+          />
+        </div>
+        <div>
+          <Label htmlFor="pipeID">Pipe Inside Diameter (mm)</Label>
+          <Input
+            id="pipeID"
+            type="number"
+            value={pipeID}
+            onChange={(e) => setPipeID(e.target.value)}
+            placeholder="Enter pipe ID"
+          />
+        </div>
+        <div>
+          <Label htmlFor="pipeLength">Pipe Length (m)</Label>
+          <Input
+            id="pipeLength"
+            type="number"
+            value={pipeLength}
+            onChange={(e) => setPipeLength(e.target.value)}
+            placeholder="Enter length"
+          />
+        </div>
+        <div>
+          <Label htmlFor="roughness">Pipe Roughness (mm)</Label>
+          <Select value={roughness} onValueChange={setRoughness}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0.045">0.045 (Commercial Steel)</SelectItem>
+              <SelectItem value="0.015">0.015 (Stainless Steel)</SelectItem>
+              <SelectItem value="0.002">0.002 (Glass/Plastic)</SelectItem>
+              <SelectItem value="0.15">0.15 (Cast Iron)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="density">Fluid Density (kg/m³)</Label>
+          <Input
+            id="density"
+            type="number"
+            value={density}
+            onChange={(e) => setDensity(e.target.value)}
+            placeholder="Enter density"
+          />
+        </div>
+        <div>
+          <Label htmlFor="viscosity">Dynamic Viscosity (Pa·s)</Label>
+          <Input
+            id="viscosity"
+            type="number"
+            step="0.0001"
+            value={viscosity}
+            onChange={(e) => setViscosity(e.target.value)}
+            placeholder="Enter viscosity"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculatePressureDrop} className="w-full">
+        Calculate Pressure Drop
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Results</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Pressure Drop:</span>
+              <span className="font-mono">{result.pressureDrop.toFixed(2)} kPa</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Flow Velocity:</span>
+              <span className="font-mono">{result.velocity.toFixed(2)} m/s</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Reynolds Number:</span>
+              <span className="font-mono">{result.reynolds.toFixed(0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Friction Factor:</span>
+              <span className="font-mono">{result.frictionFactor.toFixed(4)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Flow Regime:</span>
+              <span className="font-mono">{result.reynolds < 2300 ? "Laminar" : "Turbulent"}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Formula:</strong> ΔP = f × (L/D) × (ρv²/2)</p>
+        <p><strong>Note:</strong> Uses Darcy-Weisbach equation with Colebrook-White friction factor</p>
+      </div>
+    </div>
+  );
+}
+
+function PipeExpansionCalculator() {
+  const [pipeLength, setPipeLength] = useState("");
+  const [tempInitial, setTempInitial] = useState("");
+  const [tempFinal, setTempFinal] = useState("");
+  const [material, setMaterial] = useState("carbon_steel");
+  const [result, setResult] = useState<{ expansion: number; stress: number; status: string } | null>(null);
+
+  const calculateExpansion = () => {
+    const L = parseFloat(pipeLength);
+    const T1 = parseFloat(tempInitial);
+    const T2 = parseFloat(tempFinal);
+
+    if (isNaN(L) || isNaN(T1) || isNaN(T2)) {
+      setResult(null);
+      return;
+    }
+
+    // Thermal expansion coefficients (×10⁻⁶ /°C)
+    const expansionCoefficients = {
+      carbon_steel: 11.7,
+      stainless_steel: 17.3,
+      copper: 16.5,
+      pvc: 80.0
+    };
+
+    const alpha = expansionCoefficients[material as keyof typeof expansionCoefficients];
+    const deltaT = T2 - T1;
+    
+    // Thermal expansion: ΔL = α × L × ΔT
+    const expansion = (alpha * 1e-6) * L * deltaT * 1000; // Result in mm
+    
+    // Approximate thermal stress if constrained
+    const elasticModulus = 200000; // MPa for steel
+    const stress = alpha * 1e-6 * elasticModulus * Math.abs(deltaT);
+
+    setResult({
+      expansion,
+      stress,
+      status: "Pipe expansion calculated"
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="pipeLength">Pipe Length (m)</Label>
+          <Input
+            id="pipeLength"
+            type="number"
+            step="0.1"
+            value={pipeLength}
+            onChange={(e) => setPipeLength(e.target.value)}
+            placeholder="Enter pipe length"
+          />
+        </div>
+        <div>
+          <Label htmlFor="material">Pipe Material</Label>
+          <Select value={material} onValueChange={setMaterial}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="carbon_steel">Carbon Steel</SelectItem>
+              <SelectItem value="stainless_steel">Stainless Steel</SelectItem>
+              <SelectItem value="copper">Copper</SelectItem>
+              <SelectItem value="pvc">PVC</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="tempInitial">Initial Temperature (°C)</Label>
+          <Input
+            id="tempInitial"
+            type="number"
+            step="0.1"
+            value={tempInitial}
+            onChange={(e) => setTempInitial(e.target.value)}
+            placeholder="Enter initial temp"
+          />
+        </div>
+        <div>
+          <Label htmlFor="tempFinal">Final Temperature (°C)</Label>
+          <Input
+            id="tempFinal"
+            type="number"
+            step="0.1"
+            value={tempFinal}
+            onChange={(e) => setTempFinal(e.target.value)}
+            placeholder="Enter final temp"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateExpansion} className="w-full">
+        Calculate Pipe Expansion
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Results</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Thermal Expansion:</span>
+              <span className="font-mono">{result.expansion.toFixed(1)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Thermal Stress (if constrained):</span>
+              <span className="font-mono">{result.stress.toFixed(1)} MPa</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Temperature Change:</span>
+              <span className="font-mono">{(parseFloat(tempFinal) - parseFloat(tempInitial)).toFixed(1)} °C</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span className="text-sm">{result.status}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Formula:</strong> ΔL = α × L × ΔT</p>
+        <p><strong>Note:</strong> Provide expansion loops or expansion joints to accommodate growth</p>
+      </div>
+    </div>
+  );
+}
+
+function FlowVelocityReynoldsCalculator() {
+  const [flowRate, setFlowRate] = useState("");
+  const [pipeID, setPipeID] = useState("");
+  const [density, setDensity] = useState("1000");
+  const [viscosity, setViscosity] = useState("0.001");
+  const [result, setResult] = useState<{ velocity: number; reynolds: number; flowRegime: string; recommendation: string } | null>(null);
+
+  const calculateFlow = () => {
+    const Q = parseFloat(flowRate) / 3600; // Convert L/hr to m³/s
+    const D = parseFloat(pipeID) / 1000; // Convert mm to m
+    const rho = parseFloat(density);
+    const mu = parseFloat(viscosity);
+
+    if (isNaN(Q) || isNaN(D) || isNaN(rho) || isNaN(mu)) {
+      setResult(null);
+      return;
+    }
+
+    const A = Math.PI * Math.pow(D, 2) / 4;
+    const velocity = Q / A;
+    const reynolds = (rho * velocity * D) / mu;
+    
+    let flowRegime, recommendation;
+    if (reynolds < 2300) {
+      flowRegime = "Laminar";
+      recommendation = "Good for heat transfer, low mixing";
+    } else if (reynolds < 4000) {
+      flowRegime = "Transitional";
+      recommendation = "Unstable flow, avoid this range";
+    } else {
+      flowRegime = "Turbulent";
+      recommendation = "Good mixing, higher pressure drop";
+    }
+
+    // Velocity recommendations
+    if (velocity < 0.5) {
+      recommendation += " - Velocity may be too low";
+    } else if (velocity > 3.0) {
+      recommendation += " - Velocity may be too high, check erosion";
+    } else {
+      recommendation += " - Velocity is acceptable";
+    }
+
+    setResult({
+      velocity,
+      reynolds,
+      flowRegime,
+      recommendation
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="flowRate">Flow Rate (L/hr)</Label>
+          <Input
+            id="flowRate"
+            type="number"
+            value={flowRate}
+            onChange={(e) => setFlowRate(e.target.value)}
+            placeholder="Enter flow rate"
+          />
+        </div>
+        <div>
+          <Label htmlFor="pipeID">Pipe Inside Diameter (mm)</Label>
+          <Input
+            id="pipeID"
+            type="number"
+            value={pipeID}
+            onChange={(e) => setPipeID(e.target.value)}
+            placeholder="Enter pipe ID"
+          />
+        </div>
+        <div>
+          <Label htmlFor="density">Fluid Density (kg/m³)</Label>
+          <Input
+            id="density"
+            type="number"
+            value={density}
+            onChange={(e) => setDensity(e.target.value)}
+            placeholder="Enter density"
+          />
+        </div>
+        <div>
+          <Label htmlFor="viscosity">Dynamic Viscosity (Pa·s)</Label>
+          <Input
+            id="viscosity"
+            type="number"
+            step="0.0001"
+            value={viscosity}
+            onChange={(e) => setViscosity(e.target.value)}
+            placeholder="Enter viscosity"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateFlow} className="w-full">
+        Calculate Flow Parameters
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Results</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Flow Velocity:</span>
+              <span className="font-mono">{result.velocity.toFixed(2)} m/s</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Reynolds Number:</span>
+              <span className="font-mono">{result.reynolds.toFixed(0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Flow Regime:</span>
+              <span className="font-mono">{result.flowRegime}</span>
+            </div>
+          </div>
+          <div className="bg-blue-50 p-3 rounded">
+            <p className="text-sm text-blue-800">{result.recommendation}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Formula:</strong> Re = ρvD/μ, v = Q/A</p>
+        <p><strong>Typical velocities:</strong> Water: 0.5-3.0 m/s, Gas: 5-20 m/s</p>
+      </div>
+    </div>
+  );
+}
+
+function PipeSupportSpanEstimator() {
+  const [pipeSize, setPipeSize] = useState("100");
+  const [pipeMaterial, setPipeMaterial] = useState("carbon_steel");
+  const [insulation, setInsulation] = useState("false");
+  const [temperature, setTemperature] = useState("20");
+  const [result, setResult] = useState<{ maxSpan: number; recommendedSpan: number, supports: number } | null>(null);
+
+  const calculateSpan = () => {
+    const size = parseInt(pipeSize);
+    const temp = parseFloat(temperature);
+
+    // Simplified span calculation based on MSS SP-69
+    const baseSpans: { [key: string]: number } = {
+      "50": 3.5,
+      "80": 4.5,
+      "100": 5.0,
+      "150": 6.5,
+      "200": 7.5,
+      "250": 8.5
+    };
+
+    let maxSpan = baseSpans[pipeSize] || 5.0;
+
+    // Material factor
+    if (pipeMaterial === "stainless_steel") {
+      maxSpan *= 0.9; // Slightly lower for stainless
+    }
+
+    // Temperature derating
+    if (temp > 200) {
+      maxSpan *= 0.8;
+    } else if (temp > 100) {
+      maxSpan *= 0.9;
+    }
+
+    // Insulation factor
+    if (insulation === "true") {
+      maxSpan *= 0.8; // Reduce span for insulated pipes
+    }
+
+    const recommendedSpan = maxSpan * 0.8; // 80% of maximum for safety
+    const supports = Math.ceil(30 / recommendedSpan) + 1; // For 30m pipe run
+
+    setResult({
+      maxSpan,
+      recommendedSpan,
+      supports
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="pipeSize">Pipe Size (mm)</Label>
+          <Select value={pipeSize} onValueChange={setPipeSize}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="50">50 mm</SelectItem>
+              <SelectItem value="80">80 mm</SelectItem>
+              <SelectItem value="100">100 mm</SelectItem>
+              <SelectItem value="150">150 mm</SelectItem>
+              <SelectItem value="200">200 mm</SelectItem>
+              <SelectItem value="250">250 mm</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="pipeMaterial">Pipe Material</Label>
+          <Select value={pipeMaterial} onValueChange={setPipeMaterial}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="carbon_steel">Carbon Steel</SelectItem>
+              <SelectItem value="stainless_steel">Stainless Steel</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="temperature">Operating Temperature (°C)</Label>
+          <Input
+            id="temperature"
+            type="number"
+            value={temperature}
+            onChange={(e) => setTemperature(e.target.value)}
+            placeholder="Enter temperature"
+          />
+        </div>
+        <div>
+          <Label htmlFor="insulation">Insulated Pipe</Label>
+          <Select value={insulation} onValueChange={setInsulation}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="false">No Insulation</SelectItem>
+              <SelectItem value="true">With Insulation</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculateSpan} className="w-full">
+        Calculate Support Spans
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Results</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Maximum Span:</span>
+              <span className="font-mono">{result.maxSpan.toFixed(1)} m</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Recommended Span:</span>
+              <span className="font-mono">{result.recommendedSpan.toFixed(1)} m</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Supports needed (30m run):</span>
+              <span className="font-mono">{result.supports}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Standards:</strong> MSS SP-69 Pipe Support Guidelines</p>
+        <p><strong>Note:</strong> Adjust for specific loading conditions and local codes</p>
+      </div>
+    </div>
+  );
+}
+
+function MiterBendPressureLossCalculator() {
+  const [angle, setAngle] = useState("90");
+  const [velocity, setVelocity] = useState("");
+  const [density, setDensity] = useState("1000");
+  const [result, setResult] = useState<{ resistanceCoeff: number; pressureLoss: number, equivalentLength: number } | null>(null);
+
+  const calculateMiterLoss = () => {
+    const theta = parseFloat(angle);
+    const v = parseFloat(velocity);
+    const rho = parseFloat(density);
+
+    if (isNaN(theta) || isNaN(v) || isNaN(rho)) {
+      setResult(null);
+      return;
+    }
+
+    // Resistance coefficient for miter bends (approximate)
+    const thetaRad = (theta * Math.PI) / 180;
+    const resistanceCoeff = 0.9 * Math.sin(thetaRad) + 2.6 * Math.pow(Math.sin(thetaRad / 2), 2);
+    
+    // Pressure loss: ΔP = K × (ρv²/2)
+    const pressureLoss = resistanceCoeff * (rho * Math.pow(v, 2) / 2) / 1000; // kPa
+    
+    // Equivalent length (approximate, in pipe diameters)
+    const equivalentLength = resistanceCoeff / 0.02; // Assuming f = 0.02
+
+    setResult({
+      resistanceCoeff,
+      pressureLoss,
+      equivalentLength
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4">
+        <div>
+          <Label htmlFor="angle">Miter Angle (degrees)</Label>
+          <Select value={angle} onValueChange={setAngle}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="30">30°</SelectItem>
+              <SelectItem value="45">45°</SelectItem>
+              <SelectItem value="60">60°</SelectItem>
+              <SelectItem value="90">90°</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="velocity">Flow Velocity (m/s)</Label>
+          <Input
+            id="velocity"
+            type="number"
+            step="0.1"
+            value={velocity}
+            onChange={(e) => setVelocity(e.target.value)}
+            placeholder="Enter velocity"
+          />
+        </div>
+        <div>
+          <Label htmlFor="density">Fluid Density (kg/m³)</Label>
+          <Input
+            id="density"
+            type="number"
+            value={density}
+            onChange={(e) => setDensity(e.target.value)}
+            placeholder="Enter density"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateMiterLoss} className="w-full">
+        Calculate Miter Bend Loss
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Results</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Resistance Coefficient (K):</span>
+              <span className="font-mono">{result.resistanceCoeff.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Pressure Loss:</span>
+              <span className="font-mono">{result.pressureLoss.toFixed(2)} kPa</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Equivalent Length:</span>
+              <span className="font-mono">{result.equivalentLength.toFixed(1)} × D</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Formula:</strong> ΔP = K × (ρv²/2)</p>
+        <p><strong>Note:</strong> Single miter bend, add multiple K values for compound bends</p>
+      </div>
+    </div>
+  );
+}
+
+function FlangeBoltLoadCalculator() {
+  const [flangeSize, setFlangeSize] = useState("100");
+  const [pressure, setPressure] = useState("");
+  const [gasketFactor, setGasketFactor] = useState("2.75");
+  const [result, setResult] = useState<{ boltLoad: number; torque: number, stress: number } | null>(null);
+
+  const calculateBoltLoad = () => {
+    const size = parseInt(flangeSize);
+    const P = parseFloat(pressure);
+    const m = parseFloat(gasketFactor);
+
+    if (isNaN(size) || isNaN(P) || isNaN(m)) {
+      setResult(null);
+      return;
+    }
+
+    // Simplified flange calculation (ASME B16.5)
+    const gasketDiameter = size * 0.8; // Approximate
+    const gasketArea = Math.PI * Math.pow(gasketDiameter / 2, 2);
+    const gasketWidth = 10; // Approximate mm
+    
+    // Operating bolt load
+    const boltLoad = P * gasketArea + 2 * Math.PI * gasketDiameter * gasketWidth * m * P / 1000; // kN
+    
+    // Typical bolt configuration
+    const boltCount = size < 100 ? 4 : size < 200 ? 8 : 12;
+    const boltDiameter = size < 100 ? 16 : size < 200 ? 20 : 24;
+    
+    // Bolt stress
+    const boltArea = Math.PI * Math.pow(boltDiameter / 2, 2) * boltCount;
+    const stress = (boltLoad * 1000) / boltArea; // MPa
+    
+    // Torque (approximate)
+    const torque = boltLoad * boltDiameter * 0.2 / boltCount; // Nm per bolt
+
+    setResult({
+      boltLoad,
+      torque,
+      stress
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4">
+        <div>
+          <Label htmlFor="flangeSize">Flange Size (mm)</Label>
+          <Select value={flangeSize} onValueChange={setFlangeSize}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="50">50 mm</SelectItem>
+              <SelectItem value="80">80 mm</SelectItem>
+              <SelectItem value="100">100 mm</SelectItem>
+              <SelectItem value="150">150 mm</SelectItem>
+              <SelectItem value="200">200 mm</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="pressure">Design Pressure (MPa)</Label>
+          <Input
+            id="pressure"
+            type="number"
+            step="0.1"
+            value={pressure}
+            onChange={(e) => setPressure(e.target.value)}
+            placeholder="Enter pressure"
+          />
+        </div>
+        <div>
+          <Label htmlFor="gasketFactor">Gasket Factor (m)</Label>
+          <Select value={gasketFactor} onValueChange={setGasketFactor}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="2.75">2.75 (Spiral Wound)</SelectItem>
+              <SelectItem value="3.25">3.25 (Compressed Fiber)</SelectItem>
+              <SelectItem value="6.50">6.50 (Flat Rubber)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculateBoltLoad} className="w-full">
+        Calculate Bolt Load
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Results</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Total Bolt Load:</span>
+              <span className="font-mono">{result.boltLoad.toFixed(1)} kN</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Bolt Stress:</span>
+              <span className="font-mono">{result.stress.toFixed(1)} MPa</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Torque per Bolt:</span>
+              <span className="font-mono">{result.torque.toFixed(0)} Nm</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Standards:</strong> ASME B16.5 Flange Design</p>
+        <p><strong>Note:</strong> Simplified calculation, verify with detailed analysis</p>
+      </div>
+    </div>
+  );
+}
+
+function PipeMaterialPropertiesLookup() {
+  const [material, setMaterial] = useState("A106-B");
+  const [temperature, setTemperature] = useState("20");
+  const [result, setResult] = useState<{ allowableStress: number; elasticModulus: number; thermalExpansion: number; density: number } | null>(null);
+
+  const lookupProperties = () => {
+    const temp = parseFloat(temperature);
+
+    // Simplified material database
+    const materialProperties: { [key: string]: any } = {
+      "A106-B": {
+        allowableStress: 138,
+        elasticModulus: 200000,
+        thermalExpansion: 11.7,
+        density: 7850
+      },
+      "A312-316": {
+        allowableStress: 138,
+        elasticModulus: 200000,
+        thermalExpansion: 17.3,
+        density: 8000
+      },
+      "A53-B": {
+        allowableStress: 120,
+        elasticModulus: 200000,
+        thermalExpansion: 11.7,
+        density: 7850
+      }
+    };
+
+    const props = materialProperties[material];
+    if (props) {
+      // Temperature derating (simplified)
+      let stressFactor = 1.0;
+      if (temp > 200) stressFactor = 0.9;
+      if (temp > 400) stressFactor = 0.8;
+
+      setResult({
+        allowableStress: props.allowableStress * stressFactor,
+        elasticModulus: props.elasticModulus,
+        thermalExpansion: props.thermalExpansion,
+        density: props.density
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="material">Material Specification</Label>
+          <Select value={material} onValueChange={setMaterial}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="A106-B">ASTM A106 Grade B</SelectItem>
+              <SelectItem value="A312-316">ASTM A312 Type 316</SelectItem>
+              <SelectItem value="A53-B">ASTM A53 Grade B</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="temperature">Temperature (°C)</Label>
+          <Input
+            id="temperature"
+            type="number"
+            value={temperature}
+            onChange={(e) => setTemperature(e.target.value)}
+            placeholder="Enter temperature"
+          />
+        </div>
+      </div>
+
+      <Button onClick={lookupProperties} className="w-full">
+        Lookup Material Properties
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Material Properties</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Allowable Stress:</span>
+              <span className="font-mono">{result.allowableStress.toFixed(1)} MPa</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Elastic Modulus:</span>
+              <span className="font-mono">{result.elasticModulus.toFixed(0)} MPa</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Thermal Expansion:</span>
+              <span className="font-mono">{result.thermalExpansion.toFixed(1)} × 10⁻⁶/°C</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Density:</span>
+              <span className="font-mono">{result.density.toFixed(0)} kg/m³</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Source:</strong> ASTM Standards and ASME B31.3</p>
+        <p><strong>Note:</strong> Verify with current standards for final design</p>
+      </div>
+    </div>
+  );
+}
+
+function PipeWeightCalculator() {
+  const [pipeSize, setPipeSize] = useState("100");
+  const [schedule, setSchedule] = useState("40");
+  const [length, setLength] = useState("");
+  const [insulationThickness, setInsulationThickness] = useState("0");
+  const [fluidDensity, setFluidDensity] = useState("1000");
+  const [result, setResult] = useState<{ pipeWeight: number; fluidWeight: number; insulationWeight: number; totalWeight: number } | null>(null);
+
+  const calculateWeight = () => {
+    const L = parseFloat(length);
+    const insulThick = parseFloat(insulationThickness);
+    const fluidDens = parseFloat(fluidDensity);
+
+    if (isNaN(L) || isNaN(insulThick) || isNaN(fluidDens)) {
+      setResult(null);
+      return;
+    }
+
+    // Simplified pipe weights (kg/m)
+    const pipeWeights: { [key: string]: { [key: string]: { weight: number; id: number } } } = {
+      "100": {
+        "40": { weight: 16.1, id: 102.3 },
+        "80": { weight: 22.3, id: 97.2 }
+      },
+      "150": {
+        "40": { weight: 28.3, id: 154.1 },
+        "80": { weight: 42.6, id: 146.3 }
+      }
+    };
+
+    const pipeData = pipeWeights[pipeSize]?.[schedule];
+    if (!pipeData) {
+      setResult(null);
+      return;
+    }
+
+    const pipeWeight = pipeData.weight * L;
+    
+    // Fluid weight
+    const fluidVolume = Math.PI * Math.pow(pipeData.id / 2000, 2) * L; // m³
+    const fluidWeight = fluidVolume * fluidDens;
+    
+    // Insulation weight (approximate)
+    const pipeOD = parseInt(pipeSize) + 20; // Approximate OD
+    const insulationVolume = Math.PI * (Math.pow((pipeOD + 2 * insulThick) / 2000, 2) - Math.pow(pipeOD / 2000, 2)) * L;
+    const insulationWeight = insulationVolume * 150; // Typical insulation density kg/m³
+    
+    const totalWeight = pipeWeight + fluidWeight + insulationWeight;
+
+    setResult({
+      pipeWeight,
+      fluidWeight,
+      insulationWeight,
+      totalWeight
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="pipeSize">Pipe Size (mm)</Label>
+          <Select value={pipeSize} onValueChange={setPipeSize}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="100">100 mm</SelectItem>
+              <SelectItem value="150">150 mm</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="schedule">Schedule</Label>
+          <Select value={schedule} onValueChange={setSchedule}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="40">Schedule 40</SelectItem>
+              <SelectItem value="80">Schedule 80</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="length">Pipe Length (m)</Label>
+          <Input
+            id="length"
+            type="number"
+            value={length}
+            onChange={(e) => setLength(e.target.value)}
+            placeholder="Enter length"
+          />
+        </div>
+        <div>
+          <Label htmlFor="insulationThickness">Insulation Thickness (mm)</Label>
+          <Input
+            id="insulationThickness"
+            type="number"
+            value={insulationThickness}
+            onChange={(e) => setInsulationThickness(e.target.value)}
+            placeholder="Enter thickness"
+          />
+        </div>
+        <div className="col-span-2">
+          <Label htmlFor="fluidDensity">Fluid Density (kg/m³)</Label>
+          <Input
+            id="fluidDensity"
+            type="number"
+            value={fluidDensity}
+            onChange={(e) => setFluidDensity(e.target.value)}
+            placeholder="Enter fluid density"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateWeight} className="w-full">
+        Calculate Pipe Weight
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Weight Breakdown</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Pipe Weight:</span>
+              <span className="font-mono">{result.pipeWeight.toFixed(1)} kg</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Fluid Weight:</span>
+              <span className="font-mono">{result.fluidWeight.toFixed(1)} kg</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Insulation Weight:</span>
+              <span className="font-mono">{result.insulationWeight.toFixed(1)} kg</span>
+            </div>
+            <div className="flex justify-between font-semibold">
+              <span>Total Weight:</span>
+              <span className="font-mono">{result.totalWeight.toFixed(1)} kg</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Note:</strong> Weights are for straight pipe sections only</p>
+        <p><strong>Use:</strong> Total weight is used for pipe support design</p>
+      </div>
+    </div>
+  );
+}
+
+function InsulationThicknessCalculator() {
+  const [pipeOD, setPipeOD] = useState("");
+  const [pipeTemp, setPipeTemp] = useState("");
+  const [ambientTemp, setAmbientTemp] = useState("25");
+  const [maxSurfaceTemp, setMaxSurfaceTemp] = useState("60");
+  const [insulationType, setInsulationType] = useState("mineral_wool");
+  const [result, setResult] = useState<{ thickness: number; heatLoss: number, efficiency: number } | null>(null);
+
+  const calculateInsulation = () => {
+    const OD = parseFloat(pipeOD) / 1000; // Convert to meters
+    const Tp = parseFloat(pipeTemp);
+    const Ta = parseFloat(ambientTemp);
+    const Ts = parseFloat(maxSurfaceTemp);
+
+    if (isNaN(OD) || isNaN(Tp) || isNaN(Ta) || isNaN(Ts)) {
+      setResult(null);
+      return;
+    }
+
+    // Thermal conductivity values (W/m·K)
+    const thermalConductivity: { [key: string]: number } = {
+      mineral_wool: 0.038,
+      polyurethane: 0.025,
+      fiberglass: 0.040,
+      calcium_silicate: 0.055
+    };
+
+    const k = thermalConductivity[insulationType];
+    
+    // Simplified heat transfer calculation
+    const h_outside = 10; // W/m²·K (natural convection + radiation)
+    
+    // Required insulation thickness (iterative approach simplified)
+    // Based on: q = (Tp - Ta) / [ln(r2/r1)/(2πkL) + 1/(h_outside·A_outside)]
+    // Target: Ts = Ta + q/(h_outside)
+    
+    const r1 = OD / 2;
+    const targetHeatLoss = h_outside * (Ts - Ta); // W/m² target
+    
+    // Simplified calculation for insulation thickness
+    const deltaT = Tp - Ts;
+    const thickness = k * deltaT / (targetHeatLoss * r1) * 1000; // Convert to mm
+    
+    const r2 = r1 + thickness / 1000;
+    const actualHeatLoss = (Tp - Ta) / (Math.log(r2/r1) / (2 * Math.PI * k) + 1 / (h_outside * 2 * Math.PI * r2));
+    
+    const efficiency = (1 - actualHeatLoss / (h_outside * Math.PI * OD * (Tp - Ta))) * 100;
+
+    setResult({
+      thickness: Math.max(25, thickness), // Minimum 25mm
+      heatLoss: actualHeatLoss,
+      efficiency
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="pipeOD">Pipe Outside Diameter (mm)</Label>
+          <Input
+            id="pipeOD"
+            type="number"
+            value={pipeOD}
+            onChange={(e) => setPipeOD(e.target.value)}
+            placeholder="Enter pipe OD"
+          />
+        </div>
+        <div>
+          <Label htmlFor="pipeTemp">Pipe Temperature (°C)</Label>
+          <Input
+            id="pipeTemp"
+            type="number"
+            value={pipeTemp}
+            onChange={(e) => setPipeTemp(e.target.value)}
+            placeholder="Enter pipe temperature"
+          />
+        </div>
+        <div>
+          <Label htmlFor="ambientTemp">Ambient Temperature (°C)</Label>
+          <Input
+            id="ambientTemp"
+            type="number"
+            value={ambientTemp}
+            onChange={(e) => setAmbientTemp(e.target.value)}
+            placeholder="Enter ambient temp"
+          />
+        </div>
+        <div>
+          <Label htmlFor="maxSurfaceTemp">Max Surface Temperature (°C)</Label>
+          <Input
+            id="maxSurfaceTemp"
+            type="number"
+            value={maxSurfaceTemp}
+            onChange={(e) => setMaxSurfaceTemp(e.target.value)}
+            placeholder="Enter max surface temp"
+          />
+        </div>
+        <div className="col-span-2">
+          <Label htmlFor="insulationType">Insulation Material</Label>
+          <Select value={insulationType} onValueChange={setInsulationType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="mineral_wool">Mineral Wool</SelectItem>
+              <SelectItem value="polyurethane">Polyurethane Foam</SelectItem>
+              <SelectItem value="fiberglass">Fiberglass</SelectItem>
+              <SelectItem value="calcium_silicate">Calcium Silicate</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Button onClick={calculateInsulation} className="w-full">
+        Calculate Insulation Thickness
+      </Button>
+
+      {result && (
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold">Results</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex justify-between">
+              <span>Required Thickness:</span>
+              <span className="font-mono">{result.thickness.toFixed(0)} mm</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Heat Loss:</span>
+              <span className="font-mono">{result.heatLoss.toFixed(1)} W/m</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Insulation Efficiency:</span>
+              <span className="font-mono">{result.efficiency.toFixed(1)}%</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground">
+        <p><strong>Purpose:</strong> Personnel protection and energy conservation</p>
+        <p><strong>Standards:</strong> ASTM C680 for insulation thickness calculation</p>
+      </div>
+    </div>
+  );
+}
+
 export default function DesignToolsPage() {
   return (
     <Layout>
@@ -3831,89 +5261,352 @@ export default function DesignToolsPage() {
 
           {/* Piping Design Tab */}
           <TabsContent value="piping" className="space-y-6">
+            <div className="text-center mb-6">
+              <h3 className="text-lg font-semibold mb-2">Piping Design Tools</h3>
+              <p className="text-muted-foreground">Professional piping design and analysis tools per ASME B31.3/B31.1</p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
-                    <CardTitle className="text-base">Piping CAD</CardTitle>
+                    <CardTitle className="text-base">Pipe Thickness Calculator</CardTitle>
                     <CardDescription>
-                      Specialized piping design software
+                      Calculate minimum required wall thickness per ASME B31.3/B31.1
                     </CardDescription>
                   </div>
-                  <Pipette className="h-4 w-4 text-muted-foreground" />
+                  <Calculator className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Workflow className="h-4 w-4 mr-2" />
-                      AutoCAD Plant 3D
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Pipette className="h-4 w-4 mr-2" />
-                      PDMS/E3D
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Factory className="h-4 w-4 mr-2" />
-                      Caesar II
-                    </Button>
-                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Per ASME B31.3 Process Piping code requirements
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Pipe Thickness Calculator</DialogTitle>
+                      </DialogHeader>
+                      <PipeThicknessCalculator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
-                    <CardTitle className="text-base">P&ID Tools</CardTitle>
+                    <CardTitle className="text-base">Pipe Size & Schedule Selector</CardTitle>
                     <CardDescription>
-                      Piping and instrumentation diagrams
+                      Standard pipe dimensions based on nominal size and schedule
+                    </CardDescription>
+                  </div>
+                  <Ruler className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    ASME B36.10M and B36.19M pipe dimensions
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Pipe Size & Schedule Selector</DialogTitle>
+                      </DialogHeader>
+                      <PipeSizeScheduleSelector />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Pressure Drop Calculator</CardTitle>
+                    <CardDescription>
+                      Pressure loss due to friction using Darcy-Weisbach equation
+                    </CardDescription>
+                  </div>
+                  <TrendingDown className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Friction factor calculation with Colebrook-White equation
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Pressure Drop Calculator</DialogTitle>
+                      </DialogHeader>
+                      <PressureDropCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Pipe Expansion Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate linear expansion based on pipe length and temperature
+                    </CardDescription>
+                  </div>
+                  <Move className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Thermal expansion calculations for piping systems
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Pipe Expansion Calculator</DialogTitle>
+                      </DialogHeader>
+                      <PipeExpansionCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Flow Velocity & Reynolds Number</CardTitle>
+                    <CardDescription>
+                      Determine flow regime and identify laminar or turbulent flow
+                    </CardDescription>
+                  </div>
+                  <Waves className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Flow analysis for optimal pipe sizing
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Flow Velocity & Reynolds Number Calculator</DialogTitle>
+                      </DialogHeader>
+                      <FlowVelocityReynoldsCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Pipe Support Span Estimator</CardTitle>
+                    <CardDescription>
+                      Support spacing based on pipe size, material, and weight
                     </CardDescription>
                   </div>
                   <Grid className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <FileText className="h-4 w-4 mr-2" />
-                      AutoCAD P&ID
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Workflow className="h-4 w-4 mr-2" />
-                      SmartPlant P&ID
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Grid className="h-4 w-4 mr-2" />
-                      Visio P&ID
-                    </Button>
-                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Per ASME B31.3 and MSS SP-69 guidelines
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Pipe Support Span Estimator</DialogTitle>
+                      </DialogHeader>
+                      <PipeSupportSpanEstimator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
-                    <CardTitle className="text-base">Pipe Specifications</CardTitle>
+                    <CardTitle className="text-base">Miter Bend Pressure Loss</CardTitle>
                     <CardDescription>
-                      Standards and specifications
+                      Additional pressure drop across miter elbows
                     </CardDescription>
                   </div>
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  <CornerDownRight className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Database className="h-4 w-4 mr-2" />
-                      ASME Standards
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Shield className="h-4 w-4 mr-2" />
-                      API Specifications
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <BookOpen className="h-4 w-4 mr-2" />
-                      Material Database
-                    </Button>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Resistance coefficient for miter bends
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Miter Bend Pressure Loss Calculator</DialogTitle>
+                      </DialogHeader>
+                      <MiterBendPressureLossCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Flange Bolt Load Calculator</CardTitle>
+                    <CardDescription>
+                      Estimate bolt preload and flange bolt requirements
+                    </CardDescription>
                   </div>
+                  <Wrench className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Per ASME B16.5 flange design standards
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Flange Bolt Load Calculator</DialogTitle>
+                      </DialogHeader>
+                      <FlangeBoltLoadCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              {/* Optional Utilities */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Pipe Material Properties</CardTitle>
+                    <CardDescription>
+                      Material properties lookup for common piping materials
+                    </CardDescription>
+                  </div>
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Material database with thermal and mechanical properties
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Pipe Material Properties Lookup</DialogTitle>
+                      </DialogHeader>
+                      <PipeMaterialPropertiesLookup />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Pipe Weight Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate pipe weight including contents and insulation
+                    </CardDescription>
+                  </div>
+                  <Weight className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Weight calculations for pipe support design
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Pipe Weight Calculator</DialogTitle>
+                      </DialogHeader>
+                      <PipeWeightCalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Insulation Thickness Calculator</CardTitle>
+                    <CardDescription>
+                      Calculate required insulation thickness for heat loss control
+                    </CardDescription>
+                  </div>
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Thermal insulation design calculations
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Insulation Thickness Calculator</DialogTitle>
+                      </DialogHeader>
+                      <InsulationThicknessCalculator />
+                    </DialogContent>
+                  </Dialog>
                 </CardContent>
               </Card>
 
