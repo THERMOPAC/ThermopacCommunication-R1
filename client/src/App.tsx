@@ -53,6 +53,7 @@ import PaymentAllocationPage from "@/pages/finance/payment-allocation-redesigned
 import BatchAdvanceAllocationPage from "@/pages/finance/batch-advance-allocation-page-fixed";
 import InvoiceAgingDashboard from "@/pages/finance/reports/invoice-aging-dashboard";
 import WriteOffManagementPage from "@/pages/finance/write-off-management";
+import FinanceToolsPage from "@/pages/finance-tools-page";
 
 // New Material Identification pages
 import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";
@@ -171,6 +172,7 @@ function Router() {
       <ProtectedRoute path="/finance/reports/invoice-aging" component={InvoiceAgingDashboard} />
       <ProtectedRoute path="/finance/write-offs" component={() => <WriteOffManagementPage />} />
       <ProtectedRoute path="/finance/write-off-management" component={() => <WriteOffManagementPage />} />
+      <ProtectedRoute path="/finance/tools" component={FinanceToolsPage} />
       
       <ProtectedRoute path="/project-dashboard" component={ProjectDashboardPage} />
       <ProtectedRoute path="/projects" component={ProjectsPage} />
