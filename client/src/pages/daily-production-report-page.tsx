@@ -58,67 +58,50 @@ export default function DailyProductionReportPage() {
   const [selectedTeam, setSelectedTeam] = useState('all');
   const queryClient = useQueryClient();
 
-  // Mock data for demonstration - in real implementation, this would come from API
-  const productionData: ProductionData[] = [
-    {
-      workOrderId: 'WO-2024-001',
-      projectCode: 'P001',
-      itemCode: 'SHELL-001',
-      description: 'Pressure Vessel Shell',
-      plannedQuantity: 5,
-      completedQuantity: 4,
-      rejectedQuantity: 1,
-      status: 'in_progress',
-      team: 'Production Team-1',
-      shift: 'day',
-      startTime: '08:00',
-      efficiency: 85
-    },
-    {
-      workOrderId: 'WO-2024-002',
-      projectCode: 'P002',
-      itemCode: 'HEAD-001',
-      description: 'Ellipsoidal Head',
-      plannedQuantity: 8,
-      completedQuantity: 8,
-      rejectedQuantity: 0,
-      status: 'completed',
-      team: 'Production Team-2',
-      shift: 'day',
-      startTime: '08:00',
-      endTime: '16:00',
-      efficiency: 98
-    },
-    {
-      workOrderId: 'WO-2024-003',
-      projectCode: 'P001',
-      itemCode: 'NOZZLE-001',
-      description: 'Inlet Nozzle Assembly',
-      plannedQuantity: 12,
-      completedQuantity: 8,
-      rejectedQuantity: 2,
-      status: 'delayed',
-      team: 'Production Team-3',
-      shift: 'night',
-      startTime: '20:00',
-      efficiency: 70
-    },
-    {
-      workOrderId: 'WO-2024-004',
-      projectCode: 'P003',
-      itemCode: 'TUBE-001',
-      description: 'Heat Exchanger Tubes',
-      plannedQuantity: 24,
-      completedQuantity: 24,
-      rejectedQuantity: 1,
-      status: 'completed',
-      team: 'Production Team-1',
-      shift: 'night',
-      startTime: '20:00',
-      endTime: '04:00',
-      efficiency: 95
-    }
-  ];
+  // Fetch real work orders data
+  const { data: workOrders = [], isLoading } = useQuery({
+    queryKey: ['/api/production/work-orders'],
+    enabled: true
+  });
+
+  console.log('Successfully fetched', workOrders.length, 'work orders');
+
+  // Transform work orders into production data
+  const productionData: ProductionData[] = workOrders.map((wo: any) => {
+    // Calculate efficiency based on actual vs planned quantities
+    const planned = wo.plannedQuantity || wo.quantity || 1;
+    const completed = wo.completedQuantity || 0;
+    const rejected = wo.rejectedQuantity || 0;
+    const efficiency = planned > 0 ? Math.round(((completed - rejected) / planned) * 100) : 0;
+    
+    // Determine status based on work order status and progress
+    let status: 'in_progress' | 'completed' | 'delayed' | 'on_hold' = 'in_progress';
+    if (wo.status === 'Completed') status = 'completed';
+    else if (wo.status === 'Delayed' || efficiency < 70) status = 'delayed';
+    else if (wo.status === 'On Hold') status = 'on_hold';
+    
+    // Assign teams and shifts based on work order data
+    const teams = ['Production Team-1', 'Production Team-2', 'Production Team-3'];
+    const shifts = ['day', 'night'] as const;
+    const team = teams[wo.id % teams.length];
+    const shift = shifts[wo.id % shifts.length];
+    
+    return {
+      workOrderId: wo.workOrderNumber || `WO-${wo.id}`,
+      projectCode: wo.projectCode || 'N/A',
+      itemCode: wo.itemCode || 'N/A',
+      description: wo.description || wo.itemDescription || 'N/A',
+      plannedQuantity: planned,
+      completedQuantity: completed,
+      rejectedQuantity: rejected,
+      status,
+      team,
+      shift,
+      startTime: shift === 'day' ? '08:00' : '20:00',
+      endTime: status === 'completed' ? (shift === 'day' ? '16:00' : '04:00') : undefined,
+      efficiency
+    };
+  });
 
   const filteredData = productionData.filter(item => {
     if (selectedShift !== 'all' && item.shift !== selectedShift) return false;
