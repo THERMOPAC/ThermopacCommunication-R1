@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight, Plus, Trash2, Calendar, DollarSign, Target, Percent } from "lucide-react";
+import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight, Plus, Trash2, Calendar, DollarSign, Target, Percent, PieChart, AlertTriangle } from "lucide-react";
 import Layout from "@/components/layout";
 
 // Loan Calculator Component
@@ -2377,6 +2377,408 @@ function RatioAnalysis() {
   );
 }
 
+// Budget Analyzer Component
+function BudgetAnalyzer() {
+  const [budgetData, setBudgetData] = useState({
+    categories: [
+      { id: 1, name: "Revenue", budgeted: "", actual: "", type: "income" },
+      { id: 2, name: "Cost of Goods Sold", budgeted: "", actual: "", type: "expense" },
+      { id: 3, name: "Marketing", budgeted: "", actual: "", type: "expense" },
+      { id: 4, name: "Operations", budgeted: "", actual: "", type: "expense" },
+      { id: 5, name: "Administrative", budgeted: "", actual: "", type: "expense" },
+      { id: 6, name: "Research & Development", budgeted: "", actual: "", type: "expense" }
+    ]
+  });
+
+  const [analysis, setAnalysis] = useState<any>(null);
+  const [period, setPeriod] = useState("monthly");
+
+  const addCategory = () => {
+    const newCategory = {
+      id: Date.now(),
+      name: "",
+      budgeted: "",
+      actual: "",
+      type: "expense"
+    };
+    setBudgetData({
+      ...budgetData,
+      categories: [...budgetData.categories, newCategory]
+    });
+  };
+
+  const removeCategory = (id: number) => {
+    setBudgetData({
+      ...budgetData,
+      categories: budgetData.categories.filter(cat => cat.id !== id)
+    });
+  };
+
+  const updateCategory = (id: number, field: string, value: string) => {
+    setBudgetData({
+      ...budgetData,
+      categories: budgetData.categories.map(cat =>
+        cat.id === id ? { ...cat, [field]: value } : cat
+      )
+    });
+  };
+
+  const calculateAnalysis = () => {
+    const categories = budgetData.categories.filter(cat => 
+      cat.name && (cat.budgeted || cat.actual)
+    );
+
+    let totalBudgetedIncome = 0;
+    let totalActualIncome = 0;
+    let totalBudgetedExpenses = 0;
+    let totalActualExpenses = 0;
+
+    const categoryAnalysis = categories.map(cat => {
+      const budgeted = parseFloat(cat.budgeted) || 0;
+      const actual = parseFloat(cat.actual) || 0;
+      const variance = actual - budgeted;
+      const variancePercentage = budgeted > 0 ? (variance / budgeted) * 100 : 0;
+
+      if (cat.type === "income") {
+        totalBudgetedIncome += budgeted;
+        totalActualIncome += actual;
+      } else {
+        totalBudgetedExpenses += budgeted;
+        totalActualExpenses += actual;
+      }
+
+      return {
+        ...cat,
+        budgeted,
+        actual,
+        variance,
+        variancePercentage,
+        status: Math.abs(variancePercentage) <= 5 ? "good" : 
+               Math.abs(variancePercentage) <= 15 ? "warning" : "critical"
+      };
+    });
+
+    const budgetedNetIncome = totalBudgetedIncome - totalBudgetedExpenses;
+    const actualNetIncome = totalActualIncome - totalActualExpenses;
+    const netVariance = actualNetIncome - budgetedNetIncome;
+    const netVariancePercentage = budgetedNetIncome !== 0 ? (netVariance / budgetedNetIncome) * 100 : 0;
+
+    setAnalysis({
+      categories: categoryAnalysis,
+      summary: {
+        totalBudgetedIncome,
+        totalActualIncome,
+        totalBudgetedExpenses,
+        totalActualExpenses,
+        budgetedNetIncome,
+        actualNetIncome,
+        netVariance,
+        netVariancePercentage,
+        incomeVariance: totalActualIncome - totalBudgetedIncome,
+        expenseVariance: totalActualExpenses - totalBudgetedExpenses,
+        incomeVariancePercentage: totalBudgetedIncome > 0 ? ((totalActualIncome - totalBudgetedIncome) / totalBudgetedIncome) * 100 : 0,
+        expenseVariancePercentage: totalBudgetedExpenses > 0 ? ((totalActualExpenses - totalBudgetedExpenses) / totalBudgetedExpenses) * 100 : 0
+      }
+    });
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const getVarianceColor = (status: string) => {
+    switch (status) {
+      case "good": return "text-green-600";
+      case "warning": return "text-yellow-600";
+      case "critical": return "text-red-600";
+      default: return "text-gray-600";
+    }
+  };
+
+  const getVarianceIcon = (variance: number) => {
+    if (variance > 0) return <TrendingUp className="h-4 w-4 text-green-600" />;
+    if (variance < 0) return <TrendingUp className="h-4 w-4 text-red-600 rotate-180" />;
+    return <div className="h-4 w-4" />;
+  };
+
+  const resetAnalysis = () => {
+    setBudgetData({
+      categories: [
+        { id: 1, name: "Revenue", budgeted: "", actual: "", type: "income" },
+        { id: 2, name: "Cost of Goods Sold", budgeted: "", actual: "", type: "expense" },
+        { id: 3, name: "Marketing", budgeted: "", actual: "", type: "expense" },
+        { id: 4, name: "Operations", budgeted: "", actual: "", type: "expense" },
+        { id: 5, name: "Administrative", budgeted: "", actual: "", type: "expense" },
+        { id: 6, name: "Research & Development", budgeted: "", actual: "", type: "expense" }
+      ]
+    });
+    setAnalysis(null);
+  };
+
+  React.useEffect(() => {
+    const hasData = budgetData.categories.some(cat => 
+      cat.name && (cat.budgeted || cat.actual)
+    );
+    if (hasData) {
+      calculateAnalysis();
+    } else {
+      setAnalysis(null);
+    }
+  }, [budgetData]);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Input Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Budget vs Actual Analysis</h3>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={addCategory}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add Category
+              </Button>
+              <Button variant="outline" size="sm" onClick={resetAnalysis}>
+                Reset All
+              </Button>
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <Label htmlFor="period">Analysis Period</Label>
+            <Select value={period} onValueChange={setPeriod}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="quarterly">Quarterly</SelectItem>
+                <SelectItem value="yearly">Yearly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {budgetData.categories.map((category, index) => (
+              <Card key={category.id} className="p-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Category name"
+                      value={category.name}
+                      onChange={(e) => updateCategory(category.id, "name", e.target.value)}
+                      className="flex-1"
+                    />
+                    <Select 
+                      value={category.type} 
+                      onValueChange={(value) => updateCategory(category.id, "type", value)}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="income">Income</SelectItem>
+                        <SelectItem value="expense">Expense</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {budgetData.categories.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeCategory(category.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor={`budgeted-${category.id}`}>Budgeted Amount (₹)</Label>
+                      <Input
+                        id={`budgeted-${category.id}`}
+                        type="number"
+                        placeholder="0"
+                        value={category.budgeted}
+                        onChange={(e) => updateCategory(category.id, "budgeted", e.target.value)}
+                        className="text-right"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`actual-${category.id}`}>Actual Amount (₹)</Label>
+                      <Input
+                        id={`actual-${category.id}`}
+                        type="number"
+                        placeholder="0"
+                        value={category.actual}
+                        onChange={(e) => updateCategory(category.id, "actual", e.target.value)}
+                        className="text-right"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Analysis Results */}
+        <div className="space-y-4">
+          {analysis ? (
+            <>
+              <h3 className="font-semibold">Analysis Results</h3>
+              
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Net Income</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-1">
+                      <div className="text-lg font-semibold">
+                        {formatCurrency(analysis.summary.actualNetIncome)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Budgeted: {formatCurrency(analysis.summary.budgetedNetIncome)}
+                      </div>
+                      <div className={`text-xs flex items-center gap-1 ${analysis.summary.netVariance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {getVarianceIcon(analysis.summary.netVariance)}
+                        {formatCurrency(Math.abs(analysis.summary.netVariance))} 
+                        ({Math.abs(analysis.summary.netVariancePercentage).toFixed(1)}%)
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Total Income</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-1">
+                      <div className="text-lg font-semibold">
+                        {formatCurrency(analysis.summary.totalActualIncome)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Budgeted: {formatCurrency(analysis.summary.totalBudgetedIncome)}
+                      </div>
+                      <div className={`text-xs flex items-center gap-1 ${analysis.summary.incomeVariance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {getVarianceIcon(analysis.summary.incomeVariance)}
+                        {formatCurrency(Math.abs(analysis.summary.incomeVariance))} 
+                        ({Math.abs(analysis.summary.incomeVariancePercentage).toFixed(1)}%)
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Total Expenses</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-1">
+                      <div className="text-lg font-semibold">
+                        {formatCurrency(analysis.summary.totalActualExpenses)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Budgeted: {formatCurrency(analysis.summary.totalBudgetedExpenses)}
+                      </div>
+                      <div className={`text-xs flex items-center gap-1 ${analysis.summary.expenseVariance <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {getVarianceIcon(-analysis.summary.expenseVariance)}
+                        {formatCurrency(Math.abs(analysis.summary.expenseVariance))} 
+                        ({Math.abs(analysis.summary.expenseVariancePercentage).toFixed(1)}%)
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Budget Accuracy</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-1">
+                      <div className="text-lg font-semibold">
+                        {(100 - Math.abs(analysis.summary.netVariancePercentage)).toFixed(1)}%
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Accuracy Score
+                      </div>
+                      <div className={`text-xs ${Math.abs(analysis.summary.netVariancePercentage) <= 5 ? 'text-green-600' : Math.abs(analysis.summary.netVariancePercentage) <= 15 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {Math.abs(analysis.summary.netVariancePercentage) <= 5 ? 'Excellent' : 
+                         Math.abs(analysis.summary.netVariancePercentage) <= 15 ? 'Good' : 'Needs Review'}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Category Breakdown */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Category Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {analysis.categories.map((cat: any) => (
+                      <div key={cat.id} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${cat.type === 'income' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          <span className="font-medium text-sm">{cat.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm">
+                            {formatCurrency(cat.actual)} / {formatCurrency(cat.budgeted)}
+                          </div>
+                          <div className={`text-xs flex items-center gap-1 ${getVarianceColor(cat.status)}`}>
+                            {getVarianceIcon(cat.variance)}
+                            {Math.abs(cat.variancePercentage).toFixed(1)}%
+                            {cat.variancePercentage > 5 && <AlertTriangle className="h-3 w-3" />}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <PieChart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Enter budget and actual amounts to see analysis</p>
+                  <p className="text-xs mt-2">Add categories and fill in data to get started</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+        <h3 className="font-semibold mb-2">Budget Analysis Features:</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Variance Analysis:</strong> Compare budgeted vs actual amounts with percentage calculations</p>
+            <p><strong>Category Management:</strong> Add, remove, and categorize income and expense items</p>
+          </div>
+          <div>
+            <p><strong>Performance Indicators:</strong> Color-coded status indicators and accuracy scoring</p>
+            <p><strong>Real-time Updates:</strong> Automatic recalculation as you enter data</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Currency Converter Component
 function CurrencyConverter() {
   const [amount, setAmount] = useState("");
@@ -3811,6 +4213,7 @@ export default function FinanceToolsPage() {
   const [isUnitConverterOpen, setIsUnitConverterOpen] = useState(false);
   const [isCashFlowAnalyzerOpen, setIsCashFlowAnalyzerOpen] = useState(false);
   const [isRatioAnalysisOpen, setIsRatioAnalysisOpen] = useState(false);
+  const [isBudgetAnalyzerOpen, setIsBudgetAnalyzerOpen] = useState(false);
 
   return (
     <Layout>
@@ -4155,7 +4558,10 @@ export default function FinanceToolsPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setIsBudgetAnalyzerOpen(true)}
+              >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
                     <CardTitle className="text-base">Budget Analyzer</CardTitle>
@@ -4166,7 +4572,7 @@ export default function FinanceToolsPage() {
                   <BarChart3 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full" onClick={(e) => { e.stopPropagation(); setIsBudgetAnalyzerOpen(true); }}>
                     Open Analyzer
                   </Button>
                 </CardContent>
@@ -4277,6 +4683,22 @@ export default function FinanceToolsPage() {
               </DialogDescription>
             </DialogHeader>
             <RatioAnalysis />
+          </DialogContent>
+        </Dialog>
+
+        {/* Budget Analyzer Dialog */}
+        <Dialog open={isBudgetAnalyzerOpen} onOpenChange={setIsBudgetAnalyzerOpen}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <PieChart className="h-5 w-5" />
+                Budget Analyzer
+              </DialogTitle>
+              <DialogDescription>
+                Compare budgeted vs actual performance with variance analysis
+              </DialogDescription>
+            </DialogHeader>
+            <BudgetAnalyzer />
           </DialogContent>
         </Dialog>
       </div>
