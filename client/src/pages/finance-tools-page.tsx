@@ -407,10 +407,14 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
               <Input
                 id="surchargeRate"
                 type="number"
-                step="0.1"
-                placeholder="0"
+                step="0.01"
+                min="0"
+                placeholder="Enter surcharge rate"
                 value={surchargeRate}
-                onChange={(e) => setSurchargeRate(e.target.value)}
+                onChange={(e) => {
+                  console.log('Surcharge input changed:', e.target.value);
+                  setSurchargeRate(e.target.value);
+                }}
               />
             </div>
             <div>
@@ -502,6 +506,18 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
                   <div>
                     <Label className="text-xs text-muted-foreground">Total Tax Liability</Label>
                     <p className="font-bold text-red-600">₹{Math.round(result.totalTax).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Tax Rate</Label>
+                    <p className="font-semibold">{taxRate}%</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Surcharge</Label>
+                    <p className="font-semibold">{surchargeRate}%</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Health & Education Cess</Label>
+                    <p className="font-semibold">{cessRate}%</p>
                   </div>
                 </div>
                 
