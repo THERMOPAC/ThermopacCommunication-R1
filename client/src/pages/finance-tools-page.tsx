@@ -250,7 +250,7 @@ function LoanCalculator() {
 function TaxCalculator() {
   const [annualIncome, setAnnualIncome] = useState("");
   const [taxRate, setTaxRate] = useState("30"); // Default 30% for companies
-  const [surchargeRate, setSurchargeRate] = useState("0");
+  const [surchargeRate, setSurchargeRate] = useState("10");
   const [cessRate, setCessRate] = useState("4"); // Health and Education Cess 4%
   const [paidJune, setPaidJune] = useState("");
   const [paidSeptember, setPaidSeptember] = useState("");
@@ -333,7 +333,7 @@ function TaxCalculator() {
   const resetCalculator = () => {
     setAnnualIncome("");
     setTaxRate("30");
-    setSurchargeRate("0");
+    setSurchargeRate("10");
     setCessRate("4");
     setPaidJune("");
     setPaidSeptember("");
