@@ -57,7 +57,7 @@ export default function TaskDashboard() {
     
     // Filter by tab
     if (activeTab === "my") {
-      filteredTasks = filteredTasks.filter(task => task.assigneeId === user?.id);
+      filteredTasks = filteredTasks.filter(task => task.assigned_to === user?.id);
     } else if (activeTab === "pending") {
       filteredTasks = filteredTasks.filter(task => task.status === "pending");
     } else if (activeTab === "completed") {
@@ -111,7 +111,7 @@ export default function TaskDashboard() {
   const filteredTasks = filterTasks(tasks);
 
   // Count tasks by status
-  const myTasksCount = tasks.filter(task => task.assigneeId === user?.id).length;
+  const myTasksCount = tasks.filter(task => task.assigned_to === user?.id).length;
   const pendingCount = tasks.filter(task => task.status === "pending").length;
   const completedCount = tasks.filter(task => task.status === "completed").length;
   
