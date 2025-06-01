@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight } from "lucide-react";
+import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight, Plus, Trash2, Calendar, DollarSign } from "lucide-react";
 import Layout from "@/components/layout";
 
 // Loan Calculator Component
@@ -1419,6 +1419,395 @@ function UnitConverter() {
           <div>
             <p><strong>Units:</strong> Metric, Imperial, and specialized units</p>
             <p><strong>Use Cases:</strong> Engineering calculations, cooking, construction</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Cash Flow Analyzer Component
+function CashFlowAnalyzer() {
+  const [cashFlowData, setCashFlowData] = useState([
+    { id: 1, date: "2024-01-01", type: "inflow", category: "Revenue", description: "Product Sales", amount: 50000 },
+    { id: 2, date: "2024-01-15", type: "outflow", category: "Operating", description: "Office Rent", amount: 8000 },
+    { id: 3, date: "2024-02-01", type: "inflow", category: "Revenue", description: "Service Income", amount: 30000 },
+    { id: 4, date: "2024-02-10", type: "outflow", category: "Operating", description: "Salaries", amount: 25000 }
+  ]);
+  const [newEntry, setNewEntry] = useState({
+    date: "",
+    type: "inflow",
+    category: "",
+    description: "",
+    amount: ""
+  });
+  const [analysisType, setAnalysisType] = useState("monthly");
+  const [analysisResults, setAnalysisResults] = useState<any>(null);
+
+  const categories = {
+    inflow: ["Revenue", "Investment", "Loan", "Asset Sale", "Other Income"],
+    outflow: ["Operating", "Capital", "Debt Payment", "Tax", "Other Expense"]
+  };
+
+  const addCashFlowEntry = () => {
+    if (!newEntry.date || !newEntry.category || !newEntry.description || !newEntry.amount) {
+      return;
+    }
+
+    const entry = {
+      id: Date.now(),
+      ...newEntry,
+      amount: parseFloat(newEntry.amount)
+    };
+
+    setCashFlowData([...cashFlowData, entry]);
+    setNewEntry({
+      date: "",
+      type: "inflow",
+      category: "",
+      description: "",
+      amount: ""
+    });
+  };
+
+  const deleteCashFlowEntry = (id: number) => {
+    setCashFlowData(cashFlowData.filter(entry => entry.id !== id));
+  };
+
+  const analyzeCashFlow = () => {
+    if (cashFlowData.length === 0) {
+      setAnalysisResults(null);
+      return;
+    }
+
+    const totalInflow = cashFlowData
+      .filter(entry => entry.type === "inflow")
+      .reduce((sum, entry) => sum + entry.amount, 0);
+
+    const totalOutflow = cashFlowData
+      .filter(entry => entry.type === "outflow")
+      .reduce((sum, entry) => sum + entry.amount, 0);
+
+    const netCashFlow = totalInflow - totalOutflow;
+
+    // Monthly analysis
+    const monthlyData = {};
+    cashFlowData.forEach(entry => {
+      const month = entry.date.substring(0, 7); // YYYY-MM
+      if (!monthlyData[month]) {
+        monthlyData[month] = { inflow: 0, outflow: 0 };
+      }
+      monthlyData[month][entry.type] += entry.amount;
+    });
+
+    const monthlyAnalysis = Object.entries(monthlyData).map(([month, data]: [string, any]) => ({
+      month,
+      inflow: data.inflow,
+      outflow: data.outflow,
+      net: data.inflow - data.outflow
+    }));
+
+    // Category analysis
+    const categoryData = {};
+    cashFlowData.forEach(entry => {
+      const key = `${entry.type}_${entry.category}`;
+      if (!categoryData[key]) {
+        categoryData[key] = { category: entry.category, type: entry.type, total: 0 };
+      }
+      categoryData[key].total += entry.amount;
+    });
+
+    const categoryAnalysis = Object.values(categoryData);
+
+    // Cash flow velocity (average time between transactions)
+    const sortedDates = cashFlowData.map(entry => new Date(entry.date)).sort((a, b) => a.getTime() - b.getTime());
+    let totalDaysBetween = 0;
+    for (let i = 1; i < sortedDates.length; i++) {
+      const daysBetween = (sortedDates[i].getTime() - sortedDates[i-1].getTime()) / (1000 * 60 * 60 * 24);
+      totalDaysBetween += daysBetween;
+    }
+    const avgDaysBetween = sortedDates.length > 1 ? totalDaysBetween / (sortedDates.length - 1) : 0;
+
+    // Trend analysis
+    const recentMonths = monthlyAnalysis.slice(-3);
+    const avgRecentNet = recentMonths.reduce((sum, month) => sum + month.net, 0) / Math.max(recentMonths.length, 1);
+    const trend = avgRecentNet > 0 ? "positive" : avgRecentNet < 0 ? "negative" : "neutral";
+
+    setAnalysisResults({
+      totalInflow,
+      totalOutflow,
+      netCashFlow,
+      monthlyAnalysis,
+      categoryAnalysis,
+      avgDaysBetween: Math.round(avgDaysBetween),
+      trend,
+      avgRecentNet,
+      cashFlowRatio: totalOutflow > 0 ? (totalInflow / totalOutflow) : 0
+    });
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const resetAnalysis = () => {
+    setCashFlowData([]);
+    setAnalysisResults(null);
+  };
+
+  React.useEffect(() => {
+    if (cashFlowData.length > 0) {
+      analyzeCashFlow();
+    }
+  }, [cashFlowData]);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Input Section */}
+        <div className="space-y-4">
+          <h3 className="font-semibold">Add Cash Flow Entry</h3>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={newEntry.date}
+                onChange={(e) => setNewEntry({...newEntry, date: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="type">Type</Label>
+              <Select value={newEntry.type} onValueChange={(value) => setNewEntry({...newEntry, type: value, category: ""})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="inflow">Cash Inflow</SelectItem>
+                  <SelectItem value="outflow">Cash Outflow</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="category">Category</Label>
+            <Select value={newEntry.category} onValueChange={(value) => setNewEntry({...newEntry, category: value})}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories[newEntry.type as keyof typeof categories].map((cat) => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Input
+              id="description"
+              placeholder="Enter description"
+              value={newEntry.description}
+              onChange={(e) => setNewEntry({...newEntry, description: e.target.value})}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="amount">Amount (₹)</Label>
+            <Input
+              id="amount"
+              type="number"
+              placeholder="Enter amount"
+              value={newEntry.amount}
+              onChange={(e) => setNewEntry({...newEntry, amount: e.target.value})}
+              className="text-right"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={addCashFlowEntry} className="flex-1">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Entry
+            </Button>
+            <Button variant="outline" onClick={resetAnalysis}>
+              Reset
+            </Button>
+          </div>
+        </div>
+
+        {/* Analysis Results */}
+        <div className="space-y-4">
+          {analysisResults && (
+            <>
+              <h3 className="font-semibold">Cash Flow Analysis</h3>
+              
+              <div className="grid grid-cols-1 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Total Inflow:</span>
+                        <span className="font-medium text-green-600">
+                          {formatCurrency(analysisResults.totalInflow)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Total Outflow:</span>
+                        <span className="font-medium text-red-600">
+                          {formatCurrency(analysisResults.totalOutflow)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="font-medium">Net Cash Flow:</span>
+                        <span className={`font-bold ${analysisResults.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(analysisResults.netCashFlow)}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Key Metrics</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Cash Flow Ratio:</span>
+                        <span className="font-medium">
+                          {analysisResults.cashFlowRatio.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Trend:</span>
+                        <span className={`font-medium capitalize ${
+                          analysisResults.trend === 'positive' ? 'text-green-600' : 
+                          analysisResults.trend === 'negative' ? 'text-red-600' : 'text-yellow-600'
+                        }`}>
+                          {analysisResults.trend}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Avg Days Between Transactions:</span>
+                        <span className="font-medium">{analysisResults.avgDaysBetween}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
+
+          {!analysisResults && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Add cash flow entries to see analysis</p>
+                  <p className="text-xs mt-2">Track inflows and outflows to analyze patterns</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Data Table */}
+      {cashFlowData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Cash Flow Entries</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {cashFlowData.slice(-10).reverse().map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        entry.type === 'inflow' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {entry.type === 'inflow' ? 'IN' : 'OUT'}
+                      </span>
+                      <span className="font-medium">{entry.description}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {entry.date} • {entry.category}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-bold ${entry.type === 'inflow' ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(entry.amount)}
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => deleteCashFlowEntry(entry.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {cashFlowData.length > 10 && (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  Showing last 10 entries of {cashFlowData.length} total
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Monthly Analysis */}
+      {analysisResults && analysisResults.monthlyAnalysis.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Monthly Analysis</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {analysisResults.monthlyAnalysis.map((month: any) => (
+                <div key={month.month} className="flex items-center justify-between p-3 border rounded-lg">
+                  <span className="font-medium">{month.month}</span>
+                  <div className="flex gap-4 text-sm">
+                    <span className="text-green-600">In: {formatCurrency(month.inflow)}</span>
+                    <span className="text-red-600">Out: {formatCurrency(month.outflow)}</span>
+                    <span className={`font-bold ${month.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      Net: {formatCurrency(month.net)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+        <h3 className="font-semibold mb-2">Cash Flow Analysis Features:</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Real-time Analysis:</strong> Automatic calculations as you add entries</p>
+            <p><strong>Multiple Categories:</strong> Revenue, Operating, Capital, and more</p>
+          </div>
+          <div>
+            <p><strong>Trend Analysis:</strong> Identify positive/negative cash flow patterns</p>
+            <p><strong>Key Metrics:</strong> Cash flow ratio, velocity, and trend indicators</p>
           </div>
         </div>
       </div>
@@ -2858,6 +3247,7 @@ export default function FinanceToolsPage() {
   const [isCurrencyConverterOpen, setIsCurrencyConverterOpen] = useState(false);
   const [isNumberConverterOpen, setIsNumberConverterOpen] = useState(false);
   const [isUnitConverterOpen, setIsUnitConverterOpen] = useState(false);
+  const [isCashFlowAnalyzerOpen, setIsCashFlowAnalyzerOpen] = useState(false);
 
   return (
     <Layout>
@@ -3162,7 +3552,10 @@ export default function FinanceToolsPage() {
           {/* Analysis Tools Tab */}
           <TabsContent value="analysis" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
+              <Card 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setIsCashFlowAnalyzerOpen(true)}
+              >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <div>
                     <CardTitle className="text-base">Cash Flow Analyzer</CardTitle>
@@ -3173,7 +3566,7 @@ export default function FinanceToolsPage() {
                   <BarChart3 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full" onClick={(e) => { e.stopPropagation(); setIsCashFlowAnalyzerOpen(true); }}>
                     Open Analyzer
                   </Button>
                 </CardContent>
