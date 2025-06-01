@@ -1129,15 +1129,330 @@ function UValueCalculator() {
 }
 
 function ShellTubeSizingTool() {
+  const [heatDuty, setHeatDuty] = useState("");
+  const [hotInlet, setHotInlet] = useState("");
+  const [hotOutlet, setHotOutlet] = useState("");
+  const [coldInlet, setColdInlet] = useState("");
+  const [coldOutlet, setColdOutlet] = useState("");
+  const [hotFlowRate, setHotFlowRate] = useState("");
+  const [coldFlowRate, setColdFlowRate] = useState("");
+  const [shellType, setShellType] = useState("BEM");
+  const [tubeOD, setTubeOD] = useState("19.05");
+  const [tubeLength, setTubeLength] = useState("3000");
+  const [tubePitch, setTubePitch] = useState("23.8");
+  const [passes, setPasses] = useState("1");
+  const [result, setResult] = useState<{
+    shellDiameter: number;
+    tubeCount: number;
+    heatTransferArea: number;
+    uValue: number;
+    shellPressureDrop: number;
+    tubePressureDrop: number;
+    status: string;
+  } | null>(null);
+
+  const calculateSizing = () => {
+    const Q = parseFloat(heatDuty);
+    const thi = parseFloat(hotInlet);
+    const tho = parseFloat(hotOutlet);
+    const tci = parseFloat(coldInlet);
+    const tco = parseFloat(coldOutlet);
+    const mh = parseFloat(hotFlowRate);
+    const mc = parseFloat(coldFlowRate);
+    const OD = parseFloat(tubeOD);
+    const L = parseFloat(tubeLength);
+    const pitch = parseFloat(tubePitch);
+    const np = parseInt(passes);
+
+    if (isNaN(Q) || isNaN(thi) || isNaN(tho) || isNaN(tci) || isNaN(tco) || 
+        isNaN(mh) || isNaN(mc) || isNaN(OD) || isNaN(L) || isNaN(pitch) || isNaN(np)) {
+      setResult(null);
+      return;
+    }
+
+    // Calculate LMTD
+    const deltaT1 = thi - tco;
+    const deltaT2 = tho - tci;
+    const lmtd = Math.abs(deltaT1 - deltaT2) / Math.log(deltaT1 / deltaT2);
+
+    // Estimate overall heat transfer coefficient (simplified)
+    const uValue = shellType === "BEM" ? 350 : shellType === "BEU" ? 400 : 300; // W/m²·K
+
+    // Calculate required heat transfer area
+    const area = (Q * 1000) / (uValue * lmtd); // m²
+
+    // Calculate tube surface area per tube
+    const tubeArea = Math.PI * (OD / 1000) * (L / 1000); // m² per tube
+
+    // Estimate tube count
+    const tubeCount = Math.ceil(area / tubeArea);
+
+    // Estimate shell diameter based on tube count and layout
+    const tubeAreaOccupied = tubeCount * Math.pow(pitch / 1000, 2);
+    const shellDiameter = Math.sqrt(tubeAreaOccupied / 0.785) * 1000 + 100; // mm (add clearance)
+
+    // Simplified pressure drop calculations
+    const shellVelocity = mh / (Math.PI * Math.pow(shellDiameter / 2000, 2) * 800); // m/s (assuming density 800 kg/m³)
+    const tubeVelocity = mc / (tubeCount * Math.PI * Math.pow((OD - 2) / 2000, 2) * 1000 / np); // m/s
+
+    const shellPressureDrop = 0.5 * 800 * Math.pow(shellVelocity, 2) * (L / 1000) / 1000; // kPa
+    const tubePressureDrop = 0.02 * (L / 1000) / ((OD - 2) / 1000) * 0.5 * 1000 * Math.pow(tubeVelocity, 2) / 1000; // kPa
+
+    setResult({
+      shellDiameter: shellDiameter,
+      tubeCount: tubeCount,
+      heatTransferArea: area,
+      uValue: uValue,
+      shellPressureDrop: shellPressureDrop,
+      tubePressureDrop: tubePressureDrop,
+      status: "Preliminary sizing completed - verify with detailed design"
+    });
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <p className="text-sm font-medium text-blue-900">
-          Comprehensive Shell & Tube Sizing Tool
-        </p>
-        <p className="text-sm text-blue-700 mt-1">
-          This advanced tool will include complete TEMA standard calculations for shell and tube heat exchanger sizing, pressure drop calculations, and optimization. Development in progress.
-        </p>
+    <div className="space-y-6">
+      {/* Process Conditions */}
+      <div className="space-y-4">
+        <h4 className="font-semibold">Process Conditions</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="heatDuty">Heat Duty (kW)</Label>
+            <Input
+              id="heatDuty"
+              type="number"
+              step="0.1"
+              value={heatDuty}
+              onChange={(e) => setHeatDuty(e.target.value)}
+              placeholder="Enter heat duty"
+            />
+          </div>
+          <div>
+            <Label htmlFor="shellType">TEMA Shell Type</Label>
+            <Select value={shellType} onValueChange={setShellType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="BEM">BEM (Fixed Tubesheet)</SelectItem>
+                <SelectItem value="BEU">BEU (U-Tube)</SelectItem>
+                <SelectItem value="AES">AES (Floating Head)</SelectItem>
+                <SelectItem value="BFM">BFM (Split Ring Floating Head)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-4">
+          <div>
+            <Label htmlFor="hotInlet">Hot Inlet (°C)</Label>
+            <Input
+              id="hotInlet"
+              type="number"
+              step="0.1"
+              value={hotInlet}
+              onChange={(e) => setHotInlet(e.target.value)}
+              placeholder="Hot inlet temp"
+            />
+          </div>
+          <div>
+            <Label htmlFor="hotOutlet">Hot Outlet (°C)</Label>
+            <Input
+              id="hotOutlet"
+              type="number"
+              step="0.1"
+              value={hotOutlet}
+              onChange={(e) => setHotOutlet(e.target.value)}
+              placeholder="Hot outlet temp"
+            />
+          </div>
+          <div>
+            <Label htmlFor="coldInlet">Cold Inlet (°C)</Label>
+            <Input
+              id="coldInlet"
+              type="number"
+              step="0.1"
+              value={coldInlet}
+              onChange={(e) => setColdInlet(e.target.value)}
+              placeholder="Cold inlet temp"
+            />
+          </div>
+          <div>
+            <Label htmlFor="coldOutlet">Cold Outlet (°C)</Label>
+            <Input
+              id="coldOutlet"
+              type="number"
+              step="0.1"
+              value={coldOutlet}
+              onChange={(e) => setColdOutlet(e.target.value)}
+              placeholder="Cold outlet temp"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="hotFlowRate">Hot Side Flow Rate (kg/s)</Label>
+            <Input
+              id="hotFlowRate"
+              type="number"
+              step="0.1"
+              value={hotFlowRate}
+              onChange={(e) => setHotFlowRate(e.target.value)}
+              placeholder="Hot flow rate"
+            />
+          </div>
+          <div>
+            <Label htmlFor="coldFlowRate">Cold Side Flow Rate (kg/s)</Label>
+            <Input
+              id="coldFlowRate"
+              type="number"
+              step="0.1"
+              value={coldFlowRate}
+              onChange={(e) => setColdFlowRate(e.target.value)}
+              placeholder="Cold flow rate"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Mechanical Design */}
+      <div className="space-y-4">
+        <h4 className="font-semibold">Mechanical Design Parameters</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="tubeOD">Tube Outside Diameter (mm)</Label>
+            <Select value={tubeOD} onValueChange={setTubeOD}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="12.7">12.7 mm (1/2")</SelectItem>
+                <SelectItem value="15.88">15.88 mm (5/8")</SelectItem>
+                <SelectItem value="19.05">19.05 mm (3/4")</SelectItem>
+                <SelectItem value="25.4">25.4 mm (1")</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="tubeLength">Tube Length (mm)</Label>
+            <Select value={tubeLength} onValueChange={setTubeLength}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1829">1829 mm (6 ft)</SelectItem>
+                <SelectItem value="2438">2438 mm (8 ft)</SelectItem>
+                <SelectItem value="3048">3048 mm (10 ft)</SelectItem>
+                <SelectItem value="3658">3658 mm (12 ft)</SelectItem>
+                <SelectItem value="4877">4877 mm (16 ft)</SelectItem>
+                <SelectItem value="6096">6096 mm (20 ft)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="tubePitch">Tube Pitch (mm)</Label>
+            <Input
+              id="tubePitch"
+              type="number"
+              step="0.1"
+              value={tubePitch}
+              onChange={(e) => setTubePitch(e.target.value)}
+              placeholder="Tube pitch"
+            />
+          </div>
+          <div>
+            <Label htmlFor="passes">Number of Tube Passes</Label>
+            <Select value={passes} onValueChange={setPasses}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 Pass</SelectItem>
+                <SelectItem value="2">2 Pass</SelectItem>
+                <SelectItem value="4">4 Pass</SelectItem>
+                <SelectItem value="6">6 Pass</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      <Button onClick={calculateSizing} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Shell & Tube Sizing
+      </Button>
+
+      {result && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3 p-4 bg-muted rounded-lg">
+              <h4 className="font-semibold">Thermal Design Results</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Heat Transfer Area:</span>
+                  <span className="font-mono">{result.heatTransferArea.toFixed(1)} m²</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Overall U-Value:</span>
+                  <span className="font-mono">{result.uValue} W/m²·K</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tube Count:</span>
+                  <span className="font-mono">{result.tubeCount} tubes</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 p-4 bg-muted rounded-lg">
+              <h4 className="font-semibold">Mechanical Design Results</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Shell Diameter:</span>
+                  <span className="font-mono">{result.shellDiameter.toFixed(0)} mm</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shell ΔP:</span>
+                  <span className="font-mono">{result.shellPressureDrop.toFixed(1)} kPa</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tube ΔP:</span>
+                  <span className="font-mono">{result.tubePressureDrop.toFixed(1)} kPa</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Info className="h-4 w-4 text-blue-600" />
+              <span className="font-medium text-blue-900">Design Summary</span>
+            </div>
+            <div className="text-sm text-blue-800 space-y-1">
+              <p><strong>TEMA Type:</strong> {shellType} - {
+                shellType === "BEM" ? "Fixed Tubesheet Design" :
+                shellType === "BEU" ? "U-Tube Design" :
+                shellType === "AES" ? "Floating Head Design" :
+                "Split Ring Floating Head Design"
+              }</p>
+              <p><strong>Tube Configuration:</strong> {tubeOD}mm OD × {tubeLength}mm long, {passes} pass(es)</p>
+              <p><strong>Layout:</strong> Triangular pitch at {tubePitch}mm centers</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span className="text-sm">{result.status}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground space-y-1">
+        <p><strong>Standards:</strong> TEMA (Tubular Exchanger Manufacturers Association)</p>
+        <p><strong>Note:</strong> This is a preliminary sizing tool. Detailed thermal and hydraulic design should be verified using specialized software and TEMA standards.</p>
+        <p><strong>Design Codes:</strong> ASME Section VIII for pressure vessel design</p>
       </div>
     </div>
   );
