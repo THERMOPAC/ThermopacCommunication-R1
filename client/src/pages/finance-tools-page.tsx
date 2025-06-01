@@ -411,10 +411,7 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
                 min="0"
                 placeholder="Enter surcharge rate"
                 value={surchargeRate}
-                onChange={(e) => {
-                  console.log('Surcharge input changed:', e.target.value);
-                  setSurchargeRate(e.target.value);
-                }}
+                onChange={(e) => setSurchargeRate(e.target.value)}
               />
             </div>
             <div>
