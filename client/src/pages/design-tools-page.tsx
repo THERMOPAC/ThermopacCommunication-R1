@@ -41,7 +41,11 @@ import {
   Scale,
   Flame,
   Filter,
-  Beaker
+  Beaker,
+  ArrowLeftRight,
+  ArrowUpDown,
+  Container,
+  Bolt
 } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -6296,6 +6300,986 @@ function LuxLevelEstimator() {
   );
 }
 
+// Unit Converter Components
+function LengthConverter() {
+  const [value, setValue] = useState("");
+  const [fromUnit, setFromUnit] = useState("m");
+  const [toUnit, setToUnit] = useState("ft");
+  const [result, setResult] = useState("");
+
+  const lengthUnits = {
+    mm: { name: "Millimeters", factor: 0.001 },
+    cm: { name: "Centimeters", factor: 0.01 },
+    m: { name: "Meters", factor: 1 },
+    in: { name: "Inches", factor: 0.0254 },
+    ft: { name: "Feet", factor: 0.3048 },
+    yd: { name: "Yards", factor: 0.9144 },
+    km: { name: "Kilometers", factor: 1000 },
+    mi: { name: "Miles", factor: 1609.344 }
+  };
+
+  const convert = () => {
+    const inputValue = parseFloat(value);
+    if (isNaN(inputValue)) {
+      setResult("");
+      return;
+    }
+
+    const fromFactor = lengthUnits[fromUnit as keyof typeof lengthUnits].factor;
+    const toFactor = lengthUnits[toUnit as keyof typeof lengthUnits].factor;
+    const converted = (inputValue * fromFactor) / toFactor;
+    setResult(converted.toExponential(6));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fromUnit">From Unit</Label>
+          <Select value={fromUnit} onValueChange={setFromUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(lengthUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name} ({key})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="toUnit">To Unit</Label>
+          <Select value={toUnit} onValueChange={setToUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(lengthUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name} ({key})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="value">Value</Label>
+        <Input
+          id="value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyUp={convert}
+          placeholder="Enter value to convert"
+        />
+      </div>
+
+      <Button onClick={convert} className="w-full">
+        <ArrowLeftRight className="h-4 w-4 mr-2" />
+        Convert
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <div className="text-center">
+            <div className="text-lg font-mono">{result}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {lengthUnits[toUnit as keyof typeof lengthUnits].name}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MassConverter() {
+  const [value, setValue] = useState("");
+  const [fromUnit, setFromUnit] = useState("kg");
+  const [toUnit, setToUnit] = useState("lb");
+  const [result, setResult] = useState("");
+
+  const massUnits = {
+    g: { name: "Grams", factor: 0.001 },
+    kg: { name: "Kilograms", factor: 1 },
+    tonne: { name: "Tonnes", factor: 1000 },
+    lb: { name: "Pounds", factor: 0.453592 },
+    oz: { name: "Ounces", factor: 0.0283495 }
+  };
+
+  const convert = () => {
+    const inputValue = parseFloat(value);
+    if (isNaN(inputValue)) {
+      setResult("");
+      return;
+    }
+
+    const fromFactor = massUnits[fromUnit as keyof typeof massUnits].factor;
+    const toFactor = massUnits[toUnit as keyof typeof massUnits].factor;
+    const converted = (inputValue * fromFactor) / toFactor;
+    setResult(converted.toExponential(6));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fromUnit">From Unit</Label>
+          <Select value={fromUnit} onValueChange={setFromUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(massUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name} ({key})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="toUnit">To Unit</Label>
+          <Select value={toUnit} onValueChange={setToUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(massUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name} ({key})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="value">Value</Label>
+        <Input
+          id="value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyUp={convert}
+          placeholder="Enter value to convert"
+        />
+      </div>
+
+      <Button onClick={convert} className="w-full">
+        <ArrowLeftRight className="h-4 w-4 mr-2" />
+        Convert
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <div className="text-center">
+            <div className="text-lg font-mono">{result}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {massUnits[toUnit as keyof typeof massUnits].name}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PressureConverter() {
+  const [value, setValue] = useState("");
+  const [fromUnit, setFromUnit] = useState("bar");
+  const [toUnit, setToUnit] = useState("psi");
+  const [result, setResult] = useState("");
+
+  const pressureUnits = {
+    Pa: { name: "Pascals", factor: 1 },
+    kPa: { name: "Kilopascals", factor: 1000 },
+    MPa: { name: "Megapascals", factor: 1000000 },
+    bar: { name: "Bar", factor: 100000 },
+    atm: { name: "Atmospheres", factor: 101325 },
+    psi: { name: "PSI", factor: 6894.76 },
+    mmHg: { name: "mmHg", factor: 133.322 },
+    Torr: { name: "Torr", factor: 133.322 }
+  };
+
+  const convert = () => {
+    const inputValue = parseFloat(value);
+    if (isNaN(inputValue)) {
+      setResult("");
+      return;
+    }
+
+    const fromFactor = pressureUnits[fromUnit as keyof typeof pressureUnits].factor;
+    const toFactor = pressureUnits[toUnit as keyof typeof pressureUnits].factor;
+    const converted = (inputValue * fromFactor) / toFactor;
+    setResult(converted.toExponential(6));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fromUnit">From Unit</Label>
+          <Select value={fromUnit} onValueChange={setFromUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(pressureUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name} ({key})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="toUnit">To Unit</Label>
+          <Select value={toUnit} onValueChange={setToUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(pressureUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name} ({key})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="value">Value</Label>
+        <Input
+          id="value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyUp={convert}
+          placeholder="Enter value to convert"
+        />
+      </div>
+
+      <Button onClick={convert} className="w-full">
+        <ArrowLeftRight className="h-4 w-4 mr-2" />
+        Convert
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <div className="text-center">
+            <div className="text-lg font-mono">{result}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {pressureUnits[toUnit as keyof typeof pressureUnits].name}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TemperatureConverter() {
+  const [value, setValue] = useState("");
+  const [fromUnit, setFromUnit] = useState("C");
+  const [toUnit, setToUnit] = useState("F");
+  const [result, setResult] = useState("");
+
+  const temperatureUnits = {
+    C: { name: "Celsius (°C)" },
+    F: { name: "Fahrenheit (°F)" },
+    K: { name: "Kelvin (K)" },
+    R: { name: "Rankine (°R)" }
+  };
+
+  const convert = () => {
+    const inputValue = parseFloat(value);
+    if (isNaN(inputValue)) {
+      setResult("");
+      return;
+    }
+
+    // Convert to Celsius first
+    let celsius = inputValue;
+    if (fromUnit === "F") celsius = (inputValue - 32) * 5/9;
+    else if (fromUnit === "K") celsius = inputValue - 273.15;
+    else if (fromUnit === "R") celsius = (inputValue - 491.67) * 5/9;
+
+    // Convert from Celsius to target unit
+    let converted = celsius;
+    if (toUnit === "F") converted = celsius * 9/5 + 32;
+    else if (toUnit === "K") converted = celsius + 273.15;
+    else if (toUnit === "R") converted = celsius * 9/5 + 491.67;
+
+    setResult(converted.toFixed(3));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fromUnit">From Unit</Label>
+          <Select value={fromUnit} onValueChange={setFromUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(temperatureUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="toUnit">To Unit</Label>
+          <Select value={toUnit} onValueChange={setToUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(temperatureUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="value">Temperature Value</Label>
+        <Input
+          id="value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyUp={convert}
+          placeholder="Enter temperature to convert"
+        />
+      </div>
+
+      <Button onClick={convert} className="w-full">
+        <ArrowLeftRight className="h-4 w-4 mr-2" />
+        Convert
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <div className="text-center">
+            <div className="text-lg font-mono">{result}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {temperatureUnits[toUnit as keyof typeof temperatureUnits].name}
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            <p><strong>Formula-based conversion:</strong></p>
+            <p>C to F: (°C × 9/5) + 32</p>
+            <p>F to C: (°F - 32) × 5/9</p>
+            <p>C to K: °C + 273.15</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FlowRateConverter() {
+  const [value, setValue] = useState("");
+  const [fromUnit, setFromUnit] = useState("m3/h");
+  const [toUnit, setToUnit] = useState("GPM");
+  const [result, setResult] = useState("");
+
+  const flowUnits = {
+    "L/s": { name: "Liters per Second", factor: 1 },
+    "m3/h": { name: "Cubic Meters per Hour", factor: 277.778 },
+    "GPM": { name: "Gallons per Minute", factor: 63.0901 },
+    "CFM": { name: "Cubic Feet per Minute", factor: 471.947 }
+  };
+
+  const convert = () => {
+    const inputValue = parseFloat(value);
+    if (isNaN(inputValue)) {
+      setResult("");
+      return;
+    }
+
+    const fromFactor = flowUnits[fromUnit as keyof typeof flowUnits].factor;
+    const toFactor = flowUnits[toUnit as keyof typeof flowUnits].factor;
+    const converted = (inputValue * fromFactor) / toFactor;
+    setResult(converted.toExponential(6));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fromUnit">From Unit</Label>
+          <Select value={fromUnit} onValueChange={setFromUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(flowUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="toUnit">To Unit</Label>
+          <Select value={toUnit} onValueChange={setToUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(flowUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="value">Flow Rate</Label>
+        <Input
+          id="value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyUp={convert}
+          placeholder="Enter flow rate to convert"
+        />
+      </div>
+
+      <Button onClick={convert} className="w-full">
+        <ArrowLeftRight className="h-4 w-4 mr-2" />
+        Convert
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <div className="text-center">
+            <div className="text-lg font-mono">{result}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {flowUnits[toUnit as keyof typeof flowUnits].name}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EnergyConverter() {
+  const [value, setValue] = useState("");
+  const [fromUnit, setFromUnit] = useState("kJ");
+  const [toUnit, setToUnit] = useState("BTU");
+  const [result, setResult] = useState("");
+
+  const energyUnits = {
+    J: { name: "Joules", factor: 1 },
+    kJ: { name: "Kilojoules", factor: 1000 },
+    cal: { name: "Calories", factor: 4.184 },
+    kcal: { name: "Kilocalories", factor: 4184 },
+    BTU: { name: "British Thermal Units", factor: 1055.06 },
+    kWh: { name: "Kilowatt Hours", factor: 3600000 },
+    therm: { name: "Therms", factor: 105505600 }
+  };
+
+  const convert = () => {
+    const inputValue = parseFloat(value);
+    if (isNaN(inputValue)) {
+      setResult("");
+      return;
+    }
+
+    const fromFactor = energyUnits[fromUnit as keyof typeof energyUnits].factor;
+    const toFactor = energyUnits[toUnit as keyof typeof energyUnits].factor;
+    const converted = (inputValue * fromFactor) / toFactor;
+    setResult(converted.toExponential(6));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fromUnit">From Unit</Label>
+          <Select value={fromUnit} onValueChange={setFromUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(energyUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name} ({key})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="toUnit">To Unit</Label>
+          <Select value={toUnit} onValueChange={setToUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(energyUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name} ({key})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="value">Energy Value</Label>
+        <Input
+          id="value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyUp={convert}
+          placeholder="Enter energy value to convert"
+        />
+      </div>
+
+      <Button onClick={convert} className="w-full">
+        <ArrowLeftRight className="h-4 w-4 mr-2" />
+        Convert
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <div className="text-center">
+            <div className="text-lg font-mono">{result}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {energyUnits[toUnit as keyof typeof energyUnits].name}
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            <p><strong>Formula-based conversion:</strong></p>
+            <p>1 kWh = 3.6 MJ = 3412 BTU</p>
+            <p>1 cal = 4.184 J (thermochemical calorie)</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PowerConverter() {
+  const [value, setValue] = useState("");
+  const [fromUnit, setFromUnit] = useState("kW");
+  const [toUnit, setToUnit] = useState("HP");
+  const [result, setResult] = useState("");
+
+  const powerUnits = {
+    W: { name: "Watts", factor: 1 },
+    kW: { name: "Kilowatts", factor: 1000 },
+    MW: { name: "Megawatts", factor: 1000000 },
+    HP: { name: "Horsepower", factor: 745.7 },
+    "BTU/h": { name: "BTU per Hour", factor: 0.293071 }
+  };
+
+  const convert = () => {
+    const inputValue = parseFloat(value);
+    if (isNaN(inputValue)) {
+      setResult("");
+      return;
+    }
+
+    const fromFactor = powerUnits[fromUnit as keyof typeof powerUnits].factor;
+    const toFactor = powerUnits[toUnit as keyof typeof powerUnits].factor;
+    const converted = (inputValue * fromFactor) / toFactor;
+    setResult(converted.toExponential(6));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fromUnit">From Unit</Label>
+          <Select value={fromUnit} onValueChange={setFromUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(powerUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="toUnit">To Unit</Label>
+          <Select value={toUnit} onValueChange={setToUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(powerUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="value">Power Value</Label>
+        <Input
+          id="value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyUp={convert}
+          placeholder="Enter power value to convert"
+        />
+      </div>
+
+      <Button onClick={convert} className="w-full">
+        <ArrowLeftRight className="h-4 w-4 mr-2" />
+        Convert
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <div className="text-center">
+            <div className="text-lg font-mono">{result}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {powerUnits[toUnit as keyof typeof powerUnits].name}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ElectricalConverter() {
+  const [value, setValue] = useState("");
+  const [fromUnit, setFromUnit] = useState("V");
+  const [toUnit, setToUnit] = useState("kV");
+  const [result, setResult] = useState("");
+  const [unitType, setUnitType] = useState("voltage");
+
+  const electricalUnits = {
+    voltage: {
+      V: { name: "Volts", factor: 1 },
+      kV: { name: "Kilovolts", factor: 1000 },
+      mV: { name: "Millivolts", factor: 0.001 }
+    },
+    current: {
+      A: { name: "Amperes", factor: 1 },
+      mA: { name: "Milliamperes", factor: 0.001 }
+    },
+    resistance: {
+      "Ω": { name: "Ohms", factor: 1 },
+      "kΩ": { name: "Kiloohms", factor: 1000 }
+    }
+  };
+
+  const currentUnits = electricalUnits[unitType as keyof typeof electricalUnits];
+
+  const convert = () => {
+    const inputValue = parseFloat(value);
+    if (isNaN(inputValue)) {
+      setResult("");
+      return;
+    }
+
+    const fromFactor = currentUnits[fromUnit as keyof typeof currentUnits]?.factor || 1;
+    const toFactor = currentUnits[toUnit as keyof typeof currentUnits]?.factor || 1;
+    const converted = (inputValue * fromFactor) / toFactor;
+    setResult(converted.toExponential(6));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="unitType">Unit Type</Label>
+        <Select value={unitType} onValueChange={(value) => {
+          setUnitType(value);
+          const units = electricalUnits[value as keyof typeof electricalUnits];
+          const unitKeys = Object.keys(units);
+          setFromUnit(unitKeys[0]);
+          setToUnit(unitKeys[1] || unitKeys[0]);
+        }}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="voltage">Voltage</SelectItem>
+            <SelectItem value="current">Current</SelectItem>
+            <SelectItem value="resistance">Resistance</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fromUnit">From Unit</Label>
+          <Select value={fromUnit} onValueChange={setFromUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(currentUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name} ({key})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="toUnit">To Unit</Label>
+          <Select value={toUnit} onValueChange={setToUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(currentUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name} ({key})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="value">Electrical Value</Label>
+        <Input
+          id="value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyUp={convert}
+          placeholder="Enter value to convert"
+        />
+      </div>
+
+      <Button onClick={convert} className="w-full">
+        <ArrowLeftRight className="h-4 w-4 mr-2" />
+        Convert
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <div className="text-center">
+            <div className="text-lg font-mono">{result}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {currentUnits[toUnit as keyof typeof currentUnits]?.name}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VolumeConverter() {
+  const [value, setValue] = useState("");
+  const [fromUnit, setFromUnit] = useState("L");
+  const [toUnit, setToUnit] = useState("gal");
+  const [result, setResult] = useState("");
+  const [unitType, setUnitType] = useState("volume");
+
+  const conversionUnits = {
+    volume: {
+      L: { name: "Liters", factor: 1 },
+      "m³": { name: "Cubic Meters", factor: 1000 },
+      "ft³": { name: "Cubic Feet", factor: 28.3168 },
+      gal: { name: "Gallons (US)", factor: 3.78541 }
+    },
+    density: {
+      "kg/m³": { name: "kg/m³", factor: 1 },
+      "lb/ft³": { name: "lb/ft³", factor: 16.0185 }
+    }
+  };
+
+  const currentUnits = conversionUnits[unitType as keyof typeof conversionUnits];
+
+  const convert = () => {
+    const inputValue = parseFloat(value);
+    if (isNaN(inputValue)) {
+      setResult("");
+      return;
+    }
+
+    const fromFactor = currentUnits[fromUnit as keyof typeof currentUnits]?.factor || 1;
+    const toFactor = currentUnits[toUnit as keyof typeof currentUnits]?.factor || 1;
+    const converted = (inputValue * fromFactor) / toFactor;
+    setResult(converted.toExponential(6));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="unitType">Unit Type</Label>
+        <Select value={unitType} onValueChange={(value) => {
+          setUnitType(value);
+          const units = conversionUnits[value as keyof typeof conversionUnits];
+          const unitKeys = Object.keys(units);
+          setFromUnit(unitKeys[0]);
+          setToUnit(unitKeys[1] || unitKeys[0]);
+        }}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="volume">Volume</SelectItem>
+            <SelectItem value="density">Density</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fromUnit">From Unit</Label>
+          <Select value={fromUnit} onValueChange={setFromUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(currentUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="toUnit">To Unit</Label>
+          <Select value={toUnit} onValueChange={setToUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(currentUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="value">Value</Label>
+        <Input
+          id="value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyUp={convert}
+          placeholder="Enter value to convert"
+        />
+      </div>
+
+      <Button onClick={convert} className="w-full">
+        <ArrowLeftRight className="h-4 w-4 mr-2" />
+        Convert
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <div className="text-center">
+            <div className="text-lg font-mono">{result}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {currentUnits[toUnit as keyof typeof currentUnits]?.name}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConcentrationConverter() {
+  const [value, setValue] = useState("");
+  const [fromUnit, setFromUnit] = useState("%");
+  const [toUnit, setToUnit] = useState("ppm");
+  const [result, setResult] = useState("");
+
+  const concentrationUnits = {
+    "%": { name: "Percentage", factor: 1 },
+    ppm: { name: "Parts per Million", factor: 0.0001 },
+    "mol/L": { name: "Molarity (mol/L)", factor: 1 }
+  };
+
+  const convert = () => {
+    const inputValue = parseFloat(value);
+    if (isNaN(inputValue)) {
+      setResult("");
+      return;
+    }
+
+    let converted = inputValue;
+    
+    // Special conversions for concentration units
+    if (fromUnit === "%" && toUnit === "ppm") {
+      converted = inputValue * 10000;
+    } else if (fromUnit === "ppm" && toUnit === "%") {
+      converted = inputValue / 10000;
+    } else if (fromUnit !== toUnit && (fromUnit === "mol/L" || toUnit === "mol/L")) {
+      // For mol/L conversions, we need molecular weight which is not provided
+      // So we'll use a simple factor conversion
+      const fromFactor = concentrationUnits[fromUnit as keyof typeof concentrationUnits].factor;
+      const toFactor = concentrationUnits[toUnit as keyof typeof concentrationUnits].factor;
+      converted = (inputValue * fromFactor) / toFactor;
+    }
+
+    setResult(converted.toExponential(6));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="fromUnit">From Unit</Label>
+          <Select value={fromUnit} onValueChange={setFromUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(concentrationUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="toUnit">To Unit</Label>
+          <Select value={toUnit} onValueChange={setToUnit}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(concentrationUnits).map(([key, unit]) => (
+                <SelectItem key={key} value={key}>{unit.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="value">Concentration Value</Label>
+        <Input
+          id="value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyUp={convert}
+          placeholder="Enter concentration to convert"
+        />
+      </div>
+
+      <Button onClick={convert} className="w-full">
+        <ArrowLeftRight className="h-4 w-4 mr-2" />
+        Convert
+      </Button>
+
+      {result && (
+        <div className="p-4 bg-blue-50 rounded-lg border">
+          <div className="text-center">
+            <div className="text-lg font-mono">{result}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {concentrationUnits[toUnit as keyof typeof concentrationUnits].name}
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            <p><strong>Common conversions:</strong></p>
+            <p>1% = 10,000 ppm</p>
+            <p>mol/L conversions require molecular weight</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DesignToolsPage() {
   return (
     <Layout>
@@ -6308,13 +7292,14 @@ export default function DesignToolsPage() {
         </div>
 
         <Tabs defaultValue="mechanical" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="mechanical">Mechanical Design</TabsTrigger>
             <TabsTrigger value="pressure-vessel">Pressure Vessel Design</TabsTrigger>
             <TabsTrigger value="heat-exchanger">Heat Exchanger Design</TabsTrigger>
             <TabsTrigger value="piping">Piping Design</TabsTrigger>
             <TabsTrigger value="electrical">Electrical Design</TabsTrigger>
             <TabsTrigger value="analysis">Analysis Tools</TabsTrigger>
+            <TabsTrigger value="unit-converter">Unit Converter</TabsTrigger>
             <TabsTrigger value="collaboration">Collaboration</TabsTrigger>
           </TabsList>
 
@@ -8090,6 +9075,323 @@ export default function DesignToolsPage() {
                         <DialogTitle>Flash Calculation Tool</DialogTitle>
                       </DialogHeader>
                       <FlashCalculationTool />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+            </div>
+          </TabsContent>
+
+          {/* Unit Converter Tab */}
+          <TabsContent value="unit-converter" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Length & Distance Converter</CardTitle>
+                    <CardDescription>
+                      Convert between metric and imperial length units
+                    </CardDescription>
+                  </div>
+                  <Ruler className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    mm, cm, m, in, ft, yd, km, mi conversions
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <ArrowLeftRight className="h-4 w-4 mr-2" />
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Length & Distance Unit Converter</DialogTitle>
+                      </DialogHeader>
+                      <LengthConverter />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Mass & Weight Converter</CardTitle>
+                    <CardDescription>
+                      Convert between metric and imperial mass units
+                    </CardDescription>
+                  </div>
+                  <Scale className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    g, kg, tonne, lb, oz conversions
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <ArrowLeftRight className="h-4 w-4 mr-2" />
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Mass & Weight Unit Converter</DialogTitle>
+                      </DialogHeader>
+                      <MassConverter />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Pressure Converter</CardTitle>
+                    <CardDescription>
+                      Convert between different pressure units
+                    </CardDescription>
+                  </div>
+                  <Gauge className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Pa, kPa, MPa, bar, atm, psi, mmHg, Torr
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <ArrowLeftRight className="h-4 w-4 mr-2" />
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Pressure Unit Converter</DialogTitle>
+                      </DialogHeader>
+                      <PressureConverter />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Temperature Converter</CardTitle>
+                    <CardDescription>
+                      Convert between temperature scales with formulas
+                    </CardDescription>
+                  </div>
+                  <Thermometer className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    °C, °F, K, °R with formula-based conversion
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <ArrowLeftRight className="h-4 w-4 mr-2" />
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Temperature Unit Converter</DialogTitle>
+                      </DialogHeader>
+                      <TemperatureConverter />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Flow Rate Converter</CardTitle>
+                    <CardDescription>
+                      Convert between liquid and gas flow rates
+                    </CardDescription>
+                  </div>
+                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    L/s, m³/h, GPM, CFM conversions
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <ArrowLeftRight className="h-4 w-4 mr-2" />
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Flow Rate Unit Converter</DialogTitle>
+                      </DialogHeader>
+                      <FlowRateConverter />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Energy & Heat Converter</CardTitle>
+                    <CardDescription>
+                      Convert between energy units with formulas
+                    </CardDescription>
+                  </div>
+                  <Zap className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    J, kJ, cal, kcal, BTU, kWh, therm
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <ArrowLeftRight className="h-4 w-4 mr-2" />
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Energy & Heat Unit Converter</DialogTitle>
+                      </DialogHeader>
+                      <EnergyConverter />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Power Converter</CardTitle>
+                    <CardDescription>
+                      Convert between mechanical and electrical power
+                    </CardDescription>
+                  </div>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    W, kW, MW, HP, BTU/h conversions
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <ArrowLeftRight className="h-4 w-4 mr-2" />
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Power Unit Converter</DialogTitle>
+                      </DialogHeader>
+                      <PowerConverter />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Electrical Converter</CardTitle>
+                    <CardDescription>
+                      Convert between electrical units
+                    </CardDescription>
+                  </div>
+                  <Bolt className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    V, kV, mV, A, mA, Ω, kΩ conversions
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <ArrowLeftRight className="h-4 w-4 mr-2" />
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Electrical Unit Converter</DialogTitle>
+                      </DialogHeader>
+                      <ElectricalConverter />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Volume & Density Converter</CardTitle>
+                    <CardDescription>
+                      Convert between volume and density units
+                    </CardDescription>
+                  </div>
+                  <Container className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    L, m³, ft³, gal, kg/m³, lb/ft³
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <ArrowLeftRight className="h-4 w-4 mr-2" />
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Volume & Density Unit Converter</DialogTitle>
+                      </DialogHeader>
+                      <VolumeConverter />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Concentration Converter</CardTitle>
+                    <CardDescription>
+                      Convert between concentration units
+                    </CardDescription>
+                  </div>
+                  <Beaker className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    %, ppm, mol/L conversions
+                  </p>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <ArrowLeftRight className="h-4 w-4 mr-2" />
+                        Open Converter
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Concentration Unit Converter</DialogTitle>
+                      </DialogHeader>
+                      <ConcentrationConverter />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
