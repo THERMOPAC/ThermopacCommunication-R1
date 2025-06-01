@@ -27,6 +27,151 @@ import {
   Users,
   Shield
 } from "lucide-react";
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+// Shell Thickness Calculator Component
+function ShellThicknessCalculator() {
+  const [shellType, setShellType] = useState("cylindrical");
+  const [pressure, setPressure] = useState("");
+  const [diameter, setDiameter] = useState("");
+  const [allowableStress, setAllowableStress] = useState("");
+  const [jointEfficiency, setJointEfficiency] = useState("1.0");
+  const [corrosionAllowance, setCorrosionAllowance] = useState("0.125");
+  const [result, setResult] = useState<number | null>(null);
+
+  const calculateThickness = () => {
+    const P = parseFloat(pressure);
+    const D = parseFloat(diameter);
+    const S = parseFloat(allowableStress);
+    const E = parseFloat(jointEfficiency);
+    const CA = parseFloat(corrosionAllowance);
+
+    if (!P || !D || !S || !E) return;
+
+    let t = 0;
+
+    switch (shellType) {
+      case "cylindrical":
+        // t = (P * R) / (S * E - 0.6 * P) + CA
+        const R = D / 2;
+        t = (P * R) / (S * E - 0.6 * P) + CA;
+        break;
+      case "spherical":
+        // t = (P * R) / (2 * S * E - 0.2 * P) + CA
+        const Rs = D / 2;
+        t = (P * Rs) / (2 * S * E - 0.2 * P) + CA;
+        break;
+      case "conical":
+        // t = (P * D) / (2 * cos(α) * (S * E - 0.6 * P)) + CA
+        // Assuming 30° half-angle for simplification
+        const alpha = 30 * (Math.PI / 180); // 30 degrees in radians
+        t = (P * D) / (2 * Math.cos(alpha) * (S * E - 0.6 * P)) + CA;
+        break;
+    }
+
+    setResult(t);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="shellType">Shell Type</Label>
+          <Select value={shellType} onValueChange={setShellType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cylindrical">Cylindrical</SelectItem>
+              <SelectItem value="spherical">Spherical</SelectItem>
+              <SelectItem value="conical">Conical (30° half-angle)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="pressure">Internal Pressure (psi)</Label>
+          <Input
+            id="pressure"
+            type="number"
+            value={pressure}
+            onChange={(e) => setPressure(e.target.value)}
+            placeholder="e.g., 150"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="diameter">Inside Diameter (in)</Label>
+          <Input
+            id="diameter"
+            type="number"
+            value={diameter}
+            onChange={(e) => setDiameter(e.target.value)}
+            placeholder="e.g., 24"
+          />
+        </div>
+        <div>
+          <Label htmlFor="allowableStress">Allowable Stress (psi)</Label>
+          <Input
+            id="allowableStress"
+            type="number"
+            value={allowableStress}
+            onChange={(e) => setAllowableStress(e.target.value)}
+            placeholder="e.g., 20000"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="jointEfficiency">Joint Efficiency</Label>
+          <Select value={jointEfficiency} onValueChange={setJointEfficiency}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1.0">1.0 (Full radiography)</SelectItem>
+              <SelectItem value="0.85">0.85 (Spot radiography)</SelectItem>
+              <SelectItem value="0.70">0.70 (No radiography)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="corrosionAllowance">Corrosion Allowance (in)</Label>
+          <Input
+            id="corrosionAllowance"
+            type="number"
+            step="0.001"
+            value={corrosionAllowance}
+            onChange={(e) => setCorrosionAllowance(e.target.value)}
+            placeholder="e.g., 0.125"
+          />
+        </div>
+      </div>
+
+      <Button onClick={calculateThickness} className="w-full">
+        <Calculator className="h-4 w-4 mr-2" />
+        Calculate Thickness
+      </Button>
+
+      {result !== null && (
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <h4 className="font-semibold text-green-900">Calculation Result</h4>
+          <p className="text-green-800 mt-1">
+            Required Wall Thickness: <span className="font-bold">{result.toFixed(4)} inches</span>
+          </p>
+          <p className="text-sm text-green-700 mt-2">
+            Formula used: ASME Section VIII Div. 1 - {shellType} shell
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DesignToolsPage() {
   return (
@@ -155,23 +300,10 @@ export default function DesignToolsPage() {
                   <Calculator className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Per ASME Section VIII Div. 1 requirements
-                    </p>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Calculator className="h-4 w-4 mr-2" />
-                      Cylindrical Shell Calculator
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Gauge className="h-4 w-4 mr-2" />
-                      Spherical Shell Calculator
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-left" disabled>
-                      <Target className="h-4 w-4 mr-2" />
-                      Conical Shell Calculator
-                    </Button>
-                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Per ASME Section VIII Div. 1 requirements
+                  </p>
+                  <ShellThicknessCalculator />
                 </CardContent>
               </Card>
 
